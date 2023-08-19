@@ -1,0 +1,19 @@
+# Java stuff
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# Idea
+.idea/
+target/
+*.iml
+
+# Editors
+#*
+*~
+TAGS
+
+# Libs
+*/lib/*jar
