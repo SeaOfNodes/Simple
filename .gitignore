@@ -1,0 +1,33 @@
+# Java stuff
+
+# Compiled class file
+*.class
+build/
+*/docs/examples/*.o
+*/docs/examples/*.exe
+
+# Log file
+*.log
+
+# Idea
+.idea/
+target/
+*.iml
+.vscode/
+
+
+# Editors
+#*
+*~
+TAGS
+
+# Libs
+*/lib/*jar
+
+# Portable IDEA descriptors for the split memory chapters
+!chapter10a/chapter10a.iml
+!chapter10b/chapter10b.iml
+!graph/graph.iml
+!print/print.iml
+!isa/isa.iml
+!isa/src/test-support/isa-eval.iml
