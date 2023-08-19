@@ -1,0 +1,40 @@
+# Java stuff
+
+# Compiled class file
+*.class
+__pycache__/
+build/
+*/docs/examples/*.o
+*/docs/examples/*.exe
+
+# Log file
+*.log
+
+# Idea
+.idea/*
+!.idea/modules.xml
+!.idea/compiler.xml
+target/
+*.iml
+.vscode/
+
+
+# Editors
+#*
+*~
+TAGS
+
+# Libs
+*/lib/*jar
+*/lib/*.tmp
+/chapter31/lib/minifb-*/
+/chapter31/lib/minifb-*.tar.gz
+/chapter31/lib/miniaudio-*/
+
+# Portable IDEA descriptors; personal IDE settings stay ignored.
+!chapter*/*.iml
+!graph/graph.iml
+!print/print.iml
+!isa/isa.iml
+!isa/src/test-support/isa-eval.iml
+!transpile-tests/transpile-tests.iml

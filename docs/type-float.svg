@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="20" viewBox="0 0 44 20" role="img" aria-labelledby="title">
+  <title id="title">Float</title>
+  <rect width="44" height="20" rx="2" fill="#00ffff"/>
+  <text x="22" y="14" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#000000">Float</text>
+</svg>
