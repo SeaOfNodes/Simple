@@ -1,0 +1,13 @@
+{
+  "ver": 1,
+  "comp": "chapter01/docs/01-use-def.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "A", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": null},
+    {"id": 2, "label": "B", "type": null, "kind": "DATA", "edges": [], "proj": null}
+  ],
+  "groups": [
+  ]
+}
