@@ -17,6 +17,8 @@
 
 package com.seaofnodes.util;
 
+import org.jctools.maps.NonBlockingHashMapLong;
+
 // Simple sparse bitset, with a test-and-set.
 public class BitSetSparse {
   NonBlockingHashMapLong<String> _set = new NonBlockingHashMapLong<>();
