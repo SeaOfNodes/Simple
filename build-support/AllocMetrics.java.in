@@ -1,0 +1,177 @@
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.isa.eval.*;
+import java.nio.file.*;
+import java.util.*;
+
+// Compiled separately against each chapter. No compiler or emulator mutation.
+public class Measure {
+    static final int CH=CHAPTER;
+    static int start(Encoding e,Node n) { return OPSTART; }
+    static int length(Encoding e,Node n) { return OPLEN & 255; }
+    static final Map<String,Type> returns=new HashMap<>();
+    static CodeGen compile(String src,String cpu) {
+        CodeGen c=CONSTRUCTOR.driver(CodeGen.Phase.TypeCheck);
+        EXTERNDATA
+        returns.clear();
+        c._stop.walk(n->{if(n instanceof FunNode f && f.ret()!=null)returns.put(f._name,f.ret().expr()._type);return null;});
+        RESUME
+    }
+    static byte[] image(CodeGen c) throws Exception {
+        c.encode();
+        EXTERNFUNCTIONS
+        var externalField=Encoding.class.getDeclaredField("_externals");externalField.setAccessible(true);
+        @SuppressWarnings("unchecked") var externals=(Map<Node,String>)externalField.get(c._encoding);
+        var extra=new LinkedHashMap<Node,String>();
+        for(var e:externals.entrySet())if(!e.getValue().equals("calloc")&&!e.getValue().equals("write")){extra.put(e.getKey(),e.getValue());e.setValue("write");}
+        EXPORT;
+        for(var e:extra.entrySet()){
+            Node n=e.getKey();String name=e.getValue();externals.put(n,name);
+            int target=name.equals("read")?-12:name.equals("errno")?0x3808:-16;
+            ((RIPRelSize)n).patch(c._encoding,start(c._encoding,n),(byte)length(c._encoding,n),target-start(c._encoding,n));
+        }
+        byte[] image=new byte[16<<20];
+        var e=c._encoding;
+        System.arraycopy(e.bits(),0,image,0,e._bits.size());
+        COPYPOOLS
+        return image;
+    }
+    static class CPU {
+        EvalRisc5 r; EvalArm64 a; long[] regs; double[] fregs; byte[] mem;
+        long ops,ra; BitSet added; int inputPos;
+        final byte[] input="[4, 3, 2, 1]".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        CPU(String cpu,byte[] img,BitSet additions) {
+            mem=img; added=additions;
+            if(cpu.equals("riscv")) { r=new EvalRisc5(img,1<<20); regs=r.regs; fregs=r.fregs; }
+            else { a=new EvalArm64(img,1<<20); regs=a.regs; fregs=a.fregs; }
+        }
+        int base(){return r!=null?10:0;}
+        int pc(){return r!=null?r._pc:a._pc;}
+        void pc(int p){if(r!=null)r._pc=p;else a._pc=p;}
+        long load(int p,int sz){long x=0;for(int i=0;i<sz;i++)x|=(mem[p+i]&255L)<<(8*i);return x;}
+        void store(int p,long x,int sz){for(int i=0;i<sz;i++)mem[p+i]=(byte)(x>>(8*i));}
+        String stdout(){var s=r!=null?r._stdout:a._stdout;return s==null?"":s.toString(java.nio.charset.StandardCharsets.UTF_8);}
+        void run(int entry) {
+            pc(entry);regs[r!=null?1:30]=0;
+            for(int i=0;i<2_000_000;i++) {
+                int p=pc(),ir=(int)load(p,4);
+                int target=Integer.MAX_VALUE;
+                if(r!=null) {
+                    if((ir&127)==0x67)target=(int)((regs[(ir>>>15)&31]+(ir>>20))&~1L);
+                    else if((ir&127)==0x6f){int d=((ir>>31)<<20)|((ir>>>21&1023)<<1)|((ir>>>20&1)<<11)|(ir&0xff000);target=p+d;}
+                }else if((ir&0xfc000000)==0x94000000)target=p+((ir<<6)>>4);
+                else if((ir&0xfffffc1f)==0xd63f0000)target=(int)regs[(ir>>>5)&31];
+                if(target==-12) {
+                    int len=Math.min((int)regs[base()+2],input.length-inputPos);
+                    System.arraycopy(input,inputPos,mem,(int)regs[base()+1],len);inputPos+=len;
+                    regs[base()]=len;regs[r!=null?1:30]=p+4;pc(p+4);
+                    ops++;if(added.get(p))ra++;continue;
+                }
+                boolean ret=r!=null
+                    ? (ir&127)==0x67 && ((regs[(ir>>>15)&31]+(ir>>20))&~1L)==0
+                    : (ir&0xfffffc1f)==0xd65f0000 && regs[(ir>>>5)&31]==0;
+                int trap=r!=null?r.step(1):a.step(1);
+                if(trap!=0)throw new IllegalStateException("trap="+trap+" pc="+p+" ir="+Integer.toHexString(ir));
+                if((pc()&3)!=0)throw new IllegalStateException("unaligned next pc="+pc()+" from="+p+" ir="+Integer.toHexString(ir)+" rpc="+regs[r!=null?1:30]);
+                ops++;if(added.get(p))ra++;
+                if(ret)return;
+            }
+            throw new IllegalStateException("instruction budget exhausted");
+        }
+    }
+    static String result(CPU cpu,Type t,long x,int depth) {
+        if(depth>4)return "...";
+        if(t instanceof TypeInteger ti) return Long.toString(x);
+        if(t instanceof TypeFloat) return Double.toString(Double.longBitsToDouble(x));
+        if(t instanceof TypeMemPtr p) {
+            if(x==0)return "null";
+            TypeStruct s=p._obj;int addr=(int)x;
+            if(s.isAry()) {
+                int len=(int)cpu.load(addr,4);
+                if(len<0||len>10000)throw new AssertionError("array length "+len);
+                int scale=s.aryScale(),base=s.aryBase();
+                var out=new StringBuilder("[");
+                for(int i=0;i<len;i++)out.append(cpu.load(addr+base+(i<<scale),1<<scale)).append(',');
+                return out.append(']').toString();
+            }
+            var out=new StringBuilder("{");
+            for(int i=0;i<s._fields.length;i++) {
+                Type ft=s._fields[i]._t;
+                out.append(s._fields[i]._fname).append('=');
+                out.append(result(cpu,ft,cpu.load(addr+s.offset(i),1<<ft.log_size()),depth+1)).append(',');
+            }
+            return out.append('}').toString();
+        }
+        return Long.toString(x);
+    }
+    public static void main(String[] args)throws Exception {
+        Path index=Path.of(args[0]);
+        int attempts=0, failures=0;
+        for(String line:Files.readAllLines(index)) {
+            if(line.startsWith("#")||line.isBlank())continue;
+            String[] row=line.split("\t");
+            String cohort=row[0],test=row[1],cpu=row[2],file=row[4];
+            if(!cpu.equals("arm")&&!cpu.equals("riscv"))continue;
+            String shortTest=test.substring(test.indexOf('.')+1);
+            String filter=System.getenv("DYNAMIC_CASE");
+            if(filter!=null&&!test.equals(filter))continue;
+            // Inputs are fixed per program and shared across compiler chapters.
+            String entry=switch(shortTest){case "testFibExport"->"fib";case "testNewtonExport"->"test_sqrt";case "testSieve"->"sieve";case "testBubbleSort"->"main";default->"";};
+            boolean skip=switch(shortTest){case "testString","testStringExport","testFltArg","testInfinite","testInfiniteReturn","testPerson","testArgCount","testStackArguments","testMergeSort0","testBrainFuck"->true;default->false;};
+            if(skip){System.out.println("skip,"+cohort+","+test+","+cpu+",needs driver or does not terminate");continue;}
+            long[] inputs=switch(shortTest){case "testAlloc2"->new long[]{0,1,2};case "testFibExport"->new long[]{9};case "testSieve"->new long[]{100};case "testNewtonExport","testNewtonFloat","testNewtonInteger","testArray1","testMergeSort","testAlloc0"->new long[]{16};case "testStack13","testFlags1","testFlags2","testCast","testAndPtr","testOrRhsLoopLocal","testOrRhsLoopMemory"->new long[]{0,1,2,3};default->new long[]{0};};
+            attempts++;
+            try {
+                CodeGen c=compile(Files.readString(index.getParent().resolve(file)),cpu);
+                Set<Node> before=Collections.newSetFromMap(new IdentityHashMap<>());
+                for(var bb:c._cfg){before.add(bb);for(Node n:bb._outputs)before.add(n);}
+                c.regAlloc();
+                Set<Node> added=Collections.newSetFromMap(new IdentityHashMap<>());
+                for(var bb:c._cfg)for(Node n:bb._outputs)
+                    if(n instanceof SplitNode || (!before.contains(n)&&n instanceof MachNode m&&m.isClone()))added.add(n);
+                byte[] img=image(c);
+                if(filter!=null)System.out.println(c.asm());
+                BitSet pcs=new BitSet();
+                for(Node n:added){int s=start(c._encoding,n),len=length(c._encoding,n);if(s>=0&&len>0)pcs.set(s,s+len);}
+                FunNode init=null,fun=null;
+                for(var bb:c._cfg)if(bb instanceof FunNode f){
+                    if(f._name.equals(CH==25?"class:Test.<clinit>":"main"))init=f;
+                    if(f._name.equals(entry))fun=f;
+                }
+                if(entry.isEmpty())fun=init;
+                if(fun==null)throw new IllegalStateException("No entry "+entry);
+                Type ret=returns.get(fun._name);
+                long ops=0,ra=0;var results=new ArrayList<String>();
+                for(long arg:inputs){
+                    CPU machine=new CPU(cpu,img.clone(),pcs);
+                    if(shortTest.equals("testExternDataEncoding"))machine.store(0x3800,-7,4);
+                    if(!entry.isEmpty()&&init!=null&&init!=fun)machine.run(start(c._encoding,init));
+                    for(Node n:fun._outputs)if(n instanceof ParmNode parm && n instanceof MachNode m && !parm.label().equals("$rpc")) {
+                        if(parm._type instanceof TypeInteger)machine.regs[m.outregmap().firstReg()]=arg;
+                        if(parm._type instanceof TypeFloat)machine.fregs[m.outregmap().firstReg()-32]=arg;
+                    }
+                    machine.run(start(c._encoding,fun));
+                    long value=ret instanceof TypeFloat?Double.doubleToRawLongBits(machine.fregs[cpu.equals("riscv")?10:0]):machine.regs[machine.base()];
+                    switch(shortTest) {
+                    case "testNewtonInteger": if(value!=8)throw new AssertionError("Newton integer result");break;
+                    case "testNewtonFloat": if(!(Math.abs(Double.longBitsToDouble(value)-(4+Math.sqrt(18)))<=1e-12))throw new AssertionError("Newton float result");break;
+                    case "testNewtonExport": if(!(Math.abs(Double.longBitsToDouble(value)-4)<=1e-12))throw new AssertionError("Newton export result");break;
+                    case "testStack13": if(value!=(arg==0?1:0))throw new AssertionError("Nested equality result");break;
+                    case "testFlags1": if(value!=(arg==1?2:0))throw new AssertionError("Equality result for "+arg+": "+value);break;
+                    case "testArray1": if(value!=1006)throw new AssertionError("Array result");break;
+                    case "testFibExport": if(value!=55)throw new AssertionError("Fibonacci result");break;
+                    case "testOrRhsLoopLocal", "testOrRhsLoopMemory": if(value!=((arg&1)==0?44:1))throw new AssertionError("Short-circuit result");break;
+                    case "testBubbleSort": if(value!=0||!machine.stdout().equals("[1, 2, 3, 4]"))throw new AssertionError("Bubble Sort result: "+value+" stdout="+machine.stdout());break;
+                    case "testExternDataEncoding": if(value!=-4||machine.load(0x3800,4)!=0xfffffffcL)throw new AssertionError("C data result");break;
+                    }
+                    results.add(result(machine,ret,value,0)+"/"+machine.stdout().replace("\n","\\n").replace(",",";"));
+                    ops+=machine.ops;ra+=machine.ra;
+                }
+                System.out.println("dynamic,"+cohort+","+test+","+cpu+","+inputs.length+","+ops+","+ra+","+String.join("|",results).replace(",",";")+","+Arrays.toString(inputs).replace(",",";"));
+            }catch(Throwable e){failures++;System.out.println("FAILED,"+cohort+","+test+","+cpu+","+e); e.printStackTrace(System.err);}
+        }
+        System.out.println("Dynamic cases: "+attempts+"; failures: "+failures);
+        if(failures!=0)System.exit(1);
+    }
+}

@@ -1,0 +1,40 @@
+# Java stuff
+
+# Compiled class file
+*.class
+build/
+*/docs/examples/*.o
+*/docs/examples/*.exe
+
+# Log file
+*.log
+
+# Idea
+.idea/
+target/
+*.iml
+.vscode/
+
+
+# Editors
+#*
+*~
+TAGS
+
+# Libs
+*/lib/*jar
+
+# Portable IDEA descriptors for the memory, scheduling and numeric chapters
+!chapter10/chapter10.iml
+!chapter11/chapter11.iml
+!chapter12/chapter12.iml
+!chapter13/chapter13.iml
+!chapter14/chapter14.iml
+!graph/graph.iml
+!print/print.iml
+!isa/isa.iml
+!isa/src/test-support/isa-eval.iml
+
+# Portable descriptors for the mutability / syntax-sugar split
+!chapter17a/chapter17a.iml
+!chapter17b/chapter17b.iml
