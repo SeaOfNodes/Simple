@@ -14,7 +14,7 @@
  * APL may be obtained from:
  * http://www.apache.org/licenses/LICENSE-2.0
  */
-package com.seaofnodes.simple.lexer;
+package com.seaofnodes.simple.lexer.aa;
 
 import com.seaofnodes.util.AryInt;
 import com.seaofnodes.util.SB;

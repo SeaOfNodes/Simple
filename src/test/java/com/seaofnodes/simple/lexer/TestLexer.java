@@ -3,8 +3,6 @@
  *
  * Contributor(s):
  *
- * The Initial Developer of the Original Software is Cliff Click.
- *
  * This file is part of the Sea Of Nodes Simple Programming language
  * implementation. See https://github.com/SeaOfNodes/Simple
  *
@@ -17,6 +15,10 @@
 
 package com.seaofnodes.simple.lexer;
 
+import com.seaofnodes.simple.common.ErrorListener;
+import com.seaofnodes.simple.lexer.ecstasy.Lexer;
+import com.seaofnodes.simple.lexer.ecstasy.Source;
+import com.seaofnodes.simple.lexer.ecstasy.Token;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -26,8 +28,10 @@ public class TestLexer {
     public void testLexLineComment()
     {
         final String source = "//a comment\nx";
-        Lexer lexer = new Lexer("test", source);
-        String token = lexer.token();
-        Assertions.assertEquals("x", token);
+        Lexer lexer = new Lexer(new Source(source), new ErrorListener());
+        Token token = lexer.next();
+        Assertions.assertEquals(token.getId(), Token.Id.EOL_COMMENT);
+        token = lexer.next();
+        Assertions.assertEquals("x", token.getValueText());
     }
 }
