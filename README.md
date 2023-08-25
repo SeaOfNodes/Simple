@@ -28,7 +28,7 @@ Sea Of Nodes intermediate representation.
 The simple language will be a small subset of C. 
 
 * [Common](common/README.md): Common utilities including a lexer.
-* [Language](language/README.md): definition.
+* [Language](language/README.md): Simple language definition.
 * [Chapter 1](chapter01/README.md): Simple control flow statements, `if` and `while`. Variables of `int` type. Simple 
   arithmetic such as addition, subtraction, multiplication, division. Non-zero values will be truthy.
 * Chapter 2: Function calls.
