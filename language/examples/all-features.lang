@@ -1,0 +1,21 @@
+int i;
+int j;
+
+i = 0;
+j = 100;
+while ( 1 )
+{
+    i = i + 1;
+    j = j - 1;
+    if (i >= j)
+        break;
+}
+
+if (1)
+    i = i + 5;
+else if (2)
+    i = i - 1;
+else
+{
+    j = 0;
+}
