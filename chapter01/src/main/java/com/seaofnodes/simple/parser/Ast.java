@@ -27,13 +27,11 @@ import java.util.stream.Collectors;
  */
 public class Ast {
 
-    private Ast() {
+    protected Ast() {
     }
 
-    public interface Node {
-    }
 
-    public abstract static class Expr implements Node {
+    public abstract static class Expr extends Ast {
         public final Token op;
 
         protected Expr(Token op) {
@@ -116,7 +114,7 @@ public class Ast {
         }
     }
 
-    public abstract static class Statement implements Node {
+    public abstract static class Statement extends Ast {
     }
 
     public static class IfElse extends Statement {
@@ -175,7 +173,7 @@ public class Ast {
         }
     }
 
-    public static class Type implements Node {
+    public static class Type extends Ast {
         public final Token.Id typeId;
 
         public Type(Token.Id typeId) {

@@ -22,53 +22,54 @@ import com.seaofnodes.simple.lexer.ecstasy.Token;
 import com.seaofnodes.simple.lexer.ecstasy.Severity;
 
 public class Parser {
-    final Lexer lexer;
-    Token look;
+    private Token currentToken;
 
-    public Parser(Lexer lexer) {
-        this.lexer = lexer;
+    /**
+     * Parse and return a top level Ast
+     * At present this is an Ast.Block
+     * @see Ast.Block
+     */
+    public Ast parse(Lexer lexer) {
+        nextToken(lexer);
+        return parseProgram(lexer);
     }
 
-    private Token nextOrEof() {
+    private Token nextOrEof(Lexer lexer) {
         if (lexer.hasNext())
             return lexer.next();
-        return new Token(look.getStartPosition(), look.getEndPosition(), Token.Id.EOF);
+        return new Token(currentToken.getStartPosition(), currentToken.getEndPosition(), Token.Id.EOF);
     }
 
-    private void nextToken() {
-        look = nextOrEof();
+    private void nextToken(Lexer lexer) {
+        currentToken = nextOrEof(lexer);
         // skip comments
-        while (look.isComment()) {
-            look = nextOrEof();
+        while (currentToken.isComment()) {
+            currentToken = nextOrEof(lexer);
         }
-        if (look.isContextSensitive() &&
-                look.getId() == Token.Id.IDENTIFIER) {
-            look = look.convertToKeyword();
+        if (currentToken.isContextSensitive() &&
+                currentToken.getId() == Token.Id.IDENTIFIER) {
+            currentToken = currentToken.convertToKeyword();
         }
     }
 
-    private void error(Token t, String errorMessage) {
+    private void error(Lexer lexer, Token t, String errorMessage) {
         lexer.log(Severity.ERROR, errorMessage, t.getStartPosition(), t.getEndPosition());
         throw new CompilerException(errorMessage + ": " + t.toDebugString());
     }
 
-    private void match(Token.Id tag) {
-        if (look.getId() == tag) {
-            nextToken();
+    private void match(Lexer lexer, Token.Id tag) {
+        if (currentToken.getId() == tag) {
+            nextToken(lexer);
         } else {
-            error(look, "syntax error, expected " + tag);
+            error(lexer, currentToken, "syntax error, expected " + tag);
         }
     }
 
-    public Ast.Node parse() {
-        nextToken();
-        return parseProgram();
-    }
 
-    private Ast.Statement parseProgram() {
+    private Ast.Statement parseProgram(Lexer lexer) {
         var block = new Ast.Block();
-        parseDeclarations(block);
-        parseStatements(block);
+        parseDeclarations(lexer, block);
+        parseStatements(lexer, block);
         return block;
     }
 
@@ -79,172 +80,172 @@ public class Parser {
         };
     }
 
-    private void parseDeclarations(Ast.Block block) {
-        while (isTypeName(look)) {
-            var type = new Ast.Type(look.getId());
-            nextToken();
-            var tok = look;
-            match(Token.Id.IDENTIFIER);
-            match(Token.Id.SEMICOLON);
+    private void parseDeclarations(Lexer lexer, Ast.Block block) {
+        while (isTypeName(currentToken)) {
+            var type = new Ast.Type(currentToken.getId());
+            nextToken(lexer);
+            var tok = currentToken;
+            match(lexer, Token.Id.IDENTIFIER);
+            match(lexer, Token.Id.SEMICOLON);
             var identifier = new Ast.Identifier(tok);
             block.stmtList.add(new Ast.Declare(type, identifier));
         }
     }
 
-    private void parseStatements(Ast.Block block) {
-        while (look.getId() != Token.Id.EOF &&
-                look.getId() != Token.Id.R_CURLY) {
-            block.stmtList.add(parseStatement());
+    private void parseStatements(Lexer lexer, Ast.Block block) {
+        while (currentToken.getId() != Token.Id.EOF &&
+                currentToken.getId() != Token.Id.R_CURLY) {
+            block.stmtList.add(parseStatement(lexer));
         }
     }
 
-    private Ast.Statement parseStatement() {
+    private Ast.Statement parseStatement(Lexer lexer) {
         Ast.Expr x;
         Ast.Statement s1;
         Ast.Statement s2;
 
-        switch (look.getId()) {
+        switch (currentToken.getId()) {
             case IF -> {
-                match(Token.Id.IF);
-                match(Token.Id.L_PAREN);
-                x = parseBool();
-                match(Token.Id.R_PAREN);
-                s1 = parseStatement();
-                if (look.getId() != Token.Id.ELSE) {
+                match(lexer, Token.Id.IF);
+                match(lexer, Token.Id.L_PAREN);
+                x = parseBool(lexer);
+                match(lexer, Token.Id.R_PAREN);
+                s1 = parseStatement(lexer);
+                if (currentToken.getId() != Token.Id.ELSE) {
                     return new Ast.IfElse(x, s1, null);
                 }
-                s2 = parseStatement();
+                s2 = parseStatement(lexer);
                 return new Ast.IfElse(x, s1, s2);
             }
             case WHILE -> {
-                match(Token.Id.WHILE);
-                match(Token.Id.L_PAREN);
-                x = parseBool();
-                match(Token.Id.R_PAREN);
-                s1 = parseStatement();
+                match(lexer, Token.Id.WHILE);
+                match(lexer, Token.Id.L_PAREN);
+                x = parseBool(lexer);
+                match(lexer, Token.Id.R_PAREN);
+                s1 = parseStatement(lexer);
                 return new Ast.While(x, s1);
             }
             case BREAK -> {
-                match(Token.Id.BREAK);
-                match(Token.Id.SEMICOLON);
+                match(lexer, Token.Id.BREAK);
+                match(lexer, Token.Id.SEMICOLON);
                 return new Ast.Break();
             }
             case L_CURLY -> {
-                return parseBlock();
+                return parseBlock(lexer);
             }
             default -> {
-                return parseAssign();
+                return parseAssign(lexer);
             }
         }
     }
 
-    private Ast.Statement parseBlock() {
-        match(Token.Id.L_CURLY);
+    private Ast.Statement parseBlock(Lexer lexer) {
+        match(lexer, Token.Id.L_CURLY);
         var block = new Ast.Block();
-        parseDeclarations(block);
-        parseStatements(block);
-        match(Token.Id.R_CURLY);
+        parseDeclarations(lexer, block);
+        parseStatements(lexer, block);
+        match(lexer, Token.Id.R_CURLY);
         return block;
     }
 
-    private Ast.Statement parseAssign() {
-        Token tok = look;
-        match(Token.Id.IDENTIFIER);
+    private Ast.Statement parseAssign(Lexer lexer) {
+        Token tok = currentToken;
+        match(lexer, Token.Id.IDENTIFIER);
         Ast.Identifier identifier = new Ast.Identifier(tok);
-        match(Token.Id.ASN);
-        var s = new Ast.Assign(identifier, parseBool());
-        match(Token.Id.SEMICOLON);
+        match(lexer, Token.Id.ASN);
+        var s = new Ast.Assign(identifier, parseBool(lexer));
+        match(lexer, Token.Id.SEMICOLON);
         return s;
     }
 
-    private Ast.Expr parseBool() {
-        var x = parseAnd();
-        while (look.getId() == Token.Id.COND_OR) {
-            var tok = look;
-            nextToken();
-            x = new Ast.Binary(tok, x, parseAnd());
+    private Ast.Expr parseBool(Lexer lexer) {
+        var x = parseAnd(lexer);
+        while (currentToken.getId() == Token.Id.COND_OR) {
+            var tok = currentToken;
+            nextToken(lexer);
+            x = new Ast.Binary(tok, x, parseAnd(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseAnd() {
-        var x = parseRelational();
-        while (look.getId() == Token.Id.COND_AND) {
-            var tok = look;
-            nextToken();
-            x = new Ast.Binary(tok, x, parseRelational());
+    private Ast.Expr parseAnd(Lexer lexer) {
+        var x = parseRelational(lexer);
+        while (currentToken.getId() == Token.Id.COND_AND) {
+            var tok = currentToken;
+            nextToken(lexer);
+            x = new Ast.Binary(tok, x, parseRelational(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseRelational() {
-        var x = parseAddition();
-        while (look.getId() == Token.Id.COMP_EQ ||
-                look.getId() == Token.Id.COMP_NEQ ||
-                look.getId() == Token.Id.COMP_LT ||
-                look.getId() == Token.Id.COMP_GT ||
-                look.getId() == Token.Id.COMP_GTEQ ||
-                look.getId() == Token.Id.COMP_LTEQ) {
-            var tok = look;
-            nextToken();
-            x = new Ast.Binary(tok, x, parseAddition());
+    private Ast.Expr parseRelational(Lexer lexer) {
+        var x = parseAddition(lexer);
+        while (currentToken.getId() == Token.Id.COMP_EQ ||
+                currentToken.getId() == Token.Id.COMP_NEQ ||
+                currentToken.getId() == Token.Id.COMP_LT ||
+                currentToken.getId() == Token.Id.COMP_GT ||
+                currentToken.getId() == Token.Id.COMP_GTEQ ||
+                currentToken.getId() == Token.Id.COMP_LTEQ) {
+            var tok = currentToken;
+            nextToken(lexer);
+            x = new Ast.Binary(tok, x, parseAddition(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseAddition() {
-        var x = parseMultiplication();
-        while (look.getId() == Token.Id.ADD ||
-                look.getId() == Token.Id.SUB) {
-            var tok = look;
-            nextToken();
-            x = new Ast.Binary(tok, x, parseMultiplication());
+    private Ast.Expr parseAddition(Lexer lexer) {
+        var x = parseMultiplication(lexer);
+        while (currentToken.getId() == Token.Id.ADD ||
+                currentToken.getId() == Token.Id.SUB) {
+            var tok = currentToken;
+            nextToken(lexer);
+            x = new Ast.Binary(tok, x, parseMultiplication(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseMultiplication() {
-        var x = parseUnary();
-        while (look.getId() == Token.Id.MUL ||
-                look.getId() == Token.Id.DIV) {
-            var tok = look;
-            nextToken();
-            x = new Ast.Binary(tok, x, parseUnary());
+    private Ast.Expr parseMultiplication(Lexer lexer) {
+        var x = parseUnary(lexer);
+        while (currentToken.getId() == Token.Id.MUL ||
+                currentToken.getId() == Token.Id.DIV) {
+            var tok = currentToken;
+            nextToken(lexer);
+            x = new Ast.Binary(tok, x, parseUnary(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseUnary() {
-        if (look.getId() == Token.Id.SUB ||
-                look.getId() == Token.Id.NOT) {
-            var tok = look;
-            nextToken();
-            return new Ast.Unary(tok, parseUnary());
+    private Ast.Expr parseUnary(Lexer lexer) {
+        if (currentToken.getId() == Token.Id.SUB ||
+                currentToken.getId() == Token.Id.NOT) {
+            var tok = currentToken;
+            nextToken(lexer);
+            return new Ast.Unary(tok, parseUnary(lexer));
         } else {
-            return parsePrimary();
+            return parsePrimary(lexer);
         }
     }
 
-    private Ast.Expr parsePrimary() {
-        switch (look.getId()) {
+    private Ast.Expr parsePrimary(Lexer lexer) {
+        switch (currentToken.getId()) {
             case L_PAREN -> {
-                nextToken();
-                var x = parseBool();
-                match(Token.Id.R_PAREN);
+                nextToken(lexer);
+                var x = parseBool(lexer);
+                match(lexer, Token.Id.R_PAREN);
                 return x;
             }
             case LIT_INT -> {
-                var x = new Ast.Constant(look);
-                nextToken();
+                var x = new Ast.Constant(currentToken);
+                nextToken(lexer);
                 return x;
             }
             case IDENTIFIER -> {
-                var x = new Ast.Symbol(look);
-                nextToken();
+                var x = new Ast.Symbol(currentToken);
+                nextToken(lexer);
                 return x;
             }
             default -> {
-                error(look, "syntax error, expected nested expr, integer value or variable");
+                error(lexer, currentToken, "syntax error, expected nested expr, integer value or variable");
                 return null;
             }
         }

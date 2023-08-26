@@ -29,8 +29,8 @@ public class TestParser {
     {
         final String source = "int i;";
         Lexer lexer = new Lexer(new Source(source), new ErrorListener());
-        Parser parser = new Parser(lexer);
-        var ast = parser.parse();
+        Parser parser = new Parser();
+        var ast = parser.parse(lexer);
         Assert.assertEquals("{int i;}", ast.toString());
     }
 
@@ -38,8 +38,8 @@ public class TestParser {
     public void testParseTwoDecls() {
         final String source = "int i;\nint j;";
         Lexer lexer = new Lexer(new Source(source), new ErrorListener());
-        Parser parser = new Parser(lexer);
-        var ast = parser.parse();
+        Parser parser = new Parser();
+        var ast = parser.parse(lexer);
         Assert.assertEquals("{int i;int j;}", ast.toString());
     }
 
@@ -59,8 +59,8 @@ public class TestParser {
                 }
                 """;
         Lexer lexer = new Lexer(new Source(source), new ErrorListener());
-        Parser parser = new Parser(lexer);
-        var ast = parser.parse();
+        Parser parser = new Parser();
+        var ast = parser.parse(lexer);
         Assert.assertEquals("{int i;int j;i=0;j=100;while(1) {i=(i+1);j=(j-1);if((i>=j)) break;}}", ast.toString());
     }
 }
