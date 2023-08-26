@@ -1,4 +1,4 @@
-/**
+/*
  * DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Contributor(s):
@@ -28,10 +28,8 @@ import java.util.NoSuchElementException;
 
 import java.util.function.Consumer;
 
-import com.seaofnodes.simple.common.ErrorListener;
 import com.seaofnodes.simple.lexer.ecstasy.Token.Id;
 import com.seaofnodes.util.PackedInteger;
-import com.seaofnodes.simple.common.Severity;
 
 import static com.seaofnodes.util.Handy.*;
 
@@ -1076,6 +1074,17 @@ public class Lexer
                                 {
                                 switch (name)
                                     {
+                                    case "int":
+                                        idNum = Id.TYPE_INT;
+                                        break;
+                                    case "float":
+                                        idNum = Id.TYPE_FLOAT;
+                                        break;
+                                    case "char":
+                                        idNum = Id.TYPE_CHAR;
+                                        break;
+
+                                    // Following are Ecstasy ids
                                     case "Bit":
                                         idNum = Id.LIT_BIT;
                                         break;

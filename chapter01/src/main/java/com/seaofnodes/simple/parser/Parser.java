@@ -1,4 +1,4 @@
-/**
+/*
  * DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Contributor(s):
@@ -16,28 +16,28 @@
  */
 package com.seaofnodes.simple.parser;
 
-import com.seaofnodes.simple.common.CompilerException;
+import com.seaofnodes.simple.lexer.ecstasy.CompilerException;
 import com.seaofnodes.simple.lexer.ecstasy.Lexer;
 import com.seaofnodes.simple.lexer.ecstasy.Token;
-import com.seaofnodes.simple.common.Severity;
+import com.seaofnodes.simple.lexer.ecstasy.Severity;
 
 public class Parser {
     final Lexer lexer;
     Token look;
-    Ast.Statement statementEnclosing;
 
     public Parser(Lexer lexer) {
         this.lexer = lexer;
     }
 
-    Token nextOrEof() {
+    private Token nextOrEof() {
         if (lexer.hasNext())
             return lexer.next();
         return new Token(look.getStartPosition(), look.getEndPosition(), Token.Id.EOF);
     }
 
-    void nextToken() {
+    private void nextToken() {
         look = nextOrEof();
+        // skip comments
         while (look.isComment()) {
             look = nextOrEof();
         }
@@ -47,12 +47,12 @@ public class Parser {
         }
     }
 
-    void error(Token t, String errorMessage) {
+    private void error(Token t, String errorMessage) {
         lexer.log(Severity.ERROR, errorMessage, t.getStartPosition(), t.getEndPosition());
         throw new CompilerException(errorMessage + ": " + t.toDebugString());
     }
 
-    void match(Token.Id tag) {
+    private void match(Token.Id tag) {
         if (look.getId() == tag) {
             nextToken();
         } else {
@@ -65,43 +65,40 @@ public class Parser {
         return parseProgram();
     }
 
-    Ast.Statement parseProgram() {
+    private Ast.Statement parseProgram() {
         var block = new Ast.Block();
         parseDeclarations(block);
         parseStatements(block);
         return block;
     }
 
-    void parseDeclarations(Ast.Block block) {
-        while (look.getId() == Token.Id.VAR) {
+    private boolean isTypeName(Token tok) {
+        return switch (tok.getId()) {
+            case TYPE_INT, TYPE_CHAR, TYPE_FLOAT -> true;
+            default -> false;
+        };
+    }
+
+    private void parseDeclarations(Ast.Block block) {
+        while (isTypeName(look)) {
+            var type = new Ast.Type(look.getId());
             nextToken();
             var tok = look;
             match(Token.Id.IDENTIFIER);
-            match(Token.Id.COLON);
-            var type = parseType();
             match(Token.Id.SEMICOLON);
             var identifier = new Ast.Identifier(tok);
             block.stmtList.add(new Ast.Declare(type, identifier));
         }
     }
 
-    Ast.Type parseType() {
-        if (look.getId() == Token.Id.LIT_INTA) {
-            nextToken();
-            return new Ast.Type(look.getId());
-        }
-        error(look, "syntax error: unsupported type (at present only Int type is allowed)");
-        return null;
-    }
-
-    void parseStatements(Ast.Block block) {
+    private void parseStatements(Ast.Block block) {
         while (look.getId() != Token.Id.EOF &&
                 look.getId() != Token.Id.R_CURLY) {
             block.stmtList.add(parseStatement());
         }
     }
 
-    Ast.Statement parseStatement() {
+    private Ast.Statement parseStatement() {
         Ast.Expr x;
         Ast.Statement s1;
         Ast.Statement s2;
@@ -120,22 +117,17 @@ public class Parser {
                 return new Ast.IfElse(x, s1, s2);
             }
             case WHILE -> {
-                var whilenode = new Ast.While();
-                var savedStmt = statementEnclosing;
-                statementEnclosing = whilenode;
                 match(Token.Id.WHILE);
                 match(Token.Id.L_PAREN);
                 x = parseBool();
                 match(Token.Id.R_PAREN);
                 s1 = parseStatement();
-                whilenode.init(x, s1);
-                statementEnclosing = savedStmt;
-                return whilenode;
+                return new Ast.While(x, s1);
             }
             case BREAK -> {
                 match(Token.Id.BREAK);
                 match(Token.Id.SEMICOLON);
-                return new Ast.Break(statementEnclosing);
+                return new Ast.Break();
             }
             case L_CURLY -> {
                 return parseBlock();
@@ -146,7 +138,7 @@ public class Parser {
         }
     }
 
-    Ast.Statement parseBlock() {
+    private Ast.Statement parseBlock() {
         match(Token.Id.L_CURLY);
         var block = new Ast.Block();
         parseDeclarations(block);
@@ -155,16 +147,17 @@ public class Parser {
         return block;
     }
 
-    Ast.Statement parseAssign() {
+    private Ast.Statement parseAssign() {
+        Token tok = look;
         match(Token.Id.IDENTIFIER);
-        Ast.Identifier identifier = new Ast.Identifier(look);
+        Ast.Identifier identifier = new Ast.Identifier(tok);
         match(Token.Id.ASN);
         var s = new Ast.Assign(identifier, parseBool());
         match(Token.Id.SEMICOLON);
         return s;
     }
 
-    Ast.Expr parseBool() {
+    private Ast.Expr parseBool() {
         var x = parseAnd();
         while (look.getId() == Token.Id.COND_OR) {
             var tok = look;
@@ -174,7 +167,7 @@ public class Parser {
         return x;
     }
 
-    Ast.Expr parseAnd() {
+    private Ast.Expr parseAnd() {
         var x = parseRelational();
         while (look.getId() == Token.Id.COND_AND) {
             var tok = look;
@@ -184,7 +177,7 @@ public class Parser {
         return x;
     }
 
-    Ast.Expr parseRelational() {
+    private Ast.Expr parseRelational() {
         var x = parseAddition();
         while (look.getId() == Token.Id.COMP_EQ ||
                 look.getId() == Token.Id.COMP_NEQ ||
@@ -199,7 +192,7 @@ public class Parser {
         return x;
     }
 
-    Ast.Expr parseAddition() {
+    private Ast.Expr parseAddition() {
         var x = parseMultiplication();
         while (look.getId() == Token.Id.ADD ||
                 look.getId() == Token.Id.SUB) {
@@ -210,7 +203,7 @@ public class Parser {
         return x;
     }
 
-    Ast.Expr parseMultiplication() {
+    private Ast.Expr parseMultiplication() {
         var x = parseUnary();
         while (look.getId() == Token.Id.MUL ||
                 look.getId() == Token.Id.DIV) {
@@ -221,7 +214,7 @@ public class Parser {
         return x;
     }
 
-    Ast.Expr parseUnary() {
+    private Ast.Expr parseUnary() {
         if (look.getId() == Token.Id.SUB ||
                 look.getId() == Token.Id.NOT) {
             var tok = look;
@@ -232,7 +225,7 @@ public class Parser {
         }
     }
 
-    Ast.Expr parsePrimary() {
+    private Ast.Expr parsePrimary() {
         switch (look.getId()) {
             case L_PAREN -> {
                 nextToken();

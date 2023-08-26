@@ -1,4 +1,4 @@
-/**
+/*
  * DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Contributor(s):
@@ -15,10 +15,9 @@
 
 package com.seaofnodes.simple.lexer;
 
-import com.seaofnodes.simple.common.ErrorListener;
+import com.seaofnodes.simple.lexer.ecstasy.ErrorListener;
 import com.seaofnodes.simple.lexer.ecstasy.Lexer;
 import com.seaofnodes.simple.lexer.ecstasy.Source;
-import com.seaofnodes.simple.parser.Ast;
 import com.seaofnodes.simple.parser.Parser;
 import org.junit.Assert;
 import org.junit.Test;
@@ -28,30 +27,28 @@ public class TestParser {
     @Test
     public void testParseSingleDecl()
     {
-        final String source = "var i: Int;";
+        final String source = "int i;";
         Lexer lexer = new Lexer(new Source(source), new ErrorListener());
         Parser parser = new Parser(lexer);
         var ast = parser.parse();
-        Assert.assertTrue(ast instanceof Ast.Block
-            && ((Ast.Block) ast).stmtList.size() == 1);
+        Assert.assertEquals("{int i;}", ast.toString());
     }
 
     @Test
     public void testParseTwoDecls() {
-        final String source = "var i: Int;\nvar j: Int;";
+        final String source = "int i;\nint j;";
         Lexer lexer = new Lexer(new Source(source), new ErrorListener());
         Parser parser = new Parser(lexer);
         var ast = parser.parse();
-        Assert.assertTrue(ast instanceof Ast.Block
-                && ((Ast.Block) ast).stmtList.size() == 2);
+        Assert.assertEquals("{int i;int j;}", ast.toString());
     }
 
     @Test
     public void testIfAndWhile() {
         final String source =
                 """
-                var i: Int;
-                var j: Int;
+                int i;
+                int j;
                 
                 i = 0;
                 j = 100;
@@ -64,5 +61,6 @@ public class TestParser {
         Lexer lexer = new Lexer(new Source(source), new ErrorListener());
         Parser parser = new Parser(lexer);
         var ast = parser.parse();
+        Assert.assertEquals("{int i;int j;i=0;j=100;while(1) {i=(i+1);j=(j-1);if((i>=j)) break;}}", ast.toString());
     }
 }

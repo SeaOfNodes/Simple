@@ -15,7 +15,7 @@
 
 package com.seaofnodes.simple.lexer;
 
-import com.seaofnodes.simple.common.ErrorListener;
+import com.seaofnodes.simple.lexer.ecstasy.ErrorListener;
 import com.seaofnodes.simple.lexer.ecstasy.Lexer;
 import com.seaofnodes.simple.lexer.ecstasy.Source;
 import com.seaofnodes.simple.lexer.ecstasy.Token;

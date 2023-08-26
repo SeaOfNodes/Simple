@@ -1,4 +1,4 @@
-/**
+/*
  * DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Contributor(s):

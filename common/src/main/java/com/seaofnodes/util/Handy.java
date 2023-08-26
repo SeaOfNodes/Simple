@@ -518,7 +518,7 @@ public class Handy
      */
     public static boolean isDigit(char ch)
         {
-        return ch >= '0' & ch <= '9';
+        return ch >= '0' && ch <= '9';
         }
 
     /**
@@ -547,7 +547,7 @@ public class Handy
         //   {..., 0, ..., 9, ..., A, ..., F, ..., a, ..., f, ...}
         // so a hexit has to be in the range 0..f, and the entire character
         // range from 0..f is only 0x36 (so it fits inside a long mask)
-        return ch >= '0' & ch <= 'f' & ((1L << ('f' - ch)) &
+        return ch >= '0' && ch <= 'f' && ((1L << ('f' - ch)) &
                 // 3               4               5               6
                 // 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456
                 // 0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[/]^_`abcdef
@@ -579,7 +579,7 @@ public class Handy
         {
         // ASCII letters in the unicode range appear in this order:
         //   {..., A, ..., Z, ..., a, ..., z, ...}
-        return ch >= 'A' & ch <= 'z' & ((1L << ('z' - ch)) &
+        return ch >= 'A' && ch <= 'z' && ((1L << ('z' - ch)) &
                 // 4              5               6               7
                 // 123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789A
                 // ABCDEFGHIJKLMNOPQRSTUVWXYZ[/]^_`abcdefghijklmnopqrstuvwxyz

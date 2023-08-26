@@ -1,4 +1,4 @@
-/**
+/*
  * DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Contributor(s):
@@ -18,9 +18,6 @@
 
 package com.seaofnodes.simple.lexer.ecstasy;
 
-
-import com.seaofnodes.simple.common.ErrorListener;
-import com.seaofnodes.simple.common.Severity;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -432,6 +429,9 @@ public class Token
             case LIT_FLOAT128:
             case LIT_FLOATN:
             case LIT_BFLOAT16:
+            case TYPE_INT:
+            case TYPE_FLOAT:
+            case TYPE_CHAR:
                 sb.append(m_id.TEXT)
                   .append(':')
                   .append(m_oValue);
@@ -637,6 +637,13 @@ public class Token
         IDENTIFIER   (null             ),
         EOL_COMMENT  (null             ),
         ENC_COMMENT  (null             ),
+
+        // Simple language type keywords
+        TYPE_INT     ("int"            , false, true),
+        TYPE_FLOAT   ("float"          , false, true),
+        TYPE_CHAR    ("char"           , false, true),
+        // End Simple language type keywords
+
         LIT_BIT      (null             ),
         LIT_NIBBLE   (null             ),
         LIT_CHAR     (null             ),
