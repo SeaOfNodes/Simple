@@ -23,9 +23,9 @@ public class Parser {
      * Parse and return a top level Ast
      * At present this is an Ast.Block
      *
-     * @see Ast.Block
+     * @see AST.Block
      */
-    public Ast parse(Lexer lexer) {
+    public AST parse(Lexer lexer) {
         nextToken(lexer);
         return parseProgram(lexer);
     }
@@ -66,8 +66,8 @@ public class Parser {
         return token.str.equals(value);
     }
 
-    private Ast.Statement parseProgram(Lexer lexer) {
-        var block = new Ast.Block();
+    private AST.Statement parseProgram(Lexer lexer) {
+        var block = new AST.Block();
         parseDeclarations(lexer, block);
         parseStatements(lexer, block);
         return block;
@@ -80,15 +80,15 @@ public class Parser {
                         isToken(tok, "float"));
     }
 
-    private void parseDeclarations(Lexer lexer, Ast.Block block) {
+    private void parseDeclarations(Lexer lexer, AST.Block block) {
         while (isTypeName(currentToken)) {
-            var type = new Ast.Type(currentToken.str);
+            var type = new AST.Type(currentToken.str);
             nextToken(lexer);
             var tok = currentToken;
             matchKind(lexer, Token.Kind.IDENT);
             matchPunctuation(lexer, ";");
-            var identifier = new Ast.Identifier(tok);
-            block.stmtList.add(new Ast.Declare(type, identifier));
+            var identifier = new AST.Identifier(tok);
+            block.stmtList.add(new AST.Declare(type, identifier));
         }
     }
 
@@ -100,16 +100,16 @@ public class Parser {
         return tok.kind == Token.Kind.PUNCT && isToken(tok, str);
     }
 
-    private void parseStatements(Lexer lexer, Ast.Block block) {
+    private void parseStatements(Lexer lexer, AST.Block block) {
         while (!isEOF(currentToken) && !isPunct(currentToken, "}")) {
             block.stmtList.add(parseStatement(lexer));
         }
     }
 
-    private Ast.Statement parseStatement(Lexer lexer) {
-        Ast.Expr x;
-        Ast.Statement s1;
-        Ast.Statement s2;
+    private AST.Statement parseStatement(Lexer lexer) {
+        AST.Expr x;
+        AST.Statement s1;
+        AST.Statement s2;
 
         switch (currentToken.str) {
             case "if" -> {
@@ -119,10 +119,10 @@ public class Parser {
                 matchPunctuation(lexer, ")");
                 s1 = parseStatement(lexer);
                 if (!isToken(currentToken, "else")) {
-                    return new Ast.IfElse(x, s1, null);
+                    return new AST.IfElse(x, s1, null);
                 }
                 s2 = parseStatement(lexer);
-                return new Ast.IfElse(x, s1, s2);
+                return new AST.IfElse(x, s1, s2);
             }
             case "while" -> {
                 matchIdentifier(lexer, "while");
@@ -130,12 +130,12 @@ public class Parser {
                 x = parseBool(lexer);
                 matchPunctuation(lexer, ")");
                 s1 = parseStatement(lexer);
-                return new Ast.While(x, s1);
+                return new AST.While(x, s1);
             }
             case "break" -> {
                 matchIdentifier(lexer, "break");
                 matchPunctuation(lexer, ";");
-                return new Ast.Break();
+                return new AST.Break();
             }
             case "{" -> {
                 return parseBlock(lexer);
@@ -146,46 +146,46 @@ public class Parser {
         }
     }
 
-    private Ast.Statement parseBlock(Lexer lexer) {
+    private AST.Statement parseBlock(Lexer lexer) {
         matchPunctuation(lexer, "{");
-        var block = new Ast.Block();
+        var block = new AST.Block();
         parseDeclarations(lexer, block);
         parseStatements(lexer, block);
         matchPunctuation(lexer, "}");
         return block;
     }
 
-    private Ast.Statement parseAssign(Lexer lexer) {
+    private AST.Statement parseAssign(Lexer lexer) {
         Token tok = currentToken;
         matchKind(lexer, Token.Kind.IDENT);
-        Ast.Identifier identifier = new Ast.Identifier(tok);
+        AST.Identifier identifier = new AST.Identifier(tok);
         matchPunctuation(lexer, "=");
-        var s = new Ast.Assign(identifier, parseBool(lexer));
+        var s = new AST.Assign(identifier, parseBool(lexer));
         matchPunctuation(lexer, ";");
         return s;
     }
 
-    private Ast.Expr parseBool(Lexer lexer) {
+    private AST.Expr parseBool(Lexer lexer) {
         var x = parseAnd(lexer);
         while (isToken(currentToken, "||")) {
             var tok = currentToken;
             nextToken(lexer);
-            x = new Ast.Binary(tok, x, parseAnd(lexer));
+            x = new AST.Binary(tok, x, parseAnd(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseAnd(Lexer lexer) {
+    private AST.Expr parseAnd(Lexer lexer) {
         var x = parseRelational(lexer);
         while (isToken(currentToken, "&&")) {
             var tok = currentToken;
             nextToken(lexer);
-            x = new Ast.Binary(tok, x, parseRelational(lexer));
+            x = new AST.Binary(tok, x, parseRelational(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseRelational(Lexer lexer) {
+    private AST.Expr parseRelational(Lexer lexer) {
         var x = parseAddition(lexer);
         while (isToken(currentToken, "==") ||
                 isToken(currentToken, "!=") ||
@@ -195,45 +195,45 @@ public class Parser {
                 isToken(currentToken, ">=")) {
             var tok = currentToken;
             nextToken(lexer);
-            x = new Ast.Binary(tok, x, parseAddition(lexer));
+            x = new AST.Binary(tok, x, parseAddition(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseAddition(Lexer lexer) {
+    private AST.Expr parseAddition(Lexer lexer) {
         var x = parseMultiplication(lexer);
         while (isToken(currentToken, "-") ||
                 isToken(currentToken, "+")) {
             var tok = currentToken;
             nextToken(lexer);
-            x = new Ast.Binary(tok, x, parseMultiplication(lexer));
+            x = new AST.Binary(tok, x, parseMultiplication(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseMultiplication(Lexer lexer) {
+    private AST.Expr parseMultiplication(Lexer lexer) {
         var x = parseUnary(lexer);
         while (isToken(currentToken, "*") ||
                 isToken(currentToken, "/")) {
             var tok = currentToken;
             nextToken(lexer);
-            x = new Ast.Binary(tok, x, parseUnary(lexer));
+            x = new AST.Binary(tok, x, parseUnary(lexer));
         }
         return x;
     }
 
-    private Ast.Expr parseUnary(Lexer lexer) {
+    private AST.Expr parseUnary(Lexer lexer) {
         if (isToken(currentToken, "-") ||
                 isToken(currentToken, "!")) {
             var tok = currentToken;
             nextToken(lexer);
-            return new Ast.Unary(tok, parseUnary(lexer));
+            return new AST.Unary(tok, parseUnary(lexer));
         } else {
             return parsePrimary(lexer);
         }
     }
 
-    private Ast.Expr parsePrimary(Lexer lexer) {
+    private AST.Expr parsePrimary(Lexer lexer) {
         switch (currentToken.kind) {
             case PUNCT -> {
                 /* Nested expression */
@@ -244,12 +244,12 @@ public class Parser {
                 return x;
             }
             case NUM -> {
-                var x = new Ast.Constant(currentToken);
+                var x = new AST.Constant(currentToken);
                 nextToken(lexer);
                 return x;
             }
             case IDENT -> {
-                var x = new Ast.Symbol(currentToken);
+                var x = new AST.Symbol(currentToken);
                 nextToken(lexer);
                 return x;
             }

@@ -23,13 +23,13 @@ import java.util.stream.Collectors;
 /**
  * A simple AST definition.
  */
-public class Ast {
+public class AST {
 
-    protected Ast() {
+    protected AST() {
     }
 
 
-    public abstract static class Expr extends Ast {
+    public abstract static class Expr extends AST {
         public final Token op;
 
         protected Expr(Token op) {
@@ -112,7 +112,7 @@ public class Ast {
         }
     }
 
-    public abstract static class Statement extends Ast {
+    public abstract static class Statement extends AST {
     }
 
     public static class IfElse extends Statement {
@@ -171,7 +171,7 @@ public class Ast {
         }
     }
 
-    public static class Type extends Ast {
+    public static class Type extends AST {
         public final String typeId;
 
         public Type(String typeId) {
