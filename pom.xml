@@ -19,7 +19,6 @@
     </licenses>
 
     <modules>
-        <module>common</module>
         <module>language</module>
         <module>chapter01</module>
     </modules>

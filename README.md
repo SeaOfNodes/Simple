@@ -19,21 +19,29 @@ and so the backend will probably start with levering C or Java.
 
 The following is a rough plan, subject to change.
 
-The Common chapter defines code that will be reused throughout.
-
-The remaining chapters will each be self-sufficient and complete; in the sense that each chapter will fully implement 
-a subset of the simple language. Each chapter will also include a detailed commentary on relevant aspects of the 
+Each chapter will be self-sufficient and complete; in the sense that each chapter will fully implement 
+a subset of the simple language, and include everything that was created in the previous chapter. 
+Each chapter will also include a detailed commentary on relevant aspects of the 
 Sea Of Nodes intermediate representation.
 
 The simple language will be a small subset of C. 
 
-* [Common](common/README.md): Common utilities including a lexer.
-* [Language](language/README.md): Simple language definition.
-* [Chapter 1](chapter01/README.md): Simple control flow statements, `if` and `while`. Variables of `int` type. Simple 
-  arithmetic such as addition, subtraction, multiplication, division. Non-zero values will be truthy.
-* Chapter 2: Function calls.
-* Chapter 3: Comparison operators.
-* Chapter 4: Boolean operators `&&`, `||` and `!`.
-* Chapter 5: `float` and one dimensional static length array type.
-* Chapter 6: Visualize Sea of Nodes IR.
-* Chapter 7: Optimizations - tbc
+* [Language](language/README.md): Simple language grammar.
+* [Chapter 1](chapter01/README.md): Empty script - i.e. empty function that takes no args and returns nothing, and has empty body.
+* Chapter 2: Simple binary arithmetic such as addition, subtraction, multiplication, division with constants. Peephole optimization / simple constant folding.
+* Chapter 3: Graphical Visualization of Sea of Nodes IR.
+* Chapter 4: Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a constant.
+* Chapter 5: Binary and Comparison operators involving constants and variables. Non-zero values will be truthy.
+* Chapter 6: `if` statement.  CFG construction, peephole optimization around dead control flow.
+* Chapter 7: `while` statement. 
+* Chapter 8: Global Value Numbering.
+* Chapter 9: Function calls.
+* Chapter 10: Boolean operators `&&`, `||` and `!` including short circuit.
+* Chapter 11: `float` type.
+* Chapter 12: Memory effects: general memory edges in SSA. Peephole optimization around load-after-store/store-after-store.
+* Chapter 13: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not handle aliasing in arrays.
+* Chapter 14: One dimensional static length array type. Array load/store.
+* Chapter 15: Global Code Motion - unwind SoN to CFG. Scheduling.
+* Chapter 16: Instruction selection, BURS.
+* Chapter 17: Backend register allocation.
+* Chapter 18: Garbage Collection.

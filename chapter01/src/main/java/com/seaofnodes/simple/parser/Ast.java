@@ -16,8 +16,6 @@
  */
 package com.seaofnodes.simple.parser;
 
-import com.seaofnodes.simple.lexer.ecstasy.Token;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,7 +45,7 @@ public class Ast {
 
         public Identifier(Token op) {
             super(op);
-            name = op.getValueText();
+            name = op.str;
         }
 
         @Override
@@ -64,7 +62,7 @@ public class Ast {
 
         public Symbol(Token op) {
             super(op);
-            name = op.getValueText();
+            name = op.str;
         }
 
         @Override
@@ -85,7 +83,7 @@ public class Ast {
 
         @Override
         public String toString() {
-            return "(" + expr1 + op.getValueText() + expr2 + ")";
+            return "(" + expr1 + op.toString() + expr2 + ")";
         }
     }
 
@@ -99,7 +97,7 @@ public class Ast {
 
         @Override
         public String toString() {
-            return "(" + op.getValueText() + "(" + expr + "))";
+            return "(" + op.toString() + "(" + expr + "))";
         }
     }
 
@@ -110,7 +108,7 @@ public class Ast {
 
         @Override
         public String toString() {
-            return op.getValueText();
+            return op.toString();
         }
     }
 
@@ -174,15 +172,15 @@ public class Ast {
     }
 
     public static class Type extends Ast {
-        public final Token.Id typeId;
+        public final String typeId;
 
-        public Type(Token.Id typeId) {
+        public Type(String typeId) {
             this.typeId = typeId;
         }
 
         @Override
         public String toString() {
-            return typeId.TEXT;
+            return typeId;
         }
     }
 

@@ -11,12 +11,4 @@
     <artifactId>chapter01</artifactId>
     <packaging>jar</packaging>
     <name>Chapter 1</name>
-
-    <dependencies>
-        <dependency>
-            <groupId>com.seaofnodes</groupId>
-            <artifactId>common</artifactId>
-            <version>1.0</version>
-        </dependency>
-    </dependencies>
 </project>

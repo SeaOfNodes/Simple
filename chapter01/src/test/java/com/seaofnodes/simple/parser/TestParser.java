@@ -13,12 +13,8 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package com.seaofnodes.simple.lexer;
+package com.seaofnodes.simple.parser;
 
-import com.seaofnodes.simple.lexer.ecstasy.ErrorListener;
-import com.seaofnodes.simple.lexer.ecstasy.Lexer;
-import com.seaofnodes.simple.lexer.ecstasy.Source;
-import com.seaofnodes.simple.parser.Parser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -28,7 +24,7 @@ public class TestParser {
     public void testParseSingleDecl()
     {
         final String source = "int i;";
-        Lexer lexer = new Lexer(new Source(source), new ErrorListener());
+        Lexer lexer = new Lexer(source);
         Parser parser = new Parser();
         var ast = parser.parse(lexer);
         Assert.assertEquals("{int i;}", ast.toString());
@@ -37,7 +33,7 @@ public class TestParser {
     @Test
     public void testParseTwoDecls() {
         final String source = "int i;\nint j;";
-        Lexer lexer = new Lexer(new Source(source), new ErrorListener());
+        Lexer lexer = new Lexer(source);
         Parser parser = new Parser();
         var ast = parser.parse(lexer);
         Assert.assertEquals("{int i;int j;}", ast.toString());
@@ -58,7 +54,7 @@ public class TestParser {
                     if ( i >= j ) break;
                 }
                 """;
-        Lexer lexer = new Lexer(new Source(source), new ErrorListener());
+        Lexer lexer = new Lexer(source);
         Parser parser = new Parser();
         var ast = parser.parse(lexer);
         Assert.assertEquals("{int i;int j;i=0;j=100;while(1) {i=(i+1);j=(j-1);if((i>=j)) break;}}", ast.toString());
