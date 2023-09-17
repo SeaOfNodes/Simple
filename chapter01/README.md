@@ -6,14 +6,14 @@ In this chapter we aim to compile simple scripts such as:
 return 1;
 ```
 
-The first statement to be implemented in the language is the `return` statement.
-The `return` statement shall accept an argument, which must be an `expression`.
-For this chapter, the language shall only have one type of `expression` - an integer literal, as
+We will be implementing the `return` statement first.
+The `return` statement accepts an `expression` as an argument.
+For this chapter, the language only has one type of `expression` - an integer literal, as
 shown in the example above. 
 
 Here is the [complete grammar](docs/01-grammar.md) of the language for this chapter. 
 
-To implement this simple language, we will need to introduce several components and data
+To implement this simple language, we will introduce several components and data
 structures.
 
 ## Implementation Language
@@ -59,14 +59,14 @@ The following control and data nodes will be created in this chapter.
 | Node Name | Type    | Description                                   | Inputs                                    | Value                                                 |
 |-----------|---------|-----------------------------------------------|-------------------------------------------|-------------------------------------------------------|
 | Start     | Control | Start of function                             | None                                      | None for now as we do not have function arguments yet |
-| Region    | Control | Represent a Basic Block                       | Predecessor control nodes in the CFG      | Each region represents one value                      |
 | Return    | Control | Represents the termination of a function      | Predecessor control node, Data node value | Return value of the function                          |
 | Constant  | Data    | Represents constants such as integer literals | None                                      | Value of the constant                                 |
 
 All control nodes will implement a marker interface named `Control`.
 
-Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instruction within a 
-region will be determined by a scheduling algorithm, to be discussed in later chapters.
+Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instructions is determined by a scheduling 
+algorithm that depends only on dependencies between nodes (including control dependencies) that are explicit as edges in the graph. This enables a number of optimizations 
+at very little cost (nearly always small constant time) because all dependencies are always available.
 
 ### Unique Node ID
 
@@ -78,16 +78,19 @@ Nodes will by default be compared such that two nodes are equal if they have the
 
 ### Start Node
 
-TODO
-
-### Region Node
-
-TODO
-
-### Return Node
-
-TODO
+The Start node represents the start of the function. For now, we do not have any values in the Start node, because in this chapter our function does not 
+accept any parameters. When we add parameters, the value of the Start node will be a tuple, and will require Projection nodes to extract the values. However,
+this will be subject of a later chapter.
 
 ### Constant Node
 
-TODO
+The Constant node represents the constant value. At present the only constants we allow are integer literals, hence the Constant node contains
+an integer value. As we add other types of constants, we will need to refactor how we represent Constant nodes.
+
+The Constant node has no inputs. Its output is the value stored in it.
+
+### Return Node
+
+The Return node has two inputs. The first input is a control node. The second input is the data node that will supply the return value.
+
+The output of the Return node is the value it obtained from the data node.
