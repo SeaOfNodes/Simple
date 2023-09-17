@@ -43,3 +43,28 @@ Our data structures will be based upon the descriptions provided in following pa
 Following the lead from above, we will represent our intermediate representation using an object oriented data model. Details of the
 representation follow.
 
+### Intermediate Representation as a Graph of Nodes
+
+The intermediate representation is a graph of Node objects. The `Node` class is the base type for objects in the IR graph.
+The `Node` class provides common capabilities that are inherited by all subtypes. 
+Each subtype implements semantics relevant to that subtype.
+
+There are two types of Nodes in the representation.
+
+* **Control Nodes** - these represent the control flow subgraph (CFG) of the compiled program
+* **Data Nodes** - these capture the data semantics
+
+The following control and data nodes will be created in this chapter.
+
+| Node Name | Type | Description            | Inputs                                     | Value                                                 |
+| --- | --- |------------------------|--------------------------------------------|-------------------------------------------------------|
+| Start | Control | Start of function | None                                       | None for now as we do not have function arguments yet |
+| Region | Control | Represent a Basic Block | Predecessor control nodes in the CFG       | Each region represents one value |
+| Return | Control | Represents the termination of a function | Predecessor control node, Data value node  | Return value of the function |
+| Constant | Data | Represents constants such as integer literals | None                                       | Value of the constant |
+
+All control nodes will implement a marker interface named `Control`.
+
+Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instruction within a 
+region will be determined by a scheduling algorithm, to be discussed in later chapters.
+
