@@ -74,7 +74,7 @@ Each node will be assigned a unique Node ID upon creation. The Node ID will be a
 
 ### Node Comparisons
 
-Nodes will by default be compared such that two nodes are equal if they have the same class type, and if all input nodes have the same Node ID.
+Nodes will by default be compared such that two nodes are equal if they have the same class type, and all input nodes have the same Node ID.
 
 ### Start Node
 
