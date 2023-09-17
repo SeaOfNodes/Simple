@@ -1,29 +1,9 @@
 digraph chapter01 
 {
-    start [shape=none, label=<
-        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-            <TR>
-                <TD><I>Inputs</I></TD>
-            </TR>
-            <TR>
-                <TD COLSPAN="3"><B>Start</B></TD>
-            </TR>
-        </TABLE>
-    >];
+    start [shape=box, label="Start"];
     constant [label="Constant 1"];
-    return [shape=none, label=<
-        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-            <TR>
-                <TD><I>Inputs</I></TD>
-                <TD PORT="input0">0</TD>
-                <TD PORT="input1">1</TD>
-            </TR>
-            <TR>
-                <TD COLSPAN="3"><B>Return</B></TD>
-            </TR>
-        </TABLE>
-    >];
-    constant -> return:input1;
+    return [shape=box, label="Return"];
+    constant -> return;
     edge [color=red];
-    start -> return:input0 [style=bold];
+    start -> return [style=bold];
 }

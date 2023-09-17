@@ -35,7 +35,7 @@ The simple language will be a small subset of C.
 * Chapter 6: `if` statement.  CFG construction, peephole optimization around dead control flow.
 * Chapter 7: `while` statement. 
 * Chapter 8: Global Value Numbering.
-* Chapter 9: Function calls.
+* Chapter 9: Functions and calls.
 * Chapter 10: Boolean operators `&&`, `||` and `!` including short circuit.
 * Chapter 11: `float` type.
 * Chapter 12: Memory effects: general memory edges in SSA. Peephole optimization around load-after-store/store-after-store.
