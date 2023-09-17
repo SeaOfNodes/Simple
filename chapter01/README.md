@@ -6,10 +6,9 @@ In this chapter we aim to compile simple scripts such as:
 return 1;
 ```
 
-We will be implementing the `return` statement first.
+We will implement the `return` statement first.
 The `return` statement accepts an `expression` as an argument.
-For this chapter, the language only has one type of `expression` - an integer literal, as
-shown in the example above. 
+For this chapter, the only `expression` type is an integer literal, as shown in the example above. 
 
 Here is the [complete grammar](docs/01-grammar.md) of the language for this chapter. 
 
@@ -78,13 +77,13 @@ Nodes will by default be compared such that two nodes are equal if they have the
 
 ### Start Node
 
-The Start node represents the start of the function. For now, we do not have any values in the Start node, because in this chapter our function does not 
-accept any parameters. When we add parameters, the value of the Start node will be a tuple, and will require Projection nodes to extract the values. However,
+The Start node represents the start of the function. For now, we do not have any values in the Start node, this is because our function does not 
+yet accept parameters. When we add parameters, the value of the Start node will be a tuple, and will require Projection nodes to extract the values. However,
 this will be subject of a later chapter.
 
 ### Constant Node
 
-The Constant node represents the constant value. At present the only constants we allow are integer literals, hence the Constant node contains
+The Constant node represents the constant value. At present, the only constants we allow are integer literals; therefore the Constant node contains
 an integer value. As we add other types of constants, we will need to refactor how we represent Constant nodes.
 
 The Constant node has no inputs. Its output is the value stored in it.
