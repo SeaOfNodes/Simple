@@ -4,36 +4,22 @@
 grammar SimpleLanguage;
 
 program
-    : declaration* statement+ EOF
-    ;
-
-declaration
-    : type IDENTIFIER ';'
-    ;
-
-type
-    : 'int'
+    : statement EOF
     ;
 
 statement
-    : 'if' '(' expression ')' statement
-    | 'if' '(' expression ')' statement 'else' statement
-    | 'while' '(' expression ')' statement
-    | IDENTIFIER '=' expression ';'
-    | '{' declaration* statement+ '}'
-    | 'break' ';'
+    : 'return' expression ';'
     ;
 
 expression
-    : primaryExpression                                             # PrimaryExpression_
-    | expression ('*' | '/' ) expression                            # ArithmeticOrLogicalExpression
-    | expression ('+' | '-') expression                             # ArithmeticOrLogicalExpression
+    : primaryExpression
     ;
 
 primaryExpression
-    :
-    | INTEGER_LITERAL
-    | IDENTIFIER
-    | '(' expression ')'
+    : INTEGER_LITERAL
     ;
+
+INTEGER_LITERAL
+    : [0-9]+
+    ;    
 ```
