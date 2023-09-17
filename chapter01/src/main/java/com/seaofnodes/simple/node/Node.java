@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -34,18 +35,18 @@ public class Node {
      */
     public final List<Node> _inputs;
 
-    protected Node(int nid, byte opCode, Node ...inputs)
-    {
-        _nid = nid;
-        _opCode = opCode;
-        _inputs = Arrays.asList(inputs);
-    }
+    public final List<Node> _refs = new ArrayList<>();
 
     protected Node(NodeIDGenerator idGenerator, byte opCode, Node ...inputs)
     {
         _nid = idGenerator.newNodeID();
         _opCode = opCode;
         _inputs = Arrays.asList(inputs);
+        for (int i = 0; i < _inputs.size(); i++) {
+            Node n = _inputs.get(i);
+            if (n != null)
+                n._refs.add(this);
+        }
     }
 
     /**
