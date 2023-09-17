@@ -93,3 +93,13 @@ The Constant node has no inputs. Its output is the value stored in it.
 The Return node has two inputs. The first input is a control node. The second input is the data node that will supply the return value.
 
 The output of the Return node is the value it obtained from the data node.
+
+### Representation
+
+Here is visualization of the program:
+
+```
+return 1;
+```
+
+![Sea of Nodes Visual](./docs/02-graph.svg)
