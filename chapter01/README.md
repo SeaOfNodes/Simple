@@ -56,15 +56,38 @@ There are two types of Nodes in the representation.
 
 The following control and data nodes will be created in this chapter.
 
-| Node Name | Type | Description            | Inputs                                     | Value                                                 |
-| --- | --- |------------------------|--------------------------------------------|-------------------------------------------------------|
-| Start | Control | Start of function | None                                       | None for now as we do not have function arguments yet |
-| Region | Control | Represent a Basic Block | Predecessor control nodes in the CFG       | Each region represents one value |
-| Return | Control | Represents the termination of a function | Predecessor control node, Data value node  | Return value of the function |
-| Constant | Data | Represents constants such as integer literals | None                                       | Value of the constant |
+| Node Name | Type    | Description                                   | Inputs                                    | Value                                                 |
+|-----------|---------|-----------------------------------------------|-------------------------------------------|-------------------------------------------------------|
+| Start     | Control | Start of function                             | None                                      | None for now as we do not have function arguments yet |
+| Region    | Control | Represent a Basic Block                       | Predecessor control nodes in the CFG      | Each region represents one value                      |
+| Return    | Control | Represents the termination of a function      | Predecessor control node, Data node value | Return value of the function                          |
+| Constant  | Data    | Represents constants such as integer literals | None                                      | Value of the constant                                 |
 
 All control nodes will implement a marker interface named `Control`.
 
 Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instruction within a 
 region will be determined by a scheduling algorithm, to be discussed in later chapters.
 
+### Unique Node ID
+
+Each node will be assigned a unique Node ID upon creation. The Node ID will be allocated in a particular compilation context.
+
+### Node Comparisons
+
+Nodes will by default be compared such that two nodes are equal if they have the same class type, and if all input nodes have the same Node ID.
+
+### Start Node
+
+TODO
+
+### Region Node
+
+TODO
+
+### Return Node
+
+TODO
+
+### Constant Node
+
+TODO
