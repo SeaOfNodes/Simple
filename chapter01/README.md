@@ -77,28 +77,28 @@ The ID is also used to efficiently compute equality of nodes; a subject that we 
 
 ### Start Node
 
-The Start node represents the start of the function. For now, we do not have any values in the Start node, this is because our function does not 
-yet accept parameters. When we add parameters, the value of the Start node will be a tuple, and will require Projection nodes to extract the values. 
+The Start node represents the start of the function. For now, we do not have any values in to Start, this is because our function does not yet accept parameters. 
+When we add parameters, the value of the Start will be a tuple, and will require Projections to extract the values. 
 We discuss this in detail in Chapter 9: Functions and Calls.
 
 ### Constant Node
 
-The Constant node represents a constant value. At present, the only constants that we allow are integer literals; therefore the Constant node contains
-an integer value. As we add other types of constants, we will need to refactor how we represent Constant nodes.
+The Constant node represents a constant value. At present, the only constants that we allow are integer literals; therefore Constant contains an integer value. 
+As we add other types of constants, we will refactor Constants.
 
-The Constant node has no inputs. However, we set the Start node as an input to the Constant node to enable forward graph walk. This edge carries no semantic meaning,
-it is present _solely_ to allow visitation.
+Constant has no inputs. However, we add Start as an input to Constant to enable forward graph walk. This edge carries no semantic meaning, 
+it is present solely to allow visitation.
 
-The Constant node's output is the value stored in it.
+The Constant's output is the value stored in it.
 
 ### Return Node
 
-The Return node has two inputs. The first input is a control node. The second input is the data node that supplies the return value.
+Return has two inputs. The first input is a control node. The second input is the data node that supplies the return value.
 
-In this presentation, the Return node functions as the Stop node, since we are compiling a single unnamed function.
-A separate Stop node is not necessary. Compiling multiple functions is covered in Chapter 9: Functions and Calls. 
+In this presentation, the Return functions as the Stop, since we are compiling a single unnamed function.
+A separate Stop is not necessary. Compiling multiple functions is covered in Chapter 9: Functions and Calls. 
 
-The output of the Return node is the value it obtained from the data node.
+The output of the Return is the value it obtained from the data node.
 
 ### Representation
 
