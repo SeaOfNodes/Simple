@@ -11,8 +11,8 @@
 	<name>SeaOfNodes Demo Simple Language Grammar</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.target>17</maven.compiler.target>
-		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>20</maven.compiler.target>
+		<maven.compiler.source>20</maven.compiler.source>
 		<antlr4test-maven-plugin.version>1.22</antlr4test-maven-plugin.version>
 		<antlr.version>4.11.1</antlr.version>
 		<antlr4test-maven-plugin.version>1.21</antlr4test-maven-plugin.version>
