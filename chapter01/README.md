@@ -86,7 +86,7 @@ We discuss this in detail in Chapter 9: Functions and Calls.
 
 A Constant node represents a constant value.  At present, the only constants
 that we allow are integer literals; therefore Constants contain an integer
-value. As we add other types of constants, we refactor how we represent
+value. As we add other types of constants, we will refactor how we represent
 Constants.
 
 Constants have no semantic inputs. However, we set Start as an input to

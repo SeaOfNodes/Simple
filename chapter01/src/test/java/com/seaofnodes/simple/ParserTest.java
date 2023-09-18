@@ -8,7 +8,7 @@ public class ParserTest {
 
     @Test
     public void testSimpleProgram() {
-        Parser parser = new Parser();
+        Parser parser = new Parser(new NodeIDGenerator());
         StartNode startNode = parser.parse("return 1;");
         Assert.assertNotNull(startNode);
         Assert.assertEquals(2, startNode.nOuts());

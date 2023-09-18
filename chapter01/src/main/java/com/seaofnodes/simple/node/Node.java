@@ -33,7 +33,6 @@ public abstract class Node {
      * input.  These nodes are users of this node, thus these are def-use
      * references to Nodes.
      * <p>
-     
      * Outputs directly match inputs, making a directed graph that can be
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
@@ -67,6 +66,11 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
+    /**
+     * Gets the ith output node
+     * @param i Offset of the output node
+     * @return Output node (not null)
+     */
     public Node out(int i) { return _outputs.get(i); }
 
     public int nOuts() { return _outputs.size(); }
