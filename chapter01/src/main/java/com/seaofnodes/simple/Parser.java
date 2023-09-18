@@ -22,8 +22,8 @@ public class Parser {
 
     private StartNode _startNode;
 
-    public Parser() {
-        _idGenerator = new NodeIDGenerator();
+    public Parser(NodeIDGenerator idGenerator) {
+        _idGenerator = idGenerator;
     }
 
     public StartNode parse(String source) {

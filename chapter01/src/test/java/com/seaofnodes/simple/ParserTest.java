@@ -1,9 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -11,7 +8,7 @@ public class ParserTest {
 
     @Test
     public void testSimpleProgram() {
-        Parser parser = new Parser();
+        Parser parser = new Parser(new NodeIDGenerator());
         StartNode startNode = parser.parse("return 1;");
         Assert.assertNotNull(startNode);
         Assert.assertTrue(startNode.isControl());

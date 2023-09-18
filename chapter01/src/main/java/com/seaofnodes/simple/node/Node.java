@@ -9,25 +9,8 @@ import java.util.List;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public class Node {
+public abstract class Node {
 
-    /**
-     * @see StartNode
-     */
-    static final byte OP_START = 1;
-    /**
-     * @see ReturnNode
-     */
-    static final byte OP_RETURN = 2;
-    /**
-     * @see ConstantNode
-     */
-    static final byte OP_CONSTANT = 3;
-
-    /**
-     * The opcode for this node
-     */
-    public final byte _opCode;
 
     /**
      * Each node has a unique dense Node ID within a compilation context
@@ -53,18 +36,18 @@ public class Node {
      * Note that the outputs are derived from inputs, it appears that
      * outputs are therefore a performance optimization to make it easier to
      * traverse the graph. The Sea of Nodes documentation in chapter 1 does not
-     * mention these outputs list.
+     * mention the outputs list.
      */
     public final List<Node> _outputs;
 
-    protected Node(NodeIDGenerator idGenerator, byte opCode, Node ...inputs)
+    protected Node(NodeIDGenerator idGenerator, Node ...inputs)
     {
         _nid = idGenerator.newNodeID(); // allocate unique dense ID
-        _opCode = opCode;
         _inputs = Arrays.asList(inputs);
-        _outputs = new ArrayList<>();
-        for (int i = 0; i < _inputs.size(); i++) {
-            Node n = _inputs.get(i);
+        _outputs = new ArrayList<>();   // The outputs will be populated by nodes that use this as input
+
+        // Add this to as output on all nodes that are inputs
+        for (Node n : _inputs) {
             if (n != null)
                 n._outputs.add(this);
         }
@@ -79,6 +62,11 @@ public class Node {
 
     public int numInputs() { return _inputs.size(); }
 
+    /**
+     * Gets the ith output node
+     * @param i Offset of the output node
+     * @return Output node (not null)
+     */
     public Node out(int i) { return _outputs.get(i); }
 
     public int numOutputs() { return _outputs.size(); }
