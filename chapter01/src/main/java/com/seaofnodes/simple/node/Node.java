@@ -11,10 +11,18 @@ import java.util.List;
  */
 public class Node {
 
+    /**
+     * @see StartNode
+     */
     static final byte OP_START = 1;
-    static final byte OP_REGION = 2;
-    static final byte OP_RETURN = 3;
-    static final byte OP_CONSTANT = 4;
+    /**
+     * @see ReturnNode
+     */
+    static final byte OP_RETURN = 2;
+    /**
+     * @see ConstantNode
+     */
+    static final byte OP_CONSTANT = 3;
 
     /**
      * The opcode for this node
@@ -22,30 +30,43 @@ public class Node {
     public final byte _opCode;
 
     /**
-     * Each node has a unique ID within a compilation context
+     * Each node has a unique dense Node ID within a compilation context
+     * The ID is useful for debugging, for using as an offset in a bitvector,
+     * as well as for computing equality of nodes (to be implemented later).
      */
     public final int _nid;
 
     /**
-     * Inputs to the node.
-     *
+     * Inputs to the node. These are use-def references to Nodes.
+     * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
-     * The first input (offset 0) must be a Control node.
+     * The first input (offset 0) must be a Control nodes.
      * @see Control
      */
     public final List<Node> _inputs;
 
-    public final List<Node> _refs = new ArrayList<>();
+    /**
+     * Outputs reference Nodes that are not null and
+     * have this Node as an input. These nodes are users of this
+     * node, thus these are def-use references to Nodes.
+     * <p>
+     * Note that the outputs are derived from inputs, it appears that
+     * outputs are therefore a performance optimization to make it easier to
+     * traverse the graph. The Sea of Nodes documentation in chapter 1 does not
+     * mention these outputs list.
+     */
+    public final List<Node> _outputs;
 
     protected Node(NodeIDGenerator idGenerator, byte opCode, Node ...inputs)
     {
-        _nid = idGenerator.newNodeID();
+        _nid = idGenerator.newNodeID(); // allocate unique dense ID
         _opCode = opCode;
         _inputs = Arrays.asList(inputs);
+        _outputs = new ArrayList<>();
         for (int i = 0; i < _inputs.size(); i++) {
             Node n = _inputs.get(i);
             if (n != null)
-                n._refs.add(this);
+                n._outputs.add(this);
         }
     }
 
@@ -54,9 +75,13 @@ public class Node {
      * @param i Offset of the input node
      * @return Input node or null
      */
-    public Node in(int i) { return _inputs != null ? _inputs.get(i) : null; }
+    public Node in(int i) { return _inputs.get(i); }
 
-    public int numInputs() { return _inputs != null ? _inputs.size() : 0; }
+    public int numInputs() { return _inputs.size(); }
+
+    public Node out(int i) { return _outputs.get(i); }
+
+    public int numOutputs() { return _outputs.size(); }
 
     /**
      * Is this a control node, all control nodes are marked with
@@ -64,32 +89,7 @@ public class Node {
      */
     public boolean isControl() { return this instanceof Control; }
 
-    /**
-     * Hash is function of this nodes type, its _nid and
-     * inputs, or opcode + input_nids
+    /*
+     * hashCode and equals implementation to be added in later chapter.
      */
-    @Override
-    public int hashCode() {
-        int sum = _opCode;
-        for (int i = 0; i < numInputs(); i++)
-            if (in(i) != null)
-                sum ^= in(i)._nid;
-        return sum;
-    }
-
-    /**
-     * Equals is opcode + input nids.
-     * Note that nodes are compared by reference.
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Node n)) return false;
-        if (_opCode != n._opCode) return false;
-        if (numInputs() != n.numInputs()) return false;
-        for (int i = 0; i < numInputs(); i++)
-            if (in(i) != n.in(i))
-                return false;
-        return true;
-    }
 }

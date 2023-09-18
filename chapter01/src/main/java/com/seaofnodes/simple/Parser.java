@@ -7,33 +7,118 @@ import java.text.ParseException;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate representation
- * directly in one pass. There is no intermediate Abstract Syntax Tree structure. The parser also
- * does the lexical analysis of the input source.
+ * directly in one pass. There is no intermediate Abstract Syntax Tree structure.
+ *
+ * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
 
-    private Token currentToken;
+    /**
+     * Current token from lexer
+     */
+    private Token _curTok;
+
     private final NodeIDGenerator _idGenerator;
+
     private StartNode _startNode;
 
     public Parser() {
         _idGenerator = new NodeIDGenerator();
     }
 
-    public Node parse(String source) {
+    public StartNode parse(String source) {
         Lexer lexer = new Lexer(source);
-        _startNode = new StartNode(_idGenerator, new Node[0]);
         nextToken(lexer);
         return parseProgram(lexer);
     }
 
-    private Node parseProgram(Lexer lexer) {
+    private StartNode parseProgram(Lexer lexer) {
+        _startNode = new StartNode(_idGenerator);
         parseReturnStatement(lexer);
         return _startNode;
     }
 
+    /**
+     * Parses return statement.
+     *
+     * <pre>
+     *     return expr ;
+     * </pre>
+     */
+    private ReturnNode parseReturnStatement(Lexer lexer) {
+        matchIdentifier(lexer, "return");
+        var returnExpr = parseExpression(lexer);
+        matchPunctuation(lexer, ";");
+        return new ReturnNode(_idGenerator, _startNode, returnExpr);
+    }
+
+    /**
+     * Parse an expression of the form:
+     *
+     * <pre>
+     *     expr : primaryExpr
+     * </pre>
+     */
+    private Node parseExpression(Lexer lexer) {
+        return parsePrimary(lexer);
+    }
+
+    /**
+     * Parse a primary expression:
+     *
+     * <pre>
+     *     primaryExpr : nestedExpr | integerLiteral
+     * </pre>
+     */
+    private Node parsePrimary(Lexer lexer) {
+        switch (_curTok._kind) {
+            case PUNCT -> {
+                /* Nested expression */
+                return parseNestedExpr(lexer);
+            }
+            case NUM -> {
+                return parseIntegerLiteral(lexer);
+            }
+            default -> {
+                error(_curTok, "syntax error, expected nested expr or integer literal");
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Parse nested expression:
+     *
+     * <pre>
+     *     nestedExpr : ( expr )
+     * </pre>
+     */
+    private Node parseNestedExpr(Lexer lexer) {
+        matchPunctuation(lexer, "(");
+        nextToken(lexer);
+        var node = parsePrimary(lexer);
+        matchPunctuation(lexer, ")");
+        return node;
+    }
+
+    /**
+     * Parse integer literal
+     *
+     * <pre>
+     *     integerLiteral: [1-9][0-9]*
+     * </pre>
+     */
+    private ConstantNode parseIntegerLiteral(Lexer lexer) {
+        var constantNode = new ConstantNode(_idGenerator, _curTok._num.longValue(), _startNode);
+        nextToken(lexer);
+        return constantNode;
+    }
+
+    //////////////////////////////////
+    // Utilities for lexical analysis
+
     private void nextToken(Lexer lexer) {
-        currentToken = lexer.next();
+        _curTok = lexer.next();
     }
 
     private boolean isToken(Token token, String value) {
@@ -45,57 +130,23 @@ public class Parser {
     }
 
     private void matchPunctuation(Lexer lexer, String value) {
-        if (currentToken._kind == Token.Kind.PUNCT && isToken(currentToken, value)) {
+        if (_curTok._kind == Token.Kind.PUNCT && isToken(_curTok, value)) {
             nextToken(lexer);
         } else {
-            error(currentToken, "syntax error, expected " + value + " got " + currentToken._str);
+            error(_curTok, "syntax error, expected " + value + " got " + _curTok._str);
         }
     }
 
     private void matchIdentifier(Lexer lexer, String identifier) {
-        if (currentToken._kind == Token.Kind.IDENT && isToken(currentToken, identifier)) {
+        if (_curTok._kind == Token.Kind.IDENT && isToken(_curTok, identifier)) {
             nextToken(lexer);
         } else {
-            error(currentToken, "syntax error, expected " + identifier);
+            error(_curTok, "syntax error, expected " + identifier);
         }
     }
 
-    private Node parsePrimary(Lexer lexer) {
-        switch (currentToken._kind) {
-            case PUNCT -> {
-                /* Nested expression */
-                return parseNestedExpr(lexer);
-            }
-            case NUM -> {
-                return parseNumberConstant(lexer);
-            }
-            default -> {
-                error(currentToken, "syntax error, expected nested expr or integer literal");
-                return null;
-            }
-        }
-    }
-
-    private ConstantNode parseNumberConstant(Lexer lexer) {
-        var constantNode = new ConstantNode(_idGenerator, currentToken._num.longValue(), _startNode);
-        nextToken(lexer);
-        return constantNode;
-    }
-
-    private Node parseNestedExpr(Lexer lexer) {
-        matchPunctuation(lexer, "(");
-        nextToken(lexer);
-        var node = parsePrimary(lexer);
-        matchPunctuation(lexer, ")");
-        return node;
-    }
-
-    private Node parseReturnStatement(Lexer lexer) {
-        matchIdentifier(lexer, "return");
-        var returnExpr = parsePrimary(lexer);
-        matchPunctuation(lexer, ";");
-        return new ReturnNode(_idGenerator, _startNode, returnExpr);
-    }
+    ////////////////////////////////////
+    // Lexer components
 
     static class Token {
 
@@ -145,12 +196,18 @@ public class Parser {
 
     static class Lexer {
 
+        /**
+         * Input buffer
+         */
         private final char[] _input;
         /**
          * Tracks current position in input buffer
          */
         private int _position = 0;
-        private char _curCh = ' ';
+        /**
+         * Current character
+         */
+        private char _cur = ' ';
 
         private final NumberFormat numberFormat;
 
@@ -171,7 +228,7 @@ public class Parser {
         }
 
         private boolean nextToken() {
-            _curCh = advance();
+            _cur = advance();
             return true;
         }
 
@@ -186,7 +243,7 @@ public class Parser {
         }
 
         private void skipWhitespace() {
-            while (isWhiteSpace(_curCh))
+            while (isWhiteSpace(_cur))
                 nextToken();
         }
 
@@ -195,15 +252,15 @@ public class Parser {
          * where n is a digit
          */
         private Token parseNumber() {
-            assert Character.isDigit(_curCh);
+            assert Character.isDigit(_cur);
             StringBuilder sb = new StringBuilder();
-            sb.append(_curCh);
-            while (nextToken() && Character.isDigit(_curCh))
-                sb.append(_curCh);
-            if (_curCh == '.') {
-                sb.append(_curCh);
-                while (nextToken() && Character.isDigit(_curCh))
-                    sb.append(_curCh);
+            sb.append(_cur);
+            while (nextToken() && Character.isDigit(_cur))
+                sb.append(_cur);
+            if (_cur == '.') {
+                sb.append(_cur);
+                while (nextToken() && Character.isDigit(_cur))
+                    sb.append(_cur);
             }
             String str = sb.toString();
             Number number = parseNumber(str);
@@ -227,11 +284,11 @@ public class Parser {
         }
 
         private Token parseIdentifier() {
-            assert isIdentifierStart(_curCh);
+            assert isIdentifierStart(_cur);
             StringBuilder sb = new StringBuilder();
-            sb.append(_curCh);
-            while (nextToken() && isIdentifierLetter(_curCh))
-                sb.append(_curCh);
+            sb.append(_cur);
+            while (nextToken() && isIdentifierLetter(_cur))
+                sb.append(_cur);
             return Token.newIdent(sb.toString());
         }
 
@@ -240,14 +297,14 @@ public class Parser {
          */
         public Token next() {
             skipWhitespace();
-            if (_curCh == 0)
+            if (_cur == 0)
                 return Token.EOF;
-            if (Character.isDigit(_curCh))
+            if (Character.isDigit(_cur))
                 return parseNumber();
-            if (isIdentifierLetter(_curCh))
+            if (isIdentifierLetter(_cur))
                 return parseIdentifier();
-            Token token = Token.newPunct(Character.toString(_curCh));
-            _curCh = ' ';
+            Token token = Token.newPunct(Character.toString(_cur));
+            _cur = ' ';
             return token;
         }
     }
