@@ -18,13 +18,7 @@ public class Parser {
      */
     private Token _curTok;
 
-    private final NodeIDGenerator _idGenerator;
-
     private StartNode _startNode;
-
-    public Parser() {
-        _idGenerator = new NodeIDGenerator();
-    }
 
     public StartNode parse(String source) {
         Lexer lexer = new Lexer(source);
@@ -33,7 +27,7 @@ public class Parser {
     }
 
     private StartNode parseProgram(Lexer lexer) {
-        _startNode = new StartNode(_idGenerator);
+        _startNode = new StartNode();
         parseReturnStatement(lexer);
         return _startNode;
     }
@@ -49,7 +43,7 @@ public class Parser {
         matchIdentifier(lexer, "return");
         var returnExpr = parseExpression(lexer);
         matchPunctuation(lexer, ";");
-        return new ReturnNode(_idGenerator, _startNode, returnExpr);
+        return new ReturnNode(_startNode, returnExpr);
     }
 
     /**
@@ -109,7 +103,7 @@ public class Parser {
      * </pre>
      */
     private ConstantNode parseIntegerLiteral(Lexer lexer) {
-        var constantNode = new ConstantNode(_idGenerator, _curTok._num.longValue(), _startNode);
+        var constantNode = new ConstantNode(_curTok._num.longValue(), _startNode);
         nextToken(lexer);
         return constantNode;
     }
@@ -159,8 +153,7 @@ public class Parser {
 
         public final Kind _kind;
         /**
-         * String representation of a token - always
-         * populated
+         * String representation of a token - always populated
          */
         public final String _str;
         /**
@@ -189,6 +182,7 @@ public class Parser {
          */
         public static Token EOF = new Token(Kind.EOZ, "", null);
 
+        @Override
         public String toString() {
             return _str;
         }
@@ -236,13 +230,13 @@ public class Parser {
          * Note that EOF is not whitespace!
          */
         private boolean isWhiteSpace(char c) {
-            return c == ' ' ||
-                    c == '\t' ||
-                    c == '\n' ||
-                    c == '\r';
+            return c == ' '  ||
+                   c == '\t' ||
+                   c == '\n' ||
+                   c == '\r';
         }
 
-        private void skipWhitespace() {
+        private void skipWhiteSpace() {
             while (isWhiteSpace(_cur))
                 nextToken();
         }
@@ -296,7 +290,7 @@ public class Parser {
          * Gets the next token
          */
         public Token next() {
-            skipWhitespace();
+            skipWhiteSpace();
             if (_cur == 0)
                 return Token.EOF;
             if (Character.isDigit(_cur))

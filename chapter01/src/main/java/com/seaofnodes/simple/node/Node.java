@@ -2,32 +2,14 @@ package com.seaofnodes.simple.node;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public class Node {
-
-    /**
-     * @see StartNode
-     */
-    static final byte OP_START = 1;
-    /**
-     * @see ReturnNode
-     */
-    static final byte OP_RETURN = 2;
-    /**
-     * @see ConstantNode
-     */
-    static final byte OP_CONSTANT = 3;
-
-    /**
-     * The opcode for this node
-     */
-    public final byte _opCode;
+public abstract class Node {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
@@ -40,34 +22,40 @@ public class Node {
      * Inputs to the node. These are use-def references to Nodes.
      * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
-     * The first input (offset 0) must be a Control nodes.
+     * Ordering is required because e.g. "a/b" is different from "b/a".
+     * The first input (offset 0) is often a Control node.
      * @see Control
      */
-    public final List<Node> _inputs;
+    public final ArrayList<Node> _inputs;
 
     /**
-     * Outputs reference Nodes that are not null and
-     * have this Node as an input. These nodes are users of this
-     * node, thus these are def-use references to Nodes.
+     * Outputs reference Nodes that are not null and have this Node as an
+     * input.  These nodes are users of this node, thus these are def-use
+     * references to Nodes.
      * <p>
-     * Note that the outputs are derived from inputs, it appears that
-     * outputs are therefore a performance optimization to make it easier to
-     * traverse the graph. The Sea of Nodes documentation in chapter 1 does not
-     * mention these outputs list.
+     
+     * Outputs directly match inputs, making a directed graph that can be
+     * walked in either direction.  These outputs are typically used for
+     * efficient optimizations but otherwise have no semantics meaning.
      */
-    public final List<Node> _outputs;
+    public final ArrayList<Node> _outputs;
 
-    protected Node(NodeIDGenerator idGenerator, byte opCode, Node ...inputs)
-    {
-        _nid = idGenerator.newNodeID(); // allocate unique dense ID
-        _opCode = opCode;
-        _inputs = Arrays.asList(inputs);
+    /**
+     * A private Global Static mutable counter, for unique node id generation.
+     * To make the compiler multi-threaded, this field will have to move into a TLS.
+     * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
+     * */
+    private static int UNIQUE_ID = 1;
+
+    protected Node(Node ...inputs) {
+        _nid = UNIQUE_ID++; // allocate unique dense ID
+        _inputs = new ArrayList<>();
+        Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
-        for (int i = 0; i < _inputs.size(); i++) {
-            Node n = _inputs.get(i);
-            if (n != null)
-                n._outputs.add(this);
-        }
+        for( Node n : _inputs ) {
+            if( n != null )
+                n._outputs.add( this );
+      }
     }
 
     /**
@@ -77,17 +65,11 @@ public class Node {
      */
     public Node in(int i) { return _inputs.get(i); }
 
-    public int numInputs() { return _inputs.size(); }
+    public int nIns() { return _inputs.size(); }
 
     public Node out(int i) { return _outputs.get(i); }
 
-    public int numOutputs() { return _outputs.size(); }
-
-    /**
-     * Is this a control node, all control nodes are marked with
-     * the interface Control.
-     */
-    public boolean isControl() { return this instanceof Control; }
+    public int nOuts() { return _outputs.size(); }
 
     /*
      * hashCode and equals implementation to be added in later chapter.

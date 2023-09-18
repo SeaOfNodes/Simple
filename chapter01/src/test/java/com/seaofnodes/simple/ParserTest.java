@@ -1,9 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -14,22 +11,20 @@ public class ParserTest {
         Parser parser = new Parser();
         StartNode startNode = parser.parse("return 1;");
         Assert.assertNotNull(startNode);
-        Assert.assertTrue(startNode.isControl());
-        Assert.assertEquals(2, startNode.numOutputs());
-        for (int i = 0; i < startNode.numOutputs(); i++) {
-            Node out = startNode.out(i);
-            if (out instanceof ReturnNode) {
-                Assert.assertEquals(2, out.numInputs());
-                Assert.assertEquals(startNode, out.in(0));
-                Assert.assertTrue(out.isControl());
-                Assert.assertTrue(out.in(1) instanceof ConstantNode);
-            }
-            else if (out instanceof ConstantNode cn) {
-                Assert.assertEquals(1, cn._value);
-                Assert.assertEquals(1, cn.numInputs());
-                Assert.assertEquals(startNode, cn.in(0));
-            }
-            else {
+        Assert.assertEquals(2, startNode.nOuts());
+        for (int i = 0; i < startNode.nOuts(); i++) {
+            switch( startNode.out(i) ) {
+            case ReturnNode ret:
+                Assert.assertEquals(2, ret.nIns());
+                Assert.assertEquals(startNode, ret.in(0));
+                Assert.assertTrue(ret.in(1) instanceof ConstantNode);
+                break;
+            case ConstantNode con:
+                Assert.assertEquals(1, con._value);
+                Assert.assertEquals(1, con.nIns());
+                Assert.assertEquals(startNode, con.in(0));
+                break;
+            default:
                 throw new IllegalStateException();
             }
         }

@@ -13,8 +13,8 @@ public class ConstantNode extends Node {
 
     public final long _value;
 
-    public ConstantNode(NodeIDGenerator idGenerator, long value, StartNode startNode) {
-        super(idGenerator, OP_CONSTANT, startNode);
+    public ConstantNode(long value, StartNode startNode) {
+        super(startNode);
         _value = value;
     }
 }
