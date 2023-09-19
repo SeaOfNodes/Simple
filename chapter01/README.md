@@ -100,8 +100,8 @@ The Constant's value is the value stored in it.
 The Return node has two inputs.  The first input is a control node and the
 second is the data node that supplies the return value.
 
-In this presentation, Return functions as a Stop node, since we are compiling a single unnamed function.
-A separate Stop is not necessary.  Compiling multiple functions is covered in Chapter 9: Functions and Calls. 
+In this presentation, Return functions as a Stop node, since multiple `return` statements are not possible.
+The Stop node will be introduced in Chapter 6 when we implement `if` statements. 
 
 The Return's output is the value from the data node.
 

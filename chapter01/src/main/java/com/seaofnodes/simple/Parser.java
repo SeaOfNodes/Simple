@@ -209,19 +209,16 @@ public class Parser {
             return c;
         }
 
-        // First digit of a number.
-        // Allows 0 on its own or
-        // [-][1-9][0-9]*
-        private boolean isFirstNumber(char ch) {
-            char ch2 = peek();
-            return (ch=='0' && (ch2 <'0' || ch2 > '9')) ||      // 0 followed by non-digit
-                   ('1'<=ch && ch<='9') ||                      // starts with [1-9]
-                   (ch=='-' && ('1'<=ch2 && ch2<='9'));         // starts with - and followed by [1-9]
+        private boolean isDigit(char ch) {
+            return ('0'<=ch && ch<='9');
         }
+
         private Token parseNumber() {
             int start = _position-1;
             while( Character.isDigit( nextChar() ) ) ;
             String snum = new String(_input,start,--_position-start);
+            if (snum.length() > 1 && snum.charAt(0) == '0')
+                throw error("syntax error: integer values cannot start with '0'");
             return Token.newNum(Integer.parseInt(snum),snum);
         }
 
@@ -259,7 +256,7 @@ public class Parser {
             char ch = skipWhiteSpace();
             if (ch == Character.MAX_VALUE)
                 return Token.EOF;
-            if (isFirstNumber(ch))
+            if (isDigit(ch))
                 return parseNumber();
             if (isIdentifierStart(ch))
                 return parseIdentifier();

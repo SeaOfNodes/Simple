@@ -1,13 +1,16 @@
 package com.seaofnodes.simple.node;
 
 /**
- * The Constant node represents a constant value. At present, the only constants that we allow are integer literals; therefore the Constant node contains
- * an integer value. As we add other types of constants, we will need to refactor how we represent Constant nodes.
+ * A Constant node represents a constant value.  At present, the only constants
+ * that we allow are integer literals; therefore Constants contain an integer
+ * value. As we add other types of constants, we will refactor how we represent
+ * Constants.
  * <p>
- * The Constant node has no inputs. However, we set the Start node as an input to the Constant node to enable forward graph walk. This edge carries no semantic meaning,
- * it is present _solely_ to allow visitation.
+ * Constants have no semantic inputs. However, we set Start as an input to
+ * Constants to enable a forward graph walk.  This edge carries no semantic
+ * meaning, and it is present <em>solely</em> to allow visitation.
  * <p>
- * The Constant node's output is the value stored in it.
+ * The Constant's value is the value stored in it.
  */
 public class ConstantNode extends Node {
 

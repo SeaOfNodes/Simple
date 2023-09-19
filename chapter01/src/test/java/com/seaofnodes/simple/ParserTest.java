@@ -31,15 +31,6 @@ public class ParserTest {
     }
 
     @Test
-    public void testNegative() {
-        Parser parser = new Parser();
-        StartNode start = parser.parse("return -123;");
-        for( Node use : start._outputs )
-            if( use instanceof ConstantNode con )
-                assertEquals(-123,con._value);
-    }
-
-    @Test
     public void testZero() {
         Parser parser = new Parser();
         StartNode start = parser.parse("return 0;");
@@ -57,7 +48,7 @@ public class ParserTest {
     @Test
     public void testBad2() {
         try { new Parser().parse("return 0123;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error: unexpected input '0'",e.getMessage()); }
+        catch( RuntimeException e ) { assertEquals("syntax error: integer values cannot start with '0'",e.getMessage()); }
     }
 
     @Test
@@ -70,5 +61,12 @@ public class ParserTest {
     public void testBad4() {
         try { new Parser().parse("return 100"); }
         catch( RuntimeException e ) { assertTrue(e.getMessage().contains("syntax error, expected ; got :")); }
+    }
+
+    // Negative numbers require unary operator support that is not in scope
+    @Test
+    public void testBad5() {
+        try { new Parser().parse("return -100;"); }
+        catch( RuntimeException e ) { assertEquals("syntax error, expected integer literal: -", e.getMessage()); }
     }
 }
