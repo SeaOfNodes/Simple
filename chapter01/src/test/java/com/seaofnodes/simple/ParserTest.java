@@ -40,6 +40,15 @@ public class ParserTest {
     }
 
     @Test
+    public void testZero() {
+        Parser parser = new Parser();
+        StartNode start = parser.parse("return 0;");
+        for( Node use : start._outputs )
+            if( use instanceof ConstantNode con )
+                assertEquals(0,con._value);
+    }
+
+    @Test
     public void testBad1() {
         try { new Parser().parse("ret"); }
         catch( RuntimeException e ) { assertEquals("syntax error, expected return: ret",e.getMessage()); }
@@ -48,12 +57,18 @@ public class ParserTest {
     @Test
     public void testBad2() {
         try { new Parser().parse("return 0123;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error, expected nested expr or integer literal: 0123",e.getMessage()); }
+        catch( RuntimeException e ) { assertEquals("syntax error: unexpected input '0'",e.getMessage()); }
     }
 
     @Test
     public void testBad3() {
         try { new Parser().parse("return --12;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error, expected ( got --: --",e.getMessage()); }
+        catch( RuntimeException e ) { assertEquals("syntax error, expected integer literal: --",e.getMessage()); }
+    }
+
+    @Test
+    public void testBad4() {
+        try { new Parser().parse("return 100"); }
+        catch( RuntimeException e ) { assertTrue(e.getMessage().contains("syntax error, expected ; got :")); }
     }
 }

@@ -1,9 +1,9 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.*;
-
-import java.text.NumberFormat;
-import java.text.ParseException;
+import com.seaofnodes.simple.node.ConstantNode;
+import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.ReturnNode;
+import com.seaofnodes.simple.node.StartNode;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate representation
@@ -61,38 +61,19 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : nestedExpr | integerLiteral
+     *     primaryExpr : integerLiteral
      * </pre>
      */
     private Node parsePrimary(Lexer lexer) {
         switch (_curTok._kind) {
-            case PUNCT -> {
-                /* Nested expression */
-                return parseNestedExpr(lexer);
-            }
             case NUM -> {
                 return parseIntegerLiteral(lexer);
             }
             default -> {
-                error(_curTok, "syntax error, expected nested expr or integer literal");
+                error(_curTok, "syntax error, expected integer literal");
                 return null;
             }
         }
-    }
-
-    /**
-     * Parse nested expression:
-     *
-     * <pre>
-     *     nestedExpr : ( expr )
-     * </pre>
-     */
-    private Node parseNestedExpr(Lexer lexer) {
-        matchPunctuation(lexer, "(");
-        nextToken(lexer);
-        var node = parsePrimary(lexer);
-        matchPunctuation(lexer, ")");
-        return node;
     }
 
     /**
@@ -229,11 +210,13 @@ public class Parser {
         }
 
         // First digit of a number.
-        // Allows [-][1-9] but not a leading 0
+        // Allows 0 on its own or
+        // [-][1-9][0-9]*
         private boolean isFirstNumber(char ch) {
             char ch2 = peek();
-            return ('1'<=ch && ch<='9') ||
-                (ch=='-' && ('1'<=ch2 && ch2<='9'));
+            return (ch=='0' && (ch2 <'0' || ch2 > '9')) ||      // 0 followed by non-digit
+                   ('1'<=ch && ch<='9') ||                      // starts with [1-9]
+                   (ch=='-' && ('1'<=ch2 && ch2<='9'));         // starts with - and followed by [1-9]
         }
         private Token parseNumber() {
             int start = _position-1;
@@ -278,12 +261,12 @@ public class Parser {
                 return Token.EOF;
             if (isFirstNumber(ch))
                 return parseNumber();
-            if (isIdentifierLetter(ch))
+            if (isIdentifierStart(ch))
                 return parseIdentifier();
             if (isPunctuation(ch))
                 return parsePuncuation();
             
-            throw error("Unknown token "+ch);
+            throw error("syntax error: unexpected input '" + ch + "'");
         }
 
         private RuntimeException error(String msg) {

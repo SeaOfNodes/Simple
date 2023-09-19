@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 
 /**
