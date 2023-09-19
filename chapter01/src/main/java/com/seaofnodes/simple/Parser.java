@@ -183,123 +183,112 @@ public class Parser {
         public static Token EOF = new Token(Kind.EOZ, "", null);
 
         @Override
-        public String toString() {
-            return _str;
-        }
+        public String toString() { return _str; }
     }
 
     static class Lexer {
 
-        /**
-         * Input buffer
-         */
-        private final char[] _input;
-        /**
-         * Tracks current position in input buffer
-         */
+        // Input buffer; an array of text bytes read from a file or a string
+        private final byte[] _input;
+        // Tracks current position in input buffer
         private int _position = 0;
-        /**
-         * Current character
-         */
-        private char _cur = ' ';
-
-        private final NumberFormat numberFormat;
-
-        public Lexer(String source) {
-            _input = source.toCharArray();
-            numberFormat = NumberFormat.getInstance();
-            numberFormat.setGroupingUsed(false);
-        }
-
-        private boolean isEOF() {
-            return _position >= _input.length;
-        }
-
-        private char advance() {
-            if (isEOF())
-                return 0;   // Special value that causes parsing to terminate
-            return _input[_position++];
-        }
-
-        private boolean nextToken() {
-            _cur = advance();
-            return true;
-        }
 
         /**
-         * Note that EOF is not whitespace!
+         * Record the source text for lexing
          */
+        public Lexer(String source) { this(source.getBytes());  }
+        public Lexer(byte[] buf) {  _input = buf;  }
+
+        // True if at EOF
+        private boolean isEOF() {  return _position >= _input.length;  }
+
+        private char nextChar() {
+            char ch = peek();
+            _position++;
+            return ch;
+        }
+        // Peek next character, or report EOF
+        private char peek() {
+            return isEOF() ? Character.MAX_VALUE   // Special value that causes parsing to terminate
+                : (char)_input[_position];
+        }
+
+        // True if a white space
         private boolean isWhiteSpace(char c) {
-            return c == ' '  ||
-                   c == '\t' ||
-                   c == '\n' ||
-                   c == '\r';
-        }
-
-        private void skipWhiteSpace() {
-            while (isWhiteSpace(_cur))
-                nextToken();
+            return c <= ' '; // Includes all the use space, tab, newline, CR
         }
 
         /**
-         * Parses number in format nnn[.nnn]
-         * where n is a digit
+         * Return the next non-white-space character
          */
+        private char skipWhiteSpace() {
+            char c = nextChar();
+            while( isWhiteSpace(c) )
+                c = nextChar();
+            return c;
+        }
+
+        // First digit of a number.
+        // Allows [-][1-9] but not a leading 0
+        private boolean isFirstNumber(char ch) {
+            char ch2 = peek();
+            return ('1'<=ch && ch<='9') ||
+                (ch=='-' && ('1'<=ch2 && ch2<='9'));
+        }
         private Token parseNumber() {
-            assert Character.isDigit(_cur);
-            StringBuilder sb = new StringBuilder();
-            sb.append(_cur);
-            while (nextToken() && Character.isDigit(_cur))
-                sb.append(_cur);
-            if (_cur == '.') {
-                sb.append(_cur);
-                while (nextToken() && Character.isDigit(_cur))
-                    sb.append(_cur);
-            }
-            String str = sb.toString();
-            Number number = parseNumber(str);
-            return Token.newNum(number, str);
+            int start = _position-1;
+            while( Character.isDigit( nextChar() ) ) ;
+            String snum = new String(_input,start,--_position-start);
+            return Token.newNum(Integer.parseInt(snum),snum);
         }
 
-        private Number parseNumber(String str) {
-            try {
-                return numberFormat.parse(str);
-            } catch (ParseException e) {
-                throw new RuntimeException("Failed to parse number " + str, e);
-            }
-        }
-
+        // First letter of an identifier 
         private boolean isIdentifierStart(char ch) {
             return Character.isAlphabetic(ch) || ch == '_';
         }
 
+        // All characters of an identifier, e.g. "_x123"
         private boolean isIdentifierLetter(char ch) {
             return Character.isLetterOrDigit(ch) || ch == '_';
         }
 
         private Token parseIdentifier() {
-            assert isIdentifierStart(_cur);
-            StringBuilder sb = new StringBuilder();
-            sb.append(_cur);
-            while (nextToken() && isIdentifierLetter(_cur))
-                sb.append(_cur);
-            return Token.newIdent(sb.toString());
+            int start = _position-1;
+            while( isIdentifierLetter(nextChar()) );
+            return Token.newIdent(new String(_input,start,--_position-start));
         }
 
+        // 
+        private boolean isPunctuation(char ch) {
+            return "=;[]<>()+-/*".indexOf(ch) != -1;
+        }
+
+        private Token parsePuncuation() {
+            int start = _position-1;
+            while( isPunctuation(nextChar()) );
+            return Token.newPunct(new String(_input,start,--_position-start));            
+        }
+            
         /**
-         * Gets the next token
+         * Gets the next Token
          */
         public Token next() {
-            skipWhiteSpace();
-            if (_cur == 0)
+            char ch = skipWhiteSpace();
+            if (ch == Character.MAX_VALUE)
                 return Token.EOF;
-            if (Character.isDigit(_cur))
+            if (isFirstNumber(ch))
                 return parseNumber();
-            if (isIdentifierLetter(_cur))
+            if (isIdentifierLetter(ch))
                 return parseIdentifier();
-            Token token = Token.newPunct(Character.toString(_cur));
-            _cur = ' ';
-            return token;
+            if (isPunctuation(ch))
+                return parsePuncuation();
+            
+            throw error("Unknown token "+ch);
+        }
+
+        private RuntimeException error(String msg) {
+            throw new RuntimeException(msg);
         }
     }
+
 }
