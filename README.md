@@ -27,7 +27,7 @@ Sea Of Nodes intermediate representation.
 The simple language will be a small subset of C. 
 
 * [Language](language/README.md): Simple language grammar.
-* [Chapter 1](chapter01/README.md): Empty script - i.e. empty function that takes no args and returns nothing, and has empty body.
+* [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * Chapter 2: Simple binary arithmetic such as addition, subtraction, multiplication, division with constants. Peephole optimization / simple constant folding.
 * Chapter 3: Graphical Visualization of Sea of Nodes IR.
 * Chapter 4: Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a constant.
@@ -35,7 +35,7 @@ The simple language will be a small subset of C.
 * Chapter 6: `if` statement.  CFG construction, peephole optimization around dead control flow.
 * Chapter 7: `while` statement. 
 * Chapter 8: Global Value Numbering.
-* Chapter 9: Function calls.
+* Chapter 9: Functions and calls.
 * Chapter 10: Boolean operators `&&`, `||` and `!` including short circuit.
 * Chapter 11: `float` type.
 * Chapter 12: Memory effects: general memory edges in SSA. Peephole optimization around load-after-store/store-after-store.

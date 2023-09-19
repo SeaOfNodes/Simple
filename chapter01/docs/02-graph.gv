@@ -1,0 +1,9 @@
+digraph chapter01 
+{
+    start [shape=box, label="Start"];
+    constant [label="Constant 1"];
+    return [shape=box, label="Return"];
+    constant -> return;
+    edge [color=red];
+    start -> return [style=bold];
+}
