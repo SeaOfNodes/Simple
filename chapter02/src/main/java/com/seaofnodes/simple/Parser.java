@@ -1,9 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate representation
@@ -50,11 +47,67 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : primaryExpr
+     *     expr : additiveExpr
      * </pre>
      */
     private Node parseExpression(Lexer lexer) {
-        return parsePrimary(lexer);
+        return parseAddition(lexer);
+    }
+
+    /**
+     * Parse a unary minus expression.
+     *
+     * <pre>
+     *     unaryExpr : ('-') unaryExpr | primaryExpr
+     * </pre>
+     */
+    private Node parseUnary(Lexer lexer) {
+        if (isToken(_curTok, "-")) {
+            nextToken(lexer);
+            return new UnaryMinusNode(parseUnary(lexer));
+        } else {
+            return parsePrimary(lexer);
+        }
+    }
+
+    /**
+     * Parse an additive expression
+     *
+     * <pre>
+     *     additiveExpr : multiplicativeExpr (('+' | '-') multiplicativeExpr)*
+     * </pre>
+     */
+    private Node parseAddition(Lexer lexer) {
+        var x = parseMultiplication(lexer);
+        while (isToken(_curTok, "-") ||
+                isToken(_curTok, "+")) {
+            var tok = _curTok;
+            nextToken(lexer);
+            x = isToken(tok, "+")
+                ? new AddNode(x, parseMultiplication(lexer))
+                : new SubtractNode(x, parseMultiplication(lexer));
+        }
+        return x;
+    }
+
+    /**
+     * Parse an multiplicativeExpr expression
+     *
+     * <pre>
+     *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
+     * </pre>
+     */
+    private Node parseMultiplication(Lexer lexer) {
+        var x = parseUnary(lexer);
+        while (isToken(_curTok, "*") ||
+                isToken(_curTok, "/")) {
+            var tok = _curTok;
+            nextToken(lexer);
+            x = isToken(tok, "*")
+                    ? new MultiplyNode(x, parseUnary(lexer))
+                    : new DivideNode(x, parseUnary(lexer));
+        }
+        return x;
     }
 
     /**
@@ -80,7 +133,7 @@ public class Parser {
      * Parse integer literal
      *
      * <pre>
-     *     integerLiteral: [1-9][0-9]*
+     *     integerLiteral: [1-9][0-9]* | [0]
      * </pre>
      */
     private ConstantNode parseIntegerLiteral(Lexer lexer) {
@@ -245,7 +298,7 @@ public class Parser {
 
         private Token parsePuncuation() {
             int start = _position-1;
-            while( isPunctuation(nextChar()) );
+            if( isPunctuation(nextChar()) );
             return Token.newPunct(new String(_input,start,--_position-start));            
         }
             

@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import java.util.Objects;
+
 /**
  * A Constant node represents a constant value.  At present, the only constants
  * that we allow are integer literals; therefore Constants contain an integer
@@ -20,4 +22,7 @@ public class ConstantNode extends Node {
         super(startNode);
         _value = value;
     }
+
+    @Override
+    public String toString() { return Objects.toString(_value); }
 }

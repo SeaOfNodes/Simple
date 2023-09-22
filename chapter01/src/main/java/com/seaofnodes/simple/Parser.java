@@ -80,7 +80,7 @@ public class Parser {
      * Parse integer literal
      *
      * <pre>
-     *     integerLiteral: [1-9][0-9]*
+     *     integerLiteral: [1-9][0-9]* | [0]
      * </pre>
      */
     private ConstantNode parseIntegerLiteral(Lexer lexer) {
@@ -245,7 +245,7 @@ public class Parser {
 
         private Token parsePuncuation() {
             int start = _position-1;
-            while( isPunctuation(nextChar()) );
+            if( isPunctuation(nextChar()) );
             return Token.newPunct(new String(_input,start,--_position-start));            
         }
             

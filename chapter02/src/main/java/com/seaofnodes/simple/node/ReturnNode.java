@@ -14,4 +14,7 @@ public class ReturnNode extends Node implements Control {
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
     }
+
+    @Override
+    public String toString() { return "return " + in(1).toString() + ";"; }
 }
