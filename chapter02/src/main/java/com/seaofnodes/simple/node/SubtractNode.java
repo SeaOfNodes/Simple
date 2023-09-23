@@ -8,4 +8,8 @@ public class SubtractNode extends Node {
     @Override
     public String toString() { return "(" + in(1).toString() + "-" + in(2).toString() + ")"; }
 
+    @Override
+    public String label() {
+        return "Sub";
+    }
 }

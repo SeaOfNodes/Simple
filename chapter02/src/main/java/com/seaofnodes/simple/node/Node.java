@@ -90,6 +90,12 @@ public abstract class Node {
         return this;
     }
 
+    public abstract String label();
+
+    public String uniqueName() {
+        return label() + _nid;
+    }
+
     /*
      * hashCode and equals implementation to be added in later chapter.
      */

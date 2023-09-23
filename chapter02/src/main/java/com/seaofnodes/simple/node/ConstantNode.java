@@ -33,4 +33,13 @@ public class ConstantNode extends Node {
 
     @Override
     public String toString() { return Objects.toString(_value); }
+
+    public String label() {
+        return "Constant " + _value;
+    }
+
+    @Override
+    public String uniqueName() {
+        return "Constant" + _nid;
+    }
 }

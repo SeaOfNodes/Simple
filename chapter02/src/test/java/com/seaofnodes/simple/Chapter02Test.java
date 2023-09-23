@@ -1,8 +1,12 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.ConstantNode;
+import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.ReturnNode;
+import com.seaofnodes.simple.node.StartNode;
 import org.junit.Assert;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 public class Chapter02Test {
@@ -18,6 +22,8 @@ public class Chapter02Test {
                 validated = true;
             }
         }
+        GraphVisualizer gv = new GraphVisualizer();
+        System.out.println(gv.generateDotOutput(startNode));
         assertTrue(validated);
     }
 

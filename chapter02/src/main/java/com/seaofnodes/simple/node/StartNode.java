@@ -10,4 +10,9 @@ public class StartNode extends Node implements Control {
     public StartNode(/*arguments go here*/) {
         super();
     }
+
+    @Override
+    public String label() {
+        return "Start";
+    }
 }

@@ -7,4 +7,9 @@ public class UnaryMinusNode extends Node {
 
     @Override
     public String toString() { return "(-" + in(1).toString() + ")"; }
+
+    @Override
+    public String label() {
+        return "UnaryMinus";
+    }
 }
