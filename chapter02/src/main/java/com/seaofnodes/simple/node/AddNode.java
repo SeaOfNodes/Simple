@@ -3,8 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
-import java.util.Objects;
-
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
