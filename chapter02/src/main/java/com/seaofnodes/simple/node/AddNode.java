@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class AddNode extends Node {
@@ -9,35 +8,34 @@ public class AddNode extends Node {
     }
 
     @Override
-    public Type compute() {
-        Type lhs = in(1).compute();
-        Type rhs = in(2).compute();
-        if (lhs != null && rhs != null)
-            return add(lhs, rhs);
+    public String label() { return "Add"; }
+
+    @Override
+    StringBuilder _print(StringBuilder sb) {
+        in(1)._print(sb.append("("));
+        in(2)._print(sb.append("+"));
+        return sb.append(")");
+    }
+  
+
+    @Override
+    public TypeInteger compute() {
+        // Invariant: the inputs to Add are only TypeIntegers.
+        
+        // Add is only well-defined on TypeInteger, and if the inputs are NOT
+        // TypeInteger, then our compiler is broken, and we should crash hard
+        // now and debug the issue.
+        TypeInteger lhs = (TypeInteger)in(1)._type;
+        TypeInteger rhs = (TypeInteger)in(2)._type;
+        long lo = lhs._lo + rhs._lo;
+        long hi = lhs._hi + rhs._hi;
+        return new TypeInteger(lo,hi);
+    }
+
+    @Override
+    public Node idealize () {
+        // TODO: add of 0
         return null;
     }
-
-    Type add(Type lhs, Type rhs) {
-        TypeInteger l = lhs.isInt();
-        TypeInteger r = rhs.isInt();
-        if (l == null || r == null) {
-            throw new RuntimeException("Only integer values supported at present");
-        }
-        long lo = l._lo + r._lo;
-        long hi = l._hi + r._hi;
-        if (l.isConstant() && r.isConstant()) {
-            return new TypeInteger(lo, hi);
-        }
-        else {
-            throw new RuntimeException("Only constants supported at present");
-        }
-    }
-
-    @Override
-    public String toString() { return "(" + in(1).toString() + "+" + in(2).toString() + ")"; }
-
-    @Override
-    public String label() {
-        return "Add";
-    }
+        
 }

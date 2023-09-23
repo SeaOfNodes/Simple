@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.lang.StringBuilder;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -53,12 +53,31 @@ public abstract class Node {
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
-        for( Node n : _inputs ) {
+        for( Node n : _inputs )
             if( n != null )
                 n._outputs.add( this );
-      }
+        // Do an initial type computation
+        _type = compute();
     }
 
+    public abstract String label();
+
+    public String uniqueName() { return label() + "#" + _nid; }
+
+    @Override
+    public final String toString() {
+        // TODO: This needs a lot of work
+        return uniqueName();
+    }
+
+    // This is a *deep* print.  This version will fail on cycles, which we will
+    // correct later when we can parse programs with loops.
+    public final String print() {
+        return _print(new StringBuilder()).toString();
+    }
+    abstract StringBuilder _print(StringBuilder sb);
+
+    
     /**
      * Gets the ith input node
      * @param i Offset of the input node
@@ -77,25 +96,51 @@ public abstract class Node {
 
     public int nOuts() { return _outputs.size(); }
 
-    public Type compute() {return null;}
 
-    public Node peephole(StartNode startNode) {
+    // Try to peephole at this node and return a better replacment Node if
+    // possible
+    public final Node peephole( ) {
+        // Replace constant computations with a constant node
         Type type = compute();
-        if (type != null && type.isConstant()) {
-            TypeInteger intType = type.isInt();
-            if (intType != null) {
-                return new ConstantNode(intType.getConstant(), startNode);
-            }
+        if (type.isConstant()) {
+            return new ConstantNode(type);
         }
+
+        // Future chapter: Global Value Numbering goes here
+        
+        // Ask each node for a replacement
+        Node n = idealize();
+        if( n != null ) return n;
+        
         return this;
     }
 
-    public abstract String label();
+    /**
+     * Current computed type for this Node.  This value changes as the graph
+     * changes, and more knowledge is gained about the program.
+     */
+    public Type _type;
+    
+    /**
+     * This function needs to be
+     * @see <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
+     * as it is part of a Monotone Analysis Framework, 
+     * @see <a href="https://www.cse.psu.edu/~gxt29/teaching/cse597s21/slides/08monotoneFramework.pdf">see for example this set of slides</a>.
+     * <p>
+     * For Chapter 2, all our Types are really integer constants, and so all
+     * the needed properties are trivially true and we can ignore the high
+     * theory.  Much later on, this will become important and allow us to do
+     * many fancy complex optimizations trivially... because theory.
+     * <p>
+     * Compute() needs to be stand-alone, and cannot recursively call compute()
+     * on its inputs programs are cyclic (have loops!) and this will just
+     * infinitely recurse until stack overflow.  Instead, compute typically
+     * computes a new type from the _type field of its inputs.
+     */
+    public abstract Type compute();
 
-    public String uniqueName() {
-        return label() + _nid;
-    }
-
+    public abstract Node idealize();
+    
     /*
      * hashCode and equals implementation to be added in later chapter.
      */

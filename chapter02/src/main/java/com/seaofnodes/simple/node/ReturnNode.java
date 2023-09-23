@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.type.TypeBot;
+
 /**
  * The Return node has two inputs.  The first input is a control node and the
  * second is the data node that supplies the return value.
@@ -15,11 +17,23 @@ public class ReturnNode extends Node implements Control {
         super(ctrl, data);
     }
 
+    public Node ctrl() { return in(0); }
+    public Node expr() { return in(1); }
+  
     @Override
-    public String toString() { return "return " + in(1).toString() + ";"; }
+    public String label() { return "Return"; }
 
     @Override
-    public String label() {
-        return "Return";
+    StringBuilder _print(StringBuilder sb) {
+        return expr()._print(sb.append("return ")).append(";");
     }
+
+  
+    @Override
+    public TypeBot compute() {
+        return TypeBot.BOTTOM;
+    }
+
+    @Override
+    public Node idealize() { return null; }
 }

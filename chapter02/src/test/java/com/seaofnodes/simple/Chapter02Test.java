@@ -4,7 +4,7 @@ import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.StartNode;
-import org.junit.Assert;
+import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -13,95 +13,74 @@ public class Chapter02Test {
 
     @Test
     public void testChapter2ParseGrammar() {
-        Parser parser = new Parser();
-        StartNode startNode = parser.parse("return 1+2*3+-5;");
-        boolean validated = false;
-        for (int i = 0; i < startNode.nOuts(); i++) {
-            if ( startNode.out(i) instanceof ReturnNode ret ) {
-                Assert.assertEquals("return ((1+(2*3))+(-5));", ret.toString());
-                validated = true;
-            }
-        }
+        Parser parser = new Parser("return 1+2*3+-5;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (1+((2*3)+(-5)));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
-        System.out.println(gv.generateDotOutput(startNode));
-        assertTrue(validated);
+        System.out.println(gv.generateDotOutput(Parser.START));
     }
 
     @Test
     public void testChapter2AddPeephole() {
-        Parser parser = new Parser();
-        StartNode startNode = parser.parse("return 1+2;");
-        boolean validated = false;
-        for (int i = 0; i < startNode.nOuts(); i++) {
-            if ( startNode.out(i) instanceof ReturnNode ret ) {
-                Assert.assertEquals("return 3;", ret.toString());
-                validated = true;
-            }
-        }
-        assertTrue(validated);
+        Parser parser = new Parser("return 1+2;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return 3;", ret.print());
     }
 
     @Test
     public void testSimpleProgram() {
-        Parser parser = new Parser();
-        StartNode startNode = parser.parse("return 1;");
-        assertNotNull(startNode);
-        assertEquals(2, startNode.nOuts());
-        for (int i = 0; i < startNode.nOuts(); i++) {
-            switch( startNode.out(i) ) {
-            case ReturnNode ret:
-                assertEquals(2, ret.nIns());
-                assertEquals(startNode, ret.in(0));
-                assertTrue(ret.in(1) instanceof ConstantNode);
-                break;
-            case ConstantNode con:
-                assertEquals(1, con._value);
-                assertEquals(1, con.nIns());
-                assertEquals(startNode, con.in(0));
-                break;
-            default:
-                throw new IllegalStateException();
-            }
+        Parser parser = new Parser("return 1;");
+        ReturnNode ret = parser.parse();
+        StartNode start = Parser.START;
+        
+        assertEquals(start, ret.ctrl());
+        Node expr = ret.expr();
+        if( expr instanceof ConstantNode con ) {
+            assertEquals(start,con.in(0));
+            assertEquals(new TypeInteger(1), con._type);
+        } else {
+            fail();
         }
     }
 
     @Test
     public void testZero() {
-        Parser parser = new Parser();
-        StartNode start = parser.parse("return 0;");
+        Parser parser = new Parser("return 0;");
+        parser.parse();
+        StartNode start = Parser.START;
         for( Node use : start._outputs )
             if( use instanceof ConstantNode con )
-                assertEquals(0,con._value);
+                assertEquals(new TypeInteger(0),con._type);
     }
 
     @Test
     public void testBad1() {
-        try { new Parser().parse("ret"); }
-        catch( RuntimeException e ) { assertEquals("syntax error, expected return: ret",e.getMessage()); }
+        try { new Parser("ret").parse(); }
+        catch( RuntimeException e ) { assertEquals("Syntax error, expected return: ret",e.getMessage()); }
     }
 
     @Test
     public void testBad2() {
-        try { new Parser().parse("return 0123;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error: integer values cannot start with '0'",e.getMessage()); }
+        try { new Parser("return 0123;").parse(); }
+        catch( RuntimeException e ) { assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage()); }
     }
 
     @Test
     public void testBad3() {
-        try { new Parser().parse("return --12;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error, expected integer literal: -",e.getMessage()); }
+        try { new Parser("return --12;").parse(); }
+        catch( RuntimeException e ) { assertEquals("Syntax error, expected integer literal: -",e.getMessage()); }
     }
 
     @Test
     public void testBad4() {
-        try { new Parser().parse("return 100"); }
-        catch( RuntimeException e ) { assertTrue(e.getMessage().contains("syntax error, expected ; got :")); }
+        try { new Parser("return 100").parse(); }
+        catch( RuntimeException e ) { assertTrue(e.getMessage().contains("Syntax error, expected ;:")); }
     }
 
     // Negative numbers require unary operator support that is not in scope
     @Test
     public void testBad5() {
-        try { new Parser().parse("return -100;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error, expected integer literal: -", e.getMessage()); }
+        try { new Parser("return -100;").parse(); }
+        catch( RuntimeException e ) { assertEquals("Syntax error, expected integer literal: -", e.getMessage()); }
     }
 }

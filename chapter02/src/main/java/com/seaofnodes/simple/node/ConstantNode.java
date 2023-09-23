@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-
-import java.util.Objects;
 
 /**
  * A Constant node represents a constant value.  At present, the only constants
@@ -19,27 +17,23 @@ import java.util.Objects;
  */
 public class ConstantNode extends Node {
 
-    public final long _value;
-
-    public ConstantNode(long value, StartNode startNode) {
-        super(startNode);
-        _value = value;
+    public ConstantNode( Type type ) {
+        super(Parser.START);
+        _type = type;
     }
+    
+    @Override
+    public String label() { return "Constant " + _type; }
 
     @Override
-    public Type compute() {
-        return new TypeInteger(_value);
+    StringBuilder _print(StringBuilder sb) {
+        return _type._print(sb);
     }
+    
+    @Override
+    public Type compute() { return _type; }
 
     @Override
-    public String toString() { return Objects.toString(_value); }
-
-    public String label() {
-        return "Constant " + _value;
-    }
-
-    @Override
-    public String uniqueName() {
-        return "Constant" + _nid;
-    }
+    public Node idealize() { return null; }
+    
 }
