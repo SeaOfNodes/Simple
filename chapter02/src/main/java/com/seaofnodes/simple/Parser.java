@@ -5,7 +5,7 @@ import com.seaofnodes.simple.node.*;
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate representation
  * directly in one pass. There is no intermediate Abstract Syntax Tree structure.
- *
+ * <p>
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
@@ -62,8 +62,7 @@ public class Parser {
      * </pre>
      */
     private Node parseUnary(Lexer lexer) {
-        if (isToken(_curTok, "-")) {
-            nextToken(lexer);
+        if (nextTokenIf(lexer, "-")) {
             return new UnaryMinusNode(parseUnary(lexer));
         } else {
             return parsePrimary(lexer);
@@ -79,16 +78,16 @@ public class Parser {
      */
     private Node parseAddition(Lexer lexer) {
         var x = parseMultiplication(lexer);
-        while (isToken(_curTok, "-") ||
-                isToken(_curTok, "+")) {
-            var tok = _curTok;
-            nextToken(lexer);
-            x = isToken(tok, "+")
-                ? new AddNode(x, parseMultiplication(lexer))
-                : new SubtractNode(x, parseMultiplication(lexer));
+        var tok = _curTok;
+        while (nextTokenIf(lexer, "-", "+")) {
+            x = match(tok, "+")
+                    ? new AddNode(x, parseMultiplication(lexer))
+                    : new SubtractNode(x, parseMultiplication(lexer));
+            tok = _curTok;
         }
         return x;
     }
+
 
     /**
      * Parse an multiplicativeExpr expression
@@ -99,13 +98,12 @@ public class Parser {
      */
     private Node parseMultiplication(Lexer lexer) {
         var x = parseUnary(lexer);
-        while (isToken(_curTok, "*") ||
-                isToken(_curTok, "/")) {
-            var tok = _curTok;
-            nextToken(lexer);
-            x = isToken(tok, "*")
+        var tok = _curTok;
+        while (nextTokenIf(lexer, "*", "/")) {
+            x = match(tok, "*")
                     ? new MultiplyNode(x, parseUnary(lexer))
                     : new DivideNode(x, parseUnary(lexer));
+            tok = _curTok;
         }
         return x;
     }
@@ -149,7 +147,16 @@ public class Parser {
         _curTok = lexer.next();
     }
 
-    private boolean isToken(Token token, String value) {
+    private boolean nextTokenIf(Lexer lexer, String... look) {
+        for (String t : look)
+            if (match(_curTok, t)) {
+                nextToken(lexer);
+                return true;
+            }
+        return false;
+    }
+
+    private boolean match(Token token, String value) {
         return token._str.equals(value);
     }
 
@@ -158,7 +165,7 @@ public class Parser {
     }
 
     private void matchPunctuation(Lexer lexer, String value) {
-        if (_curTok._kind == Token.Kind.PUNCT && isToken(_curTok, value)) {
+        if (_curTok._kind == Token.Kind.PUNCT && match(_curTok, value)) {
             nextToken(lexer);
         } else {
             error(_curTok, "syntax error, expected " + value + " got " + _curTok._str);
@@ -166,7 +173,7 @@ public class Parser {
     }
 
     private void matchIdentifier(Lexer lexer, String identifier) {
-        if (_curTok._kind == Token.Kind.IDENT && isToken(_curTok, identifier)) {
+        if (_curTok._kind == Token.Kind.IDENT && match(_curTok, identifier)) {
             nextToken(lexer);
         } else {
             error(_curTok, "syntax error, expected " + identifier);
@@ -204,9 +211,11 @@ public class Parser {
         public static Token newIdent(String str) {
             return new Token(Kind.IDENT, str.intern(), null);
         }
+
         public static Token newNum(Number num, String str) {
             return new Token(Kind.NUM, str, num);
         }
+
         public static Token newPunct(String str) {
             return new Token(Kind.PUNCT, str.intern(), null);
         }
@@ -217,7 +226,9 @@ public class Parser {
         public static Token EOF = new Token(Kind.EOZ, "", null);
 
         @Override
-        public String toString() { return _str; }
+        public String toString() {
+            return _str;
+        }
     }
 
     static class Lexer {
@@ -230,21 +241,29 @@ public class Parser {
         /**
          * Record the source text for lexing
          */
-        public Lexer(String source) { this(source.getBytes());  }
-        public Lexer(byte[] buf) {  _input = buf;  }
+        public Lexer(String source) {
+            this(source.getBytes());
+        }
+
+        public Lexer(byte[] buf) {
+            _input = buf;
+        }
 
         // True if at EOF
-        private boolean isEOF() {  return _position >= _input.length;  }
+        private boolean isEOF() {
+            return _position >= _input.length;
+        }
 
         private char nextChar() {
             char ch = peek();
             _position++;
             return ch;
         }
+
         // Peek next character, or report EOF
         private char peek() {
             return isEOF() ? Character.MAX_VALUE   // Special value that causes parsing to terminate
-                : (char)_input[_position];
+                    : (char) _input[_position];
         }
 
         // True if a white space
@@ -257,22 +276,22 @@ public class Parser {
          */
         private char skipWhiteSpace() {
             char c = nextChar();
-            while( isWhiteSpace(c) )
+            while (isWhiteSpace(c))
                 c = nextChar();
             return c;
         }
 
         private boolean isDigit(char ch) {
-            return ('0'<=ch && ch<='9');
+            return ('0' <= ch && ch <= '9');
         }
 
         private Token parseNumber() {
-            int start = _position-1;
-            while( Character.isDigit( nextChar() ) ) ;
-            String snum = new String(_input,start,--_position-start);
+            int start = _position - 1;
+            while (Character.isDigit(nextChar())) ;
+            String snum = new String(_input, start, --_position - start);
             if (snum.length() > 1 && snum.charAt(0) == '0')
                 throw error("syntax error: integer values cannot start with '0'");
-            return Token.newNum(Integer.parseInt(snum),snum);
+            return Token.newNum(Integer.parseInt(snum), snum);
         }
 
         // First letter of an identifier 
@@ -286,9 +305,9 @@ public class Parser {
         }
 
         private Token parseIdentifier() {
-            int start = _position-1;
-            while( isIdentifierLetter(nextChar()) );
-            return Token.newIdent(new String(_input,start,--_position-start));
+            int start = _position - 1;
+            while (isIdentifierLetter(nextChar())) ;
+            return Token.newIdent(new String(_input, start, --_position - start));
         }
 
         // 
@@ -297,11 +316,11 @@ public class Parser {
         }
 
         private Token parsePuncuation() {
-            int start = _position-1;
-            if( isPunctuation(nextChar()) );
-            return Token.newPunct(new String(_input,start,--_position-start));            
+            int start = _position - 1;
+            if (isPunctuation(nextChar())) ;
+            return Token.newPunct(new String(_input, start, --_position - start));
         }
-            
+
         /**
          * Gets the next Token
          */
@@ -315,7 +334,7 @@ public class Parser {
                 return parseIdentifier();
             if (isPunctuation(ch))
                 return parsePuncuation();
-            
+
             throw error("syntax error: unexpected input '" + ch + "'");
         }
 
