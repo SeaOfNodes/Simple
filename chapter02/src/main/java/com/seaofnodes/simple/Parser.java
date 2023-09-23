@@ -83,6 +83,7 @@ public class Parser {
             x = match(tok, "+")
                     ? new AddNode(x, parseMultiplication(lexer))
                     : new SubtractNode(x, parseMultiplication(lexer));
+            x = x.peephole(_startNode);
             tok = _curTok;
         }
         return x;

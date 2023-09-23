@@ -8,13 +8,27 @@ import static org.junit.Assert.*;
 public class Chapter02Test {
 
     @Test
-    public void testParseChapter2Grammar() {
+    public void testChapter2ParseGrammar() {
         Parser parser = new Parser();
         StartNode startNode = parser.parse("return 1+2*3+-5;");
         boolean validated = false;
         for (int i = 0; i < startNode.nOuts(); i++) {
             if ( startNode.out(i) instanceof ReturnNode ret ) {
                 Assert.assertEquals("return ((1+(2*3))+(-5));", ret.toString());
+                validated = true;
+            }
+        }
+        assertTrue(validated);
+    }
+
+    @Test
+    public void testChapter2AddPeephole() {
+        Parser parser = new Parser();
+        StartNode startNode = parser.parse("return 1+2;");
+        boolean validated = false;
+        for (int i = 0; i < startNode.nOuts(); i++) {
+            if ( startNode.out(i) instanceof ReturnNode ret ) {
+                Assert.assertEquals("return 3;", ret.toString());
                 validated = true;
             }
         }

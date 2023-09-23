@@ -1,5 +1,8 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
+
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -73,6 +76,19 @@ public abstract class Node {
     public Node out(int i) { return _outputs.get(i); }
 
     public int nOuts() { return _outputs.size(); }
+
+    public Type compute() {return null;}
+
+    public Node peephole(StartNode startNode) {
+        Type type = compute();
+        if (type != null && type.isConstant()) {
+            TypeInteger intType = type.isInt();
+            if (intType != null) {
+                return new ConstantNode(intType.getConstant(), startNode);
+            }
+        }
+        return this;
+    }
 
     /*
      * hashCode and equals implementation to be added in later chapter.

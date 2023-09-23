@@ -1,5 +1,8 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
+
 import java.util.Objects;
 
 /**
@@ -21,6 +24,11 @@ public class ConstantNode extends Node {
     public ConstantNode(long value, StartNode startNode) {
         super(startNode);
         _value = value;
+    }
+
+    @Override
+    public Type compute() {
+        return new TypeInteger(_value);
     }
 
     @Override
