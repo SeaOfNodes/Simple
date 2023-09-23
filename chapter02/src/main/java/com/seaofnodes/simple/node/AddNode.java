@@ -3,8 +3,8 @@ package com.seaofnodes.simple.node;
 import java.util.Objects;
 
 public class AddNode extends Node {
-    public AddNode(Node in1, Node in2) {
-        super(null, in1, in2);
+    public AddNode(Node lhs, Node rhs) {
+        super(null, lhs, rhs);
     }
 
     @Override
