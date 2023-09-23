@@ -1,0 +1,27 @@
+digraph chapter01
+{
+	Start1 [shape=box,  label="Start"];
+	Constant2 [ label="Constant 1"];
+	Start1 -> Constant2 [style=dotted];
+	Constant3 [ label="Constant 2"];
+	Start1 -> Constant3 [style=dotted];
+	Constant4 [ label="Constant 3"];
+	Start1 -> Constant4 [style=dotted];
+	Mul5 [ label="Mul"];
+	Constant3 -> Mul5;
+	Constant4 -> Mul5;
+	Add6 [ label="Add"];
+	Constant2 -> Add6;
+	Mul5 -> Add6;
+	Constant7 [ label="Constant 5"];
+	Start1 -> Constant7 [style=dotted];
+	UnaryMinus8 [ label="UnaryMinus"];
+	Constant7 -> UnaryMinus8;
+	Add9 [ label="Add"];
+	Add6 -> Add9;
+	UnaryMinus8 -> Add9;
+	Return10 [shape=box,  label="Return"];
+	Add9 -> Return10;
+	edge [color=red];
+	Start1 -> Return10;
+}
