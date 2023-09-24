@@ -93,8 +93,6 @@ The following shows how we represent the Type and the Lattice:
 ```java
 public class Type {
     enum LatticeLevel {TOP, VALUE, BOTTOM}
-
-    ;
     public LatticeLevel _level;
 }
 
