@@ -1,9 +1,13 @@
 package com.seaofnodes.simple.type;
 
-import java.lang.StringBuilder;
-
+/**
+ * Integer Type
+ */
 public class TypeInteger extends Type {
 
+    /**
+     * The constant value observed for this type
+     */
     public final long _con;
 
     public TypeInteger(long con) { _con = con; }

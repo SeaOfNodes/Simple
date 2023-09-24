@@ -13,11 +13,13 @@ public class Chapter02Test {
 
     @Test
     public void testChapter2ParseGrammar() {
+        Node._disablePeephole = true; // disable peephole so we can observe full graph
         Parser parser = new Parser("return 1+2*3+-5;");
         ReturnNode ret = parser.parse();
         assertEquals("return (1+((2*3)+(-5)));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
         System.out.println(gv.generateDotOutput(Parser.START));
+        Node._disablePeephole = false;
     }
 
     @Test
@@ -25,6 +27,43 @@ public class Chapter02Test {
         Parser parser = new Parser("return 1+2;");
         ReturnNode ret = parser.parse();
         assertEquals("return 3;", ret.print());
+    }
+
+    @Test
+    public void testChapter2SubPeephole() {
+        Parser parser = new Parser("return 1-2;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return -1;", ret.print());
+    }
+
+    @Test
+    public void testChapter2MulPeephole() {
+        Parser parser = new Parser("return 2*3;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return 6;", ret.print());
+    }
+
+    @Test
+    public void testChapter2DivPeephole() {
+        Parser parser = new Parser("return 6/3;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return 2;", ret.print());
+    }
+
+    @Test
+    public void testChapter2MinusPeephole() {
+        Parser parser = new Parser("return 6/-3;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return -2;", ret.print());
+    }
+
+    @Test
+    public void testChapter2Example() {
+        Parser parser = new Parser("return 1+2*3+-5;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return 2;", ret.print());
+        GraphVisualizer gv = new GraphVisualizer();
+        System.out.println(gv.generateDotOutput(Parser.START));
     }
 
     @Test

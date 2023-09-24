@@ -113,3 +113,7 @@ The following visual shows how the graph looks like pre-peephole optimization:
 * Control nodes appear as square boxes
 * Control edges are in bold red
 * The edges from Start to Constants are shown in dotted lines as these are not true def-use edges
+
+## Post-peephole
+
+![Example Visual](/docs/02-post-peephole-ex1.svg)

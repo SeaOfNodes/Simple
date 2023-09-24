@@ -4,7 +4,6 @@ import com.seaofnodes.simple.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.lang.StringBuilder;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -96,10 +95,19 @@ public abstract class Node {
 
     public int nOuts() { return _outputs.size(); }
 
+    /**
+     * We allow disabling peephole opt so that we can observe the
+     * full graph, vs the optimized graph.
+     */
+    public static boolean _disablePeephole = false;
+
 
     // Try to peephole at this node and return a better replacment Node if
     // possible
     public final Node peephole( ) {
+        if (_disablePeephole)
+            return this;
+
         // Replace constant computations with a constant node
         Type type = compute();
         if (!(this instanceof ConstantNode) && type.isConstant())
