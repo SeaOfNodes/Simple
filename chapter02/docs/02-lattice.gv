@@ -1,0 +1,29 @@
+digraph Lattice {
+    // Define nodes
+    node [shape=circle, style=filled, fillcolor=lightblue];
+    Top [label="⊤"];
+    Bottom [label="⊥"];
+    A [label="C1"];
+    C [label="C2"];
+    D [label="C3"];
+    E [label="..." shape=none style=none];
+    F [label="Cn"];
+
+
+    // Define edges
+    Top -> A [arrowhead=none];
+    Top -> C [arrowhead=none];
+    Top -> D [arrowhead=none];
+    Top -> E [arrowhead=none];
+    Top -> F [arrowhead=none];
+    A -> Bottom [arrowhead=none];
+    C -> Bottom [arrowhead=none];
+    D -> Bottom [arrowhead=none];
+    E -> Bottom [arrowhead=none];
+    F -> Bottom [arrowhead=none];
+
+    // Additional customization
+    {rank=same; A; C; D; E;}
+    {rank=same; Bottom;}
+}
+
