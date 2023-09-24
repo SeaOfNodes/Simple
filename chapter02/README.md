@@ -116,4 +116,4 @@ The following visual shows how the graph looks like pre-peephole optimization:
 
 ## Post-peephole
 
-![Example Visual](/docs/02-post-peephole-ex1.svg)
+![Example Visual](./docs/02-post-peephole-ex1.svg)
