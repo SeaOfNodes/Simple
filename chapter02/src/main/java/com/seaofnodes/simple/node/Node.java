@@ -62,7 +62,7 @@ public abstract class Node {
 
     public abstract String label();
 
-    public String uniqueName() { return label() + "#" + _nid; }
+    public String uniqueName() { return label() + _nid; }
 
     @Override
     public final String toString() {
@@ -102,9 +102,8 @@ public abstract class Node {
     public final Node peephole( ) {
         // Replace constant computations with a constant node
         Type type = compute();
-        if (type.isConstant()) {
+        if (!(this instanceof ConstantNode) && type.isConstant())
             return new ConstantNode(type);
-        }
 
         // Future chapter: Global Value Numbering goes here
         
@@ -141,7 +140,10 @@ public abstract class Node {
 
     public abstract Node idealize();
     
+    public static void reset() { UNIQUE_ID = 1; }
+  
     /*
      * hashCode and equals implementation to be added in later chapter.
      */
+  
 }

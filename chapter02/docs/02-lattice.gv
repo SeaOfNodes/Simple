@@ -3,27 +3,33 @@ digraph Lattice {
     node [shape=circle, style=filled, fillcolor=lightblue];
     Top [label="⊤"];
     Bottom [label="⊥"];
-    A [label="C1"];
-    C [label="C2"];
-    D [label="C3"];
-    E [label="..." shape=none style=none];
-    F [label="Cn"];
+    
+    A [label="MIN_INT"];
+    B [label="..." shape=none style=none];
+    C [label="-1"];
+    D [label="0"];
+    E [label="1"];
+    F [label="..." shape=none style=none];
+    G [label="MAX_INT"];
 
 
     // Define edges
     Top -> A [arrowhead=none];
+    Top -> B [arrowhead=none];
     Top -> C [arrowhead=none];
     Top -> D [arrowhead=none];
     Top -> E [arrowhead=none];
     Top -> F [arrowhead=none];
+    Top -> G [arrowhead=none];
     A -> Bottom [arrowhead=none];
+    B -> Bottom [arrowhead=none];
     C -> Bottom [arrowhead=none];
     D -> Bottom [arrowhead=none];
     E -> Bottom [arrowhead=none];
     F -> Bottom [arrowhead=none];
+    G -> Bottom [arrowhead=none];
 
     // Additional customization
-    {rank=same; A; C; D; E;}
+    {rank=same; A; B; C; D; E; F; G; }
     {rank=same; Bottom;}
 }
-

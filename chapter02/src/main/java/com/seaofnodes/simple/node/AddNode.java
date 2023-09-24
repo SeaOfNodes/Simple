@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.*;
 
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) {
@@ -19,17 +19,11 @@ public class AddNode extends Node {
   
 
     @Override
-    public TypeInteger compute() {
-        // Invariant: the inputs to Add are only TypeIntegers.
-        
-        // Add is only well-defined on TypeInteger, and if the inputs are NOT
-        // TypeInteger, then our compiler is broken, and we should crash hard
-        // now and debug the issue.
-        TypeInteger lhs = (TypeInteger)in(1)._type;
-        TypeInteger rhs = (TypeInteger)in(2)._type;
-        long lo = lhs._lo + rhs._lo;
-        long hi = lhs._hi + rhs._hi;
-        return new TypeInteger(lo,hi);
+    public Type compute() {
+        if( in(1)._type instanceof TypeInteger i0 &&
+            in(2)._type instanceof TypeInteger i1 )
+            return new TypeInteger(i0._con + i1._con);
+        return TypeBot.BOTTOM;
     }
 
     @Override

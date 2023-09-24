@@ -25,6 +25,7 @@ public class Parser {
 
     public Parser( String source ) {
         _lexer = new Lexer(source);
+        Node.reset();
         START = new StartNode();
     }
     

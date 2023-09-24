@@ -19,7 +19,7 @@ public class GraphVisualizer {
         }
         // We should have all nodes in our two maps.
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter01\n" +
+        sb.append("digraph chapter02\n" +
                 "{\n");
         for (Node n : _all.values()) {
             sb.append('\t').append(n.uniqueName());

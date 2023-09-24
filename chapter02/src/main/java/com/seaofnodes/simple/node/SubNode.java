@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.*;
 
 public class SubNode extends Node {
     public SubNode(Node lhs, Node rhs) {
@@ -18,9 +18,7 @@ public class SubNode extends Node {
     }
   
     @Override
-    public TypeInteger compute() {
-        return TypeInteger.INT;
-    }
+    public Type compute() { return TypeBot.BOTTOM; }
 
     @Override
     public Node idealize() { return null; }
