@@ -65,9 +65,9 @@ In order to achieve above, we annotate Nodes with Types.
 The Type annotation serves two purposes:
 
 * The Type defines the set of operations allowed on the value.
-* For the purposes of constant propagation, we also capture a set of known values for each type for a data node.
+* For the purposes of constant propagation, we also capture a set of known values for Node's type.
 
-The type itself is identified by the Java class sub-typing relationship; all types are subtype of
+The type itself is identified by the Java class sub-typing relationship; all types are subtypes of
 the class Type. For now, we only have the following hierarchy of types:
 
 ```
@@ -80,11 +80,13 @@ represented as a "lattice". The lattice has the following structure:
 
 ![Lattice](./docs/02-lattice.svg)
 
-A lattice element can be one of three types: the highest element is "top", denoted by T.
-The lowest is bottom, denoted by ⊥, and all elements in the middle are constants. These represent the set
-of values of the type.
+A lattice element can be one of three types:
 
-Assigning ⊥ means that the Node's value is not a compile time constant, whereas
+* the highest element is "top", denoted by T.
+* The lowest is bottom, denoted by ⊥,
+* All elements in the middle are constants.
+
+Assigning ⊥ means that the Node's value is known to be not a compile time constant, whereas
 assigning T means that the Node's value may be some (as yet) undetermined constant. The transition of the
 Node's type can occur from T to some constant to ⊥.
 
@@ -92,22 +94,18 @@ The following shows how we represent the Type and the Lattice:
 
 ```java
 public class Type {
-    enum LatticeLevel {TOP, VALUE, BOTTOM}
+  enum LatticeLevel {TOP, CONSTANT, BOTTOM}
     public LatticeLevel _level;
 }
 
 public class TypeInteger extends Type {
-    public long _lo;
-    public long _hi;
+  public long _value;
 
     public boolean isConstant() {
-        return _lo == _hi;
+      return _level == LatticeLevel.CONSTANT;
     }
 }
 ```
-
-We allow for ranges of values to be represented, and range where the lower bound equals the upper bound
-is a constant.
 
 There are other important properties of the Lattice that we discuss in Chapter 3, such as the "meet" operator
 and its rules.
