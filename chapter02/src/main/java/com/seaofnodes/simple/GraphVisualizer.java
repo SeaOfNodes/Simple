@@ -5,23 +5,25 @@ import com.seaofnodes.simple.node.Control;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StartNode;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Simple visualizer that outputs GraphViz dot format.
+ * The dot output must be saved to a file and run manually via dot to generate the SVG output.
+ * Currently, this is done manually.
+ */
 public class GraphVisualizer {
 
-    Map<Integer, Node> _all = new HashMap<>();
-
     public String generateDotOutput(StartNode start) {
-        for (int i = 0; i < start.nOuts(); i++) {
-            Node n = start.out(i);
-            walk(n);
-        }
-        // We should have all nodes in our two maps.
+        // Since the graph has cycles, we need to create a flat list of all the
+        // nodes in the graph.
+        Collection<Node> all = findAll(start);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter02\n" +
                 "{\n");
-        for (Node n : _all.values()) {
+        for (Node n : all) {
             sb.append('\t').append(n.uniqueName());
             // control nodes have box shape
             // other nodes are ellipses, i.e. default shape
@@ -37,13 +39,18 @@ public class GraphVisualizer {
         }
         // Now output the control edges which must be in red
         sb.append("\tedge [color=red];\n");
-        for (Node n : _all.values()) {
+        for (Node n : all) {
             walkIns(sb, n, true);
         }
         sb.append("}\n");
         return sb.toString();
     }
 
+    /**
+     * Outputs edges. If doControlEdges is true then
+     * edges between control nodes are output. Else other edges
+     * output.
+     */
     private void walkIns(StringBuilder sb, Node in, boolean doControlEdges) {
         for (int i = 0; i < in.nIns(); i++) {
             Node out = in.in(i);
@@ -66,13 +73,30 @@ public class GraphVisualizer {
         }
     }
 
-    private void walk(Node n) {
-        if (_all.get(n._nid) == null) {
+    /**
+     * Walks the whole graph, starting from Start.
+     * Since Start is the input to all constants - we look at the outputs for
+     * Start, but for then subsequently we look at the inputs of each node.
+     */
+    private Collection<Node> findAll(StartNode start) {
+        Map<Integer, Node> all = new HashMap<>();
+        for (int i = 0; i < start.nOuts(); i++) {
+            Node n = start.out(i);
+            walk(all, n);
+        }
+        return all.values();
+    }
+
+    /**
+     * Walk a subgraph and populate distinct nodes in the _all list.
+     */
+    private void walk(Map<Integer, Node> all, Node n) {
+        if (all.get(n._nid) == null) {
             // Not yet seen
-            _all.put(n._nid, n);
+            all.put(n._nid, n);
             for (Node c : n._inputs)
                 if (c != null)
-                    walk(c);
+                    walk(all, c);
         }
     }
 }
