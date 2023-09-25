@@ -40,9 +40,15 @@ apply: there are no uses (yet) of a just-created Node from a just-parsed piece
 of syntax, so there's no effort to the "rewrite" part of the problem. We just
 replace in-place before installing Nodes into the graph.
 
+This replacement might allow us to *kill* the unused inputs from the replaced
+Node, basically doing a modest Dead Code Elimination during parsing.
+
 E.g. Suppose we already parsed out a constant `1`, and a constant `2`; then when we
 parse an `Add(1,2)`, the peephole rule for constant math replaces the Add with a
-constant `3`.
+constant `3`.  At this point, we also *kill* the unused `Add`, which recursively
+may *kill* the unused constants `1` and `2`.
+
+
 
 ## Constant Folding and Constant Propagation
 
@@ -72,8 +78,9 @@ The Type annotation serves two purposes:
 * it defines the set of operations allowed on the Node
 * it defines the set of values the Node takes on
 
-The type itself is identified by the Java class sub-typing relationship; all types are subtypes of
-the class `Type`. For now, we only have the following hierarchy of types:
+The type itself is identified by the Java class sub-typing relationship; all
+types are subtypes of the class `Type`.  For now, we only have the following
+hierarchy of types:
 
 ```
 Type
