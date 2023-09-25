@@ -102,16 +102,27 @@ public abstract class Node {
     public static boolean _disablePeephole = false;
 
 
-    // Try to peephole at this node and return a better replacment Node if
-    // possible
+    /**
+     * Try to peephole at this node and return a better replacement Node if
+     * possible.  We check and replace:
+     * <ul>
+     * <li>if the Type {@link Type#isConstant}, we replace with a {@link ConstantNode}</li>
+     * <li>in a future chapter we will look for a
+     * <a href="https://en.wikipedia.org/wiki/Common_subexpression_elimination">Common Subexpression</a>
+     * to eliminate.</li>
+     * <li>we ask the Node for a better replacement (again, none enabled in this chapter)</li>
+     * </ul>
+     */
     public final Node peephole( ) {
         if (_disablePeephole)
-            return this;
+            return this;        // Peephole optimizations turned off
 
-        // Replace constant computations with a constant node
+        // Replace constant computations from non-constants with a constant node
         Type type = compute();
-        if (!(this instanceof ConstantNode) && type.isConstant())
+        if (!(this instanceof ConstantNode) && type.isConstant()) {
+            kill();             // Kill `this` because replacing with a Constant
             return new ConstantNode(type);
+        }
 
         // Future chapter: Global Value Numbering goes here
         
@@ -119,35 +130,80 @@ public abstract class Node {
         Node n = idealize();
         if( n != null ) return n;
         
-        return this;
+        return this;            // No progress
     }
 
     /**
+     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
+     * to null.  This may recursively kill more Nodes and is basically dead
+     * code elimination.  This function is co-recursive with {@link #set_def}.
+     */
+    void kill( ) {
+        assert nOuts()==0;    // Has no uses, so it is dead
+        for( int i=0; i<nIns(); i++ )
+            set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
+    }
+
+    /**
+     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
+     * the corresponding <em>use->def</em> edge.  This may make the original
+     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
+     *     
+     * @param idx which def to set
+     * @param new_def the new definition
+     */
+    void set_def(int idx, Node new_def ) {
+        Node old_def = in(idx);
+        if( old_def != null ) { // If the old def exists, remove a use->def edge
+            ArrayList<Node> outs = old_def._outputs;
+            int lidx = outs.size()-1; // Last index
+            
+            // This 1-line hack compresses an element out of an ArrayList
+            // without having to copy the contents.  The last element is
+            // stuffed over the deleted element, and then the size is reduced.            
+            outs.set(outs.indexOf(this),outs.get(lidx));
+            outs.remove(lidx);  // Reduce ArrayList size without copying anything
+            if( lidx == 0 )     // If we removed the last use, the old def is now dead
+                old_def.kill(); // Kill old def
+        }
+        // Set the new_def over the old (killed) edge
+        _inputs.set(idx,new_def);
+        // If new def is not null, add the corresponding use->def edge
+        if( new_def != null )
+            new_def._outputs.add(this);
+    }
+    
+  
+    /**
      * Current computed type for this Node.  This value changes as the graph
-     * changes, and more knowledge is gained about the program.
+     * changes and more knowledge is gained about the program.
      */
     public Type _type;
     
     /**
      * This function needs to be
-     * @see <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
-     * as it is part of a Monotone Analysis Framework, 
-     * @see <a href="https://www.cse.psu.edu/~gxt29/teaching/cse597s21/slides/08monotoneFramework.pdf">see for example this set of slides</a>.
+     * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
+     * as it is part of a Monotone Analysis Framework.
+     * <a href="https://www.cse.psu.edu/~gxt29/teaching/cse597s21/slides/08monotoneFramework.pdf">See for example this set of slides</a>.
      * <p>
      * For Chapter 2, all our Types are really integer constants, and so all
-     * the needed properties are trivially true and we can ignore the high
+     * the needed properties are trivially true, and we can ignore the high
      * theory.  Much later on, this will become important and allow us to do
      * many fancy complex optimizations trivially... because theory.
      * <p>
-     * Compute() needs to be stand-alone, and cannot recursively call compute()
+     * compute() needs to be stand-alone, and cannot recursively call compute
      * on its inputs programs are cyclic (have loops!) and this will just
      * infinitely recurse until stack overflow.  Instead, compute typically
-     * computes a new type from the _type field of its inputs.
+     * computes a new type from the {@link #_type} field of its inputs.
      */
     public abstract Type compute();
 
     public abstract Node idealize();
-    
+
+    /**
+     * Used to allow repeating tests in the same JVM.  This just resets the
+     * Node unique id generator, and is done as part of making a new Parser.
+     */
     public static void reset() { UNIQUE_ID = 1; }
   
     /*
