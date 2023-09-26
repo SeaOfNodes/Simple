@@ -1,0 +1,14 @@
+{
+  "ver": 1,
+  "comp": "chapter02/docs/02-demonstration-peephole.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 5, "label": "#3", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 6, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}, {"idx": 1, "def": 5, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
