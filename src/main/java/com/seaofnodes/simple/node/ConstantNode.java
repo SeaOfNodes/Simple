@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.type.Type;
 
 /**
  * A Constant node represents a constant value.  At present, the only constants
@@ -15,11 +16,27 @@ import com.seaofnodes.simple.Parser;
  * The Constant's value is the value stored in it.
  */
 public class ConstantNode extends Node {
-
-    public final long _value;
-
-    public ConstantNode(long value) {
+    Type _con;
+    public ConstantNode( Type type ) {
         super(Parser.START);
-        _value = value;
+        _con = type;
     }
+
+    @Override
+    public String label() { return "#"+_con; }
+
+    @Override
+    public String uniqueName() { return "Con_" + _nid; }
+
+    @Override
+    StringBuilder _print1(StringBuilder sb) {
+        return _con._print(sb);
+    }
+
+    @Override
+    public Type compute() { return _con; }
+
+    @Override
+    public Node idealize() { return null; }
+
 }
