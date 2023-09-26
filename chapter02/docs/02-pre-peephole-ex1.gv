@@ -1,0 +1,27 @@
+digraph chapter02
+{
+	Start1 [shape=box,  label="Start"];
+	Con12 [ label="Con1"];
+	Start1 -> Con12 [style=dotted];
+	Con23 [ label="Con2"];
+	Start1 -> Con23 [style=dotted];
+	Con34 [ label="Con3"];
+	Start1 -> Con34 [style=dotted];
+	Mul5 [ label="Mul"];
+	Con23 -> Mul5;
+	Con34 -> Mul5;
+	Con56 [ label="Con5"];
+	Start1 -> Con56 [style=dotted];
+	Minus7 [ label="Minus"];
+	Con56 -> Minus7;
+	Add8 [ label="Add"];
+	Mul5 -> Add8;
+	Minus7 -> Add8;
+	Add9 [ label="Add"];
+	Con12 -> Add9;
+	Add8 -> Add9;
+	Return10 [shape=box,  label="Return"];
+	Add9 -> Return10;
+	edge [color=red];
+	Start1 -> Return10;
+}

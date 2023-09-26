@@ -28,20 +28,23 @@ The simple language will be a small subset of C.
 
 * [Language](language/README.md): Simple language grammar.
 * [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
-* Chapter 2: Simple binary arithmetic such as addition, subtraction, multiplication, division with constants. Peephole optimization / simple constant folding.
-* Chapter 3: Graphical Visualization of Sea of Nodes IR.
-* Chapter 4: Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a constant.
-* Chapter 5: Binary and Comparison operators involving constants and variables. Non-zero values will be truthy.
-* Chapter 6: `if` statement.  CFG construction, peephole optimization around dead control flow.
-* Chapter 7: `while` statement. 
-* Chapter 8: Global Value Numbering.
-* Chapter 9: Functions and calls.
-* Chapter 10: Boolean operators `&&`, `||` and `!` including short circuit.
-* Chapter 11: `float` type.
-* Chapter 12: Memory effects: general memory edges in SSA. Peephole optimization around load-after-store/store-after-store.
-* Chapter 13: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not handle aliasing in arrays.
-* Chapter 14: One dimensional static length array type. Array load/store.
-* Chapter 15: Global Code Motion - unwind SoN to CFG. Scheduling.
-* Chapter 16: Instruction selection, BURS.
-* Chapter 17: Backend register allocation.
-* Chapter 18: Garbage Collection.
+* [Chapter 2](chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
+  with constants. Peephole optimization / simple constant folding.
+* Chapter 3: Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
+  constant.
+* Chapter 4: Binary and Comparison operators involving constants and variables. Non-zero values will be truthy.
+* Chapter 5: `if` statement. CFG construction, peephole optimization around dead control flow.
+* Chapter 6: `while` statement.
+* Chapter 7: Global Value Numbering.
+* Chapter 8: Functions and calls.
+* Chapter 9: Boolean operators `&&`, `||` and `!` including short circuit.
+* Chapter 10: `float` type.
+* Chapter 11: Memory effects: general memory edges in SSA. Peephole optimization around
+  load-after-store/store-after-store.
+* Chapter 12: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not
+  handle aliasing in arrays.
+* Chapter 13: One dimensional static length array type. Array load/store.
+* Chapter 14: Global Code Motion - unwind SoN to CFG. Scheduling.
+* Chapter 15: Instruction selection, BURS.
+* Chapter 16: Backend register allocation.
+* Chapter 17: Garbage Collection.

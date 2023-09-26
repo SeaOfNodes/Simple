@@ -4,7 +4,7 @@ import com.seaofnodes.simple.node.*;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-public class ParserTest {
+public class Chapter01Test {
 
     @Test
     public void testSimpleProgram() {
@@ -54,7 +54,7 @@ public class ParserTest {
     @Test
     public void testBad3() {
         try { new Parser().parse("return --12;"); }
-        catch( RuntimeException e ) { assertEquals("syntax error, expected integer literal: --",e.getMessage()); }
+        catch( RuntimeException e ) { assertEquals("syntax error, expected integer literal: -",e.getMessage()); }
     }
 
     @Test

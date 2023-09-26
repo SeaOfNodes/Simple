@@ -1,0 +1,10 @@
+digraph chapter02
+{
+	Start1 [shape=box,  label="Start"];
+	Con213 [ label="Con2"];
+	Start1 -> Con213 [style=dotted];
+	Return14 [shape=box,  label="Return"];
+	Con213 -> Return14;
+	edge [color=red];
+	Start1 -> Return14;
+}

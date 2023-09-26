@@ -113,7 +113,7 @@ Here is visualization of the program:
 return 1;
 ```
 
-![Sea of Nodes Visual](./docs/02-graph.svg)
+![Sea of Nodes Visual](./docs/01-graph.svg)
 
 * Control nodes appear as square boxes
 * Control edges are in bold red
