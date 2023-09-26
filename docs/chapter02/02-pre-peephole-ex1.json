@@ -1,0 +1,21 @@
+{
+  "ver": 1,
+  "comp": "chapter02/docs/02-pre-peephole-ex1.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 2, "label": "#1", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 3, "label": "#2", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 4, "label": "#3", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 5, "label": "*", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 3, "role": "DATA", "label": null}, {"idx": 2, "def": 4, "role": "DATA", "label": null}], "proj": null},
+    {"id": 6, "label": "#5", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 7, "label": "-", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 8, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 5, "role": "DATA", "label": null}, {"idx": 2, "def": 7, "role": "DATA", "label": null}], "proj": null},
+    {"id": 9, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 2, "role": "DATA", "label": null}, {"idx": 2, "def": 8, "role": "DATA", "label": null}], "proj": null},
+    {"id": 10, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}, {"idx": 1, "def": 9, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
