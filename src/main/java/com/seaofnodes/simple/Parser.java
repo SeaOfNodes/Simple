@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate
@@ -30,6 +31,8 @@ public class Parser {
         START = new StartNode();
     }
 
+    String src() { return new String( _lexer._input ); }
+
     public ReturnNode parse() {
         var ret = (ReturnNode) parseStatement();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
@@ -57,20 +60,61 @@ public class Parser {
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private ReturnNode parseReturn() {
+    private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        return new ReturnNode(START, expr);
+        return new ReturnNode(START, expr).peephole();
     }
 
     /**
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : primaryExpr
+     *     expr : additiveExpr
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() {
+    private Node parseExpression() { return parseAddition(); }
+
+    /**
+     * Parse an additive expression
+     *
+     * <pre>
+     *     additiveExpr : multiplicativeExpr (('+' | '-') multiplicativeExpr)*
+     * </pre>
+     * @return an add expression {@link Node}, never {@code null}
+     */
+    private Node parseAddition() {
+        var lhs = parseMultiplication();
+        if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
+        if (match("-")) return new SubNode(lhs, parseAddition()).peephole();
+        return lhs;
+    }
+
+    /**
+     * Parse an multiplicativeExpr expression
+     *
+     * <pre>
+     *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
+     * </pre>
+     * @return a multiply expression {@link Node}, never {@code null}
+     */
+    private Node parseMultiplication() {
+        var lhs = parseUnary();
+        if (match("*")) return new MulNode(lhs, parseMultiplication()).peephole();
+        if (match("/")) return new DivNode(lhs, parseMultiplication()).peephole();
+        return lhs;
+    }
+
+    /**
+     * Parse a unary minus expression.
+     *
+     * <pre>
+     *     unaryExpr : ('-') unaryExpr | primaryExpr
+     * </pre>
+     * @return a unary expression {@link Node}, never {@code null}
+     */
+    private Node parseUnary() {
+        if (match("-")) return new MinusNode(parseUnary()).peephole();
         return parsePrimary();
     }
 
@@ -78,14 +122,14 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral
+     *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
      * </pre>
+     * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
-        _lexer.skipWhiteSpace();
-        if (_lexer.isNumber())
-            return parseIntegerLiteral();
-        throw error("Syntax error, expected integer literal");
+        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( match("(") ) return require(parseExpression(), ")");
+        throw errorSyntax("integer literal");
     }
 
     /**
@@ -96,7 +140,7 @@ public class Parser {
      * </pre>
      */
     private ConstantNode parseIntegerLiteral() {
-        return new ConstantNode(_lexer.parseNumber());
+        return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
     //////////////////////////////////
@@ -144,6 +188,12 @@ public class Parser {
          */
         public Lexer(byte[] buf) {
             _input = buf;
+        }
+
+        // Very handy in the debugger, shows the unparsed program
+        @Override
+        public String toString() {
+            return new String(_input, _position, _input.length - _position);
         }
 
         // True if at EOF
@@ -209,11 +259,11 @@ public class Parser {
         boolean isNumber() {return isNumber(peek());}
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
-        private long parseNumber() {
+        private Type parseNumber() {
             String snum = parseNumberString();
             if (snum.length() > 1 && snum.charAt(0) == '0')
                 throw error("Syntax error: integer values cannot start with '0'");
-            return Long.parseLong(snum);
+            return TypeInteger.constant(Long.parseLong(snum));
         }
         private String parseNumberString() {
             int start = _position;
@@ -246,5 +296,4 @@ public class Parser {
             return new String(_input, start, 1);
         }
     }
-
 }
