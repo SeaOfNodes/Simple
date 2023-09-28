@@ -14,4 +14,12 @@ public class ReturnNode extends Node implements Control {
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
     }
+
+    public Node ctrl() {
+        return in(0);
+    }
+
+    public Node expr() {
+        return in(1);
+    }
 }
