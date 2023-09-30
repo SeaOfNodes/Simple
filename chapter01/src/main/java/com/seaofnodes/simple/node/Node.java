@@ -74,6 +74,13 @@ public abstract class Node {
 
     public int nOuts() { return _outputs.size(); }
 
+    /**
+     * Used to allow repeating tests in the same JVM.  This just resets the
+     * Node unique id generator, and is done as part of making a new Parser.
+     */
+    public static void reset() {
+        UNIQUE_ID = 1;
+    }
     /*
      * hashCode and equals implementation to be added in later chapter.
      */

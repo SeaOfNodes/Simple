@@ -5,11 +5,17 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.StartNode;
 import com.seaofnodes.simple.type.TypeInteger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class Chapter02Test {
+
+    @Rule
+    public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
     public void testChapter2ParseGrammar() {
@@ -94,32 +100,34 @@ public class Chapter02Test {
 
     @Test
     public void testBad1() {
-        try { new Parser("ret").parse(); }
-        catch( RuntimeException e ) { assertEquals("Syntax error, expected return: ret",e.getMessage()); }
+        exceptionRule.expect(RuntimeException.class);
+        exceptionRule.expectMessage("Syntax error, expected return: ret");
+        new Parser("ret").parse();
     }
 
     @Test
     public void testBad2() {
-        try { new Parser("return 0123;").parse(); }
-        catch( RuntimeException e ) { assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage()); }
+        exceptionRule.expect(RuntimeException.class);
+        exceptionRule.expectMessage("Syntax error: integer values cannot start with '0'");
+        new Parser("return 0123;").parse();
     }
 
     @Test
-    public void testBad3() {
-        try { new Parser("return --12;").parse(); }
-        catch( RuntimeException e ) { assertEquals("Syntax error, expected integer literal: -",e.getMessage()); }
+    public void testNotBad3() {
+        // this test used to fail in chapter 1
+        assertEquals("return 12;", new Parser("return --12;").parse().print());
     }
 
     @Test
     public void testBad4() {
-        try { new Parser("return 100").parse(); }
-        catch( RuntimeException e ) { assertTrue(e.getMessage().contains("Syntax error, expected ;:")); }
+        exceptionRule.expect(RuntimeException.class);
+        exceptionRule.expectMessage("Syntax error, expected ;:");
+        new Parser("return 100").parse();
     }
 
-    // Negative numbers require unary operator support that is not in scope
     @Test
-    public void testBad5() {
-        try { new Parser("return -100;").parse(); }
-        catch( RuntimeException e ) { assertEquals("Syntax error, expected integer literal: -", e.getMessage()); }
+    public void testNotBad5() {
+        // this test used to fail in chapter 1
+        assertEquals("return -100;", new Parser("return -100;").parse().print());
     }
 }
