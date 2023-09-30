@@ -40,5 +40,5 @@ from the stack.
 
 Declaring a name adds it to the current symbol table. 
 If a name is assigned to, then its mapping in the most recent symbol table is updated.
-If a name is accessed, it's mapping is looked up in the symbol tables. The lookup goes up the stack of symbol tables.
+If a name is accessed, its mapping is looked up in the symbol tables. The lookup goes up the stack of symbol tables.
 
