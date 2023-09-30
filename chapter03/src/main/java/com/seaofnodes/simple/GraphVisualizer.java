@@ -36,10 +36,10 @@ public class GraphVisualizer {
         scopes(sb, parser._scopes);
 
         // Walk the Node edges
-        node_edges(sb, all);
+        nodeEdges(sb, all);
 
         // Walk the Scope edges
-        scope_edges(sb, parser._scopes);
+        scopeEdges(sb, parser._scopes);
         
         sb.append("}\n");
         return sb.toString();
@@ -87,7 +87,7 @@ public class GraphVisualizer {
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
-    private void node_edges(StringBuilder sb, Collection<Node> all) {
+    private void nodeEdges(StringBuilder sb, Collection<Node> all) {
         for( Node n : all )
             for( Node out : n._inputs )
                 if( out != null ) {
@@ -102,7 +102,7 @@ public class GraphVisualizer {
     }
     
     // Walk the scope edges
-    private void scope_edges( StringBuilder sb, Stack<HashMap<String,Node>> scopes) {
+    private void scopeEdges( StringBuilder sb, Stack<HashMap<String,Node>> scopes) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=0;
         for( HashMap<String,Node> scope : scopes ) {

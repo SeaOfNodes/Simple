@@ -39,10 +39,6 @@ public class Parser {
         START = new StartNode();
     }
 
-    static RuntimeException error(String errorMessage) {
-        return new RuntimeException(errorMessage);
-    }
-
     private void enterScope() {_scopes.push(new HashMap<>());}
 
     private void exitScope() {_scopes.pop();}
@@ -56,8 +52,11 @@ public class Parser {
     // If the name is present in any scope, then redefine
     private void update(String name, Node n) {
         for (int i = _scopes.size() - 1; i >= 0; i--) {
-            if (_scopes.get(i).get(name) != null) {
-                _scopes.get(i).put(name, n);
+            HashMap<String,Node> scope = _scopes.get(i);
+            Node old = scope.get(name);
+            if( old != null ) { // Found prior def
+                if( old.nOuts()==0 ) old.kill(); // Delete old ref
+                scope.put(name, n); // Update existing ref
                 return;
             }
         }
@@ -96,10 +95,10 @@ public class Parser {
      * </pre>
      */
     private void parseStatement() {
-        if (_lexer.match("return")) parseReturn();
-        else if (_lexer.match("int")) parseDecl();
-        else if (_lexer.match("{")) parseBlock();
-        else if (_lexer.match("#showGraph")) showGraph();
+        if (match("return")) parseReturn();
+        else if (match("int")) parseDecl();
+        else if (match("{")) parseBlock();
+        else if (match("#showGraph")) showGraph();
         else parseExpressionStatement();
     }
 
@@ -116,10 +115,9 @@ public class Parser {
      * </pre>
      */
     private void parseExpressionStatement() {
-        var name = requireIdentifier();
+        var name = requireId();
         require("=");
-        var expr = parseExpression();
-        require(";");
+        var expr = require(parseExpression(),";");
         update(name, expr);
     }
 
@@ -132,11 +130,10 @@ public class Parser {
      */
     private void parseDecl() {
         // Type is 'int' for now
-        var name = requireIdentifier();
+        var name = requireId();
         require("=");
-        var expr = parseExpression();
+        var expr = require(parseExpression(),";");
         define(name, expr);
-        require(";");
     }
 
     /**
@@ -162,8 +159,7 @@ public class Parser {
      */
     private void parseReturn() {
         if (_ret != null) throw error("Multiple return statements");
-        var expr = parseExpression();
-        require(";");
+        var expr = require(parseExpression(),";");
         _ret = new ReturnNode(START, expr);
     }
 
@@ -225,7 +221,8 @@ public class Parser {
      */
     private Node parsePrimary() {
         if (_lexer.isNumber()) return parseIntegerLiteral();
-        else return lookup(requireIdentifier());
+        if( match("(") )       return require(parseExpression(),")");
+        return lookup(requireId());
     }
 
     /**
@@ -243,22 +240,29 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) {
-        return _lexer.match(syntax);
-    }
-
-    private Optional<String> matchIdentifier() {return _lexer.matchIdentifier();}
-
-    private String requireIdentifier() {
-        return matchIdentifier().orElseThrow(() -> error("Expected identifier"));
+    private boolean match(String syntax) { return _lexer.match(syntax); }
+    private String requireId() {
+        String id = _lexer.matchId();
+        if( id!=null ) return id;
+        throw error("identifier");
     }
 
     // Require an exact match
-    private void require(String syntax) {
+    private void require(String syntax) { require(null,syntax); }
+    private Node require(Node n, String syntax) {
         _lexer.skipWhiteSpace();
-        if (match(syntax)) return;
-        throw error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
+        if (match(syntax)) return n;
+        throw errorSyntax(syntax);
     }
+
+    RuntimeException errorSyntax(String syntax) {
+        return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
+    }
+    
+    static RuntimeException error(String errorMessage) {
+        return new RuntimeException(errorMessage);
+    }
+
 
     ////////////////////////////////////
     // Lexer components
@@ -284,6 +288,12 @@ public class Parser {
             _input = buf;
         }
 
+        // Very handy in the debugger, shows the unparsed program
+        @Override
+        public String toString() {
+            return new String(_input,_position,_input.length-_position);
+        }
+        
         // True if at EOF
         private boolean isEOF() {
             return _position >= _input.length;
@@ -327,27 +337,21 @@ public class Parser {
             return true;
         }
 
-        Optional<String> matchIdentifier() {
+        String matchId() {
             skipWhiteSpace();
-            if (isIdentifierStart(peek())) return Optional.of(parseIdentifier());
-            return Optional.empty();
+            return isIdStart(peek()) ? parseId() : null;
         }
 
         // Used for errors
         String getAnyNextToken() {
             if (isEOF()) return "";
-            if (isIdentifierStart(peek())) return parseIdentifier();
+            if (isIdStart(peek())) return parseId();
             if (isPunctuation(peek())) return parsePunctuation();
             return String.valueOf(peek());
         }
 
-        boolean isNumber() {
-            return isNumber(peek());
-        }
-
-        boolean isNumber(char ch) {
-            return Character.isDigit(ch);
-        }
+        boolean isNumber() { return isNumber(peek()); }
+        boolean isNumber(char ch) { return Character.isDigit(ch); }
 
         private Type parseNumber() {
             int start = _position;
@@ -359,18 +363,18 @@ public class Parser {
         }
 
         // First letter of an identifier 
-        private boolean isIdentifierStart(char ch) {
+        private boolean isIdStart(char ch) {
             return Character.isAlphabetic(ch) || ch == '_';
         }
 
         // All characters of an identifier, e.g. "_x123"
-        private boolean isIdentifierLetter(char ch) {
+        private boolean isIdLetter(char ch) {
             return Character.isLetterOrDigit(ch) || ch == '_';
         }
 
-        private String parseIdentifier() {
+        private String parseId() {
             int start = _position;
-            while (isIdentifierLetter(nextChar())) ;
+            while (isIdLetter(nextChar())) ;
             return new String(_input, start, --_position - start);
         }
 
