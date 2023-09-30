@@ -23,7 +23,10 @@ public class ConstantNode extends Node {
     }
     
     @Override
-    public String label() { return "Con" + _type; }
+    public String label() { return "#"+_type; }
+  
+    @Override
+    public String uniqueName() { return "Con_" + _nid; }
 
     @Override
     StringBuilder _print(StringBuilder sb) {
