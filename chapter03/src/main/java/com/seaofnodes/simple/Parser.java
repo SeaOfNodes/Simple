@@ -30,7 +30,7 @@ public class Parser {
     /**
      * Stack of lexical scopes
      */
-    public Stack<Map<String, Node>> _scopes;
+    public Stack<HashMap<String, Node>> _scopes;
 
     public Parser(String source) {
         _lexer = new Lexer(source);
