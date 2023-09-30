@@ -138,7 +138,7 @@ public abstract class Node {
      * to null.  This may recursively kill more Nodes and is basically dead
      * code elimination.  This function is co-recursive with {@link #set_def}.
      */
-    void kill( ) {
+  public void kill( ) {
         assert nOuts()==0;    // Has no uses, so it is dead
         for( int i=0; i<nIns(); i++ )
             set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
