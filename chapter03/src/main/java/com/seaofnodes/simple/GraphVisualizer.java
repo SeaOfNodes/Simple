@@ -95,7 +95,7 @@ public class GraphVisualizer {
                     // Control edges are colored red
                     if( n instanceof ConstantNode && out instanceof StartNode )
                       sb.append(" [style=dotted]");
-                    else if( n instanceof Control || out instanceof Control )
+                    else if( n instanceof Control && out instanceof Control )
                       sb.append(" [color=red]");
                     sb.append(";\n");
                 }
@@ -103,7 +103,7 @@ public class GraphVisualizer {
     
     // Walk the scope edges
     private void scope_edges( StringBuilder sb, Stack<HashMap<String,Node>> scopes) {
-        sb.append("\tedge [style=dotted color=red];\n");
+        sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=0;
         for( HashMap<String,Node> scope : scopes ) {
             String scopeName = makeScopeName(level);
