@@ -42,3 +42,57 @@ Declaring a name adds it to the current symbol table.
 If a name is assigned to, then its mapping in the most recent symbol table is updated.
 If a name is accessed, its mapping is looked up in the symbol tables. The lookup goes up the stack of symbol tables.
 
+## Demonstration
+
+We show the output from following code.
+
+```
+01      int a=1; 
+02      int b=2; 
+03      int c=0; 
+04      { 
+05        int b=3; 
+07        c=a+b; 
+08      } 
+09      return c;
+```
+
+* When we start parsing above, we start with a symbol table, say level 0.
+The variables `a`, `b`, and `c` are registered in this table.
+* On line 4, we start a nested scope. At this point, a new symbol table is pushed, say level 1.
+* On line 5, a variable `b` is declared, this gets registered in the  symbol table at level 1. This then
+hides the variable with the same name on line 2.
+* On line 7, we update the variable `c`. The symbol table lookup will find it in the symbol table at level 0.
+At this point, the node graph looks like this (note that peephole opts are switched off here so that we can 
+see the graph as its initially constructed).
+
+![Graph1](./docs/03-graph1.svg)
+
+The diagram shows the symbol tables in the bottom cluster. 
+Each table is annotated by its scope level, and shows the variables defined in that scope.
+
+* When we exit the nested scope on line 8, the symbol table at level 1 is popped.
+* At line 9, the point the graph looks like this:
+
+![Graph2](./docs/03-graph2.svg)
+
+As we see, only 1 symbol table is present at this point.
+
+## Enabling peephole optimizations
+
+Once we enable peephole optimizations, the parser is able to reduce all the expressions down to a
+constant. This is illustrated nicely below.
+
+```
+int x0=1; 
+int y0=2; 
+int x1=3; 
+int y1=4; 
+return (x0-x1)*(x0-x1) + (y0-y1)*(y0-y1);
+```
+
+The graph for above, is displayed below.
+
+![Graph2](./docs/03-graph3.svg)
+
+The return node has the constant `8` as its data value!

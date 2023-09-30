@@ -50,6 +50,7 @@ unaryExpression
 primaryExpression
     : IDENTIFIER
     | INTEGER_LITERAL
+    | '(' expression ')'
     ;
 
 INTEGER_LITERAL

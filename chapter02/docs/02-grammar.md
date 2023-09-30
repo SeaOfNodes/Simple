@@ -30,6 +30,7 @@ unaryExpression
 
 primaryExpression
     : INTEGER_LITERAL
+    | '(' expression ')'
     ;
 
 INTEGER_LITERAL

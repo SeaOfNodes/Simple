@@ -118,6 +118,9 @@ public class Parser {
         return new ReturnNode(START, expr);
     }
 
+    /**
+     * Dumps out the node graph
+     */
     private Node showGraph() {
         require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
@@ -206,7 +209,7 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral
+     *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
      * </pre>
      */
     private Node parsePrimary() {
