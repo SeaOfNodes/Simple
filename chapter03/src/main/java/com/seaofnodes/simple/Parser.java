@@ -30,7 +30,7 @@ public class Parser {
      */
     public Stack<HashMap<String, Node>> _scopes;
 
-    public Parser(String source) {
+    public Parser( String source ) {
         _lexer = new Lexer(source);
         _scopes = new Stack<>();
         Node.reset();
@@ -40,7 +40,6 @@ public class Parser {
     public ReturnNode parse() {
         return (ReturnNode)parseBlock();
     }
-
 
     // Create a new name in top-most scope
     private Node define(String name, Node n) {
@@ -107,6 +106,18 @@ public class Parser {
         else return parseExpressionStatement();
     }
 
+    /**
+     * Parses returnStatement; "return" already parsed
+     *
+     * <pre>
+     *     'return' expr ;
+     * </pre>
+     */
+    private Node parseReturn() {
+        var expr = require(parseExpression(),";");
+        return new ReturnNode(START, expr);
+    }
+
     private Node showGraph() {
         require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
@@ -143,18 +154,6 @@ public class Parser {
     }
 
     /**
-     * Parses returnStatement.
-     *
-     * <pre>
-     *     'return' expr ;
-     * </pre>
-     */
-    private Node parseReturn() {
-        var expr = require(parseExpression(),";");
-        return new ReturnNode(START, expr);
-    }
-
-    /**
      * Parse an expression of the form:
      *
      * <pre>
@@ -172,8 +171,8 @@ public class Parser {
      */
     private Node parseAddition() {
         var lhs = parseMultiplication();
-        if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
-        if (match("-")) return new SubNode(lhs, parseAddition()).peephole();
+        if( match("+") ) return new AddNode(lhs, parseAddition()).peephole();
+        if( match("-") ) return new SubNode(lhs, parseAddition()).peephole();
         return lhs;
     }
 
@@ -186,8 +185,8 @@ public class Parser {
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
-        if (match("*")) return new MulNode(lhs, parseMultiplication()).peephole();
-        if (match("/")) return new DivNode(lhs, parseMultiplication()).peephole();
+        if( match("*") ) return new MulNode(lhs, parseMultiplication()).peephole();
+        if( match("/") ) return new DivNode(lhs, parseMultiplication()).peephole();
         return lhs;
     }
 
@@ -199,7 +198,7 @@ public class Parser {
      * </pre>
      */
     private Node parseUnary() {
-        if (match("-")) return new MinusNode(parseUnary()).peephole();
+        if( match("-") ) return new MinusNode(parseUnary()).peephole();
         return parsePrimary();
     }
 
@@ -224,7 +223,7 @@ public class Parser {
      * </pre>
      */
     private ConstantNode parseIntegerLiteral() {
-        return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
+        return (ConstantNode)new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
     //////////////////////////////////
@@ -232,6 +231,8 @@ public class Parser {
 
     // Return true and skip if "syntax" is next in the stream.
     private boolean match(String syntax) { return _lexer.match(syntax); }
+
+    // Require and return an identifier
     private String requireId() {
         String id = _lexer.matchId();
         if( id!=null ) return id;
@@ -252,7 +253,6 @@ public class Parser {
     static RuntimeException error(String errorMessage) {
         return new RuntimeException(errorMessage);
     }
-
 
     ////////////////////////////////////
     // Lexer components
@@ -317,16 +317,18 @@ public class Parser {
         // Return true, if we find "syntax" after skipping white space; also
         // then advance the cursor past syntax.
         // Return false otherwise, and do not advance the cursor.
-        boolean match(String syntax) {
+        boolean match( String syntax ) {
             skipWhiteSpace();
             int len = syntax.length();
-            if (_position + len > _input.length) return false;
-            for (int i = 0; i < len; i++)
-                if ((char) _input[_position + i] != syntax.charAt(i)) return false;
+            if( _position + len > _input.length ) return false;
+            for( int i = 0; i < len; i++ )
+                if( (char)_input[_position + i] != syntax.charAt(i) )
+                    return false;
             _position += len;
             return true;
         }
 
+        // Return an identifier or null
         String matchId() {
             skipWhiteSpace();
             return isIdStart(peek()) ? parseId() : null;
@@ -334,9 +336,9 @@ public class Parser {
 
         // Used for errors
         String getAnyNextToken() {
-            if (isEOF()) return "";
-            if (isIdStart(peek())) return parseId();
-            if (isPunctuation(peek())) return parsePunctuation();
+            if( isEOF() ) return "";
+            if( isIdStart(peek()) ) return parseId();
+            if( isPunctuation(peek()) ) return parsePunctuation();
             return String.valueOf(peek());
         }
 

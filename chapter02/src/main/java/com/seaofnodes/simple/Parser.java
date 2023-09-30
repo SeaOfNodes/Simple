@@ -12,39 +12,38 @@ import com.seaofnodes.simple.type.*;
  */
 public class Parser {
 
-    private final Lexer _lexer;
-
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
      * through the entire parser and optimizer.
      * <p>
      * To make the compiler multithreaded, this field will have to move into a TLS.
-     */    
+     */
     public static StartNode START;
+
+    private final Lexer _lexer;
 
     public Parser( String source ) {
         _lexer = new Lexer(source);
         Node.reset();
         START = new StartNode();
     }
-    
+
     public ReturnNode parse() {
+        require("return");
         return parseReturn();
     }
 
     /**
-     * Parses return statement.
+     * Parses returnStatement; "return" already parsed
      *
      * <pre>
-     *     return expr ;
+     *     'return' expr ;
      * </pre>
      */
     private ReturnNode parseReturn() {
-        require("return");
-        var returnExpr = parseExpression();
-        require(";");
-        return new ReturnNode(START, returnExpr);
+        var expr = require(parseExpression(),";");
+        return new ReturnNode(START, expr);
     }
 
     /**
@@ -54,9 +53,7 @@ public class Parser {
      *     expr : additiveExpr
      * </pre>
      */
-    private Node parseExpression() {
-        return parseAddition();
-    }
+    private Node parseExpression() { return parseAddition(); }
 
     /**
      * Parse an additive expression
@@ -71,7 +68,6 @@ public class Parser {
         if( match("-") ) return new SubNode(lhs, parseAddition()).peephole();
         return lhs;
     }
-
 
     /**
      * Parse an multiplicativeExpr expression
@@ -107,9 +103,9 @@ public class Parser {
      * </pre>
      */
     private Node parsePrimary() {
-        if( _lexer.isNumber() )
-            return parseIntegerLiteral();
-        throw error("syntax error, expected integer literal");
+        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( match("(") )        return require(parseExpression(),")");
+        throw errorSyntax("integer literal");
     }
 
     /**
@@ -123,24 +119,27 @@ public class Parser {
         return (ConstantNode)new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
-    static RuntimeException error(String errorMessage) {
-        return new RuntimeException(errorMessage);
-    }
-
     //////////////////////////////////
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) {
-        return _lexer.match(syntax);
-    }
+    private boolean match(String syntax) { return _lexer.match(syntax); }
 
     // Require an exact match
-    private void require(String syntax) {
-        if( match(syntax) ) return;
-        throw error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
+    private void require(String syntax) { require(null,syntax); }
+    private Node require(Node n, String syntax) {
+        if (match(syntax)) return n;
+        throw errorSyntax(syntax);
+    }
+
+    RuntimeException errorSyntax(String syntax) {
+        return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
     }
     
+    static RuntimeException error(String errorMessage) {
+        return new RuntimeException(errorMessage);
+    }
+
     ////////////////////////////////////
     // Lexer components
 
@@ -165,6 +164,12 @@ public class Parser {
             _input = buf;
         }
 
+        // Very handy in the debugger, shows the unparsed program
+        @Override
+        public String toString() {
+            return new String(_input,_position,_input.length-_position);
+        }
+        
         // True if at EOF
         private boolean isEOF() {
             return _position >= _input.length;
@@ -191,8 +196,7 @@ public class Parser {
          * Return the next non-white-space character
          */
         private void skipWhiteSpace() {
-            while (isWhiteSpace())
-                _position++;
+            while (isWhiteSpace()) _position++;
         }
 
 
@@ -202,10 +206,9 @@ public class Parser {
         boolean match( String syntax ) {
             skipWhiteSpace();
             int len = syntax.length();
-            if( _position + len > _input.length )
-                return false;
-            for( int i=0; i<len; i++ )
-                if( (char)_input[_position+i] != syntax.charAt(i) )
+            if( _position + len > _input.length ) return false;
+            for( int i = 0; i < len; i++ )
+                if( (char)_input[_position + i] != syntax.charAt(i) )
                     return false;
             _position += len;
             return true;
@@ -214,20 +217,13 @@ public class Parser {
         // Used for errors
         String getAnyNextToken() {
             if( isEOF() ) return "";
-            if( isIdentifierStart(peek()) )
-                return parseIdentifier();
-            if( isPunctuation(peek()) )
-                return parsePunctuation();
+            if( isIdStart(peek()) ) return parseId();
+            if( isPunctuation(peek()) ) return parsePunctuation();
             return String.valueOf(peek());
         }
-        
-        boolean isNumber() {
-            return isNumber(peek());
-        }
-        
-        boolean isNumber(char ch) {
-            return Character.isDigit(ch);
-        }
+
+        boolean isNumber() { return isNumber(peek()); }
+        boolean isNumber(char ch) { return Character.isDigit(ch); }
 
         private Type parseNumber() {
             int start = _position;
@@ -239,18 +235,18 @@ public class Parser {
         }
 
         // First letter of an identifier 
-        private boolean isIdentifierStart(char ch) {
+        private boolean isIdStart(char ch) {
             return Character.isAlphabetic(ch) || ch == '_';
         }
 
         // All characters of an identifier, e.g. "_x123"
-        private boolean isIdentifierLetter(char ch) {
+        private boolean isIdLetter(char ch) {
             return Character.isLetterOrDigit(ch) || ch == '_';
         }
 
-        private String parseIdentifier() {
+        private String parseId() {
             int start = _position;
-            while (isIdentifierLetter(nextChar())) ;
+            while (isIdLetter(nextChar())) ;
             return new String(_input, start, --_position - start);
         }
 
