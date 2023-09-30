@@ -16,10 +16,11 @@ import java.util.Map;
  */
 public class GraphVisualizer {
 
-    public String generateDotOutput(StartNode start) {
+    public String generateDotOutput(Parser parser) {
+
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
-        Collection<Node> all = findAll(start);
+        Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter03\n" +
                 "{\n");
@@ -28,7 +29,7 @@ public class GraphVisualizer {
             // control nodes have box shape
             // other nodes are ellipses, i.e. default shape
             if (n instanceof Control)
-                sb.append(" [shape=box, ");
+                sb.append(" [shape=box style=filled fillcolor=yellow  ");
             else
                 sb.append(" [");
             sb.append(" label=\"")
@@ -42,8 +43,51 @@ public class GraphVisualizer {
         for (Node n : all) {
             walkIns(sb, n, true);
         }
+        walkScopes(sb, parser);
         sb.append("}\n");
         return sb.toString();
+    }
+
+    private String makeScopeName(int level) {
+        return "scope" + level;
+    }
+
+    private String makePortName(String scopeName, String varName) {
+        return scopeName + "_" + varName;
+    }
+
+    private void walkScopes(StringBuilder sb, Parser parser)
+    {
+        sb.append("node [shape=plaintext]\n");
+        for (int i = parser._scopes.size()-1; i >= 0; i--) {
+            String scopeName = makeScopeName(i);
+            sb.append(scopeName).append(" [label=<\n");
+            sb.append("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
+            // Add the scope level
+            sb.append("<TR><TD BGCOLOR=\"aqua\">").append(i).append("</TD></TR>\n");
+            for (Map.Entry<String, Node> e: parser._scopes.get(i).entrySet()) {
+                String name = e.getKey();
+                sb.append("<TR><TD PORT=\"");
+                sb.append(makePortName(scopeName, name));
+                sb.append("\">");
+                sb.append(name);
+                sb.append("</TD></TR>\n");
+            }
+            sb.append("</TABLE>>];\n");
+        }
+        for (int i = parser._scopes.size()-1; i >= 0; i--) {
+            String scopeName = makeScopeName(i);
+            for (Map.Entry<String, Node> e: parser._scopes.get(i).entrySet()) {
+                String name = e.getKey();
+                Node n = e.getValue();
+                sb.append(scopeName)
+                        .append(":")
+                        .append(makePortName(scopeName, name))
+                        .append(" -> ")
+                        .append(n.uniqueName())
+                        .append(" [style=dotted];\n");
+            }
+        }
     }
 
     /**
@@ -78,12 +122,20 @@ public class GraphVisualizer {
      * Since Start is the input to all constants - we look at the outputs for
      * Start, but for then subsequently we look at the inputs of each node.
      */
-    private Collection<Node> findAll(StartNode start) {
+    private Collection<Node> findAll(Parser parser) {
+        final StartNode start = Parser.START;
         Map<Integer, Node> all = new HashMap<>();
         for (int i = 0; i < start.nOuts(); i++) {
             Node n = start.out(i);
             walk(all, n);
         }
+        for (int i = parser._scopes.size()-1; i >= 0; i--) {
+            for (Map.Entry<String, Node> e: parser._scopes.get(i).entrySet()) {
+                Node n = e.getValue();
+                walk(all, n);
+            }
+        }
+
         return all.values();
     }
 

@@ -99,7 +99,13 @@ public class Parser {
         if (_lexer.match("return")) parseReturn();
         else if (_lexer.match("int")) parseDecl();
         else if (_lexer.match("{")) parseBlock();
+        else if (_lexer.match("#showGraph")) showGraph();
         else parseExpressionStatement();
+    }
+
+    private void showGraph() {
+        require(";");
+        System.out.println(new GraphVisualizer().generateDotOutput(this));
     }
 
     /**
