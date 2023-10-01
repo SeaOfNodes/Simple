@@ -30,7 +30,7 @@ The simple language will be a small subset of C.
 * [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * [Chapter 2](chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
   with constants. Peephole optimization / simple constant folding.
-* Chapter 3: Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
+* [Chapter 3](chapter03/README.md): Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
   constant.
 * Chapter 4: Binary and Comparison operators involving constants and variables. Non-zero values will be truthy.
 * Chapter 5: `if` statement. CFG construction, peephole optimization around dead control flow.
