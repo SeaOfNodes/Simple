@@ -29,7 +29,7 @@ The Simple language will be styled after a subset of C or Java
 * [Chapter 1](docs/chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * [Chapter 2](docs/chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
   with constants. Peephole optimization / simple constant folding.
-* Chapter 3: Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
+* [Chapter 3](docs/chapter03/README.md): Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
   constant.
 * Chapter 4: A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications.
 * Chapter 5: `if` statement. CFG construction.
