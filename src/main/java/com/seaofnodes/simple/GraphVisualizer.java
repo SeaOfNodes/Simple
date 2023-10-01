@@ -17,7 +17,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter02 {\n");
+        sb.append("digraph chapter03 {\n");
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
@@ -39,8 +39,14 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
 
+        // Now the scopes, in a cluster no edges
+        scopes(sb, parser._scope);
+
         // Walk the Node edges
         nodeEdges(sb, all);
+
+        // Walk the Scope edges
+        scopeEdges(sb, parser._scope);
 
         sb.append("}\n");
         return sb.toString();
@@ -51,6 +57,8 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
+            if( n instanceof ScopeNode )
+                continue; // Do not emit, rolled into Scope cluster already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
             String lab = n.glabel();
             // control nodes have box shape
@@ -63,6 +71,30 @@ public class GraphVisualizer {
         sb.append("\t}\n");     // End Node cluster
     }
 
+    private void scopes( StringBuilder sb, ScopeNode scopenode) {
+        sb.append("\tnode [shape=plaintext];\n");
+        int level=0;
+        for( HashMap<String,Integer> scope : scopenode._scopes ) {
+            String scopeName = makeScopeName(scopenode, level);
+            sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
+            sb.append("\t\t").append(scopeName).append(" [label=<\n");
+            sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
+            // Add the scope level
+            sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(level).append("</TD>");
+            for( String name : scope.keySet() )
+                sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
+            sb.append("</TR>\n");
+            sb.append("\t\t\t</TABLE>>];\n");
+            level++;
+        }
+        // Scope clusters nest, so the graphics shows the nested scopes, so
+        // they are not closed as they are printed; so they just keep nesting.
+        // We close them all at once here.
+        sb.append( "\t}\n".repeat( level ) ); // End all Scope clusters
+    }
+
+    private String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
+    private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
@@ -70,6 +102,9 @@ public class GraphVisualizer {
         sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
         for( Node n : all ) {
             // In this chapter we do display the Constant->Start edge;
+            // ScopeNodes are done separately
+            if( n instanceof ScopeNode )
+                continue;
             int i=0;
             for( Node def : n._inputs ) {
                 if( def != null ) {
@@ -90,6 +125,26 @@ public class GraphVisualizer {
         }
     }
 
+    // Walk the scope edges
+    private void scopeEdges( StringBuilder sb, ScopeNode scopenode ) {
+        sb.append("\tedge [style=dashed color=cornflowerblue];\n");
+        int level=0;
+        for( HashMap<String,Integer> scope : scopenode._scopes ) {
+            String scopeName = makeScopeName(scopenode, level);
+            for( String name : scope.keySet() ) {
+                Node def = scopenode.in(scope.get(name));
+                if( def==null ) continue;
+                sb.append("\t")
+                  .append(scopeName).append(":")
+                  .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
+                  .append(" -> ");
+                sb.append(def.uniqueName());
+                sb.append(";\n");
+            }
+            level++;
+        }
+    }
+
     /**
      * Finds all nodes in the graph.
      */
@@ -98,6 +153,10 @@ public class GraphVisualizer {
         final HashMap<Integer, Node> all = new HashMap<>();
         for( Node n : start._outputs )
             walk(all, n);
+        // Scan symbol tables
+        for( HashMap<String,Integer> scope : parser._scope._scopes )
+            for (Integer i : scope.values())
+                walk(all, parser._scope.in(i));
         return all.values();
     }
 
@@ -105,6 +164,7 @@ public class GraphVisualizer {
      * Walk a subgraph and populate distinct nodes in the all list.
      */
     private void walk(HashMap<Integer, Node> all, Node n) {
+        if(n == null ) return;
         if (all.get(n._nid) != null) return; // Been there, done that
         all.put(n._nid, n);
         for (Node c : n._inputs)
