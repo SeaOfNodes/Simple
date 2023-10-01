@@ -17,7 +17,7 @@ Here is the [complete language grammar](docs/03-grammar.md) for this chapter.
 
 ## Extensions to Intermediate Representation
 
-In this chapter we do not add new nodes.
+In this chapter we do not add new nodes. To recap, our list of Nodes are:
 
 | Node Name  | Type    | Description                        | Inputs                                                           | Value                                                 |
 |------------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
@@ -57,13 +57,13 @@ We show the output from following code.
 09      return c;
 ```
 
-* When we start parsing above, we start with a symbol table, say level 0.
+* When we start parsing above, we start with a symbol table (level 0).
 The variables `a`, `b`, and `c` are registered in this table.
-* On line 4, we start a nested scope. At this point, a new symbol table is pushed, say level 1.
-* On line 5, a variable `b` is declared, this gets registered in the  symbol table at level 1. This then
+* On line 4, we start a nested scope. At this point, a new symbol table is pushed (level 1).
+* On line 5, a variable `b` is declared. `b` is registered in the symbol table at level 1. This then
 hides the variable with the same name on line 2.
-* On line 7, we update the variable `c`. The symbol table lookup will find it in the symbol table at level 0.
-At this point, the node graph looks like this (note that peephole opts are switched off here so that we can 
+* On line 7, we update the variable `c`. Variable lookup will find it in the symbol table at level 0.
+The node graph is shown below (note that peephole opts are switched off here so that we can 
 see the graph as its initially constructed).
 
 ![Graph1](./docs/03-graph1.svg)
@@ -72,7 +72,7 @@ The diagram shows the symbol tables in the bottom cluster.
 Each table is annotated by its scope level, and shows the variables defined in that scope.
 
 * When we exit the nested scope on line 8, the symbol table at level 1 is popped.
-* At line 9, the point the graph looks like this:
+* At line 9, our graph looks like this:
 
 ![Graph2](./docs/03-graph2.svg)
 
@@ -84,11 +84,11 @@ Once we enable peephole optimizations, the parser is able to reduce all the expr
 constant. This is illustrated nicely below.
 
 ```
-int x0=1; 
-int y0=2; 
-int x1=3; 
-int y1=4; 
-return (x0-x1)*(x0-x1) + (y0-y1)*(y0-y1);
+01      int x0=1; 
+02      int y0=2; 
+03      int x1=3; 
+04      int y1=4; 
+05      return (x0-x1)*(x0-x1) + (y0-y1)*(y0-y1);
 ```
 
 The graph for above, is displayed below.

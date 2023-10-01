@@ -12,6 +12,11 @@ statement
     | declStatement
     | blockStatment 
     | expressionStatement
+    | metaStatement
+    ;
+
+metaStatement
+    : '#showGraph' ';'
     ;
 
 expressionStatement
@@ -63,6 +68,5 @@ IDENTIFIER
     ;
     
 NON_DIGIT: [a-zA-Z_];
-DEC_DIGIT: [0-9];    
-            
+DEC_DIGIT: [0-9];
 ```

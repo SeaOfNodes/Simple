@@ -117,12 +117,15 @@ public class GraphVisualizer {
      * Walks the whole graph, starting from Start.
      * Since Start is the input to all constants - we look at the outputs for
      * Start, but for then subsequently we look at the inputs of each node.
+     * During graph construction not all nodes are reachable this way, so we
+     * also scan the symbol tables.
      */
     private Collection<Node> findAll(Parser parser) {
         final StartNode start = Parser.START;
-        HashMap<Integer, Node> all = new HashMap<>();
+        final HashMap<Integer, Node> all = new HashMap<>();
         for( Node n : start._outputs )
             walk(all, n);
+        // Scan symbol tables
         for( HashMap<String,Node> scope : parser._scopes )
             for (Node n : scope.values())
                 walk(all, n);
@@ -130,7 +133,7 @@ public class GraphVisualizer {
     }
 
     /**
-     * Walk a subgraph and populate distinct nodes in the _all list.
+     * Walk a subgraph and populate distinct nodes in the all list.
      */
     private void walk(HashMap<Integer, Node> all, Node n) {
         if (all.get(n._nid) != null) return; // Been there, done that
