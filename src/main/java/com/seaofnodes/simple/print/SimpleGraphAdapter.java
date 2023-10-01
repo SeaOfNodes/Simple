@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 
-/** Chapter 2's view of the IR; browser, transport and layout are shared. */
+/** Chapter 3's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -18,8 +18,9 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
     private ArrayList<Edge> edges(Node n) {
         var edges = new ArrayList<Edge>();
+        String[] names = n instanceof ScopeNode scope && n.nIns() != 0 ? scope.reverseNames() : null;
         for( int i = 0; i < n.nIns(); i++ ) {
-            String name = null;
+            String name = names == null || i >= names.length ? null : names[i];
             edges.add(new Edge(i, ref(n.in(i)), role(n, i), name));
         }
         return edges;
@@ -33,12 +34,13 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     private Kind kind(Node n) {
+        if( n instanceof ScopeNode ) return Kind.SCOPE;
         if( n instanceof StartNode ) return Kind.CTRL;
         return n.isCFG() ? Kind.CTRL : Kind.DATA;
     }
 
     private Role role(Node n, int i) {
-        if( n instanceof ConstantNode ) return Role.ASSOC;
+        if( n instanceof ScopeNode || n instanceof ConstantNode ) return Role.ASSOC;
         if( i == 0 ) return Role.CTRL;
         return Role.DATA;
     }
