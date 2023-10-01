@@ -126,10 +126,18 @@ public abstract class Node {
     public boolean isCFG() { return false; }
 
 
+
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
      * the corresponding <em>use->def</em> edge.  This may make the original
      * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
+     * <p>
+
+     * This method is the normal path for altering a Node, because it does the
+     * proper default edge maintenance.  It also <em>immediately</em> kills
+     * Nodes that lose their last use; at times care must be taken to avoid
+     * killing Nodes that are being used without having an output Node.  This
+     * definitely happens in the middle of recursive {@link #peephole} calls.
      *
      * @param idx which def to set
      * @param new_def the new definition
@@ -152,6 +160,22 @@ public abstract class Node {
         return new_def;
     }
 
+    /**
+     * Add a new def to an existing Node.  Keep the edges correct by
+     * adding the corresponding <em>def->use</em> edge.
+     *
+     * @param new_def the new definition, appended to the end of existing definitions
+     * @return new_def for flow coding
+     */
+    Node addDef(Node new_def) {
+        // Add use->def edge
+        _inputs.add(new_def);
+        // If new def is not null, add the corresponding def->use edge
+        if( new_def != null )
+            new_def.addUse(this);
+        return new_def;
+    }
+
     // Breaks the edge invariants, used temporarily
     protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
 
@@ -163,16 +187,25 @@ public abstract class Node {
         return _outputs.size() == 0;
     }
 
+    // Shortcut for "popping" n nodes.  A "pop" is basically a
+    // set_def(last,null) followed by lowering the nIns() count.
+    void popN(int n) {
+        for( int i=0; i<n; i++ ) {
+            Node old_def = _inputs.removeLast();
+            if( old_def != null &&     // If it exists and
+                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                old_def.kill();        // Kill old def
+        }
+    }
+
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
      * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #setDef}.
+     * code elimination.  This function is co-recursive with {@link #popN}.
      */
     public void kill( ) {
         assert isUnused();      // Has no uses, so it is dead
-        for( int i=0; i<nIns(); i++ )
-            setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
-        _inputs.clear();
+        popN(nIns());          // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead
         assert isDead();        // Really dead now
     }
@@ -218,7 +251,6 @@ public abstract class Node {
         return this;            // No progress
     }
 
-
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
@@ -243,5 +275,25 @@ public abstract class Node {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; }
+    public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
+
+    /**
+     * Debugging utility to find a Node by index
+     */
+    public Node find(int nid) { return _find(new BitSet(),nid); }
+    private Node _find(BitSet visit, int nid) {
+        if( _nid==nid ) return this;
+        if( visit.get(_nid) ) return null;
+        visit.set(_nid);
+        for( Node def : _inputs )
+            if( def!=null ) {
+                Node rez = def._find(visit,nid);
+                if( rez != null ) return rez;
+            }
+        for( Node use : _outputs ) {
+            Node rez = use._find(visit,nid);
+            if( rez != null ) return rez;
+        }
+        return null;
+    }
 }
