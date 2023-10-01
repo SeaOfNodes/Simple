@@ -1,0 +1,17 @@
+{
+  "ver": 1,
+  "comp": "chapter03/docs/03-graph1.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "Scope", "type": null, "kind": "SCOPE", "edges": [{"idx": 0, "def": 3, "role": "ASSOC", "label": "0: a"}, {"idx": 1, "def": 4, "role": "ASSOC", "label": "0: b"}, {"idx": 2, "def": 7, "role": "ASSOC", "label": "0: c"}, {"idx": 3, "def": 6, "role": "ASSOC", "label": "1: b"}], "proj": null},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 3, "label": "#1", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 4, "label": "#2", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 6, "label": "#3", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 7, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 3, "role": "DATA", "label": null}, {"idx": 2, "def": 6, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
