@@ -4,6 +4,7 @@ In this chapter we extend the language grammar with following features:
 
 * The program receives a single argument named `arg` of integer type from external environment.
 * Expressions support comparison operators.
+* We introduce a scope sensitive name binding `$ctrl` for the current incoming control node. Thus, our Return is no longer hard-wired to Start, instead it tracks the in scope `$ctrl` binding. 
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 
@@ -49,9 +50,10 @@ In this chapter we extend the Type hierarchy as follows:
 
 ```
 Type
-+-- TypeInteger
++-- TypeControl             (New - represents control token)
++-- TypeInteger             (Enhanced - now has Top and Bottom types)
 +-- TypeBot
-+-- TypeTuple
++-- TypeTuple               (New - represents multi-valued result)
 ```
 
 We mentioned in Chapter 2 that the set of values associated with a Type at a specific Node
@@ -88,16 +90,31 @@ Thus, once a node has a Bottom type, it stays that way.
 Currently, all our integer valued nodes are either a constant or a Bottom integer type.
 When we introduce loops, we will start seeing Top values.
 
+## `$ctrl` name binding
+
+In previous chapters, we had a hard coded control input edge from Start to Return. In this chapter we no longer have such a 
+hard-wired edge. Instead, we track the current in-scope control node via the name `$ctrl`. This means that when we need to
+create an edge to the predecessor control node, we simply lookup this name in the current scope. 
+
+This introduces the idea that the control flow subgraph is a Petri net model (p. 131). The control token moves virtually from node to
+node as execution proceeds. The initial control token is in Start, it then moves via the Proj node to Return.
+In later chapters we will see how the token moves across branches.
+
 ## More Peephole Optimizations
 
 Now that we have non-constant integer values, we do additional optimizations, rearranging algebraic 
 expressions to enable constant folding. For example:
 
 ```
-1 + arg + 2
+return 1 + arg + 2;
 ```
 
-can be rearranged as:
+We would expect the compiler to output `arg+3` here, but as it stands what we get is:
+
+![Graph1](./docs/04-pre-peephole.svg)
+
+We need to perform some algebraic simplifications to enable better outcome. For example,  we need to rearrange the
+expression as follows:
 
 ```
 1 + 2 + arg

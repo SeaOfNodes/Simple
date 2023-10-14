@@ -21,7 +21,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter03 {\n");
+        sb.append("digraph chapter04 {\n");
         
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
