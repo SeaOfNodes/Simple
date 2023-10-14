@@ -14,6 +14,27 @@ public class Chapter04Test {
     public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
+    public void testChapter4Peephole() {
+        Parser parser = new Parser("return 1+arg+2; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        //TODO assertEquals("return 1;", ret.print());
+    }
+
+    @Test
+    public void testChapter4Peephole2() {
+        Parser parser = new Parser("return (1+arg)+2; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        //TODO assertEquals("return 1;", ret.print());
+    }
+
+    @Test
+    public void testChapter4Peephole3() {
+        Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        //TODO assertEquals("return 1;", ret.print());
+    }
+
+    @Test
     public void testChapter4VarArg() {
         Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOTTOM);
         ReturnNode ret = parser.parse();

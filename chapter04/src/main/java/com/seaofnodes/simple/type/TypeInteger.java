@@ -30,7 +30,11 @@ public class TypeInteger extends Type {
     }
 
     @Override 
-    public StringBuilder _print(StringBuilder sb) { return sb.append(_con); }
+    public StringBuilder _print(StringBuilder sb) {
+        if (TOP.equals(this)) return sb.append("IntTop");
+        if (BOTTOM.equals(this)) return sb.append("IntBot");
+        return sb.append(_con);
+    }
 
     @Override
     public boolean isConstant() { return _is_con; }
