@@ -117,5 +117,14 @@ We need to perform some algebraic simplifications to enable better outcome. For 
 expression as follows:
 
 ```
-1 + 2 + arg
+return 1 + 2 + arg;
 ```
+
+This can then further simplify to:
+
+```
+return 3 + arg;
+```
+
+![Graph1](./docs/04-post-peephole.svg)
+

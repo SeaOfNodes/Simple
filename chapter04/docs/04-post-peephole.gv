@@ -1,0 +1,34 @@
+digraph chapter04 {
+	rankdir=BT;
+	subgraph cluster_Nodes {
+		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
+		Proj02 [ label="Proj0" ];
+		Proj13 [ label="Proj1" ];
+		Con_8 [ label="#3" ];
+		Add9 [ label="Add" ];
+		Return10 [ shape=box style=filled fillcolor=yellow label="Return" ];
+	}
+	node [shape=plaintext];
+	subgraph cluster_0 {
+		scope0 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="aqua">0</TD><TD PORT="scope0_$ctrl">$ctrl</TD><TD PORT="scope0_arg">arg</TD></TR>
+			</TABLE>>];
+	subgraph cluster_1 {
+		scope1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="aqua">1</TD></TR>
+			</TABLE>>];
+	}
+	}
+	Proj02 -> Start1 [color=red];
+	Proj13 -> Start1;
+	Con_8 -> Start1 [style=dotted];
+	Add9 -> Proj13;
+	Add9 -> Con_8;
+	Return10 -> Proj02 [color=red];
+	Return10 -> Add9;
+	edge [style=dashed color=cornflowerblue];
+	scope0:"scope0_$ctrl" -> Proj02;
+	scope0:"scope0_arg" -> Proj13;
+}
