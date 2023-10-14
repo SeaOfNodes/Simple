@@ -32,7 +32,7 @@ The simple language will be a small subset of C.
   with constants. Peephole optimization / simple constant folding.
 * [Chapter 3](chapter03/README.md): Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
   constant.
-* Chapter 4: Binary and Comparison operators involving constants and variables. Non-zero values will be truthy.
+* [Chapter 4](chapter04/README.md): Binary and Comparison operators involving constants and variables. Non-zero values will be truthy.
 * Chapter 5: `if` statement. CFG construction, peephole optimization around dead control flow.
 * Chapter 6: `while` statement.
 * Chapter 7: Global Value Numbering.
