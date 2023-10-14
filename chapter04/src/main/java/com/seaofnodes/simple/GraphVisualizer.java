@@ -4,6 +4,7 @@ import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.Control;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.type.TypeControl;
 
 import java.util.*;
 
@@ -86,6 +87,14 @@ public class GraphVisualizer {
     private String makeScopeName(int level) { return "scope" + level; }
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
+    private boolean isControlEdge(Node from, Node to) {
+        if (from instanceof Control && (to instanceof Control || to._type instanceof TypeControl))
+            return true;
+        if (to instanceof Control && from._type instanceof TypeControl)
+            return true;
+        return false;
+    }
+
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
         for( Node n : all )
@@ -95,7 +104,7 @@ public class GraphVisualizer {
                     // Control edges are colored red
                     if( n instanceof ConstantNode && out instanceof StartNode )
                       sb.append(" [style=dotted]");
-                    else if( n instanceof Control && out instanceof Control )
+                    else if( isControlEdge(out, n) )
                       sb.append(" [color=red]");
                     sb.append(";\n");
                 }
@@ -108,17 +117,17 @@ public class GraphVisualizer {
         for( HashMap<String,Node> scope : scopes ) {
             String scopeName = makeScopeName(level);
             for( String name : scope.keySet() )
-                sb.append("\t").append(scopeName).append(":").append(makePortName(scopeName, name)).append(" -> ").append(scope.get(name).uniqueName()).append(";\n");
+                sb.append("\t")
+                  .append(scopeName).append(":")
+                  .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
+                  .append(" -> ")
+                  .append(scope.get(name).uniqueName()).append(";\n");
             level++;
         }
     }
     
     /**
-     * Walks the whole graph, starting from Start.
-     * Since Start is the input to all constants - we look at the outputs for
-     * Start, but for then subsequently we look at the inputs of each node.
-     * During graph construction not all nodes are reachable this way, so we
-     * also scan the symbol tables.
+     * Finds all nodes in the graph.
      */
     private Collection<Node> findAll(Parser parser) {
         final StartNode start = Parser.START;
