@@ -16,6 +16,8 @@ public class ReturnNode extends Node implements Control {
 
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
+        // Do an initial type computation
+        _type = compute();
     }
 
     public Node ctrl() { return in(0); }

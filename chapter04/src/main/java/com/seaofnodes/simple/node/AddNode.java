@@ -5,6 +5,8 @@ import com.seaofnodes.simple.type.*;
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
+        // Do an initial type computation
+        _type = compute();
     }
 
     @Override

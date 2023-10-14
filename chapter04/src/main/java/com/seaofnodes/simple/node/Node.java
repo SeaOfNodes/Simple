@@ -41,6 +41,13 @@ public abstract class Node {
      */
     public final ArrayList<Node> _outputs;
 
+
+    /**
+     * Current computed type for this Node.  This value changes as the graph
+     * changes and more knowledge is gained about the program.
+     */
+    public Type _type;
+
     /**
      * A private Global Static mutable counter, for unique node id generation.
      * To make the compiler multi-threaded, this field will have to move into a TLS.
@@ -57,7 +64,7 @@ public abstract class Node {
             if( n != null )
                 n._outputs.add( this );
         // Do an initial type computation
-        _type = compute();
+        // _type = compute();
     }
 
     public abstract String label();
@@ -173,13 +180,6 @@ public abstract class Node {
         if( new_def != null )
             new_def._outputs.add(this);
     }
-    
-  
-    /**
-     * Current computed type for this Node.  This value changes as the graph
-     * changes and more knowledge is gained about the program.
-     */
-    public Type _type;
     
     /**
      * This function needs to be

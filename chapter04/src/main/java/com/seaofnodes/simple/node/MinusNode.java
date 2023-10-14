@@ -7,6 +7,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class MinusNode extends Node {
     public MinusNode(Node in) {
         super(null, in);
+        // Do an initial type computation
+        _type = compute();
     }
 
     @Override

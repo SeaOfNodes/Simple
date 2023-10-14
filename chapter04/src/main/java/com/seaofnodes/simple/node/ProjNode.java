@@ -10,6 +10,8 @@ public class ProjNode extends Node {
     public ProjNode(MultiNode ctrl, int idx) {
         super((Node) ctrl);
         _idx = idx;
+        // Do an initial type computation
+        _type = compute();
     }
 
     @Override

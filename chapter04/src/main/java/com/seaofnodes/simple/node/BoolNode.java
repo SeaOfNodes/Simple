@@ -10,6 +10,8 @@ public class BoolNode extends Node {
     public BoolNode(String op, Node lhs, Node rhs) {
         super(null, lhs, rhs);
         _op = op;
+        // Do an initial type computation
+        _type = compute();
     }
 
     @Override

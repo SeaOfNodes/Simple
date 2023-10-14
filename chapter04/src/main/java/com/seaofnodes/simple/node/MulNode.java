@@ -7,6 +7,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class MulNode extends Node {
     public MulNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
+        // Do an initial type computation
+        _type = compute();
     }
 
     @Override

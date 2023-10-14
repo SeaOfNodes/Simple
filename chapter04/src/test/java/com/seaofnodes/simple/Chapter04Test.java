@@ -1,16 +1,12 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class Chapter04Test {
 
@@ -18,21 +14,46 @@ public class Chapter04Test {
     public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
-    public void testVarArg() {
-        Parser parser = new Parser("return arg;", TypeInteger.BOTTOM);
+    public void testChapter4VarArg() {
+        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOTTOM);
         ReturnNode ret = parser.parse();
-        //assertEquals("return 2;", ret.print());
-        GraphVisualizer gv = new GraphVisualizer();
-        System.out.println(gv.generateDotOutput(parser));
+        assertTrue(ret.in(0) instanceof ProjNode);
+        assertTrue(ret.in(1) instanceof ProjNode);
     }
 
     @Test
-    public void testConstantArg() {
-        Parser parser = new Parser("return arg;", TypeInteger.constant(2));
+    public void testChapter4ConstantArg() {
+        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
         ReturnNode ret = parser.parse();
         assertEquals("return 2;", ret.print());
-        GraphVisualizer gv = new GraphVisualizer();
-        System.out.println(gv.generateDotOutput(parser));
+    }
+
+    @Test
+    public void testChapter4CompEq() {
+        Parser parser = new Parser("return 3==3; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        assertEquals("return 1;", ret.print());
+    }
+
+    @Test
+    public void testChapter4CompEq2() {
+        Parser parser = new Parser("return 3==4; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        assertEquals("return 0;", ret.print());
+    }
+
+    @Test
+    public void testChapter4CompNEq() {
+        Parser parser = new Parser("return 3!=3; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        assertEquals("return 0;", ret.print());
+    }
+
+    @Test
+    public void testChapter4CompNEq2() {
+        Parser parser = new Parser("return 3!=4; #showGraph;", TypeInteger.BOTTOM);
+        ReturnNode ret = parser.parse();
+        assertEquals("return 1;", ret.print());
     }
 
     @Test
@@ -134,7 +155,7 @@ public class Chapter04Test {
         ReturnNode ret = parser.parse();
         StartNode start = Parser.START;
         
-        assertEquals(start, ret.ctrl());
+        assertTrue(ret.ctrl() instanceof ProjNode);
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
             assertEquals(start,con.in(0));
