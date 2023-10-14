@@ -36,7 +36,7 @@ public class Parser {
         _lexer = new Lexer(source);
         _scopes = new Stack<>();
         Node.reset();
-        START = new StartNode(new Type[]{ TypeBot.BOTTOM, arg });
+        START = new StartNode(new Type[]{ Type.CONTROL, arg });
     }
 
     public Parser(String source) {

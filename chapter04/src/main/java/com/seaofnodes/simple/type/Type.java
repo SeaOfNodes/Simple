@@ -19,6 +19,8 @@ package com.seaofnodes.simple.type;
 
 public abstract class Type {
 
+    public static final TypeControl CONTROL = new TypeControl();
+
     public boolean isConstant() { return false; }
 
     public abstract StringBuilder _print(StringBuilder sb);

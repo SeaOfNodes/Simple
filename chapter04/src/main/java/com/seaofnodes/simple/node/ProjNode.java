@@ -7,8 +7,8 @@ public class ProjNode extends Node {
 
     public final int _idx;
 
-    public ProjNode(Node ctrl, int idx) {
-        super(ctrl);
+    public ProjNode(MultiNode ctrl, int idx) {
+        super((Node) ctrl);
         _idx = idx;
     }
 
@@ -24,9 +24,7 @@ public class ProjNode extends Node {
 
     @Override
     public Type compute() {
-        if (ctrl() instanceof MultiNode multi) {
-            return multi.projType(this);
-        }
+        if (ctrl() instanceof MultiNode multi) return multi.projType(this);
         return TypeBot.BOTTOM;
     }
 

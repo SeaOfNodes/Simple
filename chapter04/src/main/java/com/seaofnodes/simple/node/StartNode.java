@@ -34,14 +34,6 @@ public class StartNode extends Node implements Control, MultiNode {
 
     public Type projType(ProjNode n) {
         TypeTuple typeTuple = (TypeTuple) _type;
-        int idx = -1;
-        for (int i = 0; i < nOuts(); i++) {
-            if (out(i) instanceof ProjNode proj) {
-                idx++;
-                if (n.equals(proj))
-                    return typeTuple._types[idx];
-            }
-        }
-        return null;
+        return typeTuple._types[n._idx];
     }
 }
