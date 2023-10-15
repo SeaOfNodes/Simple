@@ -4,9 +4,6 @@ In this chapter we extend the language grammar with following features:
 
 * The program receives a single argument named `arg` of integer type from external environment.
 * Expressions support comparison operators.
-* We introduce a scope sensitive name binding `$ctrl` for the current incoming
-  control node.  Thus, our Return is no longer hard-wired to Start, instead it
-  tracks the in scope `$ctrl` binding.
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 
@@ -33,6 +30,15 @@ Below is our list of Nodes from chapter 3:
 | Mul        | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
 | Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
 | UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
+
+## Projection Nodes
+
+We add projection nodes that are used to extract a specific tuple member from a multi-valued node.
+Each projection node contains an index of the field to extract from its input node. The type of the projection depends upon the type of the tuple member, and the
+projection delegates the type computation to the input node.
+
+The Projection nodes essentially allow the graph to "branch out" from a single node that has multiple outputs, 
+enabling each of those outputs to be used separately in subsequent operations.
 
 ## Changes to Type System
 
@@ -127,8 +133,17 @@ We need to perform some algebraic simplifications to enable better outcome. For 
 expression as follows:
 
 ```
-arg + (1 + 2)
+return 1 + 2 + arg;
 ```
+
+This can then further simplify to:
+
+```
+return 3 + arg;
+```
+
+![Graph1](./docs/04-post-peephole.svg)
+
 
 Here is a (partial) list of peepholes introduced in this Chapter:
 
