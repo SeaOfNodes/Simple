@@ -26,8 +26,7 @@ public class ProjNode extends Node {
 
     @Override
     public Type compute() {
-        if (ctrl() instanceof MultiNode multi) return multi.projType(this);
-        return TypeBot.BOTTOM;
+        return ctrl() instanceof MultiNode multi ? multi.projType(this) : TypeBot.BOTTOM;
     }
 
     @Override

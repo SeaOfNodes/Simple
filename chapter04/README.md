@@ -4,7 +4,9 @@ In this chapter we extend the language grammar with following features:
 
 * The program receives a single argument named `arg` of integer type from external environment.
 * Expressions support comparison operators.
-* We introduce a scope sensitive name binding `$ctrl` for the current incoming control node. Thus, our Return is no longer hard-wired to Start, instead it tracks the in scope `$ctrl` binding. 
+* We introduce a scope sensitive name binding `$ctrl` for the current incoming
+  control node.  Thus, our Return is no longer hard-wired to Start, instead it
+  tracks the in scope `$ctrl` binding.
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 
@@ -13,12 +15,12 @@ Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 In this chapter we add some new nodes and revise some existing nodes.
 Following are revised or new nodes
 
-| Node Name | Type             | Description                                          | Inputs                            | Value                                                                                |
-|-----------|------------------|------------------------------------------------------|-----------------------------------|--------------------------------------------------------------------------------------|
-| MultiNode | Marker interface | Marks a node that has a tuple result                 | None                              | None                                                                                 |
-| Start     | Control          | Start of function, now a MultiNode                   | An input argument named `arg`.    | A tuple with 1) ctrl token and 2) `arg` data node                                    |
-| Proj      | ?                | Projection node that extracts a value from MultiNode | A MultiNode and an index position | Result is the extracted value from the input MultiNode at offset index               | 
-| Bool      | Data             | Represents results of a comparison operator          | Two data nodes                    | Result of the comparison operation, represent as integer value where 1=true, 0=false |
+| Node Name | Type             | Description                                    | Inputs                         | Value                                                                   |
+|-----------|------------------|------------------------------------------------|--------------------------------|-------------------------------------------------------------------------|
+| MultiNode | Marker interface | Marks a node that has a tuple result           | None                           | None                                                                    |
+| Start     | Control          | Start of function, now a MultiNode             | An input argument named `arg`. | A tuple with a ctrl token and an `arg` data node                        |
+| Proj      | ?                | Projection nodes extract values from MultiNode | A MultiNode and index          | Result is the extracted value from the input MultiNode at offset index  | 
+| Bool      | Data             | Represents results of a comparison operator    | Two data nodes                 | Result a comparison, represented as integer value where 1=true, 0=false |
 
 Below is our list of Nodes from chapter 3:
 
@@ -34,14 +36,14 @@ Below is our list of Nodes from chapter 3:
 
 ## Changes to Type System
 
-In Chapter 2 we introduced the Type System. Here is a summary of key points.
+In Chapter 2 we introduced the Type System.  Here is a summary of key points:
 
 We annotate Nodes with Types.
 
 The Type annotation serves two purposes:
 
-* it defines the set of operations allowed on the Node
-* it defines the set of values the Node takes on
+* it defines the set of operations allowed on the Node, and
+* it defines the set of values the Node takes on.
 
 The type itself is identified by the Java class sub-typing relationship; all
 types are subtypes of the class `Type`.
@@ -71,10 +73,10 @@ undetermined constant. The transition of the Node's type can occur from T to
 some constant to ⊥.
 
 In this chapter we introduce the possibility of a program input variable named
-`arg`. This variable may or may not be a constant value.
+`arg`; this variable is usually unknown so ⊥ .
 
 To support the requirements for non-constant integer values, we enhance `TypeInteger` to
-allow it to represent `Top` and `Bottom` integer types in addition to the earlier constant value.
+allow it to represent `Top` and `Bot` integer types in addition to the earlier constant value.
 
 Now that integer values may be constants or non-constants, we need to introduce the meet operator
 in our lattice. The meet operator describes rules that define the resulting type when we combine
@@ -86,19 +88,27 @@ integer values.
 | Con1 | ⊥ | Con1 | ⊥    | Con1 |
 | T    | ⊥ | Con1 | Con2 | T    | 
 
-Thus, once a node has a Bottom type, it stays that way.
+
+The `meet` of `Top` with anything is that thing.
+The `meet` of `Bot` with anything is `Bot`.
+The `meet` of anything with itself is that thing.
+The `meet` of two unrelated constants is `Bot`.
 Currently, all our integer valued nodes are either a constant or a Bottom integer type.
-When we introduce loops, we will start seeing Top values.
+When we start optimizing loops, we will start seeing Top values.
 
 ## `$ctrl` name binding
 
-In previous chapters, we had a hard coded control input edge from Start to Return. In this chapter we no longer have such a 
-hard-wired edge. Instead, we track the current in-scope control node via the name `$ctrl`. This means that when we need to
-create an edge to the predecessor control node, we simply lookup this name in the current scope. 
+In previous chapters, we had a hard coded control input edge from Start to
+Return. In this chapter we no longer have such a hard-wired edge.  Instead, we
+track the current in-scope control node via the name `$ctrl`.  This means that
+when we need to create an edge to the predecessor control node, we simply
+lookup this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model (p. 131). The control token moves virtually from node to
-node as execution proceeds. The initial control token is in Start, it then moves via the Proj node to Return.
-In later chapters we will see how the token moves across branches.
+This introduces the idea that the control flow subgraph is a Petri net model
+(p. 131).  The control token moves virtually from node to node as execution
+proceeds.  The initial control token is in Start, it then moves via the Proj
+node to Return.  In later chapters we will see how the token moves across
+branches.
 
 ## More Peephole Optimizations
 
@@ -117,5 +127,17 @@ We need to perform some algebraic simplifications to enable better outcome. For 
 expression as follows:
 
 ```
-1 + 2 + arg
+arg + (1 + 2)
 ```
+
+Here is a (partial) list of peepholes introduced in this Chapter:
+
+| Before                | After                 | Description                                    |
+|-----------------------|-----------------------|------------------------------------------------|
+| (arg + 0 )            |  arg                  | Add of zero identity                           |
+| (arg * 1 )            |  arg                  | Multiple of one identity                       |
+| (con + arg)           | (arg + con)           | Move constants to right, to encourage folding  |
+| (con * arg)           | (arg * con)           | Move constants to right, to encourage folding  |
+| (con1 + (arg + con2)) | (arg + (con1 + con2)) | Move constants to right, to encourage folding  |
+| ((arg1 + con) + arg2) | ((arg1 + arg2) + con) | Move constants to right, to encourage folding  |
+| (arg + arg)           | (arg * 2)             | Sum-of-products form                           |

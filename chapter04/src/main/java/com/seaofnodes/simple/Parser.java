@@ -40,7 +40,7 @@ public class Parser {
     }
 
     public Parser(String source) {
-        this(source, TypeInteger.BOTTOM);
+        this(source, TypeInteger.BOT);
     }
 
 
@@ -48,7 +48,7 @@ public class Parser {
         _scopes.push(new HashMap<>());
         try {
             define("$ctrl", new ProjNode(START, 0));
-            define("arg", new ProjNode(START, 1));
+            define("arg"  , new ProjNode(START, 1));
             return (ReturnNode) parseBlock();
         }
         finally {
@@ -58,7 +58,6 @@ public class Parser {
 
     // Create a new name in current scope
     private Node define(String name, Node n) {
-        // new name
         _scopes.lastElement().put(name, n);
         return n;
     }
@@ -182,12 +181,12 @@ public class Parser {
 
     private Node parseComparison() {
         var lhs = parseAddition();
-        if (match("==")) return new BoolNode("==", lhs, parseComparison()).peephole();
-        if (match("!=")) return new BoolNode("!=", lhs, parseComparison()).peephole();
-        if (match("<")) return new BoolNode("<", lhs, parseComparison()).peephole();
-        if (match("<=")) return new BoolNode("<=", lhs, parseComparison()).peephole();
-        if (match(">")) return new BoolNode(">", lhs, parseComparison()).peephole();
-        if (match(">=")) return new BoolNode(">=", lhs, parseComparison()).peephole();
+        if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
+        if (match("!=")) return new BoolNode.NENode(lhs, parseComparison()).peephole();
+        if (match("<" )) return new BoolNode.LTNode(lhs, parseComparison()).peephole();
+        if (match("<=")) return new BoolNode.LENode(lhs, parseComparison()).peephole();
+        if (match(">" )) return new BoolNode.GTNode(lhs, parseComparison()).peephole();
+        if (match(">=")) return new BoolNode.GENode(lhs, parseComparison()).peephole();
         return lhs;
     }
 

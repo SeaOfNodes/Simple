@@ -4,25 +4,22 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
-public class BoolNode extends Node {
+abstract public class BoolNode extends Node {
 
-    public String _op;
-    public BoolNode(String op, Node lhs, Node rhs) {
+    public BoolNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
-        _op = op;
         // Do an initial type computation
         _type = compute();
     }
 
+    abstract String op();
     @Override
-    public String label() {
-        return "Comp"+_op;
-    }
+    public String label() { return op(); }
 
     @Override
     StringBuilder _print(StringBuilder sb) {
         in(1)._print(sb.append("("));
-        in(2)._print(sb.append(_op));
+        in(2)._print(sb.append(op()));
         return sb.append(")");
     }
 
@@ -31,30 +28,23 @@ public class BoolNode extends Node {
         if( in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1 ) {
             if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(doOp(i0.value(), i1.value()));
+                return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
             return i0.meet(i1);
         }
         return TypeBot.BOTTOM;
     }
 
-    private long doOp(long lhs, long rhs) {
-        switch (_op) {
-            case "==": return asInt(lhs == rhs);
-            case "!=": return asInt(lhs != rhs);
-            case "<": return asInt(lhs < rhs);
-            case "<=": return asInt(lhs <= rhs);
-            case ">": return asInt(lhs > rhs);
-            case ">=": return asInt(lhs >= rhs);
-            default: throw new IllegalArgumentException("Unexpected boolean operator " + _op);
-        }
-    }
-
-    private long asInt(boolean b) {
-        return b ? 1 : 0;
-    }
+    abstract boolean doOp(long lhs, long rhs);
 
     @Override
     public Node idealize() {
         return null;
     }
+
+    public static class EQNode extends BoolNode { public EQNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } }
+    public static class NENode extends BoolNode { public NENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "!="; } boolean doOp(long lhs, long rhs) { return lhs != rhs; } }
+    public static class LTNode extends BoolNode { public LTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } }
+    public static class LENode extends BoolNode { public LENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } }
+    public static class GTNode extends BoolNode { public GTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">" ; } boolean doOp(long lhs, long rhs) { return lhs >  rhs; } }
+    public static class GENode extends BoolNode { public GENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">="; } boolean doOp(long lhs, long rhs) { return lhs >= rhs; } }
 }

@@ -31,39 +31,39 @@ public class AddNode extends Node {
         return TypeBot.BOTTOM;
     }
 
-    private Node add(Node lhs, Type t1, Type t2) {
-        TypeInteger i1 = (TypeInteger)t1;
-        TypeInteger i2 = (TypeInteger)t2;
-        AddNode newAdd = new AddNode(lhs, new ConstantNode(TypeInteger.constant(i1.value() + i2.value())));
-        kill();
-        return newAdd;
-    }
-
     @Override
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
-        Type lhsType = lhs._type;
-        Type rhsType = rhs._type;
+        Type t1 = lhs._type;
+        Type t2 = rhs._type;
 
-        // Do we have (con1 + arg) + con2?
-        if (rhsType.isConstant() && lhs instanceof AddNode) {
-            Node rhs2 = lhs.in(2);
-            Type lhs2Type = lhs.in(1)._type;
-            Type rhs2Type = rhs2._type;
-            if (lhs2Type.isConstant() && !rhs2Type.isConstant()) {
-                return add(rhs2, lhs2Type, rhsType);
-            }
-        }
-        // or con1 + (arg + con2)?
-        else if (lhsType.isConstant() && rhs instanceof AddNode) {
-            Node lhs2 = rhs.in(1);
-            Type lhs2Type = lhs2._type;
-            Type rhs2Type = rhs.in(2)._type;
-            if (!lhs2Type.isConstant() && rhs2Type.isConstant()) {
-                return add(lhs2, lhsType, rhs2Type);
-            }
-        }
+        // Add of 0.  We do not check for (0+x) because this will already
+        // canonicalize to (x+0)
+        if ( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
+            return lhs;
+        
+        // Move constants to RHS: con+arg becomes arg+con
+        if ( t1.isConstant() && !t2.isConstant() )
+            return set_def(1,rhs).set_def(2,lhs);
+        
+        // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
+        
+        // Do we have (x + con1) + con2 ?
+        // Rotate to   x +(con1  + con2)
+        // The constants will fold on the next peephole.
+        if (t2.isConstant() && lhs instanceof AddNode && lhs.in(2)._type.isConstant() )
+            return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
+
+        // Do we have  x + (y + con) ?
+        // Swap to    (x + y) + con
+        if (rhs instanceof AddNode add && add.in(2)._type.isConstant() )
+          return new AddNode(new AddNode(lhs,add.in(1)).peephole(), add.in(2));
+
+        // Add of same to a multiply by 2
+        if( lhs==rhs )
+            return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)));
+        
         return null;
     }
         

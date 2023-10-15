@@ -118,7 +118,11 @@ public abstract class Node {
      * <li>in a future chapter we will look for a
      * <a href="https://en.wikipedia.org/wiki/Common_subexpression_elimination">Common Subexpression</a>
      * to eliminate.</li>
-     * <li>we ask the Node for a better replacement (again, none enabled in this chapter)</li>
+     * <li>we ask the Node for a better replacement.  The "better replacement"
+     * is things like "(1+x)" becomes "(x+1)" and "(1+(x+2)" becomes
+     * "(x+(1+2))".  By canonicalizing expressions we fold common addressing
+     * math constants, remove algebraic identities and generally simplify the
+     * code. </li>
      * </ul>
      */
     public final Node peephole( ) {
@@ -136,7 +140,8 @@ public abstract class Node {
         
         // Ask each node for a replacement
         Node n = idealize();
-        if( n != null ) return n;
+        if( n != null )
+          return n.peephole();  // Recursively reoptimize
         
         return this;            // No progress
     }
@@ -159,8 +164,9 @@ public abstract class Node {
      *     
      * @param idx which def to set
      * @param new_def the new definition
+     * @return this for flow coding
      */
-    void set_def(int idx, Node new_def ) {
+    Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
         if( old_def != null ) { // If the old def exists, remove a use->def edge
             ArrayList<Node> outs = old_def._outputs;
@@ -179,6 +185,8 @@ public abstract class Node {
         // If new def is not null, add the corresponding use->def edge
         if( new_def != null )
             new_def._outputs.add(this);
+        // Return self for easy flow-coding
+        return this;
     }
     
     /**
@@ -199,6 +207,45 @@ public abstract class Node {
      */
     public abstract Type compute();
 
+    /**
+     * This function rewrites the current Node into a more "idealized" form.
+     * This is the bulk of our peephole rewrite rules, and we use this to
+     * e.g. turn arbitary collections of adds and multiplies with mixed
+     * constants into a normal form thats easy for hardware to implement.
+     * Example: An array addressing expression:
+     *    ary[idx+1]
+     * might turn into Sea-of-Nodes IR:
+     *    (ary+12)+((idx+1) * 4)
+     * This expression can then be idealized into:
+     *    ary + ((idx*4) + (12 + (1*4)))
+     * And more folding:
+     *    ary + ((idx<<2) + 16)
+     * And during code-gen:
+     *    MOV4 Rary,Ridx,16 // or some such hardware-specific notation
+     *
+     * idealize has a very specific calling convention:
+     * - If NO change is made, return null
+     * - If ANY change is made, return not-null; this can be "this"
+     * - The returned Node does NOT call peephole() on itself; the peephole()
+     *   call will recursively peephole it.
+     * - Any NEW nodes that are not DIRECTLY returned DO call peephole().
+     *
+     * Examples:
+     *   (x+5) ==> No change, return null
+     *
+     *   (5+x) ==> (x+5); self swapped arguments so return 'this';
+     *
+     *   ((x+1)+2) ==> (x + (1+2)) which returns 2 new Nodes.
+     *   The new Node (1+2) calls peephole (which then folds into a constant).
+     *   The new Node (x+3) does not call peephole, because peephole itself will call peephole.
+     *
+     * Since idealize calls peephole, and peephole calls idealize, you must be
+     * careful that all idealizations are *monotonic*: all transforms remove
+     * some feature, so that the set of available transforms always shrinks.
+     * If you don't, you risk an infinite peephole loop!
+     *
+     * @return Either a new or changed node, or null for no changes.
+     */
     public abstract Node idealize();
 
     /**

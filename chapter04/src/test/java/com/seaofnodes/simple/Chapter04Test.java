@@ -15,28 +15,49 @@ public class Chapter04Test {
 
     @Test
     public void testChapter4Peephole() {
-        Parser parser = new Parser("return 1+arg+2; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return 1+arg+2; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        //TODO assertEquals("return 1;", ret.print());
+        assertEquals("return (Proj_3+3);", ret.print());
     }
 
     @Test
     public void testChapter4Peephole2() {
-        Parser parser = new Parser("return (1+arg)+2; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return (1+arg)+2;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        //TODO assertEquals("return 1;", ret.print());
+        assertEquals("return (Proj_3+3);", ret.print());
     }
 
+    @Test
+    public void testChapter4Add0() {
+        Parser parser = new Parser("return 0+arg;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return Proj_3;", ret.print());
+    }
+
+    @Test
+    public void testChapter4AddAddMul() {
+        Parser parser = new Parser("return arg+0+arg;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return (Proj_3*2);", ret.print());
+    }
+  
     @Test
     public void testChapter4Peephole3() {
-        Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        //TODO assertEquals("return 1;", ret.print());
+        assertEquals("return ((Proj_3*2)+6);", ret.print());
     }
 
     @Test
+    public void testChapter4Mul1() {
+        Parser parser = new Parser("return 1*arg;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return Proj_3;", ret.print());
+    }
+  
+    @Test
     public void testChapter4VarArg() {
-        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
         assertTrue(ret.in(0) instanceof ProjNode);
         assertTrue(ret.in(1) instanceof ProjNode);
@@ -51,28 +72,28 @@ public class Chapter04Test {
 
     @Test
     public void testChapter4CompEq() {
-        Parser parser = new Parser("return 3==3; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return 3==3; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
         assertEquals("return 1;", ret.print());
     }
 
     @Test
     public void testChapter4CompEq2() {
-        Parser parser = new Parser("return 3==4; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return 3==4; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
         assertEquals("return 0;", ret.print());
     }
 
     @Test
     public void testChapter4CompNEq() {
-        Parser parser = new Parser("return 3!=3; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return 3!=3; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
         assertEquals("return 0;", ret.print());
     }
 
     @Test
     public void testChapter4CompNEq2() {
-        Parser parser = new Parser("return 3!=4; #showGraph;", TypeInteger.BOTTOM);
+        Parser parser = new Parser("return 3!=4; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
         assertEquals("return 1;", ret.print());
     }

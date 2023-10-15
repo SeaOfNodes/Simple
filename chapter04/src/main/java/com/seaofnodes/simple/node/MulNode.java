@@ -33,5 +33,21 @@ public class MulNode extends Node {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        Node lhs = in(1);
+        Node rhs = in(2);
+        Type t1 = lhs._type;
+        Type t2 = rhs._type;
+        
+        // Mul of 1.  We do not check for (1*x) because this will already
+        // canonicalize to (x*1)
+        if ( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==1 )
+            return lhs;
+        
+        // Move constants to RHS: con*arg becomes arg*con
+        if ( t1.isConstant() && !t2.isConstant() )
+            return set_def(1,rhs).set_def(2,lhs);
+        
+        return null;
+    }
 }

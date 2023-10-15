@@ -6,7 +6,7 @@ package com.seaofnodes.simple.type;
 public class TypeInteger extends Type {
 
     public final static TypeInteger TOP = new TypeInteger(false, 0);
-    public final static TypeInteger BOTTOM = new TypeInteger(false, 1);
+    public final static TypeInteger BOT = new TypeInteger(false, 1);
 
     private final boolean _is_con;
 
@@ -20,9 +20,8 @@ public class TypeInteger extends Type {
 
     public static TypeInteger constant(long con) { return new TypeInteger(true, con); }
 
-    public boolean isTop() { return TOP.equals(this); }
-
-    public boolean isBottom() { return BOTTOM.equals(this); }
+    public boolean isTop() { return !_is_con && _con==0; }
+    public boolean isBot() { return !_is_con && _con==1; }
 
     @Override
     public String toString() {
@@ -31,8 +30,8 @@ public class TypeInteger extends Type {
 
     @Override 
     public StringBuilder _print(StringBuilder sb) {
-        if (TOP.equals(this)) return sb.append("IntTop");
-        if (BOTTOM.equals(this)) return sb.append("IntBot");
+        if (isTop()) return sb.append("IntTop");
+        if (isBot()) return sb.append("IntBot");
         return sb.append(_con);
     }
 
@@ -43,21 +42,16 @@ public class TypeInteger extends Type {
 
     @Override
     public Type meet(Type other) {
-        if (other instanceof TypeInteger i) {
-            if (isConstant() && equals(i)) {
-                return this;
-            }
-            else if (isBottom() || i.isBottom()) {
-                return TypeInteger.BOTTOM;
-            }
-            else if (isConstant() && i.isTop()) {
-                return this;
-            }
-            else if (isTop() && i.isConstant()) {
-                return i;
-            }
-        }
-        return super.meet(other);
+        if( this==other ) return this;
+        if (!(other instanceof TypeInteger i)) return super.meet(other);
+        // BOT wins
+        if (   isBot() ) return this;
+        if ( i.isBot() ) return i   ;
+        // TOP loses
+        if ( i.isTop() ) return this;
+        if (   isTop() ) return i   ;
+        assert isConstant() && i.isConstant();
+        return _con==i._con ? this : TypeInteger.BOT;
     }
 
     @Override
