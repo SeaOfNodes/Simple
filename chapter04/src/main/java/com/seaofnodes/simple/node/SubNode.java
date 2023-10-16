@@ -33,6 +33,12 @@ public class SubNode extends Node {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return new ConstantNode(TypeInteger.constant(0));
+
+        return null;
+    }
 
 }
