@@ -44,10 +44,7 @@ public class Parser {
         this(source, TypeInteger.BOT);
     }
 
-    String src() {
-        byte[] buf = _lexer._input;
-        return new String(buf );
-    }
+    String src() { return new String( _lexer._input ); }
 
     public ReturnNode parse() {
         _scopes.push(new HashMap<>());
@@ -182,7 +179,7 @@ public class Parser {
      *     expr : additiveExpr
      * </pre>
      */
-    private Node parseExpression() {return parseComparison();}
+    private Node parseExpression() { return parseComparison(); }
 
     private Node parseComparison() {
         var lhs = parseAddition();
@@ -263,7 +260,7 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) {return _lexer.match(syntax);}
+    private boolean match(String syntax) { return _lexer.match(syntax); }
 
     // Require and return an identifier
     private String requireId() {
@@ -273,7 +270,7 @@ public class Parser {
     }
 
     // Require an exact match
-    private void require(String syntax) {require(null, syntax);}
+    private void require(String syntax) { require(null, syntax); }
     private Node require(Node n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
