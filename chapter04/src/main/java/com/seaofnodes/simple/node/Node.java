@@ -141,32 +141,80 @@ public abstract class Node {
             return this;        // Peephole optimizations turned off
 
         // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && type.isConstant()) {
-            kill();             // Kill 'this' because replacing with a Constant
-            return new ConstantNode(type).peephole();
-        }
+        if (!(this instanceof ConstantNode) && type.isConstant())
+            return dead_code_elim(new ConstantNode(type).peephole());
 
         // Future chapter: Global Value Numbering goes here
         
         // Ask each node for a replacement
         Node n = idealize();
-        if( n != null ) {        // Something changed
-          Node m = n.peephole(); // Recursively reoptimize
-          // If 'this' is going dead, and not being returned here (Nodes
-          // returned from peephole commonly have no uses (yet)), then
-          // kill 'this'.
-          if( m!=this && nOuts() == 0 ) {
-              // Killing self - and since self recursively kills self's inputs
-              // we might end up killing 'm', which we are returning as a live
-              // Node.  So we add a bogus extra null output edge to stop kill().
-              m._outputs.add(null); // Add bogus null to keep m alive
-              kill();           // Kill 'this' because replacing with 'n'
-              del(m,null);      // Remove bogus null.
-          }
-          return m;             // Return peephole
-        }
+        if( n != null )         // Something changed
+            // Recursively optimize
+            return dead_code_elim(n.peephole());
         
         return this;            // No progress
+    }
+
+
+    // Return 'm', which may have zero uses but is alive nonetheless.
+    // If self has zero uses (and is not 'm'), {@link #kill} self.
+    private Node dead_code_elim(Node m) {
+        // If self is going dead and not being returned here (Nodes returned
+        // from peephole commonly have no uses (yet)), then kill self.
+        if( m==this || nOuts() > 0 ) return m; // Not killing self
+        
+        // Killing self - and since self recursively kills self's inputs we
+        // might end up killing 'm', which we are returning as a live Node.
+        // So we add a bogus extra null output edge to stop kill().
+        m._outputs.add(null); // Add bogus null to keep m alive
+        kill();           // Kill self because replacing with 'm'
+        del(m,null);      // Remove bogus null.
+        return m;
+    }
+
+    
+    /**
+     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
+     * the corresponding <em>use->def</em> edge.  This may make the original
+     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
+     * <p>
+     
+     * This method is the normal path for altering a Node, because it does the
+     * proper default edge maintenance.  It also <em>immediately</em> kills
+     * Nodes that lose their last use; at times care must be taken to avoid
+     * killing Nodes that are being used without having an output Node.  This
+     * definitely happens in the middle of recursive {@link #peephole} calls.
+     *     
+     * @param idx which def to set
+     * @param new_def the new definition
+     * @return this for flow coding
+     */
+    Node set_def(int idx, Node new_def ) {
+        Node old_def = in(idx);
+        if( old_def != null &&  // If the old def exists, remove a use->def edge
+            del(old_def,this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        // Set the new_def over the old (killed) edge
+        _inputs.set(idx,new_def);
+        // If new def is not null, add the corresponding use->def edge
+        if( new_def != null )
+            new_def._outputs.add(this);
+        // Return self for easy flow-coding
+        return this;
+    }
+
+    // Remove node 'use' from 'def's output list, by compressing the list in-place.
+    // Return true if the output list is empty afterwards.
+    // Error is 'use' does not exist; ok for 'use' to be null.
+    private static boolean del(Node def, Node use) {
+        ArrayList<Node> outs = def._outputs;
+        int lidx = outs.size()-1; // Last index            
+        // This 1-line hack compresses an element out of an ArrayList
+        // without having to copy the contents.  The last element is
+        // stuffed over the deleted element, and then the size is reduced.            
+        outs.set(outs.indexOf(use),outs.get(lidx));
+        outs.remove(lidx);  // Reduce ArrayList size without copying anything
+        return lidx==0;
     }
 
     /**
@@ -178,47 +226,9 @@ public abstract class Node {
         assert nOuts()==0;    // Has no uses, so it is dead
         for( int i=0; i<nIns(); i++ )
             set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
-        _inputs.clear();
-        _outputs.clear();
-        _type=null;
-    }
-
-    /**
-     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
-     * the corresponding <em>use->def</em> edge.  This may make the original
-     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
-     *     
-     * @param idx which def to set
-     * @param new_def the new definition
-     * @return this for flow coding
-     */
-    Node set_def(int idx, Node new_def ) {
-        Node old_def = in(idx);
-        if( old_def != null &&       // If the old def exists, remove a use->def edge
-            del(old_def,this) == 0 ) // If we removed the last use, the old def is now dead
-            old_def.kill();          // Kill old def
-        // Set the new_def over the old (killed) edge
-        _inputs.set(idx,new_def);
-        // If new def is not null, add the corresponding use->def edge
-        if( new_def != null )
-            new_def._outputs.add(this);
-        // Return self for easy flow-coding
-        return this;
-    }
-
-    // Remove node 'use' from 'def's output list, by compressing the list in-place.
-    // Return the index removed, which is 0 if the list is empty after removing.
-    // Error is 'use' does not exist; ok for 'use' to be null.
-    private static int del(Node def, Node use) {
-        ArrayList<Node> outs = def._outputs;
-        int lidx = outs.size()-1; // Last index
-            
-        // This 1-line hack compresses an element out of an ArrayList
-        // without having to copy the contents.  The last element is
-        // stuffed over the deleted element, and then the size is reduced.            
-        outs.set(outs.indexOf(use),outs.get(lidx));
-        outs.remove(lidx);  // Reduce ArrayList size without copying anything
-        return lidx;
+        _inputs.clear();      // Flag as dead
+        _outputs.clear();     // Flag as dead
+        _type=null;           // Flag as dead
     }
 
     
