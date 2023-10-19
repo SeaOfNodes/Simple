@@ -120,21 +120,21 @@ public abstract class Node {
 
     /**
      * Try to peephole at this node and return a better replacement Node if
-     * possible.  We check and replace:
+     * possible.  We compute a {@link Type} and then check and replace:
      * <ul>
      * <li>if the Type {@link Type#isConstant}, we replace with a {@link ConstantNode}</li>
      * <li>in a future chapter we will look for a
      * <a href="https://en.wikipedia.org/wiki/Common_subexpression_elimination">Common Subexpression</a>
      * to eliminate.</li>
      * <li>we ask the Node for a better replacement.  The "better replacement"
-     * is things like "(1+x)" becomes "(x+1)" and "(1+(x+2)" becomes
-     * "(x+(1+2))".  By canonicalizing expressions we fold common addressing
+     * is things like {@code (1+2)} becomes {@code 3} and {@code (1+(x+2))} becomes
+     * {@code (x+(1+2))}.  By canonicalizing expressions we fold common addressing
      * math constants, remove algebraic identities and generally simplify the
      * code. </li>
      * </ul>
      */
     public final Node peephole( ) {
-        // Compute initial Type
+        // Compute initial or improved Type
         Type type = _type = compute();
         
         if (_disablePeephole)
@@ -146,7 +146,7 @@ public abstract class Node {
 
         // Future chapter: Global Value Numbering goes here
         
-        // Ask each node for a replacement
+        // Ask each node for a better replacement
         Node n = idealize();
         if( n != null )         // Something changed
             // Recursively optimize
