@@ -7,16 +7,14 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class MinusNode extends Node {
     public MinusNode(Node in) {
         super(null, in);
-        // Do an initial type computation
-        _type = compute();
     }
 
     @Override
     public String label() { return "Minus"; }
   
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("(-"));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("(-"));
         return sb.append(")");
     }
   

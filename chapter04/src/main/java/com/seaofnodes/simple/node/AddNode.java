@@ -5,17 +5,15 @@ import com.seaofnodes.simple.type.*;
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
-        // Do an initial type computation
-        _type = compute();
     }
 
     @Override
     public String label() { return "Add"; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("("));
-        in(2)._print(sb.append("+"));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("("));
+        in(2)._print0(sb.append("+"));
         return sb.append(")");
     }
   
@@ -44,8 +42,12 @@ public class AddNode extends Node {
             return lhs;
         
         // Move constants to RHS: con+arg becomes arg+con
-        if ( t1.isConstant() && !t2.isConstant() )
-            return set_def(1,rhs).set_def(2,lhs);
+        if ( t1.isConstant() && !t2.isConstant() ) {
+            Node tmp = in(1);   // Swap inputs without letting either input go dead during the swap
+            _inputs.set(1,in(2));
+            _inputs.set(2,tmp);
+            return this;
+        }
         
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
         
@@ -62,7 +64,7 @@ public class AddNode extends Node {
 
         // Add of same to a multiply by 2
         if( lhs==rhs )
-            return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)));
+            return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)).peephole());
         
         return null;
     }

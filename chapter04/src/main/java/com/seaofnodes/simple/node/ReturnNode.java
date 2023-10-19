@@ -16,8 +16,6 @@ public class ReturnNode extends Node implements Control {
 
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
-        // Do an initial type computation
-        _type = compute();
     }
 
     public Node ctrl() { return in(0); }
@@ -27,8 +25,8 @@ public class ReturnNode extends Node implements Control {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        return expr()._print(sb.append("return ")).append(";");
+    StringBuilder _print1(StringBuilder sb) {
+        return expr()._print0(sb.append("return ")).append(";");
     }
 
   

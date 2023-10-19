@@ -55,7 +55,7 @@ public abstract class Node {
      * */
     private static int UNIQUE_ID = 1;
 
-    protected Node(Node ...inputs) {
+    protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
@@ -63,8 +63,6 @@ public abstract class Node {
         for( Node n : _inputs )
             if( n != null )
                 n._outputs.add( this );
-        // Do an initial type computation
-        // _type = compute();
     }
 
     public abstract String label();
@@ -74,15 +72,25 @@ public abstract class Node {
     @Override
     public final String toString() {
         // TODO: This needs a lot of work
-        return uniqueName();
+        return print();
     }
 
     // This is a *deep* print.  This version will fail on cycles, which we will
-    // correct later when we can parse programs with loops.
+    // correct later when we can parse programs with loops.  We print with a
+    // tik-tok style; the common _print0 calls the per-Node _print1, which
+    // calls back to _print0;
     public final String print() {
-        return _print(new StringBuilder()).toString();
+        return _print0(new StringBuilder()).toString();
     }
-    abstract StringBuilder _print(StringBuilder sb);
+    // This is the common print: check for DEAD and print "DEAD" else call the
+    // per-Node print1.
+    final StringBuilder _print0(StringBuilder sb) {
+        return _inputs.isEmpty() && _outputs.isEmpty() && _type==null
+            ? sb.append(uniqueName()).append(":DEAD")
+            : _print1(sb);
+    }
+    // Every Node implements this.
+    abstract StringBuilder _print1(StringBuilder sb);
 
     
     /**
@@ -126,22 +134,37 @@ public abstract class Node {
      * </ul>
      */
     public final Node peephole( ) {
+        // Compute initial Type
+        Type type = _type = compute();
+        
         if (_disablePeephole)
             return this;        // Peephole optimizations turned off
 
         // Replace constant computations from non-constants with a constant node
-        Type type = compute();
         if (!(this instanceof ConstantNode) && type.isConstant()) {
-            kill();             // Kill `this` because replacing with a Constant
-            return new ConstantNode(type);
+            kill();             // Kill 'this' because replacing with a Constant
+            return new ConstantNode(type).peephole();
         }
 
         // Future chapter: Global Value Numbering goes here
         
         // Ask each node for a replacement
         Node n = idealize();
-        if( n != null )
-          return n.peephole();  // Recursively reoptimize
+        if( n != null ) {        // Something changed
+          Node m = n.peephole(); // Recursively reoptimize
+          // If 'this' is going dead, and not being returned here (Nodes
+          // returned from peephole commonly have no uses (yet)), then
+          // kill 'this'.
+          if( m!=this && nOuts() == 0 ) {
+              // Killing self - and since self recursively kills self's inputs
+              // we might end up killing 'm', which we are returning as a live
+              // Node.  So we add a bogus extra null output edge to stop kill().
+              m._outputs.add(null); // Add bogus null to keep m alive
+              kill();           // Kill 'this' because replacing with 'n'
+              del(m,null);      // Remove bogus null.
+          }
+          return m;             // Return peephole
+        }
         
         return this;            // No progress
     }
@@ -155,6 +178,9 @@ public abstract class Node {
         assert nOuts()==0;    // Has no uses, so it is dead
         for( int i=0; i<nIns(); i++ )
             set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
+        _inputs.clear();
+        _outputs.clear();
+        _type=null;
     }
 
     /**
@@ -168,18 +194,9 @@ public abstract class Node {
      */
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
-        if( old_def != null ) { // If the old def exists, remove a use->def edge
-            ArrayList<Node> outs = old_def._outputs;
-            int lidx = outs.size()-1; // Last index
-            
-            // This 1-line hack compresses an element out of an ArrayList
-            // without having to copy the contents.  The last element is
-            // stuffed over the deleted element, and then the size is reduced.            
-            outs.set(outs.indexOf(this),outs.get(lidx));
-            outs.remove(lidx);  // Reduce ArrayList size without copying anything
-            if( lidx == 0 )     // If we removed the last use, the old def is now dead
-                old_def.kill(); // Kill old def
-        }
+        if( old_def != null &&       // If the old def exists, remove a use->def edge
+            del(old_def,this) == 0 ) // If we removed the last use, the old def is now dead
+            old_def.kill();          // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
         // If new def is not null, add the corresponding use->def edge
@@ -188,6 +205,22 @@ public abstract class Node {
         // Return self for easy flow-coding
         return this;
     }
+
+    // Remove node 'use' from 'def's output list, by compressing the list in-place.
+    // Return the index removed, which is 0 if the list is empty after removing.
+    // Error is 'use' does not exist; ok for 'use' to be null.
+    private static int del(Node def, Node use) {
+        ArrayList<Node> outs = def._outputs;
+        int lidx = outs.size()-1; // Last index
+            
+        // This 1-line hack compresses an element out of an ArrayList
+        // without having to copy the contents.  The last element is
+        // stuffed over the deleted element, and then the size is reduced.            
+        outs.set(outs.indexOf(use),outs.get(lidx));
+        outs.remove(lidx);  // Reduce ArrayList size without copying anything
+        return lidx;
+    }
+
     
     /**
      * This function needs to be

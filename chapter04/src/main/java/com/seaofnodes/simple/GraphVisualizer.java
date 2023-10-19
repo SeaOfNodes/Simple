@@ -1,9 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Control;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeControl;
 
 import java.util.*;
@@ -22,6 +19,9 @@ public class GraphVisualizer {
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter04 {\n");
+        sb.append("/*\n");
+        sb.append(parser.src());
+        sb.append("\n*/\n");
         
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
@@ -51,12 +51,37 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
+            if( n instanceof ProjNode proj )
+                continue; // Do not emit, rolled into MultiNode already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
-            // control nodes have box shape
-            // other nodes are ellipses, i.e. default shape
-            if( n instanceof Control )
-                sb.append("shape=box style=filled fillcolor=yellow ");
-            sb.append("label=\"").append(n.label()).append("\" ");
+            String lab = n.label();
+            if( n instanceof MultiNode ) {
+                int pouts=0;
+                for( Node proj : n._outputs )
+                    if( proj instanceof ProjNode )
+                        pouts++;
+                // Make a box with the MultiNode on top, and all the projections on the bottom
+                sb.append("shape=plaintext label=<\n");
+                sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
+                sb.append("\t\t\t<TR><TD COLSPAN=\"").append(pouts).append("\" BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
+                sb.append("\t\t\t<TR>");
+                for( Node use : n._outputs ) {
+                    if( use instanceof ProjNode proj ) {
+                        sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
+                        if( proj._idx==0 ) sb.append(" BGCOLOR=\"yellow\"");
+                        sb.append(">").append(proj.label()).append("</TD>");
+                    }
+                }
+                sb.append("</TR>\n");
+                sb.append("\t\t\t</TABLE>>\n\t\t");
+                
+            } else {
+                // control nodes have box shape
+                // other nodes are ellipses, i.e. default shape
+                if( n instanceof Control )
+                    sb.append("shape=box style=filled fillcolor=yellow ");
+                sb.append("label=\"").append(lab).append("\" ");
+            }
             sb.append("];\n");
         }
         sb.append("\t}\n");     // End Node cluster
@@ -71,7 +96,7 @@ public class GraphVisualizer {
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
-            sb.append("\t\t\t<TR><TD BGCOLOR=\"aqua\">").append(level).append("</TD>");
+            sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(level).append("</TD>");
             for( String name : scope.keySet() )
                 sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
             sb.append("</TR>\n");
@@ -87,27 +112,28 @@ public class GraphVisualizer {
     private String makeScopeName(int level) { return "scope" + level; }
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
-    private boolean isControlEdge(Node from, Node to) {
-        if (from instanceof Control && (to instanceof Control || to._type instanceof TypeControl))
-            return true;
-        if (to instanceof Control && from._type instanceof TypeControl)
-            return true;
-        return false;
+    private boolean isControlEdge(Node def) {
+        return def._type instanceof TypeControl;
     }
 
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
-        for( Node n : all )
-            for( Node out : n._inputs )
-                if( out != null ) {
-                    sb.append('\t').append(n.uniqueName()).append(" -> ").append(out.uniqueName());
+        for( Node n : all ) {
+            if( n instanceof ConstantNode || n instanceof ProjNode )
+                continue;       // Do not display the Constant->Start edge; ProjNodes handled by Multi
+            for( Node def : n._inputs )
+                if( def != null ) {
+                    sb.append('\t').append(n.uniqueName()).append(" -> ");
+                    if( def instanceof ProjNode proj ) {
+                        String mname = proj.ctrl().uniqueName();
+                        sb.append(mname).append(":p").append(proj._idx);
+                    } else sb.append(def.uniqueName());
                     // Control edges are colored red
-                    if( n instanceof ConstantNode && out instanceof StartNode )
-                      sb.append(" [style=dotted]");
-                    else if( isControlEdge(out, n) )
-                      sb.append(" [color=red]");
+                    if( isControlEdge(def) )
+                        sb.append(" [color=red]");
                     sb.append(";\n");
                 }
+        }
     }
     
     // Walk the scope edges
@@ -116,12 +142,18 @@ public class GraphVisualizer {
         int level=0;
         for( HashMap<String,Node> scope : scopes ) {
             String scopeName = makeScopeName(level);
-            for( String name : scope.keySet() )
+            for( String name : scope.keySet() ) {
                 sb.append("\t")
                   .append(scopeName).append(":")
                   .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
-                  .append(" -> ")
-                  .append(scope.get(name).uniqueName()).append(";\n");
+                  .append(" -> ");
+                Node def = scope.get(name);
+                if( def instanceof ProjNode proj ) {
+                    String mname = proj.ctrl().uniqueName();
+                    sb.append(mname).append(":p").append(proj._idx);
+                } else sb.append(def.uniqueName());
+                sb.append(";\n");
+            }
             level++;
         }
     }

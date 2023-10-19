@@ -8,20 +8,17 @@ abstract public class BoolNode extends Node {
 
     public BoolNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
-        // Do an initial type computation
-        _type = compute();
     }
 
     abstract String op();       // String opcode name
-    abstract boolean same();    // Op on equal inputs
     
     @Override
     public String label() { return op(); }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("("));
-        in(2)._print(sb.append(op()));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("("));
+        in(2)._print0(sb.append(op()));
         return sb.append(")");
     }
 
@@ -42,15 +39,15 @@ abstract public class BoolNode extends Node {
     public Node idealize() {
         // Compare of same 
         if( in(1)==in(2) )
-            return new ConstantNode(TypeInteger.constant(same()));
+            return new ConstantNode(TypeInteger.constant(doOp(3,3)?1:0));
 
         return null;
     }
 
-    public static class EQNode extends BoolNode { public EQNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } boolean same() { return 1; } }
-    public static class NENode extends BoolNode { public NENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "!="; } boolean doOp(long lhs, long rhs) { return lhs != rhs; } boolean same() { return 0; } }
-    public static class LTNode extends BoolNode { public LTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } boolean same() { return 0; } }
-    public static class LENode extends BoolNode { public LENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } boolean same() { return 1; } }
-    public static class GTNode extends BoolNode { public GTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">" ; } boolean doOp(long lhs, long rhs) { return lhs >  rhs; } boolean same() { return 0; } }
-    public static class GENode extends BoolNode { public GENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">="; } boolean doOp(long lhs, long rhs) { return lhs >= rhs; } boolean same() { return 1; } }
+    public static class EQNode extends BoolNode { public EQNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } }
+    public static class NENode extends BoolNode { public NENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "!="; } boolean doOp(long lhs, long rhs) { return lhs != rhs; } }
+    public static class LTNode extends BoolNode { public LTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } }
+    public static class LENode extends BoolNode { public LENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } }
+    public static class GTNode extends BoolNode { public GTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">" ; } boolean doOp(long lhs, long rhs) { return lhs >  rhs; } }
+    public static class GENode extends BoolNode { public GENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">="; } boolean doOp(long lhs, long rhs) { return lhs >= rhs; } }
 }
