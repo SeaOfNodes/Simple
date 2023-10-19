@@ -37,18 +37,23 @@ public class Parser {
         _scopes = new Stack<>();
         Node.reset();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
+        START.peephole();
     }
 
     public Parser(String source) {
         this(source, TypeInteger.BOT);
     }
 
+    String src() {
+        byte[] buf = _lexer._input;
+        return new String(buf );
+    }
 
     public ReturnNode parse() {
         _scopes.push(new HashMap<>());
         try {
-            define("$ctrl", new ProjNode(START, 0));
-            define("arg"  , new ProjNode(START, 1));
+            define("$ctrl", new ProjNode(START, 0, "$ctrl").peephole());
+            define("arg"  , new ProjNode(START, 1, "arg"  ).peephole());
             return (ReturnNode) parseBlock();
         }
         finally {

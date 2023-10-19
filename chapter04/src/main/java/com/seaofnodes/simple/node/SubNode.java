@@ -7,17 +7,15 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class SubNode extends Node {
     public SubNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
-        // Do an initial type computation
-        _type = compute();
     }
 
     @Override
     public String label() { return "Sub"; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("("));
-        in(2)._print(sb.append("-"));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("("));
+        in(2)._print0(sb.append("-"));
         return sb.append(")");
     }
   

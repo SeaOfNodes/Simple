@@ -2,31 +2,34 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.TypeTuple;
 
 public class ProjNode extends Node {
 
+    // Which slice of the incoming multi-part value
     public final int _idx;
 
-    public ProjNode(MultiNode ctrl, int idx) {
-        super((Node) ctrl);
+    // Debugging label
+    public final String _label;
+    
+    public ProjNode(MultiNode ctrl, int idx, String label) {
+        super(ctrl);
         _idx = idx;
-        // Do an initial type computation
-        _type = compute();
+        _label = label;
     }
 
     @Override
-    public String label() {
-        return "Proj" + _idx;
-    }
+    public String label() { return _label; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) { return sb.append("Proj_" +_nid); }
+    StringBuilder _print1(StringBuilder sb) { return sb.append("Proj_" +_nid); }
 
-    public Node ctrl() { return in(0); }
+    public MultiNode ctrl() { return (MultiNode)in(0); }
 
     @Override
     public Type compute() {
-        return ctrl() instanceof MultiNode multi ? multi.projType(this) : TypeBot.BOTTOM;
+        Type t = ctrl()._type;
+        return t instanceof TypeTuple tt ? tt._types[_idx] : TypeBot.BOTTOM;
     }
 
     @Override

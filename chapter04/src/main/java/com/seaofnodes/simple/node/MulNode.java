@@ -7,17 +7,15 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class MulNode extends Node {
     public MulNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
-        // Do an initial type computation
-        _type = compute();
     }
 
     @Override
     public String label() { return "Mul"; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("("));
-        in(2)._print(sb.append("*"));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("("));
+        in(2)._print0(sb.append("*"));
         return sb.append(")");
     }
 
@@ -45,8 +43,12 @@ public class MulNode extends Node {
             return lhs;
         
         // Move constants to RHS: con*arg becomes arg*con
-        if ( t1.isConstant() && !t2.isConstant() )
-            return set_def(1,rhs).set_def(2,lhs);
+        if ( t1.isConstant() && !t2.isConstant() ) {
+            Node tmp = in(1);   // Swap inputs without letting either input go dead during the swap
+            _inputs.set(1,in(2));
+            _inputs.set(2,tmp);
+            return this;
+        }
         
         return null;
     }
