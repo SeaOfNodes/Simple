@@ -133,13 +133,13 @@ We need to perform some algebraic simplifications to enable better outcome. For 
 expression as follows:
 
 ```
-return 1 + 2 + arg;
+return arg + 1 + 2;
 ```
 
 This can then further simplify to:
 
 ```
-return 3 + arg;
+return arg + 3;
 ```
 
 ![Graph1](./docs/04-post-peephole.svg)
@@ -163,7 +163,7 @@ The peephole optimizations introduced in this chapter are local. They are trigge
 as new nodes are created, before the newly created node has any uses.
 
 For example, when we parse a unary expression, and create a Node for the parsed expression,
-`peephole()` is invoked on the newky created `MinusNode`:
+`peephole()` is invoked on the newly created `MinusNode`:
 
 ```java
 private Node parseUnary() {
