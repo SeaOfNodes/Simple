@@ -4,7 +4,6 @@ import com.seaofnodes.simple.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Objects;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -142,7 +141,7 @@ public abstract class Node {
 
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
-            return dead_code_elim(new ConstantNode(type).peephole());
+            return removeDeadCode(new ConstantNode(type).peephole());
 
         // Future chapter: Global Value Numbering goes here
         
@@ -150,7 +149,7 @@ public abstract class Node {
         Node n = idealize();
         if( n != null )         // Something changed
             // Recursively optimize
-            return dead_code_elim(n.peephole());
+            return removeDeadCode(n.peephole());
         
         return this;            // No progress
     }
@@ -158,7 +157,7 @@ public abstract class Node {
 
     // Return 'm', which may have zero uses but is alive nonetheless.
     // If self has zero uses (and is not 'm'), {@link #kill} self.
-    private Node dead_code_elim(Node m) {
+    private Node removeDeadCode(Node m) {
         // If self is going dead and not being returned here (Nodes returned
         // from peephole commonly have no uses (yet)), then kill self.
         if( m==this || nOuts() > 0 ) return m; // Not killing self
