@@ -7,12 +7,18 @@ import java.util.*;
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
  * stack of scopes.
- * @see <a href="file:../../../../../../../../chapter03/README.md">chapter03/README.md</a>
  */
 public class ScopeNode extends Node {
 
     /**
-     * A Stack of symbol tables; a symbol table is a map from names to node indices.
+     * The control is a name that binds to the currently active control
+     * node in the graph
+     */
+    public static final String CTRL = "$ctrl";
+    public static final String ARG0 = "arg";
+
+    /**
+     * Names for every input edge
      */
     public final Stack<HashMap<String, Integer>> _scopes;
 
@@ -49,7 +55,7 @@ public class ScopeNode extends Node {
      * Recover the names for all variable bindings.
      * The result is an array of names that is aligned with the
      * inputs to the Node.
-     * <p>
+     *
      * This is an expensive operation.
      */
     public String[] reverseNames() {
@@ -78,21 +84,21 @@ public class ScopeNode extends Node {
     }
     /**
      * Lookup a name in all scopes starting from most deeply nested.
-     * <p>
+     *
      * @param name Name to be looked up
      * @see #update(String, Node, int)
      */
     public Node lookup( String name ) { return update(name,null,_scopes.size()-1);  }
     /**
      * If the name is present in any scope, then redefine else null
-     * <p>
+     *
      * @param name Name being redefined
      * @param n    The node to bind to the name
      */
     public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
     /**
      * Both recursive lookup and update.
-     * <p>
+     *
      * A shared implementation allows us to create lazy phis both during
      * lookups and updates; the lazy phi creation is part of chapter 8.
      *

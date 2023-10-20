@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 
-/** Chapter 3's view of the IR; browser, transport and layout are shared. */
+/** Chapter 4's view of the IR; no knowledge of browser, transport or layout. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -17,31 +17,23 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected Node out(Node n, int idx) { return n.out(idx); }
 
     private ArrayList<Edge> edges(Node n) {
-        var edges = new ArrayList<Edge>();
         String[] names = n instanceof ScopeNode scope && n.nIns() != 0 ? scope.reverseNames() : null;
+        var edges = new ArrayList<Edge>();
         for( int i = 0; i < n.nIns(); i++ ) {
-            String name = names == null || i >= names.length ? null : names[i];
-            edges.add(new Edge(i, ref(n.in(i)), role(n, i), name));
+            Role role = n instanceof ScopeNode || n instanceof ConstantNode ? Role.ASSOC
+                : n instanceof ProjNode ? (n.isCFG() ? Role.CTRL : Role.DATA)
+                : i == 0 ? Role.CTRL : Role.DATA;
+            edges.add(new Edge(i, ref(n.in(i)), role, names == null ? null : names[i]));
         }
         return edges;
     }
 
     @Override protected GraphSnapshot.Node desc(Node n) {
-        Projection proj = null;
+        Projection proj = n instanceof ProjNode p
+            ? new Projection(n.nIns() == 0 ? 0 : ref(n.in(0)), p._idx) : null;
+        Kind kind = n instanceof ScopeNode ? Kind.SCOPE : n.isCFG() ? Kind.CTRL : Kind.DATA;
         String label = n.label();
         return new GraphSnapshot.Node(n._nid, label == null ? n.getClass().getSimpleName() : label,
-                                      n._type == null ? null : n._type.toString(), kind(n), edges(n), proj);
-    }
-
-    private Kind kind(Node n) {
-        if( n instanceof ScopeNode ) return Kind.SCOPE;
-        if( n instanceof StartNode ) return Kind.CTRL;
-        return n.isCFG() ? Kind.CTRL : Kind.DATA;
-    }
-
-    private Role role(Node n, int i) {
-        if( n instanceof ScopeNode || n instanceof ConstantNode ) return Role.ASSOC;
-        if( i == 0 ) return Role.CTRL;
-        return Role.DATA;
+                                      n._type == null ? null : n._type.toString(), kind, edges(n), proj);
     }
 }
