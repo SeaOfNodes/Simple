@@ -217,3 +217,29 @@ The peephole method does following:
   `(x+(1+2))`.  By canonicalizing expressions we fold common addressing math constants, remove algebraic identities and generally simplify the code.
   * Each Node subtype is responsible for deciding what the `idealize()` step should do. If there is a better replacement then the node returns a non `null` value.
   * If we see a non `null` value, something changed, so we invoke `peephole()` again and then also run dead code elimination.
+
+`peephole()` calls `removeDeadCode()` which is shown below.
+
+```java
+// m is the new Node, self is the old.
+// Return 'm', which may have zero uses but is alive nonetheless.
+// If self has zero uses (and is not 'm'), {@link #kill} self.
+private Node removeDeadCode(Node m) {
+    // If self is going dead and not being returned here (Nodes returned
+    // from peephole commonly have no uses (yet)), then kill self.
+    if( m != this && isDead() ) {
+        // Killing self - and since self recursively kills self's inputs we
+        // might end up killing 'm', which we are returning as a live Node.
+        // So we add a bogus extra null output edge to stop kill().
+        m.addUse(null); // Add bogus null use to keep m alive
+        kill();            // Kill self because replacing with 'm'
+        m.delUse(null);    // Remove bogus null.
+    }
+    return m;
+}
+```
+
+Note the temporary add of a bogus user to the Node `m`.
+The reason this is done is that we know `m` is the new replacement and is alive,
+but since it is not yet part of the graph up the tree, it has no users yet.
+By adding a bogus user we prevent it being mistaken for dead and being killed.
