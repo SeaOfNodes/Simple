@@ -31,7 +31,7 @@ The Simple language will be styled after a subset of C or Java
   with constants. Peephole optimization / simple constant folding.
 * [Chapter 3](docs/chapter03/README.md): Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
   constant.
-* Chapter 4: A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications.
+* [Chapter 4](docs/chapter04/README.md): A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications.
 * Chapter 5: `if` statement. CFG construction.
 * Chapter 6: Peephole optimization around dead control flow.
 * Chapter 7: `while` statement. Looping construct - eager phi approach.
