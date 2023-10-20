@@ -208,7 +208,7 @@ The peephole method does following:
 // m is the new Node, self is the old.
 // Return 'm', which may have zero uses but is alive nonetheless.
 // If self has zero uses (and is not 'm'), {@link #kill} self.
-private Node removeDeadCode(Node m) {
+private Node deadCodeElim(Node m) {
     // If self is going dead and not being returned here (Nodes returned
     // from peephole commonly have no uses (yet)), then kill self.
     if( m != this && isDead() ) {
