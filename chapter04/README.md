@@ -4,6 +4,9 @@ In this chapter we extend the language grammar with following features:
 
 * The program receives a single argument named `arg` of integer type from external environment.
 * Expressions support comparison operators.
+* We introduce a scope sensitive name binding `$ctrl` for the current incoming
+  control node.  Thus, our Return is no longer hard-wired to Start, instead it
+  tracks the in scope `$ctrl` binding.
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 
@@ -14,7 +17,7 @@ Following are revised or new nodes
 
 | Node Name | Type             | Description                                    | Inputs                         | Value                                                                   |
 |-----------|------------------|------------------------------------------------|--------------------------------|-------------------------------------------------------------------------|
-| MultiNode | Marker interface | Marks a node that has a tuple result           | None                           | None                                                                    |
+| MultiNode | Abstract class   | A node that has a tuple result                 |                                | A tuple                                                                 |
 | Start     | Control          | Start of function, now a MultiNode             | An input argument named `arg`. | A tuple with a ctrl token and an `arg` data node                        |
 | Proj      | ?                | Projection nodes extract values from MultiNode | A MultiNode and index          | Result is the extracted value from the input MultiNode at offset index  | 
 | Bool      | Data             | Represents results of a comparison operator    | Two data nodes                 | Result a comparison, represented as integer value where 1=true, 0=false |
@@ -30,15 +33,6 @@ Below is our list of Nodes from chapter 3:
 | Mul        | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
 | Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
 | UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
-
-## Projection Nodes
-
-We add projection nodes that are used to extract a specific tuple member from a multi-valued node.
-Each projection node contains an index of the field to extract from its input node. The type of the projection depends upon the type of the tuple member, and the
-projection delegates the type computation to the input node.
-
-The Projection nodes essentially allow the graph to "branch out" from a single node that has multiple outputs, 
-enabling each of those outputs to be used separately in subsequent operations.
 
 ## Changes to Type System
 
@@ -110,11 +104,10 @@ track the current in-scope control node via the name `$ctrl`.  This means that
 when we need to create an edge to the predecessor control node, we simply
 lookup this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model
-(p. 131).  The control token moves virtually from node to node as execution
-proceeds.  The initial control token is in Start, it then moves via the Proj
-node to Return.  In later chapters we will see how the token moves across
-branches.
+This introduces the idea that the control flow subgraph is a Petri net model.
+The control token moves virtually from node to node as execution proceeds.  The
+initial control token is in Start, it then moves via the Proj node to Return.
+In later chapters we will see how the token moves across branches.
 
 ## More Peephole Optimizations
 
@@ -133,17 +126,8 @@ We need to perform some algebraic simplifications to enable better outcome. For 
 expression as follows:
 
 ```
-return arg + 1 + 2;
+arg + (1 + 2)
 ```
-
-This can then further simplify to:
-
-```
-return arg + 3;
-```
-
-![Graph1](./docs/04-post-peephole.svg)
-
 
 Here is a (partial) list of peepholes introduced in this Chapter:
 
@@ -163,7 +147,7 @@ The peephole optimizations introduced in this chapter are local. They are trigge
 as new nodes are created, before the newly created node has any uses.
 
 For example, when we parse a unary expression, and create a Node for the parsed expression,
-`peephole()` is invoked on the newly created `MinusNode`:
+`peephole()` is invoked on the newky created `MinusNode`:
 
 ```java
 private Node parseUnary() {

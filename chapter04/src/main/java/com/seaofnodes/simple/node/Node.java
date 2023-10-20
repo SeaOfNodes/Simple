@@ -84,7 +84,7 @@ public abstract class Node {
     // This is the common print: check for DEAD and print "DEAD" else call the
     // per-Node print1.
     final StringBuilder _print0(StringBuilder sb) {
-        return _inputs.isEmpty() && _outputs.isEmpty() && _type==null
+        return isDead()
             ? sb.append(uniqueName()).append(":DEAD")
             : _print1(sb);
     }
@@ -110,9 +110,7 @@ public abstract class Node {
 
     public int nOuts() { return _outputs.size(); }
 
-    public boolean isDead() { return nOuts() == 0; }
-
-    private void addUse(Node n) { _outputs.add(n); }
+    public boolean isUnused() { return nOuts() == 0; }
 
     /**
      * We allow disabling peephole opt so that we can observe the
@@ -145,7 +143,7 @@ public abstract class Node {
 
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
-            return removeDeadCode(new ConstantNode(type).peephole());
+            return deadCodeElim(new ConstantNode(type).peephole());
 
         // Future chapter: Global Value Numbering goes here
         
@@ -153,7 +151,7 @@ public abstract class Node {
         Node n = idealize();
         if( n != null )         // Something changed
             // Recursively optimize
-            return removeDeadCode(n.peephole());
+            return deadCodeElim(n.peephole());
         
         return this;            // No progress
     }
@@ -161,7 +159,7 @@ public abstract class Node {
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
     // If self has zero uses (and is not 'm'), {@link #kill} self.
-    private Node removeDeadCode(Node m) {
+    private Node deadCodeElim(Node m) {
         // If self is going dead and not being returned here (Nodes returned
         // from peephole commonly have no uses (yet)), then kill self.
         if( m != this && isDead() ) {
@@ -206,8 +204,11 @@ public abstract class Node {
         return this;
     }
 
+    // Breaks the edge invariants, used temporarily
+    private void addUse(Node n) { _outputs.add(n); }
+
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
-    // Return true if the output list is empty afterwards.
+    // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
     private boolean delUse( Node use ) {
         ArrayList<Node> outs = _outputs;
@@ -226,14 +227,17 @@ public abstract class Node {
      * code elimination.  This function is co-recursive with {@link #set_def}.
      */
     public void kill( ) {
-        assert nOuts()==0;    // Has no uses, so it is dead
+        assert isUnused();    // Has no uses, so it is dead
         for( int i=0; i<nIns(); i++ )
             set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
         _inputs.clear();      // Flag as dead
         _outputs.clear();     // Flag as dead
         _type=null;           // Flag as dead
+        assert isDead();      // Really dead now
     }
 
+    // Mostly used for asserts and printing.
+    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
     
     /**
      * This function needs to be
@@ -256,37 +260,43 @@ public abstract class Node {
     /**
      * This function rewrites the current Node into a more "idealized" form.
      * This is the bulk of our peephole rewrite rules, and we use this to
-     * e.g. turn arbitary collections of adds and multiplies with mixed
-     * constants into a normal form thats easy for hardware to implement.
+     * e.g. turn arbitrary collections of adds and multiplies with mixed
+     * constants into a normal form that's easy for hardware to implement.
      * Example: An array addressing expression:
-     *    ary[idx+1]
+     * <pre>   ary[idx+1]</pre>
      * might turn into Sea-of-Nodes IR:
-     *    (ary+12)+((idx+1) * 4)
+     * <pre>   (ary+12)+((idx+1) * 4)</pre>
      * This expression can then be idealized into:
-     *    ary + ((idx*4) + (12 + (1*4)))
+     * <pre>   ary + ((idx*4) + (12 + (1*4)))</pre>
      * And more folding:
-     *    ary + ((idx<<2) + 16)
+     * <pre>   ary + ((idx<<2) + 16)</pre>
      * And during code-gen:
-     *    MOV4 Rary,Ridx,16 // or some such hardware-specific notation
-     *
-     * idealize has a very specific calling convention:
-     * - If NO change is made, return null
-     * - If ANY change is made, return not-null; this can be "this"
-     * - The returned Node does NOT call peephole() on itself; the peephole()
-     *   call will recursively peephole it.
-     * - Any NEW nodes that are not DIRECTLY returned DO call peephole().
-     *
+     * <pre>   MOV4 Rary,Ridx,16 // or some such hardware-specific notation </pre>
+     * <p>
+     * {@link #idealize} has a very specific calling convention:
+     * <ul>
+     * <li>If NO change is made, return {@code null}
+     * <li>If ANY change is made, return not-null; this can be {@code this}
+     * <li>The returned Node does NOT call {@link #peephole} on itself; the {@link #peephole} call will recursively peephole it.
+     * <li>Any NEW nodes that are not directly returned DO call {@link #peephole}.
+     * </ul>
+     * <p>
      * Examples:
-     *   (x+5) ==> No change, return null
+     * <table border="3">
+     * <tr><th>    before       </th><th>       after     </th><th>return </th><th>comment  </th></tr>
+     * <tr><td>{@code (x+5)    }</td><td>{@code   (x+5)  }</td><td>{@code null  }</td><td>No change</td></tr>
+     * <tr><td>{@code (5+x)    }</td><td>{@code   (x+5)  }</td><td>{@code this  }</td><td>Swapped arguments</td></tr>
+     * <tr><td>{@code ((x+1)+2)}</td><td>{@code (x+(1+2))}</td><td>{@code (x+_) }</td><td>Returns 2 new Nodes</td></tr>
+     * </table>
      *
-     *   (5+x) ==> (x+5); self swapped arguments so return 'this';
-     *
-     *   ((x+1)+2) ==> (x + (1+2)) which returns 2 new Nodes.
-     *   The new Node (1+2) calls peephole (which then folds into a constant).
-     *   The new Node (x+3) does not call peephole, because peephole itself will call peephole.
-     *
-     * Since idealize calls peephole, and peephole calls idealize, you must be
-     * careful that all idealizations are *monotonic*: all transforms remove
+     * The last entry deserves more discussion.  The new Node {@code (1+2)}
+     * created in {@link #idealize} calls {@link #peephole} (which then folds
+     * into a constant).  The other new Node {@code (x+3)} does not call
+     * peephole, because it is returned and peephole itself will recursively
+     * call peephole.
+     * <p>
+     * Since idealize calls peephole and peephole calls idealize, you must be
+     * careful that all idealizations are <em>monotonic</em>: all transforms remove
      * some feature, so that the set of available transforms always shrinks.
      * If you don't, you risk an infinite peephole loop!
      *
