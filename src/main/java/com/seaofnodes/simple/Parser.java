@@ -14,6 +14,7 @@ import java.util.*;
  */
 public class Parser {
 
+
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -27,7 +28,7 @@ public class Parser {
     private final Lexer _lexer;
 
     /**
-     * Stack of lexical scopes, each scope is a symbol table that binds
+     * A ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
      * variable names to Nodes.  The top of this stack represents current scope.
      */
     public ScopeNode _scope;
@@ -41,18 +42,38 @@ public class Parser {
         }};
 
 
-    public Parser(String source) {
-        _lexer = new Lexer(source);
+    public Parser(String source, TypeInteger arg) {
         Node.reset();
+        _lexer = new Lexer(source);
         _scope = new ScopeNode();
-        START = new StartNode();
+        START = new StartNode(new Type[]{ Type.CONTROL, arg });
+        START.peephole();
     }
+
+    public Parser(String source) {
+        this(source, TypeInteger.BOT);
+    }
+
+    @Override
+    public String toString() { return _lexer.toString(); }
 
     String src() { return new String( _lexer._input ); }
 
+    // Debugging utility to find a Node by index
+    public static Node find(int nid) { return START.find(nid); }
+
+    private Node ctrl() { return _scope.ctrl(); }
+
+    private Node ctrl(Node n) { return _scope.ctrl(n); }
+
     public ReturnNode parse() { return parse(false); }
     public ReturnNode parse(boolean show) {
+        // Enter a new scope for the initial control and arguments
+        _scope.push();
+        _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
         var ret = (ReturnNode) parseBlock();
+        _scope.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         if( show ) showGraph();
         return ret;
@@ -99,6 +120,7 @@ public class Parser {
 
     /**
      * Parses a return statement; "return" already parsed.
+     * The $ctrl edge is killed.
      *
      * <pre>
      *     'return' expr ;
@@ -107,7 +129,9 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        return new ReturnNode(START, expr).peephole();
+        Node ret = new ReturnNode(ctrl(), expr).peephole();
+        ctrl(null);             // Kill control
+        return ret;
     }
 
     /**
@@ -158,11 +182,30 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : additiveExpr
+     *     expr : compareExpr
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() { return parseAddition(); }
+    private Node parseExpression() { return parseComparison(); }
+
+    /**
+     * Parse an expression of the form:
+     *
+     * <pre>
+     *     expr : additiveExpr op additiveExpr
+     * </pre>
+     * @return an comparator expression {@link Node}, never {@code null}
+     */
+    private Node parseComparison() {
+        var lhs = parseAddition();
+        if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
+        if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
+        if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
+        if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        return lhs;
+    }
 
     /**
      * Parse an additive expression
