@@ -181,13 +181,13 @@ public final Node peephole( ) {
     
     // Replace constant computations from non-constants with a constant node
     if (!(this instanceof ConstantNode) && type.isConstant())
-        return removeDeadCode(new ConstantNode(type).peephole());
+        return deadCodeElim(new ConstantNode(type).peephole());
 
     // Ask each node for a better replacement
     Node n = idealize();
     if( n != null )         // Something changed
         // Recursively optimize
-        return removeDeadCode(n.peephole());
+        return deadCodeElim(n.peephole());
     
     return this;            // No progress
 }
