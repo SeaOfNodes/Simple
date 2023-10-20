@@ -19,15 +19,22 @@ public class SubNode extends Node {
 
     @Override
     public Type compute() {
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return TypeInteger.ZERO;
+
         if (in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1) {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()-i1.value());
+            return i0.meet(i1);
         }
         return Type.BOTTOM;
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        return null;
+    }
 
 }
