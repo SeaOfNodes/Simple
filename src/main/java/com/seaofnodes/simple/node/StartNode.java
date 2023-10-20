@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeTuple;
 
 /**
  * The Start node represents the start of the function.  For now, we do not
@@ -11,10 +12,14 @@ import com.seaofnodes.simple.type.Type;
  * will require Projections to extract the values.  We discuss this in detail
  * in Chapter 9: Functions and Calls.
  */
-public class StartNode extends Node {
+public class StartNode extends MultiNode {
 
-    public StartNode(/*arguments go here*/) {
+    final TypeTuple _args;
+
+    public StartNode(Type[] args) {
         super();
+        _args = new TypeTuple(args);
+        _type = _args;
     }
 
     @Override
@@ -27,7 +32,7 @@ public class StartNode extends Node {
     @Override public boolean isCFG() { return true; }
 
     @Override
-    public Type compute() { return Type.BOTTOM; }
+    public TypeTuple compute() { return _args; }
 
     @Override
     public Node idealize() { return null; }
