@@ -14,7 +14,7 @@ public class Chapter01Test {
         ReturnNode ret = parser.parse();
         StartNode start = Parser.START;
 
-        assertEquals(start, ret.ctrl());
+        assertTrue(ret.ctrl() instanceof ProjNode);
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
             assertEquals(start,con.in(0));
