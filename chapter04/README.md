@@ -156,3 +156,64 @@ Here is a (partial) list of peepholes introduced in this Chapter:
 | (con1 + (arg + con2)) | (arg + (con1 + con2)) | Move constants to right, to encourage folding  |
 | ((arg1 + con) + arg2) | ((arg1 + arg2) + con) | Move constants to right, to encourage folding  |
 | (arg + arg)           | (arg * 2)             | Sum-of-products form                           |
+
+## Code Walkthrough 
+
+The peephole optimizations introduced in this chapter are local. They are triggered during parsing 
+as new nodes are created, before the newly created node has any uses.
+
+For example, when we parse a unary expression, and create a Node for the parsed expression,
+`peephole()` is invoked on the newky created `MinusNode`:
+
+```java
+private Node parseUnary() {
+    if (match("-")) return new MinusNode(parseUnary()).peephole();
+    return parsePrimary();
+}
+```
+
+As another example, here is the parsing of comparison operators, also introduced in this chapter:
+
+```java
+private Node parseComparison() {
+    var lhs = parseAddition();
+    if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
+    if (match("!=")) return new BoolNode.NENode(lhs, parseComparison()).peephole();
+    if (match("<" )) return new BoolNode.LTNode(lhs, parseComparison()).peephole();
+    if (match("<=")) return new BoolNode.LENode(lhs, parseComparison()).peephole();
+    if (match(">" )) return new BoolNode.GTNode(lhs, parseComparison()).peephole();
+    if (match(">=")) return new BoolNode.GENode(lhs, parseComparison()).peephole();
+    return lhs;
+}
+```
+
+The implementation of `peephole()` is in the main `Node` class, and is thus shared
+by all subclasses of `Node`.
+
+```java
+public final Node peephole( ) {
+    // Compute initial or improved Type
+    Type type = _type = compute();
+    
+    // Replace constant computations from non-constants with a constant node
+    if (!(this instanceof ConstantNode) && type.isConstant())
+        return removeDeadCode(new ConstantNode(type).peephole());
+
+    // Ask each node for a better replacement
+    Node n = idealize();
+    if( n != null )         // Something changed
+        // Recursively optimize
+        return removeDeadCode(n.peephole());
+    
+    return this;            // No progress
+}
+```
+
+The peephole method does following:
+
+* Compute a Type for the node
+* If the Type is a Constant, replace with a ConstantNode, recursively invoking peephole on the new node
+* Otherwise, ask the Node for a better replacement via a call to `idealize()`.  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2))` becomes
+  `(x+(1+2))`.  By canonicalizing expressions we fold common addressing math constants, remove algebraic identities and generally simplify the code.
+  * Each Node subtype is responsible for deciding what the `idealize()` step should do. If there is a better replacement then the node returns a non `null` value.
+  * If we see a non `null` value, something changed, so we invoke `peephole()` again and then also run dead code elimination.
