@@ -202,7 +202,7 @@ The peephole method does following:
   * Each Node subtype is responsible for deciding what the `idealize()` step should do. If there is a better replacement then the node returns a non `null` value.
   * If we see a non `null` value, something changed, so we invoke `peephole()` again and then also run dead code elimination.
 
-`peephole()` calls `removeDeadCode()` which is shown below.
+`peephole()` calls `deadCodeElim()` which is shown below.
 
 ```java
 // m is the new Node, self is the old.
