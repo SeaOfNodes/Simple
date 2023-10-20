@@ -24,17 +24,29 @@ public class Type {
     // type hierarchy are simple, not that the Type is conceptually simple.
     static final byte TBOT    = 0; // Bottom (ALL)
     static final byte TTOP    = 1; // Top    (ANY)
-    static final byte TSIMPLE = 2; // End of the Simple Types
-    static final byte TINT    = 3; // All Integers; see TypeInteger
+    static final byte TCTRL   = 2; // Ctrl flow bottom
+    static final byte TSIMPLE = 3; // End of the Simple Types
+    static final byte TINT    = 4; // All Integers; see TypeInteger
+    static final byte TTUPLE  = 5; // Tuples; finite collections of unrelated Types, kept in parallel
+
     public final byte _type;
 
     public boolean is_simple() { return _type < TSIMPLE; }
-    private static final String[] STRS = new String[]{"Bot","Top"};
+    private static final String[] STRS = new String[]{"Bot","Top","Ctrl"};
     protected Type(byte type) { _type = type; }
 
-    public static final Type BOTTOM   = new Type( TBOT ); // ALL
+    public static final Type BOTTOM   = new Type( TBOT   ); // ALL
+    public static final Type TOP      = new Type( TTOP   ); // ANY
+    public static final Type CONTROL  = new Type( TCTRL  ); // Ctrl
 
     public boolean isConstant() { return _type == TTOP; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
+
+    public Type meet(Type other) { return Type.BOTTOM; }
+
+    @Override
+    public final String toString() {
+        return _print(new StringBuilder()).toString();
+    }
 }
