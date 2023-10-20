@@ -1,9 +1,19 @@
-digraph chapter03 {
+digraph chapter04 {
+/*
+return 1+arg+2; #showGraph;
+*/
 	rankdir=BT;
 	subgraph cluster_Nodes {
-		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
-		Proj02 [ label="Proj0" ];
-		Proj13 [ label="Proj1" ];
+		Start1 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
 		Con_4 [ label="#1" ];
 		Con_5 [ label="#2" ];
 		Add6 [ label="Add" ];
@@ -14,26 +24,22 @@ digraph chapter03 {
 	subgraph cluster_0 {
 		scope0 [label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-			<TR><TD BGCOLOR="aqua">0</TD><TD PORT="scope0_$ctrl">$ctrl</TD><TD PORT="scope0_arg">arg</TD></TR>
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="scope0_$ctrl">$ctrl</TD><TD PORT="scope0_arg">arg</TD></TR>
 			</TABLE>>];
 	subgraph cluster_1 {
 		scope1 [label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-			<TR><TD BGCOLOR="aqua">1</TD></TR>
+			<TR><TD BGCOLOR="cyan">1</TD></TR>
 			</TABLE>>];
 	}
 	}
-	Proj02 -> Start1 [color=red];
-	Proj13 -> Start1;
-	Con_4 -> Start1 [style=dotted];
-	Con_5 -> Start1 [style=dotted];
-	Add6 -> Proj13;
+	Add6 -> Start1:p1;
 	Add6 -> Con_5;
 	Add7 -> Con_4;
 	Add7 -> Add6;
-	Return8 -> Proj02 [color=red];
+	Return8 -> Start1:p0 [color=red];
 	Return8 -> Add7;
 	edge [style=dashed color=cornflowerblue];
-	scope0:"scope0_$ctrl" -> Proj02;
-	scope0:"scope0_arg" -> Proj13;
+	scope0:"scope0_$ctrl" -> Start1:p0;
+	scope0:"scope0_arg" -> Start1:p1;
 }
