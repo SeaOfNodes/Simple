@@ -17,7 +17,7 @@ Following are revised or new nodes
 
 | Node Name | Type             | Description                                    | Inputs                         | Value                                                                   |
 |-----------|------------------|------------------------------------------------|--------------------------------|-------------------------------------------------------------------------|
-| MultiNode | Marker interface | Marks a node that has a tuple result           | None                           | None                                                                    |
+| MultiNode | Abstract class   | A node that has a tuple result                 |                                | A tuple                                                                 |
 | Start     | Control          | Start of function, now a MultiNode             | An input argument named `arg`. | A tuple with a ctrl token and an `arg` data node                        |
 | Proj      | ?                | Projection nodes extract values from MultiNode | A MultiNode and index          | Result is the extracted value from the input MultiNode at offset index  | 
 | Bool      | Data             | Represents results of a comparison operator    | Two data nodes                 | Result a comparison, represented as integer value where 1=true, 0=false |
@@ -104,11 +104,10 @@ track the current in-scope control node via the name `$ctrl`.  This means that
 when we need to create an edge to the predecessor control node, we simply
 lookup this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model
-(p. 131).  The control token moves virtually from node to node as execution
-proceeds.  The initial control token is in Start, it then moves via the Proj
-node to Return.  In later chapters we will see how the token moves across
-branches.
+This introduces the idea that the control flow subgraph is a Petri net model.
+The control token moves virtually from node to node as execution proceeds.  The
+initial control token is in Start, it then moves via the Proj node to Return.
+In later chapters we will see how the token moves across branches.
 
 ## More Peephole Optimizations
 
