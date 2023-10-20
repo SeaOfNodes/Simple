@@ -1,0 +1,18 @@
+{
+  "ver": 1,
+  "comp": "chapter04/docs/04-post-peephole.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "Scope", "type": null, "kind": "SCOPE", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": "0: $ctrl"}, {"idx": 1, "def": 5, "role": "ASSOC", "label": "0: arg"}], "proj": null},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 4, "label": "$ctrl", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}], "proj": {"par": 2, "idx": 0}},
+    {"id": 5, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": {"par": 2, "idx": 1}},
+    {"id": 10, "label": "#3", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 11, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 5, "role": "DATA", "label": null}, {"idx": 2, "def": 10, "role": "DATA", "label": null}], "proj": null},
+    {"id": 12, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 4, "role": "CTRL", "label": null}, {"idx": 1, "def": 11, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
