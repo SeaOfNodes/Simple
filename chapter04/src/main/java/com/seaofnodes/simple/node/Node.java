@@ -110,6 +110,10 @@ public abstract class Node {
 
     public int nOuts() { return _outputs.size(); }
 
+    public boolean isDead() { return nOuts() == 0; }
+
+    private void addUse(Node n) { _outputs.add(n); }
+
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -154,20 +158,20 @@ public abstract class Node {
         return this;            // No progress
     }
 
-
+    // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
     // If self has zero uses (and is not 'm'), {@link #kill} self.
     private Node removeDeadCode(Node m) {
         // If self is going dead and not being returned here (Nodes returned
         // from peephole commonly have no uses (yet)), then kill self.
-        if( m==this || nOuts() > 0 ) return m; // Not killing self
-        
-        // Killing self - and since self recursively kills self's inputs we
-        // might end up killing 'm', which we are returning as a live Node.
-        // So we add a bogus extra null output edge to stop kill().
-        m._outputs.add(null); // Add bogus null to keep m alive
-        kill();           // Kill self because replacing with 'm'
-        del(m,null);      // Remove bogus null.
+        if( m != this && isDead() ) {
+            // Killing self - and since self recursively kills self's inputs we
+            // might end up killing 'm', which we are returning as a live Node.
+            // So we add a bogus extra null output edge to stop kill().
+            m.addUse(null); // Add bogus null use to keep m alive
+            kill();            // Kill self because replacing with 'm'
+            m.delUse(null);    // Remove bogus null.
+        }
         return m;
     }
 
@@ -191,7 +195,7 @@ public abstract class Node {
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
         if( old_def != null &&  // If the old def exists, remove a use->def edge
-            del(old_def,this) ) // If we removed the last use, the old def is now dead
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
@@ -202,11 +206,11 @@ public abstract class Node {
         return this;
     }
 
-    // Remove node 'use' from 'def's output list, by compressing the list in-place.
+    // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterwards.
     // Error is 'use' does not exist; ok for 'use' to be null.
-    private static boolean del(Node def, Node use) {
-        ArrayList<Node> outs = def._outputs;
+    private boolean delUse( Node use ) {
+        ArrayList<Node> outs = _outputs;
         int lidx = outs.size()-1; // Last index            
         // This 1-line hack compresses an element out of an ArrayList
         // without having to copy the contents.  The last element is
