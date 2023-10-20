@@ -41,5 +41,4 @@ public class ConstantNode extends Node {
 
     @Override
     public Node idealize() { return null; }
-
 }
