@@ -81,14 +81,7 @@ public abstract class Node {
     // line (because this is what a debugger typically displays by default) and
     // has to be robust with broken graph/nodes.
     @Override
-    public final String toString() {
-        // TODO: The print evolves in later chapters.  For now, a simple
-        // recursive print does well.  Later with control flow and later still
-        // with loops, we need some serious algorithm work to get a decent
-        // print.  So you should consider the "print" to always be a work-in-
-        // progress as we march through the chapters.
-        return print();
-    }
+    public final String toString() {  return print(); }
 
     // This is a *deep* print.  This version will fail on cycles, which we will
     // correct later when we can parse programs with loops.  We print with a
@@ -124,8 +117,6 @@ public abstract class Node {
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
-
-
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
@@ -184,11 +175,11 @@ public abstract class Node {
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
         Utils.del(_outputs, Utils.find(_outputs, use));
-        return _outputs.size() == 0;
+        return _outputs.isEmpty();
     }
 
     // Shortcut for "popping" n nodes.  A "pop" is basically a
-    // set_def(last,null) followed by lowering the nIns() count.
+    // setDef(last,null) followed by lowering the nIns() count.
     void popN(int n) {
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.removeLast();
@@ -212,6 +203,15 @@ public abstract class Node {
 
     // Mostly used for asserts and printing.
     boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+
+    // Shortcuts to stop DCE mid-parse
+    // Add bogus null use to keep node alive
+    public <N extends Node> N keep() { return addUse(null); }
+    // Remove bogus null.
+    public <N extends Node> N unkeep() { delUse(null); return (N)this; }
+    // ------------------------------------------------------------------------
+    // Graph-based optimizations
+
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -226,7 +226,11 @@ public abstract class Node {
      * <li>in a future chapter we will look for a
      * <a href="https://en.wikipedia.org/wiki/Common_subexpression_elimination">Common Subexpression</a>
      * to eliminate.</li>
-     * <li>we ask the Node for a better replacement (again, none enabled in this chapter)</li>
+     * <li>we ask the Node for a better replacement.  The "better replacement"
+     * is things like {@code (1+2)} becomes {@code 3} and {@code (1+(x+2))} becomes
+     * {@code (x+(1+2))}.  By canonicalizing expressions we fold common addressing
+     * math constants, remove algebraic identities and generally simplify the
+     * code. </li>
      * </ul>
      */
     public final Node peephole( ) {
@@ -237,18 +241,35 @@ public abstract class Node {
             return this;        // Peephole optimizations turned off
 
         // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && type.isConstant()) {
-            kill();             // Kill `this` because replacing with a Constant
-            return new ConstantNode(type).peephole();
-        }
+        if (!(this instanceof ConstantNode) && type.isConstant())
+            return deadCodeElim(new ConstantNode(type).peephole());
 
         // Future chapter: Global Value Numbering goes here
 
         // Ask each node for a better replacement
         Node n = idealize();
-        if( n != null ) return n;
+        if( n != null )         // Something changed
+            // Recursively optimize
+            return deadCodeElim(n.peephole());
 
         return this;            // No progress
+    }
+
+    // m is the new Node, self is the old.
+    // Return 'm', which may have zero uses but is alive nonetheless.
+    // If self has zero uses (and is not 'm'), {@link #kill} self.
+    private Node deadCodeElim(Node m) {
+        // If self is going dead and not being returned here (Nodes returned
+        // from peephole commonly have no uses (yet)), then kill self.
+        if( m != this && isUnused() ) {
+            // Killing self - and since self recursively kills self's inputs we
+            // might end up killing 'm', which we are returning as a live Node.
+            // So we add a bogus extra null output edge to stop kill().
+            m.keep();      // Keep m alive
+            kill();        // Kill self because replacing with 'm'
+            m.unkeep();    // Okay to peephole m
+        }
+        return m;
     }
 
     /**
@@ -269,7 +290,64 @@ public abstract class Node {
      */
     public abstract Type compute();
 
+    /**
+     * This function rewrites the current Node into a more "idealized" form.
+     * This is the bulk of our peephole rewrite rules, and we use this to
+     * e.g. turn arbitrary collections of adds and multiplies with mixed
+     * constants into a normal form that's easy for hardware to implement.
+     * Example: An array addressing expression:
+     * <pre>   ary[idx+1]</pre>
+     * might turn into Sea-of-Nodes IR:
+     * <pre>   (ary+12)+((idx+1) * 4)</pre>
+     * This expression can then be idealized into:
+     * <pre>   ary + ((idx*4) + (12 + (1*4)))</pre>
+     * And more folding:
+     * <pre>   ary + ((idx<<2) + 16)</pre>
+     * And during code-gen:
+     * <pre>   MOV4 Rary,Ridx,16 // or some such hardware-specific notation </pre>
+     * <p>
+     * {@link #idealize} has a very specific calling convention:
+     * <ul>
+     * <li>If NO change is made, return {@code null}
+     * <li>If ANY change is made, return not-null; this can be {@code this}
+     * <li>The returned Node does NOT call {@link #peephole} on itself; the {@link #peephole} call will recursively peephole it.
+     * <li>Any NEW nodes that are not directly returned DO call {@link #peephole}.
+     * </ul>
+     * <p>
+     * Examples:
+     * <table border="3">
+     * <tr><th>    before       </th><th>       after     </th><th>return </th><th>comment  </th></tr>
+     * <tr><td>{@code (x+5)    }</td><td>{@code   (x+5)  }</td><td>{@code null  }</td><td>No change</td></tr>
+     * <tr><td>{@code (5+x)    }</td><td>{@code   (x+5)  }</td><td>{@code this  }</td><td>Swapped arguments</td></tr>
+     * <tr><td>{@code ((x+1)+2)}</td><td>{@code (x+(1+2))}</td><td>{@code (x+_) }</td><td>Returns 2 new Nodes</td></tr>
+     * </table>
+     *
+     * The last entry deserves more discussion.  The new Node {@code (1+2)}
+     * created in {@link #idealize} calls {@link #peephole} (which then folds
+     * into a constant).  The other new Node {@code (x+3)} does not call
+     * peephole, because it is returned and peephole itself will recursively
+     * call peephole.
+     * <p>
+     * Since idealize calls peephole and peephole calls idealize, you must be
+     * careful that all idealizations are <em>monotonic</em>: all transforms remove
+     * some feature, so that the set of available transforms always shrinks.
+     * If you don't, you risk an infinite peephole loop!
+     *
+     * @return Either a new or changed node, or null for no changes.
+     */
     public abstract Node idealize();
+
+
+    // ------------------------------------------------------------------------
+    // Peephole utilities
+
+    // Swap inputs without letting either input go dead during the swap.
+    Node swap12() {
+        Node tmp = in(1);
+        _inputs.set(1,in(2));
+        _inputs.set(2,tmp);
+        return this;
+    }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
