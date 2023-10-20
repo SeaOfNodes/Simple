@@ -129,6 +129,10 @@ expression as follows:
 arg + (1 + 2)
 ```
 
+This then enables constant folding and the final outcome is shown below.
+
+![Graph1](./docs/04-post-peephole.svg)
+
 Here is a (partial) list of peepholes introduced in this Chapter:
 
 | Before                | After                 | Description                                    |
