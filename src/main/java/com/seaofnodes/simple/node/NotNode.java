@@ -1,0 +1,23 @@
+package com.seaofnodes.simple.node;
+
+
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
+
+public class NotNode extends Node {
+    public NotNode(Node in) { super(null, in); }
+
+    @Override public String label() { return "Not"; }
+
+    @Override protected String format() { return "(!%1)"; }
+
+    @Override
+    public Type compute() {
+        if( in(1)._type instanceof TypeInteger i0 )
+            return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
+        return TypeInteger.BOT;
+    }
+
+    @Override
+    public Node idealize() { return null; }
+}
