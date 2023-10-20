@@ -51,19 +51,15 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
-            if( n instanceof ProjNode proj )
+            if( n instanceof ProjNode )
                 continue; // Do not emit, rolled into MultiNode already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
             String lab = n.label();
             if( n instanceof MultiNode ) {
-                int pouts=0;
-                for( Node proj : n._outputs )
-                    if( proj instanceof ProjNode )
-                        pouts++;
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.append("shape=plaintext label=<\n");
                 sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
-                sb.append("\t\t\t<TR><TD COLSPAN=\"").append(pouts).append("\" BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
+                sb.append("\t\t\t<TR><TD BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
                 sb.append("\t\t\t<TR>");
                 boolean doProjTable = false;
                 for( Node use : n._outputs ) {
