@@ -25,10 +25,16 @@ public class DivNode extends Node {
                 return i1.value() == 0
                     ? TypeInteger.ZERO
                     : TypeInteger.constant(i0.value()/i1.value());
+            return i0.meet(i1);
         }
         return Type.BOTTOM;
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        // Div of 1.
+        if( in(2)._type.isConstant() && in(2)._type instanceof TypeInteger i && i.value()==1 )
+            return in(1);
+        return null;
+    }
 }

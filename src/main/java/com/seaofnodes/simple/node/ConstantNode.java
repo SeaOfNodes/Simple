@@ -23,7 +23,7 @@ public class ConstantNode extends Node {
     }
 
     @Override
-    public String label() { return "#"+_con; }
+    public String label() { return ""+_con; }
 
     @Override
     public String uniqueName() { return "Con_" + _nid; }
@@ -38,5 +38,4 @@ public class ConstantNode extends Node {
 
     @Override
     public Node idealize() { return null; }
-
 }

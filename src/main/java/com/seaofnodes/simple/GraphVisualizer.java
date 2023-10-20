@@ -17,7 +17,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter03 {\n");
+        sb.append("digraph chapter04 {\n");
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
@@ -57,15 +57,45 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
-            if( n instanceof ScopeNode )
-                continue; // Do not emit, rolled into Scope cluster already
+            if( n instanceof ProjNode || n instanceof ScopeNode )
+                continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
             String lab = n.glabel();
-            // control nodes have box shape
-            // other nodes are ellipses, i.e. default shape
-            if( n.isCFG() )
-                sb.append("shape=box style=filled fillcolor=yellow ");
-            sb.append("label=\"").append(lab).append("\" ");
+            if( n instanceof MultiNode ) {
+                // Make a box with the MultiNode on top, and all the projections on the bottom
+                sb.append("shape=plaintext label=<\n");
+                sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
+                sb.append("\t\t\t<TR><TD BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
+                sb.append("\t\t\t<TR>");
+                boolean doProjTable = false;
+                for( Node use : n._outputs ) {
+                    if( use instanceof ProjNode proj ) {
+                        if (!doProjTable) {
+                            doProjTable = true;
+                            sb.append("<TD>").append("\n");
+                            sb.append("\t\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">").append("\n");
+                            sb.append("\t\t\t\t<TR>");
+                        }
+                        sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
+                        if( proj.isCFG() ) sb.append(" BGCOLOR=\"yellow\"");
+                        sb.append(">").append(proj.glabel()).append("</TD>");
+                    }
+                }
+                if (doProjTable) {
+                    sb.append("</TR>").append("\n");
+                    sb.append("\t\t\t\t</TABLE>").append("\n");
+                    sb.append("\t\t\t</TD>");
+                }
+                sb.append("</TR>\n");
+                sb.append("\t\t\t</TABLE>>\n\t\t");
+
+            } else {
+                // control nodes have box shape
+                // other nodes are ellipses, i.e. default shape
+                if( n.isCFG() )
+                    sb.append("shape=box style=filled fillcolor=yellow ");
+                sb.append("label=\"").append(lab).append("\" ");
+            }
             sb.append("];\n");
         }
         sb.append("\t}\n");     // End Node cluster
@@ -101,22 +131,24 @@ public class GraphVisualizer {
         // All them edge labels
         sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
         for( Node n : all ) {
-            // In this chapter we do display the Constant->Start edge;
+            // Do not display the Constant->Start edge;
+            // ProjNodes handled by Multi;
             // ScopeNodes are done separately
-            if( n instanceof ScopeNode )
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
                 continue;
             int i=0;
             for( Node def : n._inputs ) {
                 if( def != null ) {
                     // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
-                    sb.append(def.uniqueName());
+                    if( def instanceof ProjNode proj ) {
+                        String mname = proj.ctrl().uniqueName();
+                        sb.append(mname).append(":p").append(proj._idx);
+                    } else sb.append(def.uniqueName());
                     // Number edges, so we can see how they track
                     sb.append("[taillabel=").append(i);
-                    if( n instanceof ConstantNode && def instanceof StartNode )
-                        sb.append(" style=dotted");
                     // control edges are colored red
-                    else if( def.isCFG() )
+                    if( def.isCFG() )
                         sb.append(" color=red");
                     sb.append("];\n");
                 }
@@ -138,7 +170,10 @@ public class GraphVisualizer {
                   .append(scopeName).append(":")
                   .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
                   .append(" -> ");
-                sb.append(def.uniqueName());
+                if( def instanceof ProjNode proj ) {
+                    String mname = proj.ctrl().uniqueName();
+                    sb.append(mname).append(":p").append(proj._idx);
+                } else sb.append(def.uniqueName());
                 sb.append(";\n");
             }
             level++;
