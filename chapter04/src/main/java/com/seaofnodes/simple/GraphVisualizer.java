@@ -62,15 +62,27 @@ public class GraphVisualizer {
                         pouts++;
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.append("shape=plaintext label=<\n");
-                sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
+                sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
                 sb.append("\t\t\t<TR><TD COLSPAN=\"").append(pouts).append("\" BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
                 sb.append("\t\t\t<TR>");
+                boolean doProjTable = false;
                 for( Node use : n._outputs ) {
                     if( use instanceof ProjNode proj ) {
+                        if (!doProjTable) {
+                            doProjTable = true;
+                            sb.append("<TD>").append("\n");
+                            sb.append("\t\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">").append("\n");
+                            sb.append("\t\t\t\t<TR>");
+                        }
                         sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
                         if( proj._idx==0 ) sb.append(" BGCOLOR=\"yellow\"");
                         sb.append(">").append(proj.label()).append("</TD>");
                     }
+                }
+                if (doProjTable) {
+                    sb.append("</TR>").append("\n");
+                    sb.append("\t\t\t\t</TABLE>").append("\n");
+                    sb.append("\t\t\t</TD>");
                 }
                 sb.append("</TR>\n");
                 sb.append("\t\t\t</TABLE>>\n\t\t");
