@@ -24,7 +24,7 @@ public class Chapter02Test {
         ReturnNode ret = parser.parse();
         assertEquals("return (1+((2*3)+(-5)));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
-        System.out.println(gv.generateDotOutput(Parser.START));
+        System.out.println(gv.generateDotOutput(parser));
         Node._disablePeephole = false;
     }
 
@@ -69,13 +69,15 @@ public class Chapter02Test {
         ReturnNode ret = parser.parse();
         assertEquals("return 2;", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
-        System.out.println(gv.generateDotOutput(Parser.START));
+        System.out.println(gv.generateDotOutput(parser));
     }
 
     @Test
     public void testSimpleProgram() {
         Parser parser = new Parser("return 1;");
         ReturnNode ret = parser.parse();
+        GraphVisualizer gv = new GraphVisualizer();
+        System.out.println(gv.generateDotOutput(parser));
         StartNode start = Parser.START;
         
         assertEquals(start, ret.ctrl());
