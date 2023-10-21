@@ -1,9 +1,11 @@
-digraph chapter01 
-{
-    start [shape=box, label="Start"];
-    constant [label="Constant 1"];
-    return [shape=box, label="Return"];
-    constant -> return;
-    edge [color=red];
-    start -> return [style=bold];
+digraph chapter01 {
+	rankdir=BT;
+	subgraph cluster_Nodes {
+		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
+		Con12 [ label="Con1" ];
+		Return3 [ shape=box style=filled fillcolor=yellow label="Return" ];
+	}
+	Con12 -> Start1 [style=dotted];
+	Return3 -> Start1 [color=red];
+	Return3 -> Con12;
 }
