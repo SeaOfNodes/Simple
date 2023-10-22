@@ -29,8 +29,7 @@ We design our parser and compiler to illustrate some key aspects of the Sea of N
 Intermediate Representation: 
 
 * We construct the intermediate Sea of Nodes representation directly as we parse the language. There is no Abstract Syntax Tree representation.
-
-* The compiler will perform a few basic local optimizations as we build the IR; this is a key benefit of the Sea of Nodes IR. This aspect is more fully explored from Chapter 2 onwards.
+* The compiler will perform a few basic local optimizations as we build the IR; this is a key benefit of the Sea of Nodes IR. This aspect is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
 
 ## Data Structures
 
@@ -50,7 +49,57 @@ The intermediate representation is a graph of Node objects. The `Node` class is 
 The `Node` class provides common capabilities that are inherited by all subtypes. 
 Each subtype implements semantics relevant to that subtype.
 
-There are two types of Nodes in the representation.
+Each `Node` represents an "instruction" as it may appear in traditional IRs.
+
+### Nodes are in a Graph
+
+The key idea of the Sea of Nodes IR is that each Node is linked to other Nodes by def-use dependencies.
+As this is such an important and fundamental aspect of the IR, it is important to understand how we implement this, and depict in graph visuals.
+
+The base `Node` class maintains a list of Nodes that are inputs to it. An input is an edge from a "def" to a "use". What this means is that if `B` is definition, and `A` uses `B`,
+then there is a def-use edge from `B` to `A`.
+
+Visually we show an arrow from the "use" to the "def". Here is an example:
+
+![Use Def](./docs/01-use-def.svg)
+
+From an implementation point of view, our `Node` type also maintains a reverse link.
+This means that in the above scenario:
+
+* Since `A` is a "use" of `B`, then `B` will appear in `A`'s list of inputs.
+* Conversely, `B` maintains a list of outputs, and `A` will appear in this list.
+* A key invariant is that these edges must be in sync at all times.
+
+Here is how this looks in the `Node` class:
+
+```java
+public abstract class Node {
+
+    /**
+     * Inputs to the node. These are use-def references to Nodes.
+     * <p>
+     * Generally fixed length, ordered, nulls allowed, no unused trailing space.
+     * Ordering is required because e.g. "a/b" is different from "b/a".
+     * The first input (offset 0) is often a Control node.
+     */
+    public final ArrayList<Node> _inputs;
+
+    /**
+     * Outputs reference Nodes that are not null and have this Node as an
+     * input.  These nodes are users of this node, thus these are def-use
+     * references to Nodes.
+     * <p>
+     * Outputs directly match inputs, making a directed graph that can be
+     * walked in either direction.  These outputs are typically used for
+     * efficient optimizations but otherwise have no semantics meaning.
+     */
+    public final ArrayList<Node> _outputs;
+}
+```
+
+### Types of Nodes
+
+There are two categories of Nodes in the intermediate representation.
 
 * **Control Nodes** - these represent the control flow subgraph (CFG) of the compiled program
 * **Data Nodes** - these capture the data semantics
@@ -80,7 +129,7 @@ graph.  We discuss Node equality in Chapter 8 Global Value Numbering.
 
 The Start node represents the start of the function.  For now, we do not have any inputs to Start because our function does not 
 yet accept parameters.  When we add parameters the value of Start will be a tuple, and will require Projections to extract the values. 
-We discuss this in detail in Chapter 9: Functions and Calls.
+We discuss this in detail in [Chapter 4](../chapter04/README.md).
 
 ### Constant Node
 
@@ -101,7 +150,7 @@ The Return node has two inputs.  The first input is a control node and the
 second is the data node that supplies the return value.
 
 In this presentation, Return functions as a Stop node, since multiple `return` statements are not possible.
-The Stop node will be introduced in Chapter 6 when we implement `if` statements. 
+The Stop node will be introduced in Chapter 5 when we implement `if` statements. 
 
 The Return's output is the value from the data node.
 

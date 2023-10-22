@@ -11,7 +11,7 @@ Here is the [complete language grammar](docs/02-grammar.md) for this chapter.
 
 ## Extensions to Intermediate Representation
 
-In chapter 1 we introduced following nodes.
+In [Chapter 1](../chapter01/README.md) we introduced following nodes.
 
 | Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
 |-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
@@ -53,10 +53,10 @@ may *kill* the unused constants `1` and `2`.
 ## Constant Folding and Constant Propagation
 
 In this chapter and next we focus on a particular peephole optimization:
-constant folding and constant propagation.  Since we do not have variables
-until Chapter 3, the main feature we demonstrate now is constant folding.
+constant folding and constant propagation.  Since we do not have non-constant values
+until [Chapter 4](../chapter04/README.md), the main feature we demonstrate now is constant folding.
 However, we introduce some additional ideas into the compiler at this stage, to
-set the scene for Chapter 3.
+set the scene for Chapter 4.
 
 It is useful for the compiler to know at various points of the program whether
 a node's value is a constant. The compiler can use this knowledge to perform various
@@ -107,8 +107,8 @@ some constant to ⊥.
 In later chapters we will explore extending this lattice, as it frequently
 forms the heart of core optimizations we want our compiler to do.
 
-There are other important properties of the Lattice that we discuss in Chapter
-3, such as the "meet" operator and its rules.
+There are other important properties of the Lattice that we discuss in [Chapter
+4](../chapter04/README.md), such as the "meet" operator and its rules.
 
 
 ## Nodes Pre Peephole Optimization

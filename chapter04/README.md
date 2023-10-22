@@ -22,7 +22,7 @@ Following are revised or new nodes
 | Proj      | ?                | Projection nodes extract values from MultiNode | A MultiNode and index          | Result is the extracted value from the input MultiNode at offset index  | 
 | Bool      | Data             | Represents results of a comparison operator    | Two data nodes                 | Result a comparison, represented as integer value where 1=true, 0=false |
 
-Below is our list of Nodes from chapter 3:
+Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 
 | Node Name  | Type    | Description                        | Inputs                                                           | Value                        |
 |------------|---------|------------------------------------|------------------------------------------------------------------|------------------------------|
@@ -36,7 +36,7 @@ Below is our list of Nodes from chapter 3:
 
 ## Changes to Type System
 
-In Chapter 2 we introduced the Type System.  Here is a summary of key points:
+In [Chapter 2](../chapter02/README.md) we introduced the Type System.  Here is a summary of key points:
 
 We annotate Nodes with Types.
 
@@ -58,7 +58,7 @@ Type
 +-- TypeTuple               (New - represents multi-valued result)
 ```
 
-We mentioned in Chapter 2 that the set of values associated with a Type at a specific Node
+We mentioned in [Chapter 2](../chapter02/README.md) that the set of values associated with a Type at a specific Node
 can be conveniently represented as a "lattice".
 
 Our lattice elements can be one of three types:
@@ -151,7 +151,7 @@ The peephole optimizations introduced in this chapter are local. They are trigge
 as new nodes are created, before the newly created node has any uses.
 
 For example, when we parse a unary expression, and create a Node for the parsed expression,
-`peephole()` is invoked on the newky created `MinusNode`:
+`peephole()` is invoked on the newly created `MinusNode`:
 
 ```java
 private Node parseUnary() {

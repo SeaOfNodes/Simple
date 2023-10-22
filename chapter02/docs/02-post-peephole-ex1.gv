@@ -1,10 +1,11 @@
-digraph chapter02
-{
-	Start1 [shape=box,  label="Start"];
-	Con213 [ label="Con2"];
-	Start1 -> Con213 [style=dotted];
-	Return14 [shape=box,  label="Return"];
-	Con213 -> Return14;
-	edge [color=red];
-	Start1 -> Return14;
+digraph chapter02 {
+	rankdir=BT;
+	subgraph cluster_Nodes {
+		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
+		Con213 [ label="Con2" ];
+		Return14 [ shape=box style=filled fillcolor=yellow label="Return" ];
+	}
+	Con213 -> Start1 [style=dotted];
+	Return14 -> Start1 [color=red];
+	Return14 -> Con213;
 }
