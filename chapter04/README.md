@@ -38,7 +38,7 @@ Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 
 We add projection nodes that are used to extract a specific tuple member from a multi-valued node.
 Each projection node contains an index of the field to extract from its input node.
-Projection nodes allow us to maintain use-def edges as simple Node references.
+Projection nodes allow us to maintain labeled use-def edges as simple Node references.
 
 In the visuals, projection nodes are shown as rectangular boxes inside the node to which they are attached.
 
