@@ -99,6 +99,20 @@ public class Chapter04Test {
     }
 
     @Test
+    public void testChapter4Bug1() {
+        Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; #showGraph;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return (Proj_3+3);", ret.print());
+    }
+
+    @Test
+    public void testChapter4Bug2() {
+        Parser parser = new Parser("int a=arg+1; a=a; return a; #showGraph;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return (Proj_3+1);", ret.print());
+    }
+
+    @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
         ReturnNode ret = parser.parse();
@@ -133,6 +147,13 @@ public class Chapter04Test {
         Parser parser = new Parser("int x0=1; int y0=2; int x1=3; int y1=4; return (x0-x1)*(x0-x1) + (y0-y1)*(y0-y1); #showGraph;");
         ReturnNode ret = parser.parse();
         assertEquals("return 8;", ret.print());
+    }
+
+    @Test
+    public void testSelfAssign() {
+        exceptionRule.expect(RuntimeException.class);
+        exceptionRule.expectMessage("Undefined name 'a'");
+        new Parser("int a=a; return a;").parse();
     }
 
 

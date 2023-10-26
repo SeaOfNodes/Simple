@@ -162,7 +162,7 @@ public abstract class Node {
     private Node deadCodeElim(Node m) {
         // If self is going dead and not being returned here (Nodes returned
         // from peephole commonly have no uses (yet)), then kill self.
-        if( m != this && isDead() ) {
+        if( m != this && isUnused() ) {
             // Killing self - and since self recursively kills self's inputs we
             // might end up killing 'm', which we are returning as a live Node.
             // So we add a bogus extra null output edge to stop kill().
@@ -192,18 +192,36 @@ public abstract class Node {
      */
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
-        if( old_def != null &&  // If the old def exists, remove a use->def edge
+        if( old_def == new_def ) return this; // No change
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
-        // If new def is not null, add the corresponding use->def edge
+        // If new def is not null, add the corresponding def->use edge
         if( new_def != null )
             new_def._outputs.add(this);
         // Return self for easy flow-coding
         return this;
     }
 
+    /**
+     * Add a new def to an existing Node.  Keep the edges correct by
+     * adding the corresponding <em>def->use</em> edge.
+     *
+     * @param new_def the new definition, appended to the end of existing definitions
+     * @return new_def for flow coding
+     */
+    Node add_def(Node new_def) {
+        // Add use->def edge
+        _inputs.add(new_def);
+        // If new def is not null, add the corresponding def->use edge
+        if( new_def != null )
+            new_def._outputs.add(this);
+        return new_def;
+    }
+
+    
     // Breaks the edge invariants, used temporarily
     private void addUse(Node n) { _outputs.add(n); }
 
@@ -221,19 +239,27 @@ public abstract class Node {
         return lidx==0;
     }
 
+    // Shortcut for "popping" n nodes.  A "pop" is basically a
+    // set_def(last,null) followed by lowering the nIns() count.
+    void pop_n(int n) {
+        for( int i=0; i<n; i++ ) {
+            Node old_def = _inputs.remove(_inputs.size()-1);
+            if( old_def != null &&     // If it exists and
+                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                old_def.kill();        // Kill old def
+        }
+    }
+  
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
      * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #set_def}.
+     * code elimination.  This function is co-recursive with {@link #pop_n}.
      */
     public void kill( ) {
-        assert isUnused();    // Has no uses, so it is dead
-        for( int i=0; i<nIns(); i++ )
-            set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
-        _inputs.clear();      // Flag as dead
-        _outputs.clear();     // Flag as dead
-        _type=null;           // Flag as dead
-        assert isDead();      // Really dead now
+        assert isUnused();      // Has no uses, so it is dead
+        pop_n(nIns());          // Set all inputs to null, recursively killing unused Nodes
+        _type=null;             // Flag as dead
+        assert isDead();        // Really dead now
     }
 
     // Mostly used for asserts and printing.
