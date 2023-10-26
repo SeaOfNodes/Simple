@@ -106,6 +106,13 @@ public class Chapter04Test {
     }
 
     @Test
+    public void testChapter4Bug2() {
+        Parser parser = new Parser("int a=arg+1; a=a; return a; #showGraph;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return (Proj_3+1);", ret.print());
+    }
+
+    @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
         ReturnNode ret = parser.parse();

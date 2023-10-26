@@ -192,6 +192,7 @@ public abstract class Node {
      */
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
+        if( old_def == new_def ) return this; // No change
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
