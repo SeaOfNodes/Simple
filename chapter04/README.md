@@ -34,6 +34,19 @@ Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 | Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
 | UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
 
+## Projection Nodes
+
+We add projection nodes that are used to extract a specific tuple member from a multi-valued node.
+Each projection node contains an index of the field to extract from its input node.
+Projection nodes allow us to maintain labeled use-def edges as simple Node references.
+
+In the visuals, projection nodes are shown as rectangular boxes inside the node to which they are attached.
+
+![ProjNode](./docs/projnode.png)
+
+In the visual above, the projection nodes have been tagged by the names associated with the outputs of the
+Start node.
+
 ## Changes to Type System
 
 In [Chapter 2](../chapter02/README.md) we introduced the Type System.  Here is a summary of key points:
