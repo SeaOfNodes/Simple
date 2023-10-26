@@ -30,7 +30,7 @@ public class ConstantNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
-        return _type._print(sb);
+        return _con._print(sb);
     }
     
     @Override
