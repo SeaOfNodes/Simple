@@ -35,4 +35,6 @@ public class DivNode extends Node {
             return in(1);
         return null;
     }
+
+    @Override Node copy(Node lhs, Node rhs) { return new DivNode(lhs,rhs); }
 }

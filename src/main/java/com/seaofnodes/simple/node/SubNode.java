@@ -54,4 +54,5 @@ public class SubNode extends Node {
         return null;
     }
 
+    @Override Node copy(Node lhs, Node rhs) { return new SubNode(lhs,rhs); }
 }
