@@ -17,7 +17,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter04 {\n");
+        sb.append("digraph chapter05 {\n");
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
@@ -40,13 +40,15 @@ public class GraphVisualizer {
         nodes(sb, all);
 
         // Now the scopes, in a cluster no edges
-        scopes(sb, parser._scope);
+        for (ScopeNode sn: parser._xScopes)
+            scopes(sb, sn);
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the Scope edges
-        scopeEdges(sb, parser._scope);
+        for (ScopeNode sn: parser._xScopes)
+            scopeEdges(sb, sn);
 
         sb.append("}\n");
         return sb.toString();
@@ -94,10 +96,25 @@ public class GraphVisualizer {
                 // other nodes are ellipses, i.e. default shape
                 if( n.isCFG() )
                     sb.append("shape=box style=filled fillcolor=yellow ");
+                if( n instanceof PhiNode )
+                    sb.append("style=filled fillcolor=lightyellow ");
                 sb.append("label=\"").append(lab).append("\" ");
             }
             sb.append("];\n");
         }
+
+        // Force Region & Phis to line up
+        for( Node n : all ) {
+            if( n instanceof RegionNode region ) {
+                sb.append("\t\t{ rank=same; ");
+                sb.append(region).append(";")     ;
+                for( Node phi : region._outputs )
+                    if( phi instanceof PhiNode )
+                        sb.append(phi.uniqueName()).append(";");
+                sb.append("}\n");
+            }
+        }
+
         sb.append("\t}\n");     // End Node cluster
     }
 
@@ -138,7 +155,13 @@ public class GraphVisualizer {
                 continue;
             int i=0;
             for( Node def : n._inputs ) {
-                if( def != null ) {
+                if( n instanceof PhiNode && def instanceof RegionNode ) {
+                    // Draw a dotted use->def edge from Phi to Region.
+                    sb.append('\t').append(n.uniqueName());
+                    sb.append(" -> ");
+                    sb.append(def.uniqueName());
+                    sb.append(" [style=dotted taillabel=").append(i).append("];\n");
+                } else if( def != null ) {
                     // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
                     if( def instanceof ProjNode proj ) {

@@ -349,6 +349,20 @@ public abstract class Node {
         return this;
     }
 
+    // does this node contain all constants?
+    // Ignores in(0), as is usually control.
+    boolean allCons() {
+        for( int i=1; i<nIns(); i++ )
+            if( !(in(i)._type.isConstant()) )
+                return false;
+        return true;
+    }
+
+    // Make a shallow copy (same class) of this Node, with given inputs and
+    // empty outputs and a new Node ID.  The original inputs are ignored.
+    // Does not need to be implemented in isCFG() nodes.
+    Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
+
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
