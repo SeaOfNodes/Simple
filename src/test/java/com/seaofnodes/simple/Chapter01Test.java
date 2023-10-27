@@ -11,8 +11,9 @@ public class Chapter01Test {
     @Test
     public void testSimpleProgram() {
         Parser parser = new Parser("return 1;");
-        ReturnNode ret = parser.parse();
+        StopNode stop = parser.parse();
         StartNode start = Parser.START;
+        ReturnNode ret = (ReturnNode)stop.in(0);
 
         assertTrue(ret.ctrl() instanceof ProjNode);
         Node expr = ret.expr();
