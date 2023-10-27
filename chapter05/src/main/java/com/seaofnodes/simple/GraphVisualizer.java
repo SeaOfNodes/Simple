@@ -18,7 +18,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter04 {\n");
+        sb.append("digraph chapter05 {\n");
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
