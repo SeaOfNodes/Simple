@@ -46,7 +46,7 @@ The Simple language is styled after a subset of C or Java.
   named `arg`.  Binary and Comparison operators involving constants and `arg`.
   Non-zero values will be truthy.  Peephole optimizations involving algebraic
   simplifications.
-* Chapter 5: `if` statement. CFG construction.
+* [Chapter 5](docs/chapter05/README.md): `if` statement. CFG construction.
 * Chapter 6: Peephole optimization around dead control flow.
 * Chapter 7: `while` statement; looping constructs - eager phi approach.
 * Chapter 8: Looping constructs continued, lazy phi creation, `break` and `continue` statements.
