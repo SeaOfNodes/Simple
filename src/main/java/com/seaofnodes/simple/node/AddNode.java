@@ -72,6 +72,24 @@ public class AddNode extends Node {
         if( lhs.in(2)._type.isConstant() && t2.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
+        if( lhs.in(2) instanceof PhiNode phi && phi.allCons() &&
+            // Do we have ((x + (phi cons)) + con) ?
+            // Do we have ((x + (phi cons)) + (phi cons)) ?
+            // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
+
+            // Note that this is the exact reverse of Phi pulling a common op
+            // down to reduce total op-count.  We don't get in an endless push-
+            // up push-down peephole cycle because the constants all fold first.
+            (t2.isConstant() || (rhs instanceof PhiNode && phi.in(0) == rhs.in(0) && rhs.allCons()) ) ) {
+            Node[] ns = new Node[phi.nIns()];
+            ns[0] = phi.in(0);
+            // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
+            for( int i=1; i<ns.length; i++ )
+                ns[i] = new AddNode(phi.in(i),t2.isConstant() ? rhs : rhs.in(i)).peephole();
+            String label = phi._label + (rhs instanceof PhiNode rphi ? rphi._label : "");
+            return new AddNode(lhs.in(1),new PhiNode(label,ns).peephole());
+        }
+
         // Now we sort along the spline via rotates, to gather similar things together.
 
         // Do we rotate (x + y) + z
@@ -84,15 +102,22 @@ public class AddNode extends Node {
 
     // Compare two off-spline nodes and decide what order they should be in.
     // Do we rotate ((x + hi) + lo) into ((x + lo) + hi) ?
-    // Generally constants always go right, then others.
+    // Generally constants always go right, then Phi-of-constants, then muls, then others.
     // Ties with in a category sort by node ID.
     // TRUE if swapping hi and lo.
     static boolean spline_cmp( Node hi, Node lo ) {
         if( lo._type.isConstant() ) return false;
         if( hi._type.isConstant() ) return true ;
 
+        if( lo instanceof PhiNode && lo.allCons() ) return false;
+        if( hi instanceof PhiNode && hi.allCons() ) return true ;
+
+        if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
+        if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;
+
         // Same category of "others"
         return lo._nid > hi._nid;
     }
 
+    @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
 }
