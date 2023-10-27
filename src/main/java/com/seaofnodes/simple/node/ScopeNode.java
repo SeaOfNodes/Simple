@@ -131,4 +131,45 @@ public class ScopeNode extends Node {
      */
     public Node ctrl(Node n) { return setDef(0,n); }
 
+    /**
+     * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
+     * neither shallow (would dup the Scope but not the internal HashMap
+     * tables), nor deep (would dup the Scope, the HashMap tables, but then
+     * also the program Nodes).
+     * <p>
+     * The new Scope is a full-fledged Node with proper use<->def edges.
+     */
+    public ScopeNode dup() {
+        ScopeNode dup = new ScopeNode();
+        // Our goals are:
+        // 1) duplicate the name bindings of the ScopeNode across all stack levels
+        // 2) Make the new ScopeNode a user of all the nodes bound
+        // 3) Ensure that the order of defs is the same to allow easy merging
+        for( HashMap<String,Integer> syms : _scopes )
+            dup._scopes.push(new HashMap<>(syms));
+        dup.addDef(ctrl());      // Control input is just copied
+        for( int i=1; i<nIns(); i++ )
+            dup.addDef(in(i));
+        return dup;
+    }
+
+    /**
+     * Merges the names whose node bindings differ, by creating Phi node for such names
+     * The names could occur at all stack levels, but a given name can only differ in the
+     * innermost stack level where the name is bound.
+     *
+     * @param that The ScopeNode to be merged into this
+     * @return A new node representing the merge point
+     */
+    public Node mergeScopes(ScopeNode that) {
+        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
+        String[] ns = reverseNames();
+        // Note that we skip i==0, which is bound to '$ctrl'
+        for (int i = 1; i < nIns(); i++)
+            if( in(i) != that.in(i) ) // No need for redundant Phis
+                setDef(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
+        that.kill();            // Kill merged scope
+        return r;
+    }
+
 }
