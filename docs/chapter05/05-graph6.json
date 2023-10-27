@@ -1,0 +1,15 @@
+{
+  "ver": 1,
+  "comp": "chapter05/docs/05-graph6.svg",
+  "step": 1,
+  "roots": [19],
+  "scope": 0,
+  "nodes": [
+    {"id": 6, "label": "#3", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 15, "label": "#4", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 17, "label": "φ_c", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 15, "role": "DATA", "label": null}, {"idx": 2, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 19, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 17, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}

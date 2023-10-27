@@ -25,7 +25,7 @@ public class ProjNode extends Node {
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(_label); }
 
-    @Override public boolean isCFG() { return _idx==0; }
+    @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
 
     public MultiNode ctrl() { return (MultiNode)in(0); }
 
