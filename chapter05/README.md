@@ -2,7 +2,7 @@
 
 In this chapter we extend the language grammar with following features:
 
-* If introduce `if` statement.
+* We introduce the `if` statement.
 * To support splitting of control flow and merging, we introduce new nodes: `Region` and `Phi`.
 * Since we can now have multiple return points, we also introduce the `Stop` node as the termination.
 
@@ -27,11 +27,13 @@ Here is a recap of the nodes introduced in previous chapters:
 | UnaryMinus | Data           | 2       | Negate a value                                 | One data node, value is negated                                  | Result of the unary minus                                               |
 | Scope      | ?              | 3       | Represents scopes in the graph                 | All nodes that define variables                                  | None                                                                    |
 
-New Nodes introduced in this chapter:
+## New Nodes
+
+Following new nodes are introduced in this chapter:
 
 | Node Name | Type    | Chapter | Description                                                          | Inputs                                                                                         | Value                                                         |
 |-----------|---------|---------|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| If        | Control | 5       | Represents an `if` condition                                         | A control node and a data predicate node                                                       | A tuple of two values, one for true branch, another for false |
+| If        | Control | 5       | Represents an `if` condition, sub type of `MultiNode`                | A control node and a data predicate node                                                       | A tuple of two values, one for true branch, another for false |
 | Region    | Control | 5       | Represents a merge point from multiple control flow                  | An input for each control flow that is merging                                                 | None                                                          |
 | Phi       | ?       | 5       | Represents the phi function that picks a value based on control flow | A region control node, and multiple data nodes that provide values from multiple control flows | Result is the extracted value depending on control flow taken | 
 | Stop      | Control | 5       | Represents termination of the program                                | One or more Return nodes                                                                       | None                                                          |
