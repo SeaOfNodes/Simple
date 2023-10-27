@@ -14,7 +14,6 @@ import java.util.*;
  */
 public class Parser {
 
-
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -24,12 +23,22 @@ public class Parser {
      */
     public static StartNode START;
 
+    public StopNode STOP;
+
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
     /**
-     * A ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
+     * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
+     * there is one current ScopeNode. The reason the current ScopeNode can change is to do with how
+     * we handle branching. See {@link #parseIf()}.
+     * <p>
+     * Each ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
      * variable names to Nodes.  The top of this stack represents current scope.
+     * <p>
+     * We keep a list of all ScopeNodes so that we can show them in graphs.
+     * @see #parseIf()
+     * @see #_xScopes
      */
     public ScopeNode _scope;
 
@@ -37,17 +46,27 @@ public class Parser {
      * List of keywords disallowed as identifiers
      */
     private final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("else");
+            add("false");
+            add("if");
             add("int");
             add("return");
+            add("true");
         }};
 
+
+    /**
+     * We clone ScopeNodes when control flows branch; it is useful to have
+     * a list of all active ScopeNodes for purposes of visualization of the SoN graph
+     */
+    public final Stack<ScopeNode> _xScopes = new Stack<>();
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
-        START.peephole();
+        STOP = new StopNode();
     }
 
     public Parser(String source) {
@@ -66,18 +85,22 @@ public class Parser {
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
-    public ReturnNode parse() { return parse(false); }
-    public ReturnNode parse(boolean show) {
+    public StopNode parse() { return parse(false); }
+    public StopNode parse(boolean show) {
+        _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
         _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
-        var ret = (ReturnNode) parseBlock();
+        parseBlock();
         _scope.pop();
+        _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        STOP.peephole();
         if( show ) showGraph();
-        return ret;
+        return STOP;
     }
+
 
     /**
      * Parses a block
@@ -91,21 +114,18 @@ public class Parser {
     private Node parseBlock() {
         // Enter a new scope
         _scope.push();
-        Node n = null;
-        while (!peek('}') && !_lexer.isEOF()) {
-            Node n0 = parseStatement();
-            if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        };
+        while (!peek('}') && !_lexer.isEOF())
+            parseStatement();
         // Exit scope
         _scope.pop();
-        return n;
+        return null;
     }
 
     /**
      * Parses a statement
      *
      * <pre>
-     *     returnStatement | declStatement | blockStatement | expressionStatement
+     *     returnStatement | declStatement | blockStatement | ifStatement | expressionStatement
      * </pre>
      * @return a {@link Node} or {@code null}
      */
@@ -113,10 +133,58 @@ public class Parser {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
+        else if (matchx("if" )) return parseIf();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")) return null; // Empty statement
         else return parseExpressionStatement();
     }
+
+    /**
+     * Parses a statement
+     *
+     * <pre>
+     *     if ( expression ) statement [else statement]
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
+    private Node parseIf() {
+        require("(");
+        // Parse predicate
+        var pred = require(parseExpression(), ")");
+        // IfNode takes current control and predicate
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        // Setup projection nodes
+        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        // In if true branch, the ifT proj node becomes the ctrl
+        // But first clone the scope and set it as current
+        int ndefs = _scope.nIns();
+        ScopeNode fScope = _scope.dup(); // Duplicate current scope
+        _xScopes.push(fScope); // For graph visualization we need all scopes
+
+        // Parse the true side
+        ctrl(ifT);              // set ctrl token to ifTrue projection
+        parseStatement();       // Parse true-side
+        ScopeNode tScope = _scope;
+
+        // Parse the false side
+        _scope = fScope;        // Restore scope, then parse else block if any
+        ctrl(ifF);              // Ctrl token is now set to ifFalse projection
+        if (matchx("else")) {
+            parseStatement();
+            fScope = _scope;
+        }
+
+        if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
+            throw error("Cannot define a new name on one arm of an if");
+
+        // Merge results
+        _scope = tScope;
+        _xScopes.pop();       // Discard pushed from graph display
+
+        return ctrl(tScope.mergeScopes(fScope));
+    }
+
 
     /**
      * Parses a return statement; "return" already parsed.
@@ -129,7 +197,7 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = new ReturnNode(ctrl(), expr).peephole();
+        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
         ctrl(null);             // Kill control
         return ret;
     }
@@ -254,13 +322,15 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
+     *     primaryExpr : integerLiteral | Identifier | true | false | '(' expression ')'
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
         if( _lexer.isNumber() ) return parseIntegerLiteral();
         if( match("(") ) return require(parseExpression(), ")");
+        if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
+        if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);
