@@ -4,6 +4,7 @@ import com.seaofnodes.simple.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Objects;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -339,5 +340,17 @@ public abstract class Node {
     /*
      * hashCode and equals implementation to be added in later chapter.
      */
-  
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Node node = (Node) o;
+        return _nid == node._nid && Objects.equals(_inputs, node._inputs) && Objects.equals(_type, node._type);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(_nid, _inputs, _type);
+    }
 }

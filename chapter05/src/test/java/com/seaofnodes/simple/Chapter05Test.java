@@ -14,6 +14,13 @@ public class Chapter05Test {
     public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
+    public void testChapter5IfStmt() {
+        Parser parser = new Parser("int a = 1; if (arg == 1) a = arg+2; else a = arg-3; return a;", TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+    }
+
+
+    @Test
     public void testChapter4Peephole() {
         Parser parser = new Parser("return 1+arg+2; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
