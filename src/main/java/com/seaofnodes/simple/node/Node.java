@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Parser;
+
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -230,13 +231,13 @@ public abstract class Node {
      * code. </li>
      * </ul>
      */
-    public final Node peephole( ) {
+    public final Node peephole() {
         var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
-        Type old = _type;
         if( obs != null ) obs.before(this);
+        Type old = _type;
         Node n = peepholeOpt();
         Node rez = n == null ? this : n;
-        if( obs != null ) obs.after(this, n != null || old != _type ? rez : null, false);
+        if( obs != null ) obs.after(this, n == null && old == _type ? null : rez, false);
         return rez;
     }
 
@@ -260,7 +261,7 @@ public abstract class Node {
             return deadCodeElim(n.peephole());
 
         return null;            // No progress
-    }
+        }
 
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
@@ -355,6 +356,20 @@ public abstract class Node {
         _inputs.set(2,tmp);
         return this;
     }
+
+    // does this node contain all constants?
+    // Ignores in(0), as is usually control.
+    boolean allCons() {
+        for( int i=1; i<nIns(); i++ )
+            if( !(in(i)._type.isConstant()) )
+                return false;
+        return true;
+    }
+
+    // Make a shallow copy (same class) of this Node, with given inputs and
+    // empty outputs and a new Node ID.  The original inputs are ignored.
+    // Does not need to be implemented in isCFG() nodes.
+    Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
