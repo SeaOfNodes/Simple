@@ -33,6 +33,7 @@ Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 | Mul        | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
 | Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
 | UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
+| Scope      | ?       | Represents scopes in the graph     | All nodes that define variables                                  | None                         |
 
 ## Projection Nodes
 
@@ -228,7 +229,7 @@ The peephole method does following:
 private Node deadCodeElim(Node m) {
     // If self is going dead and not being returned here (Nodes returned
     // from peephole commonly have no uses (yet)), then kill self.
-    if( m != this && isDead() ) {
+    if( m != this && isUnused() ) {
         // Killing self - and since self recursively kills self's inputs we
         // might end up killing 'm', which we are returning as a live Node.
         // So we add a bogus extra null output edge to stop kill().

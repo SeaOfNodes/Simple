@@ -1,9 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Control;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 
 import java.util.*;
 
@@ -33,13 +30,13 @@ public class GraphVisualizer {
         nodes(sb, all);
         
         // Now the scopes, in a cluster no edges
-        scopes(sb, parser._scopes);
+        scopes(sb, parser._scope);
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the Scope edges
-        scopeEdges(sb, parser._scopes);
+        scopeEdges(sb, parser._scope);
         
         sb.append("}\n");
         return sb.toString();
@@ -61,10 +58,10 @@ public class GraphVisualizer {
         sb.append("\t}\n");     // End Node cluster
     }
 
-    private void scopes( StringBuilder sb, Stack<HashMap<String,Node>> scopes) {
+    private void scopes( StringBuilder sb, ScopeNode scopenode) {
         sb.append("\tnode [shape=plaintext];\n");
         int level=0;
-        for( HashMap<String,Node> scope : scopes ) {
+        for( HashMap<String,Integer> scope : scopenode._scopes ) {
             sb.append("\tsubgraph cluster_").append(level).append(" {\n"); // Magic "cluster_" in the subgraph name
             String scopeName = makeScopeName(level);
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
@@ -102,13 +99,13 @@ public class GraphVisualizer {
     }
     
     // Walk the scope edges
-    private void scopeEdges( StringBuilder sb, Stack<HashMap<String,Node>> scopes) {
+    private void scopeEdges( StringBuilder sb, ScopeNode scopenode ) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=0;
-        for( HashMap<String,Node> scope : scopes ) {
+        for( HashMap<String,Integer> scope : scopenode._scopes ) {
             String scopeName = makeScopeName(level);
             for( String name : scope.keySet() )
-                sb.append("\t").append(scopeName).append(":").append(makePortName(scopeName, name)).append(" -> ").append(scope.get(name).uniqueName()).append(";\n");
+                sb.append("\t").append(scopeName).append(":").append(makePortName(scopeName, name)).append(" -> ").append(scopenode.in(scope.get(name)).uniqueName()).append(";\n");
             level++;
         }
     }
@@ -126,9 +123,9 @@ public class GraphVisualizer {
         for( Node n : start._outputs )
             walk(all, n);
         // Scan symbol tables
-        for( HashMap<String,Node> scope : parser._scopes )
-            for (Node n : scope.values())
-                walk(all, n);
+        for( HashMap<String,Integer> scope : parser._scope._scopes )
+            for (Integer i : scope.values())
+                walk(all, parser._scope.in(i));
         return all.values();
     }
 

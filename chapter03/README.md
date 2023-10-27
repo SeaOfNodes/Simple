@@ -17,7 +17,7 @@ Here is the [complete language grammar](docs/03-grammar.md) for this chapter.
 
 ## Extensions to Intermediate Representation
 
-In this chapter we do not add new nodes. To recap, our list of Nodes are:
+To recap, our list of Nodes are:
 
 | Node Name  | Type    | Description                        | Inputs                                                           | Value                                                 |
 |------------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
@@ -30,6 +30,13 @@ In this chapter we do not add new nodes. To recap, our list of Nodes are:
 | Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division                                |
 | UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus                             |
 
+In this chapter we introduce:
+
+| Node Name | Type | Description                    | Inputs                          | Value |
+|-----------|------|--------------------------------|---------------------------------|-------|
+| Scope     | ?    | Represents scopes in the graph | All nodes that define variables | None  |
+
+
 ## Symbol Tables
 
 To support variable declarations and lexical scopes, we introduce symbol tables in the parser.
@@ -41,6 +48,19 @@ from the stack.
 Declaring a name adds it to the current symbol table. 
 If a name is assigned to, then its mapping in the most recent symbol table is updated.
 If a name is accessed, its mapping is looked up in the symbol tables. The lookup goes up the stack of symbol tables.
+
+## ScopeNode
+
+We wrap the stack of symbol tables in a `ScopeNode`. When a name binding is added to a symbol table,
+we also make the newly added node an input in the `ScopeNode`. This means that the `ScopeNode` is a user of
+all nodes that define new names. 
+
+From an implementation point of view, the symbol table maps names to offsets in the ScopeNode's inputs.
+
+When a scope is exited, we not only pop the symbol table representing the scope, but also remove the relevant input nodes.
+
+In the visualization, we show the ScopeNode in a separate box; the stack of symbol tables is shown inside
+the box. We show the edge from each variable in the symbol table to the defining Node in the graph.
 
 ## Demonstration
 
@@ -68,7 +88,7 @@ see the graph as its initially constructed).
 
 ![Graph1](./docs/03-graph1.svg)
 
-The diagram shows the symbol tables in the bottom cluster. 
+The diagram shows the ScopeNode and the symbol tables in the bottom cluster. 
 Each table is annotated by its scope level, and shows the variables defined in that scope.
 
 * When we exit the nested scope on line 8, the symbol table at level 1 is popped.
