@@ -113,12 +113,13 @@ public abstract class Node {
 
     public boolean isUnused() { return nOuts() == 0; }
 
+    public boolean isCFG() { return false; }
+  
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
-
 
     /**
      * Try to peephole at this node and return a better replacement Node if

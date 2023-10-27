@@ -12,7 +12,7 @@ import com.seaofnodes.simple.type.TypeBot;
  * <p>
  * The Return's output is the value from the data node.
  */
-public class ReturnNode extends Node implements Control {
+public class ReturnNode extends Node {
 
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
@@ -29,6 +29,7 @@ public class ReturnNode extends Node implements Control {
         return expr()._print0(sb.append("return ")).append(";");
     }
 
+    @Override public boolean isCFG() { return true; }
   
     @Override
     public Type compute() {

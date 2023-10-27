@@ -71,7 +71,7 @@ public class GraphVisualizer {
                             sb.append("\t\t\t\t<TR>");
                         }
                         sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
-                        if( proj._idx==0 ) sb.append(" BGCOLOR=\"yellow\"");
+                        if( proj.isCFG() ) sb.append(" BGCOLOR=\"yellow\"");
                         sb.append(">").append(proj.label()).append("</TD>");
                     }
                 }
@@ -86,7 +86,7 @@ public class GraphVisualizer {
             } else {
                 // control nodes have box shape
                 // other nodes are ellipses, i.e. default shape
-                if( n instanceof Control )
+                if( n.isCFG() )
                     sb.append("shape=box style=filled fillcolor=yellow ");
                 sb.append("label=\"").append(lab).append("\" ");
             }
@@ -120,10 +120,6 @@ public class GraphVisualizer {
     private String makeScopeName(int level) { return "scope" + level; }
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
-    private boolean isControlEdge(Node def) {
-        return def._type instanceof TypeControl;
-    }
-
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
         for( Node n : all ) {
@@ -137,7 +133,7 @@ public class GraphVisualizer {
                         sb.append(mname).append(":p").append(proj._idx);
                     } else sb.append(def.uniqueName());
                     // Control edges are colored red
-                    if( isControlEdge(def) )
+                    if( def.isCFG() )
                         sb.append(" [color=red]");
                     sb.append(";\n");
                 }

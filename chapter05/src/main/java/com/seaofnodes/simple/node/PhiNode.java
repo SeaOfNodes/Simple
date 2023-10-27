@@ -16,6 +16,11 @@ public class PhiNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
+        sb.append("Phi(");
+        for( Node in : _inputs )
+            in._print0(sb).append(",");
+        sb.setLength(sb.length()-1);
+        sb.append(")");
         return sb;
     }
 

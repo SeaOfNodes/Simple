@@ -11,7 +11,7 @@ import com.seaofnodes.simple.type.TypeTuple;
  * will require Projections to extract the values.  We discuss this in detail
  * in Chapter 9: Functions and Calls.
  */
-public class StartNode extends MultiNode implements Control {
+public class StartNode extends MultiNode {
 
     final TypeTuple _args;
     
@@ -27,7 +27,9 @@ public class StartNode extends MultiNode implements Control {
     StringBuilder _print1(StringBuilder sb) {
       return sb.append(label());
     }
-  
+
+    @Override public boolean isCFG() { return true; }
+
     @Override
     public TypeTuple compute() { return _args; }
 
