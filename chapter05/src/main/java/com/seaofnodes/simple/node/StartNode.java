@@ -33,14 +33,4 @@ public class StartNode extends MultiNode implements Control {
 
     @Override
     public Node idealize() { return null; }
-
-    
-    @Override 
-    public ProjNode proj( int idx ) {
-        for( Node proj : _outputs )
-            if( ((ProjNode)proj)._idx==idx )
-                return (ProjNode)proj;
-        return null;
-    }
-  
 }

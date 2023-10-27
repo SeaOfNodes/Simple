@@ -85,4 +85,22 @@ public class ScopeNode extends Node {
     }
 
 
+    public ScopeNode dup() {
+        ScopeNode sc = new ScopeNode();
+        for (HashMap<String, Integer> tab: _scopes) {
+            sc.push();
+            for (Map.Entry<String, Integer> e: tab.entrySet()) {
+                String name = e.getKey();
+                Integer idx = e.getValue();
+                Node n = in(idx);
+                sc.define(name, n);
+            }
+        }
+        return sc;
+    }
+
+    public void clear() {
+        while (!_scopes.empty())
+            pop();
+    }
 }

@@ -26,10 +26,20 @@ public class Parser {
     private final Lexer _lexer;
 
     /**
-     * Stack of lexical scopes, each scope is a symbol table that binds
+     * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
+     * there is one current ScopeNode. The reason the current ScopeNode can change is to do with how
+     * we handle branching. See {@link #parseIf()}.
+     *
+     * Each ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
      * variable names to Nodes.  The top of this stack represents current scope.
+     *
+     * We keep a list of all ScopeNodes so that we can show them in graphs.
+     * @see #parseIf()
+     * @see #_allScopes
      */
     public ScopeNode _scope;
+
+    public List<ScopeNode> _allScopes = new ArrayList<>();
 
     public Parser(String source, TypeInteger arg) {
         _lexer = new Lexer(source);
@@ -90,9 +100,72 @@ public class Parser {
         if (match("return")) return parseReturn();
         else if (match("int")) return parseDecl();
         else if (match("{")) return parseBlock();
+        else if (match("if")) return parseIf();
         else if (match("#showGraph")) return showGraph();
         else return parseExpressionStatement();
     }
+
+    private Node parseIf() {
+        require("(");
+        // Parse predicate
+        var pred = require(parseExpression(), ")");
+        // IfNode takes current control and predicate
+        IfNode ifNode = new IfNode(_scope.lookup("$ctrl"), pred);
+        // Setup projection nodes
+        ProjNode ifT = new ProjNode(ifNode, 0, "ifT");
+        ProjNode ifF = new ProjNode(ifNode, 1, "ifF");
+        // In if true branch, the ifT proj node becomes the ctrl
+        // But first clone the scope and set it as current
+        ScopeNode savedScope = _scope;
+        ScopeNode ifScope = _scope.dup();  // Duplicate current scope
+        _allScopes.add(ifScope);           // For visualization we need all scopes
+        _scope = ifScope;                  // ifScope is current
+        _scope.define("$ctrl", ifT);
+        var thenStmt = parseStatement();
+        // restore scope
+        _scope = savedScope;
+        // Setup ifF as the ctrl
+        _scope.define("$ctrl", ifF);
+        Node elseStmt = null;
+        if (match("else")) elseStmt = parseStatement();
+        // Create region node and merge scopes
+        // If a var is in both scopes and different then we need to create PhiNode for it
+        // After merge _scope remains
+        RegionNode region = mergeScopes(ifT, ifScope, ifF, _scope);
+        _scope.update("$ctrl", region);
+        ifScope.clear();
+        _allScopes.remove(ifScope);
+        return region;
+    }
+
+    private RegionNode mergeScopes(ProjNode ifT, ScopeNode ifScope, ProjNode ifF, ScopeNode scope) {
+        RegionNode regionNode = new RegionNode(ifT, ifF);
+        Set<String> namesDone = new HashSet<>();
+        for (int level = ifScope._scopes.size()-1; level >= 0; level--) {
+            var tab = ifScope._scopes.get(level);
+            for (Map.Entry<String, Integer> e: tab.entrySet()) {
+                String name = e.getKey();
+                if (name.equals("$ctrl")) // ignore
+                    continue;
+                if (namesDone.contains(name)) // don't visit a name twice
+                    continue;
+                namesDone.add(name);
+                Integer idx = e.getValue();
+                Node ifTdef = ifScope.in(idx);
+                Node ifNdef = scope.lookup(name);
+                if (ifNdef == null)
+                    // The else scope didn't see this name
+                    scope.define(name, ifTdef); // Is this correct? Do we need same level as in ifScope?
+                else if (!ifTdef.equals(ifNdef)) {
+                    // Names are mapped to different nodes
+                    PhiNode phiNode = new PhiNode(regionNode, ifTdef, ifNdef);
+                    scope.update(name, phiNode);
+                }
+            }
+        }
+        return regionNode;
+    }
+
 
     /**
      * Parses a return statement; "return" already parsed.
