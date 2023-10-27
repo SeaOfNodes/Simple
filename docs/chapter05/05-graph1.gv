@@ -1,0 +1,88 @@
+digraph chapter05 {
+/*
+int a = 1;
+if (arg == 1)
+    a = arg+2;
+else {
+    a = arg-3;
+    #showGraph;
+}
+#showGraph;
+return a;
+
+*/
+	rankdir=BT;
+	ordering="in";
+	concentrate="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_7 [ label="#1" ];
+		EQNode8 [ label="==" ];
+		If9 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_13 [ label="#2" ];
+		Add14 [ label="+" ];
+		Con_15 [ label="#3" ];
+		Sub16 [ label="-" ];
+	}
+	node [shape=plaintext];
+	subgraph cluster_Scope1_0 {
+		Scope1_0 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope1_0_$ctrl">$ctrl</TD><TD PORT="Scope1_0_arg">arg</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope1_1 {
+		Scope1_1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope1_1_a">a</TD></TR>
+			</TABLE>>];
+	}
+	}
+	node [shape=plaintext];
+	subgraph cluster_Scope12_0 {
+		Scope12_0 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope12_0_$ctrl">$ctrl</TD><TD PORT="Scope12_0_arg">arg</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope12_1 {
+		Scope12_1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope12_1_a">a</TD></TR>
+			</TABLE>>];
+	}
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	EQNode8 -> Start2:p1[taillabel=1];
+	EQNode8 -> Con_7[taillabel=2];
+	If9 -> Start2:p0[taillabel=0; color=red];
+	If9 -> EQNode8[taillabel=1];
+	Add14 -> Start2:p1[taillabel=1];
+	Add14 -> Con_13[taillabel=2];
+	Sub16 -> Start2:p1[taillabel=1];
+	Sub16 -> Con_15[taillabel=2];
+	edge [style=dashed color=cornflowerblue];
+	Scope1_0:"Scope1_0_$ctrl" -> If9:p0;
+	Scope1_0:"Scope1_0_arg" -> Start2:p1;
+	Scope1_1:"Scope1_1_a" -> Add14;
+	edge [style=dashed color=cornflowerblue];
+	Scope12_0:"Scope12_0_$ctrl" -> If9:p1;
+	Scope12_0:"Scope12_0_arg" -> Start2:p1;
+	Scope12_1:"Scope12_1_a" -> Sub16;
+}
