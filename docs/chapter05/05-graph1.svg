@@ -1,0 +1,120 @@
+<svg aria-label="Compiler graph" width="1006" height="548" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1006 548" style="font-family: sans-serif;"><style>
+    html, body { height:100%; margin:0; font-family:sans-serif; }
+    .viewer { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+    .source { padding:8px; border-bottom:1px solid #ccc; }
+    #program { width:min(600px,80vw); vertical-align:middle; }
+    #status { margin-top:4px; }
+    #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
+    #elk { width:100%; height:100%; }
+    #graph svg { display:block; }
+    .tools { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
+    .hint { color:#616c78; }
+    .ctrl { color:#b63838; } .mem { color:#2867b2; } .data { color:#536477; }
+    .edge { fill:none; stroke-width:1.5; }
+    .edge.CTRL { stroke-width:2; }
+    .edge.ASSOC { stroke-dasharray:4 4; }
+    .edge.PARSER { stroke-dasharray:5 4; }
+    .parser rect { fill:#f6f0ff; stroke:#7956a5; stroke-width:1.5; stroke-dasharray:5 4; }
+    .edge.selected { stroke-width:3.5; }
+    .edge.bundle { stroke-width:4; }
+    .edge.bundle.selected { stroke-width:6; }
+    .edge-hit { fill:none; stroke:transparent; stroke-width:12; vector-effect:non-scaling-stroke; pointer-events:stroke; cursor:pointer; }
+    .edge-jump { fill:transparent; pointer-events:all; cursor:pointer; }
+    .node { cursor:pointer; }
+    .box { stroke:#758191; stroke-width:1; }
+    .node.held .box { stroke-dasharray:5 3; }
+    .node.near .box { stroke:#c18221; stroke-width:2; }
+    .node.focus .box { stroke:#9c4900; stroke-width:3; }
+    .node.selected .box { stroke:#1569b9; stroke-width:3; }
+    .node.folded .box { stroke-width:4; }
+    .node.folding .box { fill:#f4ccd7; }
+    .fold-tag { font-size:9px; font-weight:700; fill:#963751; }
+    .peep-area { fill:#fff3d9; fill-opacity:.8; stroke:#c18221; stroke-width:2; pointer-events:none; }
+    .node.peep-edit .box { stroke:#9c4900; stroke-width:3; }
+    .node.error .box { stroke:#b42318; stroke-width:4; }
+    #event.error { color:#b42318; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .peep-ghosts { pointer-events:none; }
+    .region-box { stroke:#9da9b8; stroke-width:1.5; }
+    .fold-btn { cursor:pointer; }
+    .fold-btn rect { fill:white; stroke:#596674; }
+    .fold-btn text { font-size:14px; fill:#152330; }
+    .fold-btn:focus rect { stroke:#1569b9; stroke-width:2; }
+    .shortcut { cursor:pointer; }
+    .shortcut path { fill:none; stroke-width:1.5; }
+    .shortcut rect { fill:#fff8ec; stroke:#b63838; stroke-dasharray:3 2; }
+    .shortcut text { font-size:11px; fill:#783030; }
+    .shortcut.selected rect, .shortcut:focus rect { stroke-width:2.5; }
+    .label { font-size:12px; fill:#152330; font-weight:600; }
+    .node-id { font-size:10px; fill:#596674; font-weight:400; }
+    .type { font-size:11px; fill:#455768; }
+    .port { stroke:#536477; stroke-width:1; }
+    .row { stroke:#b6afcf; stroke-width:1; }
+    .bind { font-size:12px; fill:#152330; }
+    .slot { font-size:10px; fill:#364352; paint-order:stroke; stroke:#fafbfc; stroke-width:3; }
+    #detail { position:absolute; top:8px; right:8px; margin:0; padding:12px; max-width:320px;
+      max-height:45%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;
+      background:#fffffff2; border:1px solid #bac5d0; border-radius:4px; font-size:12px; }
+    .controls { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px; padding:6px; }
+    .button { color:white; background:black; font-size:20px; min-width:30px; }
+    .button:disabled { background:grey; }
+    .count { font-size:20px; min-width:35px; text-align:center; }
+    #N { width:6ch; }
+    #scrub { width:clamp(120px,35vw,600px); }
+  </style><defs><marker id="arrow-CTRL" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#b63838"/></marker><marker id="arrow-DATA" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#536477"/></marker><marker id="arrow-MEM" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#2867b2"/></marker><marker id="arrow-ASSOC" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#9396a3"/></marker><marker id="arrow-PARSER" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#7956a5"/></marker></defs><rect width="100%" height="100%" fill="rgb(250, 251, 252)"/><g><g class="regions" style="opacity: 1;"/><rect class="peep-area" rx="36" style="opacity: 0;"/><g class="edges"><path class="edge ASSOC" id="e1i0" d="M84,367 C84,391 848.5,364 848.5,388" stroke="#9396a3" marker-start="url(#arrow-ASSOC)" style="opacity: 1;"><title>#1[0] → #11 · ASSOC · 0: $ctrl</title></path><path class="edge ASSOC" id="e1i1" d="M224,115 C224,139 906.5,364 906.5,388" stroke="#9396a3" marker-start="url(#arrow-ASSOC)" style="opacity: 1;"><title>#1[1] → #10 · ASSOC · 0: arg</title></path><path class="edge ASSOC" id="e1i2" d="M376,219 C376,243 958,364 958,388" stroke="#9396a3" marker-start="url(#arrow-ASSOC)" style="opacity: 1;"><title>#1[2] → #14 · ASSOC · 1: a</title></path><path class="edge ASSOC" id="e4i0" d="M204,367 C204,391 848.5,444 848.5,468" stroke="#9396a3" marker-start="url(#arrow-ASSOC)" style="opacity: 1;"><title>#4[0] → #12 · ASSOC · 0: $ctrl</title></path><path class="edge ASSOC" id="e4i1" d="M224,115 C224,139 906.5,444 906.5,468" stroke="#9396a3" marker-start="url(#arrow-ASSOC)" style="opacity: 1;"><title>#4[1] → #10 · ASSOC · 0: arg</title></path><path class="edge ASSOC" id="e4i2" d="M528,219 C528,243 958,444 958,468" stroke="#9396a3" marker-start="url(#arrow-ASSOC)" style="opacity: 1;"><title>#4[2] → #16 · ASSOC · 1: a</title></path><path class="edge DATA" id="e8i1" d="M224,118 L224,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#8[1] → #10 · DATA</title></path><path class="edge DATA" id="e8i2" d="M382,118 L382,123 Q382,128 377,128 L262,128 Q254,128 254,136 L254,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#8[2] → #7 · DATA</title></path><path class="edge CTRL" id="e9i0" d="M104,118 L104,270" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#9[0] → #6 · CTRL</title></path><path class="edge DATA" id="e9i1" d="M224,222 L224,227 Q224,232 219,232 L192,232 Q184,232 184,240 L184,270" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#9[1] → #8 · DATA</title></path><path class="edge DATA" id="e14i1" d="M224,118 L224,130 Q224,138 232,138 L368,138 Q376,138 376,146 L376,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#14[1] → #10 · DATA</title></path><path class="edge DATA" id="e14i2" d="M534,118 L534,123 Q534,128 529,128 L414,128 Q406,128 406,136 L406,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#14[2] → #13 · DATA</title></path><path class="edge DATA" id="e16i1" d="M224,118 L224,130 Q224,138 232,138 L520,138 Q528,138 528,146 L528,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#16[1] → #10 · DATA</title></path><path class="edge DATA" id="e16i2" d="M686,118 L686,123 Q686,128 681,128 L566,128 Q558,128 558,136 L558,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#16[2] → #15 · DATA</title></path></g><g class="edge-hits"/><g class="parser" style="opacity: 1;"/><g class="nodes"><g class="node" id="n1" data-id="1" transform="translate(818,388)" style="opacity: 1;"><path class="box" d="M4,0H160Q164,0 164,4V52Q164,56 160,56H4Q0,56 0,52V4Q0,0 4,0Z" fill="#e5e0ff"/><text class="label" text-anchor="middle" x="82" y="48"><tspan>Scope</tspan><tspan class="node-id">  #1</tspan></text><text class="type" text-anchor="middle" y="35" x="82"/><title>#1 Scope
+Type not computed
+
+[0] → #11  ASSOC  0: $ctrl
+[1] → #10  ASSOC  0: arg
+[2] → #14  ASSOC  1: a</title><line class="row" x1="0" x2="164" y1="30" y2="30"/><line class="row" x1="61" x2="61" y1="0" y2="30"/><line class="row" x1="116" x2="116" y1="0" y2="30"/><text class="bind" x="30.5" y="20" text-anchor="middle">0: $ctrl</text><text class="bind" x="88.5" y="20" text-anchor="middle">0: arg</text><text class="bind" x="140" y="20" text-anchor="middle">1: a</text><circle class="port" cx="30.5" cy="0" r="3" fill="#536477"/><circle class="port" cx="88.5" cy="0" r="3" fill="#536477"/><circle class="port" cx="140" cy="0" r="3" fill="#536477"/><text class="slot" x="30.5" y="-7" text-anchor="middle">0</text><text class="slot" x="88.5" y="-7" text-anchor="middle">1</text><text class="slot" x="140" y="-7" text-anchor="middle">2</text></g><g class="node" id="n2" data-id="2" transform="translate(44,24)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>Start</tspan><tspan class="node-id">  #2</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#2 Start
+Type not computed
+
+</title></g><g class="node" id="n4" data-id="4" transform="translate(818,468)" style="opacity: 1;"><path class="box" d="M4,0H160Q164,0 164,4V52Q164,56 160,56H4Q0,56 0,52V4Q0,0 4,0Z" fill="#e5e0ff"/><text class="label" text-anchor="middle" x="82" y="48"><tspan>Scope</tspan><tspan class="node-id">  #4</tspan></text><text class="type" text-anchor="middle" y="35" x="82"/><title>#4 Scope
+Type not computed
+
+[0] → #12  ASSOC  0: $ctrl
+[1] → #10  ASSOC  0: arg
+[2] → #16  ASSOC  1: a</title><line class="row" x1="0" x2="164" y1="30" y2="30"/><line class="row" x1="61" x2="61" y1="0" y2="30"/><line class="row" x1="116" x2="116" y1="0" y2="30"/><text class="bind" x="30.5" y="20" text-anchor="middle">0: $ctrl</text><text class="bind" x="88.5" y="20" text-anchor="middle">0: arg</text><text class="bind" x="140" y="20" text-anchor="middle">1: a</text><circle class="port" cx="30.5" cy="0" r="3" fill="#536477"/><circle class="port" cx="88.5" cy="0" r="3" fill="#536477"/><circle class="port" cx="140" cy="0" r="3" fill="#536477"/><text class="slot" x="30.5" y="-7" text-anchor="middle">0</text><text class="slot" x="88.5" y="-7" text-anchor="middle">1</text><text class="slot" x="140" y="-7" text-anchor="middle">2</text></g><g class="node" id="n6" data-id="6" transform="translate(44,68)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>$ctrl</tspan><tspan class="node-id">  #6/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#6 $ctrl
+Projection 0 of #2
+Type not computed
+
+[0] → #2  CTRL</title></g><g class="node" id="n7" data-id="7" transform="translate(322,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#1</tspan><tspan class="node-id">  #7</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#7 #1
+Type not computed
+
+</title></g><g class="node" id="n8" data-id="8" transform="translate(164,172)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>==</tspan><tspan class="node-id">  #8</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#8 ==
+Type not computed
+
+[0] → —  DATA
+[1] → #10  DATA
+[2] → #7  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n9" data-id="9" transform="translate(24,276)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>If</tspan><tspan class="node-id">  #9</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#9 If
+Type not computed
+
+[0] → #6  CTRL
+[1] → #8  DATA</title><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><circle class="port" cx="160" cy="-3" r="3" fill="#536477"/><text class="slot" x="80" y="-10" text-anchor="middle">0</text><text class="slot" x="160" y="-10" text-anchor="middle">1</text></g><g class="node" id="n10" data-id="10" transform="translate(164,68)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>arg</tspan><tspan class="node-id">  #10/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#10 arg
+Projection 1 of #2
+Type not computed
+
+[0] → #2  DATA</title></g><g class="node" id="n11" data-id="11" transform="translate(24,320)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>True</tspan><tspan class="node-id">  #11/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#11 True
+Projection 0 of #9
+Type not computed
+
+[0] → #9  CTRL</title></g><g class="node" id="n12" data-id="12" transform="translate(144,320)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>False</tspan><tspan class="node-id">  #12/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#12 False
+Projection 1 of #9
+Type not computed
+
+[0] → #9  CTRL</title></g><g class="node" id="n13" data-id="13" transform="translate(474,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#2</tspan><tspan class="node-id">  #13</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#13 #2
+Type not computed
+
+</title></g><g class="node" id="n14" data-id="14" transform="translate(316,172)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>+</tspan><tspan class="node-id">  #14</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#14 +
+Type not computed
+
+[0] → —  DATA
+[1] → #10  DATA
+[2] → #13  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n15" data-id="15" transform="translate(626,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#3</tspan><tspan class="node-id">  #15</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#15 #3
+Type not computed
+
+</title></g><g class="node" id="n16" data-id="16" transform="translate(468,172)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>-</tspan><tspan class="node-id">  #16</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#16 -
+Type not computed
+
+[0] → —  DATA
+[1] → #10  DATA
+[2] → #15  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g></g><g class="region-heads" style="opacity: 1;"/><g class="shortcuts" style="opacity: 1;"/><g class="peep-ghosts" pointer-events="none"/></g></svg>

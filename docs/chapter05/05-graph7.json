@@ -1,0 +1,22 @@
+{
+  "ver": 1,
+  "comp": "chapter05/docs/05-graph7.svg",
+  "step": 1,
+  "roots": [51],
+  "scope": 0,
+  "nodes": [
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 4, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": {"par": 2, "idx": 1}},
+    {"id": 19, "label": "#2", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 20, "label": "*", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}, {"idx": 2, "def": 19, "role": "DATA", "label": null}], "proj": null},
+    {"id": 37, "label": "φ_b", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 20, "role": "DATA", "label": null}, {"idx": 2, "def": 4, "role": "DATA", "label": null}], "proj": null},
+    {"id": 42, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 37, "role": "DATA", "label": null}, {"idx": 2, "def": 4, "role": "DATA", "label": null}], "proj": null},
+    {"id": 46, "label": "#4", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 48, "label": "#5", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 49, "label": "φ_ab", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 46, "role": "DATA", "label": null}, {"idx": 2, "def": 48, "role": "DATA", "label": null}], "proj": null},
+    {"id": 50, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 42, "role": "DATA", "label": null}, {"idx": 2, "def": 49, "role": "DATA", "label": null}], "proj": null},
+    {"id": 51, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 50, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "ver": 1,
+  "comp": "chapter05/docs/05-graph5.svg",
+  "step": 1,
+  "roots": [21],
+  "scope": 0,
+  "nodes": [
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 4, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": {"par": 2, "idx": 1}},
+    {"id": 6, "label": "#2", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 14, "label": "#3", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 19, "label": "φ_a", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 14, "role": "DATA", "label": null}, {"idx": 2, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 20, "label": "==", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}, {"idx": 2, "def": 19, "role": "DATA", "label": null}], "proj": null},
+    {"id": 21, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 20, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
