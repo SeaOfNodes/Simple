@@ -3,22 +3,26 @@ digraph chapter03 {
 	subgraph cluster_Nodes {
 		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
 		Con_2 [ label="#1" ];
-		Con_19 [ label="#8" ];
 		Con_3 [ label="#2" ];
-		Return20 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		Con_19 [ label="#8" ];
 		Con_4 [ label="#3" ];
+		Return20 [ shape=box style=filled fillcolor=yellow label="Return" ];
 		Con_5 [ label="#4" ];
 	}
 	node [shape=plaintext];
 	subgraph cluster_0 {
 		scope0 [label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-			<TR><TD BGCOLOR="aqua">0</TD><TD PORT="scope0_y0">y0</TD><TD PORT="scope0_x0">x0</TD><TD PORT="scope0_y1">y1</TD><TD PORT="scope0_x1">x1</TD></TR>
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="scope0_y0">y0</TD><TD PORT="scope0_x0">x0</TD><TD PORT="scope0_y1">y1</TD><TD PORT="scope0_x1">x1</TD></TR>
 			</TABLE>>];
 	}
+	Con_2 -> Start1 [style=dotted];
+	Con_3 -> Start1 [style=dotted];
 	Con_19 -> Start1 [style=dotted];
+	Con_4 -> Start1 [style=dotted];
 	Return20 -> Start1 [color=red];
 	Return20 -> Con_19;
+	Con_5 -> Start1 [style=dotted];
 	edge [style=dashed color=cornflowerblue];
 	scope0:scope0_y0 -> Con_3;
 	scope0:scope0_x0 -> Con_2;

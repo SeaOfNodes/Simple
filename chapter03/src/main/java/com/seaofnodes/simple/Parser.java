@@ -26,15 +26,14 @@ public class Parser {
     private final Lexer _lexer;
 
     /**
-     * Stack of lexical scopes, each scope is a symbol table
-     * that binds variable names to Nodes.
-     * The top of this stack represents current scope.
+     * Stack of lexical scopes, each scope is a symbol table that binds
+     * variable names to Nodes.  The top of this stack represents current scope.
      */
-    public Stack<HashMap<String, Node>> _scopes;
+    public ScopeNode _scope;
 
     public Parser(String source) {
         _lexer = new Lexer(source);
-        _scopes = new Stack<>();
+        _scope = new ScopeNode();
         Node.reset();
         START = new StartNode();
     }
@@ -43,35 +42,6 @@ public class Parser {
         return (ReturnNode) parseBlock();
     }
 
-    // Create a new name in current scope
-    private Node define(String name, Node n) {
-        // new name
-        _scopes.lastElement().put(name, n);
-        return n;
-    }
-
-    // If the name is present in any scope, then redefine
-    private Node update(String name, Node n) {
-        for (int i = _scopes.size() - 1; i >= 0; i--) {
-            HashMap<String, Node> scope = _scopes.get(i);
-            Node old = scope.get(name);
-            if (old != null) { // Found prior def
-                if (old.nOuts() == 0) old.kill(); // Delete old ref
-                scope.put(name, n); // Update existing ref
-                return n;
-            }
-        }
-        throw error("Undefined name '" + name + "'");
-    }
-
-    // Lookup a name in all scopes
-    private Node lookup(String name) {
-        for (int i = _scopes.size() - 1; i >= 0; i--) {
-            var n = _scopes.get(i).get(name);
-            if (n != null) return n;
-        }
-        throw error("Undefined name '" + name + "'");
-    }
 
     /**
      * Parses a block
@@ -82,14 +52,14 @@ public class Parser {
      */
     private Node parseBlock() {
         // Enter a new scope
-        _scopes.push(new HashMap<>());
+        _scope.push();
         Node n = null;
         while (!match("}") && !_lexer.isEOF()) {
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
         }
         // Exit scope
-        _scopes.pop();
+        _scope.pop();
         return n;
     }
 
@@ -140,7 +110,9 @@ public class Parser {
         var name = requireId();
         require("=");
         var expr = require(parseExpression(), ";");
-        return update(name, expr);
+        if( _scope.update(name, expr)==null )
+            throw error("Undefined name '" + name + "'");
+        return expr;
     }
 
     /**
@@ -155,7 +127,9 @@ public class Parser {
         var name = requireId();
         require("=");
         var expr = require(parseExpression(), ";");
-        return define(name, expr);
+        if( _scope.define(name,expr) == null )
+            throw error("Redefining name '" + name + "'");
+        return expr;
     }
 
     /**
@@ -217,7 +191,11 @@ public class Parser {
     private Node parsePrimary() {
         if (_lexer.isNumber()) return parseIntegerLiteral();
         if (match("(")) return require(parseExpression(), ")");
-        return lookup(requireId());
+        String name = requireId();
+        Node id = _scope.lookup(name);
+        if( id==null )
+            throw error("Undefined name '" + name + "'");
+        return id;
     }
 
     /**

@@ -152,27 +152,65 @@ public abstract class Node {
      * @param idx which def to set
      * @param new_def the new definition
      */
-    void set_def(int idx, Node new_def ) {
+    Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
-        if( old_def != null ) { // If the old def exists, remove a use->def edge
-            ArrayList<Node> outs = old_def._outputs;
-            int lidx = outs.size()-1; // Last index
-            
-            // This 1-line hack compresses an element out of an ArrayList
-            // without having to copy the contents.  The last element is
-            // stuffed over the deleted element, and then the size is reduced.            
-            outs.set(outs.indexOf(this),outs.get(lidx));
-            outs.remove(lidx);  // Reduce ArrayList size without copying anything
-            if( lidx == 0 )     // If we removed the last use, the old def is now dead
+        if( old_def == new_def ) return this; // No change
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                 old_def.kill(); // Kill old def
-        }
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
-        // If new def is not null, add the corresponding use->def edge
+        // If new def is not null, add the corresponding def->use edge
         if( new_def != null )
             new_def._outputs.add(this);
+        // Return self for easy flow-coding
+        return this;
     }
-    
+
+    /**
+     * Add a new def to an existing Node.  Keep the edges correct by
+     * adding the corresponding <em>def->use</em> edge.
+     *
+     * @param new_def the new definition, appended to the end of existing definitions
+     * @return new_def for flow coding
+     */
+    Node add_def(Node new_def) {
+        // Add use->def edge
+        _inputs.add(new_def);
+        // If new def is not null, add the corresponding def->use edge
+        if( new_def != null )
+            new_def._outputs.add(this);
+        return new_def;
+    }
+
+
+    // Breaks the edge invariants, used temporarily
+    private void addUse(Node n) { _outputs.add(n); }
+
+    // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
+    // Return true if the output list is empty afterward.
+    // Error is 'use' does not exist; ok for 'use' to be null.
+    private boolean delUse( Node use ) {
+        ArrayList<Node> outs = _outputs;
+        int lidx = outs.size()-1; // Last index
+        // This 1-line hack compresses an element out of an ArrayList
+        // without having to copy the contents.  The last element is
+        // stuffed over the deleted element, and then the size is reduced.
+        outs.set(outs.indexOf(use),outs.get(lidx));
+        outs.remove(lidx);  // Reduce ArrayList size without copying anything
+        return lidx==0;
+    }
+
+    // Shortcut for "popping" n nodes.  A "pop" is basically a
+    // set_def(last,null) followed by lowering the nIns() count.
+    void pop_n(int n) {
+        for( int i=0; i<n; i++ ) {
+            Node old_def = _inputs.remove(_inputs.size()-1);
+            if( old_def != null &&     // If it exists and
+                    old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                old_def.kill();        // Kill old def
+        }
+    }
   
     /**
      * Current computed type for this Node.  This value changes as the graph
