@@ -15,7 +15,7 @@ public class Chapter05Test {
 
     @Test
     public void testChapter5IfStmt() {
-        Parser parser = new Parser("int a = 1; if (arg == 1) a = arg+2; else a = arg-3; return a;", TypeInteger.BOT);
+        Parser parser = new Parser("int a = 1; if (arg == 1) a = arg+2; else a = arg-3; return a; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
     }
 

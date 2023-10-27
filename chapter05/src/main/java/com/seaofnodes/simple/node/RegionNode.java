@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.TypeControl;
 
-public class RegionNode extends Node implements Control {
+public class RegionNode extends Node {
     public RegionNode(Node... inputs) {
         super(inputs);
     }
@@ -15,12 +15,14 @@ public class RegionNode extends Node implements Control {
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
-        return sb;
+        return sb.append("Region").append(_nid);
     }
+
+    @Override public boolean isCFG() { return true; }
 
     @Override
     public Type compute() {
-        return TypeBot.BOTTOM;
+        return TypeControl.CONTROL;
     }
 
     @Override

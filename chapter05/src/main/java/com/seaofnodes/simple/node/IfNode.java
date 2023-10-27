@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.TypeTuple;
 
 public class IfNode extends MultiNode {
 
@@ -10,18 +10,19 @@ public class IfNode extends MultiNode {
     }
 
     @Override
-    public String label() {
-        return "If";
-    }
+    public String label() { return "If"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
-        return sb;
+        sb.append("if( ");
+        return in(1)._print0(sb).append(" )");
     }
 
+    @Override public boolean isCFG() { return true; }
+    
     @Override
     public Type compute() {
-        return TypeBot.BOTTOM;
+        return TypeTuple.IF;
     }
 
     @Override

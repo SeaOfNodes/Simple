@@ -112,8 +112,8 @@ public class Parser {
         // IfNode takes current control and predicate
         IfNode ifNode = new IfNode(_scope.lookup("$ctrl"), pred);
         // Setup projection nodes
-        ProjNode ifT = new ProjNode(ifNode, 0, "ifT");
-        ProjNode ifF = new ProjNode(ifNode, 1, "ifF");
+        ProjNode ifT = new ProjNode(ifNode, 0, "True");
+        ProjNode ifF = new ProjNode(ifNode, 1, "False");
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         ScopeNode savedScope = _scope;

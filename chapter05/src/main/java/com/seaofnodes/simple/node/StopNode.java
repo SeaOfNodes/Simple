@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeBot;
 
-public class StopNode extends Node implements Control {
+public class StopNode extends Node {
     public StopNode(Node... inputs) {
         super(inputs);
     }
@@ -18,6 +18,8 @@ public class StopNode extends Node implements Control {
         return sb;
     }
 
+    @Override public boolean isCFG() { return true; }
+    
     @Override
     public Type compute() {
         return TypeBot.BOTTOM;
