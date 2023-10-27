@@ -8,7 +8,7 @@ import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.*;
 
-public class Chapter04Test {
+public class Chapter05Test {
 
     @Rule
     public ExpectedException exceptionRule = ExpectedException.none();
