@@ -22,7 +22,7 @@ public class ProjNode extends Node {
     public String label() { return _label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) { return sb.append(_label).append(_nid); }
+    StringBuilder _print1(StringBuilder sb) { return sb.append(_label); }
 
     @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
 

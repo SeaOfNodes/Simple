@@ -105,7 +105,7 @@ public class ScopeNode extends Node {
     public ScopeNode dup() {
         ScopeNode dup = new ScopeNode();
         for( HashMap<String, Integer> tab : _scopes )
-            dup._scopes.push((HashMap<String, Integer>) tab.clone());
+            dup._scopes.push(new HashMap<String, Integer>(tab));
         for( int i=0; i<nIns(); i++ )
             dup.add_def(in(i));
         return dup;

@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.*;
 
 /**
  * The Return node has two inputs.  The first input is a control node and the
@@ -33,7 +32,7 @@ public class ReturnNode extends Node {
   
     @Override
     public Type compute() {
-        return expr().compute();
+      return new TypeTuple(TypeControl.CONTROL,expr()._type);
     }
 
     @Override

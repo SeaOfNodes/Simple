@@ -206,7 +206,7 @@ public abstract class Node {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-    Node add_def(Node new_def) {
+  public Node add_def(Node new_def) {
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
