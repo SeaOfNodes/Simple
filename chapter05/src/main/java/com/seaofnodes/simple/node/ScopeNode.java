@@ -19,7 +19,7 @@ public class ScopeNode extends Node {
     public final Stack<HashMap<String, Integer>> _scopes = new Stack<>();
 
     @Override
-    public String label() { return "Scope" + _nid; }
+    public String label() { return "Scope"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
@@ -47,8 +47,8 @@ public class ScopeNode extends Node {
     public Node idealize() { return null; }
 
     // Add an empty lexical scope
-    public void push() {
-        _scopes.push(new HashMap<>());
+    public HashMap<String, Integer> push() {
+        return _scopes.push(new HashMap<>());
     }
 
     // Remove the current lexical scope, killing all unused nodes.
@@ -97,19 +97,17 @@ public class ScopeNode extends Node {
     /**
      * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
      * neither shallow (would dup the Scope but not the internal HashMap
-     * tables), nor deep (would dup the Scope, the HashMap tables, but then the
-     * also program Nodes).
-     *
+     * tables), nor deep (would dup the Scope, the HashMap tables, but then
+     * also the program Nodes).
+     * <p>
      * The new Scope is a full-fledged Node with proper use<->def edges.
      */
     public ScopeNode dup() {
         ScopeNode dup = new ScopeNode();
-        for( HashMap<String, Integer> tab : _scopes ) {
-            dup.push();    // Create same level in the duplicate
-            for( String name : tab.keySet() )
-                // Ensure that dup is a user of n
-                dup.define(name, in(tab.get(name)));
-        }
+        for( HashMap<String, Integer> tab : _scopes )
+            dup._scopes.push((HashMap<String, Integer>) tab.clone());
+        for( int i=0; i<nIns(); i++ )
+            dup.add_def(in(i));
         return dup;
     }
 
@@ -122,12 +120,4 @@ public class ScopeNode extends Node {
         return r;
     }
 
-    /**
-     * Cleanup the scope and all its levels.
-     * Ensure that the scope is removed as user of all the defs.
-     */
-    public void clear() {
-        while (!_scopes.empty())
-            pop();
-    }
 }
