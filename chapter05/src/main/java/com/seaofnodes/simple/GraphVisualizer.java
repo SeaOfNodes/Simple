@@ -34,13 +34,15 @@ public class GraphVisualizer {
         nodes(sb, all);
         
         // Now the scopes, in a cluster no edges
-        scopes(sb, parser._scope);
+        for (ScopeNode sn: parser._allScopes)
+            scopes(sb, sn);
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the Scope edges
-        scopeEdges(sb, parser._scope);
+        for (ScopeNode sn: parser._allScopes)
+            scopeEdges(sb, sn);
         
         sb.append("}\n");
         return sb.toString();
@@ -51,8 +53,8 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
-            if( n instanceof ProjNode )
-                continue; // Do not emit, rolled into MultiNode already
+            if( n instanceof ProjNode || n instanceof ScopeNode )
+                continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
             String lab = n.label();
             if( n instanceof MultiNode ) {
@@ -99,8 +101,8 @@ public class GraphVisualizer {
         sb.append("\tnode [shape=plaintext];\n");
         int level=0;
         for( HashMap<String,Integer> scope : scopenode._scopes ) {
-            sb.append("\tsubgraph cluster_").append(level).append(" {\n"); // Magic "cluster_" in the subgraph name
-            String scopeName = makeScopeName(level);
+            String scopeName = makeScopeName(scopenode, level);
+            sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
@@ -116,15 +118,15 @@ public class GraphVisualizer {
         // We close them all at once here.
         sb.append( "\t}\n".repeat( level ) ); // End all Scope clusters
     }
-    
-    private String makeScopeName(int level) { return "scope" + level; }
+
+    private String makeScopeName(ScopeNode sn, int level) { return sn.label() + "_" + level; }
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
         for( Node n : all ) {
-            if( n instanceof ConstantNode || n instanceof ProjNode )
-                continue;       // Do not display the Constant->Start edge; ProjNodes handled by Multi
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
+                continue;       // Do not display the Constant->Start edge; ProjNodes handled by Multi; ScopeNodes are done separately
             for( Node def : n._inputs )
                 if( def != null ) {
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
@@ -145,7 +147,7 @@ public class GraphVisualizer {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=0;
         for( HashMap<String,Integer> scope : scopenode._scopes ) {
-            String scopeName = makeScopeName(level);
+            String scopeName = makeScopeName(scopenode, level);
             for( String name : scope.keySet() ) {
                 Node def = scopenode.in(scope.get(name));
                 if( def==null ) continue;

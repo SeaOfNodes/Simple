@@ -16,12 +16,24 @@ public class ScopeNode extends Node {
      * The top of this stack represents current scope.
      */
     public final Stack<HashMap<String, Integer>> _scopes = new Stack<>();
+
+    /**
+     * We duplicate ScopeNodes when branches occur, so it is useful to have
+     * a unique name for each ScopeNode; this helps when we want to visualize the
+     * graph
+     */
+    private int _id;
+
+    private static int _idCounter = 0;
+
+    public ScopeNode() { _id = _idCounter++; }
   
     @Override
-    public String label() { return "Scope"; }
+    public String label() { return "Scope" + _id; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
+        sb.append(label());
         for( HashMap<String,Integer> scope : _scopes ) {
             sb.append("[");
             boolean first=true;
@@ -84,21 +96,30 @@ public class ScopeNode extends Node {
         return null;
     }
 
-
+    /**
+     * Duplicate a ScopeNode; including all levels.
+     *
+     * We do it in a way that ensures that the new ScopeNode becomes
+     * additional user of all defined names
+     */
     public ScopeNode dup() {
-        ScopeNode sc = new ScopeNode();
+        ScopeNode dupScope = new ScopeNode();
         for (HashMap<String, Integer> tab: _scopes) {
-            sc.push();
+            dupScope.push(); // Create same level in the duplicate
             for (Map.Entry<String, Integer> e: tab.entrySet()) {
                 String name = e.getKey();
                 Integer idx = e.getValue();
                 Node n = in(idx);
-                sc.define(name, n);
+                dupScope.define(name, n); // Ensure that dupScope is a user of n
             }
         }
-        return sc;
+        return dupScope;
     }
 
+    /**
+     * Cleanup the scope and all its levels.
+     * Ensure that the scope is removed as user of all the defs.
+     */
     public void clear() {
         while (!_scopes.empty())
             pop();
