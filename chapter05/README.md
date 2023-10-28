@@ -38,3 +38,27 @@ Following new nodes are introduced in this chapter:
 | Phi       | ?       | 5       | Represents the phi function that picks a value based on control flow | A region control node, and multiple data nodes that provide values from multiple control flows | Result is the extracted value depending on control flow taken | 
 | Stop      | Control | 5       | Represents termination of the program                                | One or more Return nodes                                                                       | None                                                          |
 
+## Parsing of `If` statement
+
+When we parse an `if` statement, the control flow splits at that point. We must track the names being updated in each part of the `if` statement, and then merge them at the end.
+
+This involves following:
+
+* The `IfNode` is created with the current control token, i.e. the node mapped to `$ctrl` and the predicate expression as inputs.
+* We add two `ProjNodes` - one for the `True` branch (call if `ifT`), and the other for the `False` branch (call it `ifF`) - these extract values from the tuple result of the `IfNode`.
+* We now create a duplicate of the current `ScopeNode`. The duplicated `ScopeNode` must have all the stack levels as the original, and moreover the new node must be a user of all the names that are currently bound.
+* The original `ScopeNode` is saved.
+* We set the duplicate `ScopeNode` as current.
+* The control token is updated to the `True` projection node `ifT`.
+* We parse the true branch of the `if` statement.
+* We reset the original `ScopeNode` as current.
+* We set control token to the `False` projection node `ifF`.
+* If there is an `else` statement we parse it.
+* At this point we have two `ScopeNode`s; the original one, potentially update by the `False` branch, and the duplicate one, potentially updated by the `True` branch.
+* We create a `Region` node to represent a merge point.
+* We compare the two `ScopeNode`s. We create `Phi` nodes for any names whose bindings differ. The `Phi` nodes take the `Region` node as the control input and the two data nodes from each of the `ScopeNode`s.
+* Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
+
+## Example
+
+
