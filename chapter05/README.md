@@ -44,7 +44,7 @@ When we parse an `if` statement, the control flow splits at that point. We must 
 
 This involves following:
 
-* The `IfNode` is created with the current control token, i.e. the node mapped to `$ctrl` and the predicate expression as inputs.
+* The `IfNode` is created with the current control token, i.e. the node mapped to `$ctrl`, and the predicate expression as inputs.
 * We add two `ProjNodes` - one for the `True` branch (call if `ifT`), and the other for the `False` branch (call it `ifF`) - these extract values from the tuple result of the `IfNode`.
 * We now create a duplicate of the current `ScopeNode`. The duplicated `ScopeNode` must have all the stack levels as the original, and moreover the new node must be a user of all the names that are currently bound.
 * The original `ScopeNode` is saved.
@@ -54,11 +54,41 @@ This involves following:
 * We reset the original `ScopeNode` as current.
 * We set control token to the `False` projection node `ifF`.
 * If there is an `else` statement we parse it.
-* At this point we have two `ScopeNode`s; the original one, potentially update by the `False` branch, and the duplicate one, potentially updated by the `True` branch.
+* At this point we have two `ScopeNode`s; the original one, potentially updated by the `False` branch, and the duplicate one, potentially updated by the `True` branch.
 * We create a `Region` node to represent a merge point.
-* We compare the two `ScopeNode`s. We create `Phi` nodes for any names whose bindings differ. The `Phi` nodes take the `Region` node as the control input and the two data nodes from each of the `ScopeNode`s.
+* We compare the two `ScopeNode`s. We create `Phi` nodes for any names whose bindings differ. The `Phi` nodes take the `Region` node as the control input and the two data nodes from each of the `ScopeNode`s. The name binding is updated to point to the `Phi` node.
 * Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
 
 ## Example
 
+We show the graph for the following code snippet:
 
+```java
+int a = 1; 
+if (arg == 1) 
+	a = arg+2; 
+else
+	a = arg-3;
+return a; 
+```
+
+### Before merging
+
+Following shows the graph just before we merge the two branches of the `if` statement in a `Region` node.
+
+![Graph1](./docs/05-graph1.svg)
+
+* Note the two `ScopeNode`s in the graph.
+* One has its `$ctrl` pointing to the `True` projection, while the other has `$ctrl` pointing to `False` projection.
+* Note that the binding of `a` is to the `Sub` node in the `False` branch, whereas `a` is bound to the `Add` node in the `True` branch.
+* Thus `a` needs a `Phi` node.
+
+### After merging
+
+Below is the graph after we created a `Region` node and merged the two definitions of `a` in a `Phi` node.
+
+![Graph2](./docs/05-graph2.svg)
+
+* Observe that the duplicate `ScopeNode` has been discarded.
+* The binding of `a` is now bound to the `Phi` node.
+* The `Phi` node's inputs are the `Region` node and the `Add` node from the `True` branch, and `Sub` node from the `False` branch.
