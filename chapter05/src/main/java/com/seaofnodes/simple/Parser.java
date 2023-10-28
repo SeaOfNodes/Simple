@@ -69,7 +69,7 @@ public class Parser {
         return _scope.lookup(CTRL_TOKEN);
     }
 
-    private void updateCtrlToken(Node n) {
+    private void setCtrlToken(Node n) {
         _scope.update(CTRL_TOKEN, n);
     }
 
@@ -136,19 +136,17 @@ public class Parser {
         ScopeNode ifScope = _scope.dup();   // Duplicate current scope
         _allScopes.add(ifScope);            // For graph visualization we need all scopes
         _scope = ifScope;                   // ifScope is now the current scope
-        updateCtrlToken(ifT);               // set ctrl token to ifTrue projection
+        setCtrlToken(ifT);               // set ctrl token to ifTrue projection
         parseStatement();
-        // restore scope
         _scope = savedScope;                // Restore scope to original, we use this for else block if any
-        // Setup ifF as the ctrl
-        updateCtrlToken(ifF);               // Ctrl token is now set to ifFalse projection
+        setCtrlToken(ifF);               // Ctrl token is now set to ifFalse projection
         if (match("else")) parseStatement();
         // Create region node and merge scopes
         // If a var is in both scopes and has different binding then we need to create PhiNode for it
         // After merge _scope remains, and ifScope is discarded
-        System.out.println(new GraphVisualizer().generateDotOutput(this));
+        //System.out.println(new GraphVisualizer().generateDotOutput(this));
         RegionNode region = mergeScopes(ifT, ifScope, ifF, _scope);
-        updateCtrlToken(region);            // Now region becomes the ctrl token
+        setCtrlToken(region);            // Now region becomes the ctrl token
         ifScope.clear();                    // Clean up ifScope
         _allScopes.remove(ifScope);         // Discard ifScope
         return region;
