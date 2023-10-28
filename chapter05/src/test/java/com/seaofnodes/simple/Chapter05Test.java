@@ -15,8 +15,19 @@ public class Chapter05Test {
 
     @Test
     public void testChapter5IfStmt() {
-        Parser parser = new Parser("int a = 1; if (arg == 1) a = arg+2; else a = arg-3; return a; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("""
+                int a = 1;\s
+                if (arg == 1)\s
+                	a = arg+2;\s
+                else {
+                	a = arg-3;\s
+                	#showGraph;
+                }
+                return a;\s
+                #showGraph;
+                """, TypeInteger.BOT);
         ReturnNode ret = parser.parse();
+        assertEquals("return Phi(Region15,(arg3+2),(arg3-3));", ret.toString());
     }
 
 
@@ -24,42 +35,42 @@ public class Chapter05Test {
     public void testChapter4Peephole() {
         Parser parser = new Parser("return 1+arg+2; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return (Proj_3+3);", ret.print());
+        assertEquals("return (arg3+3);", ret.print());
     }
 
     @Test
     public void testChapter4Peephole2() {
         Parser parser = new Parser("return (1+arg)+2;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return (Proj_3+3);", ret.print());
+        assertEquals("return (arg3+3);", ret.print());
     }
 
     @Test
     public void testChapter4Add0() {
         Parser parser = new Parser("return 0+arg;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return Proj_3;", ret.print());
+        assertEquals("return arg3;", ret.print());
     }
 
     @Test
     public void testChapter4AddAddMul() {
         Parser parser = new Parser("return arg+0+arg;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return (Proj_3*2);", ret.print());
+        assertEquals("return (arg3*2);", ret.print());
     }
   
     @Test
     public void testChapter4Peephole3() {
         Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return ((Proj_3*2)+6);", ret.print());
+        assertEquals("return ((arg3*2)+6);", ret.print());
     }
 
     @Test
     public void testChapter4Mul1() {
         Parser parser = new Parser("return 1*arg;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return Proj_3;", ret.print());
+        assertEquals("return arg3;", ret.print());
     }
   
     @Test
@@ -109,14 +120,14 @@ public class Chapter05Test {
     public void testChapter4Bug1() {
         Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return (Proj_3+3);", ret.print());
+        assertEquals("return (arg3+3);", ret.print());
     }
 
     @Test
     public void testChapter4Bug2() {
         Parser parser = new Parser("int a=arg+1; a=a; return a; #showGraph;", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
-        assertEquals("return (Proj_3+1);", ret.print());
+        assertEquals("return (arg3+1);", ret.print());
     }
 
     @Test

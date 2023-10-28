@@ -15,6 +15,11 @@ import java.util.*;
 public class Parser {
 
     /**
+     * The control token is a name that binds to the currently active control
+     * node in the graph
+     */
+    private static final String CTRL_TOKEN = "$ctrl";
+    /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
      * through the entire parser and optimizer.
@@ -39,11 +44,16 @@ public class Parser {
      */
     public ScopeNode _scope;
 
-    public List<ScopeNode> _allScopes = new ArrayList<>();
+    /**
+     * We clone ScopeNodes when control flows branch; it is useful to have
+     * a list of all active ScopeNodes for purposes of visualization of the SoN graph
+     */
+    public final List<ScopeNode> _allScopes = new ArrayList<>();
 
     public Parser(String source, TypeInteger arg) {
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
+        _allScopes.add(_scope);
         Node.reset();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         START.peephole();
@@ -55,12 +65,18 @@ public class Parser {
 
     String src() { return new String( _lexer._input ); }
 
+    private Node ctrlToken() {
+        return _scope.lookup(CTRL_TOKEN);
+    }
 
+    private void updateCtrlToken(Node n) {
+        _scope.update(CTRL_TOKEN, n);
+    }
 
     public ReturnNode parse() {
         _scope.push();
         try {
-            _scope.define("$ctrl", new ProjNode(START, 0, "$ctrl").peephole());
+            _scope.define(CTRL_TOKEN, new ProjNode(START, 0, CTRL_TOKEN).peephole());
             _scope.define("arg"  , new ProjNode(START, 1, "arg"  ).peephole());
             return (ReturnNode) parseBlock();
         }
@@ -110,56 +126,58 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = new IfNode(_scope.lookup("$ctrl"), pred);
+        IfNode ifNode = new IfNode(ctrlToken(), pred);
         // Setup projection nodes
         ProjNode ifT = new ProjNode(ifNode, 0, "True");
         ProjNode ifF = new ProjNode(ifNode, 1, "False");
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         ScopeNode savedScope = _scope;
-        ScopeNode ifScope = _scope.dup();  // Duplicate current scope
-        _allScopes.add(ifScope);           // For visualization we need all scopes
-        _scope = ifScope;                  // ifScope is current
-        _scope.define("$ctrl", ifT);
-        var thenStmt = parseStatement();
+        ScopeNode ifScope = _scope.dup();   // Duplicate current scope
+        _allScopes.add(ifScope);            // For graph visualization we need all scopes
+        _scope = ifScope;                   // ifScope is now the current scope
+        updateCtrlToken(ifT);               // set ctrl token to ifTrue projection
+        parseStatement();
         // restore scope
-        _scope = savedScope;
+        _scope = savedScope;                // Restore scope to original, we use this for else block if any
         // Setup ifF as the ctrl
-        _scope.define("$ctrl", ifF);
-        Node elseStmt = null;
-        if (match("else")) elseStmt = parseStatement();
+        updateCtrlToken(ifF);               // Ctrl token is now set to ifFalse projection
+        if (match("else")) parseStatement();
         // Create region node and merge scopes
-        // If a var is in both scopes and different then we need to create PhiNode for it
-        // After merge _scope remains
+        // If a var is in both scopes and has different binding then we need to create PhiNode for it
+        // After merge _scope remains, and ifScope is discarded
         RegionNode region = mergeScopes(ifT, ifScope, ifF, _scope);
-        _scope.update("$ctrl", region);
-        ifScope.clear();
-        _allScopes.remove(ifScope);
+        updateCtrlToken(region);            // Now region becomes the ctrl token
+        ifScope.clear();                    // Clean up ifScope
+        _allScopes.remove(ifScope);         // Discard ifScope
         return region;
     }
 
-    private RegionNode mergeScopes(ProjNode ifT, ScopeNode ifScope, ProjNode ifF, ScopeNode scope) {
+    private RegionNode mergeScopes(ProjNode ifT, ScopeNode ifScope, ProjNode ifF, ScopeNode mergeScope) {
         RegionNode regionNode = new RegionNode(ifT, ifF);
         Set<String> namesDone = new HashSet<>();
         for (int level = ifScope._scopes.size()-1; level >= 0; level--) {
             var tab = ifScope._scopes.get(level);
             for (Map.Entry<String, Integer> e: tab.entrySet()) {
                 String name = e.getKey();
-                if (name.equals("$ctrl")) // ignore
+                if (name.equals(CTRL_TOKEN))    // ignore ctrl token
                     continue;
-                if (namesDone.contains(name)) // don't visit a name twice
+                if (namesDone.contains(name))   // don't visit a name twice
                     continue;
                 namesDone.add(name);
                 Integer idx = e.getValue();
                 Node ifTdef = ifScope.in(idx);
-                Node ifNdef = scope.lookup(name);
+                Node ifNdef = mergeScope.lookup(name);   // Lookup name in merge scope
                 if (ifNdef == null)
                     // The else scope didn't see this name
-                    scope.define(name, ifTdef); // Is this correct? Do we need same level as in ifScope?
-                else if (!ifTdef.equals(ifNdef)) {
+                    // Is this correct? Do we need same level as in ifScope?
+                    // FIXME can this even happen, as all nested scopes should be gone
+                    // so we cannot have a new var in same level anyway
+                    mergeScope.define(name, ifTdef);
+                else if (!ifTdef.equals(ifNdef)) { // FIXME do we need equals or just ID comparison?
                     // Names are mapped to different nodes
                     PhiNode phiNode = new PhiNode(regionNode, ifTdef, ifNdef);
-                    scope.update(name, phiNode);
+                    mergeScope.update(name, phiNode);
                 }
             }
         }
@@ -177,8 +195,8 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = new ReturnNode(_scope.lookup("$ctrl"), expr);
-        _scope.update("$ctrl",null);
+        Node ret = new ReturnNode(ctrlToken(), expr);
+        _scope.update(CTRL_TOKEN,null);
         return ret;
     }
 
