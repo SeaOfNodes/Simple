@@ -2,9 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -187,14 +185,16 @@ public abstract class Node {
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
         if( old_def == new_def ) return this; // No change
+        // If new def is not null, add the corresponding def->use edge
+        // This needs to happen before removing the old node's def->use edge as
+        // the new_def might get killed if the old node kills it recursively.
+        if( new_def != null )
+            new_def._outputs.add(this);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
-        // If new def is not null, add the corresponding def->use edge
-        if( new_def != null )
-            new_def._outputs.add(this);
         // Return self for easy flow-coding
         return this;
     }
@@ -329,21 +329,4 @@ public abstract class Node {
      * Node unique id generator, and is done as part of making a new Parser.
      */
     public static void reset() { UNIQUE_ID = 1; }
-  
-    /*
-     * hashCode and equals implementation to be added in later chapter.
-     */
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Node node = (Node) o;
-        return _nid == node._nid && Objects.equals(_inputs, node._inputs) && Objects.equals(_type, node._type);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(_nid, _inputs, _type);
-    }
 }

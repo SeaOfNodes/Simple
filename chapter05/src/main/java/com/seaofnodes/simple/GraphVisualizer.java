@@ -29,6 +29,9 @@ public class GraphVisualizer {
         // scopes and nodes.  If we try to cross subgraph cluster borders while
         // still making the subgraphs DOT gets confused.
         sb.append("\trankdir=BT;\n"); // Force Nodes before Scopes
+
+        // Preserve node input order
+        sb.append("\tordering=\"in\";\n");
         
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);

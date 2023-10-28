@@ -26,7 +26,22 @@ return a;
         ReturnNode ret = parser.parse();
         assertEquals("return Phi(Region16,(arg4+2),(arg4-3));", ret.toString());
     }
-
+  
+    @Test
+    public void testChapter5Test() {
+        Parser parser = new Parser("""
+int c = 3;
+int b = 2;
+if (arg == 1) {
+    b = 3;
+    c = 4;
+}
+return c;
+                """, TypeInteger.BOT);
+        ReturnNode ret = parser.parse();
+        assertEquals("return Phi(Region15,4,3);", ret.toString());
+    }
+    
     @Test
     public void testChapter5IfMergeB() {
         Parser parser = new Parser("int a=arg+1; int b=0; if( arg==1 ) b=a; else b=a+1; return a+b; #showGraph;");
