@@ -118,7 +118,7 @@ track the current in-scope control node via the name `$ctrl`.  This means that
 when we need to create an edge to the predecessor control node, we simply
 lookup this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model.
+This introduces the idea that the control flow subgraph is a Petri net model [[1]](#1).
 The control token moves virtually from node to node as execution proceeds.  The
 initial control token is in Start, it then moves via the Proj node to Return.
 In later chapters we will see how the token moves across branches.
@@ -245,3 +245,8 @@ Note the temporary add of a bogus user to the Node `m`.
 The reason this is done is that we know `m` is the new replacement and is alive,
 but since it is not yet part of the graph up the tree, it has no users yet.
 By adding a bogus user we prevent it being mistaken for dead and being killed.
+
+## References
+<a id="1">[1]</a>
+Click, C. (1995).
+Combining Analyses, Combining Optimizations, 131.
