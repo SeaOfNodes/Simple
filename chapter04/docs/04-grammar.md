@@ -59,8 +59,6 @@ unaryExpression
 primaryExpression
     : IDENTIFIER
     | INTEGER_LITERAL
-    | 'true'
-    | 'false'
     | '(' expression ')'
     ;
 
