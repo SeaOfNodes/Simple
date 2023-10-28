@@ -146,6 +146,7 @@ public class Parser {
         // Create region node and merge scopes
         // If a var is in both scopes and has different binding then we need to create PhiNode for it
         // After merge _scope remains, and ifScope is discarded
+        System.out.println(new GraphVisualizer().generateDotOutput(this));
         RegionNode region = mergeScopes(ifT, ifScope, ifF, _scope);
         updateCtrlToken(region);            // Now region becomes the ctrl token
         ifScope.clear();                    // Clean up ifScope
