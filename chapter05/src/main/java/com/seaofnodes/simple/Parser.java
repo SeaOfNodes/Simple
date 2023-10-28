@@ -15,10 +15,11 @@ import java.util.*;
 public class Parser {
 
     /**
-     * The control token is a name that binds to the currently active control
+     * The control is a name that binds to the currently active control
      * node in the graph
      */
-    private static final String CTRL_TOKEN = "$ctrl";
+    public static final String CTRL = "$ctrl";
+  
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -34,10 +35,10 @@ public class Parser {
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
      * there is one current ScopeNode. The reason the current ScopeNode can change is to do with how
      * we handle branching. See {@link #parseIf()}.
-     *
+     * <p>
      * Each ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
      * variable names to Nodes.  The top of this stack represents current scope.
-     *
+     * <p>
      * We keep a list of all ScopeNodes so that we can show them in graphs.
      * @see #parseIf()
      * @see #_allScopes
@@ -48,13 +49,12 @@ public class Parser {
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
      */
-    public final List<ScopeNode> _allScopes = new ArrayList<>();
+    public final Stack<ScopeNode> _allScopes = new Stack<>();
 
     public Parser(String source, TypeInteger arg) {
         _lexer = new Lexer(source);
-        _scope = new ScopeNode();
-        _allScopes.add(_scope);
         Node.reset();
+        _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         START.peephole();
     }
@@ -65,23 +65,21 @@ public class Parser {
 
     String src() { return new String( _lexer._input ); }
 
-    private Node ctrlToken() {
-        return _scope.lookup(CTRL_TOKEN);
-    }
+    private Node ctrl() { return _scope.ctrl(); }
 
-    private void setCtrlToken(Node n) {
-        _scope.update(CTRL_TOKEN, n);
-    }
+    private Node ctrl(Node n) { return _scope.ctrl(n); }
 
     public ReturnNode parse() {
+        _allScopes.push(_scope);
         _scope.push();
         try {
-            _scope.define(CTRL_TOKEN, new ProjNode(START, 0, CTRL_TOKEN).peephole());
-            _scope.define("arg"  , new ProjNode(START, 1, "arg"  ).peephole());
+            _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
+            _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
             return (ReturnNode) parseBlock();
         }
         finally {
             _scope.pop();
+            _allScopes.pop();
         }
     }
 
@@ -113,10 +111,10 @@ public class Parser {
      * </pre>
      */
     private Node parseStatement() {
-        if (match("return")) return parseReturn();
+        if (match("return")  ) return parseReturn();
         else if (match("int")) return parseDecl();
-        else if (match("{")) return parseBlock();
-        else if (match("if")) return parseIf();
+        else if (match("{"  )) return parseBlock();
+        else if (match("if" )) return parseIf();
         else if (match("#showGraph")) return showGraph();
         else return parseExpressionStatement();
     }
@@ -126,61 +124,33 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = new IfNode(ctrlToken(), pred);
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        ProjNode ifT = new ProjNode(ifNode, 0, "True");
-        ProjNode ifF = new ProjNode(ifNode, 1, "False");
+        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
-        ScopeNode savedScope = _scope;
-        ScopeNode ifScope = _scope.dup();   // Duplicate current scope
-        _allScopes.add(ifScope);            // For graph visualization we need all scopes
-        _scope = ifScope;                   // ifScope is now the current scope
-        setCtrlToken(ifT);               // set ctrl token to ifTrue projection
-        parseStatement();
-        _scope = savedScope;                // Restore scope to original, we use this for else block if any
-        setCtrlToken(ifF);               // Ctrl token is now set to ifFalse projection
-        if (match("else")) parseStatement();
-        // Create region node and merge scopes
-        // If a var is in both scopes and has different binding then we need to create PhiNode for it
-        // After merge _scope remains, and ifScope is discarded
-        //System.out.println(new GraphVisualizer().generateDotOutput(this));
-        RegionNode region = mergeScopes(ifT, ifScope, ifF, _scope);
-        setCtrlToken(region);            // Now region becomes the ctrl token
-        ifScope.clear();                    // Clean up ifScope
-        _allScopes.remove(ifScope);         // Discard ifScope
-        return region;
-    }
+        int ndefs = _scope.nIns();
+        ScopeNode fScope = _scope.dup(); // Duplicate current scope
+        _allScopes.push(fScope); // For graph visualization we need all scopes
 
-    private RegionNode mergeScopes(ProjNode ifT, ScopeNode ifScope, ProjNode ifF, ScopeNode mergeScope) {
-        RegionNode regionNode = new RegionNode(ifT, ifF);
-        Set<String> namesDone = new HashSet<>();
-        for (int level = ifScope._scopes.size()-1; level >= 0; level--) {
-            var tab = ifScope._scopes.get(level);
-            for (Map.Entry<String, Integer> e: tab.entrySet()) {
-                String name = e.getKey();
-                if (name.equals(CTRL_TOKEN))    // ignore ctrl token
-                    continue;
-                if (namesDone.contains(name))   // don't visit a name twice
-                    continue;
-                namesDone.add(name);
-                Integer idx = e.getValue();
-                Node ifTdef = ifScope.in(idx);
-                Node ifNdef = mergeScope.lookup(name);   // Lookup name in merge scope
-                if (ifNdef == null)
-                    // The else scope didn't see this name
-                    // Is this correct? Do we need same level as in ifScope?
-                    // FIXME can this even happen, as all nested scopes should be gone
-                    // so we cannot have a new var in same level anyway
-                    mergeScope.define(name, ifTdef);
-                else if (!ifTdef.equals(ifNdef)) { // FIXME do we need equals or just ID comparison?
-                    // Names are mapped to different nodes
-                    PhiNode phiNode = new PhiNode(regionNode, ifTdef, ifNdef);
-                    mergeScope.update(name, phiNode);
-                }
-            }
-        }
-        return regionNode;
+        // Parse the true side
+        ctrl(ifT);              // set ctrl token to ifTrue projection
+        parseStatement();       // Parse true-side
+        ScopeNode tScope = _scope;
+        
+        // Parse the false side
+        _scope = fScope;        // Restore scope, then parse else block if any
+        ctrl(ifF);              // Ctrl token is now set to ifFalse projection
+        if (match("else")) parseStatement();
+
+        if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
+            throw error("Cannot define a new name on one arm of an if");
+        
+        // Merge results
+        _scope = tScope;
+        _allScopes.pop();       // Discard pushed from graph display
+        return ctrl(tScope.mergeScopes(fScope));
     }
 
 
@@ -194,8 +164,8 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = new ReturnNode(ctrlToken(), expr);
-        _scope.update(CTRL_TOKEN,null);
+        Node ret = new ReturnNode(ctrl(), expr);
+        ctrl(null);             // Kill control
         return ret;
     }
 
@@ -479,8 +449,7 @@ public class Parser {
 
         private String parsePunctuation() {
             int start = _position;
-            if (isPunctuation(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            return new String(_input, start, start+1);
         }
     }
 

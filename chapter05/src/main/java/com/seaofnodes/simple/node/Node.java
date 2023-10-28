@@ -25,8 +25,7 @@ public abstract class Node {
      * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
      * Ordering is required because e.g. "a/b" is different from "b/a".
-     * The first input (offset 0) is often a Control node.
-     * @see Control
+     * The first input (offset 0) is often a {@link #isCFG} node.
      */
     public final ArrayList<Node> _inputs;
 
@@ -101,13 +100,6 @@ public abstract class Node {
     public Node in(int i) { return _inputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
-
-    /**
-     * Gets the ith output node
-     * @param i Offset of the output node
-     * @return Output node (not null)
-     */
-    public Node out(int i) { return _outputs.get(i); }
 
     public int nOuts() { return _outputs.size(); }
 

@@ -10,72 +10,102 @@ import static org.junit.Assert.*;
 
 public class Chapter05Test {
 
-    @Rule
-    public ExpectedException exceptionRule = ExpectedException.none();
-
     @Test
     public void testChapter5IfStmt() {
         Parser parser = new Parser("""
-                int a = 1;\s
-                if (arg == 1)\s
-                	a = arg+2;\s
-                else {
-                	a = arg-3;\s
-                	#showGraph;
-                }
-                return a;\s
-                #showGraph;
-                """, TypeInteger.BOT);
+int a = 1;
+if (arg == 1)
+    a = arg+2;
+else {
+    a = arg-3;
+    #showGraph;
+}
+return a;
+#showGraph;
+""");
         ReturnNode ret = parser.parse();
-        assertEquals("return Phi(Region15,(arg3+2),(arg3-3));", ret.toString());
+        assertEquals("return Phi(Region16,(arg4+2),(arg4-3));", ret.toString());
     }
 
+    @Test
+    public void testChapter5IfMergeB() {
+        Parser parser = new Parser("int a=arg+1; int b=0; if( arg==1 ) b=a; else b=a+1; return a+b; #showGraph;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return ((arg4+1)+Phi(Region19,(arg4+1),(arg4+2)));", ret.toString());
+    }
 
     @Test
-    public void testChapter4Peephole() {
-        Parser parser = new Parser("return 1+arg+2; #showGraph;", TypeInteger.BOT);
+    public void testChapter5IfMerge2() {
+        Parser parser = new Parser("int a=arg+1; int b=arg+2; if( arg==1 ) b=b+a; else a=b+1; return a+b; #showGraph;");
         ReturnNode ret = parser.parse();
-        assertEquals("return (arg3+3);", ret.print());
+        assertEquals("return (Phi(Region30,(arg4+1),(arg4+3))+Phi(Region30,((arg4*2)+3),(arg4+2)));", ret.toString());
+    }
+      
+    @Test
+    public void testChapter5HalfDef() {
+        try { 
+            new Parser("if( arg==1 ) int b=2; return b;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
+        }
+    }
+    
+    @Test
+    public void testChapter5HalfDef2() {
+        try { 
+            new Parser("if( arg==1 ) { int b=2; } else { int b=3; } return b;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Undefined name 'b'",e.getMessage());
+        }
+    }
+      
+    @Test
+    public void testChapter4Peephole() {
+        Parser parser = new Parser("return 1+arg+2; #showGraph;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (arg4+3);", ret.print());
     }
 
     @Test
     public void testChapter4Peephole2() {
-        Parser parser = new Parser("return (1+arg)+2;", TypeInteger.BOT);
+        Parser parser = new Parser("return (1+arg)+2;");
         ReturnNode ret = parser.parse();
-        assertEquals("return (arg3+3);", ret.print());
+        assertEquals("return (arg4+3);", ret.print());
     }
 
     @Test
     public void testChapter4Add0() {
-        Parser parser = new Parser("return 0+arg;", TypeInteger.BOT);
+        Parser parser = new Parser("return 0+arg;");
         ReturnNode ret = parser.parse();
-        assertEquals("return arg3;", ret.print());
+        assertEquals("return arg4;", ret.print());
     }
 
     @Test
     public void testChapter4AddAddMul() {
-        Parser parser = new Parser("return arg+0+arg;", TypeInteger.BOT);
+        Parser parser = new Parser("return arg+0+arg;");
         ReturnNode ret = parser.parse();
-        assertEquals("return (arg3*2);", ret.print());
+        assertEquals("return (arg4*2);", ret.print());
     }
   
     @Test
     public void testChapter4Peephole3() {
-        Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;");
         ReturnNode ret = parser.parse();
-        assertEquals("return ((arg3*2)+6);", ret.print());
+        assertEquals("return ((arg4*2)+6);", ret.print());
     }
 
     @Test
     public void testChapter4Mul1() {
-        Parser parser = new Parser("return 1*arg;", TypeInteger.BOT);
+        Parser parser = new Parser("return 1*arg;");
         ReturnNode ret = parser.parse();
-        assertEquals("return arg3;", ret.print());
+        assertEquals("return arg4;", ret.print());
     }
   
     @Test
     public void testChapter4VarArg() {
-        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return arg; #showGraph;");
         ReturnNode ret = parser.parse();
         assertTrue(ret.in(0) instanceof ProjNode);
         assertTrue(ret.in(1) instanceof ProjNode);
@@ -90,44 +120,44 @@ public class Chapter05Test {
 
     @Test
     public void testChapter4CompEq() {
-        Parser parser = new Parser("return 3==3; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return 3==3; #showGraph;");
         ReturnNode ret = parser.parse();
         assertEquals("return 1;", ret.print());
     }
 
     @Test
     public void testChapter4CompEq2() {
-        Parser parser = new Parser("return 3==4; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return 3==4; #showGraph;");
         ReturnNode ret = parser.parse();
         assertEquals("return 0;", ret.print());
     }
 
     @Test
     public void testChapter4CompNEq() {
-        Parser parser = new Parser("return 3!=3; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return 3!=3; #showGraph;");
         ReturnNode ret = parser.parse();
         assertEquals("return 0;", ret.print());
     }
 
     @Test
     public void testChapter4CompNEq2() {
-        Parser parser = new Parser("return 3!=4; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return 3!=4; #showGraph;");
         ReturnNode ret = parser.parse();
         assertEquals("return 1;", ret.print());
     }
 
     @Test
     public void testChapter4Bug1() {
-        Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; #showGraph;");
         ReturnNode ret = parser.parse();
-        assertEquals("return (arg3+3);", ret.print());
+        assertEquals("return (arg4+3);", ret.print());
     }
 
     @Test
     public void testChapter4Bug2() {
-        Parser parser = new Parser("int a=arg+1; a=a; return a; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("int a=arg+1; a=a; return a; #showGraph;");
         ReturnNode ret = parser.parse();
-        assertEquals("return (arg3+1);", ret.print());
+        assertEquals("return (arg4+1);", ret.print());
     }
 
     @Test
@@ -169,9 +199,11 @@ public class Chapter05Test {
 
     @Test
     public void testSelfAssign() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Undefined name 'a'");
-        new Parser("int a=a; return a;").parse();
+        try { 
+            new Parser("int a=a; return a;").parse();
+        } catch( RuntimeException e ) {
+            assertEquals("Undefined name 'a'",e.getMessage());
+        }
     }
 
 
@@ -258,16 +290,22 @@ public class Chapter05Test {
 
     @Test
     public void testBad1() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected =: ");
-        new Parser("ret").parse();
+        try { 
+            new Parser("ret").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected =: ",e.getMessage());
+        }
     }
 
     @Test
     public void testBad2() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error: integer values cannot start with '0'");
-        new Parser("return 0123;").parse();
+        try { 
+            new Parser("return 0123;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage());
+        }
     }
 
     @Test
@@ -278,9 +316,12 @@ public class Chapter05Test {
 
     @Test
     public void testBad4() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected ;:");
-        new Parser("return 100").parse();
+        try { 
+            new Parser("return 100").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected ;: ",e.getMessage());
+        }
     }
 
     @Test
