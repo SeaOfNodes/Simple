@@ -31,6 +31,10 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
+        // Remove a "junk" Phi: Phi(x,x) is just x
+        if( in(1)==in(2) )
+            return in(1);
+        
         return null;
     }
 }

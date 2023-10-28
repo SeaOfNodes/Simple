@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.TypeBot;
 
 import java.util.*;
@@ -73,7 +74,15 @@ public class ScopeNode extends Node {
         return null;
     }
 
+    public Node ctrl() { assert lookup(Parser.CTRL)==in(0); return in(0); }
+    
+    public Node ctrl(Node n) {
+        assert lookup(Parser.CTRL)==in(0);
+        set_def(0,n);
+        return n;
+    }
 
+  
     // If the name is present in any scope, then redefine
     public Node update(String name, Node n) {
         for (int i = _scopes.size() - 1; i >= 0; i--) {
@@ -86,23 +95,30 @@ public class ScopeNode extends Node {
     }
 
     /**
-     * Duplicate a ScopeNode; including all levels.
+     * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
+     * neither shallow (would dup the Scope but not the internal HashMap
+     * tables), nor deep (would dup the Scope, the HashMap tables, but then the
+     * also program Nodes).
      *
-     * We do it in a way that ensures that the new ScopeNode becomes
-     * additional user of all defined names
+     * The new Scope is a full-fledged Node with proper use<->def edges.
      */
     public ScopeNode dup() {
-        ScopeNode dupScope = new ScopeNode();
-        for (HashMap<String, Integer> tab: _scopes) {
-            dupScope.push(); // Create same level in the duplicate
-            for (Map.Entry<String, Integer> e: tab.entrySet()) {
-                String name = e.getKey();
-                Integer idx = e.getValue();
-                Node n = in(idx);
-                dupScope.define(name, n); // Ensure that dupScope is a user of n
-            }
+        ScopeNode dup = new ScopeNode();
+        for( HashMap<String, Integer> tab : _scopes ) {
+            dup.push();    // Create same level in the duplicate
+            for( String name : tab.keySet() )
+                // Ensure that dup is a user of n
+                dup.define(name, in(tab.get(name)));
         }
-        return dupScope;
+        return dup;
+    }
+
+    public RegionNode mergeScopes(ScopeNode that) {
+        RegionNode r = (RegionNode)ctrl(new RegionNode(ctrl(), that.ctrl()).peephole());
+        for( int i=1; i<nIns(); i++ )
+            set_def(i,new PhiNode(r, in(i), that.in(i)).peephole());
+        that.kill();            // Kill merged scope
+        return r;
     }
 
     /**

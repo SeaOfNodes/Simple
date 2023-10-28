@@ -57,11 +57,16 @@ public class AddNode extends Node {
         if (t2.isConstant() && lhs instanceof AddNode && lhs.in(2)._type.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
-        // Do we have  x + (y + con) ?
-        // Swap to    (x + y) + con
-        if (rhs instanceof AddNode add && add.in(2)._type.isConstant() )
+        // Do we have  x + (y + non_add) ?
+        // Swap to    (x + y) + non_add
+        if (rhs instanceof AddNode add && !(add.in(2) instanceof AddNode) )
           return new AddNode(new AddNode(lhs,add.in(1)).peephole(), add.in(2));
 
+        // Do we have (x + y) + x
+        // Swap to    (x + x) + y
+        if (lhs instanceof AddNode add && add.in(1)==rhs )
+          return new AddNode(new AddNode(rhs,rhs).peephole(), add.in(2));
+        
         // Add of same to a multiply by 2
         if( lhs==rhs )
             return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)).peephole());
