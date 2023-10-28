@@ -14,7 +14,7 @@ Here is a recap of the nodes introduced in previous chapters:
 
 | Node Name  | Type           | Chapter | Description                                    | Inputs                                                           | Value                                                                   |
 |------------|----------------|---------|------------------------------------------------|------------------------------------------------------------------|-------------------------------------------------------------------------|
-| MultiNode  | Abstract class | 4       | A node that has a tuple result                 |                                                                  | A tuple                                                                 |
+| Multi      | Abstract class | 4       | A node that has a tuple result                 |                                                                  | A tuple                                                                 |
 | Start      | Control        | 1       | Start of function, now a MultiNode             | An input argument named `arg`.                                   | A tuple with a ctrl token and an `arg` data node                        |
 | Proj       | ?              | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                            | Result is the extracted value from the input MultiNode at offset index  | 
 | Bool       | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                   | Result a comparison, represented as integer value where 1=true, 0=false |
@@ -35,7 +35,7 @@ Following new nodes are introduced in this chapter:
 |-----------|---------|---------|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
 | If        | Control | 5       | Represents an `if` condition, sub type of `MultiNode`                | A control node and a data predicate node                                                       | A tuple of two values, one for true branch, another for false |
 | Region    | Control | 5       | Represents a merge point from multiple control flow                  | An input for each control flow that is merging                                                 | None                                                          |
-| Phi       | ?       | 5       | Represents the phi function that picks a value based on control flow | A region control node, and multiple data nodes that provide values from multiple control flows | Result is the extracted value depending on control flow taken | 
+| Phi       | Data    | 5       | Represents the phi function that picks a value based on control flow | A region control node, and multiple data nodes that provide values from multiple control flows | Result is the extracted value depending on control flow taken | 
 | Stop      | Control | 5       | Represents termination of the program                                | One or more Return nodes                                                                       | None                                                          |
 
 ## Parsing of `If` statement
@@ -44,12 +44,12 @@ When we parse an `if` statement, the control flow splits at that point. We must 
 
 This involves following:
 
-* The `IfNode` is created with the current control token, i.e. the node mapped to `$ctrl`, and the predicate expression as inputs.
+* We create an `IfNode` with the current control token, i.e. the node mapped to `$ctrl`, and the `if` predicate expression as inputs.
 * We add two `ProjNodes` - one for the `True` branch (call if `ifT`), and the other for the `False` branch (call it `ifF`) - these extract values from the tuple result of the `IfNode`.
-* We now create a duplicate of the current `ScopeNode`. The duplicated `ScopeNode` must have all the stack levels as the original, and moreover the new node must be a user of all the names that are currently bound.
+* We duplicate the current `ScopeNode`. The duplicated `ScopeNode` contains all the stack levels as the original, and moreover the new node is added as a user of all the names that are currently bound.
 * The original `ScopeNode` is saved.
 * We set the duplicate `ScopeNode` as current.
-* The control token is updated to the `True` projection node `ifT`.
+* We set control token to the `True` projection node `ifT`.
 * We parse the true branch of the `if` statement.
 * We reset the original `ScopeNode` as current.
 * We set control token to the `False` projection node `ifF`.
@@ -80,7 +80,7 @@ Following shows the graph just before we merge the two branches of the `if` stat
 
 * Note the two `ScopeNode`s in the graph.
 * One has its `$ctrl` pointing to the `True` projection, while the other has `$ctrl` pointing to `False` projection.
-* Note that the binding of `a` is to the `Sub` node in the `False` branch, whereas `a` is bound to the `Add` node in the `True` branch.
+* Note that `a` is bound to the `Sub` node in the `False` branch, whereas `a` is bound to the `Add` node in the `True` branch.
 * Thus `a` needs a `Phi` node.
 
 ### After merging
