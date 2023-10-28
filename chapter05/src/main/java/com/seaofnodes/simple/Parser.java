@@ -29,6 +29,9 @@ public class Parser {
      */
     public static StartNode START;
 
+    public StopNode STOP;
+
+    // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
     /**
@@ -57,6 +60,7 @@ public class Parser {
         _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         START.peephole();
+        STOP = new StopNode();
     }
 
     public Parser(String source) {
@@ -69,13 +73,14 @@ public class Parser {
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
-    public ReturnNode parse() {
+    public StopNode parse() {
         _allScopes.push(_scope);
         _scope.push();
         try {
             _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
             _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            return (ReturnNode) parseBlock();
+            parseBlock();
+            return STOP;
         }
         finally {
             _scope.pop();
@@ -164,7 +169,7 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = new ReturnNode(ctrl(), expr);
+        Node ret = STOP.add_def(new ReturnNode(ctrl(), expr).peephole());
         ctrl(null);             // Kill control
         return ret;
     }

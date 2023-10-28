@@ -15,10 +15,20 @@ public class StopNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
-        return sb;
+        if( ret()!=null ) return ret()._print0(sb);
+        sb.append("Stop[ ");
+        for( Node ret : _inputs )
+            ret._print0(sb).append(" ");
+        return sb.append("]");
     }
 
     @Override public boolean isCFG() { return true; }
+
+    // If a single Return, return it.
+    // Otherwise, null because ambiguous.
+    public ReturnNode ret() {
+        return nIns()==1 ? (ReturnNode)in(0) : null;
+    }
     
     @Override
     public Type compute() {

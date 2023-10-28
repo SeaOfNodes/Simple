@@ -122,7 +122,7 @@ public class GraphVisualizer {
         sb.append( "\t}\n".repeat( level ) ); // End all Scope clusters
     }
 
-    private String makeScopeName(ScopeNode sn, int level) { return sn.label() + "_" + level; }
+    private String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
