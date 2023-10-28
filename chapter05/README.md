@@ -90,5 +90,5 @@ Below is the graph after we created a `Region` node and merged the two definitio
 ![Graph2](./docs/05-graph2.svg)
 
 * Observe that the duplicate `ScopeNode` has been discarded.
-* The binding of `a` is now bound to the `Phi` node.
+* `a` is now bound to the `Phi` node.
 * The `Phi` node's inputs are the `Region` node and the `Add` node from the `True` branch, and `Sub` node from the `False` branch.
