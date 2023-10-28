@@ -17,19 +17,8 @@ public class ScopeNode extends Node {
      */
     public final Stack<HashMap<String, Integer>> _scopes = new Stack<>();
 
-    /**
-     * We duplicate ScopeNodes when branches occur, so it is useful to have
-     * a unique name for each ScopeNode; this helps when we want to visualize the
-     * graph
-     */
-    private int _id;
-
-    private static int _idCounter = 0;
-
-    public ScopeNode() { _id = _idCounter++; }
-  
     @Override
-    public String label() { return "Scope" + _id; }
+    public String label() { return "Scope" + _nid; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
