@@ -107,6 +107,7 @@ public class Parser {
      * <pre>
      *     '{' statements '}'
      * </pre>
+     * @return a {@link Node}, never {@code null}
      */
     private Node parseBlock() {
         // Enter a new scope
@@ -127,6 +128,7 @@ public class Parser {
      * <pre>
      *     returnStatement | declStatement | blockStatement | expressionStatement
      * </pre>
+     * @return a {@link Node}, never {@code null}
      */
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
@@ -137,6 +139,14 @@ public class Parser {
         else return parseExpressionStatement();
     }
 
+    /**
+     * Parses a statement
+     *
+     * <pre>
+     *     if ( expression ) statement [else statement]
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
     private Node parseIf() {
         require("(");
         // Parse predicate
@@ -179,6 +189,7 @@ public class Parser {
      * <pre>
      *     'return' expr ;
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
@@ -189,11 +200,12 @@ public class Parser {
 
     /**
      * Dumps out the node graph
+     * @return a {@link Node}, never {@code null}
      */
     private Node showGraph() {
         require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
-        return null;
+        return ctrl();
     }
 
     /**
@@ -202,6 +214,7 @@ public class Parser {
      * <pre>
      *     name '=' expression ';'
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpressionStatement() {
         var name = requireId();
@@ -218,6 +231,7 @@ public class Parser {
      * <pre>
      *     'int' name = expression ';'
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseDecl() {
         // Type is 'int' for now
@@ -233,11 +247,20 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : additiveExpr
+     *     expr : compareExpr
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpression() { return parseComparison(); }
 
+    /**
+     * Parse an expression of the form:
+     *
+     * <pre>
+     *     expr : additiveExpr op additiveExpr
+     * </pre>
+     * @return an comparator expression {@link Node}, never {@code null}
+     */
     private Node parseComparison() {
         var lhs = parseAddition();
         if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
@@ -255,6 +278,7 @@ public class Parser {
      * <pre>
      *     additiveExpr : multiplicativeExpr (('+' | '-') multiplicativeExpr)*
      * </pre>
+     * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
         var lhs = parseMultiplication();
@@ -269,6 +293,7 @@ public class Parser {
      * <pre>
      *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
      * </pre>
+     * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
@@ -283,6 +308,7 @@ public class Parser {
      * <pre>
      *     unaryExpr : ('-') unaryExpr | primaryExpr
      * </pre>
+     * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
@@ -295,6 +321,7 @@ public class Parser {
      * <pre>
      *     primaryExpr : integerLiteral | Identifier | true | false | '(' expression ')'
      * </pre>
+     * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
         if( _lexer.isNumber() ) return parseIntegerLiteral();
