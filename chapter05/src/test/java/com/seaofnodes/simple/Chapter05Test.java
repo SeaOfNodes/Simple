@@ -115,7 +115,16 @@ return c;
             assertEquals("Expected an identifier, found 'else'",e.getMessage());
         }
     }
-      
+
+    @Test
+        public void testChapter5Keyword3() {
+        try { 
+            new Parser("int a=1; ififif(arg)inta=2;return a;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected =: (",e.getMessage());
+        }
+    }
     @Test
     public void testChapter4Peephole() {
         Parser parser = new Parser("return 1+arg+2; #showGraph;");

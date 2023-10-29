@@ -479,7 +479,7 @@ public class Parser {
 
         private String parsePunctuation() {
             int start = _position;
-            return new String(_input, start, start+1);
+            return new String(_input, start, 1);
         }
     }
 
