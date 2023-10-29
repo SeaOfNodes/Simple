@@ -69,7 +69,13 @@ return c;
         StopNode stop = parser.parse();
         assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
     }
-
+    
+    @Test
+    public void testChapter5True() {
+      StopNode stop = new Parser("return true;").parse();
+      assertEquals("return 1;",stop.toString());
+    }
+    
     @Test
     public void testChapter5HalfDef() {
         try { 
@@ -88,12 +94,6 @@ return c;
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'b'",e.getMessage());
         }
-    }
-    
-    @Test
-    public void testChapter5True() {
-      StopNode stop = new Parser("return true;").parse();
-      assertEquals("return 1;",stop.toString());
     }
     
     @Test
@@ -135,6 +135,7 @@ return c;
             assertEquals("Syntax error, expected =: (",e.getMessage());
         }
     }
+    
     @Test
     public void testChapter4Peephole() {
         Parser parser = new Parser("return 1+arg+2; #showGraph;");

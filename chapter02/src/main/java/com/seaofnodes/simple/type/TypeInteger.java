@@ -5,6 +5,8 @@ package com.seaofnodes.simple.type;
  */
 public class TypeInteger extends Type {
 
+    public final static TypeInteger ZERO= new TypeInteger(0);
+  
     /**
      * The constant value observed for this type
      */
