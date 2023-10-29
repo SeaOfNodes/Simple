@@ -302,7 +302,7 @@ public class Parser {
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
         String name = _lexer.matchId();
-        if( name == null) return null;
+        if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);
         if( n!=null ) return n;
         throw error("Undefined name '" + name + "'");
