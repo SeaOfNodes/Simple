@@ -155,14 +155,16 @@ public abstract class Node {
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
         if( old_def == new_def ) return this; // No change
+        // If new def is not null, add the corresponding def->use edge
+        // This needs to happen before removing the old node's def->use edge as
+        // the new_def might get killed if the old node kills it recursively.
+        if( new_def != null )
+            new_def._outputs.add(this);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                 old_def.kill(); // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
-        // If new def is not null, add the corresponding def->use edge
-        if( new_def != null )
-            new_def._outputs.add(this);
         // Return self for easy flow-coding
         return this;
     }
