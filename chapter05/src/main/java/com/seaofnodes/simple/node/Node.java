@@ -215,7 +215,6 @@ public abstract class Node {
         return new_def;
     }
 
-    
     // Breaks the edge invariants, used temporarily
     private void addUse(Node n) { _outputs.add(n); }
 
@@ -258,7 +257,7 @@ public abstract class Node {
 
     // Mostly used for asserts and printing.
     boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
-    
+  
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
@@ -323,6 +322,32 @@ public abstract class Node {
      * @return Either a new or changed node, or null for no changes.
      */
     public abstract Node idealize();
+
+
+    // -----------------------
+    // Peephole utilities
+    
+    // Swap inputs without letting either input go dead during the swap.
+    Node swap12() {
+        Node tmp = in(1);
+        _inputs.set(1,in(2));
+        _inputs.set(2,tmp);
+        return this;
+    }
+    
+    // does this node contain all constants?
+    // Ignores in(0), as is usually control.
+    boolean all_cons() {
+        for( int i=1; i<nIns(); i++ )
+            if( !(in(i)._type.isConstant()) )
+                return false;
+        return true;
+    }
+
+    // Make a shallow copy (same class) of this Node, with given inputs and
+    // empty outputs and a new Node ID.  The original inputs are ignored.
+    // Does not need to be implemented in isCFG() nodes.
+    Node copy(Node lhs, Node rhs) { throw new RuntimeException("TODO"); }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
