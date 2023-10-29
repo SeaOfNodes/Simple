@@ -280,17 +280,19 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
+     *     primaryExpr : integerLiteral | Identifier | true | false | '(' expression ')'
      * </pre>
      */
     private Node parsePrimary() {
-        if (_lexer.isNumber()) return parseIntegerLiteral();
-        if (match("(")) return require(parseExpression(), ")");
+        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( match("(") ) return require(parseExpression(), ")");
+        if( match("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
+        if( match("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
         String name = requireId();
         Node id = _scope.lookup(name);
         if( id==null )
             throw error("Undefined name '" + name + "'");
-        return id.peephole();
+        return id;
     }
 
     /**

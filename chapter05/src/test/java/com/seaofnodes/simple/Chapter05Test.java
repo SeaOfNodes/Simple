@@ -62,7 +62,14 @@ return c;
         StopNode ret = parser.parse();
         assertEquals("return (Phi(Region31,(arg+1),(arg+3))+Phi(Region31,((arg*2)+3),(arg+2)));", ret.toString());
     }
-      
+
+    @Test
+    public void testChapter5Merge3() {
+        Parser parser = new Parser("int a=1; if( arg==1 ) if( arg==2 ) a=2; else a=3; else if( arg==3 ) a=4; else a=5; return a; #showGraph;", TypeInteger.BOT);
+        StopNode stop = parser.parse();
+        assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
+    }
+
     @Test
     public void testChapter5HalfDef() {
         try { 
@@ -81,6 +88,12 @@ return c;
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'b'",e.getMessage());
         }
+    }
+    
+    @Test
+    public void testChapter5True() {
+      StopNode stop = new Parser("return true;").parse();
+      assertEquals("return 1;",stop.toString());
     }
       
     @Test
