@@ -95,6 +95,26 @@ return c;
       StopNode stop = new Parser("return true;").parse();
       assertEquals("return 1;",stop.toString());
     }
+    
+    @Test
+    public void testChapter5Keyword1() {
+        try { 
+            new Parser("int true=0; return true;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Expected an identifier, found 'true'",e.getMessage());
+        }
+    }
+      
+    @Test
+    public void testChapter5Keyword2() {
+        try { 
+            new Parser("int else=arg; if(else) else=2; else else=1; return else;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Expected an identifier, found 'else'",e.getMessage());
+        }
+    }
       
     @Test
     public void testChapter4Peephole() {
@@ -197,6 +217,16 @@ return c;
     }
 
     @Test
+    public void testChapter4Bug3() {
+        try { 
+            new Parser("inta=1; return a;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Undefined name 'inta'",e.getMessage());
+        }
+    }
+    
+    @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
         StopNode ret = parser.parse();
@@ -241,7 +271,6 @@ return c;
             assertEquals("Undefined name 'a'",e.getMessage());
         }
     }
-
 
     @Test
     public void testChapter2ParseGrammar() {

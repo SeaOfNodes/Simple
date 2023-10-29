@@ -25,7 +25,7 @@ public class TypeInteger extends Type {
 
     @Override
     public String toString() {
-      return _print(new StringBuilder()).toString();
+        return _print(new StringBuilder()).toString();
     }
 
     @Override 
