@@ -53,14 +53,14 @@ return c;
     public void testChapter5IfMergeB() {
         Parser parser = new Parser("int a=arg+1; int b=0; if( arg==1 ) b=a; else b=a+1; return a+b; #showGraph;");
         StopNode ret = parser.parse();
-        assertEquals("return ((arg+1)+Phi(Region20,(arg+1),(arg+2)));", ret.toString());
+        assertEquals("return ((arg*2)+Phi(Region20,2,3));", ret.toString());
     }
 
     @Test
     public void testChapter5IfMerge2() {
         Parser parser = new Parser("int a=arg+1; int b=arg+2; if( arg==1 ) b=b+a; else a=b+1; return a+b; #showGraph;");
         StopNode ret = parser.parse();
-        assertEquals("return (Phi(Region31,(arg+1),(arg+3))+Phi(Region31,((arg*2)+3),(arg+2)));", ret.toString());
+        assertEquals("return ((Phi(Region31,(arg*2),arg)+arg)+Phi(Region31,4,5));", ret.toString());
     }
 
     @Test
