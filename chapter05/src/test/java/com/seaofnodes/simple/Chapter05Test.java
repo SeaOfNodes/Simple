@@ -97,6 +97,16 @@ return c;
     }
     
     @Test
+    public void testChapter5BadNum() {
+        try { 
+            new Parser("return 1-;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage());
+        }
+    }
+      
+    @Test
     public void testChapter5Keyword1() {
         try { 
             new Parser("int true=0; return true;").parse();
