@@ -49,6 +49,19 @@ public class Parser {
     public ScopeNode _scope;
 
     /**
+     * List of keywords disallowed as identifiers
+     */
+    private final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("else");
+            add("false");
+            add("if");
+            add("return");
+            add("then");
+            add("true");
+        }};
+
+    
+    /**
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
      */
@@ -116,11 +129,11 @@ public class Parser {
      * </pre>
      */
     private Node parseStatement() {
-        if (match("return")  ) return parseReturn();
-        else if (match("int")) return parseDecl();
-        else if (match("{"  )) return parseBlock();
-        else if (match("if" )) return parseIf();
-        else if (match("#showGraph")) return showGraph();
+        if (matchx("return")  ) return parseReturn();
+        else if (matchx("int")) return parseDecl();
+        else if (match ("{"  )) return parseBlock();
+        else if (matchx("if" )) return parseIf();
+        else if (matchx("#showGraph")) return showGraph();
         else return parseExpressionStatement();
     }
 
@@ -147,7 +160,7 @@ public class Parser {
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF);              // Ctrl token is now set to ifFalse projection
-        if (match("else")) parseStatement();
+        if (matchx("else")) parseStatement();
 
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
@@ -286,13 +299,13 @@ public class Parser {
     private Node parsePrimary() {
         if( _lexer.isNumber() ) return parseIntegerLiteral();
         if( match("(") ) return require(parseExpression(), ")");
-        if( match("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
-        if( match("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
-        String name = requireId();
-        Node id = _scope.lookup(name);
-        if( id==null )
-            throw error("Undefined name '" + name + "'");
-        return id;
+        if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
+        if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
+        String name = _lexer.matchId();
+        if( name == null) return null;
+        Node n = _scope.lookup(name);
+        if( n!=null ) return n;
+        throw error("Undefined name '" + name + "'");
     }
 
     /**
@@ -310,13 +323,15 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) { return _lexer.match(syntax); }
+    private boolean match (String syntax) { return _lexer.match (syntax); }
+    // Match must not be followed by more id letters
+    private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
 
     // Require and return an identifier
     private String requireId() {
         String id = _lexer.matchId();
-        if (id != null) return id;
-        throw error("identifier");
+        if (id != null && !KEYWORDS.contains(id) ) return id;
+        throw error("Expected an identifier, found '"+id+"'");
     }
 
     // Require an exact match
@@ -402,9 +417,17 @@ public class Parser {
             int len = syntax.length();
             if (_position + len > _input.length) return false;
             for (int i = 0; i < len; i++)
-                if ((char) _input[_position + i] != syntax.charAt(i)) return false;
+                if ((char) _input[_position + i] != syntax.charAt(i))
+                    return false;
             _position += len;
             return true;
+        }
+
+        boolean matchx(String syntax) {
+            if( !match(syntax) ) return false;
+            if( !isIdLetter(peek()) ) return true;
+            _position -= syntax.length();
+            return false;
         }
 
         // Return an identifier or null
