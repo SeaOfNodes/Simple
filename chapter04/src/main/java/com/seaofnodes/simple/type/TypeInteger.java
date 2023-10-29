@@ -7,6 +7,7 @@ public class TypeInteger extends Type {
 
     public final static TypeInteger TOP = new TypeInteger(false, 0);
     public final static TypeInteger BOT = new TypeInteger(false, 1);
+    public final static TypeInteger ZERO= new TypeInteger(true, 0);
 
     private final boolean _is_con;
 

@@ -107,7 +107,7 @@ public class Parser {
      * <pre>
      *     '{' statements '}'
      * </pre>
-     * @return a {@link Node}, never {@code null}
+     * @return a {@link Node} or {@code null}
      */
     private Node parseBlock() {
         // Enter a new scope
@@ -128,7 +128,7 @@ public class Parser {
      * <pre>
      *     returnStatement | declStatement | blockStatement | expressionStatement
      * </pre>
-     * @return a {@link Node}, never {@code null}
+     * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
@@ -200,12 +200,12 @@ public class Parser {
 
     /**
      * Dumps out the node graph
-     * @return a {@link Node}, never {@code null}
+     * @return {@code null}
      */
     private Node showGraph() {
         require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
-        return ctrl();
+        return null;
     }
 
     /**

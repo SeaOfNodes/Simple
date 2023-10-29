@@ -22,9 +22,11 @@ public class DivNode extends Node {
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
-                in(2)._type instanceof TypeInteger i1) {
-            if (i1._con == 0)
-                throw new IllegalArgumentException("Divide by zero");
+            in(2)._type instanceof TypeInteger i1) {
+            if (i0.isConstant() && i1.isConstant())
+                return i1._con == 0
+                    ? TypeInteger.ZERO
+                    : new TypeInteger(i0._con/i1._con);
             return new TypeInteger(i0._con / i1._con);
         }
         return TypeBot.BOTTOM;
