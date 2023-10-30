@@ -352,7 +352,7 @@ public abstract class Node {
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
-    Node copy(Node lhs, Node rhs) { throw new RuntimeException("TODO"); }
+    Node copy(Node lhs, Node rhs) { return null; }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
