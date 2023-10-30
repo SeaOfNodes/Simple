@@ -4,14 +4,10 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeControl;
 
 public class RegionNode extends Node {
-    public RegionNode(Node... inputs) {
-        super(inputs);
-    }
+    public RegionNode(Node... inputs) { super(inputs); }
 
     @Override
-    public String label() {
-        return "Region";
-    }
+    public String label() { return "Region"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {

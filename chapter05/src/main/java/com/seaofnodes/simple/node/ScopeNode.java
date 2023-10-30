@@ -18,8 +18,10 @@ public class ScopeNode extends Node {
      */
     public final Stack<HashMap<String, Integer>> _scopes = new Stack<>();
 
-    @Override
-    public String label() { return "Scope"; }
+    // Reverse lookup for nicer graph printing
+    private final ArrayList<String> _rlabels = new ArrayList<>();
+    
+    @Override public String label() { return "Scope"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
@@ -43,8 +45,7 @@ public class ScopeNode extends Node {
     @Override
     public TypeBot compute() { return TypeBot.BOTTOM; }
 
-    @Override
-    public Node idealize() { return null; }
+    @Override public Node idealize() { return null; }
 
     // Add an empty lexical scope
     public HashMap<String, Integer> push() {
@@ -62,6 +63,7 @@ public class ScopeNode extends Node {
         HashMap<String,Integer> scope = _scopes.lastElement();
         if( scope.put(name,nIns()) != null )
             return null;        // Double define
+        _rlabels.add(name);
         return add_def(n);
     }
 
@@ -105,9 +107,10 @@ public class ScopeNode extends Node {
     public ScopeNode dup() {
         ScopeNode dup = new ScopeNode();
         for( HashMap<String, Integer> tab : _scopes )
-            dup._scopes.push(new HashMap<String, Integer>(tab));
+            dup._scopes.push(new HashMap<>(tab));
         for( int i=0; i<nIns(); i++ )
             dup.add_def(in(i));
+        dup._rlabels.addAll(_rlabels);
         return dup;
     }
 
@@ -115,7 +118,7 @@ public class ScopeNode extends Node {
         RegionNode r = (RegionNode)ctrl(new RegionNode(ctrl(), that.ctrl()).peephole());
         for( int i=1; i<nIns(); i++ )
             if( in(1) != that.in(i) ) // No need for redundant Phis
-                set_def(i,new PhiNode(r, in(i), that.in(i)).peephole());
+                set_def(i,new PhiNode(_rlabels.get(i), r, in(i), that.in(i)).peephole());
         that.kill();            // Kill merged scope
         return r;
     }

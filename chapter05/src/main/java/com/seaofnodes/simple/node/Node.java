@@ -62,10 +62,15 @@ public abstract class Node {
                 n._outputs.add( this );
     }
 
+    // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
+    // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() { return label() + _nid; }
 
+    // Graphical label, e.g. "+" or "Region" or "=="
+    public String glabel() { return label(); }
+    
     @Override
     public final String toString() {
         // TODO: This needs a lot of work
