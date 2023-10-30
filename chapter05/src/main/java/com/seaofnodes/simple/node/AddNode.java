@@ -79,9 +79,9 @@ public class AddNode extends Node {
             // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
             
             // Note that this is the exact reverse of Phi pulling a common op
-            // down to reduce total op-count.  We don't get in a endless push-
+            // down to reduce total op-count.  We don't get in an endless push-
             // up push-down peephole cycle because the constants all fold first.
-            (t2.isConstant() || (rhs instanceof PhiNode && rhs.all_cons()) ) ) {
+            (t2.isConstant() || (rhs instanceof PhiNode && phi.in(0) == rhs.in(0) && rhs.all_cons()) ) ) {
             Node[] ns = new Node[phi.nIns()];
             ns[0] = phi.in(0);
             // Push constant up through the phi: x + (phi con0+con0 con1+con1...)

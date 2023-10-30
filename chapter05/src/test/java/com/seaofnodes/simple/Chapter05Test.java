@@ -69,7 +69,14 @@ return c;
         StopNode stop = parser.parse();
         assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
     }
-    
+
+    @Test
+    public void testChapter5Merge4() {
+        Parser parser = new Parser("int a=0;int b=0;if(arg)a=1;if(arg==0)b=2;return arg+a+b;#showGraph;", TypeInteger.BOT);
+        StopNode stop = parser.parse();
+        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region23,2,0));", stop.toString());
+    }
+
     @Test
     public void testChapter5True() {
       StopNode stop = new Parser("return true;").parse();
