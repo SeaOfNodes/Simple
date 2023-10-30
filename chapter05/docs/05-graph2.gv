@@ -2,18 +2,19 @@ digraph chapter05 {
 /*
 int a = 1;
 if (arg == 1)
-	a = arg+2;
+    a = arg+2;
 else {
-	a = arg-3;
-	#showGraph;
+    a = arg-3;
+    #showGraph;
 }
 return a;
-#showGraph;
 
 */
 	rankdir=BT;
+	ordering="in";
+	concentrate="true";
 	subgraph cluster_Nodes {
-		Start1 [ shape=plaintext label=<
+		Start2 [ shape=plaintext label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
 			<TR><TD BGCOLOR="yellow">Start</TD></TR>
 			<TR><TD>
@@ -23,9 +24,10 @@ return a;
 			</TD></TR>
 			</TABLE>>
 		];
-		Con_5 [ label="#1" ];
-		EQNode6 [ label="EQNode" ];
-		If7 [ shape=plaintext label=<
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_7 [ label="#1" ];
+		EQNode8 [ label="==" ];
+		If9 [ shape=plaintext label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
 			<TR><TD BGCOLOR="yellow">If</TD></TR>
 			<TR><TD>
@@ -35,43 +37,29 @@ return a;
 			</TD></TR>
 			</TABLE>>
 		];
-		Con_11 [ label="#2" ];
-		Add12 [ label="Add" ];
-		Con_13 [ label="#3" ];
-		Sub14 [ label="Sub" ];
-		Region15 [ shape=box style=filled fillcolor=yellow label="Region" ];
-		Phi16 [ label="Phi" ];
-		Return17 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		Con_13 [ label="#2" ];
+		Add14 [ label="+" ];
+		Con_15 [ label="#3" ];
+		Sub16 [ label="-" ];
+		Region17 [ shape=box style=filled fillcolor=yellow label="Region" ];
+		Phi_a18 [ style=filled fillcolor=lightyellow label="&phi;_a" ];
+		Return19 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		{ rank=same; Phi_a18;}
 	}
-	node [shape=plaintext];
-	subgraph cluster_Scope20_0 {
-		Scope20_0 [label=<
-			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope20_0_$ctrl">$ctrl</TD><TD PORT="Scope20_0_arg">arg</TD></TR>
-			</TABLE>>];
-	subgraph cluster_Scope20_1 {
-		Scope20_1 [label=<
-			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope20_1_a">a</TD></TR>
-			</TABLE>>];
-	}
-	}
-	EQNode6 -> Start1:p1;
-	EQNode6 -> Con_5;
-	If7 -> Start1:p0 [color=red];
-	If7 -> EQNode6;
-	Add12 -> Start1:p1;
-	Add12 -> Con_11;
-	Sub14 -> Start1:p1;
-	Sub14 -> Con_13;
-	Region15 -> If7:p0 [color=red];
-	Region15 -> If7:p1 [color=red];
-	Phi16 -> Region15 [color=red];
-	Phi16 -> Add12;
-	Phi16 -> Sub14;
-	Return17 -> Region15 [color=red];
-	Return17 -> Phi16;
-	edge [style=dashed color=cornflowerblue];
-	Scope20_0:"Scope20_0_arg" -> Start1:p1;
-	Scope20_1:"Scope20_1_a" -> Phi16;
+	Stop3 -> Return19 [color=red];
+	EQNode8 -> Start2:p1;
+	EQNode8 -> Con_7;
+	If9 -> Start2:p0 [color=red];
+	If9 -> EQNode8;
+	Add14 -> Start2:p1;
+	Add14 -> Con_13;
+	Sub16 -> Start2:p1;
+	Sub16 -> Con_15;
+	Region17 -> If9:p0 [color=red];
+	Region17 -> If9:p1 [color=red];
+	Phi_a18 -> Region17 [color=red];
+	Phi_a18 -> Add14;
+	Phi_a18 -> Sub16;
+	Return19 -> Region17 [color=red];
+	Return19 -> Phi_a18;
 }
