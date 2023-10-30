@@ -21,9 +21,8 @@ else {
     #showGraph;
 }
 return a;
-#showGraph;
 """);
-        StopNode ret = parser.parse();
+        StopNode ret = parser.parse(true);
         assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
     }
   
