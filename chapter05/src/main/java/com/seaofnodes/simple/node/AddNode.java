@@ -112,9 +112,6 @@ public class AddNode extends Node {
         if( lo instanceof PhiNode && lo.all_cons() ) return false;
         if( hi instanceof PhiNode && hi.all_cons() ) return true ;
 
-        if( lo instanceof MulNode ) throw new RuntimeException("TODO");        
-        if( hi instanceof MulNode ) throw new RuntimeException("TODO");
-
         if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
         if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;
         
@@ -122,6 +119,5 @@ public class AddNode extends Node {
         return lo._nid > hi._nid;
     }
     
-    @Override
-    Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
 }

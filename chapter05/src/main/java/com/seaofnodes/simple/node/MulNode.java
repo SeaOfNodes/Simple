@@ -47,4 +47,5 @@ public class MulNode extends Node {
         
         return null;
     }
+    @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs); }
 }
