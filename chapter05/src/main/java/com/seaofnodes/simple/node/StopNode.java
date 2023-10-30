@@ -39,4 +39,9 @@ public class StopNode extends Node {
     public Node idealize() {
         return null;
     }
+
+    public Node addReturn(Node node) {
+        return add_def(node);
+    }
+
 }

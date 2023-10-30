@@ -59,7 +59,7 @@ public abstract class Node {
         _outputs = new ArrayList<>();
         for( Node n : _inputs )
             if( n != null )
-                n._outputs.add( this );
+                n.addUse( this );
     }
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
@@ -194,7 +194,7 @@ public abstract class Node {
         // This needs to happen before removing the old node's def->use edge as
         // the new_def might get killed if the old node kills it recursively.
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
@@ -211,12 +211,12 @@ public abstract class Node {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-  public Node add_def(Node new_def) {
+    Node add_def(Node new_def) {
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         return new_def;
     }
 
@@ -352,7 +352,7 @@ public abstract class Node {
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
-    Node copy(Node lhs, Node rhs) { throw new RuntimeException("TODO"); }
+    Node copy(Node lhs, Node rhs) { return null; }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

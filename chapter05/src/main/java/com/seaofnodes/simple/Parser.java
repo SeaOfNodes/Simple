@@ -195,7 +195,7 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = STOP.add_def(new ReturnNode(ctrl(), expr).peephole());
+        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
         ctrl(null);             // Kill control
         return ret;
     }
