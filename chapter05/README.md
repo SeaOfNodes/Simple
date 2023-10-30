@@ -147,6 +147,12 @@ Below is the graph after we created a `Region` node and merged the two definitio
 * `a` is now bound to the `Phi` node.
 * The `Phi` node's inputs are the `Region` node and the `Add` node from the `True` branch, and `Sub` node from the `False` branch.
 
+### Finally
+
+Here is the graph after the `return` statement.
+
+![Graph3](./docs/05-graph3.svg)
+
 ## References
 <a id="1">[1]</a>
 Click, C. (1995).
