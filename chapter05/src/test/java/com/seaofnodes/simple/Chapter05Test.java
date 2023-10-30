@@ -78,6 +78,13 @@ return c;
     }
 
     @Test
+    public void testChapter5Merge5() {
+        Parser parser = new Parser("int a=arg==2;if(arg==1)a=arg==3;return a;");
+        StopNode ret = parser.parse(true);
+        assertEquals("return (arg==Phi(Region16,3,2));", ret.toString());
+    }
+
+    @Test
     public void testChapter5True() {
       StopNode stop = new Parser("return true;").parse();
       assertEquals("return 1;",stop.toString());
