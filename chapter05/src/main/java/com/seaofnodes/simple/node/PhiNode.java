@@ -31,7 +31,7 @@ public class PhiNode extends Node {
     @Override
     public Node idealize() {
         // Remove a "junk" Phi: Phi(x,x) is just x
-        if( in(1)==in(2) )
+        if( same_inputs() )
             return in(1);
 
         // Pull "down" a common data op.  One less op in the world.  One more
@@ -61,4 +61,12 @@ public class PhiNode extends Node {
                 return false;
         return true;
     }
+
+    private boolean same_inputs() {
+        for( int i=2; i<nIns(); i++ )
+            if( in(1) != in(i) )
+                return false;
+        return true;
+    }
+
 }

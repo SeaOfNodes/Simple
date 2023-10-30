@@ -42,12 +42,8 @@ public class MulNode extends Node {
             return lhs;
         
         // Move constants to RHS: con*arg becomes arg*con
-        if ( t1.isConstant() && !t2.isConstant() ) {
-            Node tmp = in(1);   // Swap inputs without letting either input go dead during the swap
-            _inputs.set(1,in(2));
-            _inputs.set(2,tmp);
-            return this;
-        }
+        if ( t1.isConstant() && !t2.isConstant() )
+            return swap12();
         
         return null;
     }
