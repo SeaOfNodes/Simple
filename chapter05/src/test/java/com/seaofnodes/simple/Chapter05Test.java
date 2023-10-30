@@ -20,6 +20,7 @@ else {
     a = arg-3;
     #showGraph;
 }
+#showGraph;
 return a;
 """);
         StopNode ret = parser.parse(true);
