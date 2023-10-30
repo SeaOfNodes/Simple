@@ -7,6 +7,7 @@ else {
     a = arg-3;
     #showGraph;
 }
+#showGraph;
 return a;
 
 */
@@ -24,7 +25,6 @@ return a;
 			</TD></TR>
 			</TABLE>>
 		];
-		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
 		Con_7 [ label="#1" ];
 		EQNode8 [ label="==" ];
 		If9 [ shape=plaintext label=<
@@ -43,10 +43,21 @@ return a;
 		Sub16 [ label="-" ];
 		Region17 [ shape=box style=filled fillcolor=yellow label="Region" ];
 		Phi_a18 [ style=filled fillcolor=lightyellow label="&phi;_a" ];
-		Return19 [ shape=box style=filled fillcolor=yellow label="Return" ];
 		{ rank=same; Phi_a18;}
 	}
-	Stop3 -> Return19 [color=red];
+	node [shape=plaintext];
+	subgraph cluster_Scope1_0 {
+		Scope1_0 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope1_0_$ctrl">$ctrl</TD><TD PORT="Scope1_0_arg">arg</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope1_1 {
+		Scope1_1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope1_1_a">a</TD></TR>
+			</TABLE>>];
+	}
+	}
 	EQNode8 -> Start2:p1;
 	EQNode8 -> Con_7;
 	If9 -> Start2:p0 [color=red];
@@ -60,6 +71,8 @@ return a;
 	Phi_a18 -> Region17 [color=red];
 	Phi_a18 -> Add14;
 	Phi_a18 -> Sub16;
-	Return19 -> Region17 [color=red];
-	Return19 -> Phi_a18;
+	edge [style=dashed color=cornflowerblue];
+	Scope1_0:"Scope1_0_$ctrl" -> Region17;
+	Scope1_0:"Scope1_0_arg" -> Start2:p1;
+	Scope1_1:"Scope1_1_a" -> Phi_a18;
 }
