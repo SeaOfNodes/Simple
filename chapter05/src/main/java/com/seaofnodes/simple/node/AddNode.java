@@ -3,12 +3,11 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.*;
 
 public class AddNode extends Node {
-    public AddNode(Node lhs, Node rhs) {
-        super(null, lhs, rhs);
-    }
+    public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
-    @Override
-    public String label() { return "Add"; }
+    @Override public String label() { return "Add"; }
+    
+    @Override public String glabel() { return "+"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
@@ -87,7 +86,8 @@ public class AddNode extends Node {
             // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
             for( int i=1; i<ns.length; i++ )
                 ns[i] = new AddNode(phi.in(i),t2.isConstant() ? rhs : rhs.in(i)).peephole();
-            return new AddNode(lhs.in(1),new PhiNode(ns).peephole());
+            String label = phi._label + (rhs instanceof PhiNode rphi ? rphi._label : "");
+            return new AddNode(lhs.in(1),new PhiNode(label,ns).peephole());
         }
 
         // Now we sort along the spline via rotates, to gather similar things together.

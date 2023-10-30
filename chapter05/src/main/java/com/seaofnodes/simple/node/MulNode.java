@@ -5,12 +5,11 @@ import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class MulNode extends Node {
-    public MulNode(Node lhs, Node rhs) {
-        super(null, lhs, rhs);
-    }
+    public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
-    @Override
-    public String label() { return "Mul"; }
+    @Override public String label() { return "Mul"; }
+  
+    @Override public String glabel() { return "*"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {

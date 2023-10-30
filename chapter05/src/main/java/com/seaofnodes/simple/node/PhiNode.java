@@ -5,14 +5,13 @@ import com.seaofnodes.simple.type.TypeBot;
 
 public class PhiNode extends Node {
 
-    public PhiNode(Node... inputs) {
-        super(inputs);
-    }
+    final String _label;
+    
+    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; }
 
-    @Override
-    public String label() {
-        return "Phi";
-    }
+    @Override public String label() { return "Phi_"+_label; }
+
+    @Override public String glabel() { return "&phi;_"+_label; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
@@ -48,8 +47,8 @@ public class PhiNode extends Node {
                 lhss[i] = in(i).in(1);
                 rhss[i] = in(i).in(2);
             }
-            Node phi_lhs = new PhiNode(lhss).peephole();
-            Node phi_rhs = new PhiNode(rhss).peephole();
+            Node phi_lhs = new PhiNode(_label,lhss).peephole();
+            Node phi_rhs = new PhiNode(_label,rhss).peephole();
             return op.copy(phi_lhs,phi_rhs);
         }
 

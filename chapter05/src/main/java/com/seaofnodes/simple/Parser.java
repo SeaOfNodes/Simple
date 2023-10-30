@@ -86,7 +86,8 @@ public class Parser {
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
-    public StopNode parse() {
+    public StopNode parse() { return parse(false); }
+    public StopNode parse(boolean show) {
         _allScopes.push(_scope);
         _scope.push();
         try {
@@ -98,6 +99,7 @@ public class Parser {
         finally {
             _scope.pop();
             _allScopes.pop();
+            if( show ) showGraph();
         }
     }
 
@@ -135,7 +137,7 @@ public class Parser {
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return parseBlock();
         else if (matchx("if" )) return parseIf();
-        else if (matchx("#showGraph")) return showGraph();
+        else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
     }
 
@@ -203,7 +205,6 @@ public class Parser {
      * @return {@code null}
      */
     private Node showGraph() {
-        require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
         return null;
     }

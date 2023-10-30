@@ -32,6 +32,10 @@ public class GraphVisualizer {
 
         // Preserve node input order
         sb.append("\tordering=\"in\";\n");
+
+        // Merge multiple edges hitting the same node.  Makes common shared
+        // nodes much prettier to look at.
+        sb.append("\tconcentrate=\"true\";\n");
         
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
@@ -59,7 +63,7 @@ public class GraphVisualizer {
             if( n instanceof ProjNode || n instanceof ScopeNode )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
-            String lab = n.label();
+            String lab = n.glabel();
             if( n instanceof MultiNode ) {
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.append("shape=plaintext label=<\n");
@@ -77,7 +81,7 @@ public class GraphVisualizer {
                         }
                         sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
                         if( proj.isCFG() ) sb.append(" BGCOLOR=\"yellow\"");
-                        sb.append(">").append(proj.label()).append("</TD>");
+                        sb.append(">").append(proj.glabel()).append("</TD>");
                     }
                 }
                 if (doProjTable) {
@@ -93,10 +97,24 @@ public class GraphVisualizer {
                 // other nodes are ellipses, i.e. default shape
                 if( n.isCFG() )
                     sb.append("shape=box style=filled fillcolor=yellow ");
+                if( n instanceof PhiNode )
+                    sb.append("style=filled fillcolor=lightyellow ");
                 sb.append("label=\"").append(lab).append("\" ");
             }
             sb.append("];\n");
         }
+        
+        // Force Region & Phis to line up
+        for( Node n : all ) {
+          if( n instanceof RegionNode region ) {
+            sb.append("\t\t{ rank=same; ");
+            for( Node phi : region._outputs )
+              if( phi instanceof PhiNode )
+                sb.append(phi.uniqueName()).append(";");
+            sb.append("}\n");
+          }
+        }
+        
         sb.append("\t}\n");     // End Node cluster
     }
 
