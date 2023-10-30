@@ -50,11 +50,6 @@ public class PhiNode extends Node {
             }
             Node phi_lhs = new PhiNode(lhss).peephole();
             Node phi_rhs = new PhiNode(rhss).peephole();
-            //if( phi_lhs instanceof PhiNode && phi_rhs instanceof PhiNode ) {
-            //    phi_lhs.kill();
-            //    phi_rhs.kill();
-            //    return null;    // No progress, no profit
-            //}
             return op.copy(phi_lhs,phi_rhs);
         }
 
