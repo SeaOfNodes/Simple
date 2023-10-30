@@ -59,7 +59,7 @@ public abstract class Node {
         _outputs = new ArrayList<>();
         for( Node n : _inputs )
             if( n != null )
-                n._outputs.add( this );
+                n.addUse( this );
     }
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
@@ -194,7 +194,7 @@ public abstract class Node {
         // This needs to happen before removing the old node's def->use edge as
         // the new_def might get killed if the old node kills it recursively.
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
@@ -216,7 +216,7 @@ public abstract class Node {
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         return new_def;
     }
 
