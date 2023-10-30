@@ -55,9 +55,30 @@ through the data value from the matching input [[1]](#1).
 
 ## `Region` Nodes
 
-`Region` nodes were originally introduced to replace Basic Blocks in the IR
-[[3]](#3).  However, we do not assign a `Region` to every node in the graph; we
-insert a `Region` node at a merge point where it takes control from each
+> Every instruction has a control input from a basic block. If the control input is an edge
+> in our abstract graph, then the basic block must be a node in the abstract graph. So we
+> define a REGION instruction to replace a basic block. A REGION instruction takes
+> control from each predecessor block as input and produces a merged control as an output [[3]](#3).
+
+However:
+
+> We can remove the control dependence for any given Node simply by replacing the
+> pointer value with the special value NULL. This operation only makes sense for Nodes
+> that represent data computations. PHI, IF, JUMP and STOP Nodes all require the control
+> input for semantic correctness. REGION Nodes require several control inputs (one per
+> CFG input to the basic block they represent). Almost all other Nodes can live without a
+> control dependence. A data computation without a control dependence does not exactly
+> reside in any particular basic block. Its correct behavior depends solely on the remaining
+> data dependences. It, and the Nodes that depend on it or on which it depends, exists in a
+> “sea” of Nodes, with little control structure.
+
+> The “sea” of Nodes is useful for optimization, but does not represent any traditional
+> intermediate representation such as a CFG. We need a way to serialize the graph and get
+> back the control dependences. We do this with a simple global code motion algorithm [[4]](#4).
+
+Thus, we do not associate a control edge on every data node in the graph. 
+
+We insert a `Region` node at a merge point where it takes control from each
 predecessor control edge, and produces a merged control as output.  Data flows
 via `Phi` nodes at these merge points.
 
@@ -135,6 +156,10 @@ Combining Analyses, Combining Optimizations, 132.
 Click, C. (1995).
 Combining Analyses, Combining Optimizations, 102-103.
 
-<a id="2">[3]</a>
+<a id="3">[3]</a>
 Click, C. (1995).
 Combining Analyses, Combining Optimizations, 129.
+
+<a id="4">[4]</a>
+Click, C. (1995).
+Combining Analyses, Combining Optimizations, 86.

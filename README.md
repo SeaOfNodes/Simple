@@ -33,12 +33,12 @@ The simple language will be a small subset of C.
 * [Chapter 3](chapter03/README.md): Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
   constant.
 * [Chapter 4](chapter04/README.md): A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications. 
-* [Chapter 5](chapter05/README.md): `if` statement. CFG construction, peephole optimization around dead control flow. 
-* Chapter 6: `while` statement.
-* Chapter 7: Global Value Numbering.
-* Chapter 8: Functions and calls.
-* Chapter 9: Boolean operators `&&`, `||` and `!` including short circuit.
-* Chapter 10: `float` type.
+* [Chapter 5](chapter05/README.md): `if` statement. CFG construction.
+* Chapter 6: Peephole optimization around dead control flow. 
+* Chapter 7: `while` statement.
+* Chapter 8: Global Value Numbering.
+* Chapter 9: Functions and calls.
+* Chapter 10: Boolean operators `&&`, `||` and `!` including short circuit.
 * Chapter 11: Memory effects: general memory edges in SSA. Peephole optimization around
   load-after-store/store-after-store.
 * Chapter 12: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not
