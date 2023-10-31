@@ -1,6 +1,6 @@
 # Chapter 5
 
-In this chapter we extend the language grammar with following features:
+In this chapter we extend the language grammar with the following features:
 
 * We introduce the `if` statement.
 * To support splitting of control flow and merging, we introduce new nodes: `Region` and `Phi`.
@@ -12,31 +12,31 @@ Here is the [complete language grammar](docs/05-grammar.md) for this chapter.
 
 Here is a recap of the nodes introduced in previous chapters:
 
-| Node Name  | Type           | Chapter | Description                                    | Inputs                                                           | Value                                                                   |
-|------------|----------------|---------|------------------------------------------------|------------------------------------------------------------------|-------------------------------------------------------------------------|
-| Multi      | Abstract class | 4       | A node that has a tuple result                 |                                                                  | A tuple                                                                 |
-| Start      | Control        | 1       | Start of function, now a MultiNode             | An input argument named `arg`.                                   | A tuple with a ctrl token and an `arg` data node                        |
-| Proj       | ?              | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                            | Result is the extracted value from the input MultiNode at offset index  | 
-| Bool       | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                   | Result a comparison, represented as integer value where 1=true, 0=false |
-| Return     | Control        | 1       | End of function                                | Predecessor control node, Data node value                        | Return value of the function                                            |
-| Constant   | Data           | 1       | Constants such as integer literals             | None, however Start node is set as input to enable graph walking | Value of the constant                                                   |
-| Add        | Data           | 2       | Add two values                                 | Two data nodes, values are added, order not important            | Result of the add operation                                             |
-| Sub        | Data           | 2       | Subtract a value from another                  | Two data nodes, values are subtracted, order matters             | Result of the subtract                                                  |
-| Mul        | Data           | 2       | Multiply two values                            | Two data nodes, values are multiplied, order not important       | Result of the multiply                                                  |
-| Div        | Data           | 2       | Divide a value by another                      | Two data nodes, values are divided, order matters                | Result of the division                                                  |
-| UnaryMinus | Data           | 2       | Negate a value                                 | One data node, value is negated                                  | Result of the unary minus                                               |
-| Scope      | ?              | 3       | Represents scopes in the graph                 | All nodes that define variables                                  | None                                                                    |
+| Node Name | Type           | Chapter | Description                                    | Inputs                                                                        | Value                                                                      |
+|-----------|----------------|---------|------------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| Multi     | Abstract class | 4       | A node that has a tuple result                 |                                                                               | A tuple                                                                    |
+| Start     | Control        | 1       | Start of function, now a MultiNode             | A type for the input argument named `arg`.                                    | A tuple with a ctrl token and an `arg` data node                           |
+| Proj      | ?              | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     | 
+| Bool      | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                                | Result is a comparison, represented as integer value where 1=true, 0=false |
+| Return    | Control        | 1       | End of function                                | Predecessor control node and a data node for the return value of the function | Return value of the function                                               |
+| Constant  | Data           | 1       | Represents constants such as integer literals  | None, however Start node is set as input to enable graph walking              | Value of the constant                                                      |
+| Add       | Data           | 2       | Add two values                                 | Two data nodes without restrictions on the order                              | Result of the add operation                                                |
+| Sub       | Data           | 2       | Subtract a value from another                  | Two data nodes, the first one is subtracted by the second one                 | Result of the subtraction                                                  |
+| Mul       | Data           | 2       | Multiply two values                            | Two data nodes without restrictions on the order                              | Result of the multiplication                                               |
+| Div       | Data           | 2       | Divide a value by another                      | Two data nodes, the first one is divided by the second one                    | Result of the division                                                     |
+| Minus     | Data           | 2       | Negate a value                                 | One data node which value is negated                                          | Result of the negation                                                     |
+| Scope     | ?              | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
 
 ## New Nodes
 
-Following new nodes are introduced in this chapter:
+The following new nodes are introduced in this chapter:
 
 | Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
 |-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
 | If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
-| Region    | Control | 5       | A merge point for multiple control flow            | An input for each control flow that is merging | Merged control                                     |
+| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
 | Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 | 
-| Stop      | Control | 5       | Termination of the program                         | One or more Return nodes                       | None                                               |
+| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
 
 ## `If` Nodes
 
@@ -48,17 +48,17 @@ control token to one of the two control flows, represented by true and false
 
 A `Phi` reads in both data and control, and outputs a data value.  The control
 input to the `Phi` points to a `Region` node.  The data inputs to the `Phi` are
-one each for the control inputs to that `Region`.  The result computed by a
+one for each of the control inputs to that `Region`.  The result computed by a
 `Phi` depends both on the data and the matching control input.  At most one
 control input to the `Region` can be active at a time, and the `Phi` passes
-through the data value from the matching input [[1]](#1).
+through the data value from the matching input.[^1]
 
 ## `Region` Nodes
 
 > Every instruction has a control input from a basic block. If the control input is an edge
 > in our abstract graph, then the basic block must be a node in the abstract graph. So we
 > define a REGION instruction to replace a basic block. A REGION instruction takes
-> control from each predecessor block as input and produces a merged control as an output [[3]](#3).
+> control from each predecessor block as input and produces a merged control as an output.[^2]
 
 However:
 
@@ -74,44 +74,43 @@ However:
 
 > The “sea” of Nodes is useful for optimization, but does not represent any traditional
 > intermediate representation such as a CFG. We need a way to serialize the graph and get
-> back the control dependences. We do this with a simple global code motion algorithm [[4]](#4).
+> back the control dependences. We do this with a simple global code motion algorithm.[^3]
 
 Thus, we do not associate a control edge on every data node in the graph. 
 
 We insert a `Region` node at a merge point where it takes control from each
-predecessor control edge, and produces a merged control as output.  Data flows
+predecessor's control edge, and produces a merged control as output.  Data flows
 via `Phi` nodes at these merge points.
 
-## Parsing of `If` statement
+## Parsing an `if` Statement
 
 When we parse an `if` statement, the control flow splits at that point.  We
 must track the names being updated in each part of the `if` statement, and then
-merge them at the end.  The implementation follows the description in
-[[2]](#2).
+merge them at the end.  The implementation follows the description in *Combining Analyses, Combining Optimizations*[^4].
 
 This involves following:
 
-* We create an `IfNode` with the current control token, i.e. the node mapped to
+1. We create an `IfNode` with the current control token, i.e. the node mapped to
   `$ctrl`, and the `if` predicate expression as inputs.
-* We add two `ProjNodes` - one for the `True` branch (call if `ifT`), and the
+2. We add two `ProjNodes` - one for the `True` branch (call if `ifT`), and the
   other for the `False` branch (call it `ifF`) - these extract values from the
   tuple result of the `IfNode`.
-* We duplicate the current `ScopeNode`.  The duplicated `ScopeNode` contains
+3. We duplicate the current `ScopeNode`.  The duplicated `ScopeNode` contains
   all the same symbol tables as the original, and has the same edges.
-* We set control token to the `True` projection node `ifT`, and parse the true
+4. We set the control token to the `True` projection node `ifT`, and parse the true
   branch of the `if` statement.
-* We reset the dupped `ScopeNode` as current.
-* We set control token to the `False` projection node `ifF`, and if there is an
+5. We set the duplicated `ScopeNode` as the current one.
+6. The control token is set to the `False` projection node `ifF`, and if there is an
   `else` statement we parse it.
-* At this point we have two `ScopeNode`s; the original one, potentially updated
+7. At this point we have two `ScopeNode`s; the original one, potentially updated
   by the `True` branch, and the duplicate one, potentially updated by the
   `False` branch.  
-* We create a `Region` node to represent a merge point.
-* We *merge* the two `ScopeNode`s. We create `Phi` nodes for any names whose
+8. We create a `Region` node to represent a merge point.
+9. We *merge* the two `ScopeNode`s. We create `Phi` nodes for any names whose
   bindings differ.  The `Phi` nodes take the `Region` node as the control input
   and the two data nodes from each of the `ScopeNode`s.  The name binding is
   updated to point to the `Phi` node.
-* Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
+10. Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
 
 ## Example
 
@@ -126,46 +125,42 @@ else
 return a; 
 ```
 
-### Before merging
+### Before Merging
 
 Following shows the graph just before we merge the two branches of the `if` statement in a `Region` node.
 
 ![Graph1](./docs/05-graph1.svg)
 
-* Note the two `ScopeNode`s in the graph.
-* One has its `$ctrl` pointing to the `True` projection, while the other has `$ctrl` pointing to `False` projection.
-* Note that `a` is bound to the `Sub` node in the `False` branch, whereas `a` is bound to the `Add` node in the `True` branch.
-* Thus `a` needs a `Phi` node.
+Note the two `ScopeNode`s in the graph.
+One has its `$ctrl` pointing to the `True` projection, while the other has `$ctrl` pointing to `False` projection.
+The variable `a` is bound to the `Add` node in the `True` branch, whereas it is bound to the `Sub` node in the `False` branch.
+Thus `a` will need a `Phi` node when merging the two scopes.
 
-### After merging
+### After Merging
 
 Below is the graph after we created a `Region` node and merged the two definitions of `a` in a `Phi` node.
 
 ![Graph2](./docs/05-graph2.svg)
 
-* Observe that the duplicate `ScopeNode` has been discarded.
-* `a` is now bound to the `Phi` node.
-* The `Phi` node's inputs are the `Region` node and the `Add` node from the `True` branch, and `Sub` node from the `False` branch.
+The duplicate `ScopeNode` has been discarded and was merged into the other one.
+Since `a` had two different definitions in both scopes a `Phi` node was created and is now referenced from `a`.
+The `Phi` node's inputs are the `Region` node and the `Add` node from the `True` branch, and `Sub` node from the `False` branch.
 
 ### Finally
 
-Here is the graph after the `return` statement.
+Here is the graph after the `return` statement was parsed and processed.
 
 ![Graph3](./docs/05-graph3.svg)
 
-## References
-<a id="1">[1]</a>
-Click, C. (1995).
-Combining Analyses, Combining Optimizations, 132.
 
-<a id="2">[2]</a>
-Click, C. (1995).
-Combining Analyses, Combining Optimizations, 102-103.
+[^1]: Click, C. (1995).
+  Combining Analyses, Combining Optimizations, 132.
 
-<a id="3">[3]</a>
-Click, C. (1995).
-Combining Analyses, Combining Optimizations, 129.
+[^2]: Click, C. (1995).
+  Combining Analyses, Combining Optimizations, 129.
 
-<a id="4">[4]</a>
-Click, C. (1995).
-Combining Analyses, Combining Optimizations, 86.
+[^3]: Click, C. (1995).
+  Combining Analyses, Combining Optimizations, 86.
+
+[^4]: Click, C. (1995).
+  Combining Analyses, Combining Optimizations, 102-103.
