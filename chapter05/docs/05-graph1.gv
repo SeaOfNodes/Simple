@@ -7,6 +7,7 @@ else {
     a = arg-3;
     #showGraph;
 }
+#showGraph;
 return a;
 
 */
@@ -67,14 +68,15 @@ return a;
 			</TABLE>>];
 	}
 	}
-	EQNode8 -> Start2:p1;
-	EQNode8 -> Con_7;
-	If9 -> Start2:p0 [color=red];
-	If9 -> EQNode8;
-	Add14 -> Start2:p1;
-	Add14 -> Con_13;
-	Sub16 -> Start2:p1;
-	Sub16 -> Con_15;
+	edge [ fontname=Helvetica, fontsize=8 ];
+	EQNode8 -> Start2:p1[taillabel=1];
+	EQNode8 -> Con_7[taillabel=2];
+	If9 -> Start2:p0[taillabel=0; color=red];
+	If9 -> EQNode8[taillabel=1];
+	Add14 -> Start2:p1[taillabel=1];
+	Add14 -> Con_13[taillabel=2];
+	Sub16 -> Start2:p1[taillabel=1];
+	Sub16 -> Con_15[taillabel=2];
 	edge [style=dashed color=cornflowerblue];
 	Scope1_0:"Scope1_0_$ctrl" -> If9:p0;
 	Scope1_0:"Scope1_0_arg" -> Start2:p1;
