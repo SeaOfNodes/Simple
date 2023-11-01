@@ -5,13 +5,12 @@ import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class DivNode extends Node {
-    public DivNode(Node lhs, Node rhs) {
-        super(null, lhs, rhs);
-    }
+    public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
-    @Override
-    public String label() { return "Div"; }
-  
+    @Override public String label() { return "Div"; }
+
+    @Override public String glabel() { return "//"; }
+
     @Override
     StringBuilder _print1(StringBuilder sb) {
         in(1)._print0(sb.append("("));

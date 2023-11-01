@@ -13,7 +13,10 @@ abstract public class BoolNode extends Node {
     abstract String op();       // String opcode name
     
     @Override
-    public String label() { return op(); }
+    public String label() { return getClass().getSimpleName(); }
+
+    @Override
+    public String glabel() { return op(); }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {

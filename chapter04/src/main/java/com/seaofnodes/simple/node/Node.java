@@ -2,8 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -24,8 +23,7 @@ public abstract class Node {
      * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
      * Ordering is required because e.g. "a/b" is different from "b/a".
-     * The first input (offset 0) is often a Control node.
-     * @see Control
+     * The first input (offset 0) is often a {@link #isCFG} node.
      */
     public final ArrayList<Node> _inputs;
 
@@ -61,13 +59,18 @@ public abstract class Node {
         _outputs = new ArrayList<>();
         for( Node n : _inputs )
             if( n != null )
-                n._outputs.add( this );
+                n.addUse( this );
     }
 
+    // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
+    // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() { return label() + _nid; }
 
+    // Graphical label, e.g. "+" or "Region" or "=="
+    public String glabel() { return label(); }
+    
     @Override
     public final String toString() {
         // TODO: This needs a lot of work
@@ -101,23 +104,17 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
-    /**
-     * Gets the ith output node
-     * @param i Offset of the output node
-     * @return Output node (not null)
-     */
-    public Node out(int i) { return _outputs.get(i); }
-
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
 
+    public boolean isCFG() { return false; }
+  
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
-
 
     /**
      * Try to peephole at this node and return a better replacement Node if
@@ -197,7 +194,7 @@ public abstract class Node {
         // This needs to happen before removing the old node's def->use edge as
         // the new_def might get killed if the old node kills it recursively.
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
@@ -219,11 +216,10 @@ public abstract class Node {
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         return new_def;
     }
 
-    
     // Breaks the edge invariants, used temporarily
     private void addUse(Node n) { _outputs.add(n); }
 
@@ -266,7 +262,7 @@ public abstract class Node {
 
     // Mostly used for asserts and printing.
     boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
-    
+  
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
@@ -332,14 +328,21 @@ public abstract class Node {
      */
     public abstract Node idealize();
 
+
+    // -----------------------
+    // Peephole utilities
+    
+    // Swap inputs without letting either input go dead during the swap.
+    Node swap12() {
+        Node tmp = in(1);
+        _inputs.set(1,in(2));
+        _inputs.set(2,tmp);
+        return this;
+    }
+
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
     public static void reset() { UNIQUE_ID = 1; }
-  
-    /*
-     * hashCode and equals implementation to be added in later chapter.
-     */
-  
 }
