@@ -277,4 +277,11 @@ public class Chapter04Test {
         // this test used to fail in chapter 1
         assertEquals("return -100;", new Parser("return -100;").parse().print());
     }
+
+    @Test
+    public void testBad6() {
+        exceptionRule.expect(RuntimeException.class);
+        exceptionRule.expectMessage("Syntax error, expected }:");
+        new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b;").parse();
+    }
 }
