@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeControl;
 
 import java.util.*;
 
