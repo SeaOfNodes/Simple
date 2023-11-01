@@ -55,12 +55,12 @@ public class Parser {
         _scope.push();
         Node n = null;
         do {
-            if (_lexer.isEOF()) {
+            if (match("}")) {
+                if (requireClosingBracket) break;
+                else throw error("unexpected '}' token");
+            } else if (_lexer.isEOF()) {
                 if (requireClosingBracket) require("}");
                 else break;
-            } else if (match("}")) {
-                if (requireClosingBracket) break;
-                else error("unexpected '}' token");
             }
 
             Node n0 = parseStatement();
