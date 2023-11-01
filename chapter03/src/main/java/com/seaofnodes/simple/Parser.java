@@ -39,7 +39,7 @@ public class Parser {
     }
 
     public ReturnNode parse() {
-        return (ReturnNode) parseBlock();
+        return (ReturnNode) parseBlock(false);
     }
 
 
@@ -50,12 +50,15 @@ public class Parser {
      *     '{' statements '}'
      * </pre>
      */
-    private Node parseBlock() {
+    private Node parseBlock(boolean requireClosingBracket) {
         // Enter a new scope
         _scope.push();
         Node n = null;
         while (!match("}")) {
-            if (_lexer.isEOF()) throw errorSyntax("}");
+            if (_lexer.isEOF()) {
+                if (requireClosingBracket) throw errorSyntax("}");
+                else break;
+            }
 
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
@@ -75,7 +78,7 @@ public class Parser {
     private Node parseStatement() {
         if (match("return")) return parseReturn();
         else if (match("int")) return parseDecl();
-        else if (match("{")) return parseBlock();
+        else if (match("{")) return parseBlock(true);
         else if (match("#showGraph")) return showGraph();
         else return parseExpressionStatement();
     }
