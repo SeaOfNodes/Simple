@@ -14,6 +14,8 @@ public class TypeInteger extends Type {
 
     public TypeInteger(long con) { _con = con; }
 
+    public static TypeInteger constant(long con) { return new TypeInteger(con); }
+
     @Override
     public String toString() {
       return _print(new StringBuilder()).toString();
@@ -25,7 +27,7 @@ public class TypeInteger extends Type {
     @Override
     public boolean isConstant() { return true; }
 
-    public long getConstant() { return _con; }
+    public long value() { return _con; }
 
     @Override
     public boolean equals( Object o ) {

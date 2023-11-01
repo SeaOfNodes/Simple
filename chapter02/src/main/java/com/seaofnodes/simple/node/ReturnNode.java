@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.*;
 
 /**
  * The Return node has two inputs.  The first input is a control node and the
@@ -11,7 +11,7 @@ import com.seaofnodes.simple.type.TypeBot;
  * <p>
  * The Return's output is the value from the data node.
  */
-public class ReturnNode extends Node implements Control {
+public class ReturnNode extends Node {
 
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
@@ -24,10 +24,11 @@ public class ReturnNode extends Node implements Control {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        return expr()._print(sb.append("return ")).append(";");
+    StringBuilder _print1(StringBuilder sb) {
+        return expr()._print0(sb.append("return ")).append(";");
     }
 
+    @Override public boolean isCFG() { return true; }
   
     @Override
     public TypeBot compute() {

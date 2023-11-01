@@ -5,17 +5,16 @@ import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class DivNode extends Node {
-    public DivNode(Node lhs, Node rhs) {
-        super(null, lhs, rhs);
-    }
+    public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+
+    @Override public String label() { return "Div"; }
+
+    @Override public String glabel() { return "//"; }
 
     @Override
-    public String label() { return "Div"; }
-  
-    @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("("));
-        in(2)._print(sb.append("/"));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("("));
+        in(2)._print0(sb.append("/"));
         return sb.append(")");
     }
   
@@ -23,11 +22,9 @@ public class DivNode extends Node {
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return i1._con == 0
-                    ? TypeInteger.ZERO
-                    : new TypeInteger(i0._con/i1._con);
-            return new TypeInteger(i0._con / i1._con);
+            return i1.value() == 0
+                ? TypeInteger.ZERO
+                : TypeInteger.constant(i0.value()/i1.value());
         }
         return TypeBot.BOTTOM;
     }
