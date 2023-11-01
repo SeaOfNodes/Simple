@@ -106,13 +106,14 @@ public class GraphVisualizer {
         
         // Force Region & Phis to line up
         for( Node n : all ) {
-          if( n instanceof RegionNode region ) {
-            sb.append("\t\t{ rank=same; ");
-            for( Node phi : region._outputs )
-              if( phi instanceof PhiNode )
-                sb.append(phi.uniqueName()).append(";");
-            sb.append("}\n");
-          }
+            if( n instanceof RegionNode region ) {
+                sb.append("\t\t{ rank=same; ");
+                sb.append(region).append(";")     ;
+                for( Node phi : region._outputs )
+                    if( phi instanceof PhiNode )
+                        sb.append(phi.uniqueName()).append(";");
+                sb.append("}\n");
+            }
         }
         
         sb.append("\t}\n");     // End Node cluster
@@ -145,21 +146,42 @@ public class GraphVisualizer {
 
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
+        // All them edge labels
+	sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
         for( Node n : all ) {
+            // Do not display the Constant->Start edge;
+            // ProjNodes handled by Multi;
+            // ScopeNodes are done separately
             if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
-                continue;       // Do not display the Constant->Start edge; ProjNodes handled by Multi; ScopeNodes are done separately
-            for( Node def : n._inputs )
-                if( def != null ) {
+                continue;
+            int i=0;
+            for( Node def : n._inputs ) {
+                // Do not draw the Phi->Region edge (in red); instead Phis are
+                // on a line with their Region, and we draw an invisible line
+                // from the Region to the Phi, to force all the Phis to the
+                // right of the Region.
+                if( n instanceof PhiNode && def instanceof RegionNode ) {
+                    sb.append('\t').append(def.uniqueName());
+                    sb.append(" -> ");
+                    sb.append(n.uniqueName());
+                    sb.append(" [style=invis]\n");
+                    
+                } else if( def != null ) {
+                    // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
                     if( def instanceof ProjNode proj ) {
                         String mname = proj.ctrl().uniqueName();
                         sb.append(mname).append(":p").append(proj._idx);
                     } else sb.append(def.uniqueName());
-                    // Control edges are colored red
+                    // Number edges, so we can see how they track
+                    sb.append("[taillabel=").append(i);
+                    // control edges are colored red
                     if( def.isCFG() )
-                        sb.append(" [color=red]");
-                    sb.append(";\n");
+                        sb.append("; color=red");
+                    sb.append("];\n");
                 }
+                i++;
+            }
         }
     }
     
