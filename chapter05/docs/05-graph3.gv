@@ -45,22 +45,23 @@ return a;
 		Region17 [ shape=box style=filled fillcolor=yellow label="Region" ];
 		Phi_a18 [ style=filled fillcolor=lightyellow label="&phi;_a" ];
 		Return19 [ shape=box style=filled fillcolor=yellow label="Return" ];
-		{ rank=same; Phi_a18;}
+		{ rank=same; Region17;Phi_a18;}
 	}
-	Stop3 -> Return19 [color=red];
-	EQNode8 -> Start2:p1;
-	EQNode8 -> Con_7;
-	If9 -> Start2:p0 [color=red];
-	If9 -> EQNode8;
-	Add14 -> Start2:p1;
-	Add14 -> Con_13;
-	Sub16 -> Start2:p1;
-	Sub16 -> Con_15;
-	Region17 -> If9:p0 [color=red];
-	Region17 -> If9:p1 [color=red];
-	Phi_a18 -> Region17 [color=red];
-	Phi_a18 -> Add14;
-	Phi_a18 -> Sub16;
-	Return19 -> Region17 [color=red];
-	Return19 -> Phi_a18;
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return19[taillabel=0; color=red];
+	EQNode8 -> Start2:p1[taillabel=1];
+	EQNode8 -> Con_7[taillabel=2];
+	If9 -> Start2:p0[taillabel=0; color=red];
+	If9 -> EQNode8[taillabel=1];
+	Add14 -> Start2:p1[taillabel=1];
+	Add14 -> Con_13[taillabel=2];
+	Sub16 -> Start2:p1[taillabel=1];
+	Sub16 -> Con_15[taillabel=2];
+	Region17 -> If9:p0[taillabel=1; color=red];
+	Region17 -> If9:p1[taillabel=2; color=red];
+	Region17 -> Phi_a18 [style=invis]
+	Phi_a18 -> Add14[taillabel=1];
+	Phi_a18 -> Sub16[taillabel=2];
+	Return19 -> Region17[taillabel=0; color=red];
+	Return19 -> Phi_a18[taillabel=1];
 }
