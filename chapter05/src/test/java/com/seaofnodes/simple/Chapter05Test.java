@@ -301,6 +301,7 @@ return c;
     public void testSelfAssign() {
         try { 
             new Parser("int a=a; return a;").parse();
+            fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'a'",e.getMessage());
         }
