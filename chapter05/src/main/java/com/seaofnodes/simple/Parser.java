@@ -115,9 +115,7 @@ public class Parser {
         // Enter a new scope
         _scope.push();
         Node n = null;
-        while (!match("}")) {
-            if (_lexer.isEOF()) throw errorSyntax("}");
-
+        while (!match("}") && !_lexer.isEOF()) {
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
         }
