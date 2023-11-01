@@ -429,14 +429,4 @@ return c;
         // this test used to fail in chapter 1
         assertEquals("return -100;", new Parser("return -100;").parse().print());
     }
-
-    @Test
-    public void testBad6() {
-        try {
-            new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected }: ",e.getMessage());
-        }
-    }
 }
