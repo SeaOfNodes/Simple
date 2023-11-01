@@ -15,7 +15,6 @@
 		<maven.compiler.source>21</maven.compiler.source>
 		<antlr4test-maven-plugin.version>1.22</antlr4test-maven-plugin.version>
 		<antlr.version>4.11.1</antlr.version>
-		<antlr4test-maven-plugin.version>1.21</antlr4test-maven-plugin.version>
 		<junit.version>4.13.2</junit.version>
 	</properties>
 	<dependencies>
