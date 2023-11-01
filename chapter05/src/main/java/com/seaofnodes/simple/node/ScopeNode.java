@@ -117,7 +117,7 @@ public class ScopeNode extends Node {
     public RegionNode mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode)ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
         for( int i=1; i<nIns(); i++ )
-            if( in(1) != that.in(i) ) // No need for redundant Phis
+            if( in(i) != that.in(i) ) // No need for redundant Phis
                 set_def(i,new PhiNode(_rlabels.get(i), r, in(i), that.in(i)).peephole());
         that.kill();            // Kill merged scope
         return r;
