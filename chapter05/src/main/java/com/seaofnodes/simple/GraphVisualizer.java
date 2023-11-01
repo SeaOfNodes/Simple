@@ -146,7 +146,7 @@ public class GraphVisualizer {
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
         // All them edge labels
-	sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
+        sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
         for( Node n : all ) {
             // Do not display the Constant->Start edge;
             // ProjNodes handled by Multi;
