@@ -93,7 +93,7 @@ public class Parser {
         try {
             _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
             _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            parseBlock(false);
+            parseBlock();
             return STOP;
         }
         finally {
@@ -109,24 +109,17 @@ public class Parser {
      * <pre>
      *     '{' statements '}'
      * </pre>
+     * Does not parse the opening or closing '{}'
      * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock(boolean requireClosingBracket) {
+    private Node parseBlock() {
         // Enter a new scope
         _scope.push();
         Node n = null;
-        do {
-            if (match("}")) {
-                if (requireClosingBracket) break;
-                else throw error("unexpected '}' token");
-            } else if (_lexer.isEOF()) {
-                if (requireClosingBracket) require("}");
-                else break;
-            }
-
+        while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        } while (true);
+        };
         // Exit scope
         _scope.pop();
         return n;
@@ -143,7 +136,7 @@ public class Parser {
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
-        else if (match ("{"  )) return parseBlock(true);
+        else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
@@ -360,8 +353,10 @@ public class Parser {
 
     // Return true and skip if "syntax" is next in the stream.
     private boolean match (String syntax) { return _lexer.match (syntax); }
-    // Match must not be followed by more id letters
+    // Match must be "exact", not be followed by more id letters
     private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
+    // Return true and do NOT skip if 'ch' is next
+    private boolean peek(char ch) { return _lexer.peek(ch); }
 
     // Require and return an identifier
     private String requireId() {
@@ -466,6 +461,11 @@ public class Parser {
             return false;
         }
 
+        private boolean peek(char ch) {
+            skipWhiteSpace();
+            return peek()==ch;
+        }
+        
         // Return an identifier or null
         String matchId() {
             skipWhiteSpace();
