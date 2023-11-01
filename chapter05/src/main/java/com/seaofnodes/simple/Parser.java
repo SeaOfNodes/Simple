@@ -55,8 +55,8 @@ public class Parser {
             add("else");
             add("false");
             add("if");
+            add("int");
             add("return");
-            add("then");
             add("true");
         }};
 
