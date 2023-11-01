@@ -93,7 +93,7 @@ public class Parser {
         try {
             _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
             _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            parseBlock();
+            parseBlock(false);
             return STOP;
         }
         finally {
@@ -111,14 +111,22 @@ public class Parser {
      * </pre>
      * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock() {
+    private Node parseBlock(boolean requireClosingBracket) {
         // Enter a new scope
         _scope.push();
         Node n = null;
-        while (!match("}") && !_lexer.isEOF()) {
+        do {
+            if (match("}")) {
+                if (requireClosingBracket) break;
+                else throw error("unexpected '}' token");
+            } else if (_lexer.isEOF()) {
+                if (requireClosingBracket) require("}");
+                else break;
+            }
+
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        }
+        } while (true);
         // Exit scope
         _scope.pop();
         return n;
@@ -135,7 +143,7 @@ public class Parser {
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
-        else if (match ("{"  )) return parseBlock();
+        else if (match ("{"  )) return parseBlock(true);
         else if (matchx("if" )) return parseIf();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
