@@ -16,25 +16,25 @@ import com.seaofnodes.simple.type.Type;
  * The Constant's value is the value stored in it.
  */
 public class ConstantNode extends Node {
-
+    Type _con;
     public ConstantNode( Type type ) {
         super(Parser.START);
-        _type = type;
+        _con = type;
     }
     
     @Override
-    public String label() { return "#"+_type; }
+    public String label() { return "#"+_con; }
   
     @Override
     public String uniqueName() { return "Con_" + _nid; }
 
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        return _type._print(sb);
+    StringBuilder _print1(StringBuilder sb) {
+        return _con._print(sb);
     }
     
     @Override
-    public Type compute() { return _type; }
+    public Type compute() { return _con; }
 
     @Override
     public Node idealize() { return null; }

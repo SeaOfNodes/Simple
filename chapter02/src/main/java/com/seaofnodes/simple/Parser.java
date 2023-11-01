@@ -21,29 +21,34 @@ public class Parser {
      */
     public static StartNode START;
 
+    // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
-    public Parser( String source ) {
+
+    public Parser(String source) {
         _lexer = new Lexer(source);
         Node.reset();
         START = new StartNode();
     }
 
+    String src() { return new String( _lexer._input ); }
+
     public ReturnNode parse() {
         require("return");
-        return parseReturn();
+        return (ReturnNode) parseReturn();
     }
 
     /**
-     * Parses returnStatement; "return" already parsed
+     * Parses a return statement; "return" already parsed.
      *
      * <pre>
      *     'return' expr ;
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
-    private ReturnNode parseReturn() {
-        var expr = require(parseExpression(),";");
-        return new ReturnNode(START, expr);
+    private Node parseReturn() {
+        var expr = require(parseExpression(), ";");
+        return new ReturnNode(START, expr).peephole();
     }
 
     /**
@@ -52,6 +57,7 @@ public class Parser {
      * <pre>
      *     expr : additiveExpr
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpression() { return parseAddition(); }
 
@@ -61,11 +67,12 @@ public class Parser {
      * <pre>
      *     additiveExpr : multiplicativeExpr (('+' | '-') multiplicativeExpr)*
      * </pre>
+     * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
         var lhs = parseMultiplication();
-        if( match("+") ) return new AddNode(lhs, parseAddition()).peephole();
-        if( match("-") ) return new SubNode(lhs, parseAddition()).peephole();
+        if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
+        if (match("-")) return new SubNode(lhs, parseAddition()).peephole();
         return lhs;
     }
 
@@ -75,11 +82,12 @@ public class Parser {
      * <pre>
      *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
      * </pre>
+     * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
-        if( match("*") ) return new MulNode(lhs, parseMultiplication()).peephole();
-        if( match("/") ) return new DivNode(lhs, parseMultiplication()).peephole();
+        if (match("*")) return new MulNode(lhs, parseMultiplication()).peephole();
+        if (match("/")) return new DivNode(lhs, parseMultiplication()).peephole();
         return lhs;
     }
 
@@ -89,9 +97,10 @@ public class Parser {
      * <pre>
      *     unaryExpr : ('-') unaryExpr | primaryExpr
      * </pre>
+     * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if( match("-") ) return new MinusNode(parseUnary()).peephole();
+        if (match("-")) return new MinusNode(parseUnary()).peephole();
         return parsePrimary();
     }
 
@@ -99,12 +108,13 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral
+     *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
      * </pre>
+     * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
         if( _lexer.isNumber() ) return parseIntegerLiteral();
-        if( match("(") )        return require(parseExpression(),")");
+        if( match("(") ) return require(parseExpression(), ")");
         throw errorSyntax("integer literal");
     }
 
@@ -116,7 +126,7 @@ public class Parser {
      * </pre>
      */
     private ConstantNode parseIntegerLiteral() {
-        return (ConstantNode)new ConstantNode(_lexer.parseNumber()).peephole();
+        return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
     //////////////////////////////////
@@ -126,7 +136,7 @@ public class Parser {
     private boolean match(String syntax) { return _lexer.match(syntax); }
 
     // Require an exact match
-    private void require(String syntax) { require(null,syntax); }
+    private void require(String syntax) { require(null, syntax); }
     private Node require(Node n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
@@ -135,7 +145,7 @@ public class Parser {
     RuntimeException errorSyntax(String syntax) {
         return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
     }
-    
+
     static RuntimeException error(String errorMessage) {
         return new RuntimeException(errorMessage);
     }
@@ -167,9 +177,9 @@ public class Parser {
         // Very handy in the debugger, shows the unparsed program
         @Override
         public String toString() {
-            return new String(_input,_position,_input.length-_position);
+            return new String(_input, _position, _input.length - _position);
         }
-        
+
         // True if at EOF
         private boolean isEOF() {
             return _position >= _input.length;
@@ -203,12 +213,12 @@ public class Parser {
         // Return true, if we find "syntax" after skipping white space; also
         // then advance the cursor past syntax.
         // Return false otherwise, and do not advance the cursor.
-        boolean match( String syntax ) {
+        boolean match(String syntax) {
             skipWhiteSpace();
             int len = syntax.length();
-            if( _position + len > _input.length ) return false;
-            for( int i = 0; i < len; i++ )
-                if( (char)_input[_position + i] != syntax.charAt(i) )
+            if (_position + len > _input.length) return false;
+            for (int i = 0; i < len; i++)
+                if ((char) _input[_position + i] != syntax.charAt(i))
                     return false;
             _position += len;
             return true;
@@ -216,14 +226,14 @@ public class Parser {
 
         // Used for errors
         String getAnyNextToken() {
-            if( isEOF() ) return "";
-            if( isIdStart(peek()) ) return parseId();
-            if( isPunctuation(peek()) ) return parsePunctuation();
+            if (isEOF()) return "";
+            if (isIdStart(peek())) return parseId();
+            if (isPunctuation(peek())) return parsePunctuation();
             return String.valueOf(peek());
         }
 
-        boolean isNumber() { return isNumber(peek()); }
-        boolean isNumber(char ch) { return Character.isDigit(ch); }
+        boolean isNumber() {return isNumber(peek());}
+        boolean isNumber(char ch) {return Character.isDigit(ch);}
 
         private Type parseNumber() {
             int start = _position;
@@ -231,7 +241,7 @@ public class Parser {
             String snum = new String(_input, start, --_position - start);
             if (snum.length() > 1 && snum.charAt(0) == '0')
                 throw error("Syntax error: integer values cannot start with '0'");
-            return new TypeInteger(Long.parseLong(snum));
+            return TypeInteger.constant(Long.parseLong(snum));
         }
 
         // First letter of an identifier 
@@ -257,8 +267,7 @@ public class Parser {
 
         private String parsePunctuation() {
             int start = _position;
-            if (isPunctuation(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            return new String(_input, start, 1);
         }
     }
 

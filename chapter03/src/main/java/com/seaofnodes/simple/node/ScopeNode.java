@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.TypeBot;
 
-import java.util.HashMap;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * The Scope node is a purely parser helper - it tracks names to nodes with a
@@ -17,12 +17,15 @@ public class ScopeNode extends Node {
      * The top of this stack represents current scope.
      */
     public final Stack<HashMap<String, Integer>> _scopes = new Stack<>();
-  
+
+    // Reverse lookup for nicer graph printing
+    private final ArrayList<String> _rlabels = new ArrayList<>();
+    
+    @Override public String label() { return "Scope"; }
+
     @Override
-    public String label() { return "Scope"; }
-  
-    @Override
-    StringBuilder _print(StringBuilder sb) {
+    StringBuilder _print1(StringBuilder sb) {
+        sb.append(label());
         for( HashMap<String,Integer> scope : _scopes ) {
             sb.append("[");
             boolean first=true;
@@ -32,22 +35,21 @@ public class ScopeNode extends Node {
                 sb.append(name).append(":");
                 Node n = in(scope.get(name));
                 if( n==null ) sb.append("null");
-                else n._print(sb);
+                else n._print0(sb);
             }
             sb.append("]");
         }
         return sb;
     }
-
+  
     @Override
     public TypeBot compute() { return TypeBot.BOTTOM; }
 
-    @Override
-    public Node idealize() { return null; }
+    @Override public Node idealize() { return null; }
 
     // Add an empty lexical scope
-    public void push() {
-        _scopes.push(new HashMap<>());
+    public HashMap<String, Integer> push() {
+        return _scopes.push(new HashMap<>());
     }
 
     // Remove the current lexical scope, killing all unused nodes.
@@ -61,6 +63,7 @@ public class ScopeNode extends Node {
         HashMap<String,Integer> scope = _scopes.lastElement();
         if( scope.put(name,nIns()) != null )
             return null;        // Double define
+        _rlabels.add(name);
         return add_def(n);
     }
 
@@ -73,7 +76,7 @@ public class ScopeNode extends Node {
         return null;
     }
 
-
+  
     // If the name is present in any scope, then redefine
     public Node update(String name, Node n) {
         for (int i = _scopes.size() - 1; i >= 0; i--) {
@@ -84,6 +87,5 @@ public class ScopeNode extends Node {
         }
         return null;
     }
-
 
 }

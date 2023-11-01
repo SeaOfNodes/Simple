@@ -2,8 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -24,8 +23,7 @@ public abstract class Node {
      * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
      * Ordering is required because e.g. "a/b" is different from "b/a".
-     * The first input (offset 0) is often a Control node.
-     * @see Control
+     * The first input (offset 0) is often a {@link #isCFG} node.
      */
     public final ArrayList<Node> _inputs;
 
@@ -40,6 +38,13 @@ public abstract class Node {
      */
     public final ArrayList<Node> _outputs;
 
+
+    /**
+     * Current computed type for this Node.  This value changes as the graph
+     * changes and more knowledge is gained about the program.
+     */
+    public Type _type;
+
     /**
      * A private Global Static mutable counter, for unique node id generation.
      * To make the compiler multi-threaded, this field will have to move into a TLS.
@@ -47,34 +52,47 @@ public abstract class Node {
      * */
     private static int UNIQUE_ID = 1;
 
-    protected Node(Node ...inputs) {
+    protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
         for( Node n : _inputs )
             if( n != null )
-                n._outputs.add( this );
-        // Do an initial type computation
-        _type = compute();
+                n.addUse( this );
     }
 
+    // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
+    // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() { return label() + _nid; }
 
+    // Graphical label, e.g. "+" or "Region" or "=="
+    public String glabel() { return label(); }
+    
     @Override
     public final String toString() {
         // TODO: This needs a lot of work
-        return uniqueName();
+        return print();
     }
 
     // This is a *deep* print.  This version will fail on cycles, which we will
-    // correct later when we can parse programs with loops.
+    // correct later when we can parse programs with loops.  We print with a
+    // tik-tok style; the common _print0 calls the per-Node _print1, which
+    // calls back to _print0;
     public final String print() {
-        return _print(new StringBuilder()).toString();
+        return _print0(new StringBuilder()).toString();
     }
-    abstract StringBuilder _print(StringBuilder sb);
+    // This is the common print: check for DEAD and print "DEAD" else call the
+    // per-Node print1.
+    final StringBuilder _print0(StringBuilder sb) {
+        return isDead()
+            ? sb.append(uniqueName()).append(":DEAD")
+            : _print1(sb);
+    }
+    // Every Node implements this.
+    abstract StringBuilder _print1(StringBuilder sb);
 
     
     /**
@@ -86,25 +104,21 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
-    /**
-     * Gets the ith output node
-     * @param i Offset of the output node
-     * @return Output node (not null)
-     */
-    public Node out(int i) { return _outputs.get(i); }
-
     public int nOuts() { return _outputs.size(); }
 
+    public boolean isUnused() { return nOuts() == 0; }
+
+    public boolean isCFG() { return false; }
+  
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
 
-
     /**
      * Try to peephole at this node and return a better replacement Node if
-     * possible.  We check and replace:
+     * possible.  We compute a {@link Type} and then check and replace:
      * <ul>
      * <li>if the Type {@link Type#isConstant}, we replace with a {@link ConstantNode}</li>
      * <li>in a future chapter we will look for a
@@ -114,34 +128,25 @@ public abstract class Node {
      * </ul>
      */
     public final Node peephole( ) {
+        // Compute initial or improved Type
+        Type type = _type = compute();
+        
         if (_disablePeephole)
             return this;        // Peephole optimizations turned off
 
         // Replace constant computations from non-constants with a constant node
-        Type type = compute();
         if (!(this instanceof ConstantNode) && type.isConstant()) {
             kill();             // Kill `this` because replacing with a Constant
-            return new ConstantNode(type);
+            return new ConstantNode(type).peephole();
         }
 
         // Future chapter: Global Value Numbering goes here
         
-        // Ask each node for a replacement
+        // Ask each node for a better replacement
         Node n = idealize();
         if( n != null ) return n;
         
         return this;            // No progress
-    }
-
-    /**
-     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
-     * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #set_def}.
-     */
-  public void kill( ) {
-        assert nOuts()==0;    // Has no uses, so it is dead
-        for( int i=0; i<nIns(); i++ )
-            set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
     }
 
     /**
@@ -151,6 +156,7 @@ public abstract class Node {
      *     
      * @param idx which def to set
      * @param new_def the new definition
+     * @return this for flow coding
      */
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
@@ -159,10 +165,10 @@ public abstract class Node {
         // This needs to happen before removing the old node's def->use edge as
         // the new_def might get killed if the old node kills it recursively.
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-                old_def.kill(); // Kill old def
+            old_def.kill();     // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
         // Return self for easy flow-coding
@@ -181,10 +187,9 @@ public abstract class Node {
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
         if( new_def != null )
-            new_def._outputs.add(this);
+            new_def.addUse(this);
         return new_def;
     }
-
 
     // Breaks the edge invariants, used temporarily
     private void addUse(Node n) { _outputs.add(n); }
@@ -194,10 +199,10 @@ public abstract class Node {
     // Error is 'use' does not exist; ok for 'use' to be null.
     private boolean delUse( Node use ) {
         ArrayList<Node> outs = _outputs;
-        int lidx = outs.size()-1; // Last index
+        int lidx = outs.size()-1; // Last index            
         // This 1-line hack compresses an element out of an ArrayList
         // without having to copy the contents.  The last element is
-        // stuffed over the deleted element, and then the size is reduced.
+        // stuffed over the deleted element, and then the size is reduced.            
         outs.set(outs.indexOf(use),outs.get(lidx));
         outs.remove(lidx);  // Reduce ArrayList size without copying anything
         return lidx==0;
@@ -209,17 +214,26 @@ public abstract class Node {
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.remove(_inputs.size()-1);
             if( old_def != null &&     // If it exists and
-                    old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                 old_def.kill();        // Kill old def
         }
     }
   
     /**
-     * Current computed type for this Node.  This value changes as the graph
-     * changes and more knowledge is gained about the program.
+     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
+     * to null.  This may recursively kill more Nodes and is basically dead
+     * code elimination.  This function is co-recursive with {@link #pop_n}.
      */
-    public Type _type;
-    
+    public void kill( ) {
+        assert isUnused();      // Has no uses, so it is dead
+        pop_n(nIns());          // Set all inputs to null, recursively killing unused Nodes
+        _type=null;             // Flag as dead
+        assert isDead();        // Really dead now
+    }
+
+    // Mostly used for asserts and printing.
+    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+  
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
@@ -245,9 +259,4 @@ public abstract class Node {
      * Node unique id generator, and is done as part of making a new Parser.
      */
     public static void reset() { UNIQUE_ID = 1; }
-  
-    /*
-     * hashCode and equals implementation to be added in later chapter.
-     */
-  
 }

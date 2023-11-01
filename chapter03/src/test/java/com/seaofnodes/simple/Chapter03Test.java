@@ -1,16 +1,12 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class Chapter03Test {
 
@@ -54,6 +50,15 @@ public class Chapter03Test {
         assertEquals("return 8;", ret.print());
     }
 
+    @Test
+    public void testSelfAssign() {
+        try { 
+            new Parser("int a=a; return a;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Undefined name 'a'",e.getMessage());
+        }
+    }
 
     @Test
     public void testChapter2ParseGrammar() {
@@ -120,7 +125,7 @@ public class Chapter03Test {
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
             assertEquals(start,con.in(0));
-            assertEquals(new TypeInteger(1), con._type);
+            assertEquals(TypeInteger.constant(1), con._type);
         } else {
             fail();
         }
@@ -133,21 +138,27 @@ public class Chapter03Test {
         StartNode start = Parser.START;
         for( Node use : start._outputs )
             if( use instanceof ConstantNode con )
-                assertEquals(new TypeInteger(0),con._type);
+                assertEquals(TypeInteger.constant(0),con._type);
     }
 
     @Test
     public void testBad1() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected =: ");
-        new Parser("ret").parse();
+        try { 
+            new Parser("ret").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected =: ",e.getMessage());
+        }
     }
 
     @Test
     public void testBad2() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error: integer values cannot start with '0'");
-        new Parser("return 0123;").parse();
+        try { 
+            new Parser("return 0123;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage());
+        }
     }
 
     @Test
@@ -158,9 +169,12 @@ public class Chapter03Test {
 
     @Test
     public void testBad4() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected ;:");
-        new Parser("return 100").parse();
+        try { 
+            new Parser("return 100").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected ;: ",e.getMessage());
+        }
     }
 
     @Test
@@ -171,8 +185,11 @@ public class Chapter03Test {
 
     @Test
     public void testBad6() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected }:");
-        new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b;").parse();
+        try {
+            new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected }: ",e.getMessage());
+        }
     }
 }

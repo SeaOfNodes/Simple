@@ -8,7 +8,7 @@ public class TypeBot extends Type {
   
     @Override
     public String toString() { return "Bottom"; }
-  
-    @Override 
+
+    @Override
     public StringBuilder _print(StringBuilder sb) { return sb.append(toString()); }
 }

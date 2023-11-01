@@ -9,17 +9,15 @@ package com.seaofnodes.simple.node;
  * <p>
  * The Return's output is the value from the data node.
  */
-public class ReturnNode extends Node implements Control {
+public class ReturnNode extends Node {
 
     public ReturnNode(Node ctrl, Node data) {
         super(ctrl, data);
     }
 
-    public Node ctrl() {
-        return in(0);
-    }
+    public Node ctrl() { return in(0); }
+    public Node expr() { return in(1); }
 
-    public Node expr() {
-        return in(1);
-    }
+    @Override public boolean isCFG() { return true; }
+  
 }

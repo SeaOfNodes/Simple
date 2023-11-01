@@ -5,9 +5,12 @@ package com.seaofnodes.simple.node;
  * yet accept parameters.  When we add parameters the value of Start will be a tuple, and will require Projections to extract the values.
  * We discuss this in detail in Chapter 9: Functions and Calls.
  */
-public class StartNode extends Node implements Control {
+public class StartNode extends Node {
 
     public StartNode(/*arguments go here*/) {
         super();
     }
+
+    @Override public boolean isCFG() { return true; }
+
 }

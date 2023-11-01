@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
+
 /**
  * A Constant node represents a constant value.  At present, the only constants
  * that we allow are integer literals; therefore Constants contain an integer
@@ -16,8 +18,8 @@ public class ConstantNode extends Node {
 
     public final long _value;
 
-    public ConstantNode(long value, StartNode startNode) {
-        super(startNode);
+    public ConstantNode(long value) {
+        super(Parser.START);
         _value = value;
     }
 }
