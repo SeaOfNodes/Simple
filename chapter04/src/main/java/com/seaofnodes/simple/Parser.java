@@ -70,15 +70,18 @@ public class Parser {
         // Enter a new scope
         _scope.push();
         Node n = null;
-        while (!match("}")) {
+        do {
             if (_lexer.isEOF()) {
-                if (requireClosingBracket) throw errorSyntax("}");
+                if (requireClosingBracket) require("}");
                 else break;
+            } else if (match("}")) {
+                if (requireClosingBracket) break;
+                else error("unexpected '}' token");
             }
 
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        }
+        } while (true);
         // Exit scope
         _scope.pop();
         return n;
