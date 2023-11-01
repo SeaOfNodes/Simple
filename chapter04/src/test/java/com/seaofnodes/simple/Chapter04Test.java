@@ -121,6 +121,13 @@ public class Chapter04Test {
             assertEquals("Undefined name 'inta'",e.getMessage());
         }
     }
+
+    @Test
+    public void testChapter4Bug4() {
+        Parser parser = new Parser("return -arg;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (-arg);", ret.print());
+    }
     
     @Test
     public void testVarDecl() {
