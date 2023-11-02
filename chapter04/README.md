@@ -15,12 +15,12 @@ Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 In this chapter we add some new nodes and revise some existing nodes.
 Following are revised or new nodes
 
-| Node Name | Type             | Description                                    | Inputs                         | Value                                                                   |
-|-----------|------------------|------------------------------------------------|--------------------------------|-------------------------------------------------------------------------|
-| MultiNode | Abstract class   | A node that has a tuple result                 |                                | A tuple                                                                 |
-| Start     | Control          | Start of function, now a MultiNode             | An input argument named `arg`. | A tuple with a ctrl token and an `arg` data node                        |
-| Proj      | ?                | Projection nodes extract values from MultiNode | A MultiNode and index          | Result is the extracted value from the input MultiNode at offset index  | 
-| Bool      | Data             | Represents results of a comparison operator    | Two data nodes                 | Result a comparison, represented as integer value where 1=true, 0=false |
+| Node Name | Type           | Description                                    | Inputs                | Value                                                                      |
+|-----------|----------------|------------------------------------------------|-----------------------|----------------------------------------------------------------------------|
+| MultiNode | Abstract class | A node that has a tuple result                 |                       | A tuple                                                                    |
+| Start     | Control        | Start of function, now a MultiNode             |                       | A tuple with a ctrl token and an `arg` data node                           |
+| Proj      | ?              | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     | 
+| Bool      | Data           | Represents results of a comparison operator    | Two data nodes        | Result is a comparison, represented as integer value where 1=true, 0=false |
 
 Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 
@@ -118,10 +118,15 @@ track the current in-scope control node via the name `$ctrl`.  This means that
 when we need to create an edge to the predecessor control node, we simply
 lookup this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model [[1]](#1).
+This introduces the idea that the control flow subgraph is a Petri net model. [^1]
 The control token moves virtually from node to node as execution proceeds.  The
 initial control token is in Start, it then moves via the Proj node to Return.
 In later chapters we will see how the token moves across branches.
+
+## Note Regarding Visualizations
+
+From this chapter onwards we omit the edges from Constants to Start node, mainly to reduce
+clutter and help draw reader's attention to the more important aspects of the graph.
 
 ## More Peephole Optimizations
 
@@ -247,6 +252,5 @@ but since it is not yet part of the graph up the tree, it has no users yet.
 By adding a bogus user we prevent it being mistaken for dead and being killed.
 
 ## References
-<a id="1">[1]</a>
-Click, C. (1995).
+[^1] Click, C. (1995).
 Combining Analyses, Combining Optimizations, 131.
