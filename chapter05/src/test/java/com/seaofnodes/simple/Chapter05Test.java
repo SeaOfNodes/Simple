@@ -259,6 +259,13 @@ return c;
             assertEquals("Undefined name 'inta'",e.getMessage());
         }
     }
+
+    @Test
+    public void testChapter4Bug4() {
+        Parser parser = new Parser("return -arg;");
+        StopNode ret = parser.parse();
+        assertEquals("return (-arg);", ret.print());
+    }
     
     @Test
     public void testVarDecl() {
