@@ -1,28 +1,34 @@
 digraph chapter02 {
+/*
+return 1+2*3+-5;
+*/
 	rankdir=BT;
+	ordering="in";
+	concentrate="true";
 	subgraph cluster_Nodes {
 		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
-		Con12 [ label="Con1" ];
-		Con23 [ label="Con2" ];
-		Con34 [ label="Con3" ];
-		Mul5 [ label="Mul" ];
-		Con56 [ label="Con5" ];
-		Minus7 [ label="Minus" ];
-		Add8 [ label="Add" ];
-		Add9 [ label="Add" ];
+		Con_2 [ label="#1" ];
+		Con_3 [ label="#2" ];
+		Con_4 [ label="#3" ];
+		Mul5 [ label="*" ];
+		Con_6 [ label="#5" ];
+		Minus7 [ label="-" ];
+		Add8 [ label="+" ];
+		Add9 [ label="+" ];
 		Return10 [ shape=box style=filled fillcolor=yellow label="Return" ];
 	}
-	Con12 -> Start1 [style=dotted];
-	Con23 -> Start1 [style=dotted];
-	Con34 -> Start1 [style=dotted];
-	Mul5 -> Con23;
-	Mul5 -> Con34;
-	Con56 -> Start1 [style=dotted];
-	Minus7 -> Con56;
-	Add8 -> Mul5;
-	Add8 -> Minus7;
-	Add9 -> Con12;
-	Add9 -> Add8;
-	Return10 -> Start1 [color=red];
-	Return10 -> Add9;
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Con_2 -> Start1[taillabel=0 style=dotted];
+	Con_3 -> Start1[taillabel=0 style=dotted];
+	Con_4 -> Start1[taillabel=0 style=dotted];
+	Mul5 -> Con_3[taillabel=1];
+	Mul5 -> Con_4[taillabel=2];
+	Con_6 -> Start1[taillabel=0 style=dotted];
+	Minus7 -> Con_6[taillabel=1];
+	Add8 -> Mul5[taillabel=1];
+	Add8 -> Minus7[taillabel=2];
+	Add9 -> Con_2[taillabel=1];
+	Add9 -> Add8[taillabel=2];
+	Return10 -> Start1[taillabel=0 color=red];
+	Return10 -> Add9[taillabel=1];
 }

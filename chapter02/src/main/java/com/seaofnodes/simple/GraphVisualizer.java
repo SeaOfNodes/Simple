@@ -69,9 +69,7 @@ public class GraphVisualizer {
         // All them edge labels
         sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
         for( Node n : all ) {
-            // Do not display the Constant->Start edge;
-            if( n instanceof ConstantNode )
-                continue;
+            // In this chapter we do display the Constant->Start edge;
             int i=0;
             for( Node def : n._inputs ) {
                 if( def != null ) {
@@ -80,9 +78,11 @@ public class GraphVisualizer {
                     sb.append(def.uniqueName());
                     // Number edges, so we can see how they track
                     sb.append("[taillabel=").append(i);
+                    if( n instanceof ConstantNode && def instanceof StartNode )
+                        sb.append(" style=dotted");
                     // control edges are colored red
-                    if( def.isCFG() )
-                        sb.append("; color=red");
+                    else if( def.isCFG() )
+                        sb.append(" color=red");
                     sb.append("];\n");
                 }
                 i++;

@@ -164,5 +164,6 @@ return 1;
 
 ![Sea of Nodes Visual](./docs/01-graph.svg)
 
-* Control nodes appear as square boxes
+* Control nodes appear as square boxes with yellow background
 * Control edges are in bold red
+* We label each edge with its position in the `_inputs` array, thus `0` means the edge is `_inputs[0]`.
