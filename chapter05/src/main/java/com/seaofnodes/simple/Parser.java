@@ -129,7 +129,7 @@ public class Parser {
      * Parses a statement
      *
      * <pre>
-     *     returnStatement | declStatement | blockStatement | expressionStatement
+     *     returnStatement | declStatement | blockStatement | ifStatement | expressionStatement
      * </pre>
      * @return a {@link Node} or {@code null}
      */
