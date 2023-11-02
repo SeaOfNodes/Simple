@@ -440,4 +440,15 @@ return c;
             assertEquals("Syntax error, expected }: ",e.getMessage());
         }
     }
+
+    @Test
+    public void testBad7() {
+        try {
+            new Parser("return 1;}").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, unexpected }",e.getMessage());
+        }
+    }
+
 }
