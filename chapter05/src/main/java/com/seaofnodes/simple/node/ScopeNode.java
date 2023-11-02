@@ -105,6 +105,10 @@ public class ScopeNode extends Node {
      * The new Scope is a full-fledged Node with proper use<->def edges.
      */
     public ScopeNode dup() {
+        // Our goals are:
+        // 1) duplicate the name bindings of the ScopeNode across all stack levels
+        // 2) Make the new ScopeNode a user of all the nodes bound
+        // 3) Ensure that the order of defs is the same to allow easy merging
         ScopeNode dup = new ScopeNode();
         for( HashMap<String, Integer> tab : _scopes )
             dup._scopes.push(new HashMap<>(tab));
@@ -114,6 +118,14 @@ public class ScopeNode extends Node {
         return dup;
     }
 
+    /**
+     * Merges the names whose node bindings differ, by creating Phi node for such names
+     * The names could occur at all stack levels, but a given name can only differ in the
+     * innermost stack level where the name is bound.
+     *
+     * @param that The ScopeNode to be merged into this
+     * @return A new Region node representing the merge point
+     */
     public RegionNode mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode)ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
         for( int i=1; i<nIns(); i++ )
