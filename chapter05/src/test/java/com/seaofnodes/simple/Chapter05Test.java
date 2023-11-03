@@ -302,6 +302,13 @@ return a;""");
             assertEquals("Undefined name 'inta'",e.getMessage());
         }
     }
+
+    @Test
+    public void testChapter4Bug4() {
+        Parser parser = new Parser("return -arg;");
+        StopNode ret = parser.parse();
+        assertEquals("return (-arg);", ret.print());
+    }
     
     @Test
     public void testVarDecl() {
@@ -483,4 +490,15 @@ return a;""");
             assertEquals("Syntax error, expected }: ",e.getMessage());
         }
     }
+
+    @Test
+    public void testBad7() {
+        try {
+            new Parser("return 1;}").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, unexpected }",e.getMessage());
+        }
+    }
+
 }
