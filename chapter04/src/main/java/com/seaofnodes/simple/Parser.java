@@ -71,7 +71,9 @@ public class Parser {
         try {
             _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
             _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            return (ReturnNode) parseBlock();
+            var ret = (ReturnNode) parseBlock();
+            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+            return ret;
         }
         finally {
             _scope.pop();

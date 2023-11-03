@@ -53,7 +53,9 @@ public class Parser {
     public ReturnNode parse() { return parse(false); }
     public ReturnNode parse(boolean show) {
         try {
-            return (ReturnNode) parseBlock();
+            var ret = (ReturnNode) parseBlock();
+            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+            return ret;
         }
         finally {
             if( show ) showGraph();
