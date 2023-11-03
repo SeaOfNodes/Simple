@@ -18,6 +18,9 @@ public class GraphVisualizer {
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter03 {\n");
+        sb.append("/*\n");
+        sb.append(parser.src());
+        sb.append("\n*/\n");
         
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
@@ -25,6 +28,13 @@ public class GraphVisualizer {
         // scopes and nodes.  If we try to cross subgraph cluster borders while
         // still making the subgraphs DOT gets confused.
         sb.append("\trankdir=BT;\n"); // Force Nodes before Scopes
+
+        // Preserve node input order
+        sb.append("\tordering=\"in\";\n");
+
+        // Merge multiple edges hitting the same node.  Makes common shared
+        // nodes much prettier to look at.
+        sb.append("\tconcentrate=\"true\";\n");
         
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
@@ -47,12 +57,15 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
+            if( n instanceof ScopeNode )
+                continue; // Do not emit, rolled into Scope cluster already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
+            String lab = n.glabel();
             // control nodes have box shape
             // other nodes are ellipses, i.e. default shape
-            if( n instanceof Control )
+            if( n.isCFG() )
                 sb.append("shape=box style=filled fillcolor=yellow ");
-            sb.append("label=\"").append(n.label()).append("\" ");
+            sb.append("label=\"").append(lab).append("\" ");
             sb.append("];\n");
         }
         sb.append("\t}\n");     // End Node cluster
@@ -62,12 +75,12 @@ public class GraphVisualizer {
         sb.append("\tnode [shape=plaintext];\n");
         int level=0;
         for( HashMap<String,Integer> scope : scopenode._scopes ) {
-            sb.append("\tsubgraph cluster_").append(level).append(" {\n"); // Magic "cluster_" in the subgraph name
-            String scopeName = makeScopeName(level);
+            String scopeName = makeScopeName(scopenode, level);
+            sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
-            sb.append("\t\t\t<TR><TD BGCOLOR=\"aqua\">").append(level).append("</TD>");
+            sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(level).append("</TD>");
             for( String name : scope.keySet() )
                 sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
             sb.append("</TR>\n");
@@ -79,23 +92,37 @@ public class GraphVisualizer {
         // We close them all at once here.
         sb.append( "\t}\n".repeat( level ) ); // End all Scope clusters
     }
-    
-    private String makeScopeName(int level) { return "scope" + level; }
+
+    private String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
     private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
-        for( Node n : all )
-            for( Node out : n._inputs )
-                if( out != null ) {
-                    sb.append('\t').append(n.uniqueName()).append(" -> ").append(out.uniqueName());
-                    // Control edges are colored red
-                    if( n instanceof ConstantNode && out instanceof StartNode )
-                      sb.append(" [style=dotted]");
-                    else if( n instanceof Control && out instanceof Control )
-                      sb.append(" [color=red]");
-                    sb.append(";\n");
+        // All them edge labels
+        sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
+        for( Node n : all ) {
+            // In this chapter we do display the Constant->Start edge;
+            // ScopeNodes are done separately
+            if( n instanceof ScopeNode )
+                continue;
+            int i=0;
+            for( Node def : n._inputs ) {
+                if( def != null ) {
+                    // Most edges land here use->def
+                    sb.append('\t').append(n.uniqueName()).append(" -> ");
+                    sb.append(def.uniqueName());
+                    // Number edges, so we can see how they track
+                    sb.append("[taillabel=").append(i);
+                    if( n instanceof ConstantNode && def instanceof StartNode )
+                        sb.append(" style=dotted");
+                    // control edges are colored red
+                    else if( def.isCFG() )
+                        sb.append(" color=red");
+                    sb.append("];\n");
                 }
+                i++;
+            }
+        }
     }
     
     // Walk the scope edges
@@ -103,19 +130,23 @@ public class GraphVisualizer {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=0;
         for( HashMap<String,Integer> scope : scopenode._scopes ) {
-            String scopeName = makeScopeName(level);
-            for( String name : scope.keySet() )
-                sb.append("\t").append(scopeName).append(":").append(makePortName(scopeName, name)).append(" -> ").append(scopenode.in(scope.get(name)).uniqueName()).append(";\n");
+            String scopeName = makeScopeName(scopenode, level);
+            for( String name : scope.keySet() ) {
+                Node def = scopenode.in(scope.get(name));
+                if( def==null ) continue;
+                sb.append("\t")
+                  .append(scopeName).append(":")
+                  .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
+                  .append(" -> ");
+                sb.append(def.uniqueName());
+                sb.append(";\n");
+            }
             level++;
         }
     }
     
     /**
-     * Walks the whole graph, starting from Start.
-     * Since Start is the input to all constants - we look at the outputs for
-     * Start, but for then subsequently we look at the inputs of each node.
-     * During graph construction not all nodes are reachable this way, so we
-     * also scan the symbol tables.
+     * Finds all nodes in the graph.
      */
     private Collection<Node> findAll(Parser parser) {
         final StartNode start = Parser.START;
@@ -133,9 +164,13 @@ public class GraphVisualizer {
      * Walk a subgraph and populate distinct nodes in the all list.
      */
     private void walk(HashMap<Integer, Node> all, Node n) {
+        if(n == null ) return;
         if (all.get(n._nid) != null) return; // Been there, done that
         all.put(n._nid, n);
         for (Node c : n._inputs)
+            if (c != null)
+                walk(all, c);
+        for (Node c : n._outputs)
             if (c != null)
                 walk(all, c);
     }

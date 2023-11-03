@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeControl;
 
 import java.util.*;
 
@@ -29,6 +28,13 @@ public class GraphVisualizer {
         // scopes and nodes.  If we try to cross subgraph cluster borders while
         // still making the subgraphs DOT gets confused.
         sb.append("\trankdir=BT;\n"); // Force Nodes before Scopes
+
+        // Preserve node input order
+        sb.append("\tordering=\"in\";\n");
+
+        // Merge multiple edges hitting the same node.  Makes common shared
+        // nodes much prettier to look at.
+        sb.append("\tconcentrate=\"true\";\n");
         
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
@@ -51,10 +57,10 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
-            if( n instanceof ProjNode )
-                continue; // Do not emit, rolled into MultiNode already
+            if( n instanceof ProjNode || n instanceof ScopeNode )
+                continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
-            String lab = n.label();
+            String lab = n.glabel();
             if( n instanceof MultiNode ) {
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.append("shape=plaintext label=<\n");
@@ -71,8 +77,8 @@ public class GraphVisualizer {
                             sb.append("\t\t\t\t<TR>");
                         }
                         sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
-                        if( proj._idx==0 ) sb.append(" BGCOLOR=\"yellow\"");
-                        sb.append(">").append(proj.label()).append("</TD>");
+                        if( proj.isCFG() ) sb.append(" BGCOLOR=\"yellow\"");
+                        sb.append(">").append(proj.glabel()).append("</TD>");
                     }
                 }
                 if (doProjTable) {
@@ -86,7 +92,7 @@ public class GraphVisualizer {
             } else {
                 // control nodes have box shape
                 // other nodes are ellipses, i.e. default shape
-                if( n instanceof Control )
+                if( n.isCFG() )
                     sb.append("shape=box style=filled fillcolor=yellow ");
                 sb.append("label=\"").append(lab).append("\" ");
             }
@@ -99,8 +105,8 @@ public class GraphVisualizer {
         sb.append("\tnode [shape=plaintext];\n");
         int level=0;
         for( HashMap<String,Integer> scope : scopenode._scopes ) {
-            sb.append("\tsubgraph cluster_").append(level).append(" {\n"); // Magic "cluster_" in the subgraph name
-            String scopeName = makeScopeName(level);
+            String scopeName = makeScopeName(scopenode, level);
+            sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
@@ -116,31 +122,38 @@ public class GraphVisualizer {
         // We close them all at once here.
         sb.append( "\t}\n".repeat( level ) ); // End all Scope clusters
     }
-    
-    private String makeScopeName(int level) { return "scope" + level; }
-    private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
-    private boolean isControlEdge(Node def) {
-        return def._type instanceof TypeControl;
-    }
+    private String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
+    private String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
     private void nodeEdges(StringBuilder sb, Collection<Node> all) {
+        // All them edge labels
+        sb.append("\tedge [ fontname=Helvetica, fontsize=8 ];\n");
         for( Node n : all ) {
-            if( n instanceof ConstantNode || n instanceof ProjNode )
-                continue;       // Do not display the Constant->Start edge; ProjNodes handled by Multi
-            for( Node def : n._inputs )
+            // Do not display the Constant->Start edge;
+            // ProjNodes handled by Multi;
+            // ScopeNodes are done separately
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
+                continue;
+            int i=0;
+            for( Node def : n._inputs ) {
                 if( def != null ) {
+                    // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
                     if( def instanceof ProjNode proj ) {
                         String mname = proj.ctrl().uniqueName();
                         sb.append(mname).append(":p").append(proj._idx);
                     } else sb.append(def.uniqueName());
-                    // Control edges are colored red
-                    if( isControlEdge(def) )
-                        sb.append(" [color=red]");
-                    sb.append(";\n");
+                    // Number edges, so we can see how they track
+                    sb.append("[taillabel=").append(i);
+                    // control edges are colored red
+                    if( def.isCFG() )
+                        sb.append(" color=red");
+                    sb.append("];\n");
                 }
+                i++;
+            }
         }
     }
     
@@ -149,7 +162,7 @@ public class GraphVisualizer {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=0;
         for( HashMap<String,Integer> scope : scopenode._scopes ) {
-            String scopeName = makeScopeName(level);
+            String scopeName = makeScopeName(scopenode, level);
             for( String name : scope.keySet() ) {
                 Node def = scopenode.in(scope.get(name));
                 if( def==null ) continue;

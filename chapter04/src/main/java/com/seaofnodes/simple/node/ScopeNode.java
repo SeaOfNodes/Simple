@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.TypeBot;
 
 import java.util.*;
@@ -16,12 +17,15 @@ public class ScopeNode extends Node {
      * The top of this stack represents current scope.
      */
     public final Stack<HashMap<String, Integer>> _scopes = new Stack<>();
-  
-    @Override
-    public String label() { return "Scope"; }
+
+    // Reverse lookup for nicer graph printing
+    private final ArrayList<String> _rlabels = new ArrayList<>();
+    
+    @Override public String label() { return "Scope"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
+        sb.append(label());
         for( HashMap<String,Integer> scope : _scopes ) {
             sb.append("[");
             boolean first=true;
@@ -41,12 +45,11 @@ public class ScopeNode extends Node {
     @Override
     public TypeBot compute() { return TypeBot.BOTTOM; }
 
-    @Override
-    public Node idealize() { return null; }
+    @Override public Node idealize() { return null; }
 
     // Add an empty lexical scope
-    public void push() {
-        _scopes.push(new HashMap<>());
+    public HashMap<String, Integer> push() {
+        return _scopes.push(new HashMap<>());
     }
 
     // Remove the current lexical scope, killing all unused nodes.
@@ -60,6 +63,7 @@ public class ScopeNode extends Node {
         HashMap<String,Integer> scope = _scopes.lastElement();
         if( scope.put(name,nIns()) != null )
             return null;        // Double define
+        _rlabels.add(name);
         return add_def(n);
     }
 
@@ -72,7 +76,15 @@ public class ScopeNode extends Node {
         return null;
     }
 
+    public Node ctrl() { assert lookup(Parser.CTRL)==in(0); return in(0); }
+    
+    public Node ctrl(Node n) {
+        assert lookup(Parser.CTRL)==in(0);
+        set_def(0,n);
+        return n;
+    }
 
+  
     // If the name is present in any scope, then redefine
     public Node update(String name, Node n) {
         for (int i = _scopes.size() - 1; i >= 0; i--) {
@@ -83,6 +95,5 @@ public class ScopeNode extends Node {
         }
         return null;
     }
-
 
 }

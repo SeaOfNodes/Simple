@@ -23,6 +23,7 @@ public class Parser {
      */
     public static StartNode START;
 
+    // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
     /**
@@ -31,17 +32,35 @@ public class Parser {
      */
     public ScopeNode _scope;
 
+    /**
+     * List of keywords disallowed as identifiers
+     */
+    private final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("int");
+            add("return");
+        }};
+
+
     public Parser(String source) {
         _lexer = new Lexer(source);
-        _scope = new ScopeNode();
         Node.reset();
+        _scope = new ScopeNode();
         START = new StartNode();
     }
 
-    public ReturnNode parse() {
-        return (ReturnNode) parseBlock(false);
-    }
+    String src() { return new String( _lexer._input ); }
 
+    public ReturnNode parse() { return parse(false); }
+    public ReturnNode parse(boolean show) {
+        try {
+            var ret = (ReturnNode) parseBlock();
+            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+            return ret;
+        }
+        finally {
+            if( show ) showGraph();
+        }
+    }
 
     /**
      * Parses a block
@@ -49,23 +68,17 @@ public class Parser {
      * <pre>
      *     '{' statements '}'
      * </pre>
+     * Does not parse the opening or closing '{}'
+     * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock(boolean requireClosingBracket) {
+    private Node parseBlock() {
         // Enter a new scope
         _scope.push();
         Node n = null;
-        do {
-            if (match("}")) {
-                if (requireClosingBracket) break;
-                else throw error("unexpected '}' token");
-            } else if (_lexer.isEOF()) {
-                if (requireClosingBracket) require("}");
-                else break;
-            }
-
+        while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        } while (true);
+        };
         // Exit scope
         _scope.pop();
         return n;
@@ -77,32 +90,34 @@ public class Parser {
      * <pre>
      *     returnStatement | declStatement | blockStatement | expressionStatement
      * </pre>
+     * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if (match("return")) return parseReturn();
-        else if (match("int")) return parseDecl();
-        else if (match("{")) return parseBlock(true);
-        else if (match("#showGraph")) return showGraph();
+        if (matchx("return")  ) return parseReturn();
+        else if (matchx("int")) return parseDecl();
+        else if (match ("{"  )) return require(parseBlock(),"}");
+        else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
     }
 
     /**
-     * Parses returnStatement; "return" already parsed
+     * Parses a return statement; "return" already parsed.
      *
      * <pre>
      *     'return' expr ;
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        return new ReturnNode(START, expr);
+        return new ReturnNode(START, expr).peephole();
     }
 
     /**
      * Dumps out the node graph
+     * @return {@code null}
      */
     private Node showGraph() {
-        require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
         return null;
     }
@@ -113,6 +128,7 @@ public class Parser {
      * <pre>
      *     name '=' expression ';'
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpressionStatement() {
         var name = requireId();
@@ -129,6 +145,7 @@ public class Parser {
      * <pre>
      *     'int' name = expression ';'
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseDecl() {
         // Type is 'int' for now
@@ -146,8 +163,9 @@ public class Parser {
      * <pre>
      *     expr : additiveExpr
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() {return parseAddition();}
+    private Node parseExpression() { return parseAddition(); }
 
     /**
      * Parse an additive expression
@@ -155,6 +173,7 @@ public class Parser {
      * <pre>
      *     additiveExpr : multiplicativeExpr (('+' | '-') multiplicativeExpr)*
      * </pre>
+     * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
         var lhs = parseMultiplication();
@@ -169,6 +188,7 @@ public class Parser {
      * <pre>
      *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
      * </pre>
+     * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
@@ -183,6 +203,7 @@ public class Parser {
      * <pre>
      *     unaryExpr : ('-') unaryExpr | primaryExpr
      * </pre>
+     * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
@@ -195,15 +216,16 @@ public class Parser {
      * <pre>
      *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
      * </pre>
+     * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
-        if (_lexer.isNumber()) return parseIntegerLiteral();
-        if (match("(")) return require(parseExpression(), ")");
-        String name = requireId();
-        Node id = _scope.lookup(name);
-        if( id==null )
-            throw error("Undefined name '" + name + "'");
-        return id;
+        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( match("(") ) return require(parseExpression(), ")");
+        String name = _lexer.matchId();
+        if( name == null) throw errorSyntax("an identifier or expression");
+        Node n = _scope.lookup(name);
+        if( n!=null ) return n;
+        throw error("Undefined name '" + name + "'");
     }
 
     /**
@@ -221,17 +243,21 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) {return _lexer.match(syntax);}
+    private boolean match (String syntax) { return _lexer.match (syntax); }
+    // Match must be "exact", not be followed by more id letters
+    private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
+    // Return true and do NOT skip if 'ch' is next
+    private boolean peek(char ch) { return _lexer.peek(ch); }
 
     // Require and return an identifier
     private String requireId() {
         String id = _lexer.matchId();
-        if (id != null) return id;
-        throw error("identifier");
+        if (id != null && !KEYWORDS.contains(id) ) return id;
+        throw error("Expected an identifier, found '"+id+"'");
     }
 
     // Require an exact match
-    private void require(String syntax) {require(null, syntax);}
+    private void require(String syntax) { require(null, syntax); }
     private Node require(Node n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
@@ -313,11 +339,24 @@ public class Parser {
             int len = syntax.length();
             if (_position + len > _input.length) return false;
             for (int i = 0; i < len; i++)
-                if ((char) _input[_position + i] != syntax.charAt(i)) return false;
+                if ((char) _input[_position + i] != syntax.charAt(i))
+                    return false;
             _position += len;
             return true;
         }
 
+        boolean matchx(String syntax) {
+            if( !match(syntax) ) return false;
+            if( !isIdLetter(peek()) ) return true;
+            _position -= syntax.length();
+            return false;
+        }
+
+        private boolean peek(char ch) {
+            skipWhiteSpace();
+            return peek()==ch;
+        }
+        
         // Return an identifier or null
         String matchId() {
             skipWhiteSpace();
@@ -341,7 +380,7 @@ public class Parser {
             String snum = new String(_input, start, --_position - start);
             if (snum.length() > 1 && snum.charAt(0) == '0')
                 throw error("Syntax error: integer values cannot start with '0'");
-            return new TypeInteger(Long.parseLong(snum));
+            return TypeInteger.constant(Long.parseLong(snum));
         }
 
         // First letter of an identifier 
@@ -367,8 +406,7 @@ public class Parser {
 
         private String parsePunctuation() {
             int start = _position;
-            if (isPunctuation(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            return new String(_input, start, 1);
         }
     }
 

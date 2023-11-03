@@ -15,6 +15,12 @@ import java.util.*;
 public class Parser {
 
     /**
+     * The control is a name that binds to the currently active control
+     * node in the graph
+     */
+    public static final String CTRL = "$ctrl";
+  
+    /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
      * through the entire parser and optimizer.
@@ -23,6 +29,7 @@ public class Parser {
      */
     public static StartNode START;
 
+    // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
     /**
@@ -31,10 +38,19 @@ public class Parser {
      */
     public ScopeNode _scope;
 
+    /**
+     * List of keywords disallowed as identifiers
+     */
+    private final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("int");
+            add("return");
+        }};
+
+
     public Parser(String source, TypeInteger arg) {
         _lexer = new Lexer(source);
-        _scope = new ScopeNode();
         Node.reset();
+        _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         START.peephole();
     }
@@ -45,17 +61,23 @@ public class Parser {
 
     String src() { return new String( _lexer._input ); }
 
+    private Node ctrl() { return _scope.ctrl(); }
 
+    private Node ctrl(Node n) { return _scope.ctrl(n); }
 
-    public ReturnNode parse() {
+    public ReturnNode parse() { return parse(false); }
+    public ReturnNode parse(boolean show) {
         _scope.push();
         try {
-            _scope.define("$ctrl", new ProjNode(START, 0, "$ctrl").peephole());
-            _scope.define("arg"  , new ProjNode(START, 1, "arg"  ).peephole());
-            return (ReturnNode) parseBlock(false);
+            _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
+            _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
+            var ret = (ReturnNode) parseBlock();
+            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+            return ret;
         }
         finally {
             _scope.pop();
+            if( show ) showGraph();
         }
     }
 
@@ -65,23 +87,17 @@ public class Parser {
      * <pre>
      *     '{' statements '}'
      * </pre>
+     * Does not parse the opening or closing '{}'
+     * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock(boolean requireClosingBracket) {
+    private Node parseBlock() {
         // Enter a new scope
         _scope.push();
         Node n = null;
-        do {
-            if (match("}")) {
-                if (requireClosingBracket) break;
-                else throw error("unexpected '}' token");
-            } else if (_lexer.isEOF()) {
-                if (requireClosingBracket) require("}");
-                else break;
-            }
-
+        while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
             if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        } while (true);
+        };
         // Exit scope
         _scope.pop();
         return n;
@@ -93,12 +109,13 @@ public class Parser {
      * <pre>
      *     returnStatement | declStatement | blockStatement | expressionStatement
      * </pre>
+     * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if (match("return")) return parseReturn();
-        else if (match("int")) return parseDecl();
-        else if (match("{")) return parseBlock(true);
-        else if (match("#showGraph")) return showGraph();
+        if (matchx("return")  ) return parseReturn();
+        else if (matchx("int")) return parseDecl();
+        else if (match ("{"  )) return require(parseBlock(),"}");
+        else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
     }
 
@@ -109,19 +126,20 @@ public class Parser {
      * <pre>
      *     'return' expr ;
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = new ReturnNode(_scope.lookup("$ctrl"), expr);
-        _scope.update("$ctrl",null);
+        Node ret = new ReturnNode(ctrl(), expr).peephole();
+        ctrl(null);             // Kill control
         return ret;
     }
 
     /**
      * Dumps out the node graph
+     * @return {@code null}
      */
     private Node showGraph() {
-        require(";");
         System.out.println(new GraphVisualizer().generateDotOutput(this));
         return null;
     }
@@ -132,6 +150,7 @@ public class Parser {
      * <pre>
      *     name '=' expression ';'
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpressionStatement() {
         var name = requireId();
@@ -148,6 +167,7 @@ public class Parser {
      * <pre>
      *     'int' name = expression ';'
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseDecl() {
         // Type is 'int' for now
@@ -163,11 +183,20 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : additiveExpr
+     *     expr : compareExpr
      * </pre>
+     * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpression() { return parseComparison(); }
 
+    /**
+     * Parse an expression of the form:
+     *
+     * <pre>
+     *     expr : additiveExpr op additiveExpr
+     * </pre>
+     * @return an comparator expression {@link Node}, never {@code null}
+     */
     private Node parseComparison() {
         var lhs = parseAddition();
         if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
@@ -185,6 +214,7 @@ public class Parser {
      * <pre>
      *     additiveExpr : multiplicativeExpr (('+' | '-') multiplicativeExpr)*
      * </pre>
+     * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
         var lhs = parseMultiplication();
@@ -199,6 +229,7 @@ public class Parser {
      * <pre>
      *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
      * </pre>
+     * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
@@ -213,6 +244,7 @@ public class Parser {
      * <pre>
      *     unaryExpr : ('-') unaryExpr | primaryExpr
      * </pre>
+     * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
@@ -225,15 +257,16 @@ public class Parser {
      * <pre>
      *     primaryExpr : integerLiteral | Identifier | '(' expression ')'
      * </pre>
+     * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
-        if (_lexer.isNumber()) return parseIntegerLiteral();
-        if (match("(")) return require(parseExpression(), ")");
-        String name = requireId();
-        Node id = _scope.lookup(name);
-        if( id==null )
-            throw error("Undefined name '" + name + "'");
-        return id.peephole();
+        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( match("(") ) return require(parseExpression(), ")");
+        String name = _lexer.matchId();
+        if( name == null) throw errorSyntax("an identifier or expression");
+        Node n = _scope.lookup(name);
+        if( n!=null ) return n;
+        throw error("Undefined name '" + name + "'");
     }
 
     /**
@@ -251,13 +284,17 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) { return _lexer.match(syntax); }
+    private boolean match (String syntax) { return _lexer.match (syntax); }
+    // Match must be "exact", not be followed by more id letters
+    private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
+    // Return true and do NOT skip if 'ch' is next
+    private boolean peek(char ch) { return _lexer.peek(ch); }
 
     // Require and return an identifier
     private String requireId() {
         String id = _lexer.matchId();
-        if (id != null) return id;
-        throw error("identifier");
+        if (id != null && !KEYWORDS.contains(id) ) return id;
+        throw error("Expected an identifier, found '"+id+"'");
     }
 
     // Require an exact match
@@ -343,11 +380,24 @@ public class Parser {
             int len = syntax.length();
             if (_position + len > _input.length) return false;
             for (int i = 0; i < len; i++)
-                if ((char) _input[_position + i] != syntax.charAt(i)) return false;
+                if ((char) _input[_position + i] != syntax.charAt(i))
+                    return false;
             _position += len;
             return true;
         }
 
+        boolean matchx(String syntax) {
+            if( !match(syntax) ) return false;
+            if( !isIdLetter(peek()) ) return true;
+            _position -= syntax.length();
+            return false;
+        }
+
+        private boolean peek(char ch) {
+            skipWhiteSpace();
+            return peek()==ch;
+        }
+        
         // Return an identifier or null
         String matchId() {
             skipWhiteSpace();
@@ -397,8 +447,7 @@ public class Parser {
 
         private String parsePunctuation() {
             int start = _position;
-            if (isPunctuation(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            return new String(_input, start, 1);
         }
     }
 

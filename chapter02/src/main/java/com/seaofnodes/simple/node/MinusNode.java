@@ -5,23 +5,22 @@ import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class MinusNode extends Node {
-    public MinusNode(Node in) {
-        super(null, in);
-    }
+    public MinusNode(Node in) { super(null, in); }
 
-    @Override
-    public String label() { return "Minus"; }
+    @Override public String label() { return "Minus"; }
+  
+    @Override public String glabel() { return "-"; }
   
     @Override
-    StringBuilder _print(StringBuilder sb) {
-        in(1)._print(sb.append("(-"));
+    StringBuilder _print1(StringBuilder sb) {
+        in(1)._print0(sb.append("(-"));
         return sb.append(")");
     }
   
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0)
-            return new TypeInteger(-i0._con);
+            return TypeInteger.constant(-i0.value());
         return TypeBot.BOTTOM;
     }
 

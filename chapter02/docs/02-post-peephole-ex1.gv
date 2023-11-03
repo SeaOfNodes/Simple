@@ -1,11 +1,17 @@
 digraph chapter02 {
+/*
+return 1+2*3+-5;
+*/
 	rankdir=BT;
+	ordering="in";
+	concentrate="true";
 	subgraph cluster_Nodes {
 		Start1 [ shape=box style=filled fillcolor=yellow label="Start" ];
-		Con213 [ label="Con2" ];
+		Con_13 [ label="#2" ];
 		Return14 [ shape=box style=filled fillcolor=yellow label="Return" ];
 	}
-	Con213 -> Start1 [style=dotted];
-	Return14 -> Start1 [color=red];
-	Return14 -> Con213;
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Con_13 -> Start1[taillabel=0 style=dotted];
+	Return14 -> Start1[taillabel=0 color=red];
+	Return14 -> Con_13[taillabel=1];
 }

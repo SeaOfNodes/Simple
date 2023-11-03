@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -22,8 +21,7 @@ public abstract class Node {
      * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
      * Ordering is required because e.g. "a/b" is different from "b/a".
-     * The first input (offset 0) is often a Control node.
-     * @see Control
+     * The first input (offset 0) is often a {@link #isCFG} node.
      */
     public final ArrayList<Node> _inputs;
 
@@ -45,17 +43,16 @@ public abstract class Node {
      * */
     private static int UNIQUE_ID = 1;
 
-    protected Node(Node ...inputs) {
+    protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
-        for( Node n : _inputs ) {
+        for( Node n : _inputs )
             if( n != null )
                 n._outputs.add( this );
-      }
     }
-
+    
     /**
      * Gets the ith input node
      * @param i Offset of the input node
@@ -65,23 +62,16 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
-    /**
-     * Gets the ith output node
-     * @param i Offset of the output node
-     * @return Output node (not null)
-     */
-    public Node out(int i) { return _outputs.get(i); }
-
     public int nOuts() { return _outputs.size(); }
+
+    public boolean isUnused() { return nOuts() == 0; }
+
+    public boolean isCFG() { return false; }
+  
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() {
-        UNIQUE_ID = 1;
-    }
-    /*
-     * hashCode and equals implementation to be added in later chapter.
-     */
+    public static void reset() { UNIQUE_ID = 1; }
 }

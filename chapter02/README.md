@@ -117,9 +117,10 @@ The following visual shows how the graph looks like pre-peephole optimization:
 
 ![Example Visual](./docs/02-pre-peephole-ex1.svg)
 
-* Control nodes appear as square boxes
+* Control nodes appear as square boxes with yellow background
 * Control edges are in bold red
-* The edges from Start to Constants are shown in dotted lines as these are not true def-use edges
+* The edges from Constants to Start are shown in dotted lines as these are not true control edges
+* We label each edge with its position in the node's list of inputs.
 
 ## Post-peephole
 

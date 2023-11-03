@@ -1,15 +1,11 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.StartNode;
+import com.seaofnodes.simple.node.*;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class Chapter01Test {
 
@@ -21,11 +17,11 @@ public class Chapter01Test {
         Parser parser = new Parser("return 1;");
         ReturnNode ret = parser.parse();
         StartNode start = Parser.START;
-
+        
         assertEquals(start, ret.ctrl());
         Node expr = ret.expr();
-        if (expr instanceof ConstantNode con) {
-            assertEquals(start, con.in(0));
+        if( expr instanceof ConstantNode con ) {
+            assertEquals(start,con.in(0));
             assertEquals(1, con._value);
         } else {
             fail();
@@ -44,16 +40,22 @@ public class Chapter01Test {
 
     @Test
     public void testBad1() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected return: ret");
-        new Parser("ret").parse();
+        try { 
+            new Parser("ret").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected return: ret",e.getMessage());
+        }
     }
 
     @Test
     public void testBad2() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error: integer values cannot start with '0'");
-        new Parser("return 0123;").parse();
+        try { 
+            new Parser("return 0123;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage());
+        }
     }
 
     @Test
@@ -65,9 +67,12 @@ public class Chapter01Test {
 
     @Test
     public void testBad4() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected ;:");
-        new Parser("return 100").parse();
+        try { 
+            new Parser("return 100").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected ;: ",e.getMessage());
+        }
     }
 
     // Negative numbers require unary operator support that is not in scope

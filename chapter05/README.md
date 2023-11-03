@@ -15,7 +15,7 @@ Here is a recap of the nodes introduced in previous chapters:
 | Node Name | Type           | Chapter | Description                                    | Inputs                                                                        | Value                                                                      |
 |-----------|----------------|---------|------------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | Multi     | Abstract class | 4       | A node that has a tuple result                 |                                                                               | A tuple                                                                    |
-| Start     | Control        | 1       | Start of function, now a MultiNode             | A type for the input argument named `arg`.                                    | A tuple with a ctrl token and an `arg` data node                           |
+| Start     | Control        | 1       | Start of function, now a MultiNode             |                                                                               | A tuple with a ctrl token and an `arg` data node                           |
 | Proj      | ?              | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     | 
 | Bool      | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                                | Result is a comparison, represented as integer value where 1=true, 0=false |
 | Return    | Control        | 1       | End of function                                | Predecessor control node and a data node for the return value of the function | Return value of the function                                               |
@@ -112,6 +112,115 @@ This involves following:
   updated to point to the `Phi` node.
 10. Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
 
+Here is the implementing code.
+
+```java
+/**
+ * Parses a statement
+ *
+ * <pre>
+ *     if ( expression ) statement [else statement]
+ * </pre>
+ * @return a {@link Node}, never {@code null}
+ */
+private Node parseIf() {
+    require("(");
+    // Parse predicate
+    var pred = require(parseExpression(), ")");
+    // IfNode takes current control and predicate
+    IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).peephole();
+    // Setup projection nodes
+    Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+    Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+    // In if true branch, the ifT proj node becomes the ctrl
+    // But first clone the scope and set it as current
+    int ndefs = _scope.nIns();
+    ScopeNode fScope = _scope.dup(); // Duplicate current scope
+    _allScopes.push(fScope); // For graph visualization we need all scopes
+
+    // Parse the true side
+    ctrl(ifT);              // set ctrl token to ifTrue projection
+    parseStatement();       // Parse true-side
+    ScopeNode tScope = _scope;
+    
+    // Parse the false side
+    _scope = fScope;        // Restore scope, then parse else block if any
+    ctrl(ifF);              // Ctrl token is now set to ifFalse projection
+    if (matchx("else")) parseStatement();
+
+    if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
+        throw error("Cannot define a new name on one arm of an if");
+    
+    // Merge results
+    _scope = tScope;
+    _allScopes.pop();       // Discard pushed from graph display
+    return ctrl(tScope.mergeScopes(fScope));
+}
+```
+
+## Operations on ScopeNodes
+
+As explained above, we duplicate ScopeNodes and merge them at a later point. There are some 
+subtleties in how this is implemented that is worth going over.
+
+### Duplicating a ScopeNode
+
+Below is the code for duplicating a ScopeNode.
+
+Our goals are:
+1) Duplicate the name bindings across all stack levels
+2) Make the new ScopeNode a user of all the bound nodes
+3) Ensure that the order of defs in the duplicate is the same to allow easy merging
+
+```java
+/**
+ * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
+ * neither shallow (would dup the Scope but not the internal HashMap
+ * tables), nor deep (would dup the Scope, the HashMap tables, but then
+ * also the program Nodes).
+ * <p>
+ * The new Scope is a full-fledged Node with proper use<->def edges.
+ */
+public ScopeNode dup() {
+    ScopeNode dup = new ScopeNode();
+    for( HashMap<String, Integer> tab : _scopes )
+        dup._scopes.push(new HashMap<>(tab));
+    for( int i=0; i<nIns(); i++ )
+        dup.add_def(in(i));
+    return dup;
+}
+```
+
+### Merging two ScopeNodes
+
+At the merge point we merge two ScopeNodes. The goals are:
+
+1) Merge names whose bindings have changed between the two nodes. For each such name, a Phi node is created, referencing the two original data nodes.
+2) A new Region node is created representing the merged control flow. The phis have this region node as the first input.
+3) After the merge is completed, the duplicate is discarded, and its use of each of the nodes is also deleted.
+
+The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode. 
+Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
+
+```java
+/**
+ * Merges the names whose node bindings differ, by creating Phi node for such names
+ * The names could occur at all stack levels, but a given name can only differ in the
+ * innermost stack level where the name is bound.
+ *
+ * @param that The ScopeNode to be merged into this
+ * @return A new Region node representing the merge point
+ */
+public RegionNode mergeScopes(ScopeNode that) {
+    RegionNode r = (RegionNode)ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
+    for( int i=1; i<nIns(); i++ )
+        if( in(i) != that.in(i) ) // No need for redundant Phis
+            set_def(i,new PhiNode(r, in(i), that.in(i)).peephole());
+    that.kill();                  // Kill merged scope, removing it as user of all the nodes
+    return r;
+}
+```
+
 ## Example
 
 We show the graph for the following code snippet:
@@ -151,6 +260,115 @@ The `Phi` node's inputs are the `Region` node and the `Add` node from the `True`
 Here is the graph after the `return` statement was parsed and processed.
 
 ![Graph3](./docs/05-graph3.svg)
+
+## More Peepholes
+
+Phi's implement a peephole shown below:
+
+```java
+@Override
+public Node idealize() {
+    // Remove a "junk" Phi: Phi(x,x) is just x
+    if( same_inputs() )
+        return in(1);
+
+    // Pull "down" a common data op.  One less op in the world.  One more
+    // Phi, but Phis do not make code.        
+    //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
+    //     op(Phi(A,Q,X), Phi(B,R,Y)).
+    Node op = in(1);
+    if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
+        Node[] lhss = new Node[nIns()];
+        Node[] rhss = new Node[nIns()];
+        lhss[0] = rhss[0] = in(0); // Set Region
+        for( int i=1; i<nIns(); i++ ) {
+            lhss[i] = in(i).in(1);
+            rhss[i] = in(i).in(2);
+        }
+        Node phi_lhs = new PhiNode(_label,lhss).peephole();
+        Node phi_rhs = new PhiNode(_label,rhss).peephole();
+        return op.copy(phi_lhs,phi_rhs);
+    }
+
+    return null;
+}
+
+private boolean same_op() {
+    for( int i=2; i<nIns(); i++ )
+        if( in(1).getClass() != in(i).getClass() )
+            return false;
+    return true;
+}
+
+private boolean same_inputs() {
+    for( int i=2; i<nIns(); i++ )
+        if( in(1) != in(i) )
+            return false;
+    return true;
+}
+```
+
+This is illustrated in the example:
+
+```java
+int a=arg==2;
+if( arg==1 )
+{
+    a=arg==3;
+}
+return a;
+```
+
+Pre-peephole we have:
+
+![Graph4](./docs/05-graph4.svg)
+
+Post-peephole:
+
+![Graph5](./docs/05-graph5.svg)
+
+## More examples
+
+```java
+int c = 3;
+int b = 2;
+if (arg == 1) {
+    b = 3;
+    c = 4;
+}
+```
+
+![Graph6](./docs/05-graph6.svg)
+
+```java
+int a=arg+1;
+int b=arg+2;
+if( arg==1 )
+    b=b+a;
+else
+    a=b+1;
+return a+b;
+```
+
+![Graph7](./docs/05-graph7.svg)
+
+```java
+int a=1;
+if( arg==1 )
+    if( arg==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+```
+
+![Graph8](./docs/05-graph8.svg)
+
+
 
 
 [^1]: Click, C. (1995).

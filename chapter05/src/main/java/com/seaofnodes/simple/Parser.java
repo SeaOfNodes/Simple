@@ -94,6 +94,7 @@ public class Parser {
             _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
             _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
             parseBlock();
+            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
             return STOP;
         }
         finally {
@@ -129,7 +130,7 @@ public class Parser {
      * Parses a statement
      *
      * <pre>
-     *     returnStatement | declStatement | blockStatement | expressionStatement
+     *     returnStatement | declStatement | blockStatement | ifStatement | expressionStatement
      * </pre>
      * @return a {@link Node} or {@code null}
      */
