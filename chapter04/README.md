@@ -116,9 +116,9 @@ In previous chapters, we had a hard coded control input edge from Start to
 Return. In this chapter we no longer have such a hard-wired edge.  Instead, we
 track the current in-scope control node via the name `$ctrl`.  This means that
 when we need to create an edge to the predecessor control node, we simply
-lookup this name in the current scope.
+look up this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model. [^1]
+This introduces the idea that the control flow subgraph is a Petri net model.[^1]
 The control token moves virtually from node to node as execution proceeds.  The
 initial control token is in Start, it then moves via the Proj node to Return.
 In later chapters we will see how the token moves across branches.
