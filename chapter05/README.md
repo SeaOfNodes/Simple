@@ -8,6 +8,17 @@ In this chapter we extend the language grammar with the following features:
 
 Here is the [complete language grammar](docs/05-grammar.md) for this chapter.
 
+## New Nodes
+
+The following new nodes are introduced in this chapter:
+
+| Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
+|-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
+| If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
+| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
+| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 | 
+| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
+
 ## Recap
 
 Here is a recap of the nodes introduced in previous chapters:
@@ -26,17 +37,6 @@ Here is a recap of the nodes introduced in previous chapters:
 | Div       | Data           | 2       | Divide a value by another                      | Two data nodes, the first one is divided by the second one                    | Result of the division                                                     |
 | Minus     | Data           | 2       | Negate a value                                 | One data node which value is negated                                          | Result of the negation                                                     |
 | Scope     | ?              | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
-
-## New Nodes
-
-The following new nodes are introduced in this chapter:
-
-| Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
-|-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
-| If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
-| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
-| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 | 
-| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
 
 ## `If` Nodes
 
@@ -112,51 +112,7 @@ This involves following:
   updated to point to the `Phi` node.
 10. Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
 
-Here is the implementing code.
-
-```java
-/**
- * Parses a statement
- *
- * <pre>
- *     if ( expression ) statement [else statement]
- * </pre>
- * @return a {@link Node}, never {@code null}
- */
-private Node parseIf() {
-    require("(");
-    // Parse predicate
-    var pred = require(parseExpression(), ")");
-    // IfNode takes current control and predicate
-    IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).peephole();
-    // Setup projection nodes
-    Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-    Node ifF = new ProjNode(ifNode, 1, "False").peephole();
-    // In if true branch, the ifT proj node becomes the ctrl
-    // But first clone the scope and set it as current
-    int ndefs = _scope.nIns();
-    ScopeNode fScope = _scope.dup(); // Duplicate current scope
-    _allScopes.push(fScope); // For graph visualization we need all scopes
-
-    // Parse the true side
-    ctrl(ifT);              // set ctrl token to ifTrue projection
-    parseStatement();       // Parse true-side
-    ScopeNode tScope = _scope;
-    
-    // Parse the false side
-    _scope = fScope;        // Restore scope, then parse else block if any
-    ctrl(ifF);              // Ctrl token is now set to ifFalse projection
-    if (matchx("else")) parseStatement();
-
-    if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
-        throw error("Cannot define a new name on one arm of an if");
-    
-    // Merge results
-    _scope = tScope;
-    _allScopes.pop();       // Discard pushed from graph display
-    return ctrl(tScope.mergeScopes(fScope));
-}
-```
+Implementation is in [`parseIf` method in `Parser`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/Parser.java#L146-L186).
 
 ## Operations on ScopeNodes
 
@@ -336,6 +292,7 @@ if (arg == 1) {
     b = 3;
     c = 4;
 }
+return c;
 ```
 
 ![Graph6](./docs/05-graph6.svg)
