@@ -251,6 +251,5 @@ The reason this is done is that we know `m` is the new replacement and is alive,
 but since it is not yet part of the graph up the tree, it has no users yet.
 By adding a bogus user we prevent it being mistaken for dead and being killed.
 
-## References
 [^1]: Click, C. (1995).
    Combining Analyses, Combining Optimizations, 131.
