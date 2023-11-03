@@ -155,16 +155,12 @@ public class GraphVisualizer {
                 continue;
             int i=0;
             for( Node def : n._inputs ) {
-                // Do not draw the Phi->Region edge (in red); instead Phis are
-                // on a line with their Region, and we draw an invisible line
-                // from the Region to the Phi, to force all the Phis to the
-                // right of the Region.
                 if( n instanceof PhiNode && def instanceof RegionNode ) {
-                    sb.append('\t').append(def.uniqueName());
+                    // Draw a dotted use->def edge from Phi to Region.
+                    sb.append('\t').append(n.uniqueName());
                     sb.append(" -> ");
-                    sb.append(n.uniqueName());
-                    sb.append(" [style=invis]\n");
-                    
+                    sb.append(def.uniqueName());
+                    sb.append(" [style=dotted taillabel=").append(i).append("];\n");
                 } else if( def != null ) {
                     // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
@@ -176,7 +172,7 @@ public class GraphVisualizer {
                     sb.append("[taillabel=").append(i);
                     // control edges are colored red
                     if( def.isCFG() )
-                        sb.append("; color=red");
+                        sb.append(" color=red");
                     sb.append("];\n");
                 }
                 i++;

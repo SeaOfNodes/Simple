@@ -261,6 +261,115 @@ Here is the graph after the `return` statement was parsed and processed.
 
 ![Graph3](./docs/05-graph3.svg)
 
+## More Peepholes
+
+Phi's implement a peephole shown below:
+
+```java
+@Override
+public Node idealize() {
+    // Remove a "junk" Phi: Phi(x,x) is just x
+    if( same_inputs() )
+        return in(1);
+
+    // Pull "down" a common data op.  One less op in the world.  One more
+    // Phi, but Phis do not make code.        
+    //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
+    //     op(Phi(A,Q,X), Phi(B,R,Y)).
+    Node op = in(1);
+    if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
+        Node[] lhss = new Node[nIns()];
+        Node[] rhss = new Node[nIns()];
+        lhss[0] = rhss[0] = in(0); // Set Region
+        for( int i=1; i<nIns(); i++ ) {
+            lhss[i] = in(i).in(1);
+            rhss[i] = in(i).in(2);
+        }
+        Node phi_lhs = new PhiNode(_label,lhss).peephole();
+        Node phi_rhs = new PhiNode(_label,rhss).peephole();
+        return op.copy(phi_lhs,phi_rhs);
+    }
+
+    return null;
+}
+
+private boolean same_op() {
+    for( int i=2; i<nIns(); i++ )
+        if( in(1).getClass() != in(i).getClass() )
+            return false;
+    return true;
+}
+
+private boolean same_inputs() {
+    for( int i=2; i<nIns(); i++ )
+        if( in(1) != in(i) )
+            return false;
+    return true;
+}
+```
+
+This is illustrated in the example:
+
+```java
+int a=arg==2;
+if( arg==1 )
+{
+    a=arg==3;
+}
+return a;
+```
+
+Pre-peephole we have:
+
+![Graph4](./docs/05-graph4.svg)
+
+Post-peephole:
+
+![Graph5](./docs/05-graph5.svg)
+
+## More examples
+
+```java
+int c = 3;
+int b = 2;
+if (arg == 1) {
+    b = 3;
+    c = 4;
+}
+```
+
+![Graph6](./docs/05-graph6.svg)
+
+```java
+int a=arg+1;
+int b=arg+2;
+if( arg==1 )
+    b=b+a;
+else
+    a=b+1;
+return a+b;
+```
+
+![Graph7](./docs/05-graph7.svg)
+
+```java
+int a=1;
+if( arg==1 )
+    if( arg==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+```
+
+![Graph8](./docs/05-graph8.svg)
+
+
+
 
 [^1]: Click, C. (1995).
   Combining Analyses, Combining Optimizations, 132.

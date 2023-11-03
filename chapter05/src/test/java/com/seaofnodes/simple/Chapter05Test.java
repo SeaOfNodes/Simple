@@ -21,8 +21,7 @@ else {
     #showGraph;
 }
 #showGraph;
-return a;
-""");
+return a;""");
         StopNode ret = parser.parse(true);
         assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
     }
@@ -36,50 +35,94 @@ if (arg == 1) {
     b = 3;
     c = 4;
 }
-return c;
-                """, TypeInteger.BOT);
-        StopNode ret = parser.parse();
+return c;""", TypeInteger.BOT);
+        StopNode ret = parser.parse(true);
         assertEquals("return Phi(Region16,4,3);", ret.toString());
     }
     
     @Test
     public void testChapter5Return2() {
-        Parser parser = new Parser("if( arg==1 ) return 3; else return 4; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("""
+if( arg==1 ) 
+    return 3; 
+else 
+    return 4; 
+#showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("Stop[ return 3; return 4; ]", stop.toString());
     }
     
     @Test
     public void testChapter5IfMergeB() {
-        Parser parser = new Parser("int a=arg+1; int b=0; if( arg==1 ) b=a; else b=a+1; return a+b;");
+        Parser parser = new Parser("""
+int a=arg+1;
+int b=0;
+if( arg==1 )
+    b=a;
+else
+    b=a+1;
+return a+b;""");
         StopNode ret = parser.parse(true);
         assertEquals("return ((arg*2)+Phi(Region20,2,3));", ret.toString());
     }
 
     @Test
     public void testChapter5IfMerge2() {
-        Parser parser = new Parser("int a=arg+1; int b=arg+2; if( arg==1 ) b=b+a; else a=b+1; return a+b;");
+        Parser parser = new Parser("""
+int a=arg+1;
+int b=arg+2;
+if( arg==1 )
+    b=b+a;
+else
+    a=b+1;
+return a+b;""");
         StopNode ret = parser.parse(true);
         assertEquals("return ((Phi(Region31,(arg*2),arg)+arg)+Phi(Region31,4,5));", ret.toString());
     }
 
     @Test
     public void testChapter5Merge3() {
-        Parser parser = new Parser("int a=1; if( arg==1 ) if( arg==2 ) a=2; else a=3; else if( arg==3 ) a=4; else a=5; return a; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("""
+int a=1;
+if( arg==1 )
+    if( arg==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+#showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
     }
 
     @Test
     public void testChapter5Merge4() {
-        Parser parser = new Parser("int a=0;int b=0;if(arg)a=1;if(arg==0)b=2;return arg+a+b;#showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("""
+int a=0;
+int b=0;
+if( arg )
+    a=1;
+if( arg==0 )
+    b=2;
+return arg+a+b;
+#showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region22,2,0));", stop.toString());
     }
 
     @Test
     public void testChapter5Merge5() {
-        Parser parser = new Parser("int a=arg==2;if(arg==1)a=arg==3;return a;");
+        Parser parser = new Parser("""
+int a=arg==2;
+if( arg==1 )
+{
+    a=arg==3;
+}
+return a;""");
         StopNode ret = parser.parse(true);
         assertEquals("return (arg==Phi(Region16,3,2));", ret.toString());
     }

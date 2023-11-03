@@ -149,7 +149,7 @@ public class GraphVisualizer {
                     sb.append("[taillabel=").append(i);
                     // control edges are colored red
                     if( def.isCFG() )
-                        sb.append("; color=red");
+                        sb.append(" color=red");
                     sb.append("];\n");
                 }
                 i++;
