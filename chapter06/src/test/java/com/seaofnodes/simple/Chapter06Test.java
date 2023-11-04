@@ -11,11 +11,11 @@ public class Chapter06Test {
     @Test
     public void testChapter6PeepholeCFG() {
         Parser parser = new Parser("""
-int a=1;\s
-if( true )\s
-  a=2;\s
-else\s
-  a=3;\s
+int a=1;
+if( true )
+  a=2;
+else
+  a=3;
 return a;""");
         StopNode ret = parser.parse(true);
         assertEquals("return 2;", ret.toString());
