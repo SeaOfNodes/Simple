@@ -132,7 +132,7 @@ public class ScopeNode extends Node {
             if (in(i) != that.in(i)) // No need for redundant Phis
                 set_def(i, new PhiNode(_rlabels.get(i), r, in(i), that.in(i)).peephole());
         that.kill();            // Kill merged scope
-        return r.unkeep();
+        return r.unKeep();
     }
 
 }

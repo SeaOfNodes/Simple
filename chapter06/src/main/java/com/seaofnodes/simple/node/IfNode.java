@@ -42,7 +42,7 @@ public class IfNode extends MultiNode {
         return this;
     }
 
-    public IfNode unkeep() {
+    public IfNode unKeep() {
         delUse(null);
         return this;
     }

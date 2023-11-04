@@ -261,6 +261,7 @@ public abstract class Node {
      * code elimination.  This function is co-recursive with {@link #pop_n}.
      */
     public void kill( ) {
+        // This is a kludge to stop killing constants
         if (this instanceof ConstantNode && _type.isDeadCtrl())
             return;
         assert isUnused();      // Has no uses, so it is dead

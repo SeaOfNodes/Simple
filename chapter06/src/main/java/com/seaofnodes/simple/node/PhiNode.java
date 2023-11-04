@@ -37,7 +37,7 @@ public class PhiNode extends Node {
 
         // If only 1 of our input values have live control
         // then return that as phi is dead
-        Node live = single_live_input();
+        Node live = singleLiveInput();
         if (live != null)
             return live;
 
@@ -79,7 +79,7 @@ public class PhiNode extends Node {
     /**
      * If only 1 of the inputs is live then return it
      */
-    private Node single_live_input() {
+    private Node singleLiveInput() {
         Node live = null;
         for( int i=1; i<nIns(); i++ )
             // The control type is in the region

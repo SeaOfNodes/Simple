@@ -31,7 +31,7 @@ public class RegionNode extends Node {
     /**
      * If only 1 of the inputs is live then return it
      */
-    public Node single_live_input() {
+    public Node singleLiveInput() {
         Node live = null;
         for( int i=1; i<nIns(); i++ )
             if( !in(i)._type.isDeadCtrl() )
@@ -47,7 +47,7 @@ public class RegionNode extends Node {
         return this;
     }
 
-    public RegionNode unkeep() {
+    public RegionNode unKeep() {
         delUse(null);
         return this;
     }

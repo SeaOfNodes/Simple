@@ -159,7 +159,7 @@ public class Parser {
         IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
         // Setup projection nodes
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-        ifNode.unkeep();
+        ifNode.unKeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
