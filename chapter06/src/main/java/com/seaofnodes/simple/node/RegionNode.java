@@ -19,7 +19,7 @@ public class RegionNode extends Node {
     public Type compute() {
         Type t = Type.XCONTROL;
         for (int i = 1; i < nIns(); i++)
-            t = t.meet(in(i)._type);
+            if (in(i) != null) t = t.meet(in(i)._type);
         return t;
     }
 
