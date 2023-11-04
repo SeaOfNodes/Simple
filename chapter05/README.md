@@ -128,24 +128,7 @@ Our goals are:
 2) Make the new ScopeNode a user of all the bound nodes
 3) Ensure that the order of defs in the duplicate is the same to allow easy merging
 
-```java
-/**
- * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
- * neither shallow (would dup the Scope but not the internal HashMap
- * tables), nor deep (would dup the Scope, the HashMap tables, but then
- * also the program Nodes).
- * <p>
- * The new Scope is a full-fledged Node with proper use<->def edges.
- */
-public ScopeNode dup() {
-    ScopeNode dup = new ScopeNode();
-    for( HashMap<String, Integer> tab : _scopes )
-        dup._scopes.push(new HashMap<>(tab));
-    for( int i=0; i<nIns(); i++ )
-        dup.add_def(in(i));
-    return dup;
-}
-```
+For implementation [see `scopeNode.dup()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L99-L119)
 
 ### Merging two ScopeNodes
 
@@ -158,24 +141,7 @@ At the merge point we merge two ScopeNodes. The goals are:
 The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode. 
 Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
 
-```java
-/**
- * Merges the names whose node bindings differ, by creating Phi node for such names
- * The names could occur at all stack levels, but a given name can only differ in the
- * innermost stack level where the name is bound.
- *
- * @param that The ScopeNode to be merged into this
- * @return A new Region node representing the merge point
- */
-public RegionNode mergeScopes(ScopeNode that) {
-    RegionNode r = (RegionNode)ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
-    for( int i=1; i<nIns(); i++ )
-        if( in(i) != that.in(i) ) // No need for redundant Phis
-            set_def(i,new PhiNode(r, in(i), that.in(i)).peephole());
-    that.kill();                  // Kill merged scope, removing it as user of all the nodes
-    return r;
-}
-```
+For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L121-L136)
 
 ## Example
 
@@ -219,52 +185,7 @@ Here is the graph after the `return` statement was parsed and processed.
 
 ## More Peepholes
 
-Phi's implement a peephole shown below:
-
-```java
-@Override
-public Node idealize() {
-    // Remove a "junk" Phi: Phi(x,x) is just x
-    if( same_inputs() )
-        return in(1);
-
-    // Pull "down" a common data op.  One less op in the world.  One more
-    // Phi, but Phis do not make code.        
-    //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
-    //     op(Phi(A,Q,X), Phi(B,R,Y)).
-    Node op = in(1);
-    if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
-        Node[] lhss = new Node[nIns()];
-        Node[] rhss = new Node[nIns()];
-        lhss[0] = rhss[0] = in(0); // Set Region
-        for( int i=1; i<nIns(); i++ ) {
-            lhss[i] = in(i).in(1);
-            rhss[i] = in(i).in(2);
-        }
-        Node phi_lhs = new PhiNode(_label,lhss).peephole();
-        Node phi_rhs = new PhiNode(_label,rhss).peephole();
-        return op.copy(phi_lhs,phi_rhs);
-    }
-
-    return null;
-}
-
-private boolean same_op() {
-    for( int i=2; i<nIns(); i++ )
-        if( in(1).getClass() != in(i).getClass() )
-            return false;
-    return true;
-}
-
-private boolean same_inputs() {
-    for( int i=2; i<nIns(); i++ )
-        if( in(1) != in(i) )
-            return false;
-    return true;
-}
-```
-
-This is illustrated in the example:
+Phi's implement a peephole illustrated in the example:
 
 ```java
 int a=arg==2;
@@ -282,6 +203,8 @@ Pre-peephole we have:
 Post-peephole:
 
 ![Graph5](./docs/05-graph5.svg)
+
+The implementation is in [`PhiNode.idealize()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/PhiNode.java#L31-L71)
 
 ## More examples
 
