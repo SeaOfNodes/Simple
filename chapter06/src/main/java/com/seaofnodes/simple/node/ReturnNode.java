@@ -36,5 +36,12 @@ public class ReturnNode extends Node {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        if (ctrl() instanceof RegionNode r) {
+            Node n = r.single_live_input();
+            if (n != null)
+                return new ReturnNode(n, expr()).peephole();
+        }
+        return null;
+    }
 }

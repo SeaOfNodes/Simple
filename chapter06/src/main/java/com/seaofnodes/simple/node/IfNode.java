@@ -28,15 +28,13 @@ public class IfNode extends MultiNode {
     public Type compute() {
         // If the If node is not reachable then neither is any following Proj
         if (ctrl()._type != Type.CONTROL) return TypeTuple.IF_NEITHER;
-        // If test os not a constant true/false then assume both branches are reachable
-        if (!pred()._type.isConstant())   return TypeTuple.IF_BOTH;
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
         if (pred()._type instanceof TypeInteger ti) {
             if (ti.value() == 0)          return TypeTuple.IF_FALSE;
             else                          return TypeTuple.IF_TRUE;
         }
-        throw new IllegalStateException("Unexpected predicate type " + pred()._type);
+        return TypeTuple.IF_BOTH;
     }
 
     public IfNode keep() {
