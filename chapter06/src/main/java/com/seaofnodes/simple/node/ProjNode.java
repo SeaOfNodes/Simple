@@ -39,8 +39,15 @@ public class ProjNode extends Node {
 
     @Override
     public Node idealize() {
-        if (getType(ctrl()._type) == Type.XCONTROL) {
-            return DeadNode.DEAD_CTRL;
+        if (getType(ctrl()._type) == Type.XCONTROL) return DeadNode.DEAD_CTRL;
+        if (ctrl() instanceof IfNode n) {
+            if (ctrl()._type instanceof TypeTuple tt) {
+                Type t = tt._types[_idx==0?1:0];
+                if (t == Type.XCONTROL) {
+                    // Other value is dead, so return the control's parent control
+                    return ctrl().in(0).in(0);
+                }
+            }
         }
         return null;
     }

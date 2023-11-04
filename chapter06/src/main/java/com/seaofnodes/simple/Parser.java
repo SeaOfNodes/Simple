@@ -182,6 +182,8 @@ public class Parser {
         // Merge results
         _scope = tScope;
         _allScopes.pop();       // Discard pushed from graph display
+
+        ifNode.unkeep();
         return ctrl(tScope.mergeScopes(fScope));
     }
 
