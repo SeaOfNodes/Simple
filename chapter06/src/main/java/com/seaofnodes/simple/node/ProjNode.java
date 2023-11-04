@@ -41,7 +41,7 @@ public class ProjNode extends Node {
     public Node idealize() {
         if (getType(ctrl()._type).isDeadCtrl()) return ConstantNode.DEAD_CTRL;
         if (ctrl() instanceof IfNode n) {
-            if (ctrl()._type instanceof TypeTuple tt) {
+            if (n._type instanceof TypeTuple tt) {
                 // Get the other Proj node type
                 Type t = tt._types[_idx==0?1:0];
                 // If the other one is dead, then If has only 1 branch
