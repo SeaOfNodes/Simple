@@ -25,7 +25,7 @@ public class RegionNode extends Node {
 
     @Override
     public Node idealize() {
-        return single_live_input();
+        return null;
     }
 
     /**
@@ -34,7 +34,7 @@ public class RegionNode extends Node {
     private Node single_live_input() {
         Node live = null;
         for( int i=1; i<nIns(); i++ )
-            if( in(i)._type != Type.XCONTROL )
+            if( !in(i)._type.isDeadCtrl() )
                 if (live == null)
                     live = in(i);
                 else

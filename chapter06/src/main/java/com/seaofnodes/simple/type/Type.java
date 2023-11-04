@@ -42,6 +42,7 @@ public class Type {
     public static final Type XCONTROL = new Type( TXCTRL ); // ~Ctrl
 
     public boolean isConstant() { return false; }
+    public boolean isDeadCtrl() { return _type == TXCTRL; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 

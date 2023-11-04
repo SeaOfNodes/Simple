@@ -156,7 +156,7 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).peephole();
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
         // Setup projection nodes
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();

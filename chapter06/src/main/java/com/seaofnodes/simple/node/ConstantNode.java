@@ -38,5 +38,6 @@ public class ConstantNode extends Node {
 
     @Override
     public Node idealize() { return null; }
-    
+
+    public static final Node DEAD_CTRL = new ConstantNode(Type.XCONTROL).peephole();
 }

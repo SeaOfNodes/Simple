@@ -139,9 +139,15 @@ public abstract class Node {
         if (_disablePeephole)
             return this;        // Peephole optimizations turned off
 
+        if (this instanceof ConstantNode && type.isDeadCtrl())
+            return this;
+
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
             return deadCodeElim(new ConstantNode(type).peephole());
+
+        if (type.isDeadCtrl())
+            return deadCodeElim(ConstantNode.DEAD_CTRL);
 
         // Future chapter: Global Value Numbering goes here
         

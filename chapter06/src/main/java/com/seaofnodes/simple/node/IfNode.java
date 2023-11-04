@@ -8,7 +8,6 @@ public class IfNode extends MultiNode {
 
     public IfNode(Node ctrl, Node pred) {
         super(ctrl, pred);
-        addUse(null); // Add a dummy user
     }
 
     @Override
@@ -40,15 +39,18 @@ public class IfNode extends MultiNode {
         throw new IllegalStateException("Unexpected predicate type " + pred()._type);
     }
 
-    public void unkeep() {
-      delUse(null);
+    public IfNode keep() {
+        addUse(null); // Add a dummy user
+        return this;
+    }
+
+    public IfNode unkeep() {
+        delUse(null);
+        return this;
     }
 
     @Override
     public Node idealize() {
-        if (isUnused())
-            // Don't optimize away yet
-            return null;
         return null;
     }
 }
