@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeTuple;
 
 public class ProjNode extends Node {
@@ -31,7 +30,7 @@ public class ProjNode extends Node {
     @Override
     public Type compute() {
         Type t = ctrl()._type;
-        return t instanceof TypeTuple tt ? tt._types[_idx] : TypeBot.BOTTOM;
+        return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 
     @Override

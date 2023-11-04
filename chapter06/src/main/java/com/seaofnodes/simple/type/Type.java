@@ -17,14 +17,34 @@ package com.seaofnodes.simple.type;
  * simple constant folding e.g. 1+2 == 3 stuff.
  */    
 
-public abstract class Type {
+public class Type {
 
-    public static final TypeControl CONTROL = new TypeControl();
+    // ----------------------------------------------------------
+    // Simple types are implemented fully here.  "Simple" means: the code and
+    // type hierarchy are simple, not that the Type is conceptually simple.
+    static final byte TBOT    = 0; // Bottom (ALL)
+    static final byte TTOP    = 1; // Top    (ANY)
+    static final byte TCTRL   = 2; // Ctrl flow bottom
+    static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
+    static final byte TSIMPLE = 4; // End of the Simple Types
+    static final byte TINT    = 5; // All Integers; see TypeInteger
+    static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
+
+    public final byte _type;
+
+    public boolean is_simple() { return _type < TSIMPLE; }
+    private static final String[] STRS = new String[]{"BOTTOM","TOP","CONTROL","~CONTROL"};
+    protected Type(byte type) { _type = type; }
+
+    public static final Type BOTTOM   = new Type( TBOT   ); // ALL
+    public static final Type TOP      = new Type( TTOP   ); // ANY
+    public static final Type CONTROL  = new Type( TCTRL  ); // Ctrl
+    public static final Type XCONTROL = new Type( TXCTRL ); // ~Ctrl
 
     public boolean isConstant() { return false; }
 
-    public abstract StringBuilder _print(StringBuilder sb);
+    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
-    public Type meet(Type other) { return TypeBot.BOTTOM; }
+    public Type meet(Type other) { return Type.BOTTOM; }
 
 }
