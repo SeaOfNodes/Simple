@@ -22,6 +22,25 @@ return a;""");
     }
 
     @Test
+    public void testChapter6Merge3With2() {
+        Parser parser = new Parser("""
+int a=1;
+if( arg==1 )
+    if( arg==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+#showGraph;""", TypeInteger.constant(2));
+        StopNode stop = parser.parse();
+        assertEquals("return 5;", stop.toString());
+    }
+
+    @Test
     public void testChapter5IfStmt() {
         Parser parser = new Parser("""
 int a = 1;

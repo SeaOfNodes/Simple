@@ -48,7 +48,7 @@ public class ProjNode extends Node {
                 if (t.isDeadCtrl()) {
                     // Other value is dead, so return the control's parent control
                     // Since parent is IfNode, we really need its parent
-                    return ctrl().in(0).in(0);
+                    return ctrl().in(0);
                 }
             }
         }
