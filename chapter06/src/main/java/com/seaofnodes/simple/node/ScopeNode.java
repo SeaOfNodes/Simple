@@ -127,12 +127,12 @@ public class ScopeNode extends Node {
      * @return A new Region node representing the merge point
      */
     public Node mergeScopes(ScopeNode that) {
-        Node r = ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
+        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep().peephole());
         for (int i = 1; i < nIns(); i++)
             if (in(i) != that.in(i)) // No need for redundant Phis
                 set_def(i, new PhiNode(_rlabels.get(i), r, in(i), that.in(i)).peephole());
         that.kill();            // Kill merged scope
-        return r;
+        return r.unkeep();
     }
 
 }

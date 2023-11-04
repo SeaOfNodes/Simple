@@ -41,4 +41,14 @@ public class RegionNode extends Node {
                     return null;
         return live;
     }
+
+    public RegionNode keep() {
+        addUse(null); // Add a dummy user
+        return this;
+    }
+
+    public RegionNode unkeep() {
+        delUse(null);
+        return this;
+    }
 }

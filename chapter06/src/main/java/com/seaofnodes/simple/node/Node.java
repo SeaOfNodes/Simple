@@ -146,7 +146,7 @@ public abstract class Node {
         if (!(this instanceof ConstantNode) && type.isConstant())
             return deadCodeElim(new ConstantNode(type).peephole());
 
-        if (type.isDeadCtrl())
+        if (type.isDeadCtrl() && isUnused())
             return deadCodeElim(ConstantNode.DEAD_CTRL);
 
         // Future chapter: Global Value Numbering goes here
@@ -261,6 +261,8 @@ public abstract class Node {
      * code elimination.  This function is co-recursive with {@link #pop_n}.
      */
     public void kill( ) {
+        if (this instanceof ConstantNode && _type.isDeadCtrl())
+            return;
         assert isUnused();      // Has no uses, so it is dead
         pop_n(nIns());          // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead
