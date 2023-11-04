@@ -45,6 +45,31 @@ public class Type {
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
-    public Type meet(Type other) { return Type.BOTTOM; }
+    public final Type meet(Type t) {
+        // Shortcut for the self case
+        if( t == this ) return this;
+        // Same-type is always safe in the subclasses
+        if( _type==t._type ) return xmeet(t);
+        // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
+        if(   is_simple() ) return this.xmeet(t   );
+        if( t.is_simple() ) return t   .xmeet(this);
+        return BOTTOM;        // Mixing 2 unrelated types
+    }
+
+    // Compute meet right now.  Overridden in subclasses.
+    // Handle cases where 'this.is_simple()' and unequal to 't'.
+    // Subclassed xmeet calls can assert that '!t.is_simple()'.
+    protected Type xmeet(Type t) {
+        assert is_simple(); // Should be overridden in subclass
+        // ANY meet anything is thing; thing meet ALL is ALL
+        if( _type==TBOT || t._type==TTOP ) return this;
+        if( _type==TTOP || t._type==TBOT ) return    t;
+        // 'this' is {TCTRL,TXCTRL}
+        if( !t.is_simple() ) return BOTTOM;
+        // 't' is {TCTRL,TXCTRL}
+        if( _type==TCTRL || t._type==TCTRL ) return CONTROL;
+        return XCONTROL;
+    }
+
 
 }

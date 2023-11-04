@@ -10,7 +10,7 @@ public class TypeTuple extends Type {
     }
 
     @Override
-    public Type meet(Type other) {
+    public Type xmeet(Type other) {
         throw new UnsupportedOperationException("Meet on Tuple Type not yet implemented");
     }
 
