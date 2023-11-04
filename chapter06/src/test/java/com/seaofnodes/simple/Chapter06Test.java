@@ -9,6 +9,19 @@ import static org.junit.Assert.*;
 public class Chapter06Test {
 
     @Test
+    public void testChapter6PeepholeCFG() {
+        Parser parser = new Parser("""
+int a=1;\s
+if( true )\s
+  a=2;\s
+else\s
+  a=3;\s
+return a;""");
+        StopNode ret = parser.parse(true);
+        assertEquals("return 2;", ret.toString());
+    }
+
+    @Test
     public void testChapter5IfStmt() {
         Parser parser = new Parser("""
 int a = 1;
