@@ -30,7 +30,7 @@ public class IfNode extends MultiNode {
         if (ctrl()._type != Type.CONTROL) return TypeTuple.IF_NEITHER;
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
-        if (pred()._type instanceof TypeInteger ti) {
+        if (pred()._type instanceof TypeInteger ti && ti.isConstant()) {
             if (ti.value() == 0)          return TypeTuple.IF_FALSE;
             else                          return TypeTuple.IF_TRUE;
         }
