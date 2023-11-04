@@ -71,5 +71,8 @@ public class Type {
         return XCONTROL;
     }
 
-
+    @Override
+    public String toString() {
+        return _print(new StringBuilder()).toString();
+    }
 }

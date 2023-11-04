@@ -22,6 +22,8 @@ public class PhiNode extends Node {
         return sb;
     }
 
+    Node region() { return in(0); }
+
     @Override
     public Type compute() {
         return Type.BOTTOM;
@@ -32,6 +34,12 @@ public class PhiNode extends Node {
         // Remove a "junk" Phi: Phi(x,x) is just x
         if( same_inputs() )
             return in(1);
+
+        // If only 1 of our input values have live control
+        // then return that as phi is dead
+        Node live = single_live_input();
+        if (live != null)
+            return live;
 
         // Pull "down" a common data op.  One less op in the world.  One more
         // Phi, but Phis do not make code.        
@@ -67,5 +75,21 @@ public class PhiNode extends Node {
                 return false;
         return true;
     }
+
+    /**
+     * If only 1 of the inputs is live then return it
+     */
+    private Node single_live_input() {
+        Node live = null;
+        for( int i=1; i<nIns(); i++ )
+            // The control type is in the region
+            if( region().in(i)._type != Type.XCONTROL )
+                if (live == null)
+                    live = in(i);
+                else
+                    return null;
+        return live;
+    }
+
 
 }

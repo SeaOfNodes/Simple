@@ -30,11 +30,18 @@ public class ProjNode extends Node {
     @Override
     public Type compute() {
         Type t = ctrl()._type;
+        return getType(t);
+    }
+
+    private Type getType(Type t) {
         return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 
     @Override
     public Node idealize() {
+        if (getType(ctrl()._type) == Type.XCONTROL) {
+            return DeadNode.DEAD_CTRL;
+        }
         return null;
     }
 }
