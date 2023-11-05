@@ -21,6 +21,19 @@ return 1;
     }
 
     @Test
+    public void testChapter6PeepholeRotate() {
+        Parser parser = new Parser(
+"""
+int a = 1;
+if (arg)
+    a = 2;
+return (arg < a) < 3;
+""");
+        StopNode stop = parser.parse(false);
+        assertEquals("return ((arg<Phi(Region12,2,1))<3);", stop.toString());
+    }
+
+    @Test
     public void testChapter6PeepholeCFG() {
         Parser parser = new Parser(
 """

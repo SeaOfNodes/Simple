@@ -77,7 +77,7 @@ public class AddNode extends Node {
         // Do we have ((x + (phi cons)) + con) ?
         // Do we have ((x + (phi cons)) + (phi cons)) ?
         // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
-        Node phicon = phiCon(this);
+        Node phicon = phiCon(this,true);
         if( phicon!=null ) return phicon;
 
         // Now we sort along the spline via rotates, to gather similar things together.
@@ -90,16 +90,16 @@ public class AddNode extends Node {
         return null;
     }
 
-    // Only valid for commutative ops, e.g. Add, Mul, And, Or, EQ
+    // Rotation is only valid for associative ops, e.g. Add, Mul, And, Or.
     // Do we have ((phi cons)|(x + (phi cons)) + con|(phi cons)) ?
     // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
-    static Node phiCon(Node op) {
+    static Node phiCon(Node op, boolean rotate) {
         Node lhs = op.in(1);
         Node rhs = op.in(2);
         // LHS is either a Phi of constants, or another op with Phi of constants
         PhiNode lphi = pcon(lhs);
-        if( lphi==null && lhs.nIns() > 2 ) {
-            // Only valid to rotate constants if both are same commutative ops
+        if( rotate && lphi==null && lhs.nIns() > 2 ) {
+            // Only valid to rotate constants if both are same associative ops
             if( lhs.getClass() != op.getClass() ) return null;
             lphi = pcon(lhs.in(2)); // Will rotate with the Phi push
         }

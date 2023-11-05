@@ -47,7 +47,7 @@ public class MulNode extends Node {
         // Do we have ((x * (phi cons)) * con) ?
         // Do we have ((x * (phi cons)) * (phi cons)) ?
         // Push constant up through the phi: x * (phi con0*con0 con1*con1...)
-        Node phicon = AddNode.phiCon(this);
+        Node phicon = AddNode.phiCon(this,true);
         if( phicon!=null ) return phicon;
 
         return null;
