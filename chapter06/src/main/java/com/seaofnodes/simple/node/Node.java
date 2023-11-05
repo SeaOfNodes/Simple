@@ -48,7 +48,7 @@ public abstract class Node {
 
     /**
      * A private Global Static mutable counter, for unique node id generation.
-     * To make the compiler multi-threaded, this field will have to move into a TLS.
+     * To make the compiler multithreaded, this field will have to move into a TLS.
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
@@ -203,6 +203,20 @@ public abstract class Node {
         _inputs.set(idx,new_def);
         // Return self for easy flow-coding
         return this;
+    }
+  
+    // Remove the numbered input, compressing the inputs in-place.  This
+    // shuffles the order deterministically - which is suitable for Region and
+    // Phi, but not for every Node.
+    void delDef(int idx) {
+        Node old_def = in(idx);
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        // Set the new_def over the old (killed) edge
+        int last = nIns()-1;
+        _inputs.set(idx,in(last));
+        _inputs.remove(last);
     }
 
     /**

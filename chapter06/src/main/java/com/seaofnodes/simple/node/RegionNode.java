@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
 public class RegionNode extends Node {
@@ -25,29 +26,31 @@ public class RegionNode extends Node {
 
     @Override
     public Node idealize() {
-        boolean changed = false;
-        for (int i = 1; i < nIns(); i++)
-            if (in(i) instanceof RegionNode r) {
-                // Does the region have only 1 live control input?
-                // If so, create new region with just that input and peephole
-                Node n = r.singleLiveInput();
-                if (n != null) {
-                    set_def(i, n);
-                    changed = true;
-                }
+        int path = findDeadInput();
+        if( path != 0 ) {
+            for( Node phi : _outputs )
+                if( phi instanceof PhiNode )
+                    phi.delDef(path);
+            delDef(path);
+
+            // If down to a single input, become that input - but also make all
+            // Phis an identity on *their* single input.
+            if( nIns()==2 ) {
+                for( Node phi : _outputs )
+                    if( phi instanceof PhiNode )
+                        // Currently does not happen, because no loops
+                        throw Parser.TODO();
+                return in(1);
             }
-        return changed ? this : null;
+            return this;
+        }
+        return null;
     }
 
-    /**
-     * If only 1 of the inputs is live then return it
-     */
-    public Node singleLiveInput() {
-        Node live = null;
+    private int findDeadInput() {
         for( int i=1; i<nIns(); i++ )
-            if( in(i)._type!=Type.XCONTROL )
-                if (live == null)  live = in(i);
-                else               return null;
-        return live;
+            if( in(i)._type==Type.XCONTROL )
+                return i;
+        return 0;               // All inputs alive
     }
 }

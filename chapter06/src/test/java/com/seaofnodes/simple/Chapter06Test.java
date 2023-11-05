@@ -10,20 +10,24 @@ public class Chapter06Test {
 
     @Test
     public void testChapter6PeepholeCFG() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( true )
   a=2;
 else
   a=3;
-return a;""");
-        StopNode ret = parser.parse(true);
-        assertEquals("return 2;", ret.toString());
+return a;
+""");
+        StopNode stop = parser.parse(true);
+        assertEquals("return 2;", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
     @Test
     public void testChapter6IfIf() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     a=2;
@@ -41,7 +45,8 @@ return b;""", TypeInteger.BOT);
 
     @Test
     public void testChapter6IfArgIf() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( 1==1 )
     a=2;
@@ -59,7 +64,8 @@ return b;""", TypeInteger.BOT);
 
     @Test
     public void testChapter6Merge3With2() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( arg==2 )
@@ -78,7 +84,8 @@ return a;
 
     @Test
     public void testChapter6Merge3With1() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( arg==2 )
@@ -97,13 +104,14 @@ return a;
 
     @Test
     public void testChapter6Merge3Peephole() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( 1==2 )
-        a=2;
+        a=arg+2;
     else
-        a=3;
+        a=arg+3;
 else if( arg==3 )
     a=4;
 else
@@ -116,7 +124,8 @@ return a;
 
     @Test
     public void testChapter6Merge3Peephole1() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( 1==2 )
@@ -135,7 +144,8 @@ return a;
 
     @Test
     public void testChapter6Merge3Peephole3() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( 1==2 )
@@ -155,7 +165,8 @@ return a;
 
     @Test
     public void testChapter5IfStmt() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a = 1;
 if (arg == 1)
     a = arg+2;
@@ -171,7 +182,8 @@ return a;""");
   
     @Test
     public void testChapter5Test() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int c = 3;
 int b = 2;
 if (arg == 1) {
@@ -185,7 +197,8 @@ return c;""", TypeInteger.BOT);
     
     @Test
     public void testChapter5Return2() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 if( arg==1 ) 
     return 3; 
 else 
@@ -197,7 +210,8 @@ else
     
     @Test
     public void testChapter5IfMergeB() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=arg+1;
 int b=0;
 if( arg==1 )
@@ -211,7 +225,8 @@ return a+b;""");
 
     @Test
     public void testChapter5IfMerge2() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=arg+1;
 int b=arg+2;
 if( arg==1 )
@@ -225,7 +240,8 @@ return a+b;""");
 
     @Test
     public void testChapter5Merge3() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( arg==2 )
@@ -244,7 +260,8 @@ return a;
 
     @Test
     public void testChapter5Merge4() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=0;
 int b=0;
 if( arg )
@@ -259,7 +276,8 @@ return arg+a+b;
 
     @Test
     public void testChapter5Merge5() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=arg==2;
 if( arg==1 )
 {

@@ -39,13 +39,6 @@ public class IfNode extends MultiNode {
 
     @Override
     public Node idealize() {
-        if (ctrl() instanceof RegionNode r) {
-            Node live = r.singleLiveInput();
-            if (live != null) {
-                set_def(0, live);
-                return this;
-            }
-        }
         return null;
     }
 }

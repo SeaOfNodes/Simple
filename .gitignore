@@ -13,4 +13,8 @@ target/
 # Editors
 .#*
 *~
+TAGS
+
+# Libs
+*/lib/*jar
 

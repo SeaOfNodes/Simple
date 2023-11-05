@@ -37,13 +37,6 @@ public class ReturnNode extends Node {
 
     @Override
     public Node idealize() {
-        if (ctrl() instanceof RegionNode r) {
-            // Does the region have only 1 live control input?
-            // If so, create new region with just that input and peephole
-            Node n = r.singleLiveInput();
-            if (n != null)
-                return new ReturnNode(n, expr()).peephole();
-        }
         return null;
     }
 }
