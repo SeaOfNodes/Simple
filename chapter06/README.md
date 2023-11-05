@@ -32,18 +32,30 @@ As before we denote  "top" by T and "bottom" by ⊥.
   `1` or `0`. If `1` the `false` branch is dead, and vice versa.
 * When we add the `Proj` nodes, in this scenario, we already know one of the projections is dead. The peephole of the
   relevant `Proj` node replaces the `Proj` with a `Constant` of type "~ctrl" indicating dead control.
-* At this point, our deadcode elimination would kill the `If` node, since its not needed anymore. But we cannot do that because
-  we need to continue the parse. The important observation is that *we cannot kill the `If` node until __both__ the `Proj` nodes
-  have been created*. 
-* To ensure this we temporarily add a dummy user to `If` which is removed after constructing the first `Proj` node.
-* When we create the second `Proj` node, the `If` gets killed by deadcode elimination. The live `Proj` gets replaced by the
-  parent of `If`, whereas the dead `Proj` gets replaced by "~ctrl".
+* At this point, our dead code elimination would kill the `If` node, since its not needed anymore. But we cannot do that because
+  we need to continue the parse. The important observation is that *we __can__ kill the `If` node after __both__ the `Proj` nodes
+  have been created*, because any subsequent control flow can only see the `Proj` nodes. 
+* To ensure this, we add a dummy user to `If` before creating the first `Proj` and remove it immediately after, allowing the 
+  second `Proj` to trigger a dead code elimination of the `If`.
+* The live `Proj` gets replaced by the parent of `If`, whereas the dead `Proj` gets replaced by "~ctrl".
 * The parsing continues.
 * The other changes are when we reach the merge point. 
 * Again keeping with our strategy we merge as normal, including creating `Phi` nodes.
 * But the `Region` node will have one of its inputs as "~ctrl". This will be seen by the `Phi` which then replaces itself
   with the live input. So each `Phi` just dies and is replaced.
-* Finally, at the end, when the `Region` node is peepholed, we see that it has only one live input, and thus not needed anymore.
+* Finally, at the end, when the `Region` node is peep-holed, we see that it has only one live input, and thus not needed anymore.
+* The peep-hole of the `Region` node is triggered by the nodes that see it as input, i.e. `Return`, `If` or another `Region`.
 
+## Discussion of `Region` and `Phi`
 
-  
+One of the invariants we need to maintain is that the for each control input to a `Region`, there must be a corresponding
+`Phi` associated with the region. Thus, if a `Region` loses a control input the corresponding `Phi` must be deleted.
+
+When processing `If` we do not remove control inputs to a `Region`, instead the dead control input is simply set to `Constant(~ctrl)`.
+The peep-hole logic in a `Phi` notices this and replaces itself with the live input. This means that the `Region` can have dead control
+inputs for which there are no corresponding `Phi`s, breaking the invariant.
+
+While not an issue yet, because the `Region` gets deleted once it has only one live input, 
+this will become an issue when we start parsing loops in the next chapter, where a `Region` could have more than two control
+inputs. At that point we will need additional maintenance logic to keep the list of `Phi`s consistent with the list of 
+control inputs in a `Region`.
