@@ -7,7 +7,8 @@ In this chapter we do not add new language features. Our goal is to add peephole
 We now need to extend the type system to introduce another lattice structure, in addition to the Integer lattice.
 As before we denote  "top" by T and "bottom" by ⊥.
 
-"ctrl" represents a live control, whereas "~ctrl" represents a dead control.
+* "ctrl" represents a live control, whereas "~ctrl" represents a dead control.
+* "INT" refers to the integer type.
 
 |       | ⊥ | Ctrl | ~Ctrl | T     | INT |
 |-------|---|------|-------|-------|-----|
@@ -16,12 +17,11 @@ As before we denote  "top" by T and "bottom" by ⊥.
 | ~Ctrl | ⊥ | Ctrl | ~Ctrl | ~Ctrl | ⊥   |
 | ⊥     | ⊥ | ⊥    | ⊥     | ⊥     | ⊥   |
 
-* "top" meets any type is that type
-* "bottom" meets any type is "bottom"
-* "top", "bottom", "ctrl", "~ctrl" are classed as simple types
-* Any simple type meets non-simple results in "bottom"
+* "top" meets any type is that type,
+* "bottom" meets any type is "bottom",
+* "top", "bottom", "ctrl", "~ctrl" are classed as simple types,
 * "ctrl" meets "~ctrl" is "ctrl"
-* "INT" refers to the integer type
+* Unless covered above, a simple type meets non-simple results in "bottom"
 
 ## Peephole of `if` 
 
@@ -44,18 +44,13 @@ As before we denote  "top" by T and "bottom" by ⊥.
 * But the `Region` node will have one of its inputs as "~ctrl". This will be seen by the `Phi` which then replaces itself
   with the live input. So each `Phi` just dies and is replaced.
 * Finally, at the end, when the `Region` node is peep-holed, we see that it has only one live input, and thus not needed anymore.
-* The peep-hole of the `Region` node is triggered by the nodes that see it as input, i.e. `Return`, `If` or another `Region`.
 
 ## Discussion of `Region` and `Phi`
 
 One of the invariants we need to maintain is that the for each control input to a `Region`, there must be a corresponding
-`Phi` associated with the region. Thus, if a `Region` loses a control input the corresponding `Phi` must be deleted.
+`Phi` associated with the region. Thus, if a `Region` loses a control input the corresponding `Phi` must be deleted. Conversely,
+we cannot collapse a Region until it has no dependent Phis.
 
 When processing `If` we do not remove control inputs to a `Region`, instead the dead control input is simply set to `Constant(~ctrl)`.
 The peep-hole logic in a `Phi` notices this and replaces itself with the live input. This means that the `Region` can have dead control
-inputs for which there are no corresponding `Phi`s, breaking the invariant.
-
-While not an issue yet, because the `Region` gets deleted once it has only one live input, 
-this will become an issue when we start parsing loops in the next chapter, where a `Region` could have more than two control
-inputs. At that point we will need additional maintenance logic to keep the list of `Phi`s consistent with the list of 
-control inputs in a `Region`.
+inputs for which there are no corresponding `Phi`s, breaking the invariant, but the `Region` is deleted soon after.
