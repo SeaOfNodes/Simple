@@ -19,7 +19,7 @@ public class RegionNode extends Node {
     public Type compute() {
         Type t = Type.XCONTROL;
         for (int i = 1; i < nIns(); i++)
-            if (in(i) != null) t = t.meet(in(i)._type);
+            t = t.meet(in(i)._type);
         return t;
     }
 
@@ -34,21 +34,9 @@ public class RegionNode extends Node {
     public Node singleLiveInput() {
         Node live = null;
         for( int i=1; i<nIns(); i++ )
-            if( !in(i)._type.isDeadCtrl() )
-                if (live == null)
-                    live = in(i);
-                else
-                    return null;
+            if( in(i)._type!=Type.XCONTROL )
+                if (live == null)  live = in(i);
+                else               return null;
         return live;
-    }
-
-    public RegionNode keep() {
-        addUse(null); // Add a dummy user
-        return this;
-    }
-
-    public RegionNode unKeep() {
-        delUse(null);
-        return this;
     }
 }

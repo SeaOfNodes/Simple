@@ -54,8 +54,8 @@ else if( arg==3 )
 else
     a=5;
 return a;
-#showGraph;""", TypeInteger.constant(1));
-        StopNode stop = parser.parse();
+""", TypeInteger.constant(1));
+        StopNode stop = parser.parse(true);
         assertEquals("return 3;", stop.toString());
     }
 

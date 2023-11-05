@@ -39,18 +39,11 @@ public class ProjNode extends Node {
 
     @Override
     public Node idealize() {
-        if (getType(ctrl()._type).isDeadCtrl()) return ConstantNode.DEAD_CTRL;
-        if (ctrl() instanceof IfNode n) {
-            if (n._type instanceof TypeTuple tt) {
-                // Get the other Proj node type
-                Type t = tt._types[_idx==0?1:0];
-                // If the other one is dead, then If has only 1 branch
-                if (t.isDeadCtrl()) {
-                    // Other value is dead, so return the control's parent control
-                    // Since parent is IfNode, we really need its parent
-                    return ctrl().in(0);
-                }
-            }
+        if( ctrl()._type instanceof TypeTuple tt ) {
+            if( tt._types[_idx]==Type.XCONTROL )
+                return new ConstantNode(Type.XCONTROL).peephole(); // We are dead
+            if( tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
+                return ctrl().in(0);               // We become our input control
         }
         return null;
     }

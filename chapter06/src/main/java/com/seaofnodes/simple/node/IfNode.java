@@ -37,16 +37,6 @@ public class IfNode extends MultiNode {
         return TypeTuple.IF_BOTH;
     }
 
-    public IfNode keep() {
-        addUse(null); // Add a dummy user
-        return this;
-    }
-
-    public IfNode unKeep() {
-        delUse(null);
-        return this;
-    }
-
     @Override
     public Node idealize() {
         return null;

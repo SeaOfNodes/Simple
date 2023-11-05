@@ -139,15 +139,9 @@ public abstract class Node {
         if (_disablePeephole)
             return this;        // Peephole optimizations turned off
 
-        if (this instanceof ConstantNode && type.isDeadCtrl())
-            return this;
-
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
             return deadCodeElim(new ConstantNode(type).peephole());
-
-        if (type.isDeadCtrl() && isUnused())
-            return deadCodeElim(ConstantNode.DEAD_CTRL);
 
         // Future chapter: Global Value Numbering goes here
         
@@ -228,7 +222,10 @@ public abstract class Node {
     }
 
     // Breaks the edge invariants, used temporarily
-    protected void addUse(Node n) { _outputs.add(n); }
+    protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
+    // Shortcuts to stop DCE mid-parse
+    public <N extends Node> N keep() { return addUse(null); }
+    public Node unkeep() { delUse(null); return this; }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
@@ -261,9 +258,6 @@ public abstract class Node {
      * code elimination.  This function is co-recursive with {@link #pop_n}.
      */
     public void kill( ) {
-        // This is a kludge to stop killing constants
-        if (this instanceof ConstantNode && _type.isDeadCtrl())
-            return;
         assert isUnused();      // Has no uses, so it is dead
         pop_n(nIns());          // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead

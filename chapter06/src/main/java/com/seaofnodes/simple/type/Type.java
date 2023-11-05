@@ -41,8 +41,7 @@ public class Type {
     public static final Type CONTROL  = new Type( TCTRL  ); // Ctrl
     public static final Type XCONTROL = new Type( TXCTRL ); // ~Ctrl
 
-    public boolean isConstant() { return false; }
-    public boolean isDeadCtrl() { return _type == TXCTRL; }
+    public boolean isConstant() { return _type == TTOP || _type == TXCTRL; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
@@ -68,12 +67,11 @@ public class Type {
         // 'this' is {TCTRL,TXCTRL}
         if( !t.is_simple() ) return BOTTOM;
         // 't' is {TCTRL,TXCTRL}
-        if( _type==TCTRL || t._type==TCTRL ) return CONTROL;
-        return XCONTROL;
+        return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
         return _print(new StringBuilder()).toString();
     }
 }
