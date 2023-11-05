@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 
 public class AddNode extends Node {
@@ -72,23 +73,12 @@ public class AddNode extends Node {
         if( lhs.in(2)._type.isConstant() && t2.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
-        if( lhs.in(2) instanceof PhiNode phi && phi.all_cons() &&
-            // Do we have ((x + (phi cons)) + con) ?
-            // Do we have ((x + (phi cons)) + (phi cons)) ?
-            // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
-            
-            // Note that this is the exact reverse of Phi pulling a common op
-            // down to reduce total op-count.  We don't get in an endless push-
-            // up push-down peephole cycle because the constants all fold first.
-            (t2.isConstant() || (rhs instanceof PhiNode && phi.in(0) == rhs.in(0) && rhs.all_cons()) ) ) {
-            Node[] ns = new Node[phi.nIns()];
-            ns[0] = phi.in(0);
-            // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
-            for( int i=1; i<ns.length; i++ )
-                ns[i] = new AddNode(phi.in(i),t2.isConstant() ? rhs : rhs.in(i)).peephole();
-            String label = phi._label + (rhs instanceof PhiNode rphi ? rphi._label : "");
-            return new AddNode(lhs.in(1),new PhiNode(label,ns).peephole());
-        }
+
+        // Do we have ((x + (phi cons)) + con) ?
+        // Do we have ((x + (phi cons)) + (phi cons)) ?
+        // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
+        Node phicon = phiCon(this);
+        if( phicon!=null ) return phicon;
 
         // Now we sort along the spline via rotates, to gather similar things together.
         
@@ -100,6 +90,47 @@ public class AddNode extends Node {
         return null;
     }
 
+    // Only valid for commutative ops, e.g. Add, Mul, And, Or, EQ
+    // Do we have ((phi cons)|(x + (phi cons)) + con|(phi cons)) ?
+    // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
+    static Node phiCon(Node op) {
+        Node lhs = op.in(1);
+        Node rhs = op.in(2);
+        // LHS is either a Phi of constants, or another op with Phi of constants
+        PhiNode lphi = pcon(lhs);
+        if( lphi==null && lhs.nIns() > 2 ) {
+            // Only valid to rotate constants if both are same commutative ops
+            if( lhs.getClass() != op.getClass() ) return null;
+            lphi = pcon(lhs.in(2)); // Will rotate with the Phi push
+        }
+        if( lphi==null ) return null;
+        
+        // RHS is a constant or a Phi of constants
+        if( !(rhs instanceof ConstantNode con) && pcon(rhs)==null )
+            return null;
+        
+        // If both are Phis, must be same Region
+        if( rhs instanceof PhiNode && lphi.in(0) != rhs.in(0) )
+            return null;
+
+        // Note that this is the exact reverse of Phi pulling a common op down
+        // to reduce total op-count.  We don't get in an endless push-up
+        // push-down peephole cycle because the constants all fold first.
+        Node[] ns = new Node[lphi.nIns()];
+        ns[0] = lphi.in(0);
+        // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
+        for( int i=1; i<ns.length; i++ )
+            ns[i] = op.copy(lphi.in(i), rhs instanceof PhiNode ? rhs.in(i) : rhs).peephole();
+        String label = lphi._label + (rhs instanceof PhiNode rphi ? rphi._label : "");
+        Node phi = new PhiNode(label,ns).peephole();
+        // Rotate needs another op, otherwise just the phi
+        return lhs==lphi ? phi : op.copy(lhs.in(1),phi);
+    }
+
+    static PhiNode pcon(Node op) {
+        return op instanceof PhiNode phi && phi.all_cons() ? phi : null;
+    }
+        
     // Compare two off-spline nodes and decide what order they should be in.
     // Do we rotate ((x + hi) + lo) into ((x + lo) + hi) ?
     // Generally constants always go right, then Phi-of-constants, then muls, then others.

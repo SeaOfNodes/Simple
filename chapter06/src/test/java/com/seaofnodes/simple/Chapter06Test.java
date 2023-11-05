@@ -41,18 +41,18 @@ return a;
         Parser parser = new Parser(
 """
 int a=1;
-if( arg==1 )
+if( arg!=1 )
     a=2;
 else
     a=3;
-int b=4;    
+int b=4;
 if( a==2 )
     b=42;
 else
     b=5;
 return b;""", TypeInteger.BOT);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region26,42,5);", stop.toString());
+        assertEquals("return Phi(Region32,42,5);", stop.toString());
     }
 
     @Test
@@ -64,7 +64,7 @@ if( 1==1 )
     a=2;
 else
     a=3;
-int b=4;    
+int b=4;
 if( arg==2 )
     b=a;
 else

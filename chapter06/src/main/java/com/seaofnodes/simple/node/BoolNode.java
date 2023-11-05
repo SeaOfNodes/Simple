@@ -43,13 +43,16 @@ abstract public class BoolNode extends Node {
         if( in(1)==in(2) )
             return new ConstantNode(TypeInteger.constant(doOp(3,3)?1:0));
 
+        // Do we have ((x * (phi cons)) * con) ?
+        // Do we have ((x * (phi cons)) * (phi cons)) ?
+        // Push constant up through the phi: x * (phi con0*con0 con1*con1...)
+        Node phicon = AddNode.phiCon(this);
+        if( phicon!=null ) return phicon;
+
         return null;
     }
 
     public static class EQNode extends BoolNode { public EQNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQNode(lhs,rhs); } }
-    public static class NENode extends BoolNode { public NENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "!="; } boolean doOp(long lhs, long rhs) { return lhs != rhs; } Node copy(Node lhs, Node rhs) { return new NENode(lhs,rhs); } }
     public static class LTNode extends BoolNode { public LTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LTNode(lhs,rhs); } }
     public static class LENode extends BoolNode { public LENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LENode(lhs,rhs); } }
-    public static class GTNode extends BoolNode { public GTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">" ; } boolean doOp(long lhs, long rhs) { return lhs >  rhs; } Node copy(Node lhs, Node rhs) { return new GTNode(lhs,rhs); } }
-    public static class GENode extends BoolNode { public GENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return ">="; } boolean doOp(long lhs, long rhs) { return lhs >= rhs; } Node copy(Node lhs, Node rhs) { return new GENode(lhs,rhs); } }
 }
