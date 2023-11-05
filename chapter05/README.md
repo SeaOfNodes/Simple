@@ -8,6 +8,17 @@ In this chapter we extend the language grammar with the following features:
 
 Here is the [complete language grammar](docs/05-grammar.md) for this chapter.
 
+## New Nodes
+
+The following new nodes are introduced in this chapter:
+
+| Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
+|-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
+| If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
+| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
+| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 | 
+| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
+
 ## Recap
 
 Here is a recap of the nodes introduced in previous chapters:
@@ -26,17 +37,6 @@ Here is a recap of the nodes introduced in previous chapters:
 | Div       | Data           | 2       | Divide a value by another                      | Two data nodes, the first one is divided by the second one                    | Result of the division                                                     |
 | Minus     | Data           | 2       | Negate a value                                 | One data node which value is negated                                          | Result of the negation                                                     |
 | Scope     | ?              | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
-
-## New Nodes
-
-The following new nodes are introduced in this chapter:
-
-| Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
-|-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
-| If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
-| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
-| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 | 
-| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
 
 ## `If` Nodes
 
@@ -112,51 +112,7 @@ This involves following:
   updated to point to the `Phi` node.
 10. Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
 
-Here is the implementing code.
-
-```java
-/**
- * Parses a statement
- *
- * <pre>
- *     if ( expression ) statement [else statement]
- * </pre>
- * @return a {@link Node}, never {@code null}
- */
-private Node parseIf() {
-    require("(");
-    // Parse predicate
-    var pred = require(parseExpression(), ")");
-    // IfNode takes current control and predicate
-    IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).peephole();
-    // Setup projection nodes
-    Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-    Node ifF = new ProjNode(ifNode, 1, "False").peephole();
-    // In if true branch, the ifT proj node becomes the ctrl
-    // But first clone the scope and set it as current
-    int ndefs = _scope.nIns();
-    ScopeNode fScope = _scope.dup(); // Duplicate current scope
-    _allScopes.push(fScope); // For graph visualization we need all scopes
-
-    // Parse the true side
-    ctrl(ifT);              // set ctrl token to ifTrue projection
-    parseStatement();       // Parse true-side
-    ScopeNode tScope = _scope;
-    
-    // Parse the false side
-    _scope = fScope;        // Restore scope, then parse else block if any
-    ctrl(ifF);              // Ctrl token is now set to ifFalse projection
-    if (matchx("else")) parseStatement();
-
-    if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
-        throw error("Cannot define a new name on one arm of an if");
-    
-    // Merge results
-    _scope = tScope;
-    _allScopes.pop();       // Discard pushed from graph display
-    return ctrl(tScope.mergeScopes(fScope));
-}
-```
+Implementation is in [`parseIf` method in `Parser`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/Parser.java#L146-L186).
 
 ## Operations on ScopeNodes
 
@@ -172,24 +128,7 @@ Our goals are:
 2) Make the new ScopeNode a user of all the bound nodes
 3) Ensure that the order of defs in the duplicate is the same to allow easy merging
 
-```java
-/**
- * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
- * neither shallow (would dup the Scope but not the internal HashMap
- * tables), nor deep (would dup the Scope, the HashMap tables, but then
- * also the program Nodes).
- * <p>
- * The new Scope is a full-fledged Node with proper use<->def edges.
- */
-public ScopeNode dup() {
-    ScopeNode dup = new ScopeNode();
-    for( HashMap<String, Integer> tab : _scopes )
-        dup._scopes.push(new HashMap<>(tab));
-    for( int i=0; i<nIns(); i++ )
-        dup.add_def(in(i));
-    return dup;
-}
-```
+For implementation [see `scopeNode.dup()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L99-L119)
 
 ### Merging two ScopeNodes
 
@@ -202,24 +141,7 @@ At the merge point we merge two ScopeNodes. The goals are:
 The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode. 
 Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
 
-```java
-/**
- * Merges the names whose node bindings differ, by creating Phi node for such names
- * The names could occur at all stack levels, but a given name can only differ in the
- * innermost stack level where the name is bound.
- *
- * @param that The ScopeNode to be merged into this
- * @return A new Region node representing the merge point
- */
-public RegionNode mergeScopes(ScopeNode that) {
-    RegionNode r = (RegionNode)ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
-    for( int i=1; i<nIns(); i++ )
-        if( in(i) != that.in(i) ) // No need for redundant Phis
-            set_def(i,new PhiNode(r, in(i), that.in(i)).peephole());
-    that.kill();                  // Kill merged scope, removing it as user of all the nodes
-    return r;
-}
-```
+For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L121-L136)
 
 ## Example
 
@@ -263,52 +185,7 @@ Here is the graph after the `return` statement was parsed and processed.
 
 ## More Peepholes
 
-Phi's implement a peephole shown below:
-
-```java
-@Override
-public Node idealize() {
-    // Remove a "junk" Phi: Phi(x,x) is just x
-    if( same_inputs() )
-        return in(1);
-
-    // Pull "down" a common data op.  One less op in the world.  One more
-    // Phi, but Phis do not make code.        
-    //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
-    //     op(Phi(A,Q,X), Phi(B,R,Y)).
-    Node op = in(1);
-    if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
-        Node[] lhss = new Node[nIns()];
-        Node[] rhss = new Node[nIns()];
-        lhss[0] = rhss[0] = in(0); // Set Region
-        for( int i=1; i<nIns(); i++ ) {
-            lhss[i] = in(i).in(1);
-            rhss[i] = in(i).in(2);
-        }
-        Node phi_lhs = new PhiNode(_label,lhss).peephole();
-        Node phi_rhs = new PhiNode(_label,rhss).peephole();
-        return op.copy(phi_lhs,phi_rhs);
-    }
-
-    return null;
-}
-
-private boolean same_op() {
-    for( int i=2; i<nIns(); i++ )
-        if( in(1).getClass() != in(i).getClass() )
-            return false;
-    return true;
-}
-
-private boolean same_inputs() {
-    for( int i=2; i<nIns(); i++ )
-        if( in(1) != in(i) )
-            return false;
-    return true;
-}
-```
-
-This is illustrated in the example:
+Phi's implement a peephole illustrated in the example:
 
 ```java
 int a=arg==2;
@@ -327,6 +204,8 @@ Post-peephole:
 
 ![Graph5](./docs/05-graph5.svg)
 
+The implementation is in [`PhiNode.idealize()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/PhiNode.java#L31-L71)
+
 ## More examples
 
 ```java
@@ -336,6 +215,7 @@ if (arg == 1) {
     b = 3;
     c = 4;
 }
+return c;
 ```
 
 ![Graph6](./docs/05-graph6.svg)
