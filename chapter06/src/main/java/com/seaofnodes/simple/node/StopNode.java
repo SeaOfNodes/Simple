@@ -36,6 +36,11 @@ public class StopNode extends Node {
 
     @Override
     public Node idealize() {
+        int len = nIns();
+        for( int i=0; i<nIns(); i++ )
+            if( in(i)._type==Type.XCONTROL )
+                delDef(i--);
+        if( len != nIns() ) return this;
         return null;
     }
 

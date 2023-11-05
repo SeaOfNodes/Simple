@@ -100,6 +100,7 @@ public class Parser {
         finally {
             _scope.pop();
             _allScopes.pop();
+            STOP.peephole();
             if( show ) showGraph();
         }
     }
