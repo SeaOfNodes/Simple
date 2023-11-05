@@ -25,7 +25,18 @@ public class RegionNode extends Node {
 
     @Override
     public Node idealize() {
-        return null;
+        boolean changed = false;
+        for (int i = 1; i < nIns(); i++)
+            if (in(i) instanceof RegionNode r) {
+                // Does the region have only 1 live control input?
+                // If so, create new region with just that input and peephole
+                Node n = r.singleLiveInput();
+                if (n != null) {
+                    set_def(i, n);
+                    changed = true;
+                }
+            }
+        return changed ? this : null;
     }
 
     /**

@@ -60,6 +60,64 @@ return a;
     }
 
     @Test
+    public void testChapter6Merge3Peephole() {
+        Parser parser = new Parser("""
+int a=1;
+if( arg==1 )
+    if( 1==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+""", TypeInteger.BOT);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region36,3,Phi(Region34,4,5));", stop.toString());
+    }
+
+    @Test
+    public void testChapter6Merge3Peephole1() {
+        Parser parser = new Parser("""
+int a=1;
+if( arg==1 )
+    if( 1==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+""", TypeInteger.constant(1));
+        StopNode stop = parser.parse(true);
+        assertEquals("return 3;", stop.toString());
+    }
+
+    @Test
+    public void testChapter6Merge3Peephole3() {
+        Parser parser = new Parser("""
+int a=1;
+if( arg==1 )
+    if( 1==2 )
+        a=2;
+    else
+        a=3;
+else if( arg==3 )
+    a=4;
+else
+    a=5;
+return a;
+""", TypeInteger.constant(3));
+        StopNode stop = parser.parse(true);
+        assertEquals("return 4;", stop.toString());
+    }
+
+
+    @Test
     public void testChapter5IfStmt() {
         Parser parser = new Parser("""
 int a = 1;
