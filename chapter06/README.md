@@ -55,7 +55,7 @@ As before we denote  "top" by T and "bottom" by ⊥.
 
 One of the invariants we maintain is that the for each control input to a
 `Region` every `Phi` has a 1-to-1 relationship with a data input.  Thus, if a
-`Region` loses a control input, every `Phi`s corresponding data input must be
+`Region` loses a control input, every `Phi`'s corresponding data input must be
 deleted.  Conversely, we cannot collapse a Region until it has no dependent
 `Phi`s.
 
