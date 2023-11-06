@@ -57,7 +57,7 @@ One of the invariants we maintain is that the for each control input to a
 `Region` every `Phi` has a 1-to-1 relationship with a data input.  Thus, if a
 `Region` loses a control input, every `Phi`s corresponding data input must be
 deleted.  Conversely, we cannot collapse a Region until it has no dependent
-Phis.
+`Phi`s.
 
 When processing `If` we do not remove control inputs to a `Region`, instead the
 dead control input is simply set to `Constant(~ctrl)`.  The peephole logic in
