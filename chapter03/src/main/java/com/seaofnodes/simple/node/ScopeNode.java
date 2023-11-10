@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
 
@@ -43,7 +42,7 @@ public class ScopeNode extends Node {
     }
   
     @Override
-    public TypeBot compute() { return TypeBot.BOTTOM; }
+    public Type compute() { return Type.BOTTOM; }
 
     @Override public Node idealize() { return null; }
 

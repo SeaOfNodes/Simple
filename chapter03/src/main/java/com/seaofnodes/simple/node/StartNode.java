@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.Type;
 
 /**
  * The Start node represents the start of the function.  For now, we do not
@@ -26,8 +26,8 @@ public class StartNode extends Node {
     @Override public boolean isCFG() { return true; }
 
     @Override
-    public TypeBot compute() {
-        return TypeBot.BOTTOM;
+    public Type compute() {
+        return Type.BOTTOM;
     }
 
     @Override

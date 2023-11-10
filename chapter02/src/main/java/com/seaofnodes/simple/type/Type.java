@@ -24,9 +24,10 @@ public class Type {
     // type hierarchy are simple, not that the Type is conceptually simple.
     static final byte TBOT    = 0; // Bottom (ALL)
     static final byte TTOP    = 1; // Top    (ANY)
-    static final byte TINT    = 2; // All Integers; see TypeInteger
     static final byte TSIMPLE = 1; // End of the Simple Types
+    static final byte TINT    = 2; // All Integers; see TypeInteger
     public final byte _type;
+
     public boolean is_simple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"BOTTOM","TOP"};
     protected Type(byte type) { _type = type; }
