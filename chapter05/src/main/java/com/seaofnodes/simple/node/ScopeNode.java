@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.TypeBot;
+import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
 
@@ -43,7 +43,7 @@ public class ScopeNode extends Node {
     }
   
     @Override
-    public TypeBot compute() { return TypeBot.BOTTOM; }
+    public Type compute() { return Type.BOTTOM; }
 
     @Override public Node idealize() { return null; }
 
@@ -124,9 +124,9 @@ public class ScopeNode extends Node {
      * innermost stack level where the name is bound.
      *
      * @param that The ScopeNode to be merged into this
-     * @return A new Region node representing the merge point
+     * @return A new node representing the merge point
      */
-    public RegionNode mergeScopes(ScopeNode that) {
+    public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode)ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
         for( int i=1; i<nIns(); i++ )
             if( in(i) != that.in(i) ) // No need for redundant Phis

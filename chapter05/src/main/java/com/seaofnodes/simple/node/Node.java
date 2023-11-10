@@ -227,7 +227,7 @@ public abstract class Node {
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
-    private boolean delUse( Node use ) {
+    protected boolean delUse( Node use ) {
         ArrayList<Node> outs = _outputs;
         int lidx = outs.size()-1; // Last index            
         // This 1-line hack compresses an element out of an ArrayList

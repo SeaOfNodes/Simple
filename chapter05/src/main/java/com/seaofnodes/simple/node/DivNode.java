@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class DivNode extends Node {
@@ -28,11 +27,11 @@ public class DivNode extends Node {
                     : TypeInteger.constant(i0.value()/i1.value());
             return i0.meet(i1);
         }
-        return TypeBot.BOTTOM;
+        return Type.BOTTOM;
     }
 
     @Override
     public Node idealize() { return null; }
   
-    @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new DivNode(lhs,rhs); }
 }

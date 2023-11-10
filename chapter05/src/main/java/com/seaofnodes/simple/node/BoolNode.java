@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 abstract public class BoolNode extends Node {
@@ -33,7 +32,7 @@ abstract public class BoolNode extends Node {
                 return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
             return i0.meet(i1);
         }
-        return TypeBot.BOTTOM;
+        return Type.BOTTOM;
     }
 
     abstract boolean doOp(long lhs, long rhs);
