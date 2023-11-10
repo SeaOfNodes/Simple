@@ -31,8 +31,8 @@ public class ReturnNode extends Node {
     @Override public boolean isCFG() { return true; }
   
     @Override
-    public TypeBot compute() {
-        return TypeBot.BOTTOM;
+    public Type compute() {
+        return Type.BOTTOM;
     }
 
     @Override

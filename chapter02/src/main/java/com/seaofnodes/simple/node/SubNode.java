@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class SubNode extends Node {
@@ -24,7 +23,7 @@ public class SubNode extends Node {
             in(2)._type instanceof TypeInteger i1) {
             return TypeInteger.constant(i0.value()-i1.value());
         }
-        return TypeBot.BOTTOM;
+        return Type.BOTTOM;
     }
 
     @Override

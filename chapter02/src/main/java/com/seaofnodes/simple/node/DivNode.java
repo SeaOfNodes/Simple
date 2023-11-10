@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class DivNode extends Node {
@@ -26,7 +25,7 @@ public class DivNode extends Node {
                 ? TypeInteger.ZERO
                 : TypeInteger.constant(i0.value()/i1.value());
         }
-        return TypeBot.BOTTOM;
+        return Type.BOTTOM;
     }
 
     @Override
