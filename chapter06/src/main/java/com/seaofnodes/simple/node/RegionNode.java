@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 public class RegionNode extends Node {
@@ -39,7 +39,7 @@ public class RegionNode extends Node {
                 for( Node phi : _outputs )
                     if( phi instanceof PhiNode )
                         // Currently does not happen, because no loops
-                        throw Parser.TODO();
+                        throw Utils.TODO();
                 return in(1);
             }
             return this;
