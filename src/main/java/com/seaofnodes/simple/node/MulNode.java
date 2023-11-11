@@ -44,6 +44,12 @@ public class MulNode extends Node {
         if ( t1.isConstant() && !t2.isConstant() )
             return swap12();
 
+        // Do we have ((x * (phi cons)) * con) ?
+        // Do we have ((x * (phi cons)) * (phi cons)) ?
+        // Push constant up through the phi: x * (phi con0*con0 con1*con1...)
+        Node phicon = AddNode.phiCon(this,true);
+        if( phicon!=null ) return phicon;
+
         return null;
     }
     @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs); }
