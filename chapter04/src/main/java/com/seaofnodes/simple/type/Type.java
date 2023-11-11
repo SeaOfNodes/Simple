@@ -45,4 +45,8 @@ public class Type {
 
     public Type meet(Type other) { return Type.BOTTOM; }
 
+    @Override
+    public final String toString() {
+        return _print(new StringBuilder()).toString();
+    }
 }
