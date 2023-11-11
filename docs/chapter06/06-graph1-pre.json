@@ -1,0 +1,24 @@
+{
+  "ver": 1,
+  "comp": "chapter06/docs/06-graph1-pre.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "$ctrl", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}], "proj": {"par": 2, "idx": 0}},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 3, "label": "Stop", "type": null, "kind": "STOP", "edges": [{"idx": 0, "def": 12, "role": "CTRL", "label": null}, {"idx": 1, "def": 16, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 4, "label": "True", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 7, "role": "CTRL", "label": null}], "proj": {"par": 7, "idx": 0}},
+    {"id": 5, "label": "False", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 7, "role": "CTRL", "label": null}], "proj": {"par": 7, "idx": 1}},
+    {"id": 6, "label": "#1", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 7, "label": "If", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}, {"idx": 1, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 11, "label": "#2", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 12, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 4, "role": "CTRL", "label": null}, {"idx": 1, "def": 11, "role": "DATA", "label": null}], "proj": null},
+    {"id": 13, "label": "#~CONTROL", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 14, "label": "Region", "type": null, "kind": "REGION", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 13, "role": "DATA", "label": null}, {"idx": 2, "def": 5, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 15, "label": "#1", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 16, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 14, "role": "CTRL", "label": null}, {"idx": 1, "def": 15, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
