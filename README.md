@@ -43,7 +43,7 @@ The Simple language will be styled after a subset of C or Java
   constant.
 * [Chapter 4](docs/chapter04/README.md): A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications.
 * [Chapter 5](docs/chapter05/README.md): `if` statement. CFG construction.
-* Chapter 6: Peephole optimization around dead control flow.
+* [Chapter 6](docs/chapter06/README.md): Peephole optimization around dead control flow.
 * Chapter 7: `while` statement. Looping construct - eager phi approach.
 * Chapter 8: Looping construct continued, lazy phi creation, `break` and `continue` statements.
 * Chapter 9: Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
