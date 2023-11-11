@@ -10,7 +10,7 @@ public class TypeTuple extends Type {
     }
 
     @Override
-    public Type meet(Type other) {
+    public Type xmeet(Type other) {
         throw new UnsupportedOperationException("Meet on Tuple Type not yet implemented");
     }
 
@@ -24,5 +24,9 @@ public class TypeTuple extends Type {
         return sb;
     }
 
-    public static final TypeTuple IF = new TypeTuple(new Type[]{Type.CONTROL,Type.CONTROL});
+    public static final TypeTuple IF_BOTH    = new TypeTuple(new Type[]{Type.CONTROL, Type.CONTROL});
+    public static final TypeTuple IF_NEITHER = new TypeTuple(new Type[]{Type.XCONTROL,Type.XCONTROL});
+    public static final TypeTuple IF_TRUE    = new TypeTuple(new Type[]{Type.CONTROL, Type.XCONTROL});
+    public static final TypeTuple IF_FALSE   = new TypeTuple(new Type[]{Type.XCONTROL,Type.CONTROL});
+
 }
