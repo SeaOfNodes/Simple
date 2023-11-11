@@ -1,0 +1,122 @@
+digraph chapter06 {
+/*
+int a = 0;
+int b = 1;
+int c = 0;
+if( arg ) {
+    a = 1;
+    if( arg==2 ) { c=2; } else { c=3; }
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b+c;
+
+*/
+	rankdir=BT;
+	ordering="in";
+	concentrate="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_6 [ label="#0" ];
+		Con_7 [ label="#1" ];
+		Con_8 [ label="#0" ];
+		If9 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_13 [ label="#1" ];
+		Con_14 [ label="#2" ];
+		EQNode15 [ label="==" ];
+		If16 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_20 [ label="#2" ];
+		Con_21 [ label="#3" ];
+		Region22 [ shape=box style=filled fillcolor=yellow label="Region" ];
+		Phi_c23 [ style=filled fillcolor=lightyellow label="&phi;_c" ];
+		If24 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_28 [ label="#2" ];
+		Con_29 [ label="#3" ];
+		Region30 [ shape=box style=filled fillcolor=yellow label="Region" ];
+		Phi_b31 [ style=filled fillcolor=lightyellow label="&phi;_b" ];
+		Region32 [ shape=box style=filled fillcolor=yellow label="Region" ];
+		Phi_a33 [ style=filled fillcolor=lightyellow label="&phi;_a" ];
+		Phi_b34 [ style=filled fillcolor=lightyellow label="&phi;_b" ];
+		Phi_c35 [ style=filled fillcolor=lightyellow label="&phi;_c" ];
+		Add36 [ label="+" ];
+		Add37 [ label="+" ];
+		Return38 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		{ rank=same; Region22;Phi_c23;}
+		{ rank=same; Region30;Phi_b31;}
+		{ rank=same; Region32;Phi_c35;Phi_a33;Phi_b34;}
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return38[taillabel=0 color=red];
+	If9 -> Start2:p0[taillabel=0 color=red];
+	If9 -> Start2:p1[taillabel=1];
+	EQNode15 -> Start2:p1[taillabel=1];
+	EQNode15 -> Con_14[taillabel=2];
+	If16 -> If9:p0[taillabel=0 color=red];
+	If16 -> EQNode15[taillabel=1];
+	Region22 -> If16:p0[taillabel=1 color=red];
+	Region22 -> If16:p1[taillabel=2 color=red];
+	Phi_c23 -> Region22 [style=dotted taillabel=0];
+	Phi_c23 -> Con_20[taillabel=1];
+	Phi_c23 -> Con_21[taillabel=2];
+	If24 -> Region22[taillabel=0 color=red];
+	If24 -> Start2:p1[taillabel=1];
+	Region30 -> If24:p0[taillabel=1 color=red];
+	Region30 -> If24:p1[taillabel=2 color=red];
+	Phi_b31 -> Region30 [style=dotted taillabel=0];
+	Phi_b31 -> Con_28[taillabel=1];
+	Phi_b31 -> Con_29[taillabel=2];
+	Region32 -> Region30[taillabel=1 color=red];
+	Region32 -> If9:p1[taillabel=2 color=red];
+	Phi_a33 -> Region32 [style=dotted taillabel=0];
+	Phi_a33 -> Con_13[taillabel=1];
+	Phi_a33 -> Con_6[taillabel=2];
+	Phi_b34 -> Region32 [style=dotted taillabel=0];
+	Phi_b34 -> Phi_b31[taillabel=1];
+	Phi_b34 -> Con_7[taillabel=2];
+	Phi_c35 -> Region32 [style=dotted taillabel=0];
+	Phi_c35 -> Phi_c23[taillabel=1];
+	Phi_c35 -> Con_8[taillabel=2];
+	Add36 -> Phi_c35[taillabel=1];
+	Add36 -> Phi_b34[taillabel=2];
+	Add37 -> Add36[taillabel=1];
+	Add37 -> Phi_a33[taillabel=2];
+	Return38 -> Region32[taillabel=0 color=red];
+	Return38 -> Add37[taillabel=1];
+}
