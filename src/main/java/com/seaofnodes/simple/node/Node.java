@@ -46,9 +46,19 @@ public abstract class Node {
      */
     public Type _type;
 
+
+    /**
+     * Immediate dominator tree depth, used to approximate a real IDOM during
+     * parsing where we do not have the whole program, and also peepholes
+     * change the CFG incrementally.
+     * <p>
+     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
+     */
+    int _idepth;
+
     /**
      * A private Global Static mutable counter, for unique node id generation.
-     * To make the compiler multi-threaded, this field will have to move into a TLS.
+     * To make the compiler multithreaded, this field will have to move into a TLS.
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
@@ -149,6 +159,17 @@ public abstract class Node {
         _inputs.set(idx,new_def);
         // Return self for easy flow-coding
         return new_def;
+    }
+
+    // Remove the numbered input, compressing the inputs in-place.  This
+    // shuffles the order deterministically - which is suitable for Region and
+    // Phi, but not for every Node.
+    void delDef(int idx) {
+        Node old_def = in(idx);
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        Utils.del(_inputs, idx);
     }
 
     /**
@@ -356,6 +377,14 @@ public abstract class Node {
             if( !(in(i)._type.isConstant()) )
                 return false;
         return true;
+    }
+
+    // Return the immediate dominator of this Node and compute dom tree depth.
+    Node idom() {
+        Node idom = in(0);
+        if( idom._idepth==0 ) idom.idom(); // Recursively set _idepth
+        if( _idepth==0 ) _idepth = idom._idepth+1;
+        return idom;
     }
 
     // Make a shallow copy (same class) of this Node, with given inputs and

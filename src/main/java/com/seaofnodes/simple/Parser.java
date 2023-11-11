@@ -155,6 +155,7 @@ public class Parser {
         IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
         // Setup projection nodes
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+        ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
@@ -198,7 +199,7 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
-        ctrl(null);             // Kill control
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
         return ret;
     }
 
