@@ -162,14 +162,14 @@ public class ScopeNode extends Node {
      * @return A new node representing the merge point
      */
     public Node mergeScopes(ScopeNode that) {
-        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).peephole());
+        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
         String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++)
             if( in(i) != that.in(i) ) // No need for redundant Phis
                 setDef(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
         that.kill();            // Kill merged scope
-        return r;
+        return r.unkeep().peephole();
     }
 
 }
