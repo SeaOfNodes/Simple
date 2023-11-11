@@ -48,9 +48,19 @@ public abstract class Node {
      */
     public Type _type;
 
+
+    /**
+     * Immediate dominator tree depth, used to approximate a real IDOM during
+     * parsing where we do not have the whole program, and also peepholes
+     * change the CFG incrementally.
+     * <p>
+     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
+     */
+    char _idepth;
+
     /**
      * A private Global Static mutable counter, for unique node id generation.
-     * To make the compiler multi-threaded, this field will have to move into a TLS.
+     * To make the compiler multithreaded, this field will have to move into a TLS.
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
@@ -147,6 +157,17 @@ public abstract class Node {
         _inputs.set(idx,new_def);
         // Return self for easy flow-coding
         return new_def;
+    }
+
+    // Remove the numbered input, compressing the inputs in-place.  This
+    // shuffles the order deterministically - which is suitable for Region and
+    // Phi, but not for every Node.
+    void delDef(int idx) {
+        Node old_def = in(idx);
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        Utils.del(_inputs, idx);
     }
 
     /**
@@ -365,6 +386,30 @@ public abstract class Node {
                 return false;
         return true;
     }
+
+    // Return the immediate dominator of this Node and compute dom tree depth.
+    Node idom() { return in(0); }
+
+    // Find the lowest common ancestor in the current dominator tree.
+    Node domLCA(Node rhs) {
+        if( rhs==null ) return this;
+        Node lhs = this;
+        while( lhs != rhs ) {
+            if( lhs==null || rhs==null ) return null;
+            int comp = lhs.idepth() - rhs.idepth();
+            if( comp >= 0 ) lhs = lhs.idom();
+            if( comp <= 0 ) rhs = rhs.idom();
+        }
+        return lhs;
+    }
+
+    int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(idom().idepth()+1); }
+    // Zero depth means uncached. Check before narrowing so overflow cannot wrap.
+    final int cacheIDepth(int depth) {
+        assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
+        return _idepth = (char)depth;
+    }
+
 
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.
