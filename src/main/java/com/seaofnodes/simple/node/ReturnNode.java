@@ -38,5 +38,9 @@ public class ReturnNode extends Node {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        if( ctrl()._type==Type.XCONTROL )
+            return ctrl();
+        return null;
+    }
 }
