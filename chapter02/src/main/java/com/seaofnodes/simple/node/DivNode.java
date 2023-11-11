@@ -21,9 +21,10 @@ public class DivNode extends Node {
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1) {
-            return i1.value() == 0
-                ? TypeInteger.ZERO
-                : TypeInteger.constant(i0.value()/i1.value());
+            if (i0.isConstant() && i1.isConstant())
+                return i1.value() == 0
+                    ? TypeInteger.ZERO
+                    : TypeInteger.constant(i0.value()/i1.value());
         }
         return Type.BOTTOM;
     }
