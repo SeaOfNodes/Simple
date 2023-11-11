@@ -1,0 +1,16 @@
+{
+  "ver": 1,
+  "comp": "chapter06/docs/06-graph2-post.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "$ctrl", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}], "proj": {"par": 2, "idx": 0}},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 3, "label": "Stop", "type": null, "kind": "STOP", "edges": [{"idx": 0, "def": 17, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 13, "label": "#2", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 17, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}, {"idx": 1, "def": 13, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
