@@ -26,14 +26,18 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
-        return Type.BOTTOM;
+        Type t = Type.TOP;
+        for (int i = 1; i < nIns(); i++)
+            t = t.meet(in(i)._type);
+        return t;
     }
 
     @Override
     public Node idealize() {
-        // Remove a "junk" Phi: Phi(x,x) is just x
-        if( same_inputs() )
-            return in(1);
+        // If we have only a single unique input, become it.
+        Node live = singleUniqueInput();
+        if (live != null)
+            return live;
 
         // Pull "down" a common data op.  One less op in the world.  One more
         // Phi, but Phis do not make code.
@@ -63,11 +67,17 @@ public class PhiNode extends Node {
         return true;
     }
 
-    private boolean same_inputs() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1) != in(i) )
-                return false;
-        return true;
+    /**
+     * If only single unique input, return it
+     */
+    private Node singleUniqueInput() {
+        Node live = null;
+        for( int i=1; i<nIns(); i++ )
+            if( region().in(i)._type != Type.XCONTROL && in(i) != this )
+                if( live == null || live == in(i) ) live = in(i);
+                else return null;
+        return live;
     }
+
 
 }

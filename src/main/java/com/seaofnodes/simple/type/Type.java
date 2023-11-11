@@ -25,25 +25,50 @@ public class Type {
     static final byte TBOT    = 0; // Bottom (ALL)
     static final byte TTOP    = 1; // Top    (ANY)
     static final byte TCTRL   = 2; // Ctrl flow bottom
-    static final byte TSIMPLE = 3; // End of the Simple Types
-    static final byte TINT    = 4; // All Integers; see TypeInteger
-    static final byte TTUPLE  = 5; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
+    static final byte TSIMPLE = 4; // End of the Simple Types
+    static final byte TINT    = 5; // All Integers; see TypeInteger
+    static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
 
     public final byte _type;
 
     public boolean is_simple() { return _type < TSIMPLE; }
-    private static final String[] STRS = new String[]{"Bot","Top","Ctrl"};
+    private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl"};
     protected Type(byte type) { _type = type; }
 
     public static final Type BOTTOM   = new Type( TBOT   ); // ALL
     public static final Type TOP      = new Type( TTOP   ); // ANY
     public static final Type CONTROL  = new Type( TCTRL  ); // Ctrl
+    public static final Type XCONTROL = new Type( TXCTRL ); // ~Ctrl
 
-    public boolean isConstant() { return _type == TTOP; }
+    public boolean isConstant() { return _type == TTOP || _type == TXCTRL; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
-    public Type meet(Type other) { return BOTTOM; }
+    public final Type meet(Type t) {
+        // Shortcut for the self case
+        if( t == this ) return this;
+        // Same-type is always safe in the subclasses
+        if( _type==t._type ) return xmeet(t);
+        // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
+        if(   is_simple() ) return this.xmeet(t   );
+        if( t.is_simple() ) return t   .xmeet(this);
+        return BOTTOM;        // Mixing 2 unrelated types
+    }
+
+    // Compute meet right now.  Overridden in subclasses.
+    // Handle cases where 'this.is_simple()' and unequal to 't'.
+    // Subclassed xmeet calls can assert that '!t.is_simple()'.
+    protected Type xmeet(Type t) {
+        assert is_simple(); // Should be overridden in subclass
+        // ANY meet anything is thing; thing meet ALL is ALL
+        if( _type==TBOT || t._type==TTOP ) return this;
+        if( _type==TTOP || t._type==TBOT ) return    t;
+        // 'this' is {TCTRL,TXCTRL}
+        if( !t.is_simple() ) return BOTTOM;
+        // 't' is {TCTRL,TXCTRL}
+        return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
+    }
 
     @Override
     public final String toString() {
