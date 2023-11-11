@@ -26,7 +26,6 @@ Sea Of Nodes intermediate representation.
 
 The simple language will be a small subset of C. 
 
-* [Language](language/README.md): Simple language grammar.
 * [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * [Chapter 2](chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
   with constants. Peephole optimization / simple constant folding.
@@ -34,7 +33,7 @@ The simple language will be a small subset of C.
   constant.
 * [Chapter 4](chapter04/README.md): A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications. 
 * [Chapter 5](chapter05/README.md): `if` statement. CFG construction.
-* Chapter 6: Peephole optimization around dead control flow. 
+* [Chapter 6](chapter06/README.md): Peephole optimization around dead control flow. 
 * Chapter 7: `while` statement.
 * Chapter 8: Global Value Numbering.
 * Chapter 9: Functions and calls.
