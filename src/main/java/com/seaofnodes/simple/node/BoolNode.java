@@ -43,6 +43,13 @@ abstract public class BoolNode extends Node {
         if( in(1)==in(2) )
             return new ConstantNode(TypeInteger.constant(doOp(3,3)?1:0));
 
+        // Do we have ((phi cons) cmp con) ?
+        // Do we have ((phi cons) cmp (phi cons)) ?
+        // Push the compare up through the phi: (phi con0 cmp con, con1 cmp con...)
+        // No rotate: compares are not associative.
+        Node phicon = AddNode.phiCon(this,false);
+        if( phicon!=null ) return phicon;
+
         return null;
     }
 
