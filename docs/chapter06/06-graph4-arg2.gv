@@ -1,0 +1,37 @@
+digraph chapter06 {
+/*
+int a = 0;
+int b = 1;
+int c = 0;
+if( arg ) {
+    a = 1;
+    if( arg==2 ) { c=2; } else { c=3; }
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b+c;
+
+*/
+	rankdir=BT;
+	ordering="in";
+	concentrate="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_44 [ label="#5" ];
+		Return45 [ shape=box style=filled fillcolor=yellow label="Return" ];
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return45[taillabel=0 color=red];
+	Return45 -> Start2:p0[taillabel=0 color=red];
+	Return45 -> Con_44[taillabel=1];
+}

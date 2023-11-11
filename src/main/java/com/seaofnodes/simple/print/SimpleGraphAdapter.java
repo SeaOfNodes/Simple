@@ -5,7 +5,7 @@ import com.seaofnodes.graph.GraphSnapshot.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 
-/** Chapter 5's view of the IR; browser, transport and layout are shared. */
+/** Chapter 6's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
     @Override protected String[] edgeNames(Node n) {

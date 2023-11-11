@@ -1,0 +1,109 @@
+<svg aria-label="Compiler graph" width="630" height="628" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 628" style="font-family: sans-serif;"><style>
+    html, body { height:100%; margin:0; font-family:sans-serif; }
+    .viewer { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+    .source { padding:8px; border-bottom:1px solid #ccc; }
+    #program { width:min(600px,80vw); vertical-align:middle; }
+    #status { margin-top:4px; }
+    #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
+    #elk { width:100%; height:100%; }
+    #graph svg { display:block; }
+    .tools { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
+    .hint { color:#616c78; }
+    .ctrl { color:#b63838; } .mem { color:#2867b2; } .data { color:#536477; }
+    .edge { fill:none; stroke-width:1.5; }
+    .edge.CTRL { stroke-width:2; }
+    .edge.ASSOC { stroke-dasharray:4 4; }
+    .edge.PARSER { stroke-dasharray:5 4; }
+    .parser rect { fill:#f6f0ff; stroke:#7956a5; stroke-width:1.5; stroke-dasharray:5 4; }
+    .edge.selected { stroke-width:3.5; }
+    .edge.bundle { stroke-width:4; }
+    .edge.bundle.selected { stroke-width:6; }
+    .edge-hit { fill:none; stroke:transparent; stroke-width:12; vector-effect:non-scaling-stroke; pointer-events:stroke; cursor:pointer; }
+    .edge-jump { fill:transparent; pointer-events:all; cursor:pointer; }
+    .node { cursor:pointer; }
+    .box { stroke:#758191; stroke-width:1; }
+    .node.held .box { stroke-dasharray:5 3; }
+    .node.near .box { stroke:#c18221; stroke-width:2; }
+    .node.focus .box { stroke:#9c4900; stroke-width:3; }
+    .node.selected .box { stroke:#1569b9; stroke-width:3; }
+    .node.folded .box { stroke-width:4; }
+    .node.folding .box { fill:#f4ccd7; }
+    .fold-tag { font-size:9px; font-weight:700; fill:#963751; }
+    .peep-area { fill:#fff3d9; fill-opacity:.8; stroke:#c18221; stroke-width:2; pointer-events:none; }
+    .node.peep-edit .box { stroke:#9c4900; stroke-width:3; }
+    .node.error .box { stroke:#b42318; stroke-width:4; }
+    #event.error { color:#b42318; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .peep-ghosts { pointer-events:none; }
+    .region-box { stroke:#9da9b8; stroke-width:1.5; }
+    .fold-btn { cursor:pointer; }
+    .fold-btn rect { fill:white; stroke:#596674; }
+    .fold-btn text { font-size:14px; fill:#152330; }
+    .fold-btn:focus rect { stroke:#1569b9; stroke-width:2; }
+    .shortcut { cursor:pointer; }
+    .shortcut path { fill:none; stroke-width:1.5; }
+    .shortcut rect { fill:#fff8ec; stroke:#b63838; stroke-dasharray:3 2; }
+    .shortcut text { font-size:11px; fill:#783030; }
+    .shortcut.selected rect, .shortcut:focus rect { stroke-width:2.5; }
+    .label { font-size:12px; fill:#152330; font-weight:600; }
+    .node-id { font-size:10px; fill:#596674; font-weight:400; }
+    .type { font-size:11px; fill:#455768; }
+    .port { stroke:#536477; stroke-width:1; }
+    .row { stroke:#b6afcf; stroke-width:1; }
+    .bind { font-size:12px; fill:#152330; }
+    .slot { font-size:10px; fill:#364352; paint-order:stroke; stroke:#fafbfc; stroke-width:3; }
+    #detail { position:absolute; top:8px; right:8px; margin:0; padding:12px; max-width:320px;
+      max-height:45%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;
+      background:#fffffff2; border:1px solid #bac5d0; border-radius:4px; font-size:12px; }
+    .controls { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px; padding:6px; }
+    .button { color:white; background:black; font-size:20px; min-width:30px; }
+    .button:disabled { background:grey; }
+    .count { font-size:20px; min-width:35px; text-align:center; }
+    #N { width:6ch; }
+    #scrub { width:clamp(120px,35vw,600px); }
+  </style><defs><marker id="arrow-CTRL" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#b63838"/></marker><marker id="arrow-DATA" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#536477"/></marker><marker id="arrow-MEM" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#2867b2"/></marker><marker id="arrow-ASSOC" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#9396a3"/></marker><marker id="arrow-PARSER" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#7956a5"/></marker></defs><rect width="100%" height="100%" fill="rgb(250, 251, 252)"/><g><g class="regions" style="opacity: 1;"><g class="region" transform="translate(24,171)"><rect class="region-box" rx="8" width="360" height="250" fill="#f2f7ef"/></g></g><rect class="peep-area" rx="36" style="opacity: 0;"/><g class="edges"><path class="edge CTRL" id="e3i0" d="M180,527 C180,551 315,554 315,578" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#3[0] → #31 · CTRL</title></path><path class="edge CTRL" id="e8i0" d="M116,118 L116,205" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#8[0] → #1 · CTRL</title></path><path class="edge DATA" id="e8i1" d="M236,118 L236,123 Q236,128 231,128 L204,128 Q196,128 196,136 L196,205" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#8[1] → #4 · DATA</title></path><path class="edge CTRL" id="e22i1" d="M96,305 L96,310 Q96,315 101,315 L152,315 Q160,315 160,323 L160,353" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#22[1] → #5 · CTRL</title></path><path class="edge CTRL" id="e22i2" d="M216,305 L216,310 Q216,315 211,315 L198,315 Q190,315 190,323 L190,353" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#22[2] → #6 · CTRL</title></path><path class="edge DATA" id="e30i1" d="M394,118 L394,123 Q394,128 389,128 L300,128 Q292,128 292,136 L292,353" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#30[1] → #27 · DATA</title></path><path class="edge DATA" id="e30i2" d="M546,118 L546,130 Q546,138 538,138 L340,138 Q332,138 332,146 L332,353" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#30[2] → #29 · DATA</title></path><path class="edge CTRL" id="e31i0" d="M160,409 L160,474" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#31[0] → #22 · CTRL</title></path><path class="edge DATA" id="e31i1" d="M312,409 L312,428 Q312,436 304,436 L208,436 Q200,436 200,444 L200,474" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#31[1] → #30 · DATA</title></path></g><g class="edge-hits"/><g class="parser" style="opacity: 1;"/><g class="nodes"><g class="node" id="n1" data-id="1" transform="translate(56,68)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>$ctrl</tspan><tspan class="node-id">  #1/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#1 $ctrl
+Projection 0 of #2
+Type not computed
+
+[0] → #2  CTRL</title></g><g class="node" id="n2" data-id="2" transform="translate(56,24)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>Start</tspan><tspan class="node-id">  #2</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#2 Start
+Type not computed
+
+</title></g><g class="node" id="n3" data-id="3" transform="translate(279,578)" style="opacity: 1;"><path class="box" d="M0,0H72V26H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="36" y="17"><tspan>Stop</tspan><tspan class="node-id">  #3</tspan></text><text class="type" text-anchor="middle" y="35" x="36"/><title>#3 Stop
+Type not computed
+
+[0] → #31  CTRL</title><circle class="port" cx="36" cy="0" r="3" fill="#536477"/><text class="slot" x="36" y="-7" text-anchor="middle">0</text></g><g class="node" id="n4" data-id="4" transform="translate(176,68)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>arg</tspan><tspan class="node-id">  #4/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#4 arg
+Projection 1 of #2
+Type not computed
+
+[0] → #2  DATA</title></g><g class="node" id="n5" data-id="5" transform="translate(36,255)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>True</tspan><tspan class="node-id">  #5/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#5 True
+Projection 0 of #8
+Type not computed
+
+[0] → #8  CTRL</title></g><g class="node" id="n6" data-id="6" transform="translate(156,255)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>False</tspan><tspan class="node-id">  #6/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#6 False
+Projection 1 of #8
+Type not computed
+
+[0] → #8  CTRL</title></g><g class="node" id="n8" data-id="8" transform="translate(36,211)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>If</tspan><tspan class="node-id">  #8</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#8 If
+Type not computed
+
+[0] → #1  CTRL
+[1] → #4  DATA</title><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><circle class="port" cx="160" cy="-3" r="3" fill="#536477"/><text class="slot" x="80" y="-10" text-anchor="middle">0</text><text class="slot" x="160" y="-10" text-anchor="middle">1</text></g><g class="node" id="n22" data-id="22" transform="translate(100,359)" style="opacity: 1;"><path class="box" d="M12,0H108L120,44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Region</tspan><tspan class="node-id">  #22</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#22 Region
+Type not computed
+
+[0] → —  DATA
+[1] → #5  CTRL
+[2] → #6  CTRL</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n27" data-id="27" transform="translate(334,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#4</tspan><tspan class="node-id">  #27</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#27 #4
+Type not computed
+
+</title></g><g class="node" id="n29" data-id="29" transform="translate(486,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#1</tspan><tspan class="node-id">  #29</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#29 #1
+Type not computed
+
+</title></g><g class="node" id="n30" data-id="30" transform="translate(252,359)" style="opacity: 1;"><path class="box" d="M12,0H108L120,22L108,44H12L0,22Z" fill="#f5e4fa"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>φ_ab</tspan><tspan class="node-id">  #30</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#30 φ_ab
+Type not computed
+
+[0] → #22  ASSOC
+[1] → #27  DATA
+[2] → #29  DATA</title><circle class="port" cx="-3" cy="22" r="3" fill="#536477"/><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><path class="reg" fill="none" stroke="#b63838" d="M-3,22H-18m4,-3l-4,3l4,3"><title>[0] → #22</title></path><text class="slot" x="-10" y="15" text-anchor="middle">0</text><text class="slot" x="40" y="-10" text-anchor="middle">1</text><text class="slot" x="80" y="-10" text-anchor="middle">2</text></g><g class="node" id="n31" data-id="31" transform="translate(120,480)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Return</tspan><tspan class="node-id">  #31</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#31 Return
+Type not computed
+
+[0] → #22  CTRL
+[1] → #30  DATA</title><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><text class="slot" x="40" y="-10" text-anchor="middle">0</text><text class="slot" x="80" y="-10" text-anchor="middle">1</text></g></g><g class="region-heads" style="opacity: 1;"><g class="region-head" transform="translate(24,171)"><text class="label" x="26" y="17"><tspan>If</tspan><tspan class="node-id">  #8</tspan></text><title>If · 5 nodes</title><g class="fold-btn" role="button" tabindex="0" transform="translate(4,4)" aria-label="Fold region #8"><rect width="16" height="16" rx="2"/><text x="8" y="12" text-anchor="middle">−</text><title>Fold region</title></g></g></g><g class="shortcuts" style="opacity: 1;"/><g class="peep-ghosts" pointer-events="none"/></g></svg>
