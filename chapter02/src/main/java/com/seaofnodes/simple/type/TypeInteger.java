@@ -10,9 +10,12 @@ public class TypeInteger extends Type {
     /**
      * The constant value observed for this type
      */
-    public final long _con;
+    private final long _con;
 
-    public TypeInteger(long con) { _con = con; }
+    public TypeInteger(long con) { 
+		super(TINT);
+		_con = con; 
+	}
 
     public static TypeInteger constant(long con) { return new TypeInteger(con); }
 

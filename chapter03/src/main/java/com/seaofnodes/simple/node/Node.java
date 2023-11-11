@@ -47,7 +47,7 @@ public abstract class Node {
 
     /**
      * A private Global Static mutable counter, for unique node id generation.
-     * To make the compiler multi-threaded, this field will have to move into a TLS.
+     * To make the compiler multithreaded, this field will have to move into a TLS.
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
@@ -197,7 +197,7 @@ public abstract class Node {
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
-    private boolean delUse( Node use ) {
+    protected boolean delUse( Node use ) {
         ArrayList<Node> outs = _outputs;
         int lidx = outs.size()-1; // Last index            
         // This 1-line hack compresses an element out of an ArrayList

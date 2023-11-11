@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 
 public class StopNode extends Node {
     public StopNode(Node... inputs) {
@@ -32,7 +31,7 @@ public class StopNode extends Node {
     
     @Override
     public Type compute() {
-        return TypeBot.BOTTOM;
+        return Type.BOTTOM;
     }
 
     @Override

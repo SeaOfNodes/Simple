@@ -17,17 +17,16 @@ public class TypeInteger extends Type {
      */
     private final long _con;
 
-    public TypeInteger(boolean is_con, long con) { _is_con = is_con; _con = con; }
+    public TypeInteger(boolean is_con, long con) {
+        super(TINT);
+        _is_con = is_con;
+        _con = con;
+    }
 
     public static TypeInteger constant(long con) { return new TypeInteger(true, con); }
 
     public boolean isTop() { return !_is_con && _con==0; }
     public boolean isBot() { return !_is_con && _con==1; }
-
-    @Override
-    public String toString() {
-        return _print(new StringBuilder()).toString();
-    }
 
     @Override 
     public StringBuilder _print(StringBuilder sb) {

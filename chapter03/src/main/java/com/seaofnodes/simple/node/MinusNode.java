@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeBot;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class MinusNode extends Node {
@@ -20,8 +19,8 @@ public class MinusNode extends Node {
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0)
-            return TypeInteger.constant(-i0.value());
-        return TypeBot.BOTTOM;
+            return i0.isConstant() ? TypeInteger.constant(-i0.value()) : i0;
+        return Type.BOTTOM;
     }
 
     @Override

@@ -19,12 +19,12 @@
     </licenses>
 
     <modules>
-        <module>language</module>
         <module>chapter01</module>
         <module>chapter02</module>
         <module>chapter03</module>
         <module>chapter04</module>
         <module>chapter05</module>
+        <module>chapter06</module>
     </modules>
 
     <properties>

@@ -17,9 +17,24 @@ package com.seaofnodes.simple.type;
  * simple constant folding e.g. 1+2 == 3 stuff.
  */    
 
-public abstract class Type {
+public class Type {
 
-    public boolean isConstant() { return false; }
+    // ----------------------------------------------------------
+    // Simple types are implemented fully here.  "Simple" means: the code and
+    // type hierarchy are simple, not that the Type is conceptually simple.
+    static final byte TBOT    = 0; // Bottom (ALL)
+    static final byte TTOP    = 1; // Top    (ANY)
+    static final byte TSIMPLE = 2; // End of the Simple Types
+    static final byte TINT    = 3; // All Integers; see TypeInteger
+    public final byte _type;
 
-    public abstract StringBuilder _print(StringBuilder sb);
+    public boolean is_simple() { return _type < TSIMPLE; }
+    private static final String[] STRS = new String[]{"BOTTOM","TOP"};
+    protected Type(byte type) { _type = type; }
+
+    public static final Type BOTTOM   = new Type( TBOT ); // ALL
+
+    public boolean isConstant() { return _type == TTOP; }
+
+    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 }

@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeControl;
 
 public class RegionNode extends Node {
     public RegionNode(Node... inputs) { super(inputs); }
@@ -18,7 +17,7 @@ public class RegionNode extends Node {
 
     @Override
     public Type compute() {
-        return TypeControl.CONTROL;
+        return Type.CONTROL;
     }
 
     @Override
