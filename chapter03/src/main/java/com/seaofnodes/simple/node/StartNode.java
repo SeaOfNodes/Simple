@@ -26,9 +26,7 @@ public class StartNode extends Node {
     @Override public boolean isCFG() { return true; }
 
     @Override
-    public Type compute() {
-        return Type.BOTTOM;
-    }
+    public Type compute() { return Type.BOTTOM; }
 
     @Override
     public Node idealize() { return null; }
