@@ -35,6 +35,8 @@ public class ProjNode extends Node {
 
     @Override
     public Node idealize() {
+        if( ctrl()._type instanceof TypeTuple tt && tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
+            return ctrl().in(0); // We become our input control
         return null;
     }
 }

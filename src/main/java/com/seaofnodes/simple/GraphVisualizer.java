@@ -17,7 +17,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(parser);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter05 {\n");
+        sb.append("digraph chapter06 {\n");
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
@@ -207,29 +207,24 @@ public class GraphVisualizer {
      * Finds all nodes in the graph.
      */
     private Collection<Node> findAll(Parser parser) {
-        final StartNode start = Parser.START;
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : start._outputs )
+        for( Node n : Parser.START._outputs )
             walk(all, n);
-        // Scan symbol tables
-        for( HashMap<String,Integer> scope : parser._scope._scopes )
-            for (Integer i : scope.values())
-                walk(all, parser._scope.in(i));
+        for( Node n : parser._scope._inputs )
+            walk(all, n);
         return all.values();
     }
 
     /**
      * Walk a subgraph and populate distinct nodes in the all list.
      */
-    private void walk(HashMap<Integer, Node> all, Node n) {
+    private void walk(HashMap<Integer,Node> all, Node n) {
         if(n == null ) return;
         if (all.get(n._nid) != null) return; // Been there, done that
         all.put(n._nid, n);
         for (Node c : n._inputs)
-            if (c != null)
-                walk(all, c);
-        for (Node c : n._outputs)
-            if (c != null)
-                walk(all, c);
+            walk(all, c);
+        for( Node c : n._outputs )
+            walk(all, c);
     }
 }

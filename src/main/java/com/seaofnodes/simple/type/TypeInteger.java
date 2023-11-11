@@ -41,7 +41,7 @@ public class TypeInteger extends Type {
     public long value() { return _con; }
 
     @Override
-    public Type meet(Type other) {
+    public Type xmeet(Type other) {
         if( this==other ) return this;
         if (!(other instanceof TypeInteger i)) return super.meet(other);
         // BOT wins
