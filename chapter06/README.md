@@ -62,3 +62,93 @@ deleted.  Conversely, we cannot collapse a Region until it has no dependent
 When processing `If` we do not remove control inputs to a `Region`, instead the
 dead control input is simply set to `Constant(~ctrl)`.  The peephole logic in
 a `Phi` notices this and replaces itself with the live input.
+
+## Examples
+
+We show a number of examples of peephole in action.
+
+### Example 1
+
+```java
+if( true ) return 2;
+return 1;
+```
+
+Before peephole:
+
+![Graph1-Pre](./docs/06-graph1-pre.svg)
+
+After peephole:
+
+![Graph1-Post](./docs/06-graph1-post.svg)
+
+### Example 2
+
+```java
+int a=1;
+if( true )
+  a=2;
+else
+  a=3;
+return a;
+```
+
+Before peephole:
+
+![Graph2-Pre](./docs/06-graph2-pre.svg)
+
+After peephole:
+
+![Graph2-Post](./docs/06-graph2-post.svg)
+
+### Example 3
+
+```java
+int a = 0;
+int b = 1;
+if( arg ) {
+    a = 2;
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b;
+```
+
+In this example, `arg` is defined externally. If `arg` is given a non-constant value, then the graph looks like this:
+
+![Graph3-NonConst](./docs/06-graph3-nonconst.svg)
+
+If we set `arg` to a non-zero constant such as `1` we get:
+
+![Graph3-True](./docs/06-graph3-true.svg)
+
+If we set `arg` to `0` which means false, then:
+
+![Graph3-False](./docs/06-graph3-false.svg)
+
+### Example 4
+
+```java
+int a = 0;
+int b = 1;
+int c = 0;
+if( arg ) {
+    a = 1;
+    if( arg==2 ) { c=2; } else { c=3; }
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b+c;
+```
+
+In this example, `arg` is defined externally. If `arg` is given a non-constant value, then the graph looks like this:
+
+![Graph4-NonConst](./docs/06-graph4-nonconst.svg)
+
+If we set `arg` to `1` we get:
+
+![Graph4-True](./docs/06-graph4-true.svg)
+
+If we set `arg` to `2`, then:
+
+![Graph4-Arg2](./docs/06-graph4-arg2.svg)

@@ -187,6 +187,111 @@ return a;
         assertEquals("return 4;", stop.toString());
     }
 
+    @Test
+    public void testChapter6Demo1NonConst() {
+        Parser parser = new Parser("""
+int a = 0;
+int b = 1;
+if( arg ) {
+    a = 2;
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b;
+""");
+        StopNode ret = parser.parse(true);
+        assertEquals("return (Phi(Region21,Phi(Region19,2,3),1)+Phi(Region21,2,0));", ret.toString());
+    }
+
+
+    @Test
+    public void testChapter6Demo1True() {
+        Parser parser = new Parser("""
+int a = 0;
+int b = 1;
+if( arg ) {
+    a = 2;
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b;
+""", TypeInteger.constant(1));
+        StopNode ret = parser.parse(true);
+        assertEquals("return 4;", ret.toString());
+    }
+
+    @Test
+    public void testChapter6Demo1False() {
+        Parser parser = new Parser("""
+int a = 0;
+int b = 1;
+if( arg ) {
+    a = 2;
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b;
+""", TypeInteger.constant(0));
+        StopNode ret = parser.parse(true);
+        assertEquals("return 1;", ret.toString());
+    }
+
+    @Test
+    public void testChapter6Demo2NonConst() {
+        Parser parser = new Parser("""
+int a = 0;
+int b = 1;
+int c = 0;
+if( arg ) {
+    a = 1;
+    if( arg==2 ) { c=2; } else { c=3; }
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b+c;
+""");
+        StopNode ret = parser.parse(true);
+        assertEquals("return ((Phi(Region32,Phi(Region22,2,3),0)+Phi(Region32,Phi(Region30,2,3),1))+Phi(Region32,1,0));", ret.toString());
+    }
+
+
+    @Test
+    public void testChapter6Demo2True() {
+        Parser parser = new Parser("""
+int a = 0;
+int b = 1;
+int c = 0;
+if( arg ) {
+    a = 1;
+    if( arg==2 ) { c=2; } else { c=3; }
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b+c;
+""", TypeInteger.constant(1));
+        StopNode ret = parser.parse(true);
+        assertEquals("return 6;", ret.toString());
+    }
+
+    @Test
+    public void testChapter6Demo2arg2() {
+        Parser parser = new Parser("""
+int a = 0;
+int b = 1;
+int c = 0;
+if( arg ) {
+    a = 1;
+    if( arg==2 ) { c=2; } else { c=3; }
+    if( arg ) { b = 2; }
+    else b = 3;
+}
+return a+b+c;
+""", TypeInteger.constant(2));
+        StopNode ret = parser.parse(true);
+        assertEquals("return 5;", ret.toString());
+    }
+
+
 
     @Test
     public void testChapter5IfStmt() {
