@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -370,7 +370,7 @@ public abstract class Node {
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
-    Node copy(Node lhs, Node rhs) { throw Parser.TODO("Binary ops need to implement copy"); }
+    Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

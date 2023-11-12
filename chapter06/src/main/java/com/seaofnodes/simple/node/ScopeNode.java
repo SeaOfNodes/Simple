@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -10,6 +9,12 @@ import java.util.*;
  * stack of scopes.
  */
 public class ScopeNode extends Node {
+
+    /**
+     * The control is a name that binds to the currently active control
+     * node in the graph
+     */
+    public static final String CTRL = "$ctrl";
 
     /**
      * Stack of lexical scopes, each scope is a symbol table
@@ -76,10 +81,26 @@ public class ScopeNode extends Node {
         return null;
     }
 
-    public Node ctrl() { assert lookup(Parser.CTRL)==in(0); return in(0); }
-    
+    public Node ctrl() { assert lookup(CTRL)==in(0); return in(0); }
+
+    /**
+     * The ctrl of a ScopeNode is always bound to the currently active
+     * control node in the graph, via a special name '$ctrl' that is not
+     * a valid identifier in the language grammar and hence cannot be
+     * referenced in Simple code.
+     *
+     * @param n The node to be bound to '$ctrl'
+     *
+     * @return Node that was bound
+     */
     public Node ctrl(Node n) {
-        assert lookup(Parser.CTRL)==in(0);
+        if (nIns() == 0) {
+            // The first time a scope is created we do not have the name binding
+            // for '$ctrl' but after that we expect to find the name already bound
+            assert lookup(CTRL) == null;
+            define(CTRL, n);
+        }
+        else assert lookup(CTRL) == in(0);
         set_def(0,n);
         return n;
     }
@@ -128,6 +149,7 @@ public class ScopeNode extends Node {
      */
     public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
+        // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++)
             if (in(i) != that.in(i)) // No need for redundant Phis
                 set_def(i, new PhiNode(_rlabels.get(i), r, in(i), that.in(i)).peephole());
