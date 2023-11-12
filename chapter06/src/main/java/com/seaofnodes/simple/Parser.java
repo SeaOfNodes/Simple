@@ -14,11 +14,6 @@ import java.util.*;
  */
 public class Parser {
 
-    /**
-     * The control is a name that binds to the currently active control
-     * node in the graph
-     */
-    public static final String CTRL = "$ctrl";
   
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -91,7 +86,7 @@ public class Parser {
         _allScopes.push(_scope);
         _scope.push();
         try {
-            _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
+            _scope.ctrl(new ProjNode(START, 0, ScopeNode.CTRL).peephole());
             _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
             parseBlock();
             if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
@@ -522,7 +517,4 @@ public class Parser {
             return new String(_input, start, 1);
         }
     }
-
-    public static RuntimeException TODO() { return TODO("Not yet implemented"); }
-    public static RuntimeException TODO(String msg) { return new RuntimeException(msg); }
 }
