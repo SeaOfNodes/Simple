@@ -75,6 +75,9 @@ public class Parser {
         this(source, TypeInteger.BOT);
     }
 
+    @Override
+    public String toString() { return _lexer.toString(); }
+  
     String src() { return new String( _lexer._input ); }
 
     private Node ctrl() { return _scope.ctrl(); }

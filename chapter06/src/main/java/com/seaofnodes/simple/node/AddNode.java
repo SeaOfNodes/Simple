@@ -63,7 +63,8 @@ public class AddNode extends Node {
 
         // Now we might see (add add non) or (add non non) but never (add non add) nor (add add add)
         if( !(lhs instanceof AddNode) )
-            return spline_cmp(lhs,rhs) ? swap12() : null;
+            // Rotate; look for (add (phi cons) con/(phi cons))
+            return spline_cmp(lhs,rhs) ? swap12() : phiCon(this,true);
 
         // Now we only see (add add non)
         

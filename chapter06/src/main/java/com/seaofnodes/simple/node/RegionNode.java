@@ -53,4 +53,22 @@ public class RegionNode extends Node {
                 return i;
         return 0;               // All inputs alive
     }
+
+    // Immediate dominator of Region is a little more complicated.
+    private Node _idom;         // Immediate dominator cache
+    @Override Node idom() {
+        if( _idom != null ) return _idom; // Return cached copy
+        if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
+        // Walk the LHS & RHS idom trees in parallel until they match, or we fail
+        Node lhs = in(1).idom();  if( lhs == null ) return null;
+        Node rhs = in(2).idom();  if( rhs == null ) return null;
+        while( lhs._idepth < rhs._idepth ) if( (lhs = lhs.idom()) == null ) return null;
+        while( rhs._idepth < lhs._idepth ) if( (rhs = rhs.idom()) == null ) return null;
+        while( lhs!=rhs ) {
+          if( (lhs = lhs.idom()) == null ) return null;
+          if( (rhs = rhs.idom()) == null ) return null;
+        }
+        _idepth = lhs._idepth+1;
+        return (_idom=lhs); 
+    } 
 }
