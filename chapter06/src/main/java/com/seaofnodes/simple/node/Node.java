@@ -46,6 +46,16 @@ public abstract class Node {
      */
     public Type _type;
 
+    
+    /**
+     * Immediate dominator tree depth, used to approximate a real IDOM during
+     * parsing where we do not have the whole program, and also peepholes
+     * change the CFG incrementally.
+     * <p>
+     * See {@link https://en.wikipedia.org/wiki/Dominator_(graph_theory)}
+     */
+    int _idepth;
+    
     /**
      * A private Global Static mutable counter, for unique node id generation.
      * To make the compiler multithreaded, this field will have to move into a TLS.
@@ -365,6 +375,14 @@ public abstract class Node {
             if( !(in(i)._type.isConstant()) )
                 return false;
         return true;
+    }
+
+    // Return the immediate dominator of this Node and compute dom tree depth.
+    Node idom() {
+        Node idom = in(0);
+        if( idom._idepth==0 ) idom.idom(); // Recursively set _idepth
+        if( _idepth==0 ) _idepth = idom._idepth+1;
+        return idom;
     }
 
     // Make a shallow copy (same class) of this Node, with given inputs and

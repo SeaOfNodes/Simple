@@ -34,4 +34,9 @@ public class StartNode extends MultiNode {
 
     @Override
     public Node idealize() { return null; }
+
+    // No immediate dominator, and idepth==0
+    @Override
+    Node idom() { return null; }
+
 }
