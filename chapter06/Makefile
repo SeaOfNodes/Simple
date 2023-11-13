@@ -25,7 +25,7 @@ endif
 
 # Fun Args to javac.  Mostly limit to java8 source definitions, and fairly
 # aggressive lint warnings.
-JAVAC_ARGS = -g -source 17 -target 17
+JAVAC_ARGS = -g
 
 # Source code
 SIMPLE := com/seaofnodes/simple
