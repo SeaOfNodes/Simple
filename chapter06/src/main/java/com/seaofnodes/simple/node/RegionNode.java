@@ -59,16 +59,17 @@ public class RegionNode extends Node {
     @Override Node idom() {
         if( _idom != null ) return _idom; // Return cached copy
         if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
-        // Walk the LHS & RHS idom trees in parallel until they match, or we fail
-        Node lhs = in(1).idom();  if( lhs == null ) return null;
-        Node rhs = in(2).idom();  if( rhs == null ) return null;
-        while( lhs._idepth < rhs._idepth ) if( (lhs = lhs.idom()) == null ) return null;
-        while( rhs._idepth < lhs._idepth ) if( (rhs = rhs.idom()) == null ) return null;
-        while( lhs!=rhs ) {
-          if( (lhs = lhs.idom()) == null ) return null;
-          if( (rhs = rhs.idom()) == null ) return null;
+        // Walk the LHS & RHS idom trees in parallel until they match, or either fails
+        Node lhs = in(1).idom();
+        Node rhs = in(2).idom();
+        while( lhs != rhs ) {
+          if( lhs==null || rhs==null ) return null;
+          var comp = lhs._idepth - rhs._idepth;
+          if( comp >= 0 ) lhs = lhs.idom();
+          if( comp <= 0 ) rhs = rhs.idom();
         }
+        if( lhs==null ) return null;
         _idepth = lhs._idepth+1;
-        return (_idom=lhs); 
+        return (_idom=lhs);
     } 
 }
