@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 public class RegionNode extends Node {
@@ -39,7 +39,7 @@ public class RegionNode extends Node {
                 for( Node phi : _outputs )
                     if( phi instanceof PhiNode )
                         // Currently does not happen, because no loops
-                        throw Parser.TODO();
+                        throw Utils.TODO();
                 return in(1);
             }
             return this;
@@ -53,4 +53,23 @@ public class RegionNode extends Node {
                 return i;
         return 0;               // All inputs alive
     }
+
+    // Immediate dominator of Region is a little more complicated.
+    private Node _idom;         // Immediate dominator cache
+    @Override Node idom() {
+        if( _idom != null ) return _idom; // Return cached copy
+        if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
+        // Walk the LHS & RHS idom trees in parallel until they match, or either fails
+        Node lhs = in(1).idom();
+        Node rhs = in(2).idom();
+        while( lhs != rhs ) {
+          if( lhs==null || rhs==null ) return null;
+          var comp = lhs._idepth - rhs._idepth;
+          if( comp >= 0 ) lhs = lhs.idom();
+          if( comp <= 0 ) rhs = rhs.idom();
+        }
+        if( lhs==null ) return null;
+        _idepth = lhs._idepth+1;
+        return (_idom=lhs);
+    } 
 }

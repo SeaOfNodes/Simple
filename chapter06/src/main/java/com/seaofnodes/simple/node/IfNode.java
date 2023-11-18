@@ -31,9 +31,19 @@ public class IfNode extends MultiNode {
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
         if (pred()._type instanceof TypeInteger ti && ti.isConstant()) {
-            if (ti.value() == 0)          return TypeTuple.IF_FALSE;
-            else                          return TypeTuple.IF_TRUE;
+            if (ti.value() == 0)   return TypeTuple.IF_FALSE;
+            else                   return TypeTuple.IF_TRUE;
         }
+
+        // Hunt up the immediate dominator tree.  If we find an identical if
+        // test on either the true or false branch, then this test matches.
+        for( Node dom = idom(), prior=this; dom!=null;  prior=dom, dom = dom.idom() )
+          if( dom instanceof IfNode iff && iff.pred()==pred() )
+            return prior instanceof ProjNode proj
+              // Repeated test, dominated on one side.  Test result is the same.
+              ? (proj._idx==0 ? TypeTuple.IF_TRUE : TypeTuple.IF_FALSE)
+              : null;           // Repeated test not dominated on one side
+        
         return TypeTuple.IF_BOTH;
     }
 
