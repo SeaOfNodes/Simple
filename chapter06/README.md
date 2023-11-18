@@ -63,11 +63,12 @@ When processing `If` we do not remove control inputs to a `Region`, instead the
 dead control input is simply set to `Constant(~ctrl)`.  The peephole logic in
 a `Phi` notices this and replaces itself with the live input.
 
-## Examples
+## Discussion
 
-We show a number of examples of peephole in action.
+With the changes above, our peephol optimization is able to fold dead code when
+an `if` statement has a condition that evaluates to `true` or `false` at compile time.
 
-### Example 1
+Let's look at a simple example below:
 
 ```java
 if( true ) return 2;
@@ -82,7 +83,7 @@ After peephole:
 
 ![Graph1-Post](./docs/06-graph1-post.svg)
 
-### Example 2
+Another example:
 
 ```java
 int a=1;
@@ -101,7 +102,10 @@ After peephole:
 
 ![Graph2-Post](./docs/06-graph2-post.svg)
 
-### Example 3
+## Expanding Peephole Beyond Constant Expressions
+
+While our peephole of the `CFG` collapses dead code when the expression is
+a compile time constant. it does not do as well as it could with following example:
 
 ```java
 int a = 0;
@@ -114,41 +118,66 @@ if( arg ) {
 return a+b;
 ```
 
-In this example, `arg` is defined externally. If `arg` is given a non-constant value, then the graph looks like this:
+In this example, `arg` is defined externally, and we have to assume it is not a constant.
+However, the code repeats the `if( arg )` condition in the inner `if` statement.
+We know that if the outer `if( arg )` is true, then the *inner `if` must also evaluate to true*.
+
+Our peephole at present cannot see this:
 
 ![Graph3-NonConst](./docs/06-graph3-nonconst.svg)
 
-If we set `arg` to a non-zero constant such as `1` we get:
-
-![Graph3-True](./docs/06-graph3-true.svg)
-
-If we set `arg` to `0` which means false, then:
-
-![Graph3-False](./docs/06-graph3-false.svg)
-
-### Example 4
+What we would like is for our peephole to see that the inner `if` is fully determined by the
+outer `if` and thus, the code can be simplified as follows:
 
 ```java
 int a = 0;
 int b = 1;
-int c = 0;
-if( arg ) {
-    a = 1;
-    if( arg==2 ) { c=2; } else { c=3; }
-    if( arg ) { b = 2; }
-    else b = 3;
+if ( arg ) {
+    a = 2;
+    b = 2;
 }
-return a+b+c;
+return a+b;
 ```
 
-In this example, `arg` is defined externally. If `arg` is given a non-constant value, then the graph looks like this:
+That is, the final outcome is either `4` if `arg` happens to be true, or `1` if `arg` happens to be false.
 
-![Graph4-NonConst](./docs/06-graph4-nonconst.svg)
+## Dominators
 
-If we set `arg` to `1` we get:
+The key to implementing this peephole is the observation that the inner `if` is completely determined by the
+outer `if`. In compiler parlance, we say that the outer `if` dominates the inner `if`.
 
-![Graph4-True](./docs/06-graph4-true.svg)
+There is a generic way to determine this type of domination; it involves constructing a dominator
+tree. For details of how to do this, please refer to the paper `A Simple, Fast Dominance Algorithm`.[^1]
 
-If we set `arg` to `2`, then:
+However, constructing a dominator tree is an expensive operation; one that we would not like to 
+do in the middle of parsing. Fortunately, since we do not have loops yet, we do not
+have back edges in our control flow graph. Our control flow graph is essentially hierarchical, tree like.
+Thus, a simple form of dominator identification is possible.
 
-![Graph4-Arg2](./docs/06-graph4-arg2.svg)
+The main idea is that we can assign a `depth` to each control node, this represents the node's depth
+in the hierarchy. We can compute this depth incrementally as we need to. The nodes that are deeper in the hierarchy
+have a greater depth than the ones above. 
+
+Secondly we know that for our control nodes, except for `Region`s, there is only one incoming control edge, 
+which means that most control nodes have a single immediate dominating control node. `Region` nodes are different
+as they can have one or more control edges; but, we know that for `if` statements, a `Region` node has exactly two
+control inputs, one from each branch of the `if`. To find the immediate dominator of a `Region` node in the
+limited scenario of an `if`, we can follow the immediate dominator of each branch until we find the common ancestor
+node that dominates both the branches.
+
+If this ancestor node is also an `if` and its predicate is the same as the current `if`, then we know that 
+the outcome of the present `if` is fully determined.
+
+The code that does this check is in the [`compute` method of the `if`](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/IfNode.java#L38-L45).
+
+The `idom` method in `Node` provides a default implementation of the depth based immediate dominator calculation. 
+`Region`'s [override this](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/RegionNode.java#L57-L74) to implement the more complex search described above.
+
+It turns out that to simplify the example above, we need a [further peephole in our `Add` node](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/AddNode.java#L64-L67).
+
+With all these changes, the outcome of the peephole is just what we would like to see!
+
+![Graph3-NonConst-Peephole](./docs/06-graph3-nonconst-peephole.svg)
+
+[^1]: Cooper, K. D. Cooper, Harvey, T. J., and Kennedy, K. (2001).
+  A Simple, Fast Dominance Algorithm.
