@@ -25,6 +25,7 @@
         <module>chapter04</module>
         <module>chapter05</module>
         <module>chapter06</module>
+        <module>chapter07</module>
     </modules>
 
     <properties>
