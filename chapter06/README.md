@@ -51,7 +51,7 @@ As before we denote  "top" by T and "bottom" by ⊥.
 * Finally, at the end, when the `Region` node is peepholed, we see that it has only one live input and no Phi uses
   and can be replaced with its one live input.
 
-## Discussion of `Region` and `Phi`
+## `Region` and `Phi`
 
 One of the invariants we maintain is that the for each control input to a
 `Region` every `Phi` has a 1-to-1 relationship with a data input.  Thus, if a
