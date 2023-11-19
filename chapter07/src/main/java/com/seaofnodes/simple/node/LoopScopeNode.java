@@ -29,7 +29,9 @@ public class LoopScopeNode extends ScopeNode {
     }
 
     private void addPhiIfNeeded(String name) {
-        if (_names.contains(name))
+        // _names lookup tells us if we see the name for the first time
+        // We also need to check if the name existed at loop head or not
+        if (_names.contains(name) || _head.lookup(name) == null)
             return;
         _names.add(name);
         Node body = super.lookup(name);
@@ -40,6 +42,12 @@ public class LoopScopeNode extends ScopeNode {
         Node phi = new PhiNode(name, _region, head, null);
         _head.update(name, phi);
         super.update(name, phi);
+    }
+
+    @Override
+    public Node update(String name, Node n) {
+        addPhiIfNeeded(name);
+        return super.update(name, n);
     }
 
     @Override
