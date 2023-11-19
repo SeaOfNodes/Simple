@@ -24,7 +24,7 @@ public class LoopScopeNode extends ScopeNode {
     public Node update(String name, Node n) {
         if (n == null)
             return define(name, n);
-        Node phi = new PhiNode(name, _region, n, null);
+        Node phi = new PhiNode(name, _region, n, _head.lookup(name));
         _head.update(name, phi);
         return super.update(name, phi);
     }
