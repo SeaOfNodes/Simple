@@ -3,7 +3,6 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import javax.swing.plaf.synth.Region;
 import java.util.*;
 
 /**
@@ -221,10 +220,9 @@ public class Parser {
         ctrl(ifF);
 
         if( loopExitScope instanceof ScopeNode s ) {
-            _allScopes.set(_allScopes.indexOf(_scope), s);
-            _scope.kill();
-            _scope = s;
-            ((RegionNode) s.ctrl()).finish();
+            _scope.copyFrom(s);
+            s.kill();
+            ((RegionNode) _scope.ctrl()).finish();
             _scope.peepVars();
         }
 

@@ -179,11 +179,10 @@ public class ScopeNode extends Node {
         return this;
     }
 
-    public void loopExit(ScopeNode scope) {
-        ctrl(scope.ctrl().set_def(1, ctrl()));
-        for( int i = 1; i < nIns(); i++ ) {
-            set_def(i, scope.in(i));
+    public void copyFrom(ScopeNode other) {
+        for( int i = 0; i < nIns(); i++ ) {
+            set_def(i, other.in(i));
         }
-        scope.kill();
     }
+
 }
