@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+import java.util.Set;
+
 public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
 
@@ -11,8 +13,8 @@ public class NotNode extends Node {
     @Override public String glabel() { return "!"; }
   
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("(!"));
+    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+        in(1)._print0(sb.append("(!"), visited);
         return sb.append(")");
     }
   

@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+import java.util.Set;
+
 public class SubNode extends Node {
     public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
@@ -11,9 +13,9 @@ public class SubNode extends Node {
     @Override public String glabel() { return "-"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("("));
-        in(2)._print0(sb.append("-"));
+    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+        in(1)._print0(sb.append("("), visited);
+        in(2)._print0(sb.append("-"), visited);
         return sb.append(")");
     }
   

@@ -3,6 +3,9 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
+import java.util.Collection;
+import java.util.Set;
+
 public class RegionNode extends Node {
     public RegionNode(Node... inputs) { super(inputs); }
 
@@ -10,7 +13,7 @@ public class RegionNode extends Node {
     public String label() { return "Region"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
         return sb.append("Region").append(_nid);
     }
 
@@ -71,5 +74,12 @@ public class RegionNode extends Node {
         if( lhs==null ) return null;
         _idepth = lhs._idepth+1;
         return (_idom=lhs);
-    } 
+    }
+
+    public Node addLoopCtrl(Node ctrl, Collection<Node> phis)
+    {
+        add_def(ctrl);
+        return ctrl;
+    }
+
 }

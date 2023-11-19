@@ -93,17 +93,20 @@ public abstract class Node {
     // tik-tok style; the common _print0 calls the per-Node _print1, which
     // calls back to _print0;
     public final String print() {
-        return _print0(new StringBuilder()).toString();
+        return _print0(new StringBuilder(), new HashSet<>()).toString();
     }
     // This is the common print: check for DEAD and print "DEAD" else call the
     // per-Node print1.
-    final StringBuilder _print0(StringBuilder sb) {
+    final StringBuilder _print0(StringBuilder sb, Set<Integer> visited) {
+        if (visited.contains(this._nid))
+            return sb;
+        visited.add(_nid);
         return isDead()
             ? sb.append(uniqueName()).append(":DEAD")
-            : _print1(sb);
+            : _print1(sb, visited);
     }
     // Every Node implements this.
-    abstract StringBuilder _print1(StringBuilder sb);
+    abstract StringBuilder _print1(StringBuilder sb, Set<Integer> visited);
 
     
     /**
@@ -212,7 +215,7 @@ public abstract class Node {
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
         // Return self for easy flow-coding
-        return this;
+        return new_def;
     }
   
     // Remove the numbered input, compressing the inputs in-place.  This
@@ -236,7 +239,7 @@ public abstract class Node {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-    Node add_def(Node new_def) {
+    public Node add_def(Node new_def) {
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge

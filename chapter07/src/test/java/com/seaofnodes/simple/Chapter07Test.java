@@ -9,6 +9,24 @@ import static org.junit.Assert.*;
 public class Chapter07Test {
 
     @Test
+    public void testChapter7While() {
+        Node._disablePeephole = true;
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return 2;", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+
+    }
+
+    @Test
     public void testChapter6PeepholeReturn() {
         Parser parser = new Parser(
 """

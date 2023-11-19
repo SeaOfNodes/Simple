@@ -29,7 +29,7 @@ public class ScopeNode extends Node {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
         sb.append(label());
         for( HashMap<String,Integer> scope : _scopes ) {
             sb.append("[");
@@ -40,7 +40,7 @@ public class ScopeNode extends Node {
                 sb.append(name).append(":");
                 Node n = in(scope.get(name));
                 if( n==null ) sb.append("null");
-                else n._print0(sb);
+                else n._print0(sb, visited);
             }
             sb.append("]");
         }
@@ -126,11 +126,13 @@ public class ScopeNode extends Node {
      * The new Scope is a full-fledged Node with proper use<->def edges.
      */
     public ScopeNode dup() {
+        return dupTo(new ScopeNode());
+    }
+    public ScopeNode dupTo(ScopeNode dup) {
         // Our goals are:
         // 1) duplicate the name bindings of the ScopeNode across all stack levels
         // 2) Make the new ScopeNode a user of all the nodes bound
         // 3) Ensure that the order of defs is the same to allow easy merging
-        ScopeNode dup = new ScopeNode();
         for( HashMap<String, Integer> tab : _scopes )
             dup._scopes.push(new HashMap<>(tab));
         for( int i=0; i<nIns(); i++ )
@@ -138,7 +140,6 @@ public class ScopeNode extends Node {
         dup._rlabels.addAll(_rlabels);
         return dup;
     }
-
     /**
      * Merges the names whose node bindings differ, by creating Phi node for such names
      * The names could occur at all stack levels, but a given name can only differ in the

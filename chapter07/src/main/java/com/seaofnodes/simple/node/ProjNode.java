@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeTuple;
 
+import java.util.Set;
+
 public class ProjNode extends Node {
 
     // Which slice of the incoming multi-part value
@@ -21,7 +23,7 @@ public class ProjNode extends Node {
     public String label() { return _label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) { return sb.append(_label); }
+    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) { return sb.append(_label); }
 
     @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
 

@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
+import java.util.Set;
+
 public class PhiNode extends Node {
 
     final String _label;
@@ -13,10 +15,13 @@ public class PhiNode extends Node {
     @Override public String glabel() { return "&phi;_"+_label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
         sb.append("Phi(");
-        for( Node in : _inputs )
-            in._print0(sb).append(",");
+        for( Node in : _inputs ) {
+            if (in == null) sb.append("null");
+            else in._print0(sb, visited);
+            sb.append(",");
+        }
         sb.setLength(sb.length()-1);
         sb.append(")");
         return sb;

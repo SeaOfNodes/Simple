@@ -53,6 +53,7 @@ public class Parser {
             add("int");
             add("return");
             add("true");
+            add("while");
         }};
 
     
@@ -138,8 +139,54 @@ public class Parser {
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
+        else if (matchx("while")) return parseWhile();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
+    }
+
+    /**
+     * Parses a while statement
+     *
+     * <pre>
+     *     while ( expression ) statement
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
+    private Node parseWhile() {
+        require("(");
+
+        RegionNode region = (RegionNode) ctrl(new RegionNode(ctrl()));
+        var headScope = _scope;
+        LoopScopeNode bodyScope = (LoopScopeNode) headScope.dupTo(new LoopScopeNode(headScope, region));
+
+        _scope = bodyScope;
+        _allScopes.push(bodyScope);
+
+        ctrl(region);
+
+        // Parse predicate
+        var pred = require(parseExpression(), ")");
+        // IfNode takes current control and predicate
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        // Setup projection nodes
+        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+        ifNode.unkeep();
+        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+
+        // Parse the true side, which corresponds to loop body
+        ctrl(ifT);              // set ctrl token to ifTrue projection
+        parseStatement();       // Parse loop body
+
+        // The true branch loops back, so whatever is current control gets added to head region as input
+        var loopControl = ctrl();
+        region.addLoopCtrl(loopControl, bodyScope.phis()); // Add the control input and update phis
+
+        // Merge results
+        _scope = headScope;
+        _allScopes.pop();       // Discard pushed from graph display
+
+        // At exit the false control is the current control
+        return ctrl(ifF);
     }
 
     /**
