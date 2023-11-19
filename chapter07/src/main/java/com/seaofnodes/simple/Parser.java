@@ -155,13 +155,14 @@ public class Parser {
     private Node parseWhile() {
         require("(");
 
-        RegionNode region = (RegionNode) ctrl(new RegionNode(ctrl()));
+        RegionNode region = new RegionNode(null, ctrl());
         var headScope = _scope;
         LoopScopeNode bodyScope = (LoopScopeNode) headScope.dupTo(new LoopScopeNode(headScope, region));
 
         _scope = bodyScope;
         _allScopes.push(bodyScope);
 
+        // Region is the control node
         ctrl(region);
 
         // Parse predicate
@@ -179,6 +180,7 @@ public class Parser {
 
         // The true branch loops back, so whatever is current control gets added to head region as input
         region.add_def(ctrl()); // Add the control input
+        bodyScope.finish();
 
         // Merge results
         _scope = headScope;
