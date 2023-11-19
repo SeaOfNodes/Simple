@@ -157,4 +157,22 @@ public class ScopeNode extends Node {
         return r.unkeep().peephole();
     }
 
+    public ScopeNode makeLoopScope() {
+        for( int i = 1; i < nIns(); i++ ) {
+            set_def(i, new PhiNode(_rlabels.get(i), ctrl(), in(i), null).peephole());
+        }
+        return dup();
+    }
+
+    public void closeLoop(ScopeNode loopScope) {
+        RegionNode region = (RegionNode) ctrl();
+        region.set_def(2, loopScope.ctrl());
+        for( int i = 1; i < nIns(); i++ ) {
+            in(i).set_def(2, loopScope.in(i));
+        }
+        loopScope.kill();
+        for( int i = 1; i < nIns(); i++ ) {
+            set_def(i, in(i).peephole());
+        }
+    }
 }

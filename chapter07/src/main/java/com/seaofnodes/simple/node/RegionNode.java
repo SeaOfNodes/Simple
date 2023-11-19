@@ -18,6 +18,7 @@ public class RegionNode extends Node {
 
     @Override
     public Type compute() {
+        if( !isFinished() ) return Type.CONTROL;
         Type t = Type.XCONTROL;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -26,6 +27,7 @@ public class RegionNode extends Node {
 
     @Override
     public Node idealize() {
+        if( !isFinished() ) return null;
         int path = findDeadInput();
         if( path != 0 ) {
             for( Node phi : _outputs )
@@ -59,6 +61,7 @@ public class RegionNode extends Node {
     @Override Node idom() {
         if( _idom != null ) return _idom; // Return cached copy
         if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
+        if( !isFinished() ) return null;
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails
         Node lhs = in(1).idom();
         Node rhs = in(2).idom();
@@ -71,5 +74,14 @@ public class RegionNode extends Node {
         if( lhs==null ) return null;
         _idepth = lhs._idepth+1;
         return (_idom=lhs);
-    } 
+    }
+
+    boolean isFinished() {
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) == null )
+                return false;
+        }
+        return true;
+    }
+
 }

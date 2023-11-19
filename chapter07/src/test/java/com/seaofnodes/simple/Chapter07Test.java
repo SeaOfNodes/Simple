@@ -9,6 +9,63 @@ import static org.junit.Assert.*;
 public class Chapter07Test {
 
     @Test
+    public void testChapter7While() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+
+    }
+
+    @Test
+    public void testChapter7WhileNeverTaken() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(false) {
+    a = a + 1;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return 1;", stop.toString());
+
+    }
+
+    @Test
+    public void testChapter7WhileEndless() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(true) {
+    a = a + 1;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertTrue(stop.nIns() == 0);
+
+    }
+
+    @Test
+    public void testChapter7HalfDef() {
+        try {
+            new Parser("while( arg==1 ) int b=2; return b;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Cannot define a new name in a while loop",e.getMessage());
+        }
+    }
+
+    @Test
     public void testChapter6PeepholeReturn() {
         Parser parser = new Parser(
 """

@@ -88,6 +88,7 @@ public abstract class Node {
         return print();
     }
 
+    static Set<Integer> visited = new HashSet<>();
     // This is a *deep* print.  This version will fail on cycles, which we will
     // correct later when we can parse programs with loops.  We print with a
     // tik-tok style; the common _print0 calls the per-Node _print1, which
@@ -98,9 +99,14 @@ public abstract class Node {
     // This is the common print: check for DEAD and print "DEAD" else call the
     // per-Node print1.
     final StringBuilder _print0(StringBuilder sb) {
-        return isDead()
-            ? sb.append(uniqueName()).append(":DEAD")
-            : _print1(sb);
+        if( !visited.add(_nid) ) return sb.append(uniqueName()).append(":VISITED");
+        try {
+            return isDead()
+                    ? sb.append(uniqueName()).append(":DEAD")
+                    : _print1(sb);
+        } finally {
+            visited.remove(_nid);
+        }
     }
     // Every Node implements this.
     abstract StringBuilder _print1(StringBuilder sb);

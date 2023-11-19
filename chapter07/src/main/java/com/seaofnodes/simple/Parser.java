@@ -53,6 +53,7 @@ public class Parser {
             add("int");
             add("return");
             add("true");
+            add("while");
         }};
 
     
@@ -134,12 +135,58 @@ public class Parser {
      * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if (matchx("return")  ) return parseReturn();
-        else if (matchx("int")) return parseDecl();
-        else if (match ("{"  )) return require(parseBlock(),"}");
-        else if (matchx("if" )) return parseIf();
+        if (matchx("return")    ) return parseReturn();
+        else if (matchx("int"  )) return parseDecl();
+        else if (match ("{"    )) return require(parseBlock(),"}");
+        else if (matchx("if"   )) return parseIf();
+        else if (matchx("while")) return parseWhile();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
+    }
+
+    /**
+     * Parses a while statement
+     *
+     * <pre>
+     *     while ( expression ) statement
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
+    private Node parseWhile() {
+        require("(");
+
+        RegionNode region = (RegionNode) ctrl(new RegionNode(null, ctrl(), null).peephole());
+        ctrl(region);
+
+        ScopeNode outerScope = _scope;
+        ScopeNode loopScope = outerScope.makeLoopScope();
+        _allScopes.push(loopScope);
+        _scope = loopScope;
+
+        // Parse predicate
+        var pred = require(parseExpression(), ")");
+        // IfNode takes current control and predicate
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        // Setup projection nodes
+        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+        ifNode.unkeep();
+        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+
+        // Parse the true side, which corresponds to loop body
+        ctrl(ifT);              // set ctrl token to ifTrue projection
+        parseStatement();       // Parse loop body
+
+        if( outerScope.nIns() != _scope.nIns() )
+            throw error("Cannot define a new name in a while loop");
+
+        // The true branch loops back, so whatever is current control gets added to head region as input and phis get resolved
+        outerScope.closeLoop(loopScope);
+
+        _allScopes.pop();       // Discard pushed from graph display
+        _scope = outerScope;
+
+        // At exit the false control is the current control
+        return ctrl(ifF);
     }
 
     /**
