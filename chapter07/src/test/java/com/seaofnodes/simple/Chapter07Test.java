@@ -21,7 +21,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,((+1)+2));", stop.toString());
+        assertEquals("return Phi(Region7,1,((Phi_a9:VISITED+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
 
     }
@@ -54,7 +54,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,((+1)+2));", stop.toString());
+        assertEquals("return Phi(Region7,1,((Phi_a9:VISITED+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
 
     }
@@ -73,7 +73,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region8,1,((+1)+2));", stop.toString());
+        assertEquals("return Phi(Region8,1,((Phi_a10:VISITED+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
 
     }

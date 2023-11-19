@@ -99,7 +99,7 @@ public abstract class Node {
     // per-Node print1.
     final StringBuilder _print0(StringBuilder sb, Set<Integer> visited) {
         if (visited.contains(this._nid))
-            return sb;
+            return sb.append(uniqueName()).append(":VISITED");
         visited.add(_nid);
         return isDead()
             ? sb.append(uniqueName()).append(":DEAD")
