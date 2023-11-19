@@ -4,7 +4,14 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 public class RegionNode extends Node {
-    public RegionNode(Node... inputs) { super(inputs); }
+    boolean finished;
+
+    public RegionNode(Node... inputs) { this(true, inputs); }
+
+    public RegionNode(boolean finished, Node... inputs) {
+        super(inputs);
+        this.finished = finished;
+    }
 
     @Override
     public String label() { return "Region"; }
@@ -18,7 +25,7 @@ public class RegionNode extends Node {
 
     @Override
     public Type compute() {
-        if( !isFinished() ) return Type.CONTROL;
+        if( !finished ) return Type.CONTROL;
         Type t = Type.XCONTROL;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -27,7 +34,7 @@ public class RegionNode extends Node {
 
     @Override
     public Node idealize() {
-        if( !isFinished() ) return null;
+        if( !finished ) return null;
         int path = findDeadInput();
         if( path != 0 ) {
             for( Node phi : _outputs )
@@ -61,7 +68,7 @@ public class RegionNode extends Node {
     @Override Node idom() {
         if( _idom != null ) return _idom; // Return cached copy
         if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
-        if( !isFinished() ) return null;
+        if( !finished ) return null;
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails
         Node lhs = in(1).idom();
         Node rhs = in(2).idom();
@@ -76,12 +83,8 @@ public class RegionNode extends Node {
         return (_idom=lhs);
     }
 
-    boolean isFinished() {
-        for( int i=1; i<nIns(); i++ ) {
-            if( in(i) == null )
-                return false;
-        }
-        return true;
+    public void finish() {
+        this.finished = true;
     }
 
 }

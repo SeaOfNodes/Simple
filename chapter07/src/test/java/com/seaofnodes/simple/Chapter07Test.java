@@ -20,7 +20,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertEquals("return Phi(Loop7,1,(Phi_a9:VISITED+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
 
     }
@@ -62,6 +62,77 @@ return a;
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Cannot define a new name in a while loop",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testChapter7DefInLoop() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    int b = a + 1;
+    a = b + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+
+    }
+
+    @Test
+    public void testChapter7WhileBreak() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    if (a == 8) break;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region25,Phi(Loop7,1,(Phi_a9:VISITED+3)),(Phi(Loop7,1,(Phi_a9:VISITED+3))+1));", stop.toString());
+    }
+
+    @Test
+    public void testChapter7WhileContinue() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    if (a == 8) continue;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop7,1,(Phi_a9:VISITED+1),(Phi_a9:VISITED+3));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+
+    }
+
+    @Test
+    public void testChapter7LonelyContinue() {
+        try {
+            new Parser("continue; return 1;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Continue not in a loop",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testChapter7LonelyBreak() {
+        try {
+            new Parser("break; return 1;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Break not in a loop",e.getMessage());
         }
     }
 

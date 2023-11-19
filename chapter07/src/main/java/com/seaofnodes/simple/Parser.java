@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
+import javax.swing.plaf.synth.Region;
 import java.util.*;
 
 /**
@@ -42,6 +43,9 @@ public class Parser {
      * @see #_allScopes
      */
     public ScopeNode _scope;
+
+    private ScopeNode loopEntryScope;
+    private Node loopExitScope;
 
     /**
      * List of keywords disallowed as identifiers
@@ -135,13 +139,38 @@ public class Parser {
      * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if (matchx("return")    ) return parseReturn();
-        else if (matchx("int"  )) return parseDecl();
-        else if (match ("{"    )) return require(parseBlock(),"}");
-        else if (matchx("if"   )) return parseIf();
-        else if (matchx("while")) return parseWhile();
+        if      (matchx("return"  )) return parseReturn();
+        else if (matchx("int"     )) return parseDecl();
+        else if (match ("{"       )) return require(parseBlock(),"}");
+        else if (matchx("if"      )) return parseIf();
+        else if (matchx("while"   )) return parseWhile();
+        else if (matchx("break"   )) return parseBreak();
+        else if (matchx("continue")) return parseContinue();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
+    }
+
+    private Node parseBreak() {
+        if (loopEntryScope == null) throw error("Break not in a loop");
+        require(";");
+        if (!(loopExitScope instanceof ScopeNode)) {
+            ScopeNode s = loopEntryScope.dup();
+            s.ctrl(new RegionNode(false,null, loopExitScope).peephole());
+            s.wrapPhis();
+            loopExitScope = s;
+        }
+
+        ((ScopeNode) loopExitScope).addJumpFrom(_scope);
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        return null;
+    }
+
+    private Node parseContinue() {
+        if (loopEntryScope == null) throw error("Continue not in a loop");
+        require(";");
+        loopEntryScope.addJumpFrom(_scope);
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        return null;
     }
 
     /**
@@ -155,13 +184,14 @@ public class Parser {
     private Node parseWhile() {
         require("(");
 
-        RegionNode region = (RegionNode) ctrl(new RegionNode(null, ctrl(), null).peephole());
-        ctrl(region);
+        ScopeNode outerLoopEntryScope = loopEntryScope;
+        Node outerLoopExitScope = loopExitScope;
 
-        ScopeNode outerScope = _scope;
-        ScopeNode loopScope = outerScope.makeLoopScope();
-        _allScopes.push(loopScope);
-        _scope = loopScope;
+        ctrl(new LoopNode(null, ctrl()).peephole());
+
+        loopEntryScope = _scope;
+        _scope = loopEntryScope.wrapPhis().dup();
+        _allScopes.push(_scope);
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -171,22 +201,38 @@ public class Parser {
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        loopExitScope = ifF;
 
         // Parse the true side, which corresponds to loop body
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
-        if( outerScope.nIns() != _scope.nIns() )
+        if( loopEntryScope.nIns() != _scope.nIns() )
             throw error("Cannot define a new name in a while loop");
 
         // The true branch loops back, so whatever is current control gets added to head region as input and phis get resolved
-        outerScope.closeLoop(loopScope);
+        ((RegionNode) loopEntryScope.addJumpFrom(_scope).ctrl()).finish();
+        loopEntryScope.peepVars();
+        _scope.kill();
 
+        _scope = loopEntryScope;
         _allScopes.pop();       // Discard pushed from graph display
-        _scope = outerScope;
+
+        ctrl(ifF);
+
+        if( loopExitScope instanceof ScopeNode s ) {
+            _allScopes.set(_allScopes.indexOf(_scope), s);
+            _scope.kill();
+            _scope = s;
+            ((RegionNode) s.ctrl()).finish();
+            _scope.peepVars();
+        }
+
+        loopEntryScope = outerLoopEntryScope;
+        loopExitScope = outerLoopExitScope;
 
         // At exit the false control is the current control
-        return ctrl(ifF);
+        return ctrl();
     }
 
     /**

@@ -26,7 +26,7 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
-        if( region() instanceof RegionNode r && !r.isFinished() ) return Type.BOTTOM;
+        if( region() instanceof RegionNode r && !r.finished ) return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -35,7 +35,7 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
-        if( region() instanceof RegionNode r && !r.isFinished() ) return null;
+        if( region() instanceof RegionNode r && !r.finished ) return null;
         // Remove a "junk" Phi: Phi(x,x) is just x
         if( same_inputs() )
             return in(1);
@@ -120,7 +120,7 @@ public class PhiNode extends Node {
 
     @Override
     boolean all_cons() {
-        if( region() instanceof RegionNode r && !r.isFinished() ) return false;
+        if( region() instanceof RegionNode r && !r.finished ) return false;
         return super.all_cons();
     }
 
