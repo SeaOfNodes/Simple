@@ -41,7 +41,7 @@ public class LoopScopeNode extends ScopeNode {
         assert body != null && head != null;
         // The phi's second value is not set here
         // We update this in finish() method below
-        Node phi = new PhiNode(name, _region, head, null);
+        Node phi = new PhiNode(name, _region, head, null).peephole();
         _head.update(name, phi);
         super.update(name, phi);
     }

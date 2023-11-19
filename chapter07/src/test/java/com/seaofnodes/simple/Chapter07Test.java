@@ -27,8 +27,38 @@ return a;
     }
 
     @Test
+    public void testChapter7WhilePeep() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+
+    }
+
+    @Test
     public void testChapter7While2() {
         Node._disablePeephole = true;
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(arg) a = 2;
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region7,1,2);", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+    }
+
+    @Test
+    public void testChapter7While2Peep() {
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -56,7 +86,22 @@ return a;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Region7,1,((Phi_a9:VISITED+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
+    }
 
+    @Test
+    public void testChapter7While3Peep() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    int b = a + 1;
+    a = b + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
     @Test
@@ -75,9 +120,24 @@ return a;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Region8,1,((Phi_a10:VISITED+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-
     }
 
+    @Test
+    public void testChapter7While4Peep() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+int b = 2;
+while(a < 10) {
+    int b = a + 1;
+    a = b + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region8,1,(Phi_a10:VISITED+3));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+    }
 
     @Test
     public void testChapter6PeepholeReturn() {

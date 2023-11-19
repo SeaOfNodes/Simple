@@ -75,4 +75,6 @@ public class RegionNode extends Node {
         _idepth = lhs._idepth+1;
         return (_idom=lhs);
     }
+
+    public boolean inProgress() { return false; }
 }

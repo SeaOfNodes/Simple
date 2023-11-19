@@ -31,6 +31,9 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
+        if (region() instanceof RegionNode r &&
+            r.inProgress())
+            return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -39,6 +42,10 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
+        if (region() instanceof RegionNode r &&
+            r.inProgress())
+            return null;
+
         // Remove a "junk" Phi: Phi(x,x) is just x
         if( same_inputs() )
             return in(1);
@@ -99,5 +106,11 @@ public class PhiNode extends Node {
         return live;
     }
 
-
+    @Override
+    boolean all_cons() {
+        if (region() instanceof RegionNode r &&
+                r.inProgress())
+            return false;
+        return super.all_cons();
+    }
 }

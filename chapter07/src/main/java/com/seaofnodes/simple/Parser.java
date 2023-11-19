@@ -155,7 +155,7 @@ public class Parser {
     private Node parseWhile() {
         require("(");
 
-        RegionNode region = new RegionNode(null, ctrl());
+        LoopRegionNode region = (LoopRegionNode) new LoopRegionNode(null, ctrl()).peephole();
         var headScope = _scope;
         LoopScopeNode bodyScope = (LoopScopeNode) headScope.dupTo(new LoopScopeNode(headScope, region));
 
@@ -181,6 +181,7 @@ public class Parser {
         // The true branch loops back, so whatever is current control gets added to head region as input
         region.add_def(ctrl()); // Add the control input
         bodyScope.finish();
+        region.finish();
 
         // Merge results
         _scope = headScope;
