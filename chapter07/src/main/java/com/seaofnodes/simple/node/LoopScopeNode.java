@@ -31,11 +31,13 @@ public class LoopScopeNode extends ScopeNode {
     private void addPhiIfNeeded(String name) {
         // _names lookup tells us if we see the name for the first time
         // We also need to check if the name existed at loop head or not
-        if (_names.contains(name) || _head.lookup(name) == null)
-            return;
-        _names.add(name);
+        // And if a local name was added in the body of the loop
+        if (_names.contains(name)) return;
         Node body = super.lookup(name);
         Node head = _head.lookup(name);
+        if (head == null) return; // name not known at loop head
+        if (head != body) return; // binding changed in the body, presumably new local var
+        _names.add(name);
         assert body != null && head != null;
         // The phi's second value is not set here
         // We update this in finish() method below
@@ -67,7 +69,7 @@ public class LoopScopeNode extends ScopeNode {
         // this is the value that was set in the body of the loop
         for (String name: _names) {
             PhiNode phi = (PhiNode) _head.lookup(name);
-            phi.set_def(2, lookup(name));
+            phi.set_def(2, super.lookup(name));
         }
     }
 }
