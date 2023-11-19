@@ -178,8 +178,7 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // The true branch loops back, so whatever is current control gets added to head region as input
-        var loopControl = ctrl();
-        region.addLoopCtrl(loopControl, bodyScope.phis()); // Add the control input and update phis
+        region.add_def(ctrl()); // Add the control input
 
         // Merge results
         _scope = headScope;

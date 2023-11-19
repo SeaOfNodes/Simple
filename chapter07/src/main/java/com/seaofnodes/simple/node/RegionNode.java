@@ -75,11 +75,4 @@ public class RegionNode extends Node {
         _idepth = lhs._idepth+1;
         return (_idom=lhs);
     }
-
-    public Node addLoopCtrl(Node ctrl, Collection<Node> phis)
-    {
-        add_def(ctrl);
-        return ctrl;
-    }
-
 }
