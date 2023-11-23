@@ -81,12 +81,17 @@ public abstract class Node {
 
     // Graphical label, e.g. "+" or "Region" or "=="
     public String glabel() { return label(); }
+
+
+    // ------------------------------------------------------------------------
     
+    // Debugger Printing.
+    
+    // {@code toString} is what you get in the debugger.  It has to print 1
+    // line (because this is what a debugger typically displays by default) and
+    // has to be robust with broken graph/nodes.
     @Override
-    public final String toString() {
-        // TODO: This needs a lot of work
-        return print();
-    }
+    public final String toString() {  return print(); }
 
     // This is a *deep* print.  This version will fail on cycles, which we will
     // correct later when we can parse programs with loops.  We print with a
@@ -95,8 +100,8 @@ public abstract class Node {
     public final String print() {
         return _print0(new StringBuilder(), new BitSet()).toString();
     }
-    // This is the common print: check for DEAD and print "DEAD" else call the
-    // per-Node print1.
+    // This is the common print: check for repeats, check for DEAD and print
+    // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
         if (visited.get(_nid))
             return sb.append(uniqueName());
@@ -108,6 +113,10 @@ public abstract class Node {
     // Every Node implements this.
     abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
 
+    
+    
+    // ------------------------------------------------------------------------
+    // Graph Node & Edge manipulation
     
     /**
      * Gets the ith input node
@@ -124,67 +133,6 @@ public abstract class Node {
 
     public boolean isCFG() { return false; }
   
-    /**
-     * We allow disabling peephole opt so that we can observe the
-     * full graph, vs the optimized graph.
-     */
-    public static boolean _disablePeephole = false;
-
-    /**
-     * Try to peephole at this node and return a better replacement Node if
-     * possible.  We compute a {@link Type} and then check and replace:
-     * <ul>
-     * <li>if the Type {@link Type#isConstant}, we replace with a {@link ConstantNode}</li>
-     * <li>in a future chapter we will look for a
-     * <a href="https://en.wikipedia.org/wiki/Common_subexpression_elimination">Common Subexpression</a>
-     * to eliminate.</li>
-     * <li>we ask the Node for a better replacement.  The "better replacement"
-     * is things like {@code (1+2)} becomes {@code 3} and {@code (1+(x+2))} becomes
-     * {@code (x+(1+2))}.  By canonicalizing expressions we fold common addressing
-     * math constants, remove algebraic identities and generally simplify the
-     * code. </li>
-     * </ul>
-     */
-    public final Node peephole( ) {
-        // Compute initial or improved Type
-        Type type = _type = compute();
-        
-        if (_disablePeephole)
-            return this;        // Peephole optimizations turned off
-
-        // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && type.isConstant())
-            return deadCodeElim(new ConstantNode(type).peephole());
-
-        // Future chapter: Global Value Numbering goes here
-        
-        // Ask each node for a better replacement
-        Node n = idealize();
-        if( n != null )         // Something changed
-            // Recursively optimize
-            return deadCodeElim(n.peephole());
-        
-        return this;            // No progress
-    }
-
-    // m is the new Node, self is the old.
-    // Return 'm', which may have zero uses but is alive nonetheless.
-    // If self has zero uses (and is not 'm'), {@link #kill} self.
-    private Node deadCodeElim(Node m) {
-        // If self is going dead and not being returned here (Nodes returned
-        // from peephole commonly have no uses (yet)), then kill self.
-        if( m != this && isUnused() ) {
-            // Killing self - and since self recursively kills self's inputs we
-            // might end up killing 'm', which we are returning as a live Node.
-            // So we add a bogus extra null output edge to stop kill().
-            m.addUse(null); // Add bogus null use to keep m alive
-            kill();            // Kill self because replacing with 'm'
-            m.delUse(null);    // Remove bogus null.
-        }
-        return m;
-    }
-
-    
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
      * the corresponding <em>use->def</em> edge.  This may make the original
@@ -250,9 +198,6 @@ public abstract class Node {
 
     // Breaks the edge invariants, used temporarily
     protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
-    // Shortcuts to stop DCE mid-parse
-    public <N extends Node> N keep() { return addUse(null); }
-    public Node unkeep() { delUse(null); return this; }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
@@ -293,6 +238,73 @@ public abstract class Node {
 
     // Mostly used for asserts and printing.
     boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+
+    // Shortcuts to stop DCE mid-parse
+    public <N extends Node> N keep() { return addUse(null); }
+    public Node unkeep() { delUse(null); return this; }
+  
+    // ------------------------------------------------------------------------
+    // Graph-based optimizations
+    
+    /**
+     * We allow disabling peephole opt so that we can observe the
+     * full graph, vs the optimized graph.
+     */
+    public static boolean _disablePeephole = false;
+
+    /**
+     * Try to peephole at this node and return a better replacement Node if
+     * possible.  We compute a {@link Type} and then check and replace:
+     * <ul>
+     * <li>if the Type {@link Type#isConstant}, we replace with a {@link ConstantNode}</li>
+     * <li>in a future chapter we will look for a
+     * <a href="https://en.wikipedia.org/wiki/Common_subexpression_elimination">Common Subexpression</a>
+     * to eliminate.</li>
+     * <li>we ask the Node for a better replacement.  The "better replacement"
+     * is things like {@code (1+2)} becomes {@code 3} and {@code (1+(x+2))} becomes
+     * {@code (x+(1+2))}.  By canonicalizing expressions we fold common addressing
+     * math constants, remove algebraic identities and generally simplify the
+     * code. </li>
+     * </ul>
+     */
+    public final Node peephole( ) {
+        // Compute initial or improved Type
+        Type type = _type = compute();
+        
+        if (_disablePeephole)
+            return this;        // Peephole optimizations turned off
+
+        // Replace constant computations from non-constants with a constant node
+        if (!(this instanceof ConstantNode) && type.isConstant())
+            return deadCodeElim(new ConstantNode(type).peephole());
+
+        // Future chapter: Global Value Numbering goes here
+        
+        // Ask each node for a better replacement
+        Node n = idealize();
+        if( n != null )         // Something changed
+            // Recursively optimize
+            return deadCodeElim(n.peephole());
+        
+        return this;            // No progress
+    }
+
+    // m is the new Node, self is the old.
+    // Return 'm', which may have zero uses but is alive nonetheless.
+    // If self has zero uses (and is not 'm'), {@link #kill} self.
+    private Node deadCodeElim(Node m) {
+        // If self is going dead and not being returned here (Nodes returned
+        // from peephole commonly have no uses (yet)), then kill self.
+        if( m != this && isUnused() ) {
+            // Killing self - and since self recursively kills self's inputs we
+            // might end up killing 'm', which we are returning as a live Node.
+            // So we add a bogus extra null output edge to stop kill().
+            m.addUse(null); // Add bogus null use to keep m alive
+            kill();            // Kill self because replacing with 'm'
+            m.delUse(null);    // Remove bogus null.
+        }
+        return m;
+    }
   
     /**
      * This function needs to be
@@ -360,7 +372,7 @@ public abstract class Node {
     public abstract Node idealize();
 
 
-    // -----------------------
+    // ------------------------------------------------------------------------
     // Peephole utilities
     
     // Swap inputs without letting either input go dead during the swap.
