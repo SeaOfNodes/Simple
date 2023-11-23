@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
-import java.util.Set;
+import java.util.BitSet;
 
 public class PhiNode extends Node {
 
@@ -15,7 +15,7 @@ public class PhiNode extends Node {
     @Override public String glabel() { return "&phi;_"+_label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Phi(");
         for( Node in : _inputs ) {
             if (in == null) sb.append("null");

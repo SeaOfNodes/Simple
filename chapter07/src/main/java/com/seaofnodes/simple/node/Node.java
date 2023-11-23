@@ -93,20 +93,20 @@ public abstract class Node {
     // tik-tok style; the common _print0 calls the per-Node _print1, which
     // calls back to _print0;
     public final String print() {
-        return _print0(new StringBuilder(), new HashSet<>()).toString();
+        return _print0(new StringBuilder(), new BitSet()).toString();
     }
     // This is the common print: check for DEAD and print "DEAD" else call the
     // per-Node print1.
-    final StringBuilder _print0(StringBuilder sb, Set<Integer> visited) {
-        if (visited.contains(this._nid))
-            return sb.append(uniqueName()).append(":VISITED");
-        visited.add(_nid);
+    final StringBuilder _print0(StringBuilder sb, BitSet visited) {
+        if (visited.get(_nid))
+            return sb.append(uniqueName());
+        visited.set(_nid);
         return isDead()
             ? sb.append(uniqueName()).append(":DEAD")
             : _print1(sb, visited);
     }
     // Every Node implements this.
-    abstract StringBuilder _print1(StringBuilder sb, Set<Integer> visited);
+    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
 
     
     /**
@@ -397,5 +397,5 @@ public abstract class Node {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; }
+    public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
 }

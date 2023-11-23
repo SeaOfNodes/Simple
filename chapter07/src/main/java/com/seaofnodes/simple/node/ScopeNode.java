@@ -29,7 +29,7 @@ public class ScopeNode extends Node {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append(label());
         for( HashMap<String,Integer> scope : _scopes ) {
             sb.append("[");

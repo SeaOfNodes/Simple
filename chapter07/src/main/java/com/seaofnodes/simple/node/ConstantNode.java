@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
-import java.util.Set;
+import java.util.BitSet;
 
 /**
  * A Constant node represents a constant value.  At present, the only constants
@@ -31,7 +31,7 @@ public class ConstantNode extends Node {
     public String uniqueName() { return "Con_" + _nid; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return _con._print(sb);
     }
     

@@ -4,7 +4,7 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
 
-import java.util.Set;
+import java.util.BitSet;
 
 public class IfNode extends MultiNode {
 
@@ -16,7 +16,7 @@ public class IfNode extends MultiNode {
     public String label() { return "If"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("if( ");
         return in(1)._print0(sb, visited).append(" )");
     }

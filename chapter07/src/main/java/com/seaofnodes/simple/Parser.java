@@ -316,12 +316,12 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
-        if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
-        if (match("!=")) return new NotNode(new BoolNode.EQNode(lhs, parseComparison()).peephole()).peephole();
-        if (match("<" )) return new BoolNode.LTNode(lhs, parseComparison()).peephole();
-        if (match("<=")) return new BoolNode.LENode(lhs, parseComparison()).peephole();
-        if (match(">" )) return new BoolNode.LTNode(parseComparison(), lhs).peephole();
-        if (match(">=")) return new BoolNode.LENode(parseComparison(), lhs).peephole();
+        if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
+        if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
+        if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
         return lhs;
     }
 

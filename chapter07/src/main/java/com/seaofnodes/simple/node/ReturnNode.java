@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
 
-import java.util.Set;
+import java.util.BitSet;
 
 /**
  * The Return node has two inputs.  The first input is a control node and the
@@ -26,7 +26,7 @@ public class ReturnNode extends Node {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return expr()._print0(sb.append("return "), visited).append(";");
     }
 

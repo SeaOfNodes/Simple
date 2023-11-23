@@ -10,7 +10,6 @@ public class Chapter07Test {
 
     @Test
     public void testChapter7While() {
-        Node._disablePeephole = true;
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -21,7 +20,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,((Phi_a9:VISITED+1)+2));", stop.toString());
+        assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
 
     }
@@ -38,14 +37,13 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
 
     }
 
     @Test
     public void testChapter7While2() {
-        Node._disablePeephole = true;
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -73,7 +71,6 @@ return a;
 
     @Test
     public void testChapter7While3() {
-        Node._disablePeephole = true;
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -84,7 +81,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,((Phi_a9:VISITED+1)+2));", stop.toString());
+        assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
@@ -100,13 +97,12 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,(Phi_a9:VISITED+3));", stop.toString());
+        assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
     @Test
     public void testChapter7While4() {
-        Node._disablePeephole = true;
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -118,7 +114,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region8,1,((Phi_a10:VISITED+1)+2));", stop.toString());
+        assertEquals("return Phi(Region8,1,(Phi_a10+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
@@ -135,7 +131,7 @@ while(a < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region8,1,(Phi_a10:VISITED+3));", stop.toString());
+        assertEquals("return Phi(Region8,1,(Phi_a10+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
@@ -438,7 +434,7 @@ else {
 #showGraph;
 return a;""");
         StopNode ret = parser.parse(true);
-        assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
+        assertEquals("return Phi(Region17,(arg+2),(arg5-3));", ret.toString());
     }
   
     @Test
@@ -496,7 +492,7 @@ else
     a=b+1;
 return a+b;""");
         StopNode ret = parser.parse(true);
-        assertEquals("return ((Phi(Region31,(arg*2),arg)+arg)+Phi(Region31,4,5));", ret.toString());
+        assertEquals("return ((Phi(Region31,(arg*2),arg5)+arg5)+Phi(Region31,4,5));", ret.toString());
     }
 
     @Test
@@ -755,8 +751,8 @@ return a;""");
 
     @Test
     public void testVarScopeNoPeephole() {
-        Node._disablePeephole = true;
         Parser parser = new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b; #showGraph; } return c; #showGraph;");
+        Node._disablePeephole = true;
         StopNode ret = parser.parse();
         Node._disablePeephole = false;
         assertEquals("return (1+3);", ret.print());
@@ -781,8 +777,8 @@ return a;""");
 
     @Test
     public void testChapter2ParseGrammar() {
-        Node._disablePeephole = true; // disable peephole so we can observe full graph
         Parser parser = new Parser("return 1+2*3+-5;");
+        Node._disablePeephole = true; // disable peephole so we can observe full graph
         StopNode ret = parser.parse();
         assertEquals("return (1+((2*3)+(-5)));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();

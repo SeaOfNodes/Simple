@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeTuple;
 
-import java.util.Set;
+import java.util.BitSet;
 
 /**
  * The Start node represents the start of the function.  For now, we do not
@@ -25,7 +25,7 @@ public class StartNode extends MultiNode {
     public String label() { return "Start"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
       return sb.append(label());
     }
 

@@ -4,7 +4,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.Collection;
-import java.util.Set;
+import java.util.BitSet;
 
 public class RegionNode extends Node {
     public RegionNode(Node... inputs) { super(inputs); }
@@ -13,7 +13,7 @@ public class RegionNode extends Node {
     public String label() { return "Region"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append("Region").append(_nid);
     }
 

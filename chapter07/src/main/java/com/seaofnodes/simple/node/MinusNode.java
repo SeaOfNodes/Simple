@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
-import java.util.Set;
+import java.util.BitSet;
 
 public class MinusNode extends Node {
     public MinusNode(Node in) { super(null, in); }
@@ -13,7 +13,7 @@ public class MinusNode extends Node {
     @Override public String glabel() { return "-"; }
   
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("(-"), visited);
         return sb.append(")");
     }

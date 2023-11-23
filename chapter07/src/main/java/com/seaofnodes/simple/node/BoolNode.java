@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
-import java.util.Set;
+import java.util.BitSet;
 
 abstract public class BoolNode extends Node {
 
@@ -20,7 +20,7 @@ abstract public class BoolNode extends Node {
     public String glabel() { return op(); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append(op()), visited);
         return sb.append(")");
@@ -54,7 +54,7 @@ abstract public class BoolNode extends Node {
         return null;
     }
 
-    public static class EQNode extends BoolNode { public EQNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQNode(lhs,rhs); } }
-    public static class LTNode extends BoolNode { public LTNode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LTNode(lhs,rhs); } }
-    public static class LENode extends BoolNode { public LENode(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LENode(lhs,rhs); } }
+    public static class EQ extends BoolNode { public EQ(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); } }
+    public static class LT extends BoolNode { public LT(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LT(lhs,rhs); } }
+    public static class LE extends BoolNode { public LE(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LE(lhs,rhs); } }
 }

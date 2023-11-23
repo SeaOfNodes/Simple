@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
 
-import java.util.Set;
+import java.util.BitSet;
 
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) {
@@ -14,7 +14,7 @@ public class AddNode extends Node {
     @Override public String glabel() { return "+"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, Set<Integer> visited) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append("+"), visited);
         return sb.append(")");
