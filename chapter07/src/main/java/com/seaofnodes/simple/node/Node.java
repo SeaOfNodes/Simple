@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -113,7 +114,31 @@ public abstract class Node {
     // Every Node implements this.
     abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
 
-    
+    public StringBuilder dump(StringBuilder sb, BitSet visited, int maxLevel, int currentLevel) {
+        if (visited.get(_nid)) return sb;
+        visited.set(_nid);
+        sb.append(String.format("%4d %-7.7s in: ", _nid, label()));
+        for (Node n: _inputs) sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+        sb.append("out: ");
+        for (Node n: _outputs) sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+        sb.append("type: ").append(_type);
+        if (currentLevel < maxLevel) {
+            sb.append("\n");
+            for (Node n: _outputs)
+                if (n != null) n.dump(sb, visited, maxLevel, currentLevel+1);
+        }
+        return sb;
+    }
+
+    public String dumprpo() {
+        StringBuilder sb = new StringBuilder();
+        BitSet visited = new BitSet();
+        for (Node n: Node.rpo(this)) {
+            n.dump(sb.append("\n"), visited, 1, 1);
+        }
+        return sb.toString();
+    }
+
     
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
@@ -126,6 +151,8 @@ public abstract class Node {
     public Node in(int i) { return _inputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
+
+    public Node out(int i) { return _outputs.get(i); }
 
     public int nOuts() { return _outputs.size(); }
 
@@ -410,4 +437,30 @@ public abstract class Node {
      * Node unique id generator, and is done as part of making a new Parser.
      */
     public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
+
+    void postOrder(Consumer<Node> consumer, BitSet visited) {
+        visited.set(_nid);
+        /* First walk the CFG */
+        if (isCFG()) {
+            for (Node S: _outputs) {
+                if (S != null && S.isCFG() && !visited.get(S._nid)) S.postOrder(consumer, visited);
+            }
+        }
+        /* Now walk the rest */
+        for (Node S: _outputs)
+            if (S != null && !visited.get(S._nid)) S.postOrder(consumer, visited);
+        consumer.accept(this);
+    }
+
+    /**
+     * Creates a reverse post order list of CFG nodes
+
+     * @param root The starting CFG node, typically START
+     * @return
+     */
+    public static List<Node> rpo(Node root) {
+        List<Node> nodes = new ArrayList<>();
+        root.postOrder((n)->nodes.add(0,n), new BitSet());
+        return nodes;
+    }
 }

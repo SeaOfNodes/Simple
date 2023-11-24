@@ -19,10 +19,11 @@ while(a < 10) {
 }
 return a;
                 """);
+        Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
+        assertEquals("return Phi(Region7,1,((Phi_a9+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-
+        Node._disablePeephole = false;
     }
 
     @Test
@@ -39,7 +40,6 @@ return a;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-
     }
 
     @Test
@@ -50,9 +50,12 @@ int a = 1;
 while(arg) a = 2;
 return a;
                 """);
+        Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Region7,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+        System.out.println(Parser.START.dumprpo());
     }
 
     @Test
@@ -80,9 +83,11 @@ while(a < 10) {
 }
 return a;
                 """);
+        Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region7,1,(Phi_a9+3));", stop.toString());
+        assertEquals("return Phi(Region7,1,((Phi_a9+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
     }
 
     @Test
@@ -113,9 +118,11 @@ while(a < 10) {
 }
 return a;
                 """);
+        Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region8,1,(Phi_a10+3));", stop.toString());
+        assertEquals("return Phi(Region8,1,((Phi_a10+1)+2));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
     }
 
     @Test
