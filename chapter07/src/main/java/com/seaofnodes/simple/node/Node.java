@@ -123,7 +123,7 @@ public abstract class Node {
             sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
         }
         sb.append(String.format("out(%2d): ", nOuts()));
-        for (int i = 0; i < maxIns; i++) {
+        for (int i = 0; i < maxOuts; i++) {
             Node n = i >= nOuts() ? null : out(i);
             sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
         }

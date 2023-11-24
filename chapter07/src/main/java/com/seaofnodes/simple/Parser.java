@@ -155,7 +155,12 @@ public class Parser {
     private Node parseWhile() {
         require("(");
 
-        LoopRegionNode region = (LoopRegionNode) new LoopRegionNode(null, ctrl()).peephole();
+        // Loop region has two control inputs,
+        // the first one is the entry point, second one is back edge
+        // that is set after loop is parsed (see finish() call below).
+        // Note that the absence of back edge is used as an indicator
+        // to switch off peepholes of the region and associated phis
+        LoopRegionNode region = (LoopRegionNode) new LoopRegionNode(ctrl(), null).peephole();
         var headScope = _scope;
         LoopScopeNode bodyScope = (LoopScopeNode) headScope.dupTo(new LoopScopeNode(headScope, region));
 
@@ -179,9 +184,8 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // The true branch loops back, so whatever is current control gets added to head region as input
-        region.add_def(ctrl()); // Add the control input
         bodyScope.finish();
-        region.finish();
+        region.finish(ctrl()); // Set the back edge, also indicates peepholes enabled
 
         // Merge results
         _scope = headScope;
