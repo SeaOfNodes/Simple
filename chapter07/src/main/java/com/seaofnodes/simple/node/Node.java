@@ -120,12 +120,12 @@ public abstract class Node {
         sb.append(String.format("%4d %-7.7s in(%2d): ", _nid, label(), nIns()));
         for (int i = 0; i < maxIns; i++) {
             Node n = i >= nIns() ? null : in(i);
-            sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+            sb.append(n == null ? (i >= nIns() ? "     " : "____ ") : String.format("%4d ", n._nid));
         }
         sb.append(String.format("out(%2d): ", nOuts()));
         for (int i = 0; i < maxOuts; i++) {
             Node n = i >= nOuts() ? null : out(i);
-            sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+            sb.append(n == null ? (i >= nOuts() ? "     " : "____ ") : String.format("%4d ", n._nid));
         }
         sb.append("type: ").append(_type);
         if (currentLevel < maxLevel) {
