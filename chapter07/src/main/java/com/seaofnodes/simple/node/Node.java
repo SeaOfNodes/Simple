@@ -114,18 +114,24 @@ public abstract class Node {
     // Every Node implements this.
     abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
 
-    public StringBuilder dump(StringBuilder sb, BitSet visited, int maxLevel, int currentLevel) {
+    public StringBuilder dump(StringBuilder sb, BitSet visited, int maxIns, int maxOuts, int maxLevel, int currentLevel) {
         if (visited.get(_nid)) return sb;
         visited.set(_nid);
-        sb.append(String.format("%4d %-7.7s in: ", _nid, label()));
-        for (Node n: _inputs) sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
-        sb.append("out: ");
-        for (Node n: _outputs) sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+        sb.append(String.format("%4d %-7.7s in(%2d): ", _nid, label(), nIns()));
+        for (int i = 0; i < maxIns; i++) {
+            Node n = i >= nIns() ? null : in(i);
+            sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+        }
+        sb.append(String.format("out(%2d): ", nOuts()));
+        for (int i = 0; i < maxIns; i++) {
+            Node n = i >= nOuts() ? null : out(i);
+            sb.append(n == null ? "____ " : String.format("%4d ", n._nid));
+        }
         sb.append("type: ").append(_type);
         if (currentLevel < maxLevel) {
             sb.append("\n");
             for (Node n: _outputs)
-                if (n != null) n.dump(sb, visited, maxLevel, currentLevel+1);
+                if (n != null) n.dump(sb, visited, maxIns, maxOuts, maxLevel, currentLevel+1);
         }
         return sb;
     }
@@ -133,8 +139,11 @@ public abstract class Node {
     public String dumprpo() {
         StringBuilder sb = new StringBuilder();
         BitSet visited = new BitSet();
-        for (Node n: Node.rpo(this)) {
-            n.dump(sb.append("\n"), visited, 1, 1);
+        List<Node> nodes = rpo();
+        int maxIns = nodes.stream().filter(Objects::nonNull).mapToInt(n->n.nIns()).max().orElse(0);
+        int maxOuts = nodes.stream().filter(Objects::nonNull).mapToInt(n->n.nOuts()).max().orElse(0);
+        for (Node n: nodes) {
+            n.dump(sb.append("\n"), visited, maxIns, maxOuts, 1, 1);
         }
         return sb.toString();
     }
@@ -453,14 +462,11 @@ public abstract class Node {
     }
 
     /**
-     * Creates a reverse post order list of CFG nodes
-
-     * @param root The starting CFG node, typically START
-     * @return
+     * Creates a reverse post order list of nodes starting from this
      */
-    public static List<Node> rpo(Node root) {
+    public List<Node> rpo() {
         List<Node> nodes = new ArrayList<>();
-        root.postOrder((n)->nodes.add(0,n), new BitSet());
+        postOrder((n)->nodes.add(0,n), new BitSet());
         return nodes;
     }
 }
