@@ -28,6 +28,12 @@ public class LoopScopeNode extends ScopeNode {
         _region = region;
     }
 
+    private LoopScopeNode(LoopScopeNode other) {
+        _head = other._head;
+        _region = other._region;
+        _names = new HashSet<>(other._names);
+    }
+
     private void addPhiIfNeeded(String name) {
         // _names lookup tells us if we see the name for the first time
         // We also need to check if the name existed at loop head or not
@@ -59,6 +65,11 @@ public class LoopScopeNode extends ScopeNode {
             return super.lookup(name);
         addPhiIfNeeded(name);
         return super.lookup(name);
+    }
+
+    @Override
+    public ScopeNode dup() {
+        return super.dupTo(new LoopScopeNode(this));
     }
 
     /**

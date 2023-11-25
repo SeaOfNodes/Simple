@@ -9,6 +9,26 @@ import static org.junit.Assert.*;
 public class Chapter07Test {
 
     @Test
+    public void testChapter7WhileScope() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+int b = 2;
+while(a < 10) {
+    if (a == 2) a = 3;
+    else b = 4;
+}
+return b;
+                """);
+        Node._disablePeephole = true;
+        StopNode stop = parser.parse(true);
+        //assertEquals("return Phi(Region7,1,((Phi_a9+1)+2));", stop.toString());
+        //assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+        System.out.println(Parser.START.dumprpo());
+    }
+
+    @Test
     public void testChapter7While() {
         Parser parser = new Parser(
                 """
