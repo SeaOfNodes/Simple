@@ -22,8 +22,8 @@ return b;
                 """);
         Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
-        //assertEquals("return Phi(Region7,1,((Phi_a9+1)+2));", stop.toString());
-        //assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertEquals("return Phi(Region8,2,Phi(Region25,Con_7,4));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
         System.out.println(Parser.START.dumprpo());
     }
