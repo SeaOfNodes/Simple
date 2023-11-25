@@ -29,6 +29,29 @@ return b;
     }
 
     @Test
+    public void testChapter7WhileNestedIfAndInc() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+int b = 2;
+while(a < 10) {
+    if (a == 2) a = 3;
+    else b = 4;
+    b = b + 1;
+    a = a + 1;
+}
+return b;
+                """);
+        Node._disablePeephole = true;
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop8,2,(Phi(Region25,Con_7,4)+1));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+        System.out.println(Parser.START.dumprpo());
+    }
+
+
+    @Test
     public void testChapter7While() {
         Parser parser = new Parser(
                 """
