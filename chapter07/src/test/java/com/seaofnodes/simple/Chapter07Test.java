@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 public class Chapter07Test {
 
     @Test
-    public void testChapter7WhileScope() {
+    public void testChapter7WhileNestedIf() {
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -23,6 +23,28 @@ return b;
         Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,2,Phi(Region25,Con_7,4));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+        System.out.println(Parser.START.dumprpo());
+    }
+
+    @Test
+    public void testChapter7WhileNestedWhile() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+int b = 2;
+while(a < 10) {
+    while(b < 5) {
+        b = b + a;
+        a = a + 1;
+    }
+}
+return b;
+                """);
+        Node._disablePeephole = true;
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop8,2,Phi(Loop16,Phi_b18,(Phi_b19+Phi(Loop8,1,Phi_a10))));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
         System.out.println(Parser.START.dumprpo());

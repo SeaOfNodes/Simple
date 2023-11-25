@@ -73,7 +73,12 @@ public class ScopeNode extends Node {
     }
 
     // Lookup a name in all scopes
+    // May be overridden in subtype
     public Node lookup(String name) {
+        return lookup_(name);
+    }
+
+    protected final Node lookup_(String name) {
         for (int i = _scopes.size() - 1; i >= 0; i--) {
             var idx = _scopes.get(i).get(name);
             if (idx != null) return in(idx);
@@ -107,7 +112,12 @@ public class ScopeNode extends Node {
 
   
     // If the name is present in any scope, then redefine
+    // May be overridden in subtype
     public Node update(String name, Node n) {
+        return update_(name, n);
+    }
+
+    protected final Node update_(String name, Node n) {
         for (int i = _scopes.size() - 1; i >= 0; i--) {
             HashMap<String, Integer> scope = _scopes.get(i);
             Integer idx = scope.get(name);

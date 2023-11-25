@@ -33,10 +33,12 @@ public class LoopScopeNode extends ScopeNode {
         // We also need to check if the name existed at loop head or not
         // And if a local name was added in the body of the loop
         if (_names.contains(name)) return;
-        Node body = super.lookup(name);
-        Node head = _head.lookup(name);
-        if (head == null) return; // name not known at loop head
-        if (head != body) return; // binding changed in the body, presumably new local var
+        Node head0 = _head.lookup_(name);
+        if (head0 == null) return; // name not known at loop head
+        Node body0 = super.lookup_(name);
+        if (head0 != body0) return;      // binding changed in the body, presumably new local var
+        Node body = super.lookup(name);  // May create phi
+        Node head = _head.lookup(name);  // May create phi
         _names.add(name);
         assert body != null && head != null;
         // The phi's second value is not set here
