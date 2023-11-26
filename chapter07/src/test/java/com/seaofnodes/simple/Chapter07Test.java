@@ -25,7 +25,7 @@ while(i < arg) {
 return sum;
                                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop8,0,Phi(Loop20,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
+        assertEquals("return Phi(Loop8,0,Phi(Loop19,Phi_sum26,(Phi_sum27+Phi(Loop19,0,(Phi_j21+1)))));", stop.toString());
         System.out.println(Parser.START.dumprpo());
     }
 

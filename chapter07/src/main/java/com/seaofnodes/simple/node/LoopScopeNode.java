@@ -91,8 +91,8 @@ public class LoopScopeNode extends ScopeNode {
         // For each name we created phi for, add the second input node
         // this is the value that was set in the body of the loop
         for (String name: _names) {
-            PhiNode phi = (PhiNode) _head.lookup(name);
-            phi.set_def(2, super.lookup(name));
+            if (_head.lookup(name) instanceof PhiNode phi)
+                phi.set_def(2, super.lookup(name));
         }
     }
 }
