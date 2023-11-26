@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -33,17 +35,17 @@ public class LoopScopeNode extends ScopeNode {
         // We also need to check if the name existed at loop head or not
         // And if a local name was added in the body of the loop
         if (_names.contains(name)) return;
-        Node body = super.lookup(name);
         Node head = _head.lookup(name);
         if (head == null) return; // name not known at loop head
-        if (head != body) return; // binding changed in the body, presumably new local var
         _names.add(name);
-        assert body != null && head != null;
         // The phi's second value is not set here
         // We update this in finish() method below
         Node phi = new PhiNode(name, _region, head, null).peephole();
         _head.update(name, phi);
-        super.update(name, phi);
+        for (int i = 0; i < Parser._allScopes.size(); i++) {
+            ScopeNode scope = Parser._allScopes.get(i);
+            scope.updateLevel(name, phi, _head._scopes.size());
+        }
     }
 
     @Override

@@ -61,7 +61,7 @@ public class Parser {
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
      */
-    public final Stack<ScopeNode> _allScopes = new Stack<>();
+    public static final Stack<ScopeNode> _allScopes = new Stack<>();
 
     public Parser(String source, TypeInteger arg) {
         _lexer = new Lexer(source);

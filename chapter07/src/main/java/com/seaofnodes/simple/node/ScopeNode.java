@@ -105,10 +105,16 @@ public class ScopeNode extends Node {
         return n;
     }
 
-  
+
     // If the name is present in any scope, then redefine
     public Node update(String name, Node n) {
-        for (int i = _scopes.size() - 1; i >= 0; i--) {
+        return updateLevel(name, n, _scopes.size());
+    }
+
+    protected Node updateLevel(String name, Node n, int maxlevel) {
+        if (_scopes.size() < maxlevel)
+            return null;
+        for (int i = maxlevel - 1; i >= 0; i--) {
             HashMap<String, Integer> scope = _scopes.get(i);
             Integer idx = scope.get(name);
             if (idx != null)           // Found prior def
