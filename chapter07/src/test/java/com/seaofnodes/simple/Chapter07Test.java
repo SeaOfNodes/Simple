@@ -9,6 +9,28 @@ import static org.junit.Assert.*;
 public class Chapter07Test {
 
     @Test
+    public void testChapter7WhileNested() {
+        Parser parser = new Parser(
+                """
+int sum = 0;
+int i = 0;
+while(i < arg) {
+    i = i + 1;
+    int j = 0;
+    while( j < arg ) {
+        sum = sum + j;
+        j = j + 1;
+    }
+}
+return sum;
+                                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop8,0,Phi(Loop20,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
+        System.out.println(Parser.START.dumprpo());
+    }
+
+
+    @Test
     public void testChapter7WhileScope() {
         Parser parser = new Parser(
                 """
