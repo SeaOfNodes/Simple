@@ -18,6 +18,7 @@ public class RegionNode extends Node {
     }
 
     @Override public boolean isCFG() { return true; }
+    @Override public boolean isMultiHead() { return true; }
 
     @Override
     public Type compute() {

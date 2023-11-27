@@ -13,7 +13,7 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
-
+    public static boolean LAZY = false;
   
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -39,7 +39,7 @@ public class Parser {
      * <p>
      * We keep a list of all ScopeNodes so that we can show them in graphs.
      * @see #parseIf()
-     * @see #_allScopes
+     * @see #_xScopes
      */
     public ScopeNode _scope;
 
@@ -61,14 +61,13 @@ public class Parser {
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
      */
-    public static final Stack<ScopeNode> _allScopes = new Stack<>();
+    public final Stack<ScopeNode> _xScopes = new Stack<>();
 
     public Parser(String source, TypeInteger arg) {
-        _lexer = new Lexer(source);
         Node.reset();
+        _lexer = new Lexer(source);
         _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
-        START.peephole();
         STOP = new StopNode();
     }
 
@@ -81,29 +80,23 @@ public class Parser {
   
     String src() { return new String( _lexer._input ); }
 
+    // Debugging utility to find a Node by index
+    public static Node find(int nid) { return START.find(nid); }
+    
     private Node ctrl() { return _scope.ctrl(); }
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
-        _allScopes.push(_scope);
-        _scope.push();
-        try {
-            _scope.ctrl(new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-            _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            parseBlock();
-            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
-            return STOP;
-        }
-        finally {
-            _scope.pop();
-            _allScopes.pop();
-            STOP.peephole();
-            if( show ) showGraph();
-        }
+        parseBlock(true);
+        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        STOP.peephole();
+        if( show ) showGraph();
+        return STOP;
     }
 
+    
     /**
      * Parses a block
      *
@@ -113,9 +106,14 @@ public class Parser {
      * Does not parse the opening or closing '{}'
      * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock() {
+    private Node parseBlock(boolean top) {
         // Enter a new scope
         _scope.push();
+        // Parser top only, introduce initial control and arguments
+        if( top ) {
+            _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+            _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        }
         Node n = null;
         while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
@@ -123,7 +121,7 @@ public class Parser {
         };
         // Exit scope
         _scope.pop();
-        return n;
+        return null;
     }
 
     /**
@@ -137,7 +135,7 @@ public class Parser {
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
-        else if (match ("{"  )) return require(parseBlock(),"}");
+        else if (match ("{"  )) return require(parseBlock(false),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("while")) return parseWhile();
         else if (matchx("#showGraph")) return require(showGraph(),";");
@@ -155,20 +153,17 @@ public class Parser {
     private Node parseWhile() {
         require("(");
 
-        // Loop region has two control inputs,
-        // the first one is the entry point, second one is back edge
-        // that is set after loop is parsed (see finish() call below).
-        // Note that the absence of back edge is used as an indicator
-        // to switch off peepholes of the region and associated phis
-        LoopRegionNode region = (LoopRegionNode) new LoopRegionNode(ctrl(), null).peephole();
-        var headScope = _scope;
-        LoopScopeNode bodyScope = (LoopScopeNode) headScope.dupTo(new LoopScopeNode(headScope, region));
-
-        _scope = bodyScope;
-        _allScopes.push(bodyScope);
-
-        // Region is the control node
-        ctrl(region);
+        // Loop region has two control inputs, the first one is the entry
+        // point, and second one is back edge that is set after loop is parsed
+        // (see end_loop() call below).  Note that the absence of back edge is
+        // used as an indicator to switch off peepholes of the region and
+        // associated phis.
+        
+        ctrl(new LoopNode(ctrl(),null).peephole());
+        var head = _xScopes.push(_scope); // Save the current scope as the loop head
+        // Make a new Scope for the body, which has lazy-phi loop markers.
+        _scope = _scope.dup(true);
+        ctrl(head.ctrl());
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -178,21 +173,22 @@ public class Parser {
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        // The exit scope, accounting for any side effects in the predicate
+        var exit = _scope.dup();
+        exit.ctrl(ifF);
 
         // Parse the true side, which corresponds to loop body
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
-        // The true branch loops back, so whatever is current control gets added to head region as input
-        bodyScope.finish();
-        region.finish(ctrl()); // Set the back edge, also indicates peepholes enabled
+        // The true branch loops back, so whatever is current control gets
+        // added to head loop as input
+        head.end_loop(_scope, exit);
+        _xScopes.pop();       // Discard pushed from graph display
 
-        // Merge results
-        _scope = headScope;
-        _allScopes.pop();       // Discard pushed from graph display
-
-        // At exit the false control is the current control
-        return ctrl(ifF);
+        // At exit the false control is the current control, and
+        // the scope is the exit scope after the exit test.
+        return (_scope = exit);
     }
 
     /**
@@ -217,7 +213,7 @@ public class Parser {
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
         ScopeNode fScope = _scope.dup(); // Duplicate current scope
-        _allScopes.push(fScope); // For graph visualization we need all scopes
+        _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
         ctrl(ifT);              // set ctrl token to ifTrue projection
@@ -227,14 +223,17 @@ public class Parser {
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF);              // Ctrl token is now set to ifFalse projection
-        if (matchx("else")) parseStatement();
+        if (matchx("else")) {
+            parseStatement();
+            fScope = _scope;
+        }
 
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
         
         // Merge results
         _scope = tScope;
-        _allScopes.pop();       // Discard pushed from graph display
+        _xScopes.pop();       // Discard pushed from graph display
 
         return ctrl(tScope.mergeScopes(fScope));
     }

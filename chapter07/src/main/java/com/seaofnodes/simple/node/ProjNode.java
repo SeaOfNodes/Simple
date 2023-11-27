@@ -26,16 +26,13 @@ public class ProjNode extends Node {
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
     @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
+    @Override boolean isMultiTail() { return in(0).isMultiHead(); }
 
     public MultiNode ctrl() { return (MultiNode)in(0); }
 
     @Override
     public Type compute() {
         Type t = ctrl()._type;
-        return getType(t);
-    }
-
-    private Type getType(Type t) {
         return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 

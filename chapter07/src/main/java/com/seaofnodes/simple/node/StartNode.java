@@ -19,6 +19,7 @@ public class StartNode extends MultiNode {
     public StartNode(Type[] args) {
         super();
         _args = new TypeTuple(args);
+        _type = _args;
     }
 
     @Override
@@ -30,6 +31,7 @@ public class StartNode extends MultiNode {
     }
 
     @Override public boolean isCFG() { return true; }
+    @Override public boolean isMultiHead() { return true; }
 
     @Override
     public TypeTuple compute() { return _args; }

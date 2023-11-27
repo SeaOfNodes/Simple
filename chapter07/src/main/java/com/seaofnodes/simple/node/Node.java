@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
@@ -53,7 +54,7 @@ public abstract class Node {
      * parsing where we do not have the whole program, and also peepholes
      * change the CFG incrementally.
      * <p>
-     * See {@link https://en.wikipedia.org/wiki/Dominator_(graph_theory)}
+     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     int _idepth;
     
@@ -105,49 +106,65 @@ public abstract class Node {
     // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
         if (visited.get(_nid))
-            return sb.append(uniqueName());
+            return sb.append(label());
         visited.set(_nid);
         return isDead()
             ? sb.append(uniqueName()).append(":DEAD")
             : _print1(sb, visited);
     }
-    // Every Node implements this.
+    // Every Node implements this; a partial-line recursive print
     abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
 
-    public StringBuilder dump(StringBuilder sb, BitSet visited, int maxIns, int maxOuts, int maxLevel, int currentLevel) {
-        if (visited.get(_nid)) return sb;
+
+    
+    public void dump( StringBuilder sb, BitSet visited, int maxLevel, int currentLevel) {
+        if (visited.get(_nid)) return;
         visited.set(_nid);
-        sb.append(String.format("%4d %-7.7s in(%2d): ", _nid, label(), nIns()));
-        for (int i = 0; i < maxIns; i++) {
-            Node n = i >= nIns() ? null : in(i);
-            sb.append(n == null ? (i >= nIns() ? "     " : "____ ") : String.format("%4d ", n._nid));
-        }
-        sb.append(String.format("out(%2d): ", nOuts()));
-        for (int i = 0; i < maxOuts; i++) {
-            Node n = i >= nOuts() ? null : out(i);
-            sb.append(n == null ? (i >= nOuts() ? "     " : "____ ") : String.format("%4d ", n._nid));
-        }
-        sb.append("type: ").append(_type);
+        _print_line(sb);
         if (currentLevel < maxLevel) {
             sb.append("\n");
             for (Node n: _outputs)
-                if (n != null) n.dump(sb, visited, maxIns, maxOuts, maxLevel, currentLevel+1);
+                if (n != null) n.dump(sb, visited, maxLevel, currentLevel+1);
         }
-        return sb;
     }
 
-    public String dumprpo() {
+    public String dumprpo() { return dumprpo(1); }
+    public String dumprpo(int maxLevel) {
         StringBuilder sb = new StringBuilder();
         BitSet visited = new BitSet();
-        List<Node> nodes = rpo();
-        int maxIns = nodes.stream().filter(Objects::nonNull).mapToInt(n->n.nIns()).max().orElse(0);
-        int maxOuts = nodes.stream().filter(Objects::nonNull).mapToInt(n->n.nOuts()).max().orElse(0);
-        for (Node n: nodes) {
-            n.dump(sb.append("\n"), visited, maxIns, maxOuts, 1, 1);
+        ArrayList<Node> nodes = rpo();
+        for( Node n : nodes) {
+            n.dump(sb, visited, 1, 1);
         }
         return sb.toString();
     }
 
+    // Print a node on 1 line, columnar aligned, as:
+    // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
+    // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
+    void _print_line( StringBuilder sb ) {
+        sb.append("%4d %-7.7s ".formatted(_nid,label()));
+        if( _inputs==null ) {
+            sb.append("DEAD\n");
+            return;
+        }
+        for( Node def : _inputs )
+            sb.append(def==null ? "____ " : "%4d ".formatted(def._nid));
+        for( int i = _inputs.size(); i<3; i++ )
+            sb.append("     ");
+        sb.append(" [[  ");
+        for( Node use : _outputs )
+            sb.append("%4d ".formatted(use._nid));
+        int lim = 5 - Math.max(_inputs.size(),3);
+        for( int i = _outputs.size(); i<lim; i++ )
+            sb.append("     ");
+        sb.append(" ]]  ");
+        if( _type!= null ) _type._print(sb);
+        sb.append("\n");
+    }
+
+    boolean isMultiHead() { return false; }
+    boolean isMultiTail() { return false; }
     
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
@@ -183,7 +200,7 @@ public abstract class Node {
      *     
      * @param idx which def to set
      * @param new_def the new definition
-     * @return this for flow coding
+     * @return new_def for flow coding
      */
     Node set_def(int idx, Node new_def ) {
         Node old_def = in(idx);
@@ -278,7 +295,20 @@ public abstract class Node {
     // Shortcuts to stop DCE mid-parse
     public <N extends Node> N keep() { return addUse(null); }
     public Node unkeep() { delUse(null); return this; }
-  
+
+
+    // Replace self with nnn in the graph, making 'this' go dead
+    void subsume( Node nnn ) {
+        assert nnn!=this;
+        while( nOuts() > 0 ) {
+            Node n = _outputs.remove(_outputs.size()-1);
+            int idx = n._inputs.indexOf(this);
+            n._inputs.set(idx,nnn);
+            nnn.addUse(n);
+        }
+        kill();
+    }
+    
     // ------------------------------------------------------------------------
     // Graph-based optimizations
     
@@ -447,26 +477,155 @@ public abstract class Node {
      */
     public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
 
-    void postOrder(Consumer<Node> consumer, BitSet visited) {
+    private void postOrder(Consumer<Node> consumer, BitSet visited) {
+        if( visited.get(_nid) ) return;
         visited.set(_nid);
-        /* First walk the CFG */
-        if (isCFG()) {
-            for (Node S: _outputs) {
-                if (S != null && S.isCFG() && !visited.get(S._nid)) S.postOrder(consumer, visited);
-            }
-        }
-        /* Now walk the rest */
-        for (Node S: _outputs)
-            if (S != null && !visited.get(S._nid)) S.postOrder(consumer, visited);
+        // First walk the CFG, then everything
+        if( isCFG() )  for( Node S: _outputs ) if( S.isCFG() ) S.postOrder(consumer, visited);
+        ;              for( Node S: _outputs )                 S.postOrder(consumer, visited);
         consumer.accept(this);
     }
 
     /**
      * Creates a reverse post order list of nodes starting from this
      */
-    public List<Node> rpo() {
-        List<Node> nodes = new ArrayList<>();
-        postOrder((n)->nodes.add(0,n), new BitSet());
+    public ArrayList<Node> rpo() {
+        ArrayList<Node> nodes = new ArrayList<>();
+        postOrder( n -> nodes.add(n), new BitSet());
         return nodes;
+    }
+
+    // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
+    public String p(int depth) {
+        // First, a Breadth First Search at a fixed depth.
+        BFS bfs = new BFS(this,depth);
+        // Convert just that set to a post-order
+        Ary<Node> rpos = new Ary<>(Node.class);
+        BitSet visit = new BitSet();
+        for( int i=bfs._lim; i< bfs._bfs._len; i++ )
+            bfs._bfs.at(i).postOrd( rpos, visit, bfs._bs);
+        // Reverse the post-order walk
+        StringBuilder sb = new StringBuilder();
+        boolean gap=false;
+        for( int i=rpos._len-1; i>=0; i-- ) {
+            Node n = rpos.at(i);
+            if( n.isCFG() || n.isMultiHead() ) {
+                if( !gap ) sb.append("\n"); // Blank before multihead
+                n._print_line(sb); // Print head
+                while( --i >= 0 ) {
+                    Node t = rpos.at(i);
+                    if( !t.isMultiTail() ) { i++; break; }
+                    t._print_line(sb);
+                }
+                sb.append("\n"); // Blank after multitail
+                gap = true;
+            } else {
+                n._print_line( sb );
+                gap = false;
+            }
+        }
+        return sb.toString();
+    }
+    private void postOrd(Ary<Node> rpos, BitSet visit, BitSet bfs) {
+        if( !bfs.get(_nid) )
+            return;  // Not in the BFS visit
+        if( visit.get(_nid) ) return; // Already post-order walked
+        visit.set(_nid);
+        // First walk the CFG, then everything
+        if( isCFG() ) {
+            for( Node use : _outputs )
+                if( use.isCFG() && use.nOuts()>=1 && !(use._outputs.get(0) instanceof LoopNode) )
+                    use.postOrd(rpos,visit,bfs);
+            for( Node use : _outputs )
+                if( use.isCFG() )
+                    use.postOrd(rpos,visit,bfs);
+        }
+        for( Node use : _outputs )
+            use.postOrd(rpos,visit,bfs);
+        // Post-order
+        rpos.push(this);
+    }
+
+    // Breadth-first search, broken out in a class to keep in more independent.
+    // Maintains a root-set of Nodes at the limit (or past by 1 if MultiHead).
+    public static class BFS {
+        // A breadth first search, plus MultiHeads for any MultiTails
+        public final Ary<Node> _bfs;
+        public final BitSet _bs; // Visited members by node id
+        public final int _depth; // Depth limit
+        public final int _lim; // From here to _bfs._len can be roots for a reverse search
+        public BFS( Node base, int d ) {
+            _depth = d;
+            _bfs = new Ary<>(Node.class);
+            _bs = new BitSet();
+            
+            add(base);                 // Prime the pump
+            int idx=0, lim=1;          // Limit is where depth counter changes
+            while( idx < _bfs._len ) { // Ran out of nodes below depth
+                Node n = _bfs.at(idx++);
+                for( Node def : n._inputs )
+                    if( def!=null && !_bs.get(def._nid) )
+                        add(def);
+                if( idx==lim ) {    // Depth counter changes at limit
+                    if( --d < 0 )
+                        break;      // Ran out of depth
+                    lim = _bfs._len;  // New depth limit
+                }
+            }
+            // Toss things past the limit except multi-heads
+            while( idx < _bfs._len ) {
+                Node n = _bfs.at(idx);
+                if( n.isMultiHead() ) idx++;
+                else del(idx);
+            }
+            // Root set is any node with no inputs in the visited set
+            lim = _bfs._len;
+            for( int i=_bfs._len-1; i>=0; i-- )
+                if( !any_visited(_bfs.at(i)) )
+                    swap( i,--lim);
+            _lim = lim;
+        }
+        void swap( int x, int y ) {
+            if( x==y ) return;
+            Node tx = _bfs.at(x);
+            Node ty = _bfs.at(y);
+            _bfs.set(x,ty);
+            _bfs.set(y,tx);
+        }
+        void add(Node n) {
+            _bfs.push(n);
+            _bs.set(n._nid);
+        }
+        void del(int idx) {
+            Node n = _bfs.del(idx);
+            _bs.clear(n._nid);
+        }
+        boolean any_visited( Node n ) {
+            for( Node def : n._inputs )
+                if( def!=null && _bs.get(def._nid) )
+                    return true;
+            return false;
+        }
+    }
+
+    
+    /**
+     * Debugging utility to find a Node by index
+     */
+    public Node find(int nid) { return _f(new BitSet(),nid); }
+    private Node _f(BitSet visit, int nid) {
+        if( _nid==nid ) return this;
+        if( visit.get(_nid) ) return null;
+        visit.set(_nid);
+        for( Node def : _inputs )
+            if( def!=null ) {
+                Node rez = def._f(visit,nid);
+                if( rez != null ) return rez;
+            }
+        for( Node use : _outputs ) {
+            Node rez = use._f(visit,nid);
+            if( rez != null ) return rez;
+        }
+        return null;
     }
 }
