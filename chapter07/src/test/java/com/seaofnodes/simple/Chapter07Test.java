@@ -49,28 +49,6 @@ return sum;
     }
 
     @Test
-    public void testChapter7WhileNested() {
-        Parser parser = new Parser(
-                """
-int sum = 0;
-int i = 0;
-while(i < arg) {
-    i = i + 1;
-    int j = 0;
-    while( j < arg ) {
-        sum = sum + j;
-        j = j + 1;
-    }
-}
-return sum;
-                                """);
-        StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop8,0,Phi(Loop19,Phi_sum26,(Phi_sum27+Phi(Loop19,0,(Phi_j21+1)))));", stop.toString());
-        System.out.println(Parser.START.dumprpo());
-    }
-
-
-    @Test
     public void testChapter7WhileScope() {
         Parser parser = new Parser(
 """

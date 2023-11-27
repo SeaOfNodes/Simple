@@ -89,7 +89,12 @@ public class Parser {
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
-        parseBlock(true);
+        // Enter a new scope for the initial control and arguments
+        _scope.push();
+        _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        parseBlock();
+        _scope.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         STOP.peephole();
         if( show ) showGraph();
@@ -106,14 +111,9 @@ public class Parser {
      * Does not parse the opening or closing '{}'
      * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock(boolean top) {
+    private Node parseBlock() {
         // Enter a new scope
         _scope.push();
-        // Parser top only, introduce initial control and arguments
-        if( top ) {
-            _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-            _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
-        }
         Node n = null;
         while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
@@ -135,7 +135,7 @@ public class Parser {
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
-        else if (match ("{"  )) return require(parseBlock(false),"}");
+        else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("while")) return parseWhile();
         else if (matchx("#showGraph")) return require(showGraph(),";");
