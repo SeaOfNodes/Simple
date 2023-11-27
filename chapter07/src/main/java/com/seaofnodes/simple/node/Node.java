@@ -294,7 +294,7 @@ public abstract class Node {
 
     // Shortcuts to stop DCE mid-parse
     public <N extends Node> N keep() { return addUse(null); }
-    public Node unkeep() { delUse(null); return this; }
+    public <N extends Node> N unkeep() { delUse(null); return (N)this; }
 
 
     // Replace self with nnn in the graph, making 'this' go dead

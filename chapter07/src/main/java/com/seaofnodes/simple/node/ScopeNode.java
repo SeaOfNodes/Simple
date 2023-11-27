@@ -157,17 +157,13 @@ public class ScopeNode extends Node {
      */
     public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
-        String[] n1s = this.reverse_names();
-        String[] n2s = that.reverse_names();
+        String[] ns = reverse_names();
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++) {
             if( in(i) != that.in(i) ) { // No need for redundant Phis
-                String s1 = n1s[i];
-                String s2 = n2s[i];
-                Node n1 = Parser.LAZY ? this.lookup(s1) :      in(i); // Must do a lookup to set lazy Phis
-                Node n2 = Parser.LAZY ? that.lookup(s2) : that.in(i); // Must do a lookup to set lazy Phis
-                if( !s1.equals(s2) ) s1 += s2; // Merge Phi names for convenience
-                set_def(i, new PhiNode(s1, r, n1, n2).peephole());
+                Node n1 = Parser.LAZY ? this.lookup(ns[i]) :      in(i); // Must do a lookup to set lazy Phis
+                Node n2 = Parser.LAZY ? that.lookup(ns[i]) : that.in(i); // Must do a lookup to set lazy Phis
+                set_def(i, new PhiNode(ns[i], r, n1, n2).peephole());
             }
         }
         that.kill();            // Kill merged scope

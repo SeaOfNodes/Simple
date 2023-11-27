@@ -160,7 +160,7 @@ public class Parser {
         // associated phis.
         
         ctrl(new LoopNode(ctrl(),null).peephole());
-        var head = _xScopes.push(_scope); // Save the current scope as the loop head
+        ScopeNode head = _xScopes.push(_scope).keep(); // Save the current scope as the loop head
         // Make a new Scope for the body, which has lazy-phi loop markers.
         _scope = _scope.dup(true);
         ctrl(head.ctrl());
@@ -183,7 +183,7 @@ public class Parser {
 
         // The true branch loops back, so whatever is current control gets
         // added to head loop as input
-        head.end_loop(_scope, exit);
+        head.<ScopeNode>unkeep().end_loop(_scope, exit);
         _xScopes.pop();       // Discard pushed from graph display
 
         // At exit the false control is the current control, and
