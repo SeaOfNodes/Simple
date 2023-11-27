@@ -189,6 +189,5 @@ public class ScopeNode extends Node {
                 exit.set_def(i,in(i));
         }
         back.kill();            // Loop backedge is dead
-        this.kill();            // Loop head is dead, but not the exit
     }
 }

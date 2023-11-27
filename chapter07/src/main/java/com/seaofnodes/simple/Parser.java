@@ -183,7 +183,8 @@ public class Parser {
 
         // The true branch loops back, so whatever is current control gets
         // added to head loop as input
-        head.<ScopeNode>unkeep().end_loop(_scope, exit);
+        head.end_loop(_scope, exit);
+        head.unkeep().kill();
         _xScopes.pop();       // Discard pushed from graph display
 
         // At exit the false control is the current control, and
