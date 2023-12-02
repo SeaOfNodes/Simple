@@ -25,30 +25,32 @@ In general, we will rewrite the looping construct as follows:
 int a = 1;
 
 loop_head:
-if (a < 10) {
-    a = a + 1;
-    goto loop_head;
-}
+if ( !(a < 10) ) 
+    goto loop_exit;
+a = a + 1;
+goto loop_head;
+
 loop_exit:
 ```
 
 Above is for illustration only, we do not have labels and `goto` statements in the language.
 
-From an SSA[^1] point of view, since `a` flows back, it requires a `phi` node at the head. Hence conceptually we would like the outcome to be:
+From an SSA[^1] point of view, since `a` flows back, it requires a `phi` node at the head. Conceptually we would like the outcome to be:
 
 ```java
 a1 = 1;
 
 loop_head:
 a2 = phi(a1, a3);
-if (!(a2 < 10)) goto loop_exit;
+if ( !(a2 < 10) ) 
+    goto loop_exit;
 a3 = a2 + 1;
 goto loop_head;
 
 loop_exit:
 ```
 
-Notice that the phi for `a2` refers to `a3`, which is not known at the time we parse the `while` loop predicate. This is the crux of the problem we need 
+Notice that the phi for `a2` refers to `a3`, which is not known at the time we parse the `while` loop predicate. This is the crux of the problem that we need 
 to solve in order to successfully construct the Sea of Nodes graph, which is always in SSA form.
 
 Recall from [Chapter 5](../chapter05/README.md) that when parsing `if` statements, we clone the symbol tables as we go past the `if` predicate.
@@ -56,7 +58,7 @@ Later we merge the two sets of symbol tables at a `Region` - creating pis for al
 branches of the `if` statement. In the case of the `if` statement, the phis are created at the merge point when we already know the definitions
 that are being merged.
 
-The essential idea for loop constructs is to eagerly create phis for all names in the symbol tables as we enter the loop's `if` condition,
+The essential idea for loop constructs is to eagerly create phis for all names in the symbol tables *before* we enter the loop's `if` condition,
 since we do not know which names will be redefined inside the body of the loop. When the loop terminates, we go back and remove unnecessary
 phis. We call this approach the "eager phi" approach.[^2]
 
@@ -71,13 +73,15 @@ created until we complete parsing the loop body. This is because our phis are no
 ## Detailed Steps
 
 1. We start by create a new loop `Region`. The Loop region gets two control inputs, 
-   the first one is the entry point, i.e. the current binding to `$ctrl`, and second one is back edge that is set after loop is parsed.
-   The absence of back edge is used as an indicator to switch off peepholes of the region and
-   associated phis. The newly created region becomes the current control.
+   the first one is the entry point, i.e. the current binding to `$ctrl`, and second one (null) is the back edge that is 
+   set after loop is parsed. The absence of a back edge is used as an indicator to switch off peepholes of the region and
+   associated phis. 
 
 ```java
 01         ctrl(new LoopNode(ctrl(),null).peephole());
 ```
+
+   The newly created region becomes the current control.
 
 2. We duplicate the current Scope node. This involves duplicating all the symbols at
    every level with the scope, and creating phis for every symbol except the `$ctrl` binding.
@@ -91,21 +95,23 @@ created until we complete parsing the loop body. This is because our phis are no
    that creates the phis in the `dup()` method is shown below.
 
 ```java
-01          String[] reverse = reverse_names();
-02          dup.add_def(ctrl());      // Control input is just copied
-03          for( int i=1; i<nIns(); i++ ) {
-04             if ( !loop ) { dup.add_def(in(i)); }
-05             else {
-07                 // Create a phi node with second input as null - to be filled in
-08                 // by endLoop() below
-09                 dup.add_def(new PhiNode(reverse[i], ctrl(), in(i), null).peephole());
-10                 // Ensure our node has the same phi in case we created one
-11                 set_def(i, dup.in(i));
-12             }
-13          }
+01          // boolean loop=true if this is a loop region
+02
+03          String[] reverse = reverse_names();
+04          dup.add_def(ctrl());      // Control input is just copied
+05          for( int i=1; i<nIns(); i++ ) {
+06             if ( !loop ) { dup.add_def(in(i)); }
+07             else {
+08                 // Loop region
+09                 // Create a phi node with second input as null - to be filled in
+10                 // by endLoop() below
+11                 dup.add_def(new PhiNode(reverse[i], ctrl(), in(i), null).peephole());
+12                 // Ensure our node has the same phi in case we created one
+13                 set_def(i, dup.in(i));
+14             }
+15          }
 ```
-   Note that both the duplicated scope and the original scope, get the same phi (lines 9 and 11 above).
-
+   Note that both the duplicated scope and the original scope, get the same phi (lines 11 and 13 above).
 
 3. Next we setup the `if` condition, very much like we do with regular ifs.
 
