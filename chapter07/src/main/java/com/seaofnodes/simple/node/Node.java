@@ -491,7 +491,7 @@ public abstract class Node {
      */
     public ArrayList<Node> rpo() {
         ArrayList<Node> nodes = new ArrayList<>();
-        postOrder( n -> nodes.add(n), new BitSet());
+        postOrder( n -> nodes.add(0, n), new BitSet());
         return nodes;
     }
 

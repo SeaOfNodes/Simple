@@ -13,8 +13,6 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
-    public static boolean LAZY = false;
-  
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -161,7 +159,7 @@ public class Parser {
         
         ctrl(new LoopNode(ctrl(),null).peephole());
         ScopeNode head = _xScopes.push(_scope).keep(); // Save the current scope as the loop head
-        // Make a new Scope for the body, which has lazy-phi loop markers.
+        // Make a new Scope for the body.
         _scope = _scope.dup(true);
         ctrl(head.ctrl());
 
@@ -175,6 +173,7 @@ public class Parser {
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // The exit scope, accounting for any side effects in the predicate
         var exit = _scope.dup();
+        _xScopes.push(exit);
         exit.ctrl(ifF);
 
         // Parse the true side, which corresponds to loop body
@@ -183,8 +182,9 @@ public class Parser {
 
         // The true branch loops back, so whatever is current control gets
         // added to head loop as input
-        head.end_loop(_scope, exit);
+        head.endLoop(_scope, exit);
         head.unkeep().kill();
+        _xScopes.pop();
         _xScopes.pop();       // Discard pushed from graph display
 
         // At exit the false control is the current control, and
