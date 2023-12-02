@@ -180,6 +180,44 @@ The example quoted above is shown below at an intermediate state:
 
 * Three Scopes are shown, reading clockwise, the loop head, exit and the body.
 
+The final graph looks like this:
+
+![Graph2](./docs/07-graph2.svg)
+
+## More Complex Examples
+
+### Nested Loops
+
+```java
+int sum = 0;
+int i = 0;
+while(i < arg) {
+    i = i + 1;
+    int j = 0;
+    while( j < arg ) {
+        sum = sum + j;
+        j = j + 1;
+    }
+}
+return sum;
+```
+
+![Graph2](./docs/07-graph3.svg)
+
+### Nested With Nested If
+
+```java
+int a = 1;
+int b = 2;
+while(a < 10) {
+    if (a == 2) a = 3;
+    else b = 4;
+}
+return b;
+```
+
+![Graph2](./docs/07-graph4.svg)
+
 
 [^1]: Cyton, R. et al (1991).
     Efficiently computing static single assignment form and the control dependence graph, in ACM Transactions on Programming Languages and Systems, 13(4):451-490, 1991.

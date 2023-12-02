@@ -8,6 +8,22 @@ import static org.junit.Assert.*;
 
 public class Chapter07Test {
 
+    @Test
+    public void testChapter7Example() {
+        Parser parser = new Parser(
+                """
+                while(arg < 10) {
+                    arg = arg + 1;
+                    #showGraph;
+                }
+                return arg;
+                """);
+        Node._disablePeephole = true;
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+    }
 
     @Test
     public void testChapter7Regression() {
@@ -60,7 +76,7 @@ while(a < 10) {
 }
 return b;
 """);
-        Node._disablePeephole = true;
+        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
