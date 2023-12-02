@@ -171,7 +171,7 @@ public class ScopeNode extends Node {
     }
     
     // Merge the backedge scope into this loop head scope
-    public void end_loop( ScopeNode back, ScopeNode exit ) {
+    public void endLoop(ScopeNode back, ScopeNode exit ) {
         Node ctrl = ctrl();
         assert ctrl instanceof LoopNode loop && loop.inProgress();
         ctrl.set_def(2,back.ctrl());

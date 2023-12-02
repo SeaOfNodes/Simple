@@ -22,7 +22,7 @@ In general, we will rewrite the looping construct as follows:
 
 ```java
 loop_head:
-if ( !(arg < 10) ) 
+if( !(arg < 10) ) 
     goto loop_exit;
 arg = arg + 1;
 goto loop_head;
@@ -39,7 +39,7 @@ From an SSA[^1] point of view, since `arg` flows back, it requires a `phi` node 
 //
 loop_head:
 arg2 = phi(arg1, arg3);
-if ( !(arg2 < 10) ) 
+if( !(arg2 < 10) ) 
     goto loop_exit;
 arg3 = arg2 + 1;
 goto loop_head;
@@ -110,7 +110,7 @@ created until we complete parsing the loop body. This is because our phis are no
 ```
    Note that both the duplicated scope and the original scope, get the same phi (lines 11 and 13 above).
 
-3. Next we setup the `if` condition, very much like we do with regular ifs.
+3. Next we set up the `if` condition, very much like we do with regular ifs.
 
 ```java
 01          // Parse predicate
@@ -219,7 +219,7 @@ return b;
 ![Graph2](./docs/07-graph4.svg)
 
 
-[^1]: Cyton, R. et al (1991).
+[^1]: Cytron, R. et al (1991).
     Efficiently computing static single assignment form and the control dependence graph, in ACM Transactions on Programming Languages and Systems, 13(4):451-490, 1991.
 
 [^2]: Click, C. (1995).
