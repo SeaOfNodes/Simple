@@ -200,8 +200,6 @@ public class GraphVisualizer {
             for( String name : syms.keySet() ) {
                 int idx = syms.get(name);
                 Node def = scope.in(idx);
-                while( def instanceof ScopeNode lazy )
-                    def = lazy.in(idx);
                 if( def==null ) continue;
                 sb.append("\t")
                   .append(scopeName).append(":")
