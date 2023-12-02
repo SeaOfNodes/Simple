@@ -15,10 +15,10 @@ public class GraphVisualizer {
      * If set to true we put the control nodes in a separate cluster from
      * data nodes.
      */
-    boolean _separateControlCluster = true;
+    boolean _separateControlCluster = false;
 
     public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
-    public GraphVisualizer() { this(true); }
+    public GraphVisualizer() { this(false); }
 
     public String generateDotOutput(Parser parser) {
 

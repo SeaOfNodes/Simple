@@ -178,15 +178,7 @@ The example quoted above is shown below at an intermediate state:
 
 ![Graph1](./docs/07-graph1.svg)
 
-Some points worth noting:
-
-* Three Scopes are shown in the bottom section; anti-clockwise, the topmost is the loop head, bottom left is the loop body,
-  and the bottom right is the exit Scope.
-* The head Scope's control points to the `Loop` region.
-* The body Scope's control points to the `True` branch of the `If` node.
-* The exit Scope's control points to the `False` branch of the `If` node.
-* The `$ctrl` binding in each Scope is set appropriately; but remaining bindings all reference directly or indirectly the phi node that was
-  created for `arg`.
+* Three Scopes are shown, reading clockwise, the loop head, exit and the body.
 
 
 [^1]: Cyton, R. et al (1991).

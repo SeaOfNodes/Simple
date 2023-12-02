@@ -11,7 +11,7 @@ return arg;
 	ordering="in";
 	concentrate="true";
 	compound="true";
-	subgraph cluster_Controls {
+	subgraph cluster_Nodes {
 		Start2 [ shape=plaintext label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
 			<TR><TD BGCOLOR="yellow">Start</TD></TR>
@@ -23,6 +23,9 @@ return arg;
 			</TABLE>>
 		];
 		Loop6 [ shape=box style=filled fillcolor=yellow label="Loop" ];
+		Phi_arg8 [ style=filled fillcolor=lightyellow label="&phi;_arg" ];
+		Con_9 [ label="10" ];
+		LT10 [ label="<" ];
 		If11 [ shape=plaintext label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
 			<TR><TD BGCOLOR="yellow">If</TD></TR>
@@ -33,13 +36,9 @@ return arg;
 			</TD></TR>
 			</TABLE>>
 		];
-	}
-	subgraph cluster_Nodes {
-		Phi_arg8 [ style=filled fillcolor=lightyellow label="&phi;_arg" ];
-		Con_9 [ label="10" ];
-		LT10 [ label="<" ];
 		Con_15 [ label="1" ];
 		Add16 [ label="+" ];
+		{ rank=same; Loop6;Phi_arg8;}
 	}
 	node [shape=plaintext];
 	subgraph cluster_Scope7_1 {
