@@ -173,7 +173,7 @@ created until we complete parsing the loop body. This is because our phis are no
 
 The example quoted above is shown below at an intermediate state:
 
-![Graph1](./docs/05-graph1.svg)
+![Graph1](./docs/07-graph1.svg)
 
 Some points worth noting:
 
