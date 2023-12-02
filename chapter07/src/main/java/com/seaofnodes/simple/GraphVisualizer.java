@@ -11,15 +11,14 @@ import java.util.*;
  */
 public class GraphVisualizer {
 
+    /**
+     * If set to true we put the control nodes in a separate cluster from
+     * data nodes.
+     */
     boolean _separateControlCluster = true;
 
-    public GraphVisualizer(boolean _separateControlCluster) {
-        this._separateControlCluster = _separateControlCluster;
-    }
-
-    public GraphVisualizer() {
-        this(true);
-    }
+    public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
+    public GraphVisualizer() { this(true); }
 
     public String generateDotOutput(Parser parser) {
 
@@ -70,7 +69,7 @@ public class GraphVisualizer {
     }
 
     private void nodesByCluster(StringBuilder sb, boolean doCtrl, Collection<Node> all) {
-        if (!_separateControlCluster && doCtrl)
+        if (!_separateControlCluster && doCtrl) // all nodes in 1 cluster
             return;
         // Just the Nodes first, in a cluster no edges
         sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
@@ -142,7 +141,6 @@ public class GraphVisualizer {
     private void scope( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tnode [shape=plaintext];\n");
         int level=1;
-        String[] revs = scope.reverse_names();
         for( int idx = scope._scopes.size()-1; idx>=0; idx-- ) {
             var syms = scope._scopes.get(idx);
             String scopeName = makeScopeName(scope, level);
