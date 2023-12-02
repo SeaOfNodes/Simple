@@ -51,19 +51,19 @@ public class GraphVisualizer {
 
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
+
+        List<Node> allScopes = all.stream().filter(n->n instanceof ScopeNode).toList();
         
         // Now the scopes, in a cluster no edges
-        scope(sb,parser._scope );
-        for( ScopeNode scope : parser._xScopes )
-            scope( sb, scope );
+        for( Node scope : allScopes )
+            scope( sb, (ScopeNode) scope );
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the active Scope edges
-        scopeEdges( sb, parser._scope );
-        for( ScopeNode scope : parser._xScopes )
-            scopeEdges( sb, scope );
+        for( Node scope : allScopes )
+            scopeEdges( sb, (ScopeNode) scope );
         
         sb.append("}\n");
         return sb.toString();
@@ -236,10 +236,7 @@ public class GraphVisualizer {
      */
     private Collection<Node> findAll(Parser parser) {
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : Parser.START._outputs )
-            walk(all, n);
-        for( Node n : parser._scope._inputs )
-            walk(all, n);
+        walk(all, Parser.START);
         return all.values();
     }
 

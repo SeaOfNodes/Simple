@@ -34,10 +34,8 @@ public class Parser {
      * <p>
      * Each ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
      * variable names to Nodes.  The top of this stack represents current scope.
-     * <p>
-     * We keep a list of all ScopeNodes so that we can show them in graphs.
+     *
      * @see #parseIf()
-     * @see #_xScopes
      */
     public ScopeNode _scope;
 
@@ -53,13 +51,6 @@ public class Parser {
             add("true");
             add("while");
         }};
-
-    
-    /**
-     * We clone ScopeNodes when control flows branch; it is useful to have
-     * a list of all active ScopeNodes for purposes of visualization of the SoN graph
-     */
-    public final Stack<ScopeNode> _xScopes = new Stack<>();
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
@@ -158,7 +149,7 @@ public class Parser {
         // associated phis.
         
         ctrl(new LoopNode(ctrl(),null).peephole());
-        ScopeNode head = _xScopes.push(_scope).keep(); // Save the current scope as the loop head
+        ScopeNode head = _scope.keep(); // Save the current scope as the loop head
         // Make a new Scope for the body.
         _scope = _scope.dup(true);
         ctrl(head.ctrl());
@@ -173,7 +164,6 @@ public class Parser {
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // The exit scope, accounting for any side effects in the predicate
         var exit = _scope.dup();
-        _xScopes.push(exit);
         exit.ctrl(ifF);
 
         // Parse the true side, which corresponds to loop body
@@ -184,8 +174,6 @@ public class Parser {
         // added to head loop as input
         head.endLoop(_scope, exit);
         head.unkeep().kill();
-        _xScopes.pop();
-        _xScopes.pop();       // Discard pushed from graph display
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
@@ -214,7 +202,6 @@ public class Parser {
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
         ScopeNode fScope = _scope.dup(); // Duplicate current scope
-        _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
         ctrl(ifT);              // set ctrl token to ifTrue projection
@@ -234,7 +221,6 @@ public class Parser {
         
         // Merge results
         _scope = tScope;
-        _xScopes.pop();       // Discard pushed from graph display
 
         return ctrl(tScope.mergeScopes(fScope));
     }
