@@ -173,6 +173,7 @@ public class Parser {
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // The exit scope, accounting for any side effects in the predicate
         var exit = _scope.dup();
+        _xScopes.push(exit);
         exit.ctrl(ifF);
 
         // Parse the true side, which corresponds to loop body
@@ -183,6 +184,7 @@ public class Parser {
         // added to head loop as input
         head.endLoop(_scope, exit);
         head.unkeep().kill();
+        _xScopes.pop();
         _xScopes.pop();       // Discard pushed from graph display
 
         // At exit the false control is the current control, and

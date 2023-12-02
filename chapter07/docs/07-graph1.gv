@@ -3,7 +3,7 @@ digraph chapter07 {
 int a = 1;
 while(a < 10) {
     a = a + 1;
-    a = a + 2;
+    #showGraph;
 }
 return a;
 
@@ -11,24 +11,20 @@ return a;
 	rankdir=BT;
 	ordering="in";
 	concentrate="true";
-	subgraph cluster_Nodes {
+	compound="true";
+	subgraph cluster_Controls {
 		Start2 [ shape=plaintext label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
 			<TR><TD BGCOLOR="yellow">Start</TD></TR>
 			<TR><TD>
 				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD></TR>
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD></TR>
 				</TABLE>
 			</TD></TR>
 			</TABLE>>
 		];
-		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
-		Con_6 [ label="#1" ];
-		Region7 [ shape=box style=filled fillcolor=yellow label="Region" ];
-		Phi_a9 [ style=filled fillcolor=lightyellow label="&phi;_a" ];
-		Con_10 [ label="#10" ];
-		LTNode11 [ label="<" ];
-		If12 [ shape=plaintext label=<
+		Loop6 [ shape=box style=filled fillcolor=yellow label="Loop" ];
+		If11 [ shape=plaintext label=<
 			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
 			<TR><TD BGCOLOR="yellow">If</TD></TR>
 			<TR><TD>
@@ -38,28 +34,77 @@ return a;
 			</TD></TR>
 			</TABLE>>
 		];
-		Con_15 [ label="#1" ];
+	}
+	subgraph cluster_Nodes {
+		Con_5 [ label="1" ];
+		Phi_a8 [ style=filled fillcolor=lightyellow label="&phi;_a" ];
+		Con_9 [ label="10" ];
+		LT10 [ label="<" ];
+		Con_15 [ label="1" ];
 		Add16 [ label="+" ];
-		Con_17 [ label="#2" ];
-		Add18 [ label="+" ];
-		Return19 [ shape=box style=filled fillcolor=yellow label="Return" ];
-		{ rank=same; Region7;Phi_a9;}
+	}
+	node [shape=plaintext];
+	subgraph cluster_Scope7_1 {
+		Scope7_1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">2</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope7_2 {
+		Scope7_2 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope7_2_a">a7</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope7_3 {
+		Scope7_3 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope7_3_$ctrl">$ctrl7</TD></TR>
+			</TABLE>>];
+	}
+	}
+	}
+	node [shape=plaintext];
+	subgraph cluster_Scope1_1 {
+		Scope1_1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope1_1_a">a1</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope1_2 {
+		Scope1_2 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope1_2_$ctrl">$ctrl1</TD></TR>
+			</TABLE>>];
+	}
+	}
+	node [shape=plaintext];
+	subgraph cluster_Scope14_1 {
+		Scope14_1 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">1</TD><TD PORT="Scope14_1_a">a14</TD></TR>
+			</TABLE>>];
+	subgraph cluster_Scope14_2 {
+		Scope14_2 [label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+			<TR><TD BGCOLOR="cyan">0</TD><TD PORT="Scope14_2_$ctrl">$ctrl14</TD></TR>
+			</TABLE>>];
+	}
 	}
 	edge [ fontname=Helvetica, fontsize=8 ];
-	Stop3 -> Return19[taillabel=0 color=red];
-	Region7 -> Start2:p0[taillabel=1 color=red];
-	Region7 -> If12:p0[taillabel=2 color=red];
-	Phi_a9 -> Region7 [style=dotted taillabel=0];
-	Phi_a9 -> Con_6[taillabel=1];
-	Phi_a9 -> Add18[taillabel=2];
-	LTNode11 -> Phi_a9[taillabel=1];
-	LTNode11 -> Con_10[taillabel=2];
-	If12 -> Region7[taillabel=0 color=red];
-	If12 -> LTNode11[taillabel=1];
-	Add16 -> Phi_a9[taillabel=1];
+	Loop6 -> Start2:p0[taillabel=1 color=red];
+	Phi_a8 -> Loop6 [style=dotted taillabel=0];
+	Phi_a8 -> Con_5[taillabel=1];
+	LT10 -> Phi_a8[taillabel=1];
+	LT10 -> Con_9[taillabel=2];
+	If11 -> Loop6[taillabel=0 color=red];
+	If11 -> LT10[taillabel=1];
+	Add16 -> Phi_a8[taillabel=1];
 	Add16 -> Con_15[taillabel=2];
-	Add18 -> Add16[taillabel=1];
-	Add18 -> Con_17[taillabel=2];
-	Return19 -> If12:p1[taillabel=0 color=red];
-	Return19 -> Phi_a9[taillabel=1];
+	edge [style=dashed color=cornflowerblue];
+	Scope7_2:"Scope7_2_a" -> Add16;
+	Scope7_3:"Scope7_3_$ctrl" -> If11:p0;
+	edge [style=dashed color=cornflowerblue];
+	Scope1_1:"Scope1_1_a" -> Phi_a8;
+	Scope1_2:"Scope1_2_$ctrl" -> Loop6;
+	edge [style=dashed color=cornflowerblue];
+	Scope14_1:"Scope14_1_a" -> Phi_a8;
+	Scope14_2:"Scope14_2_$ctrl" -> If11:p1;
 }

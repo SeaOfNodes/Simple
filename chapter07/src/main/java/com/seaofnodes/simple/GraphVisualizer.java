@@ -11,6 +11,16 @@ import java.util.*;
  */
 public class GraphVisualizer {
 
+    boolean _separateControlCluster = true;
+
+    public GraphVisualizer(boolean _separateControlCluster) {
+        this._separateControlCluster = _separateControlCluster;
+    }
+
+    public GraphVisualizer() {
+        this(true);
+    }
+
     public String generateDotOutput(Parser parser) {
 
         // Since the graph has cycles, we need to create a flat list of all the
@@ -59,24 +69,27 @@ public class GraphVisualizer {
         return sb.toString();
     }
 
-
-    private void nodes(StringBuilder sb, Collection<Node> all) {
+    private void nodesByCluster(StringBuilder sb, boolean doCtrl, Collection<Node> all) {
+        if (!_separateControlCluster && doCtrl)
+            return;
         // Just the Nodes first, in a cluster no edges
-        sb.append("\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
-        for( Node n : all ) {
-            if( n instanceof ProjNode || n instanceof ScopeNode )
+        sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
+        for (Node n : all) {
+            if (n instanceof ProjNode || n instanceof ScopeNode)
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
+            if (_separateControlCluster && doCtrl && !n.isCFG()) continue;
+            if (_separateControlCluster && !doCtrl && n.isCFG()) continue;
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
             String lab = n.glabel();
-            if( n instanceof MultiNode ) {
+            if (n instanceof MultiNode) {
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.append("shape=plaintext label=<\n");
                 sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
                 sb.append("\t\t\t<TR><TD BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
                 sb.append("\t\t\t<TR>");
                 boolean doProjTable = false;
-                for( Node use : n._outputs ) {
-                    if( use instanceof ProjNode proj ) {
+                for (Node use : n._outputs) {
+                    if (use instanceof ProjNode proj) {
                         if (!doProjTable) {
                             doProjTable = true;
                             sb.append("<TD>").append("\n");
@@ -84,7 +97,7 @@ public class GraphVisualizer {
                             sb.append("\t\t\t\t<TR>");
                         }
                         sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
-                        if( proj.isCFG() ) sb.append(" BGCOLOR=\"yellow\"");
+                        if (proj.isCFG()) sb.append(" BGCOLOR=\"yellow\"");
                         sb.append(">").append(proj.glabel()).append("</TD>");
                     }
                 }
@@ -95,32 +108,34 @@ public class GraphVisualizer {
                 }
                 sb.append("</TR>\n");
                 sb.append("\t\t\t</TABLE>>\n\t\t");
-                
+
             } else {
                 // control nodes have box shape
                 // other nodes are ellipses, i.e. default shape
-                if( n.isCFG() )
-                    sb.append("shape=box style=filled fillcolor=yellow ");
-                if( n instanceof PhiNode )
-                    sb.append("style=filled fillcolor=lightyellow ");
+                if (n.isCFG()) sb.append("shape=box style=filled fillcolor=yellow ");
+                else if (n instanceof PhiNode) sb.append("style=filled fillcolor=lightyellow ");
                 sb.append("label=\"").append(lab).append("\" ");
             }
             sb.append("];\n");
         }
-        
-        // Force Region & Phis to line up
-        for( Node n : all ) {
-            if( n instanceof RegionNode region ) {
-                sb.append("\t\t{ rank=same; ");
-                sb.append(region).append(";")     ;
-                for( Node phi : region._outputs )
-                    if( phi instanceof PhiNode )
-                        sb.append(phi.uniqueName()).append(";");
-                sb.append("}\n");
+        if (!_separateControlCluster) {
+            // Force Region & Phis to line up
+            for (Node n : all) {
+                if (n instanceof RegionNode region) {
+                    sb.append("\t\t{ rank=same; ");
+                    sb.append(region).append(";");
+                    for (Node phi : region._outputs)
+                        if (phi instanceof PhiNode) sb.append(phi.uniqueName()).append(";");
+                    sb.append("}\n");
+                }
             }
         }
-        
         sb.append("\t}\n");     // End Node cluster
+    }
+
+    private void nodes(StringBuilder sb, Collection<Node> all) {
+        nodesByCluster(sb, true, all);
+        nodesByCluster(sb, false, all);
     }
 
     // Build a nested scope display, walking the _prev edge
@@ -135,9 +150,10 @@ public class GraphVisualizer {
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
-            sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(scope._scopes.size()-level).append("</TD>");
-            for( int i=0; i<syms.size(); i++ )
-                sb.append("<TD PORT=\"").append(makePortName(scopeName, revs[i])).append("\">").append(revs[i]).append("</TD>");
+            int scopeLevel = scope._scopes.size()-level;
+            sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(scopeLevel).append("</TD>");
+            for(String name: syms.keySet())
+                sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append(scope._nid).append("</TD>");
             sb.append("</TR>\n");
             sb.append("\t\t\t</TABLE>>];\n");
             level++;
