@@ -10,24 +10,21 @@ The complication introduced by looping constructs is that variables flow back in
 For example:
 
 ```java
-int a = 1;
-while(a < 10) {
-    a = a + 1;
+while(arg < 10) {
+    arg = arg + 1;
 }
-return a;
+return arg;
 ```
 
-The variable `a` is assigned a new value inside the body of the loop, and this then flows back into the body of the loop.
+The variable `arg` is assigned a new value inside the body of the loop, and this then flows back into the body of the loop.
 
 In general, we will rewrite the looping construct as follows:
 
 ```java
-int a = 1;
-
 loop_head:
-if ( !(a < 10) ) 
+if ( !(arg < 10) ) 
     goto loop_exit;
-a = a + 1;
+arg = arg + 1;
 goto loop_head;
 
 loop_exit:
@@ -35,22 +32,22 @@ loop_exit:
 
 Above is for illustration only, we do not have labels and `goto` statements in the language.
 
-From an SSA[^1] point of view, since `a` flows back, it requires a `phi` node at the head. Conceptually we would like the outcome to be:
+From an SSA[^1] point of view, since `arg` flows back, it requires a `phi` node at the head. Conceptually we would like the outcome to be:
 
 ```java
-a1 = 1;
-
+// arg1 represents incoming arg
+//
 loop_head:
-a2 = phi(a1, a3);
-if ( !(a2 < 10) ) 
+arg2 = phi(arg1, arg3);
+if ( !(arg2 < 10) ) 
     goto loop_exit;
-a3 = a2 + 1;
+arg3 = arg2 + 1;
 goto loop_head;
 
 loop_exit:
 ```
 
-Notice that the phi for `a2` refers to `a3`, which is not known at the time we parse the `while` loop predicate. This is the crux of the problem that we need 
+Notice that the phi for `arg2` refers to `arg3`, which is not known at the time we parse the `while` loop predicate. This is the crux of the problem that we need 
 to solve in order to successfully construct the Sea of Nodes graph, which is always in SSA form.
 
 Recall from [Chapter 5](../chapter05/README.md) that when parsing `if` statements, we clone the symbol tables as we go past the `if` predicate.
@@ -183,14 +180,13 @@ The example quoted above is shown below at an intermediate state:
 
 Some points worth noting:
 
-* The names in the scope are suffixed with a Scope id, so that the variable `a` appears as `a1`, `a7` and `a14`. Here `1`,
-  `7` and `14` identify the Scope where the name binding is held.
-* The Scope with id `1` is the head scope, and its control points to the loop region.
-* The Scope with id `7` is the body scope; its control points to the `True` branch of the `If` node.
-* The Scope with id `14` is the exit scope, and lives after the loop ends. Observe that its control points to the `False`
-  branch of the `If` node.
-* The `$ctrl` binding in each Scope is set appropriately; but remaining bindings all reference the phi node that was
-  created for `a`.
+* Three Scopes are shown in the bottom section; anti-clockwise, the topmost is the loop head, bottom left is the loop body,
+  and the bottom right is the exit Scope.
+* The head Scope's control points to the `Loop` region.
+* The body Scope's control points to the `True` branch of the `If` node.
+* The exit Scope's control points to the `False` branch of the `If` node.
+* The `$ctrl` binding in each Scope is set appropriately; but remaining bindings all reference directly or indirectly the phi node that was
+  created for `arg`.
 
 
 [^1]: Cyton, R. et al (1991).

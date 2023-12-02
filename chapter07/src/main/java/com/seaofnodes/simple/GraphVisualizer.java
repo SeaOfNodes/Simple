@@ -151,7 +151,7 @@ public class GraphVisualizer {
             int scopeLevel = scope._scopes.size()-level;
             sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(scopeLevel).append("</TD>");
             for(String name: syms.keySet())
-                sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append(scope._nid).append("</TD>");
+                sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
             sb.append("</TR>\n");
             sb.append("\t\t\t</TABLE>>];\n");
             level++;
