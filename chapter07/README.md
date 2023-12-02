@@ -40,11 +40,11 @@ From an SSA[^1] point of view, since `a` flows back, it requires a `phi` node at
 a1 = 1;
 
 loop_head:
-a2 = phi(a1, a3);        
-if (a2 < 10) {
-    a3 = a2 + 1;
-    goto loop_head;
-}
+a2 = phi(a1, a3);
+if (!(a2 < 10)) goto loop_exit;
+a3 = a2 + 1;
+goto loop_head;
+
 loop_exit:
 ```
 
