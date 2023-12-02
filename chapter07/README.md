@@ -72,8 +72,8 @@ created until we complete parsing the loop body. This is because our phis are no
 
 ## Detailed Steps
 
-1. We start by create a new loop `Region`. The Loop region gets two control inputs, 
-   the first one is the entry point, i.e. the current binding to `$ctrl`, and second one (null) is the back edge that is 
+1. We start by creating a new subclass of `Region`, the `Loop`. The `Loop` gets two control inputs, 
+   the first one is the entry point, i.e. the current binding to `$ctrl`, and second one (`null`) is a placeholder for the back edge that is 
    set after loop is parsed. The absence of a back edge is used as an indicator to switch off peepholes of the region and
    associated phis. 
 
