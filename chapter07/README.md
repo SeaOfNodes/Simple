@@ -204,7 +204,7 @@ return sum;
 
 ![Graph2](./docs/07-graph3.svg)
 
-### Nested With Nested If
+### Loop With Nested If
 
 ```java
 int a = 1;
