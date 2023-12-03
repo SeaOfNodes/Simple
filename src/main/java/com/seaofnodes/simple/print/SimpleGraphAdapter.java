@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 
-/** Chapter 6's view of the IR; browser, transport and layout are shared. */
+/** Chapter 7's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -37,6 +37,7 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
         if( n instanceof StopNode ) return Kind.STOP;
         if( n instanceof ScopeNode ) return Kind.SCOPE;
         if( n instanceof StartNode ) return Kind.CTRL;
+        if( n instanceof LoopNode ) return Kind.LOOP;
         if( n instanceof RegionNode ) return Kind.REGION;
         if( n instanceof PhiNode ) return Kind.PHI;
         return n.isCFG() ? Kind.CTRL : Kind.DATA;

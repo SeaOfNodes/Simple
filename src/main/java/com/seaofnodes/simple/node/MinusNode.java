@@ -3,14 +3,16 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+import java.util.BitSet;
+
 public class MinusNode extends Node {
     public MinusNode(Node in) { super(null, in); }
 
     @Override public String label() { return "Minus"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("(-"));
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        in(1)._print0(sb.append("(-"), visited);
         return sb.append(")");
     }
 

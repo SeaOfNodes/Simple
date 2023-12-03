@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+import java.util.BitSet;
+
 abstract public class BoolNode extends Node {
 
     public BoolNode(Node lhs, Node rhs) {
@@ -15,9 +17,9 @@ abstract public class BoolNode extends Node {
     public String label() { return getClass().getSimpleName(); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("("));
-        in(2)._print0(sb.append(op()));
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        in(1)._print0(sb.append("("), visited);
+        in(2)._print0(sb.append(op()), visited);
         return sb.append(")");
     }
 
