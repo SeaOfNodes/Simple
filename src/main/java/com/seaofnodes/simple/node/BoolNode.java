@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+
 abstract public class BoolNode extends Node {
 
     public BoolNode(Node lhs, Node rhs) {

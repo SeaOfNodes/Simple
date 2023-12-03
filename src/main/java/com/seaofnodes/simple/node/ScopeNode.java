@@ -36,21 +36,14 @@ public class ScopeNode extends Node {
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
-        p.p(label());
-        for( HashMap<String,Integer> scope : _scopes ) {
-            p.p("[");
-            boolean first=true;
-            for( String name : scope.keySet() ) {
-                if( !first ) p.p(", ");
-                first=false;
-                p.p(name).p(":");
-                Node n = in(scope.get(name));
-                if( n==null ) p.p("null");
-                else p.n(n);
-            }
-            p.p("]");
+        p.p("Scope[ ");
+        String[] names = reverseNames();
+        for( int j=0; j<nIns(); j++ ) {
+            p.p(names[j]).p(":");
+            Node n = in(j);
+            p.n(n).p(" ");
         }
-        return p;
+        return p.unchar(' ').p("]");
     }
 
     /**
@@ -141,7 +134,8 @@ public class ScopeNode extends Node {
      * <p>
      * The new Scope is a full-fledged Node with proper use<->def edges.
      */
-    public ScopeNode dup() {
+    public ScopeNode dup() { return dup(false); }
+    public ScopeNode dup(boolean loop) {
         ScopeNode dup = new ScopeNode();
         // Our goals are:
         // 1) duplicate the name bindings of the ScopeNode across all stack levels
@@ -149,9 +143,19 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
+
         dup.addDef(ctrl());      // Control input is just copied
-        for( int i=1; i<nIns(); i++ )
-            dup.addDef(in(i));
+        for( int i=1; i<nIns(); i++ ) {
+            if ( !loop ) { dup.addDef(in(i)); }
+            else {
+                String[] names = reverseNames(); // Get the variable names
+                // Create a phi node with second input as null - to be filled in
+                // by endLoop() below
+                dup.addDef(new PhiNode(names[i], ctrl(), in(i), null).peephole());
+                // Ensure our node has the same phi in case we created one
+                setDef(i, dup.in(i));
+            }
+        }
         return dup;
     }
 
@@ -174,4 +178,21 @@ public class ScopeNode extends Node {
         return r.unkeep().peephole();
     }
 
+    // Merge the backedge scope into this loop head scope
+    // We set the second input to the phi from the back edge (i.e. loop body)
+    public void endLoop(ScopeNode back, ScopeNode exit ) {
+        Node ctrl = ctrl();
+        assert ctrl instanceof LoopNode loop && loop.inProgress();
+        ctrl.setDef(2,back.ctrl());
+        for( int i=1; i<nIns(); i++ ) {
+            PhiNode phi = (PhiNode)in(i);
+            assert phi.region()==ctrl && phi.in(2)==null;
+            phi.setDef(2,back.in(i));
+            // Do an eager useless-phi removal
+            Node in = phi.peephole();
+            if( in != phi )
+                phi.subsume(in);
+        }
+        back.kill();            // Loop backedge is dead
+    }
 }

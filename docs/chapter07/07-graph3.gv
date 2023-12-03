@@ -1,0 +1,108 @@
+digraph chapter07 {
+/*
+int sum = 0;
+int i = 0;
+while(i < arg) {
+    i = i + 1;
+    int j = 0;
+    while( j < arg ) {
+        sum = sum + j;
+        j = j + 1;
+    }
+}
+return sum;
+
+*/
+	rankdir=BT;
+	ordering="in";
+	concentrate="true";
+	compound="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_6 [ label="0" ];
+		Con_7 [ label="0" ];
+		Loop8 [ shape=box style=filled fillcolor=yellow label="Loop" ];
+		Phi_sum11 [ style=filled fillcolor=lightyellow label="&phi;_sum" ];
+		Phi_i12 [ style=filled fillcolor=lightyellow label="&phi;_i" ];
+		LT13 [ label="<" ];
+		If14 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_18 [ label="1" ];
+		Add19 [ label="+" ];
+		Con_20 [ label="0" ];
+		Loop21 [ shape=box style=filled fillcolor=yellow label="Loop" ];
+		Phi_sum24 [ style=filled fillcolor=lightyellow label="&phi;_sum" ];
+		Phi_j26 [ style=filled fillcolor=lightyellow label="&phi;_j" ];
+		LT27 [ label="<" ];
+		If28 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Add32 [ label="+" ];
+		Con_33 [ label="1" ];
+		Add34 [ label="+" ];
+		Return35 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		{ rank=same; Loop8;Phi_sum11;Phi_i12;}
+		{ rank=same; Loop21;Phi_sum24;Phi_j26;}
+	}
+	node [shape=plaintext];
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return35[taillabel=0 color=red];
+	Loop8 -> Start2:p0[taillabel=1 color=red];
+	Loop8 -> If28:p1[taillabel=2 color=red constraint=false];
+	Phi_sum11 -> Loop8 [style=dotted taillabel=0];
+	Phi_sum11 -> Con_6[taillabel=1];
+	Phi_sum11 -> Phi_sum24[taillabel=2 constraint=false];
+	Phi_i12 -> Loop8 [style=dotted taillabel=0];
+	Phi_i12 -> Con_7[taillabel=1];
+	Phi_i12 -> Add19[taillabel=2 constraint=false];
+	LT13 -> Phi_i12[taillabel=1];
+	LT13 -> Start2:p1[taillabel=2];
+	If14 -> Loop8[taillabel=0 color=red];
+	If14 -> LT13[taillabel=1];
+	Add19 -> Phi_i12[taillabel=1];
+	Add19 -> Con_18[taillabel=2];
+	Loop21 -> If14:p0[taillabel=1 color=red];
+	Loop21 -> If28:p0[taillabel=2 color=red constraint=false];
+	Phi_sum24 -> Loop21 [style=dotted taillabel=0];
+	Phi_sum24 -> Phi_sum11[taillabel=1];
+	Phi_sum24 -> Add32[taillabel=2 constraint=false];
+	Phi_j26 -> Loop21 [style=dotted taillabel=0];
+	Phi_j26 -> Con_20[taillabel=1];
+	Phi_j26 -> Add34[taillabel=2 constraint=false];
+	LT27 -> Phi_j26[taillabel=1];
+	LT27 -> Start2:p1[taillabel=2];
+	If28 -> Loop21[taillabel=0 color=red];
+	If28 -> LT27[taillabel=1];
+	Add32 -> Phi_j26[taillabel=1];
+	Add32 -> Phi_sum24[taillabel=2];
+	Add34 -> Phi_j26[taillabel=1];
+	Add34 -> Con_33[taillabel=2];
+	Return35 -> If14:p1[taillabel=0 color=red];
+	Return35 -> Phi_sum11[taillabel=1];
+	edge [style=dashed color=cornflowerblue];
+}
