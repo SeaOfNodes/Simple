@@ -26,7 +26,7 @@ public class ProjNode extends Node {
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
     @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
-    @Override boolean isMultiTail() { return in(0).isMultiHead(); }
+    @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
 
     public MultiNode ctrl() { return (MultiNode)in(0); }
 

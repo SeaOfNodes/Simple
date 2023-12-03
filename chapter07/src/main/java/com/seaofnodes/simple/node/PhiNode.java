@@ -30,7 +30,7 @@ public class PhiNode extends Node {
     }
 
     RegionNode region() { return (RegionNode)in(0); }
-    @Override boolean isMultiTail() { return true; }
+    @Override public boolean isMultiTail() { return true; }
 
     @Override
     public Type compute() {
