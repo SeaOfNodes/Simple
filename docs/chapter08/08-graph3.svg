@@ -1,0 +1,179 @@
+<svg aria-label="Compiler graph" width="955" height="1390" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 955 1390" style="font-family: sans-serif;"><style>
+    html, body { height:100%; margin:0; font-family:sans-serif; }
+    .viewer { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+    .source { padding:8px; border-bottom:1px solid #ccc; }
+    #program { width:min(600px,80vw); vertical-align:middle; }
+    #status { margin-top:4px; }
+    #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
+    #elk { width:100%; height:100%; }
+    #graph svg { display:block; }
+    .tools { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
+    .hint { color:#616c78; }
+    .ctrl { color:#b63838; } .mem { color:#2867b2; } .data { color:#536477; }
+    .edge { fill:none; stroke-width:1.5; }
+    .edge.CTRL { stroke-width:2; }
+    .edge.ASSOC { stroke-dasharray:4 4; }
+    .edge.PARSER { stroke-dasharray:5 4; }
+    .parser rect { fill:#f6f0ff; stroke:#7956a5; stroke-width:1.5; stroke-dasharray:5 4; }
+    .edge.selected { stroke-width:3.5; }
+    .edge.bundle { stroke-width:4; }
+    .edge.bundle.selected { stroke-width:6; }
+    .edge-hit { fill:none; stroke:transparent; stroke-width:12; vector-effect:non-scaling-stroke; pointer-events:stroke; cursor:pointer; }
+    .edge-jump { fill:transparent; pointer-events:all; cursor:pointer; }
+    .node { cursor:pointer; }
+    .box { stroke:#758191; stroke-width:1; }
+    .node.held .box { stroke-dasharray:5 3; }
+    .node.near .box { stroke:#c18221; stroke-width:2; }
+    .node.focus .box { stroke:#9c4900; stroke-width:3; }
+    .node.selected .box { stroke:#1569b9; stroke-width:3; }
+    .node.folded .box { stroke-width:4; }
+    .node.folding .box { fill:#f4ccd7; }
+    .fold-tag { font-size:9px; font-weight:700; fill:#963751; }
+    .peep-area { fill:#fff3d9; fill-opacity:.8; stroke:#c18221; stroke-width:2; pointer-events:none; }
+    .node.peep-edit .box { stroke:#9c4900; stroke-width:3; }
+    .node.error .box { stroke:#b42318; stroke-width:4; }
+    #event.error { color:#b42318; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .peep-ghosts { pointer-events:none; }
+    .region-box { stroke:#9da9b8; stroke-width:1.5; }
+    .fold-btn { cursor:pointer; }
+    .fold-btn rect { fill:white; stroke:#596674; }
+    .fold-btn text { font-size:14px; fill:#152330; }
+    .fold-btn:focus rect { stroke:#1569b9; stroke-width:2; }
+    .shortcut { cursor:pointer; }
+    .shortcut path { fill:none; stroke-width:1.5; }
+    .shortcut rect { fill:#fff8ec; stroke:#b63838; stroke-dasharray:3 2; }
+    .shortcut text { font-size:11px; fill:#783030; }
+    .shortcut.selected rect, .shortcut:focus rect { stroke-width:2.5; }
+    .label { font-size:12px; fill:#152330; font-weight:600; }
+    .node-id { font-size:10px; fill:#596674; font-weight:400; }
+    .type { font-size:11px; fill:#455768; }
+    .port { stroke:#536477; stroke-width:1; }
+    .row { stroke:#b6afcf; stroke-width:1; }
+    .bind { font-size:12px; fill:#152330; }
+    .slot { font-size:10px; fill:#364352; paint-order:stroke; stroke:#fafbfc; stroke-width:3; }
+    #detail { position:absolute; top:8px; right:8px; margin:0; padding:12px; max-width:320px;
+      max-height:45%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;
+      background:#fffffff2; border:1px solid #bac5d0; border-radius:4px; font-size:12px; }
+    .controls { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px; padding:6px; }
+    .button { color:white; background:black; font-size:20px; min-width:30px; }
+    .button:disabled { background:grey; }
+    .count { font-size:20px; min-width:35px; text-align:center; }
+    #N { width:6ch; }
+    #scrub { width:clamp(120px,35vw,600px); }
+  </style><defs><marker id="arrow-CTRL" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#b63838"/></marker><marker id="arrow-DATA" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#536477"/></marker><marker id="arrow-MEM" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#2867b2"/></marker><marker id="arrow-ASSOC" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#9396a3"/></marker><marker id="arrow-PARSER" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#7956a5"/></marker></defs><rect width="100%" height="100%" fill="rgb(250, 251, 252)"/><g><g class="regions" style="opacity: 1;"><g class="region" transform="translate(34,269)"><rect class="region-box" rx="8" width="667" height="706" fill="#f1f6fc"/></g></g><rect class="peep-area" rx="36" style="opacity: 0;"/><g class="edges"><path class="edge CTRL" id="e3i0" d="M449,1289 C449,1313 477.5,1316 477.5,1340" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#3[0] → #39 · CTRL</title></path><path class="edge CTRL" id="e6i1" d="M137,216 L137,339" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#6[1] → #1 · CTRL</title></path><path class="edge CTRL" id="e6i2" d="M539,940 L539,945 Q539,950 544,950 L681,950 Q689,950 689,942 L689,330 Q689,322 681,322 L175,322 Q167,322 167,330 L167,342" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#6[2] → #20 · CTRL</title></path><path class="edge DATA" id="e8i1" d="M257,216 L257,221 Q257,226 262,226 L263,226 Q269,226 269,232 L269,339" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#8[1] → #4 · DATA</title></path><path class="edge DATA" id="e8i2" d="M567,200.33333333333331 L567,205.33333333333331 Q567,210.33333333333331 572,210.33333333333331 L647.1666666666666,210.33333333333331 Q651,210.33333333333331 651,214.16666666666666 L651,214.16666666666666 Q651,218 654.8333333333334,218 L671,218 Q679,218 679,226 L679,322 Q679,330 671,330 L315,330 Q309,330 309,336 L309,342" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#8[2] → #16 · DATA</title></path><path class="edge DATA" id="e10i1" d="M289,395 L289,443" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#10[1] → #8 · DATA</title></path><path class="edge DATA" id="e10i2" d="M415,216 L415,221 Q415,226 410,226 L367,226 Q359,226 359,234 L359,397 Q359,405 351,405 L327,405 Q319,405 319,413 L319,443" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#10[2] → #9 · DATA</title></path><path class="edge CTRL" id="e11i0" d="M137,395 L137,547" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#11[0] → #6 · CTRL</title></path><path class="edge DATA" id="e11i1" d="M289,499 L289,504 Q289,509 284,509 L225,509 Q217,509 217,517 L217,547" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#11[1] → #10 · DATA</title></path><path class="edge DATA" id="e16i1" d="M289,395 L289,400 Q289,405 284,405 L54,405 Q46,405 46,413 L46,992 Q46,1000 38,1000 L32,1000 Q24,1000 24,992 L24,92 Q24,84 32,84 L559,84 Q567,84 567,92 L567,147.33333333333331" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#16[1] → #8 · DATA</title></path><path class="edge DATA" id="e16i2" d="M597,74 L597,147.33333333333331" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#16[2] → #15 · DATA</title></path><path class="edge DATA" id="e18i1" d="M567,203.33333333333331 L567,238 Q567,246 559,246 L427,246 Q419,246 419,254 L419,561.6666666666666" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#18[1] → #16 · DATA</title></path><path class="edge DATA" id="e18i2" d="M719,216 L719,221 Q719,226 714,226 L457,226 Q449,226 449,234 L449,561.6666666666666" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#18[2] → #17 · DATA</title></path><path class="edge CTRL" id="e19i0" d="M117,647 L117,659 Q117,667 125,667 L331,667 Q339,667 339,675 L339,695" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#19[0] → #5 · CTRL</title></path><path class="edge DATA" id="e19i1" d="M419,617.6666666666666 L419,695" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#19[1] → #18 · DATA</title></path><path class="edge CTRL" id="e25i1" d="M237,647 L237,1028" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#25[1] → #7 · CTRL</title></path><path class="edge CTRL" id="e25i2" d="M319,795 L319,982 Q319,990 311,990 L275,990 Q267,990 267,998 L267,1028" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#25[2] → #12 · CTRL</title></path><path class="edge DATA" id="e26i1" d="M289,395 L289,400 Q289,405 284,405 L54,405 Q46,405 46,413 L46,992 Q46,1000 54,1000 L361,1000 Q369,1000 369,1008 L369,1028" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#26[1] → #8 · DATA</title></path><path class="edge DATA" id="e26i2" d="M567,203.33333333333331 L567,238 Q567,246 575,246 L703,246 Q711,246 711,254 L711,982 Q711,990 703,990 L417,990 Q409,990 409,998 L409,1028" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#26[2] → #16 · DATA</title></path><path class="edge DATA" id="e29i1" d="M567,203.33333333333331 L567,238 Q567,246 575,246 L589,246 Q597,246 597,254 L597,709.6666666666667" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#29[1] → #16 · DATA</title></path><path class="edge DATA" id="e29i2" d="M871,216 L871,228 Q871,236 863,236 L635,236 Q627,236 627,244 L627,709.6666666666667" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#29[2] → #28 · DATA</title></path><path class="edge CTRL" id="e30i0" d="M439,795 L439,843" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#30[0] → #13 · CTRL</title></path><path class="edge DATA" id="e30i1" d="M597,765.6666666666667 L597,797 Q597,805 589,805 L527,805 Q519,805 519,813 L519,843" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#30[1] → #29 · DATA</title></path><path class="edge CTRL" id="e36i1" d="M237,1084 L237,1096 Q237,1104 245,1104 L421,1104 Q429,1104 429,1112 L429,1132" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#36[1] → #25 · CTRL</title></path><path class="edge CTRL" id="e36i2" d="M419,943 L419,992 Q419,1000 427,1000 L451,1000 Q459,1000 459,1008 L459,1132" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#36[2] → #14 · CTRL</title></path><path class="edge DATA" id="e37i1" d="M389,1084 L389,1089 Q389,1094 394,1094 L553,1094 Q561,1094 561,1102 L561,1132" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#37[1] → #26 · DATA</title></path><path class="edge DATA" id="e37i2" d="M567,203.33333333333331 L567,238 Q567,246 575,246 L703,246 Q711,246 711,254 L711,982 Q711,990 703,990 L609,990 Q601,990 601,998 L601,1132" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#37[2] → #16 · DATA</title></path><path class="edge CTRL" id="e39i0" d="M429,1188 L429,1236" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#39[0] → #36 · CTRL</title></path><path class="edge DATA" id="e39i1" d="M581,1188 L581,1193 Q581,1198 576,1198 L477,1198 Q469,1198 469,1206 L469,1236" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#39[1] → #37 · DATA</title></path></g><g class="edge-hits"/><g class="parser" style="opacity: 1;"/><g class="nodes"><g class="node" id="n1" data-id="1" transform="translate(77,166)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>$ctrl</tspan><tspan class="node-id">  #1/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#1 $ctrl
+Projection 0 of #2
+Type not computed
+
+[0] → #2  CTRL</title></g><g class="node" id="n2" data-id="2" transform="translate(77,122)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>Start</tspan><tspan class="node-id">  #2</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#2 Start
+Type not computed
+
+</title></g><g class="node" id="n3" data-id="3" transform="translate(441.5,1340)" style="opacity: 1;"><path class="box" d="M0,0H72V26H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="36" y="17"><tspan>Stop</tspan><tspan class="node-id">  #3</tspan></text><text class="type" text-anchor="middle" y="35" x="36"/><title>#3 Stop
+Type not computed
+
+[0] → #39  CTRL</title><circle class="port" cx="36" cy="0" r="3" fill="#536477"/><text class="slot" x="36" y="-7" text-anchor="middle">0</text></g><g class="node" id="n4" data-id="4" transform="translate(197,166)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>arg</tspan><tspan class="node-id">  #4/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#4 arg
+Projection 1 of #2
+Type not computed
+
+[0] → #2  DATA</title></g><g class="node" id="n5" data-id="5" transform="translate(57,597)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>True</tspan><tspan class="node-id">  #5/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#5 True
+Projection 0 of #11
+Type not computed
+
+[0] → #11  CTRL</title></g><g class="node" id="n6" data-id="6" transform="translate(77,345)" style="opacity: 1;"><path class="box" d="M20,0H100Q120,0 120,20V24Q120,44 100,44H20Q0,44 0,24V20Q0,0 20,0Z" fill="#ffe0ab"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Loop</tspan><tspan class="node-id">  #6</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#6 Loop
+Type not computed
+
+[0] → —  DATA
+[1] → #1  CTRL
+[2] → #20  CTRL</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n7" data-id="7" transform="translate(177,597)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>False</tspan><tspan class="node-id">  #7/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#7 False
+Projection 1 of #11
+Type not computed
+
+[0] → #11  CTRL</title></g><g class="node" id="n8" data-id="8" transform="translate(229,345)" style="opacity: 1;"><path class="box" d="M12,0H108L120,22L108,44H12L0,22Z" fill="#f5e4fa"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>φ_arg</tspan><tspan class="node-id">  #8</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#8 φ_arg
+Type not computed
+
+[0] → #6  ASSOC
+[1] → #4  DATA
+[2] → #16  DATA</title><circle class="port" cx="-3" cy="22" r="3" fill="#536477"/><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><path class="reg" fill="none" stroke="#b63838" d="M-3,22H-18m4,-3l-4,3l4,3"><title>[0] → #6</title></path><text class="slot" x="-10" y="15" text-anchor="middle">0</text><text class="slot" x="40" y="-10" text-anchor="middle">1</text><text class="slot" x="80" y="-10" text-anchor="middle">2</text></g><g class="node" id="n9" data-id="9" transform="translate(355,166)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>10</tspan><tspan class="node-id">  #9</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#9 10
+Type not computed
+
+</title></g><g class="node" id="n10" data-id="10" transform="translate(229,449)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>&lt;</tspan><tspan class="node-id">  #10</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#10 &lt;
+Type not computed
+
+[0] → —  DATA
+[1] → #8  DATA
+[2] → #9  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n11" data-id="11" transform="translate(57,553)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>If</tspan><tspan class="node-id">  #11</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#11 If
+Type not computed
+
+[0] → #6  CTRL
+[1] → #10  DATA</title><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><circle class="port" cx="160" cy="-3" r="3" fill="#536477"/><text class="slot" x="80" y="-10" text-anchor="middle">0</text><text class="slot" x="160" y="-10" text-anchor="middle">1</text></g><g class="node" id="n12" data-id="12" transform="translate(259,745)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>True</tspan><tspan class="node-id">  #12/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#12 True
+Projection 0 of #19
+Type not computed
+
+[0] → #19  CTRL</title></g><g class="node" id="n13" data-id="13" transform="translate(379,745)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>False</tspan><tspan class="node-id">  #13/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#13 False
+Projection 1 of #19
+Type not computed
+
+[0] → #19  CTRL</title></g><g class="node" id="n14" data-id="14" transform="translate(359,893)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>True</tspan><tspan class="node-id">  #14/0</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#14 True
+Projection 0 of #30
+Type not computed
+
+[0] → #30  CTRL</title></g><g class="node" id="n15" data-id="15" transform="translate(537,24)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>1</tspan><tspan class="node-id">  #15</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#15 1
+Type not computed
+
+</title></g><g class="node" id="n16" data-id="16" transform="translate(507,153.33333333333331)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>+</tspan><tspan class="node-id">  #16</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#16 +
+Type not computed
+
+[0] → —  DATA
+[1] → #8  DATA
+[2] → #15  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n17" data-id="17" transform="translate(659,166)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>5</tspan><tspan class="node-id">  #17</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#17 5
+Type not computed
+
+</title></g><g class="node" id="n18" data-id="18" transform="translate(359,567.6666666666666)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>==</tspan><tspan class="node-id">  #18</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#18 ==
+Type not computed
+
+[0] → —  DATA
+[1] → #16  DATA
+[2] → #17  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n19" data-id="19" transform="translate(259,701)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>If</tspan><tspan class="node-id">  #19</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#19 If
+Type not computed
+
+[0] → #5  CTRL
+[1] → #18  DATA</title><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><circle class="port" cx="160" cy="-3" r="3" fill="#536477"/><text class="slot" x="80" y="-10" text-anchor="middle">0</text><text class="slot" x="160" y="-10" text-anchor="middle">1</text></g><g class="node" id="n20" data-id="20" transform="translate(479,893)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>False</tspan><tspan class="node-id">  #20/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#20 False
+Projection 1 of #30
+Type not computed
+
+[0] → #30  CTRL</title></g><g class="node" id="n25" data-id="25" transform="translate(177,1034)" style="opacity: 1;"><path class="box" d="M12,0H108L120,44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Region</tspan><tspan class="node-id">  #25</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#25 Region
+Type not computed
+
+[0] → —  DATA
+[1] → #7  CTRL
+[2] → #12  CTRL</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n26" data-id="26" transform="translate(329,1034)" style="opacity: 1;"><path class="box" d="M12,0H108L120,22L108,44H12L0,22Z" fill="#f5e4fa"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>φ_arg</tspan><tspan class="node-id">  #26</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#26 φ_arg
+Type not computed
+
+[0] → #25  ASSOC
+[1] → #8  DATA
+[2] → #16  DATA</title><circle class="port" cx="-3" cy="22" r="3" fill="#536477"/><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><path class="reg" fill="none" stroke="#b63838" d="M-3,22H-18m4,-3l-4,3l4,3"><title>[0] → #25</title></path><text class="slot" x="-10" y="15" text-anchor="middle">0</text><text class="slot" x="40" y="-10" text-anchor="middle">1</text><text class="slot" x="80" y="-10" text-anchor="middle">2</text></g><g class="node" id="n28" data-id="28" transform="translate(811,166)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>6</tspan><tspan class="node-id">  #28</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#28 6
+Type not computed
+
+</title></g><g class="node" id="n29" data-id="29" transform="translate(537,715.6666666666667)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>==</tspan><tspan class="node-id">  #29</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#29 ==
+Type not computed
+
+[0] → —  DATA
+[1] → #16  DATA
+[2] → #28  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n30" data-id="30" transform="translate(359,849)" style="opacity: 1;"><path class="box" d="M0,0H240V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="120" y="18"><tspan>If</tspan><tspan class="node-id">  #30</tspan></text><text class="type" text-anchor="middle" y="35" x="120"/><title>#30 If
+Type not computed
+
+[0] → #13  CTRL
+[1] → #29  DATA</title><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><circle class="port" cx="160" cy="-3" r="3" fill="#536477"/><text class="slot" x="80" y="-10" text-anchor="middle">0</text><text class="slot" x="160" y="-10" text-anchor="middle">1</text></g><g class="node" id="n36" data-id="36" transform="translate(369,1138)" style="opacity: 1;"><path class="box" d="M12,0H108L120,44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Region</tspan><tspan class="node-id">  #36</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#36 Region
+Type not computed
+
+[0] → —  DATA
+[1] → #25  CTRL
+[2] → #14  CTRL</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n37" data-id="37" transform="translate(521,1138)" style="opacity: 1;"><path class="box" d="M12,0H108L120,22L108,44H12L0,22Z" fill="#f5e4fa"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>φ_arg</tspan><tspan class="node-id">  #37</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#37 φ_arg
+Type not computed
+
+[0] → #36  ASSOC
+[1] → #26  DATA
+[2] → #16  DATA</title><circle class="port" cx="-3" cy="22" r="3" fill="#536477"/><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><path class="reg" fill="none" stroke="#b63838" d="M-3,22H-18m4,-3l-4,3l4,3"><title>[0] → #36</title></path><text class="slot" x="-10" y="15" text-anchor="middle">0</text><text class="slot" x="40" y="-10" text-anchor="middle">1</text><text class="slot" x="80" y="-10" text-anchor="middle">2</text></g><g class="node" id="n39" data-id="39" transform="translate(389,1242)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Return</tspan><tspan class="node-id">  #39</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#39 Return
+Type not computed
+
+[0] → #36  CTRL
+[1] → #37  DATA</title><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><text class="slot" x="40" y="-10" text-anchor="middle">0</text><text class="slot" x="80" y="-10" text-anchor="middle">1</text></g></g><g class="region-heads" style="opacity: 1;"><g class="region-head" transform="translate(34,269)"><text class="label" x="26" y="17"><tspan>Loop</tspan><tspan class="node-id">  #6</tspan></text><title>Loop · 14 nodes</title><g class="fold-btn" role="button" tabindex="0" transform="translate(4,4)" aria-label="Fold region #6"><rect width="16" height="16" rx="2"/><text x="8" y="12" text-anchor="middle">−</text><title>Fold region</title></g></g></g><g class="shortcuts" style="opacity: 1;"/><g class="peep-ghosts" pointer-events="none"/></g></svg>
