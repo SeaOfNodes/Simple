@@ -34,16 +34,17 @@ The simple language will be a small subset of C.
 * [Chapter 4](chapter04/README.md): A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications. 
 * [Chapter 5](chapter05/README.md): `if` statement. CFG construction.
 * [Chapter 6](chapter06/README.md): Peephole optimization around dead control flow. 
-* Chapter 7: `while` statement.
-* Chapter 8: Global Value Numbering.
-* Chapter 9: Functions and calls.
-* Chapter 10: Boolean operators `&&`, `||` and `!` including short circuit.
-* Chapter 11: Memory effects: general memory edges in SSA. Peephole optimization around
+* [Chapter 7](chapter07/README.md): `while` statement. Looping construct - eager phi approach.
+* Chapter 8: Looping construct continued, lazy phi creation, `break` and `continue` statements.
+* Chapter 9: Global Value Numbering.
+* Chapter 10: Functions and calls.
+* Chapter 11: Boolean operators `&&`, `||` and `!` including short circuit.
+* Chapter 12: Memory effects: general memory edges in SSA. Peephole optimization around
   load-after-store/store-after-store.
-* Chapter 12: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not
+* Chapter 13: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not
   handle aliasing in arrays.
-* Chapter 13: One dimensional static length array type. Array load/store.
-* Chapter 14: Global Code Motion - unwind SoN to CFG. Scheduling.
-* Chapter 15: Instruction selection, BURS.
-* Chapter 16: Backend register allocation.
-* Chapter 17: Garbage Collection.
+* Chapter 14: One dimensional static length array type. Array load/store.
+* Chapter 15: Global Code Motion - unwind SoN to CFG. Scheduling.
+* Chapter 16: Instruction selection, BURS.
+* Chapter 17: Backend register allocation.
+* Chapter 18: Garbage Collection.
