@@ -4,7 +4,6 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
-import java.util.function.Consumer;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -456,18 +455,18 @@ public abstract class Node {
     /**
      * Debugging utility to find a Node by index
      */
-    public Node find(int nid) { return _f(new BitSet(),nid); }
-    private Node _f(BitSet visit, int nid) {
+    public Node find(int nid) { return _find(new BitSet(),nid); }
+    private Node _find(BitSet visit, int nid) {
         if( _nid==nid ) return this;
         if( visit.get(_nid) ) return null;
         visit.set(_nid);
         for( Node def : _inputs )
             if( def!=null ) {
-                Node rez = def._f(visit,nid);
+                Node rez = def._find(visit,nid);
                 if( rez != null ) return rez;
             }
         for( Node use : _outputs ) {
-            Node rez = use._f(visit,nid);
+            Node rez = use._find(visit,nid);
             if( rez != null ) return rez;
         }
         return null;
