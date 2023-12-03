@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
 
+import java.util.BitSet;
+
 /**
  * The Return node has two inputs.  The first input is a control node and the
  * second is the data node that supplies the return value.
@@ -24,8 +26,8 @@ public class ReturnNode extends Node {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        return expr()._print0(sb.append("return ")).append(";");
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        return expr()._print0(sb.append("return "), visited).append(";");
     }
 
     @Override public boolean isCFG() { return true; }
