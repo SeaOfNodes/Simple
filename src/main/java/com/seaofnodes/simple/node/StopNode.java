@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.Type;
 
+
 public class StopNode extends Node {
     public StopNode(Node... inputs) {
         super(inputs);

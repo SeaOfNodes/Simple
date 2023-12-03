@@ -45,7 +45,7 @@ public class Chapter03Test {
             assertEquals("Undefined name 'a'",e.getMessage());
         }
     }
-
+    
     @Test
     public void testRedeclareVar() {
         try {
