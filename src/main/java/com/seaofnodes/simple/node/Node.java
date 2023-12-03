@@ -4,6 +4,7 @@ import com.seaofnodes.print.BaseNode;
 
 import com.seaofnodes.simple.Parser;
 
+import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
@@ -70,6 +71,8 @@ public abstract class Node extends BaseNode<Node> {
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
+
+    public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
     public boolean isMultiHead() { return false; }
     public boolean isMultiTail() { return false; }
@@ -390,7 +393,9 @@ public abstract class Node extends BaseNode<Node> {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; }
+    public static void reset() {
+        UNIQUE_ID = 1;
+    }
 
     /**
      * Debugging utility to find a Node by index
