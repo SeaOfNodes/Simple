@@ -78,7 +78,7 @@ while(a < 10) {
 }
 return b;
 """);
-        Node._disablePeephole = false;
+        Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
