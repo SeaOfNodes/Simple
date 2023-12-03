@@ -35,7 +35,7 @@ The Simple language will be styled after a subset of C or Java
 * [Chapter 5](docs/chapter05/README.md): `if` statement. CFG construction.
 * [Chapter 6](docs/chapter06/README.md): Peephole optimization around dead control flow.
 * [Chapter 7](docs/chapter07/README.md): `while` statement. Looping construct - eager phi approach.
-* Chapter 8: Looping construct continued, lazy phi creation, `break` and `continue` statements.
+* [Chapter 8](docs/chapter08/README.md): Looping construct continued, lazy phi creation, `break` and `continue` statements.
 * Chapter 9: Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
 * Chapter 10: User defined Struct types. Memory effects: general memory edges in SSA. Equivalence class aliasing. Null pointer analysis. Peephole optimization around load-after-store/store-after-store.
 * Chapter 11: Global Code Motion - Scheduling.
