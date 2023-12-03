@@ -236,10 +236,8 @@ public class GraphVisualizer {
      */
     private Collection<Node> findAll(Parser parser) {
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : Parser.START._outputs )
-            walk(all, n);
-        for( Node n : parser._scope._inputs )
-            walk(all, n);
+        walk(all, Parser.START);
+        walk(all, parser._scope);
         return all.values();
     }
 
