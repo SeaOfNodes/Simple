@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeTuple;
 
+
 public class ProjNode extends Node {
 
     // Which slice of the incoming multi-part value
@@ -26,6 +27,7 @@ public class ProjNode extends Node {
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(_label); }
 
     @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
+    @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
 
     public MultiNode ctrl() { return (MultiNode)in(0); }
 
