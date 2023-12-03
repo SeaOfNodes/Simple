@@ -7,14 +7,14 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 
-/** Chapter 7's view of the IR; browser, transport and layout are shared. */
+/** Chapter 8's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
     @Override protected int nIns(Node n) { return n.nIns(); }
     @Override protected Node in(Node n, int idx) { return n.in(idx); }
     @Override protected int nOuts(Node n) { return n.nOuts(); }
-    @Override protected Node out(Node n, int idx) { return n.out(idx); }
+    @Override protected Node out(Node n, int idx) { return n._outputs.get(idx); }
 
     private ArrayList<Edge> edges(Node n) {
         var edges = new ArrayList<Edge>();

@@ -46,7 +46,7 @@ public class IfNode extends MultiNode {
             return prior instanceof ProjNode proj
               // Repeated test, dominated on one side.  Test result is the same.
               ? (proj._idx==0 ? TypeTuple.IF_TRUE : TypeTuple.IF_FALSE)
-              : null;           // Repeated test not dominated on one side
+              : dom._type;      // Repeated test not dominated on one side
 
         return TypeTuple.IF_BOTH;
     }

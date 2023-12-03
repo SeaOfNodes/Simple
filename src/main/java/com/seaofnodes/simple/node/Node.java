@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 
+import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
@@ -98,6 +99,7 @@ public abstract class Node {
     public final String print() {
         return _print0(new StringBuilder(), new BitSet()).toString();
     }
+
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
@@ -136,6 +138,8 @@ public abstract class Node {
         sb.append("\n");
     }
 
+    public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
+
     public boolean isMultiHead() { return false; }
     public boolean isMultiTail() { return false; }
 
@@ -150,8 +154,6 @@ public abstract class Node {
     public Node in(int i) { return _inputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
-
-    public Node out(int i) { return _outputs.get(i); }
 
     public int nOuts() { return _outputs.size(); }
 
@@ -467,7 +469,10 @@ public abstract class Node {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
+    public static void reset() {
+        UNIQUE_ID = 1;
+        _disablePeephole=false;
+    }
 
     /**
      * Debugging utility to find a Node by index
