@@ -74,100 +74,101 @@ created until we complete parsing the loop body. This is because our phis are no
    set after loop is parsed. The absence of a back edge is used as an indicator to switch off peepholes of the region and
    associated phis. 
 
-```java
-01         ctrl(new LoopNode(ctrl(),null).peephole());
-```
+    ```java
+    01         ctrl(new LoopNode(ctrl(),null).peephole());
+    ```
 
    The newly created region becomes the current control.
 
 2. We duplicate the current Scope node. This involves duplicating all the symbols at
    every level with the scope, and creating phis for every symbol except the `$ctrl` binding.
 
-```java
-            // Make a new Scope for the body.
-01          _scope = _scope.dup(true);
-```
+    ```java
+                // Make a new Scope for the body.
+    01          _scope = _scope.dup(true);
+    ```
    
    Note that the `dup` call is given an argument `true`. This triggers creating phis. The code
    that creates the phis in the `dup()` method is shown below.
 
-```java
-01          // boolean loop=true if this is a loop region
-02
-03          String[] reverse = reverse_names();
-04          dup.add_def(ctrl());      // Control input is just copied
-05          for( int i=1; i<nIns(); i++ ) {
-06             if ( !loop ) { dup.add_def(in(i)); }
-07             else {
-08                 // Loop region
-09                 // Create a phi node with second input as null - to be filled in
-10                 // by endLoop() below
-11                 dup.add_def(new PhiNode(reverse[i], ctrl(), in(i), null).peephole());
-12                 // Ensure our node has the same phi in case we created one
-13                 set_def(i, dup.in(i));
-14             }
-15          }
-```
+    ```java
+    01          // boolean loop=true if this is a loop region
+    02
+    03          String[] reverse = reverse_names();
+    04          dup.add_def(ctrl());      // Control input is just copied
+    05          for( int i=1; i<nIns(); i++ ) {
+    06             if ( !loop ) { dup.add_def(in(i)); }
+    07             else {
+    08                 // Loop region
+    09                 // Create a phi node with second input as null - to be filled in
+    10                 // by endLoop() below
+    11                 dup.add_def(new PhiNode(reverse[i], ctrl(), in(i), null).peephole());
+    12                 // Ensure our node has the same phi in case we created one
+    13                 set_def(i, dup.in(i));
+    14             }
+    15          }
+    ```
+   
    Note that both the duplicated scope and the original scope, get the same phi (lines 11 and 13 above).
 
 3. Next we set up the `if` condition, very much like we do with regular ifs.
 
-```java
-01          // Parse predicate
-02          var pred = require(parseExpression(), ")");
-03          // IfNode takes current control and predicate
-04          IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
-05          // Setup projection nodes
-06          Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-07          ifNode.unkeep();
-08          Node ifF = new ProjNode(ifNode, 1, "False").peephole();
-```
+    ```java
+    01          // Parse predicate
+    02          var pred = require(parseExpression(), ")");
+    03          // IfNode takes current control and predicate
+    04          IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+    05          // Setup projection nodes
+    06          Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+    07          ifNode.unkeep();
+    08          Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+    ```
 
 4. We set the control token to the `True` projection node `ifT`, but before that we make another clone of 
    the current scope. 
 
-```java
-01          // The exit scope, accounting for any side effects in the predicate
-02          var exit = _scope.dup();
-03          exit.ctrl(ifF);
-```
+    ```java
+    01          // The exit scope, accounting for any side effects in the predicate
+    02          var exit = _scope.dup();
+    03          exit.ctrl(ifF);
+    ```
 
-  The new scope is saved as the exit scope that will live after the loop ends, therefore `$ctrl` in the exit scope is 
-  set to the `False` projection. The exit scope captures any side effects of the loop's predicate.
+   The new scope is saved as the exit scope that will live after the loop ends, therefore `$ctrl` in the exit scope is 
+   set to the `False` projection. The exit scope captures any side effects of the loop's predicate.
 
 5. We now set the control to the `True` projection and parse the loop body.
 
-```java
-01          // Parse the true side, which corresponds to loop body
-02          ctrl(ifT);              // set ctrl token to ifTrue projection
-03          parseStatement();       // Parse loop body
-```
+    ```java
+    01          // Parse the true side, which corresponds to loop body
+    02          ctrl(ifT);              // set ctrl token to ifTrue projection
+    03          parseStatement();       // Parse loop body
+    ```
 
 6. After the loop body is parsed, we go back and process all the phis we created earlier.
    
-```java
-01          // The true branch loops back, so whatever is current control gets
-02          // added to head loop as input
-03          head.endLoop(_scope, exit);
-```
+    ```java
+    01          // The true branch loops back, so whatever is current control gets
+    02          // added to head loop as input
+    03          head.endLoop(_scope, exit);
+    ```
 
-  The `endLoop` method sets the second control of the loop region to the control from the back edge.
-  It then goes through all the phis and sets the second data input on the phi to the corresponding entry
-  from the loop body; phis that were not used are peepholed and get replaced by the original input.
+   The `endLoop` method sets the second control of the loop region to the control from the back edge.
+   It then goes through all the phis and sets the second data input on the phi to the corresponding entry
+   from the loop body; phis that were not used are peepholed and get replaced by the original input.
 
-```java
-01          Node ctrl = ctrl();
-02          ctrl.set_def(2,back.ctrl());
-03          for( int i=1; i<nIns(); i++ ) {
-04             PhiNode phi = (PhiNode)in(i);
-05             assert phi.region()==ctrl && phi.in(2)==null;
-06             phi.set_def(2,back.in(i));
-07             // Do an eager useless-phi removal
-08             Node in = phi.peephole();
-09             if( in != phi )
-10                 phi.subsume(in);
-11          }
-```
+    ```java
+    01          Node ctrl = ctrl();
+    02          ctrl.set_def(2,back.ctrl());
+    03          for( int i=1; i<nIns(); i++ ) {
+    04             PhiNode phi = (PhiNode)in(i);
+    05             assert phi.region()==ctrl && phi.in(2)==null;
+    06             phi.set_def(2,back.in(i));
+    07             // Do an eager useless-phi removal
+    08             Node in = phi.peephole();
+    09             if( in != phi )
+    10                 phi.subsume(in);
+    11          }
+    ```
 
 7. Finally, both the original scope (head) we started with, and the duplicate created for the body are killed.
    At exit the false control is the current control, and exit scope is set as the current scope.
