@@ -202,10 +202,7 @@ public abstract class Node {
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
-        // Set the new_def over the old (killed) edge
-        int last = nIns()-1;
-        _inputs.set(idx,in(last));
-        _inputs.remove(last);
+        Utils.del(_inputs, idx);
     }
 
     /**
@@ -272,7 +269,7 @@ public abstract class Node {
     void subsume( Node nnn ) {
         assert nnn!=this;
         while( nOuts() > 0 ) {
-            Node n = _outputs.remove(_outputs.size()-1);
+            Node n = _outputs.removeLast();
             int idx = Utils.find(n._inputs, this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
