@@ -38,7 +38,7 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
-test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(test_javas))
+test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -68,7 +68,7 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
 JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
-	$(JVM) org.junit.runner.JUnitCore $(test_cp)
+	$(JVM) org.junit.runner.JUnitCore $(test_cp) com.seaofnodes.simple.FuzzerWrap
 
 .PHONY: clean
 clean:

@@ -17,7 +17,9 @@ if (arg == 1)
     a = arg+2;
 else {
     a = arg-3;
+
 }
+
 return a;""");
         StopNode ret = parser.parse();
         assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
