@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.Type;
 
+
 public class PhiNode extends Node {
 
     final String _label;
@@ -14,16 +15,20 @@ public class PhiNode extends Node {
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        if( region().inProgress() )
+            p.p("Z");
         p.p("Phi(");
-        for( Node in : _inputs )
-            p.n(in).p(",");
+        for( Node in : _inputs ) p.n(in).p(",");
         return p.unchar(',').close();
     }
 
-    Node region() { return in(0); }
+    RegionNode region() { return (RegionNode)in(0); }
+    @Override public boolean isMultiTail() { return true; }
 
     @Override
     public Type compute() {
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
+            return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -32,6 +37,9 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
+        if( !(region() instanceof RegionNode r ) || r.inProgress() )
+            return null;
+
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
         if (live != null)
@@ -77,5 +85,10 @@ public class PhiNode extends Node {
         return live;
     }
 
-
+    @Override
+    boolean allCons() {
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
+            return false;
+        return super.allCons();
+    }
 }

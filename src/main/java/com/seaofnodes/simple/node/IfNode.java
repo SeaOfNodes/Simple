@@ -5,6 +5,7 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
 
+
 public class IfNode extends MultiNode {
 
     public IfNode(Node ctrl, Node pred) {
@@ -17,6 +18,7 @@ public class IfNode extends MultiNode {
     @Override protected String format() { return "if( %1 )"; }
 
     @Override public boolean isCFG() { return true; }
+    @Override public boolean isMultiHead() { return true; }
 
     public Node ctrl() { return in(0); }
     public Node pred() { return in(1); }
@@ -24,7 +26,8 @@ public class IfNode extends MultiNode {
     @Override
     public Type compute() {
         // If the If node is not reachable then neither is any following Proj
-        if (ctrl()._type != Type.CONTROL) return TypeTuple.IF_NEITHER;
+        if (ctrl()._type != Type.CONTROL && ctrl()._type != Type.BOTTOM )
+            return TypeTuple.IF_NEITHER;
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
         if (pred()._type instanceof TypeInteger ti && ti.isConstant()) {
