@@ -239,7 +239,7 @@ public abstract class Node {
     // set_def(last,null) followed by lowering the nIns() count.
     void pop_n(int n) {
         for( int i=0; i<n; i++ ) {
-            Node old_def = _inputs.remove(_inputs.size()-1);
+            Node old_def = _inputs.removeLast();
             if( old_def != null &&     // If it exists and
                 old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                 old_def.kill();        // Kill old def
@@ -262,7 +262,9 @@ public abstract class Node {
     boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
     // Shortcuts to stop DCE mid-parse
+    // Add bogus null use to keep node alive
     public <N extends Node> N keep() { return addUse(null); }
+    // Remove bogus null.
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
 
 
@@ -334,9 +336,9 @@ public abstract class Node {
             // Killing self - and since self recursively kills self's inputs we
             // might end up killing 'm', which we are returning as a live Node.
             // So we add a bogus extra null output edge to stop kill().
-            m.addUse(null); // Add bogus null use to keep m alive
-            kill();            // Kill self because replacing with 'm'
-            m.delUse(null);    // Remove bogus null.
+            m.keep();      // Keep m alive
+            kill();        // Kill self because replacing with 'm'
+            m.unkeep();    // Okay to peephole m
         }
         return m;
     }
