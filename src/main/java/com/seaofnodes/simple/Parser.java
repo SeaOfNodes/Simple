@@ -52,6 +52,7 @@ public class Parser {
             add("int");
             add("return");
             add("true");
+            add("while");
         }};
 
 
@@ -134,9 +135,78 @@ public class Parser {
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
+        else if (matchx("while")) return parseWhile();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")) return null; // Empty statement
         else return parseExpressionStatement();
+    }
+
+    /**
+     * Parses a while statement
+     *
+     * <pre>
+     *     while ( expression ) statement
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
+    private Node parseWhile() {
+        require("(");
+
+        // Loop region has two control inputs, the first is the entry
+        // point, and second is back edge that is set after loop is parsed
+        // (see end_loop() call below).  Note that the absence of back edge is
+        // used as an indicator to switch off peepholes of the region and
+        // associated phis; see {@code inProgress()}.
+
+        ctrl(new LoopNode(ctrl()).peephole()); // Note we set back edge to null here
+
+        // At loop head, we clone the current Scope (this includes all
+        // names in every nesting level within the Scope).
+        // We create phis eagerly for all the names we find, see dup().
+
+        // Save the current scope as the loop head
+        ScopeNode head = _scope.keep();
+        // Clone the head Scope to create a new Scope for the body.
+        // Create phis eagerly as part of cloning
+        _xScopes.push(_scope = _scope.dup(true)); // The true argument triggers creating phis
+
+        // Parse predicate
+        var pred = require(parseExpression(), ")");
+        // IfNode takes current control and predicate
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
+        // Setup projection nodes
+        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
+        ifNode.unkeep();
+        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+
+        // Clone the body Scope to create the exit Scope
+        // which accounts for any side effects in the predicate
+        // The exit Scope will be the final scope after the loop,
+        // And its control input is the False branch of the loop predicate
+        // Note that body Scope is still our current scope
+        var exit = _scope.dup();
+        _xScopes.push(exit);
+        exit.ctrl(ifF);
+
+        // Parse the true side, which corresponds to loop body
+        // Our current scope is the body Scope
+        ctrl(ifT);              // set ctrl token to ifTrue projection
+        parseStatement();       // Parse loop body
+
+        // The true branch loops back, so whatever is current control (_scope.ctrl) gets
+        // added to head loop as input. endLoop() updates the head scope,
+        // and goes through all the phis that were created earlier. For each
+        // phi, it sets the second input to the corresponding input from the back edge.
+        // If the phi is redundant, it is replaced by its sole input.
+        head.endLoop(_scope, exit);
+        head.unkeep().kill();
+
+        _xScopes.pop();       // Cleanup
+        _xScopes.pop();       // Cleanup
+
+        // At exit the false control is the current control, and
+        // the scope is the exit scope after the exit test.
+        return (_scope = exit);
     }
 
     /**
@@ -369,7 +439,7 @@ public class Parser {
 
     // Require an exact match
     private void require(String syntax) { require(null, syntax); }
-    private Node require(Node n, String syntax) {
+    private <N extends Node> N require(N n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
     }
@@ -378,7 +448,7 @@ public class Parser {
         return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
     }
 
-    static RuntimeException error(String errorMessage) {
+    public static RuntimeException error( String errorMessage ) {
         return new RuntimeException(errorMessage);
     }
 

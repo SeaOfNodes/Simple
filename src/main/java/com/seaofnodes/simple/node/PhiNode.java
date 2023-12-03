@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
+import java.util.BitSet;
+
 public class PhiNode extends Node {
 
     final String _label;
@@ -13,19 +15,27 @@ public class PhiNode extends Node {
     @Override public String glabel() { return "&phi;_"+_label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        if( region().inProgress() )
+            sb.append("Z");
         sb.append("Phi(");
-        for( Node in : _inputs )
-            in._print0(sb).append(",");
+        for( Node in : _inputs ) {
+            if (in == null) sb.append("____");
+            else in._print0(sb, visited);
+            sb.append(",");
+        }
         sb.setLength(sb.length()-1);
         sb.append(")");
         return sb;
     }
 
-    Node region() { return in(0); }
+    RegionNode region() { return (RegionNode)in(0); }
+    @Override public boolean isMultiTail() { return true; }
 
     @Override
     public Type compute() {
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
+            return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -34,6 +44,9 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
+        if( !(region() instanceof RegionNode r ) || r.inProgress() )
+            return null;
+
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
         if (live != null)
@@ -79,5 +92,10 @@ public class PhiNode extends Node {
         return live;
     }
 
-
+    @Override
+    boolean allCons() {
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
+            return false;
+        return super.allCons();
+    }
 }
