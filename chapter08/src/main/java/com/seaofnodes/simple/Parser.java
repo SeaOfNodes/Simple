@@ -160,7 +160,6 @@ public class Parser {
         ScopeNode head = _xScopes.push(_scope).keep(); // Save the current scope as the loop head
         // Make a new Scope for the body, which has lazy-phi loop markers.
         _scope = _scope.dup(true);
-        ctrl(head.ctrl());
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
