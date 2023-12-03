@@ -39,6 +39,10 @@ public class ScopeNode extends Node {
         for( int j=0; j<nIns(); j++ ) {
             sb.append(names[j]).append(":");
             Node n = in(j);
+            while( n instanceof ScopeNode loop ) {
+                sb.append("Lazy_");
+                n = loop.in(j);
+            }
             n._print0(sb, visited).append(" ");
         }
         sb.setLength(sb.length()-1);
@@ -107,8 +111,18 @@ public class ScopeNode extends Node {
         var idx = syms.get(name);
         if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
         Node old = in(idx);
-        // If n is null we are looking up rather than updating, hence return existing value
-        return n==null ? old : setDef(idx,n);
+        if( old instanceof ScopeNode loop ) {
+            // Lazy Phi!
+            old = loop.in(idx) instanceof PhiNode phi && loop.ctrl()==phi.region()
+                // Loop already has a real Phi, use it
+                ? loop.in(idx)
+                // Set real Phi in the loop head
+                // The phi takes its one input (no backedge yet) from a recursive
+                // lookup, which might have insert a Phi in every loop nest.
+                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+            setDef(idx,old);
+        }
+        return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
     }
 
     public Node ctrl() { return in(0); }
@@ -131,6 +145,11 @@ public class ScopeNode extends Node {
      * tables), nor deep (would dup the Scope, the HashMap tables, but then
      * also the program Nodes).
      * <p>
+     * If the {@code loop} flag is set, the edges are filled in as the original
+     * Scope, as a indication of Lazy Phis at loop heads.  The goal here is to
+     * not make Phis at loop heads for variables which are never touched in the
+     * loop body.
+     * <p>
      * The new Scope is a full-fledged Node with proper use<->def edges.
      */
     public ScopeNode dup() { return dup(false); }
@@ -144,17 +163,10 @@ public class ScopeNode extends Node {
             dup._scopes.push(new HashMap<>(syms));
 
         dup.addDef(ctrl());      // Control input is just copied
-        for( int i=1; i<nIns(); i++ ) {
-            if ( !loop ) { dup.addDef(in(i)); }
-            else {
-                String[] names = reverseNames(); // Get the variable names
-                // Create a phi node with second input as null - to be filled in
-                // by endLoop() below
-                dup.addDef(new PhiNode(names[i], ctrl(), in(i), null).peephole());
-                // Ensure our node has the same phi in case we created one
-                setDef(i, dup.in(i));
-            }
-        }
+        for( int i=1; i<nIns(); i++ )
+            // For lazy phis on loops we use a sentinel
+            // that will trigger phi creation on update
+            dup.addDef(loop ? this : in(i));
         return dup;
     }
 
@@ -172,7 +184,9 @@ public class ScopeNode extends Node {
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++)
             if( in(i) != that.in(i) ) // No need for redundant Phis
-                setDef(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will trigger a phi creation
+                setDef(i, new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }
@@ -184,14 +198,26 @@ public class ScopeNode extends Node {
         assert ctrl instanceof LoopNode loop && loop.inProgress();
         ctrl.setDef(2,back.ctrl());
         for( int i=1; i<nIns(); i++ ) {
-            PhiNode phi = (PhiNode)in(i);
-            assert phi.region()==ctrl && phi.in(2)==null;
-            phi.setDef(2,back.in(i));
-            // Do an eager useless-phi removal
-            Node in = phi.peephole();
-            if( in != phi )
-                phi.subsume(in);
+            if( back.in(i) != this ) {
+                PhiNode phi = (PhiNode)in(i);
+                assert phi.region()==ctrl && phi.in(2)==null;
+                phi.setDef(2,back.in(i));
+            }
+            if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
+                exit.setDef(i,in(i));
         }
         back.kill();            // Loop backedge is dead
+        // Now one-time do a useless-phi removal
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof PhiNode phi ) {
+                // Do an eager useless-phi removal
+                Node in = phi.peephole();
+                if( in != phi ) {
+                    phi.subsume(in);
+                    setDef(i,in); // Set the update back into Scope
+                }
+            }
+        }
+
     }
 }

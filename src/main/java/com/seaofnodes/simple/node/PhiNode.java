@@ -85,10 +85,13 @@ public class PhiNode extends Node {
      */
     private Node singleUniqueInput() {
         Node live = null;
-        for( int i=1; i<nIns(); i++ )
+        for( int i=1; i<nIns(); i++ ) {
+            if( region() instanceof LoopNode loop && loop.entry()._type == Type.XCONTROL )
+                return null;    // Dead entry loops just ignore and let the loop collapse
             if( region().in(i)._type != Type.XCONTROL && in(i) != this )
                 if( live == null || live == in(i) ) live = in(i);
                 else return null;
+        }
         return live;
     }
 
