@@ -51,7 +51,7 @@ Notice that the phi for `arg2` refers to `arg3`, which is not known at the time 
 to solve in order to successfully construct the Sea of Nodes graph, which is always in SSA form.
 
 Recall from [Chapter 5](../chapter05/README.md) that when parsing `if` statements, we clone the symbol tables as we go past the `if` predicate.
-Later we merge the two sets of symbol tables at a `Region` - creating pis for all names that encountered a change in definition within the two 
+Later we merge the two sets of symbol tables at a `Region` - creating phis for all names that encountered a change in definition within the two 
 branches of the `if` statement. In the case of the `if` statement, the phis are created at the merge point when we already know the definitions
 that are being merged.
 
