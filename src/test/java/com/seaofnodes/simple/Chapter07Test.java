@@ -35,7 +35,7 @@ if(arg){}else{
 return a;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Region23,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Region22,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
     }
 
     @Test
@@ -55,7 +55,7 @@ while(i < arg) {
 return sum;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop8,0,Phi(Loop21,Phi_sum,(Phi(Loop,0,(Phi_j+1))+Phi_sum)));", stop.toString());
+        assertEquals("return Phi(Loop8,0,Phi(Loop20,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
     }
 
     @Test
@@ -71,7 +71,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
+        assertEquals("return Phi(Loop8,2,Phi(Region26,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
@@ -90,7 +90,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop8,2,(Phi(Region27,Phi_b,4)+1));", stop.toString());
+        assertEquals("return Phi(Loop8,2,(Phi(Region26,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 
