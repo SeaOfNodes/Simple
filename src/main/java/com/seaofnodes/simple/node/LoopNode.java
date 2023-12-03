@@ -16,7 +16,8 @@ public class LoopNode extends RegionNode {
 
     @Override
     public Type compute() {
-        return inProgress() ? Type.CONTROL : super.compute();
+        if( inProgress() ) return Type.CONTROL;
+        return entry()._type;
     }
 
     @Override
