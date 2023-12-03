@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
+import java.util.Collection;
 
 public class RegionNode extends Node {
 
