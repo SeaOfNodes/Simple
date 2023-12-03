@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeTuple;
 
+import java.util.BitSet;
+
 /**
  * The Start node represents the start of the function.  For now, we do not
  * have any inputs to Start because our function does not yet accept
@@ -24,11 +26,12 @@ public class StartNode extends MultiNode {
     public String label() { return "Start"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
       return sb.append(label());
     }
 
     @Override public boolean isCFG() { return true; }
+    @Override public boolean isMultiHead() { return true; }
 
     @Override
     public TypeTuple compute() { return _args; }
