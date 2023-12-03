@@ -35,7 +35,7 @@ public class ConstantNode extends Node {
         return _con._print(sb);
     }
     
-    @Override boolean isMultiTail() { return true; }
+    @Override public boolean isMultiTail() { return true; }
     
     @Override
     public Type compute() { return _con; }
