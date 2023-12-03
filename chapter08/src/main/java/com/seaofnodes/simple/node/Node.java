@@ -231,14 +231,8 @@ public abstract class Node {
     // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
-        ArrayList<Node> outs = _outputs;
-        int lidx = outs.size()-1; // Last index            
-        // This 1-line hack compresses an element out of an ArrayList
-        // without having to copy the contents.  The last element is
-        // stuffed over the deleted element, and then the size is reduced.            
-        outs.set(outs.indexOf(use),outs.get(lidx));
-        outs.remove(lidx);  // Reduce ArrayList size without copying anything
-        return lidx==0;
+        Utils.del(_outputs, Utils.find(_outputs, use));
+        return _outputs.size() == 0;
     }
 
     // Shortcut for "popping" n nodes.  A "pop" is basically a
