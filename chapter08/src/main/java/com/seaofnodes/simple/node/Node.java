@@ -273,7 +273,7 @@ public abstract class Node {
         assert nnn!=this;
         while( nOuts() > 0 ) {
             Node n = _outputs.remove(_outputs.size()-1);
-            int idx = n._inputs.indexOf(this);
+            int idx = Utils.find(n._inputs, this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
         }
