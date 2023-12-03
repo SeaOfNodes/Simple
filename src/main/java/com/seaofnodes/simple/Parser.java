@@ -46,6 +46,8 @@ public class Parser {
      * List of keywords disallowed as identifiers
      */
     private final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("break");
+            add("continue");
             add("else");
             add("false");
             add("if");
@@ -62,10 +64,14 @@ public class Parser {
      */
     public final Stack<ScopeNode> _xScopes = new Stack<>();
 
+    ScopeNode _continueScope;
+    ScopeNode _breakScope;
+
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
+        _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         STOP = new StopNode();
     }
@@ -136,6 +142,8 @@ public class Parser {
         else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("while")) return parseWhile();
+        else if (matchx("break")) return parseBreak();
+        else if (matchx("continue")) return parseContinue();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")) return null; // Empty statement
         else return parseExpressionStatement();
@@ -150,6 +158,10 @@ public class Parser {
      * @return a {@link Node}, never {@code null}
      */
     private Node parseWhile() {
+
+        var savedContinueScope = _continueScope;
+        var savedBreakScope    = _breakScope;
+
         require("(");
 
         // Loop region has two control inputs, the first is the entry
@@ -179,35 +191,70 @@ public class Parser {
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
 
-        // Clone the body Scope to create the exit Scope
-        // which accounts for any side effects in the predicate
-        // The exit Scope will be the final scope after the loop,
-        // And its control input is the False branch of the loop predicate
-        // Note that body Scope is still our current scope
-        var exit = _scope.dup();
-        _xScopes.push(exit);
-        exit.ctrl(ifF);
+        // Clone the body Scope to create the break/exit Scope which accounts for any
+        // side effects in the predicate.  The break/exit Scope will be the final
+        // scope after the loop, and its control input is the False branch of
+        // the loop predicate.  Note that body Scope is still our current scope.
+        ctrl(ifF);
+        _xScopes.push(_breakScope = _scope.dup());
+
+        // No continues yet
+        _continueScope = null;
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
-        // The true branch loops back, so whatever is current control (_scope.ctrl) gets
-        // added to head loop as input. endLoop() updates the head scope,
-        // and goes through all the phis that were created earlier. For each
-        // phi, it sets the second input to the corresponding input from the back edge.
-        // If the phi is redundant, it is replaced by its sole input.
+        // Merge the loop bottom into other continue statements
+        if (_continueScope != null) {
+            _continueScope = jumpTo(_continueScope);
+            _scope.kill();
+            _scope = _continueScope;
+        }
+
+        // The true branch loops back, so whatever is current _scope.ctrl gets
+        // added to head loop as input.  endLoop() updates the head scope, and
+        // goes through all the phis that were created earlier.  For each phi,
+        // it sets the second input to the corresponding input from the back
+        // edge.  If the phi is redundant, it is replaced by its sole input.
+        var exit = _breakScope;
         head.endLoop(_scope, exit);
         head.unkeep().kill();
 
         _xScopes.pop();       // Cleanup
         _xScopes.pop();       // Cleanup
 
+        _continueScope = savedContinueScope;
+        _breakScope = savedBreakScope;
+
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
-        return (_scope = exit);
+        return _scope = exit;
     }
+
+    private ScopeNode jumpTo(ScopeNode toScope) {
+        ScopeNode cur = _scope.dup();
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
+        // Prune nested lexical scopes that have depth > than the loop head
+        // We use _breakScope as a proxy for the loop head scope to obtain the depth
+        while( cur._scopes.size() > _breakScope._scopes.size() )
+            cur.pop();
+        // If this is a continue then first time the target is null
+        // So we just use the pruned current scope as the base for the
+        // continue
+        if (toScope == null)
+            return cur;
+        // toScope is either the break scope, or a scope that was created here
+        assert toScope._scopes.size() <= _breakScope._scopes.size();
+        toScope.mergeScopes(cur);
+        return toScope;
+    }
+
+    private void checkLoopActive() { if (_breakScope == null) throw Parser.error("No active loop for a break or continue"); }
+
+    private Node parseBreak   () { checkLoopActive(); return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
+    private Node parseContinue() { checkLoopActive(); return (_continueScope = require(jumpTo( _continueScope ),";"));  }
 
     /**
      * Parses a statement

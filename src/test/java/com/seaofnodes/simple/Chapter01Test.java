@@ -31,7 +31,7 @@ public class Chapter01Test {
         parser.parse();
         StartNode start = Parser.START;
         for( Node use : start._outputs )
-            if( use instanceof ConstantNode con )
+            if( use instanceof ConstantNode con && con._type instanceof TypeInteger )
                 assertEquals(TypeInteger.constant(0),con._type);
     }
 
