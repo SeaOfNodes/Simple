@@ -4,6 +4,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+
 public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
 

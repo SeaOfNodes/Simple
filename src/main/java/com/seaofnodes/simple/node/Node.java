@@ -71,6 +71,12 @@ public abstract class Node extends BaseNode<Node> {
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
+    public boolean isMultiHead() { return false; }
+    public boolean isMultiTail() { return false; }
+
+    // ------------------------------------------------------------------------
+    // Graph Node & Edge manipulation
+
     @Override public String typeName() { return _type==null ? null : _type.toString(); }
 
     /**
@@ -190,6 +196,19 @@ public abstract class Node extends BaseNode<Node> {
     public <N extends Node> N keep() { addUse(null); return (N)this; }
     // Remove bogus null.
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
+
+    // Replace self with nnn in the graph, making 'this' go dead
+    void subsume( Node nnn ) {
+        assert nnn!=this;
+        while( nOuts() > 0 ) {
+            Node n = _outputs.removeLast();
+            int idx = Utils.find(n._inputs, this);
+            n._inputs.set(idx,nnn);
+            nnn.addUse(n);
+        }
+        kill();
+    }
+
     // ------------------------------------------------------------------------
     // Graph-based optimizations
 
