@@ -114,11 +114,8 @@ public class Parser {
     private Node parseBlock() {
         // Enter a new scope
         _scope.push();
-        Node n = null;
-        while (!peek('}') && !_lexer.isEOF()) {
-            Node n0 = parseStatement();
-            if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        };
+        while (!peek('}') && !_lexer.isEOF())
+            parseStatement();
         // Exit scope
         _scope.pop();
         return null;
