@@ -29,7 +29,7 @@ if (arg)
     a = 2;
 return (arg < a) < 3;
 """);
-        StopNode stop = parser.parse();
+        StopNode stop = parser.parse(false);
         assertEquals("return ((arg<Phi(Region12,2,1))<3);", stop.toString());
     }
 
