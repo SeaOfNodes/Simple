@@ -4,8 +4,6 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 
-import java.util.ArrayList;
-
 import static org.junit.Assert.*;
 
 public class Chapter07Test {
@@ -63,7 +61,7 @@ return sum;
 """);
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,0,Phi(Loop21,Phi_sum,(Phi(Loop,0,(Phi_j+1))+Phi_sum)));", stop.toString());
-        System.out.println(new IRPrinter().p(stop,99));
+        System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
     @Test
@@ -83,7 +81,7 @@ return b;
         assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
-        System.out.println(new IRPrinter().p(stop,99));
+        System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
     @Test
@@ -103,7 +101,7 @@ return b;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,2,(Phi(Region27,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        System.out.println(new IRPrinter().p(stop,99));
+        System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
 
@@ -154,7 +152,7 @@ return a;
         assertEquals("return Phi(Loop7,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
-        System.out.println(new IRPrinter().p(stop,99));
+        System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
     @Test
@@ -168,7 +166,7 @@ return a;
         StopNode stop = parser.parse(false);
         assertEquals("return Phi(Loop7,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        System.out.println(new IRPrinter().p(stop, 99));
+        System.out.println(IRPrinter.prettyPrint(stop, 99));
     }
 
     @Test

@@ -9,7 +9,7 @@ import java.util.BitSet;
 public class IRPrinter {
 
     // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
-    public String p(Node node, int depth) {
+    public static String prettyPrint(Node node, int depth) {
         // First, a Breadth First Search at a fixed depth.
         BFS bfs = new BFS(node,depth);
         // Convert just that set to a post-order
@@ -40,7 +40,7 @@ public class IRPrinter {
         return sb.toString();
     }
 
-    private void postOrd(Node n, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
+    private static void postOrd(Node n, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
         if( !bfs.get(n._nid) )
             return;  // Not in the BFS visit
         if( visit.get(n._nid) ) return; // Already post-order walked
