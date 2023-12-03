@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 
+import java.util.BitSet;
+
 public class StopNode extends Node {
     public StopNode(Node... inputs) {
         super(inputs);
@@ -13,11 +15,11 @@ public class StopNode extends Node {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        if( ret()!=null ) return ret()._print0(sb);
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        if( ret()!=null ) return ret()._print0(sb, visited);
         sb.append("Stop[ ");
         for( Node ret : _inputs )
-            ret._print0(sb).append(" ");
+            ret._print0(sb, visited).append(" ");
         return sb.append("]");
     }
 
