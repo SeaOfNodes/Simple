@@ -35,7 +35,7 @@ public class ScopeNode extends Node {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Scope[ ");
-        String[] names = reverse_names();
+        String[] names = reverseNames();
         for( int j=0; j<nIns(); j++ ) {
             sb.append(names[j]).append(":");
             Node n = in(j);
@@ -45,8 +45,14 @@ public class ScopeNode extends Node {
         return sb.append("]");
     }
 
-    // Expensive...
-    public String[] reverse_names() {
+    /**
+     * Recover the names for all variable bindings.
+     * The result is an array of names that is aligned with the
+     * inputs to the Node.
+     *
+     * This is an expensive operation.
+     */
+    public String[] reverseNames() {
         String[] names = new String[nIns()];
         for( HashMap<String,Integer> syms : _scopes )
             for( String name : syms.keySet() )
@@ -60,27 +66,48 @@ public class ScopeNode extends Node {
 
     public void push() { _scopes.push(new HashMap<>());  }
     public void pop() { pop_n(_scopes.pop().size());  }
-    
-    // Create a new name in the current scope
+
+    /**
+     * Create a new name in the current scope
+     */
     public Node define( String name, Node n ) {
         HashMap<String,Integer> syms = _scopes.lastElement();
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
         return add_def(n);
     }
-
-    // Lookup a name.  It is recursive to support lazy Phis on loops (coming in chapter 8).
-    public Node lookup(String name) { return update(name,null,_scopes.size()-1);  }  
-    // If the name is present in any scope, then redefine else null
-    public Node update(String name, Node n) { return update(name,n,_scopes.size()-1); }
-    // Both recursive lookup and update.
-    private Node update( String name, Node n, int i ) {
-        if( i<0 ) return null;  // Missed in all scopes, not found
-        var syms = _scopes.get(i);
+    /**
+     * Lookup a name in all scopes starting from most deeply nested.
+     *
+     * @param name Name to be looked up
+     * @see #update(String, Node, int)
+     */
+    public Node lookup( String name ) { return update(name,null,_scopes.size()-1);  }
+    /**
+     * If the name is present in any scope, then redefine else null
+     *
+     * @param name Name being redefined
+     * @param n    The node to bind to the name
+     */
+    public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
+    /**
+     * Both recursive lookup and update.
+     *
+     * A shared implementation allows us to create lazy phis both during
+     * lookups and updates; the lazy phi creation is part of chapter 8.
+     *
+     * @param name  Name whose binding is being updated or looked up
+     * @param n     If null, do a lookup, else update binding
+     * @param nestingLevel The starting nesting level
+     * @return node being looked up, or the one that was updated
+     */
+    private Node update( String name, Node n, int nestingLevel ) {
+        if( nestingLevel<0 ) return null;  // Missed in all scopes, not found
+        var syms = _scopes.get(nestingLevel); // Get the symbol table for nesting level
         var idx = syms.get(name);
-        if( idx == null ) return update(name,n,i-1); // Missed in this scope, recursively look
+        if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
         Node old = in(idx);
-        // If n is null we are looking up rather than updating
+        // If n is null we are looking up rather than updating, hence return existing value
         return n==null ? old : set_def(idx,n);
     }
 
@@ -115,14 +142,14 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
-        String[] reverse = reverse_names();
+        String[] names = reverseNames(); // Get the variable names
         dup.add_def(ctrl());      // Control input is just copied
         for( int i=1; i<nIns(); i++ ) {
             if ( !loop ) { dup.add_def(in(i)); }
             else {
                 // Create a phi node with second input as null - to be filled in
                 // by endLoop() below
-                dup.add_def(new PhiNode(reverse[i], ctrl(), in(i), null).peephole());
+                dup.add_def(new PhiNode(names[i], ctrl(), in(i), null).peephole());
                 // Ensure our node has the same phi in case we created one
                 set_def(i, dup.in(i));
             }
@@ -140,7 +167,7 @@ public class ScopeNode extends Node {
      */
     public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
-        String[] ns = reverse_names();
+        String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++)
             if( in(i) != that.in(i) ) // No need for redundant Phis

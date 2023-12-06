@@ -70,7 +70,7 @@ created until we complete parsing the loop body. This is because our phis are no
 ## Detailed Steps
 
 1. We start by creating a new subclass of `Region`, the `Loop`. The `Loop` gets two control inputs, 
-   the first one is the entry point, i.e. the current binding to `$ctrl`, and second one (`null`) is a placeholder for the back edge that is 
+   the first is the entry point, i.e. the current binding to `$ctrl`, and second (`null`) is a placeholder for the back edge that is 
    set after loop is parsed. The absence of a back edge is used as an indicator to switch off peepholes of the region and
    associated phis. 
 
@@ -94,7 +94,7 @@ created until we complete parsing the loop body. This is because our phis are no
     ```java
     // boolean loop=true if this is a loop region
     
-    String[] reverse = reverse_names();
+    String[] names = reverseNames(); // Get the variable names
     dup.add_def(ctrl());      // Control input is just copied
     for( int i=1; i<nIns(); i++ ) {
        if ( !loop ) { dup.add_def(in(i)); }
@@ -102,7 +102,7 @@ created until we complete parsing the loop body. This is because our phis are no
           // Loop region
           // Create a phi node with second input as null - to be filled in
           // by endLoop() below
-          dup.add_def(new PhiNode(reverse[i], ctrl(), in(i), null).peephole());
+          dup.add_def(new PhiNode(names[i], ctrl(), in(i), null).peephole());
           // Ensure our node has the same phi in case we created one
           set_def(i, dup.in(i));
        }
@@ -124,17 +124,15 @@ created until we complete parsing the loop body. This is because our phis are no
     Node ifF = new ProjNode(ifNode, 1, "False").peephole();
     ```
 
-4. We set the control token to the `True` projection node `ifT`, but before that we make another clone of 
-   the current scope. 
+4. We make another clone of the current scope. This will be the exit scope that will live after the loop ends, 
+   therefore `$ctrl` in the exit scope is set to the `False` projection. 
+   The exit scope captures any side effects of the loop's predicate.
 
     ```java
     // The exit scope, accounting for any side effects in the predicate
     var exit = _scope.dup();
     exit.ctrl(ifF);
     ```
-
-   The new scope is saved as the exit scope that will live after the loop ends, therefore `$ctrl` in the exit scope is 
-   set to the `False` projection. The exit scope captures any side effects of the loop's predicate.
 
 5. We now set the control to the `True` projection and parse the loop body.
 
@@ -171,7 +169,13 @@ created until we complete parsing the loop body. This is because our phis are no
     ```
 
 7. Finally, both the original scope (head) we started with, and the duplicate created for the body are killed.
-   At exit the false control is the current control, and exit scope is set as the current scope.
+   At exit the false control is the current control (step 4), and exit scope is set as the current scope. 
+
+   ```java
+   // At exit the false control is the current control, and
+   // the scope is the exit scope after the exit test.
+   return (_scope = exit);
+   ```
 
 ### Visualization
 
