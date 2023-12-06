@@ -52,14 +52,10 @@ public class Parser {
 
     public ReturnNode parse() { return parse(false); }
     public ReturnNode parse(boolean show) {
-        try {
-            var ret = (ReturnNode) parseBlock();
-            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
-            return ret;
-        }
-        finally {
-            if( show ) showGraph();
-        }
+        var ret = (ReturnNode) parseBlock();
+        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        if( show ) showGraph();
+        return ret;
     }
 
     /**
@@ -409,5 +405,4 @@ public class Parser {
             return new String(_input, start, 1);
         }
     }
-
 }

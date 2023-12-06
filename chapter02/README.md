@@ -21,13 +21,13 @@ In [Chapter 1](../chapter01/README.md) we introduced following nodes.
 
 We extend the set of nodes by adding following additional node types.
 
-| Node Name  | Type | Description                   | Inputs                                                     | Value                       |
-|------------|------|-------------------------------|------------------------------------------------------------|-----------------------------|
-| Add        | Data | Add two values                | Two data nodes, values are added, order not important      | Result of the add operation |
-| Sub        | Data | Subtract a value from another | Two data nodes, values are subtracted, order matters       | Result of the subtract      |
-| Mul        | Data | Multiply two values           | Two data nodes, values are multiplied, order not important | Result of the multiply      |
-| Div        | Data | Divide a value by another     | Two data nodes, values are divided, order matters          | Result of the division      |
-| UnaryMinus | Data | Negate a value                | One data node, value is negated                            | Result of the unary minus   |
+| Node Name | Type | Description                   | Inputs                                                     | Value                       |
+|-----------|------|-------------------------------|------------------------------------------------------------|-----------------------------|
+| Add       | Data | Add two values                | Two data nodes, values are added, order not important      | Result of the add operation |
+| Sub       | Data | Subtract a value from another | Two data nodes, values are subtracted, order matters       | Result of the subtract      |
+| Mul       | Data | Multiply two values           | Two data nodes, values are multiplied, order not important | Result of the multiply      |
+| Div       | Data | Divide a value by another     | Two data nodes, values are divided, order matters          | Result of the division      |
+| Minus     | Data | Negate a value                | One data node, value is negated                            | Result of the unary minus   |
 
 ## Peephole Optimizations
 

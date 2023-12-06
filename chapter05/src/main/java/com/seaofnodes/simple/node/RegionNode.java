@@ -10,7 +10,7 @@ public class RegionNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb) {
-        return sb.append("Region").append(_nid);
+        return sb.append(label()).append(_nid);
     }
 
     @Override public boolean isCFG() { return true; }

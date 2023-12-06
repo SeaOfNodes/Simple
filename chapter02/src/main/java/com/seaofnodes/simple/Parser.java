@@ -270,5 +270,4 @@ public class Parser {
             return new String(_input, start, 1);
         }
     }
-
 }

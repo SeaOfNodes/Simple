@@ -32,7 +32,7 @@ public class ReturnNode extends Node {
   
     @Override
     public Type compute() {
-      return new TypeTuple(Type.CONTROL,expr()._type);
+        return new TypeTuple(ctrl()._type,expr()._type);
     }
 
     @Override

@@ -17,6 +17,7 @@ public class StartNode extends MultiNode {
     public StartNode(Type[] args) {
         super();
         _args = new TypeTuple(args);
+        _type = _args;
     }
 
     @Override

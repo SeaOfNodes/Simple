@@ -40,14 +40,14 @@ public class GraphVisualizer {
         nodes(sb, all);
         
         // Now the scopes, in a cluster no edges
-        for (ScopeNode sn: parser._allScopes)
+        for (ScopeNode sn: parser._xScopes)
             scopes(sb, sn);
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the Scope edges
-        for (ScopeNode sn: parser._allScopes)
+        for (ScopeNode sn: parser._xScopes)
             scopeEdges(sb, sn);
         
         sb.append("}\n");

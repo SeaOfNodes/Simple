@@ -5,9 +5,7 @@ import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
 public class AddNode extends Node {
-    public AddNode(Node lhs, Node rhs) {
-        super(null, lhs, rhs);
-    }
+    public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Add"; }
     

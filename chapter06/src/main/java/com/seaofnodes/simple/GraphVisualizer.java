@@ -40,14 +40,14 @@ public class GraphVisualizer {
         nodes(sb, all);
         
         // Now the scopes, in a cluster no edges
-        for (ScopeNode sn: parser._allScopes)
+        for (ScopeNode sn: parser._xScopes)
             scopes(sb, sn);
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the Scope edges
-        for (ScopeNode sn: parser._allScopes)
+        for (ScopeNode sn: parser._xScopes)
             scopeEdges(sb, sn);
         
         sb.append("}\n");
@@ -207,29 +207,24 @@ public class GraphVisualizer {
      * Finds all nodes in the graph.
      */
     private Collection<Node> findAll(Parser parser) {
-        final StartNode start = Parser.START;
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : start._outputs )
+        for( Node n : Parser.START._outputs )
             walk(all, n);
-        // Scan symbol tables
-        for( HashMap<String,Integer> scope : parser._scope._scopes )
-            for (Integer i : scope.values())
-                walk(all, parser._scope.in(i));
+        for( Node n : parser._scope._inputs )
+            walk(all, n);
         return all.values();
     }
 
     /**
      * Walk a subgraph and populate distinct nodes in the all list.
      */
-    private void walk(HashMap<Integer, Node> all, Node n) {
+    private void walk(HashMap<Integer,Node> all, Node n) {
         if(n == null ) return;
         if (all.get(n._nid) != null) return; // Been there, done that
         all.put(n._nid, n);
         for (Node c : n._inputs)
-            if (c != null)
-                walk(all, c);
-        for (Node c : n._outputs)
-            if (c != null)
-                walk(all, c);
+            walk(all, c);
+        for( Node c : n._outputs )
+            walk(all, c);
     }
 }

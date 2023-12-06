@@ -29,7 +29,7 @@ public class Type {
     public final byte _type;
 
     public boolean is_simple() { return _type < TSIMPLE; }
-    private static final String[] STRS = new String[]{"BOTTOM","TOP"};
+    private static final String[] STRS = new String[]{"Bot","Top"};
     protected Type(byte type) { _type = type; }
 
     public static final Type BOTTOM   = new Type( TBOT ); // ALL
