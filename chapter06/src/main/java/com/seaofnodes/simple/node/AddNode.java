@@ -128,7 +128,7 @@ public class AddNode extends Node {
     }
 
     static PhiNode pcon(Node op) {
-        return op instanceof PhiNode phi && phi.all_cons() ? phi : null;
+        return op instanceof PhiNode phi && phi.allCons() ? phi : null;
     }
         
     // Compare two off-spline nodes and decide what order they should be in.
@@ -140,8 +140,8 @@ public class AddNode extends Node {
         if( lo._type.isConstant() ) return false;
         if( hi._type.isConstant() ) return true ;
             
-        if( lo instanceof PhiNode && lo.all_cons() ) return false;
-        if( hi instanceof PhiNode && hi.all_cons() ) return true ;
+        if( lo instanceof PhiNode && lo.allCons() ) return false;
+        if( hi instanceof PhiNode && hi.allCons() ) return true ;
 
         if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
         if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;

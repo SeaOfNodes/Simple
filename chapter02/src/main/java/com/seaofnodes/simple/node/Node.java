@@ -131,7 +131,7 @@ public abstract class Node {
      * @param new_def the new definition
      * @return new_def for flow coding
      */
-    Node set_def(int idx, Node new_def ) {
+    Node setDef(int idx, Node new_def ) {
         Node old_def = in(idx);
         if( old_def == new_def ) return this; // No change
         // If new def is not null, add the corresponding def->use edge
@@ -162,12 +162,12 @@ public abstract class Node {
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
      * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #set_def}.
+     * code elimination.  This function is co-recursive with {@link #setDef}.
      */
     public void kill( ) {
         assert isUnused();      // Has no uses, so it is dead
         for( int i=0; i<nIns(); i++ )
-            set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
+            setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
         _inputs.clear();
         _type=null;             // Flag as dead
         assert isDead();        // Really dead now

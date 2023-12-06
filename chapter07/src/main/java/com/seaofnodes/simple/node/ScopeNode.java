@@ -65,7 +65,7 @@ public class ScopeNode extends Node {
     @Override public Node idealize() { return null; }
 
     public void push() { _scopes.push(new HashMap<>());  }
-    public void pop() { pop_n(_scopes.pop().size());  }
+    public void pop() { popN(_scopes.pop().size());  }
 
     /**
      * Create a new name in the current scope
@@ -74,7 +74,7 @@ public class ScopeNode extends Node {
         HashMap<String,Integer> syms = _scopes.lastElement();
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
-        return add_def(n);
+        return addDef(n);
     }
     /**
      * Lookup a name in all scopes starting from most deeply nested.
@@ -108,7 +108,7 @@ public class ScopeNode extends Node {
         if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
         Node old = in(idx);
         // If n is null we are looking up rather than updating, hence return existing value
-        return n==null ? old : set_def(idx,n);
+        return n==null ? old : setDef(idx,n);
     }
 
     public Node ctrl() { return in(0); }
@@ -123,7 +123,7 @@ public class ScopeNode extends Node {
      *
      * @return Node that was bound
      */
-    public Node ctrl(Node n) { return set_def(0,n); }
+    public Node ctrl(Node n) { return setDef(0,n); }
 
     /**
      * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
@@ -143,15 +143,15 @@ public class ScopeNode extends Node {
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
         String[] names = reverseNames(); // Get the variable names
-        dup.add_def(ctrl());      // Control input is just copied
+        dup.addDef(ctrl());      // Control input is just copied
         for( int i=1; i<nIns(); i++ ) {
-            if ( !loop ) { dup.add_def(in(i)); }
+            if ( !loop ) { dup.addDef(in(i)); }
             else {
                 // Create a phi node with second input as null - to be filled in
                 // by endLoop() below
-                dup.add_def(new PhiNode(names[i], ctrl(), in(i), null).peephole());
+                dup.addDef(new PhiNode(names[i], ctrl(), in(i), null).peephole());
                 // Ensure our node has the same phi in case we created one
-                set_def(i, dup.in(i));
+                setDef(i, dup.in(i));
             }
         }
         return dup;
@@ -171,7 +171,7 @@ public class ScopeNode extends Node {
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++)
             if( in(i) != that.in(i) ) // No need for redundant Phis
-                set_def(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
+                setDef(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }
@@ -181,11 +181,11 @@ public class ScopeNode extends Node {
     public void endLoop(ScopeNode back, ScopeNode exit ) {
         Node ctrl = ctrl();
         assert ctrl instanceof LoopNode loop && loop.inProgress();
-        ctrl.set_def(2,back.ctrl());
+        ctrl.setDef(2,back.ctrl());
         for( int i=1; i<nIns(); i++ ) {
             PhiNode phi = (PhiNode)in(i);
             assert phi.region()==ctrl && phi.in(2)==null;
-            phi.set_def(2,back.in(i));
+            phi.setDef(2,back.in(i));
             // Do an eager useless-phi removal
             Node in = phi.peephole();
             if( in != phi )
