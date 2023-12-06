@@ -87,12 +87,14 @@ public class Parser {
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
+	    _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
         _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
         _scope.pop();
+		_xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         STOP.peephole();
         if( show ) showGraph();
@@ -154,7 +156,7 @@ public class Parser {
         // used as an indicator to switch off peepholes of the region and
         // associated phis.
 
-        ctrl(new LoopNode(ctrl(),null).peephole());
+        ctrl(new LoopNode(ctrl(),null).peephole()); // Note we set back edge to null here
 
         // At loop head, we clone the current Scope (this includes all
         // names in every nesting level within the Scope).
