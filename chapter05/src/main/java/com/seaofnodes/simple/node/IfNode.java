@@ -20,7 +20,10 @@ public class IfNode extends MultiNode {
     }
 
     @Override public boolean isCFG() { return true; }
-    
+
+    public Node ctrl() { return in(0); }
+    public Node pred() { return in(1); }
+
     @Override
     public Type compute() {
         return TypeTuple.IF;

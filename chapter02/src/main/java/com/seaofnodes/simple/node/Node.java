@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -59,7 +60,7 @@ public abstract class Node {
         _outputs = new ArrayList<>();
         for( Node n : _inputs )
             if( n != null )
-                n._outputs.add( this );
+                n.addUse( this );
     }
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
@@ -70,7 +71,15 @@ public abstract class Node {
 
     // Graphical label, e.g. "+" or "Region" or "=="
     public String glabel() { return label(); }
+
+
+    // ------------------------------------------------------------------------
     
+    // Debugger Printing.
+    
+    // {@code toString} is what you get in the debugger.  It has to print 1
+    // line (because this is what a debugger typically displays by default) and
+    // has to be robust with broken graph/nodes.
     @Override
     public final String toString() {
         // TODO: This needs a lot of work
@@ -104,12 +113,68 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
+    public Node out(int i) { return _outputs.get(i); }
+
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
   
+
+    /**
+     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
+     * the corresponding <em>use->def</em> edge.  This may make the original
+     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
+     *     
+     * @param idx which def to set
+     * @param new_def the new definition
+     * @return new_def for flow coding
+     */
+    Node setDef(int idx, Node new_def ) {
+        Node old_def = in(idx);
+        if( old_def == new_def ) return this; // No change
+        // If new def is not null, add the corresponding def->use edge
+        // This needs to happen before removing the old node's def->use edge as
+        // the new_def might get killed if the old node kills it recursively.
+        if( new_def != null )
+            new_def.addUse(this);
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        // Set the new_def over the old (killed) edge
+        _inputs.set(idx,new_def);
+        // Return self for easy flow-coding
+        return new_def;
+    }
+
+    // Breaks the edge invariants, used temporarily
+    protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
+
+    // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
+    // Return true if the output list is empty afterward.
+    // Error is 'use' does not exist; ok for 'use' to be null.
+    protected boolean delUse( Node use ) {
+        Utils.del(_outputs, Utils.find(_outputs, use));
+        return _outputs.size() == 0;
+    }
+
+    /**
+     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
+     * to null.  This may recursively kill more Nodes and is basically dead
+     * code elimination.  This function is co-recursive with {@link #setDef}.
+     */
+    public void kill( ) {
+        assert isUnused();      // Has no uses, so it is dead
+        for( int i=0; i<nIns(); i++ )
+            setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
+        _inputs.clear();
+        _type=null;             // Flag as dead
+        assert isDead();        // Really dead now
+    }
+
+    // Mostly used for asserts and printing.
+    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -149,56 +214,6 @@ public abstract class Node {
         return this;            // No progress
     }
 
-    /**
-     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
-     * the corresponding <em>use->def</em> edge.  This may make the original
-     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
-     *     
-     * @param idx which def to set
-     * @param new_def the new definition
-     * @return this for flow coding
-     */
-    Node set_def(int idx, Node new_def ) {
-        Node old_def = in(idx);
-        if( old_def == new_def ) return this; // No change
-        // If new def is not null, add the corresponding def->use edge
-        // This needs to happen before removing the old node's def->use edge as
-        // the new_def might get killed if the old node kills it recursively.
-        if( new_def != null )
-            new_def._outputs.add(this);
-        if( old_def != null ) { // If the old def exists, remove a use->def edge
-            ArrayList<Node> outs = old_def._outputs;
-            int lidx = outs.size()-1; // Last index
-            
-            // This 1-line hack compresses an element out of an ArrayList
-            // without having to copy the contents.  The last element is
-            // stuffed over the deleted element, and then the size is reduced.            
-            outs.set(outs.indexOf(this),outs.get(lidx));
-            outs.remove(lidx);  // Reduce ArrayList size without copying anything
-            if( lidx == 0 )     // If we removed the last use, the old def is now dead
-                old_def.kill(); // Kill old def
-        }
-        // Set the new_def over the old (killed) edge
-        _inputs.set(idx,new_def);
-        // Return self for easy flow-coding
-        return this;
-    }
-    /**
-     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
-     * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #set_def}.
-     */
-    public void kill( ) {
-        assert isUnused();      // Has no uses, so it is dead
-        for( int i=0; i<nIns(); i++ )
-            set_def(i,null);  // Set all inputs to null, recursively killing unused Nodes
-        _inputs.clear();
-        _type=null;             // Flag as dead
-        assert isDead();        // Really dead now
-    }
-
-    // Mostly used for asserts and printing.
-    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
   
     /**
      * This function needs to be

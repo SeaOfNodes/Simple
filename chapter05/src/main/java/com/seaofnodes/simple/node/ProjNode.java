@@ -30,10 +30,6 @@ public class ProjNode extends Node {
     @Override
     public Type compute() {
         Type t = ctrl()._type;
-        return getType(t);
-    }
-
-    private Type getType(Type t) {
         return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 

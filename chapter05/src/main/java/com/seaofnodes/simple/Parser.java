@@ -14,11 +14,6 @@ import java.util.*;
  */
 public class Parser {
 
-    /**
-     * The control is a name that binds to the currently active control
-     * node in the graph
-     */
-    public static final String CTRL = "$ctrl";
   
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -44,7 +39,7 @@ public class Parser {
      * <p>
      * We keep a list of all ScopeNodes so that we can show them in graphs.
      * @see #parseIf()
-     * @see #_allScopes
+     * @see #_xScopes
      */
     public ScopeNode _scope;
 
@@ -65,14 +60,13 @@ public class Parser {
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
      */
-    public final Stack<ScopeNode> _allScopes = new Stack<>();
+    public final Stack<ScopeNode> _xScopes = new Stack<>();
 
     public Parser(String source, TypeInteger arg) {
-        _lexer = new Lexer(source);
         Node.reset();
+        _lexer = new Lexer(source);
         _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
-        START.peephole();
         STOP = new StopNode();
     }
 
@@ -80,30 +74,35 @@ public class Parser {
         this(source, TypeInteger.BOT);
     }
 
+    @Override
+    public String toString() { return _lexer.toString(); }
+  
     String src() { return new String( _lexer._input ); }
 
+    // Debugging utility to find a Node by index
+    public static Node find(int nid) { return START.find(nid); }
+    
     private Node ctrl() { return _scope.ctrl(); }
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
-        _allScopes.push(_scope);
+	    _xScopes.push(_scope);
+        // Enter a new scope for the initial control and arguments
         _scope.push();
-        try {
-            _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
-            _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            parseBlock();
-            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
-            return STOP;
-        }
-        finally {
-            _scope.pop();
-            _allScopes.pop();
-            if( show ) showGraph();
-        }
+        _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        parseBlock();
+        _scope.pop();
+		_xScopes.pop();
+        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        STOP.peephole();
+        if( show ) showGraph();
+        return STOP;
     }
 
+    
     /**
      * Parses a block
      *
@@ -116,14 +115,11 @@ public class Parser {
     private Node parseBlock() {
         // Enter a new scope
         _scope.push();
-        Node n = null;
-        while (!peek('}') && !_lexer.isEOF()) {
-            Node n0 = parseStatement();
-            if (n0 != null) n = n0; // Allow null returns from eg showGraph
-        };
+        while (!peek('}') && !_lexer.isEOF())
+            parseStatement();
         // Exit scope
         _scope.pop();
-        return n;
+        return null;
     }
 
     /**
@@ -164,7 +160,7 @@ public class Parser {
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
         ScopeNode fScope = _scope.dup(); // Duplicate current scope
-        _allScopes.push(fScope); // For graph visualization we need all scopes
+        _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
         ctrl(ifT);              // set ctrl token to ifTrue projection
@@ -174,14 +170,17 @@ public class Parser {
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF);              // Ctrl token is now set to ifFalse projection
-        if (matchx("else")) parseStatement();
+        if (matchx("else")) {
+            parseStatement();
+            fScope = _scope;
+        }
 
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
         
         // Merge results
         _scope = tScope;
-        _allScopes.pop();       // Discard pushed from graph display
+        _xScopes.pop();       // Discard pushed from graph display
 
         return ctrl(tScope.mergeScopes(fScope));
     }
@@ -267,12 +266,12 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
-        if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
-        if (match("!=")) return new BoolNode.NENode(lhs, parseComparison()).peephole();
-        if (match("<" )) return new BoolNode.LTNode(lhs, parseComparison()).peephole();
-        if (match("<=")) return new BoolNode.LENode(lhs, parseComparison()).peephole();
-        if (match(">" )) return new BoolNode.GTNode(lhs, parseComparison()).peephole();
-        if (match(">=")) return new BoolNode.GENode(lhs, parseComparison()).peephole();
+        if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
+        if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
+        if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
         return lhs;
     }
 
@@ -520,7 +519,4 @@ public class Parser {
             return new String(_input, start, 1);
         }
     }
-
-    public static RuntimeException TODO() { return TODO("Not yet implemented"); }
-    public static RuntimeException TODO(String msg) { return new RuntimeException(msg); }
 }

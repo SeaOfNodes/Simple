@@ -21,19 +21,20 @@ Following are revised or new nodes
 | Start     | Control        | Start of function, now a MultiNode             |                       | A tuple with a ctrl token and an `arg` data node                           |
 | Proj      | ?              | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     | 
 | Bool      | Data           | Represents results of a comparison operator    | Two data nodes        | Result is a comparison, represented as integer value where 1=true, 0=false |
+| Not       | Data           | Logical not                                    | One data node         | Result converts 0 to 1 and vice versa                                      |
 
 Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 
-| Node Name  | Type    | Description                        | Inputs                                                           | Value                        |
-|------------|---------|------------------------------------|------------------------------------------------------------------|------------------------------|
-| Return     | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function |
-| Constant   | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant        |
-| Add        | Data    | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation  |
-| Sub        | Data    | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract       |
-| Mul        | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
-| Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
-| UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
-| Scope      | ?       | Represents scopes in the graph     | All nodes that define variables                                  | None                         |
+| Node Name | Type    | Description                        | Inputs                                                           | Value                        |
+|-----------|---------|------------------------------------|------------------------------------------------------------------|------------------------------|
+| Return    | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function |
+| Constant  | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant        |
+| Add       | Data    | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation  |
+| Sub       | Data    | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract       |
+| Mul       | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
+| Div       | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
+| Minus     | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
+| Scope     | ?       | Represents scopes in the graph     | All nodes that define variables                                  | None                         |
 
 ## Projection Nodes
 

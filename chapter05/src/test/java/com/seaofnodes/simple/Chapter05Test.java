@@ -12,7 +12,8 @@ public class Chapter05Test {
 
     @Test
     public void testChapter5IfStmt() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a = 1;
 if (arg == 1)
     a = arg+2;
@@ -28,7 +29,8 @@ return a;""");
   
     @Test
     public void testChapter5Test() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int c = 3;
 int b = 2;
 if (arg == 1) {
@@ -42,7 +44,8 @@ return c;""", TypeInteger.BOT);
     
     @Test
     public void testChapter5Return2() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 if( arg==1 ) 
     return 3; 
 else 
@@ -54,7 +57,8 @@ else
     
     @Test
     public void testChapter5IfMergeB() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=arg+1;
 int b=0;
 if( arg==1 )
@@ -68,7 +72,8 @@ return a+b;""");
 
     @Test
     public void testChapter5IfMerge2() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=arg+1;
 int b=arg+2;
 if( arg==1 )
@@ -82,7 +87,8 @@ return a+b;""");
 
     @Test
     public void testChapter5Merge3() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=1;
 if( arg==1 )
     if( arg==2 )
@@ -101,7 +107,8 @@ return a;
 
     @Test
     public void testChapter5Merge4() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=0;
 int b=0;
 if( arg )
@@ -116,7 +123,8 @@ return arg+a+b;
 
     @Test
     public void testChapter5Merge5() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 int a=arg==2;
 if( arg==1 )
 {
@@ -333,8 +341,8 @@ return a;""");
 
     @Test
     public void testVarScopeNoPeephole() {
-        Node._disablePeephole = true;
         Parser parser = new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b; #showGraph; } return c; #showGraph;");
+        Node._disablePeephole = true;
         StopNode ret = parser.parse();
         Node._disablePeephole = false;
         assertEquals("return (1+3);", ret.print());
@@ -359,8 +367,8 @@ return a;""");
 
     @Test
     public void testChapter2ParseGrammar() {
-        Node._disablePeephole = true; // disable peephole so we can observe full graph
         Parser parser = new Parser("return 1+2*3+-5;");
+        Node._disablePeephole = true; // disable peephole so we can observe full graph
         StopNode ret = parser.parse();
         assertEquals("return (1+((2*3)+(-5)));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();

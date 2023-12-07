@@ -14,11 +14,6 @@ import java.util.*;
  */
 public class Parser {
 
-    /**
-     * The control is a name that binds to the currently active control
-     * node in the graph
-     */
-    public static final String CTRL = "$ctrl";
   
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -33,7 +28,7 @@ public class Parser {
     private final Lexer _lexer;
 
     /**
-     * Stack of lexical scopes, each scope is a symbol table that binds
+     * A ScopeNode contains a stack of lexical scopes, each scope is a symbol table that binds
      * variable names to Nodes.  The top of this stack represents current scope.
      */
     public ScopeNode _scope;
@@ -48,8 +43,8 @@ public class Parser {
 
 
     public Parser(String source, TypeInteger arg) {
-        _lexer = new Lexer(source);
         Node.reset();
+        _lexer = new Lexer(source);
         _scope = new ScopeNode();
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         START.peephole();
@@ -59,26 +54,29 @@ public class Parser {
         this(source, TypeInteger.BOT);
     }
 
+    @Override
+    public String toString() { return _lexer.toString(); }
+  
     String src() { return new String( _lexer._input ); }
 
+    // Debugging utility to find a Node by index
+    public static Node find(int nid) { return START.find(nid); }
+    
     private Node ctrl() { return _scope.ctrl(); }
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
     public ReturnNode parse() { return parse(false); }
     public ReturnNode parse(boolean show) {
+        // Enter a new scope for the initial control and arguments
         _scope.push();
-        try {
-            _scope.define(CTRL , new ProjNode(START, 0, CTRL ).peephole());
-            _scope.define("arg", new ProjNode(START, 1, "arg").peephole());
-            var ret = (ReturnNode) parseBlock();
-            if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
-            return ret;
-        }
-        finally {
-            _scope.pop();
-            if( show ) showGraph();
-        }
+        _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        var ret = (ReturnNode) parseBlock();
+        _scope.pop();
+        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        if( show ) showGraph();
+        return ret;
     }
 
     /**
@@ -199,12 +197,12 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
-        if (match("==")) return new BoolNode.EQNode(lhs, parseComparison()).peephole();
-        if (match("!=")) return new BoolNode.NENode(lhs, parseComparison()).peephole();
-        if (match("<" )) return new BoolNode.LTNode(lhs, parseComparison()).peephole();
-        if (match("<=")) return new BoolNode.LENode(lhs, parseComparison()).peephole();
-        if (match(">" )) return new BoolNode.GTNode(lhs, parseComparison()).peephole();
-        if (match(">=")) return new BoolNode.GENode(lhs, parseComparison()).peephole();
+        if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
+        if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
+        if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
         return lhs;
     }
 
@@ -450,5 +448,4 @@ public class Parser {
             return new String(_input, start, 1);
         }
     }
-
 }

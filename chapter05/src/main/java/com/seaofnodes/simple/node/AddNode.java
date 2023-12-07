@@ -72,7 +72,7 @@ public class AddNode extends Node {
         if( lhs.in(2)._type.isConstant() && t2.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
-        if( lhs.in(2) instanceof PhiNode phi && phi.all_cons() &&
+        if( lhs.in(2) instanceof PhiNode phi && phi.allCons() &&
             // Do we have ((x + (phi cons)) + con) ?
             // Do we have ((x + (phi cons)) + (phi cons)) ?
             // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
@@ -80,7 +80,7 @@ public class AddNode extends Node {
             // Note that this is the exact reverse of Phi pulling a common op
             // down to reduce total op-count.  We don't get in an endless push-
             // up push-down peephole cycle because the constants all fold first.
-            (t2.isConstant() || (rhs instanceof PhiNode && phi.in(0) == rhs.in(0) && rhs.all_cons()) ) ) {
+            (t2.isConstant() || (rhs instanceof PhiNode && phi.in(0) == rhs.in(0) && rhs.allCons()) ) ) {
             Node[] ns = new Node[phi.nIns()];
             ns[0] = phi.in(0);
             // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
@@ -109,8 +109,8 @@ public class AddNode extends Node {
         if( lo._type.isConstant() ) return false;
         if( hi._type.isConstant() ) return true ;
             
-        if( lo instanceof PhiNode && lo.all_cons() ) return false;
-        if( hi instanceof PhiNode && hi.all_cons() ) return true ;
+        if( lo instanceof PhiNode && lo.allCons() ) return false;
+        if( hi instanceof PhiNode && hi.allCons() ) return true ;
 
         if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
         if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;

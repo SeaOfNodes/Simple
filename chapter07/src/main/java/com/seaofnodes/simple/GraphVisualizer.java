@@ -52,7 +52,6 @@ public class GraphVisualizer {
         nodes(sb, all);
         
         // Now the scopes, in a cluster no edges
-        scope(sb,parser._scope );
         for( ScopeNode scope : parser._xScopes )
             scope( sb, scope );
 
@@ -60,7 +59,6 @@ public class GraphVisualizer {
         nodeEdges(sb, all);
 
         // Walk the active Scope edges
-        scopeEdges( sb, parser._scope );
         for( ScopeNode scope : parser._xScopes )
             scopeEdges( sb, scope );
         

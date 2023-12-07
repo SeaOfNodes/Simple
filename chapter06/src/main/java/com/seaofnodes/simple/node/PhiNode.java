@@ -34,13 +34,8 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
-        // Remove a "junk" Phi: Phi(x,x) is just x
-        if( same_inputs() )
-            return in(1);
-
-        // If only 1 of our input values have live control
-        // then return that as phi is dead
-        Node live = singleLiveInput();
+        // If we have only a single unique input, become it.
+        Node live = singleUniqueInput();
         if (live != null)
             return live;
 
@@ -72,25 +67,15 @@ public class PhiNode extends Node {
         return true;
     }
 
-    private boolean same_inputs() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1) != in(i) )
-                return false;
-        return true;
-    }
-
     /**
-     * If only 1 of the inputs is live then return it
+     * If only single unique input, return it
      */
-    private Node singleLiveInput() {
+    private Node singleUniqueInput() {
         Node live = null;
-        for( int i=1; i<nIns(); i++ )
-            // The control type is in the region
-            if( region().in(i)._type != Type.XCONTROL )
-                if (live == null)
-                    live = in(i);
-                else
-                    return null;
+        for( int i=1; i<nIns(); i++ ) 
+            if( region().in(i)._type != Type.XCONTROL && in(i) != this )
+                if( live == null || live == in(i) ) live = in(i);
+                else return null;
         return live;
     }
 

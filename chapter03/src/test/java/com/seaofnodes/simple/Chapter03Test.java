@@ -36,8 +36,8 @@ public class Chapter03Test {
 
     @Test
     public void testVarScopeNoPeephole() {
-        Node._disablePeephole = true;
         Parser parser = new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b; #showGraph; } return c; #showGraph;");
+        Node._disablePeephole = true;
         ReturnNode ret = parser.parse();
         Node._disablePeephole = false;
         assertEquals("return (1+3);", ret.print());
@@ -62,8 +62,8 @@ public class Chapter03Test {
 
     @Test
     public void testChapter2ParseGrammar() {
-        Node._disablePeephole = true; // disable peephole so we can observe full graph
         Parser parser = new Parser("return 1+2*3+-5;");
+        Node._disablePeephole = true; // disable peephole so we can observe full graph
         ReturnNode ret = parser.parse();
         assertEquals("return (1+((2*3)+(-5)));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();

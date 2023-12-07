@@ -52,7 +52,7 @@ public abstract class Node {
      * parsing where we do not have the whole program, and also peepholes
      * change the CFG incrementally.
      * <p>
-     * See {@link https://en.wikipedia.org/wiki/Dominator_(graph_theory)}
+     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     int _idepth;
     
@@ -81,7 +81,15 @@ public abstract class Node {
 
     // Graphical label, e.g. "+" or "Region" or "=="
     public String glabel() { return label(); }
+
+
+    // ------------------------------------------------------------------------
     
+    // Debugger Printing.
+    
+    // {@code toString} is what you get in the debugger.  It has to print 1
+    // line (because this is what a debugger typically displays by default) and
+    // has to be robust with broken graph/nodes.
     @Override
     public final String toString() {
         // TODO: This needs a lot of work
@@ -115,12 +123,119 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
+    public Node out(int i) { return _outputs.get(i); }
+
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
   
+    /**
+     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
+     * the corresponding <em>use->def</em> edge.  This may make the original
+     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
+     * <p>
+     
+     * This method is the normal path for altering a Node, because it does the
+     * proper default edge maintenance.  It also <em>immediately</em> kills
+     * Nodes that lose their last use; at times care must be taken to avoid
+     * killing Nodes that are being used without having an output Node.  This
+     * definitely happens in the middle of recursive {@link #peephole} calls.
+     *     
+     * @param idx which def to set
+     * @param new_def the new definition
+     * @return new_def for flow coding
+     */
+    Node setDef(int idx, Node new_def ) {
+        Node old_def = in(idx);
+        if( old_def == new_def ) return this; // No change
+        // If new def is not null, add the corresponding def->use edge
+        // This needs to happen before removing the old node's def->use edge as
+        // the new_def might get killed if the old node kills it recursively.
+        if( new_def != null )
+            new_def.addUse(this);
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        // Set the new_def over the old (killed) edge
+        _inputs.set(idx,new_def);
+        // Return self for easy flow-coding
+        return new_def;
+    }
+  
+    // Remove the numbered input, compressing the inputs in-place.  This
+    // shuffles the order deterministically - which is suitable for Region and
+    // Phi, but not for every Node.
+    void delDef(int idx) {
+        Node old_def = in(idx);
+        if( old_def != null &&  // If the old def exists, remove a def->use edge
+            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+            old_def.kill();     // Kill old def
+        Utils.del(_inputs, idx);
+    }
+
+    /**
+     * Add a new def to an existing Node.  Keep the edges correct by
+     * adding the corresponding <em>def->use</em> edge.
+     *
+     * @param new_def the new definition, appended to the end of existing definitions
+     * @return new_def for flow coding
+     */
+    Node addDef(Node new_def) {
+        // Add use->def edge
+        _inputs.add(new_def);
+        // If new def is not null, add the corresponding def->use edge
+        if( new_def != null )
+            new_def.addUse(this);
+        return new_def;
+    }
+
+    // Breaks the edge invariants, used temporarily
+    protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
+
+    // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
+    // Return true if the output list is empty afterward.
+    // Error is 'use' does not exist; ok for 'use' to be null.
+    protected boolean delUse( Node use ) {
+        Utils.del(_outputs, Utils.find(_outputs, use));
+        return _outputs.size() == 0;
+    }
+
+    // Shortcut for "popping" n nodes.  A "pop" is basically a
+    // set_def(last,null) followed by lowering the nIns() count.
+    void popN(int n) {
+        for( int i=0; i<n; i++ ) {
+            Node old_def = _inputs.removeLast();
+            if( old_def != null &&     // If it exists and
+                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                old_def.kill();        // Kill old def
+        }
+    }
+  
+    /**
+     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
+     * to null.  This may recursively kill more Nodes and is basically dead
+     * code elimination.  This function is co-recursive with {@link #popN}.
+     */
+    public void kill( ) {
+        assert isUnused();      // Has no uses, so it is dead
+        popN(nIns());          // Set all inputs to null, recursively killing unused Nodes
+        _type=null;             // Flag as dead
+        assert isDead();        // Really dead now
+    }
+
+    // Mostly used for asserts and printing.
+    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+
+    // Shortcuts to stop DCE mid-parse
+    // Add bogus null use to keep node alive
+    public <N extends Node> N keep() { return addUse(null); }
+    // Remove bogus null.
+    public <N extends Node> N unkeep() { delUse(null); return (N)this; }
+    // ------------------------------------------------------------------------
+    // Graph-based optimizations
+    
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -174,122 +289,12 @@ public abstract class Node {
             // Killing self - and since self recursively kills self's inputs we
             // might end up killing 'm', which we are returning as a live Node.
             // So we add a bogus extra null output edge to stop kill().
-            m.addUse(null); // Add bogus null use to keep m alive
-            kill();            // Kill self because replacing with 'm'
-            m.delUse(null);    // Remove bogus null.
+            m.keep();      // Keep m alive
+            kill();        // Kill self because replacing with 'm'
+            m.unkeep();    // Okay to peephole m
         }
         return m;
     }
-
-    
-    /**
-     * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
-     * the corresponding <em>use->def</em> edge.  This may make the original
-     * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
-     * <p>
-     
-     * This method is the normal path for altering a Node, because it does the
-     * proper default edge maintenance.  It also <em>immediately</em> kills
-     * Nodes that lose their last use; at times care must be taken to avoid
-     * killing Nodes that are being used without having an output Node.  This
-     * definitely happens in the middle of recursive {@link #peephole} calls.
-     *     
-     * @param idx which def to set
-     * @param new_def the new definition
-     * @return this for flow coding
-     */
-    Node set_def(int idx, Node new_def ) {
-        Node old_def = in(idx);
-        if( old_def == new_def ) return this; // No change
-        // If new def is not null, add the corresponding def->use edge
-        // This needs to happen before removing the old node's def->use edge as
-        // the new_def might get killed if the old node kills it recursively.
-        if( new_def != null )
-            new_def.addUse(this);
-        if( old_def != null &&  // If the old def exists, remove a def->use edge
-            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-            old_def.kill();     // Kill old def
-        // Set the new_def over the old (killed) edge
-        _inputs.set(idx,new_def);
-        // Return self for easy flow-coding
-        return this;
-    }
-  
-    // Remove the numbered input, compressing the inputs in-place.  This
-    // shuffles the order deterministically - which is suitable for Region and
-    // Phi, but not for every Node.
-    void delDef(int idx) {
-        Node old_def = in(idx);
-        if( old_def != null &&  // If the old def exists, remove a def->use edge
-            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-            old_def.kill();     // Kill old def
-        // Set the new_def over the old (killed) edge
-        int last = nIns()-1;
-        _inputs.set(idx,in(last));
-        _inputs.remove(last);
-    }
-
-    /**
-     * Add a new def to an existing Node.  Keep the edges correct by
-     * adding the corresponding <em>def->use</em> edge.
-     *
-     * @param new_def the new definition, appended to the end of existing definitions
-     * @return new_def for flow coding
-     */
-    Node add_def(Node new_def) {
-        // Add use->def edge
-        _inputs.add(new_def);
-        // If new def is not null, add the corresponding def->use edge
-        if( new_def != null )
-            new_def.addUse(this);
-        return new_def;
-    }
-
-    // Breaks the edge invariants, used temporarily
-    protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
-    // Shortcuts to stop DCE mid-parse
-    public <N extends Node> N keep() { return addUse(null); }
-    public Node unkeep() { delUse(null); return this; }
-
-    // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
-    // Return true if the output list is empty afterward.
-    // Error is 'use' does not exist; ok for 'use' to be null.
-    protected boolean delUse( Node use ) {
-        ArrayList<Node> outs = _outputs;
-        int lidx = outs.size()-1; // Last index            
-        // This 1-line hack compresses an element out of an ArrayList
-        // without having to copy the contents.  The last element is
-        // stuffed over the deleted element, and then the size is reduced.            
-        outs.set(outs.indexOf(use),outs.get(lidx));
-        outs.remove(lidx);  // Reduce ArrayList size without copying anything
-        return lidx==0;
-    }
-
-    // Shortcut for "popping" n nodes.  A "pop" is basically a
-    // set_def(last,null) followed by lowering the nIns() count.
-    void pop_n(int n) {
-        for( int i=0; i<n; i++ ) {
-            Node old_def = _inputs.remove(_inputs.size()-1);
-            if( old_def != null &&     // If it exists and
-                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-                old_def.kill();        // Kill old def
-        }
-    }
-  
-    /**
-     * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
-     * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #pop_n}.
-     */
-    public void kill( ) {
-        assert isUnused();      // Has no uses, so it is dead
-        pop_n(nIns());          // Set all inputs to null, recursively killing unused Nodes
-        _type=null;             // Flag as dead
-        assert isDead();        // Really dead now
-    }
-
-    // Mostly used for asserts and printing.
-    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
   
     /**
      * This function needs to be
@@ -357,7 +362,7 @@ public abstract class Node {
     public abstract Node idealize();
 
 
-    // -----------------------
+    // ------------------------------------------------------------------------
     // Peephole utilities
     
     // Swap inputs without letting either input go dead during the swap.
@@ -370,7 +375,7 @@ public abstract class Node {
     
     // does this node contain all constants?
     // Ignores in(0), as is usually control.
-    boolean all_cons() {
+    boolean allCons() {
         for( int i=1; i<nIns(); i++ )
             if( !(in(i)._type.isConstant()) )
                 return false;
@@ -394,5 +399,25 @@ public abstract class Node {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; }
+    public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
+
+    /**
+     * Debugging utility to find a Node by index
+     */
+    public Node find(int nid) { return _find(new BitSet(),nid); }
+    private Node _find(BitSet visit, int nid) {
+        if( _nid==nid ) return this;
+        if( visit.get(_nid) ) return null;
+        visit.set(_nid);
+        for( Node def : _inputs )
+            if( def!=null ) {
+                Node rez = def._find(visit,nid);
+                if( rez != null ) return rez;
+            }
+        for( Node use : _outputs ) {
+            Node rez = use._find(visit,nid);
+            if( rez != null ) return rez;
+        }
+        return null;
+    }
 }

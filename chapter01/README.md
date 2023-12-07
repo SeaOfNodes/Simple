@@ -112,8 +112,6 @@ The following control and data nodes appear in this chapter.
 | Return    | Control | Represents the termination of a function      | Predecessor control node, Data node value                        | Return value of the function                          |
 | Constant  | Data    | Represents constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
 
-All control nodes implement a marker interface named `Control`.
-
 Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instructions is determined by a scheduling 
 algorithm that depends only on dependencies between nodes (including control dependencies) that are explicit as edges in the graph. This enables a number of optimizations 
 at very little cost (nearly always small constant time) because all dependencies are always available.
@@ -123,7 +121,7 @@ at very little cost (nearly always small constant time) because all dependencies
 Each node is assigned a unique dense integer Node ID when created. This ID is
 useful for debugging, efficiently computing equality and e.g. as an index into
 a bit vector, which in turn is used to efficiently visit a (possibly cyclic)
-graph.  We discuss Node equality in Chapter 8 Global Value Numbering.
+graph.  We discuss Node equality in Chapter 9 Global Value Numbering.
 
 ### Start Node
 

@@ -19,16 +19,16 @@ Here is the [complete language grammar](docs/03-grammar.md) for this chapter.
 
 To recap, our list of Nodes are:
 
-| Node Name  | Type    | Description                        | Inputs                                                           | Value                                                 |
-|------------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
-| Start      | Control | Start of function                  | None                                                             | None for now as we do not have function arguments yet |
-| Return     | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function                          |
-| Constant   | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
-| Add        | Data    | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation                           |
-| Sub        | Data    | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract                                |
-| Mul        | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply                                |
-| Div        | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division                                |
-| UnaryMinus | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus                             |
+| Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
+|-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
+| Start     | Control | Start of function                  | None                                                             | None for now as we do not have function arguments yet |
+| Return    | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function                          |
+| Constant  | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
+| Add       | Data    | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation                           |
+| Sub       | Data    | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract                                |
+| Mul       | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply                                |
+| Div       | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division                                |
+| Minus     | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus                             |
 
 In this chapter we introduce:
 

@@ -22,6 +22,8 @@ public class PhiNode extends Node {
         return sb;
     }
 
+    Node region() { return in(0); }
+
     @Override
     public Type compute() {
         return Type.BOTTOM;
