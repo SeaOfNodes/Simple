@@ -65,6 +65,9 @@ public class Parser {
      */
     public final Stack<ScopeNode> _xScopes = new Stack<>();
 
+    ScopeNode _continueScope = null;
+    ScopeNode _breakScope = null;
+
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         _lexer = new Lexer(source);
@@ -154,6 +157,10 @@ public class Parser {
      * @return a {@link Node}, never {@code null}
      */
     private Node parseWhile() {
+
+        var savedContinueScope = _continueScope;
+        var savedBreakScope    = _breakScope;
+
         require("(");
 
         // Loop region has two control inputs, the first is the entry
@@ -162,7 +169,7 @@ public class Parser {
         // used as an indicator to switch off peepholes of the region and
         // associated phis.
 
-        ctrl(new LoopNode(ctrl(),null).peephole()); // Note we set back edge to null here
+        ctrl(new LoopNode("Loop", ctrl(),null).peephole()); // Note we set back edge to null here
 
         // At loop head, we clone the current Scope (this includes all
         // names in every nesting level within the Scope).
@@ -173,6 +180,11 @@ public class Parser {
         // Clone the head Scope to create a new Scope for the body.
         // Create phis eagerly as part of cloning
         _scope = _scope.dup(true); // The true argument triggers creating phis
+
+        // Create continue scope as a dup of head scope
+        // And a new continue region that's points to the loop region as control
+        _continueScope = _scope.dup();
+        _continueScope.ctrl(new RegionNode("Continue", ctrl()).keep());
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -190,12 +202,17 @@ public class Parser {
         // Note that body Scope is still our current scope
         var exit = _scope.dup();
         _xScopes.push(exit);
-        exit.ctrl(ifF);
+        _breakScope = exit;
+        exit.ctrl(new RegionNode("Break", ifF));
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
+
+        // Merge current scope to continue scope
+        _continueScope.addScopes(_scope);
+        _scope = _continueScope;
 
         // The true branch loops back, so whatever is current control (_scope.ctrl) gets
         // added to head loop as input. endLoop() updates the head scope,
@@ -210,7 +227,12 @@ public class Parser {
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
-        return (_scope = exit);
+        _scope = exit;
+
+        _continueScope = savedContinueScope;
+        _breakScope = savedBreakScope;
+
+        return _scope;
     }
 
     private Node parseBreak() {

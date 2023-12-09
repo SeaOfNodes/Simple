@@ -192,7 +192,7 @@ public class ScopeNode extends Node {
      * @return A new node representing the merge point
      */
     public Node mergeScopes(ScopeNode that) {
-        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
+        RegionNode r = (RegionNode) ctrl(new RegionNode("Region", null,ctrl(), that.ctrl()).keep());
         String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++) {
@@ -210,7 +210,28 @@ public class ScopeNode extends Node {
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }
-    
+
+    public Node addScopes(ScopeNode that) {
+        RegionNode r = (RegionNode) ctrl(); // new RegionNode(null,ctrl(), that.ctrl()).keep());
+        String[] ns = reverseNames();
+        r.addDef(that.ctrl());
+        // Note that we skip i==0, which is bound to '$ctrl'
+        for (int i = 1; i < nIns(); i++) {
+            if( in(i) != that.in(i) ) { // No need for redundant Phis
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will triger a phi creation
+                Node phi;
+                if (Parser.LAZY)
+                    phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
+                else
+                    phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
+                setDef(i, phi);
+            }
+        }
+        that.kill();            // Kill merged scope
+        return r;
+    }
+
     // Merge the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {

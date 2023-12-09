@@ -7,10 +7,13 @@ import java.util.Collection;
 import java.util.BitSet;
 
 public class RegionNode extends Node {
-    public RegionNode(Node... inputs) { super(inputs); }
+
+    protected String _label;
+
+    public RegionNode(String label, Node... inputs) { super(inputs); _label = label; }
 
     @Override
-    public String label() { return "Region"; }
+    public String label() { return _label; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
