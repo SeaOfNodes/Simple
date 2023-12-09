@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.sun.source.tree.Scope;
 
 import java.util.*;
 
@@ -42,6 +43,9 @@ public class Parser {
      * @see #_xScopes
      */
     public ScopeNode _scope;
+
+    private ScopeNode continueScope;
+    private ScopeNode breakScope;
 
     /**
      * List of keywords disallowed as identifiers
@@ -137,8 +141,36 @@ public class Parser {
         else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("while")) return parseWhile();
+        else if (matchx("continue")) return parseContinue();
+        else if (matchx("break")) return parseBreak();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
+    }
+
+    private Node parseContinue() {
+        if (continueScope == null) throw error("Continue outside of loop");
+        require(";");
+        if (continueScope.ctrl() instanceof LoopNode) {
+            continueScope = _scope.dupForScope(continueScope);
+            continueScope.ctrl(new RegionNode(null, continueScope.ctrl()));
+        } else {
+            continueScope.addJumpFrom(_scope);
+        }
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        return null;
+    }
+
+    private Node parseBreak() {
+        if (breakScope == null) throw error("Break outside of loop");
+        require(";");
+        if (!(breakScope.ctrl() instanceof RegionNode)) {
+            breakScope = _scope.dupForScope(breakScope);
+            breakScope.ctrl(new RegionNode(null, breakScope.ctrl()));
+        } else {
+            breakScope.addJumpFrom(_scope);
+        }
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        return null;
     }
 
     /**
@@ -188,10 +220,29 @@ public class Parser {
         _xScopes.push(exit);
         exit.ctrl(ifF);
 
+        ScopeNode oldContinueScope = continueScope;
+        ScopeNode oldBreakScope = breakScope;
+        continueScope = head;
+        breakScope = exit;
+
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
+
+        if (continueScope != head) {
+            continueScope.addJumpFrom(_scope);
+            continueScope.doPeeps();
+            _scope.kill();
+            _scope = continueScope;
+        }
+
+        if (breakScope != exit) {
+            breakScope.addJumpFrom(exit);
+            breakScope.doPeeps();
+            exit.kill();
+            exit = breakScope;
+        }
 
         // The true branch loops back, so whatever is current control (_scope.ctrl) gets
         // added to head loop as input. endLoop() updates the head scope,
@@ -203,6 +254,9 @@ public class Parser {
 
         _xScopes.pop();       // Cleanup
         _xScopes.pop();       // Cleanup
+
+        breakScope = oldBreakScope;
+        continueScope = oldContinueScope;
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.

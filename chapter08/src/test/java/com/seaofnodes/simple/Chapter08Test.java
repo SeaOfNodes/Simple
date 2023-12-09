@@ -9,6 +9,79 @@ import static org.junit.Assert.*;
 public class Chapter08Test {
 
     @Test
+    public void testChapter8Regression() {
+        Parser.LAZY = true;
+        Parser parser = new Parser(
+
+                """
+                int a = 1;
+                while(a < 10) {
+                    a = a + 1;
+                    if (arg) continue;
+                    if (a < 4) break;
+                    a = a + 1;
+                }
+                return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region34,(Phi(Loop7,1,(Phi_a+Phi(Region24,1,2)))+1),Phi_a);", stop.toString());
+    }
+
+    @Test
+    public void testChapter8WhileBreak() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    if (a == 8) break;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region26,(Phi(Loop7,1,(Phi_a+3))+1),Phi_a);", stop.toString());
+    }
+
+    @Test
+    public void testChapter8WhileContinue() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(a < 10) {
+    a = a + 1;
+    if (a == 8) continue;
+    a = a + 2;
+}
+return a;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop7,1,(Phi_a+Phi(Region26,1,3)));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+
+    }
+
+    @Test
+    public void testChapter8LonelyContinue() {
+        try {
+            new Parser("continue; return 1;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Continue outside of loop",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testChapter8LonelyBreak() {
+        try {
+            new Parser("break; return 1;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Break outside of loop",e.getMessage());
+        }
+    }
+
+    @Test
     public void testChapter7Example() {
         Parser parser = new Parser(
                 """

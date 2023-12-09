@@ -85,16 +85,34 @@ public class ScopeNode extends Node {
      * Lookup a name in all scopes starting from most deeply nested.
      *
      * @param name Name to be looked up
-     * @see #update(String, Node, int)
+     * @see #lookup(String, int)
      */
-    public Node lookup( String name ) { return update(name,null,_scopes.size()-1);  }
+    public Node lookup( String name ) {
+        var idx = loopupName(name);
+        return idx < 0 ? null : lookup(name,idx);
+    }
     /**
      * If the name is present in any scope, then redefine else null
      *
      * @param name Name being redefined
      * @param n    The node to bind to the name
      */
-    public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
+    public Node update( String name, Node n ) {
+        var idx = loopupName(name);
+        if (idx < 0) return null;
+        lookup(name, idx);
+        return setDef(idx, n);
+    }
+
+    private int loopupName( String name ) {
+        for (int i=_scopes.size()-1; i>=0; i--) {
+            var syms = _scopes.get(i); // Get the symbol table for nesting level
+            var idx = syms.get(name);
+            if (idx != null) return idx;
+        }
+        return -1;
+    }
+
     /**
      * Both recursive lookup and update.
      *
@@ -102,15 +120,10 @@ public class ScopeNode extends Node {
      * lookups and updates; the lazy phi creation is part of chapter 8.
      *
      * @param name  Name whose binding is being updated or looked up
-     * @param n     If null, do a lookup, else update binding
-     * @param nestingLevel The starting nesting level
+     * @param idx   The index of the variable
      * @return node being looked up, or the one that was updated
      */
-    private Node update( String name, Node n, int nestingLevel ) {
-        if( nestingLevel<0 ) return null;  // Missed in all scopes, not found
-        var syms = _scopes.get(nestingLevel); // Get the symbol table for nesting level
-        var idx = syms.get(name);
-        if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
+    private Node lookup( String name, int idx ) {
         Node old = in(idx);
         if( old instanceof ScopeNode loop ) {
             // Lazy Phi!
@@ -120,10 +133,10 @@ public class ScopeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.lookup(name,idx),null).peephole());
             setDef(idx,old);
         }
-        return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
+        return old; // Not lazy, so this is the answer
     }
 
     public Node ctrl() { return in(0); }
@@ -201,9 +214,9 @@ public class ScopeNode extends Node {
                 // by name as it will triger a phi creation
                 Node phi;
                 if (Parser.LAZY)
-                    phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
+                    phi = new PhiNode(ns[i], r, this.lookup(ns[i], i), that.lookup(ns[i], i)).peephole();
                 else
-                   phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
+                    phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
                 setDef(i, phi);
             }
         }
@@ -232,4 +245,54 @@ public class ScopeNode extends Node {
         }
         back.kill();            // Loop backedge is dead
     }
+
+    public void addJumpFrom(ScopeNode current) {
+        ctrl().addDef(current.ctrl());
+        String[] names = reverseNames();
+        for (int i=1; i<nIns(); i++) {
+            Node out = in(i);
+            Node in = current.in(i);
+            if (out != in) {
+                if (Parser.LAZY) {
+                    out = this.lookup(names[i], i);
+                    in = current.lookup(names[i], i);
+                }
+                if (out instanceof PhiNode p && p.region() == ctrl()) {
+                    p.addDef(in);
+                } else {
+                    Node[] ins = new Node[ctrl().nIns()];
+                    ins[0] = ctrl();
+                    for (int j=1; j<ins.length-1; j++) ins[j] = out;
+                    ins[ins.length-1] = in;
+                    setDef(i, new PhiNode(names[i], ins));
+                }
+            }
+        }
+    }
+
+    public ScopeNode dupForScope(ScopeNode head) {
+        ScopeNode dup = new ScopeNode();
+        for( HashMap<String,Integer> syms : head._scopes )
+            dup._scopes.push(new HashMap<>(syms));
+        dup.addDef(ctrl());      // Control input is just copied
+        for( int i=1; i<head.nIns(); i++ ) {
+            dup.addDef(in(i));
+        }
+        return dup;
+    }
+
+    public void doPeeps() {
+        for( int i=1; i<nIns(); i++ ) {
+            Node n = in(i);
+            if (n instanceof PhiNode phi && phi.region() == ctrl()) {
+                Node in = phi.peephole();
+                if( in != phi )
+                    phi.subsume(in);
+            }
+        }
+        Node ctrl = ctrl().peephole();
+        if( ctrl != ctrl() )
+            ctrl().subsume(ctrl);
+    }
+
 }
