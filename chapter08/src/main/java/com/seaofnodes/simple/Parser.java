@@ -54,6 +54,8 @@ public class Parser {
             add("return");
             add("true");
             add("while");
+            add("break");
+            add("continue");
         }};
 
     
@@ -137,6 +139,8 @@ public class Parser {
         else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("while")) return parseWhile();
+        else if (matchx("break")) return parseBreak();
+        else if (matchx("continue")) return parseContinue();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
     }
@@ -207,6 +211,14 @@ public class Parser {
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
         return (_scope = exit);
+    }
+
+    private Node parseBreak() {
+        return null;
+    }
+
+    private Node parseContinue() {
+        return null;
     }
 
     /**
