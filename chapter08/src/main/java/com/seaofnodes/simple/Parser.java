@@ -163,7 +163,7 @@ public class Parser {
     private Node parseBreak() {
         if (breakScope == null) throw error("Break outside of loop");
         require(";");
-        if (!(breakScope.ctrl() instanceof RegionNode)) {
+        if (breakScope.ctrl() instanceof LoopNode) {
             breakScope = _scope.dupForScope(breakScope);
             breakScope.ctrl(new RegionNode(null, breakScope.ctrl()));
         } else {
@@ -223,7 +223,7 @@ public class Parser {
         ScopeNode oldContinueScope = continueScope;
         ScopeNode oldBreakScope = breakScope;
         continueScope = head;
-        breakScope = exit;
+        breakScope = head;
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
@@ -237,7 +237,7 @@ public class Parser {
             _scope = continueScope;
         }
 
-        if (breakScope != exit) {
+        if (breakScope != head) {
             breakScope.addJumpFrom(exit);
             breakScope.doPeeps();
             exit.kill();
