@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 public class Chapter08Test {
 
     @Test
-    public void testChapter8Regression() {
+    public void testChapter8Combination() {
         Parser.LAZY = true;
         Parser parser = new Parser(
 
@@ -25,6 +25,7 @@ public class Chapter08Test {
                 """);
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Region34,(Phi(Loop7,1,(Phi_a+Phi(Region24,1,2)))+1),Phi_a);", stop.toString());
+        Parser.LAZY = false;
     }
 
     @Test
