@@ -166,11 +166,11 @@ public class ScopeNode extends Node {
         dup.addDef(ctrl());      // Control input is just copied
         for( int i=1; i<nIns(); i++ ) {
             if ( !loop ) { dup.addDef(in(i)); }
-			else if (Parser.LAZY) {
-			    // For lazy phi we need to set a sentinel that will
-				// trigger phi creation on update
-			    dup.addDef(this); // Add a sentinel which is self
-			} 
+            else if (Parser.LAZY) {
+                // For lazy phi we need to set a sentinel that will
+                // trigger phi creation on update
+                dup.addDef(this); // Add a sentinel which is self
+            }
             else {
                 String[] names = reverseNames(); // Get the variable names
                 // Create a phi node with second input as null - to be filled in
@@ -197,13 +197,13 @@ public class ScopeNode extends Node {
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++) {
             if( in(i) != that.in(i) ) { // No need for redundant Phis
-			    // If we are in lazy phi mode we need to a lookup 
-				// by name as it will triger a phi creation
-				Node phi;
-				if (Parser.LAZY) 
- 				   phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
-				else
-				   phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will triger a phi creation
+                Node phi;
+                if (Parser.LAZY)
+                    phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
+                else
+                   phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
                 setDef(i, phi);
             }
         }
