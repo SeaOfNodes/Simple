@@ -183,7 +183,14 @@ public class ScopeNode extends Node {
         }
         return dup;
     }
-    
+
+    public ScopeNode clearDefs() {
+        for( int i=1; i<nIns(); i++ ) {
+            setDef(i, null);
+        }
+        return this;
+    }
+
     /**
      * Merges the names whose node bindings differ, by creating Phi node for such names
      * The names could occur at all stack levels, but a given name can only differ in the
@@ -220,37 +227,24 @@ public class ScopeNode extends Node {
             return this.ctrl();
         RegionNode r = (RegionNode) ctrl(); // Region was already created
         String[] ns = reverseNames();
-        boolean addedCtrl = false;
+        r.addDef(that.ctrl());
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++) {
-            if( in(i) != that.in(i) ) { // No need for redundant Phis
-                if (!addedCtrl) {
-                    // Region initially has no control inputs
-                    // So add out ctrl() - r.nIns() == 1 because first input is null
-                    if (r.nIns() == 1) r.addDef(ctrl());
-                    r.addDef(that.ctrl());
-                    addedCtrl = true;
-                }
+            // We set all the defs to null via clearDefs() so that we
+            // can imply import all the defs the first time we are called
+            if( in(i) == null ) setDef(i, that.in(i));
+            else {
+                // Always create or update phi to keep control and phi aligned
                 Node n1 = Parser.LAZY ? this.lookup(ns[i]): in(i);
                 Node n2 = Parser.LAZY ? that.lookup(ns[i]): that.in(i);
-                Node phi;
-                if (n1 instanceof PhiNode phi1 && phi1.region() == r)
-                    phi = phi1;
-                else {
-                    phi = new PhiNode(ns[i], r);
+                if (n1 instanceof PhiNode phi && phi.region() == r) {
+                    phi.addDef(n2);
+                    setDef(i,phi.peephole());
                 }
-                // We have to align the control inputs and phi data inputs
-                // So make sure phi has same input slots as region
-                for (int j = phi.nIns()-1; j < r.nIns()-1; j++)
-                    phi.addDef(null);
-                // Apply the nodes to the correct offsets based on
-                // control inputs to region
-                int idx1 = Utils.find(r._inputs, ctrl());
-                int idx2 = Utils.find(r._inputs, that.ctrl());
-                phi.setDef(idx1, n1);
-                phi.setDef(idx2, n2);
-                // Update phi
-                setDef(i, phi.peephole());
+                else {
+                    Node phi = new PhiNode(ns[i], r, n1, n2).peephole();
+                    setDef(i, phi);
+                }
             }
         }
         if (isFinal)

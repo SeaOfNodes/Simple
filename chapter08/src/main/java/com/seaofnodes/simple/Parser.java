@@ -181,9 +181,9 @@ public class Parser {
         // Create phis eagerly as part of cloning
         _scope = _scope.dup(true); // The true argument triggers creating phis
 
-        // Create continue scope as a dup of head scope
-        // And a new continue region that's points to the loop region as control
-        _continueScope = _scope.dup();
+        // Create continue scope - this has all the names
+        // in head scope but remove all the defs
+        _continueScope = _scope.dup().clearDefs();
         var continueRegion = new ContBreakNode("Continue", (Node)null);
         _continueScope.ctrl(continueRegion.peephole()); // No inputs yet
 

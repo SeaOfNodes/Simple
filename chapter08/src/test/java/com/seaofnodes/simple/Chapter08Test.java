@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 public class Chapter08Test {
 
     @Test
-    public void testChapter8Ex4() {
+    public void testChapter8Ex5() {
         Parser parser = new Parser(
                 """
 int a = 1;
@@ -23,7 +23,7 @@ while(arg < 10) {
 }
 return a;
                 """);
-        Node._disablePeephole = true;
+        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
 //        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
 //        assertTrue(stop.ret().ctrl() instanceof ProjNode);
@@ -33,7 +33,7 @@ return a;
 
 
     @Test
-    public void testChapter8Ex3() {
+    public void testChapter8Ex4() {
         Parser parser = new Parser(
                 """
 while(arg < 10) {
@@ -45,12 +45,31 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        Node._disablePeephole = true;
+        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
     }
+
+    @Test
+    public void testChapter8Ex3() {
+        Parser parser = new Parser(
+                """
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 6)
+        break;         
+}
+return arg;
+                """);
+        Node._disablePeephole = false;
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+    }
+
 
     @Test
     public void testChapter8Ex2() {
@@ -65,7 +84,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        Node._disablePeephole = true;
+        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
