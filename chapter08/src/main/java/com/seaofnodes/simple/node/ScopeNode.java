@@ -211,7 +211,10 @@ public class ScopeNode extends Node {
         return r.unkeep().peephole();
     }
 
-    public Node addScope(ScopeNode that) {
+    // This is only used for merging scope in continue and break
+    // where we can get 0 or more incoming scopes
+    //
+    public Node addScope(ScopeNode that, boolean isFinal) {
         if (this == that)
             return this.ctrl();
         RegionNode r = (RegionNode) ctrl(); // Region was already created
@@ -232,6 +235,8 @@ public class ScopeNode extends Node {
                 }
             }
         }
+        if (isFinal)
+            return ctrl(r.unkeep().peephole());
         return ctrl(r.peephole());
     }
 

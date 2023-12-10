@@ -184,7 +184,7 @@ public class Parser {
         // Create continue scope as a dup of head scope
         // And a new continue region that's points to the loop region as control
         _continueScope = _scope.dup();
-        _continueScope.ctrl(new RegionNode("Continue", null, ctrl()).peephole());
+        _continueScope.ctrl(new RegionNode("Continue", (Node) null).keep()); // No inputs yet
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -213,7 +213,7 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // Merge current scope to continue scope
-        _continueScope.addScope(_scope);
+        _continueScope.addScope(_scope, true);
         _scope = _continueScope;
 
         // The true branch loops back, so whatever is current control (_scope.ctrl) gets
@@ -237,7 +237,7 @@ public class Parser {
 
     private Node jumpTo(ScopeNode toScope) {
         if (toScope == null) throw error("Not inside a loop");
-        if (_scope != toScope) toScope.addScope(_scope);
+        if (_scope != toScope) toScope.addScope(_scope, false);
         killControl();
         return null;
     }

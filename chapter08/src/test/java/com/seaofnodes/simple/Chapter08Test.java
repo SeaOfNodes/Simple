@@ -15,7 +15,7 @@ public class Chapter08Test {
                 while(arg < 10) {
                     arg = arg + 1;
                     if (arg == 5)
-                        continue;             
+                        continue;      
                 }
                 return arg;
                 """);
