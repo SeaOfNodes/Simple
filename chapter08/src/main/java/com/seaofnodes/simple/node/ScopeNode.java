@@ -211,15 +211,26 @@ public class ScopeNode extends Node {
         return r.unkeep().peephole();
     }
 
-    public Node addScopes(ScopeNode that) {
-        RegionNode r = (RegionNode) ctrl(); // new RegionNode(null,ctrl(), that.ctrl()).keep());
+    public Node addScope(ScopeNode that) {
+        if (this == that)
+            return this.ctrl();
+        RegionNode r = (RegionNode) ctrl(); // Region was already created
         String[] ns = reverseNames();
+        boolean willAddPhi = false;
+        for (int i = 1; i < nIns(); i++) {
+            if( in(i) != that.in(i) ) {
+                willAddPhi = true;
+                break;
+            }
+        }
+        if (!willAddPhi)
+            return r;
         r.addDef(that.ctrl());
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++) {
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
-                // by name as it will triger a phi creation
+                // by name as it will trigger a phi creation
                 Node phi;
                 if (Parser.LAZY)
                     phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
@@ -228,7 +239,6 @@ public class ScopeNode extends Node {
                 setDef(i, phi);
             }
         }
-        that.kill();            // Kill merged scope
         return r;
     }
 

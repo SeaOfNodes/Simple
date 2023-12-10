@@ -184,7 +184,7 @@ public class Parser {
         // Create continue scope as a dup of head scope
         // And a new continue region that's points to the loop region as control
         _continueScope = _scope.dup();
-        _continueScope.ctrl(new RegionNode("Continue", ctrl()).keep());
+        _continueScope.ctrl(new RegionNode("Continue", null, ctrl()).keep());
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -203,7 +203,7 @@ public class Parser {
         var exit = _scope.dup();
         _xScopes.push(exit);
         _breakScope = exit;
-        exit.ctrl(new RegionNode("Break", ifF));
+        exit.ctrl(new RegionNode("Break", null, ifF));
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
@@ -211,7 +211,7 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // Merge current scope to continue scope
-        _continueScope.addScopes(_scope);
+        _continueScope.addScope(_scope);
         _scope = _continueScope;
 
         // The true branch loops back, so whatever is current control (_scope.ctrl) gets
@@ -235,12 +235,22 @@ public class Parser {
         return _scope;
     }
 
-    private Node parseBreak() {
+    private Node jumpTo(ScopeNode toScope) {
+        if (toScope == null) throw error("Not inside a loop");
+        if (_scope != toScope) toScope.addScope(_scope);
+        killControl();
         return null;
     }
 
+
+    private Node parseBreak() {
+        require(";");
+        return jumpTo(_breakScope);
+    }
+
     private Node parseContinue() {
-        return null;
+        require(";");
+        return jumpTo(_continueScope);
     }
 
     /**
@@ -303,8 +313,12 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        killControl();
         return ret;
+    }
+
+    private void killControl() {
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
     }
 
     /**
