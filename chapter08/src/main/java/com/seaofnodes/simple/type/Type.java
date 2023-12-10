@@ -46,6 +46,9 @@ public class Type {
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     public final Type meet(Type t) {
+        if ( t == null ) {
+            return this;
+        }
         // Shortcut for the self case
         if( t == this ) return this;
         // Same-type is always safe in the subclasses

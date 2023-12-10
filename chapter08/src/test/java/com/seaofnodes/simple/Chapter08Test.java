@@ -9,17 +9,41 @@ import static org.junit.Assert.*;
 public class Chapter08Test {
 
     @Test
+    public void testChapter8Ex4() {
+        Parser parser = new Parser(
+                """
+int a = 1;
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        continue;
+    if (arg == 7)
+        continue;
+    a = a + 1;
+}
+return a;
+                """);
+        Node._disablePeephole = true;
+        StopNode stop = parser.parse(true);
+//        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
+//        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        Node._disablePeephole = false;
+        System.out.println(IRPrinter.prettyPrint(stop,99));
+    }
+
+
+    @Test
     public void testChapter8Ex3() {
         Parser parser = new Parser(
                 """
-                while(arg < 10) {
-                    arg = arg + 1;
-                    if (arg == 5)
-                        continue;
-                    if (arg == 6)
-                        break;         
-                }
-                return arg;
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        continue;
+    if (arg == 6)
+        break;         
+}
+return arg;
                 """);
         Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
@@ -32,14 +56,14 @@ public class Chapter08Test {
     public void testChapter8Ex2() {
         Parser parser = new Parser(
                 """
-                while(arg < 10) {
-                    arg = arg + 1;
-                    if (arg == 5)
-                        continue;
-                    if (arg == 6)
-                        continue;         
-                }
-                return arg;
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        continue;
+    if (arg == 6)
+        continue;         
+}
+return arg;
                 """);
         Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
@@ -53,14 +77,14 @@ public class Chapter08Test {
     public void testChapter8Ex1() {
         Parser parser = new Parser(
                 """
-                while(arg < 10) {
-                    arg = arg + 1;
-                    if (arg == 5)
-                        continue;     
-                }
-                return arg;
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        continue;     
+}
+return arg;
                 """);
-        Node._disablePeephole = true;
+        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);

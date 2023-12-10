@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -219,20 +220,37 @@ public class ScopeNode extends Node {
             return this.ctrl();
         RegionNode r = (RegionNode) ctrl(); // Region was already created
         String[] ns = reverseNames();
-        r.addDef(that.ctrl());
+        boolean addedCtrl = false;
         // Note that we skip i==0, which is bound to '$ctrl'
         for (int i = 1; i < nIns(); i++) {
             if( in(i) != that.in(i) ) { // No need for redundant Phis
-                // If we are in lazy phi mode we need to a lookup
-                // by name as it will trigger a phi creation
+                if (!addedCtrl) {
+                    // Region initially has no control inputs
+                    // So add out ctrl() - r.nIns() == 1 because first input is null
+                    if (r.nIns() == 1) r.addDef(ctrl());
+                    r.addDef(that.ctrl());
+                    addedCtrl = true;
+                }
                 Node n1 = Parser.LAZY ? this.lookup(ns[i]): in(i);
                 Node n2 = Parser.LAZY ? that.lookup(ns[i]): that.in(i);
-                if (n1 instanceof PhiNode phi && phi.region() == r)
-                    setDef(i, phi.addDef(n2).peephole());
+                Node phi;
+                if (n1 instanceof PhiNode phi1 && phi1.region() == r)
+                    phi = phi1;
                 else {
-                    Node phi = new PhiNode(ns[i], r, n1, n2).peephole();
-                    setDef(i, phi);
+                    phi = new PhiNode(ns[i], r);
                 }
+                // We have to align the control inputs and phi data inputs
+                // So make sure phi has same input slots as region
+                for (int j = phi.nIns()-1; j < r.nIns()-1; j++)
+                    phi.addDef(null);
+                // Apply the nodes to the correct offsets based on
+                // control inputs to region
+                int idx1 = Utils.find(r._inputs, ctrl());
+                int idx2 = Utils.find(r._inputs, that.ctrl());
+                phi.setDef(idx1, n1);
+                phi.setDef(idx2, n2);
+                // Update phi
+                setDef(i, phi.peephole());
             }
         }
         if (isFinal)

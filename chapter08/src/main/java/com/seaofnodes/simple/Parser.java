@@ -184,7 +184,8 @@ public class Parser {
         // Create continue scope as a dup of head scope
         // And a new continue region that's points to the loop region as control
         _continueScope = _scope.dup();
-        _continueScope.ctrl(new RegionNode("Continue", (Node) null).keep()); // No inputs yet
+        var continueRegion = new ContBreakNode("Continue", (Node)null);
+        _continueScope.ctrl(continueRegion.peephole()); // No inputs yet
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -205,13 +206,15 @@ public class Parser {
 
         // The exit scope is also the break scope
         _breakScope = exit;
-        exit.ctrl(new RegionNode("Break", null, ifF).peephole());
+        var breakRegion = new ContBreakNode("Break", null, ifF);
+        exit.ctrl(breakRegion.peephole());
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
+        continueRegion.finish();
         // Merge current scope to continue scope
         _continueScope.addScope(_scope, true);
         _scope = _continueScope;
@@ -221,6 +224,7 @@ public class Parser {
         // and goes through all the phis that were created earlier. For each
         // phi, it sets the second input to the corresponding input from the back edge.
         // If the phi is redundant, it is replaced by its sole input.
+        breakRegion.finish();
         head.endLoop(_scope, exit);
         head.unkeep().kill();
 
