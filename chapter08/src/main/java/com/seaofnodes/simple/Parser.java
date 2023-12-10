@@ -184,7 +184,7 @@ public class Parser {
         // Create continue scope as a dup of head scope
         // And a new continue region that's points to the loop region as control
         _continueScope = _scope.dup();
-        _continueScope.ctrl(new RegionNode("Continue", null, ctrl()).keep());
+        _continueScope.ctrl(new RegionNode("Continue", null, ctrl()).peephole());
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -202,8 +202,10 @@ public class Parser {
         // Note that body Scope is still our current scope
         var exit = _scope.dup();
         _xScopes.push(exit);
+
+        // The exit scope is also the break scope
         _breakScope = exit;
-        exit.ctrl(new RegionNode("Break", null, ifF));
+        exit.ctrl(new RegionNode("Break", null, ifF).peephole());
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
@@ -225,14 +227,12 @@ public class Parser {
         _xScopes.pop();       // Cleanup
         _xScopes.pop();       // Cleanup
 
-        // At exit the false control is the current control, and
-        // the scope is the exit scope after the exit test.
-        _scope = exit;
-
         _continueScope = savedContinueScope;
         _breakScope = savedBreakScope;
 
-        return _scope;
+        // At exit the false control is the current control, and
+        // the scope is the exit scope after the exit test.
+        return _scope = exit;
     }
 
     private Node jumpTo(ScopeNode toScope) {
