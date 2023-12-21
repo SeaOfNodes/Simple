@@ -89,12 +89,14 @@ public class Parser {
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
+        _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
         _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
         _scope.pop();
+        _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         STOP.peephole();
         if( show ) showGraph();
@@ -150,16 +152,23 @@ public class Parser {
     private Node parseWhile() {
         require("(");
 
-        // Loop region has two control inputs, the first one is the entry
-        // point, and second one is back edge that is set after loop is parsed
+        // Loop region has two control inputs, the first is the entry
+        // point, and second is back edge that is set after loop is parsed
         // (see end_loop() call below).  Note that the absence of back edge is
         // used as an indicator to switch off peepholes of the region and
         // associated phis.
-        
-        ctrl(new LoopNode(ctrl(),null).peephole());
-        ScopeNode head = _xScopes.push(_scope).keep(); // Save the current scope as the loop head
-        // Make a new Scope for the body, which has lazy-phi loop markers.
-        _scope = _scope.dup(true);
+
+        ctrl(new LoopNode(ctrl(),null).peephole()); // Note we set back edge to null here
+
+        // At loop head, we clone the current Scope (this includes all
+        // names in every nesting level within the Scope).
+        // We create phis eagerly for all the names we find, see dup().
+
+        // Save the current scope as the loop head
+        ScopeNode head = _xScopes.push(_scope).keep();
+        // Clone the head Scope to create a new Scope for the body.
+        // Create phis eagerly as part of cloning
+        _scope = _scope.dup(true); // The true argument triggers creating phis
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
@@ -169,21 +178,31 @@ public class Parser {
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
-        // The exit scope, accounting for any side effects in the predicate
+
+        // Clone the body Scope to create the exit Scope
+        // which accounts for any side effects in the predicate
+        // The exit Scope will be the final scope after the loop,
+        // And its control input is the False branch of the loop predicate
+        // Note that body Scope is still our current scope
         var exit = _scope.dup();
         _xScopes.push(exit);
         exit.ctrl(ifF);
 
         // Parse the true side, which corresponds to loop body
+        // Our current scope is the body Scope
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
-        // The true branch loops back, so whatever is current control gets
-        // added to head loop as input
+        // The true branch loops back, so whatever is current control (_scope.ctrl) gets
+        // added to head loop as input. endLoop() updates the head scope,
+        // and goes through all the phis that were created earlier. For each
+        // phi, it sets the second input to the corresponding input from the back edge.
+        // If the phi is redundant, it is replaced by its sole input.
         head.endLoop(_scope, exit);
         head.unkeep().kill();
-        _xScopes.pop();
-        _xScopes.pop();       // Discard pushed from graph display
+
+        _xScopes.pop();       // Cleanup
+        _xScopes.pop();       // Cleanup
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.

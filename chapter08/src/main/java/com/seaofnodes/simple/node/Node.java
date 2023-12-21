@@ -117,7 +117,7 @@ public abstract class Node {
     // Print a node on 1 line, columnar aligned, as:
     // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
-    public void _print_line( StringBuilder sb ) {
+    public void _printLine(StringBuilder sb ) {
         sb.append("%4d %-7.7s ".formatted(_nid,label()));
         if( _inputs==null ) {
             sb.append("DEAD\n");
@@ -177,7 +177,7 @@ public abstract class Node {
      * @param new_def the new definition
      * @return new_def for flow coding
      */
-    Node set_def(int idx, Node new_def ) {
+    Node setDef(int idx, Node new_def ) {
         Node old_def = in(idx);
         if( old_def == new_def ) return this; // No change
         // If new def is not null, add the corresponding def->use edge
@@ -212,7 +212,7 @@ public abstract class Node {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-    public Node add_def(Node new_def) {
+    Node addDef(Node new_def) {
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
@@ -234,7 +234,7 @@ public abstract class Node {
 
     // Shortcut for "popping" n nodes.  A "pop" is basically a
     // set_def(last,null) followed by lowering the nIns() count.
-    void pop_n(int n) {
+    void popN(int n) {
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.removeLast();
             if( old_def != null &&     // If it exists and
@@ -246,11 +246,11 @@ public abstract class Node {
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
      * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #pop_n}.
+     * code elimination.  This function is co-recursive with {@link #popN}.
      */
     public void kill( ) {
         assert isUnused();      // Has no uses, so it is dead
-        pop_n(nIns());          // Set all inputs to null, recursively killing unused Nodes
+        popN(nIns());          // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead
         assert isDead();        // Really dead now
     }
@@ -419,7 +419,7 @@ public abstract class Node {
     
     // does this node contain all constants?
     // Ignores in(0), as is usually control.
-    boolean all_cons() {
+    boolean allCons() {
         for( int i=1; i<nIns(); i++ )
             if( !(in(i)._type.isConstant()) )
                 return false;

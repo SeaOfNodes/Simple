@@ -142,11 +142,12 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
-        String[] names = reverseNames(); // Get the variable names
+
         dup.addDef(ctrl());      // Control input is just copied
         for( int i=1; i<nIns(); i++ ) {
             if ( !loop ) { dup.addDef(in(i)); }
             else {
+                String[] names = reverseNames(); // Get the variable names
                 // Create a phi node with second input as null - to be filled in
                 // by endLoop() below
                 dup.addDef(new PhiNode(names[i], ctrl(), in(i), null).peephole());
@@ -169,9 +170,12 @@ public class ScopeNode extends Node {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
         String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
-        for (int i = 1; i < nIns(); i++)
-            if( in(i) != that.in(i) ) // No need for redundant Phis
-                setDef(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
+        for (int i = 1; i < nIns(); i++) {
+            if( in(i) != that.in(i) ) { // No need for redundant Phis
+                Node phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
+                setDef(i, phi);
+            }
+        }
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }

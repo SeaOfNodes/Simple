@@ -93,9 +93,9 @@ public class PhiNode extends Node {
     }
 
     @Override
-    boolean all_cons() {
+    boolean allCons() {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
             return false;
-        return super.all_cons();
+        return super.allCons();
     }
 }
