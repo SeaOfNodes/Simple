@@ -65,13 +65,14 @@ public class Parser {
      */
     public final Stack<ScopeNode> _xScopes = new Stack<>();
 
-    ScopeNode _continueScope = null;
-    ScopeNode _breakScope = null;
+    ScopeNode _continueScope;
+    ScopeNode _breakScope;
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
+        _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         STOP = new StopNode();
     }
@@ -90,7 +91,7 @@ public class Parser {
     
     private Node ctrl() { return _scope.ctrl(); }
 
-    private Node ctrl(Node n) { return _scope.ctrl(n); }
+    private void ctrl( Node n) { _scope.ctrl( n ); }
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
@@ -167,9 +168,9 @@ public class Parser {
         // point, and second is back edge that is set after loop is parsed
         // (see end_loop() call below).  Note that the absence of back edge is
         // used as an indicator to switch off peepholes of the region and
-        // associated phis.
+        // associated phis; see {@code inProgress()}.
 
-        ctrl(new LoopNode("Loop", ctrl(),null).peephole()); // Note we set back edge to null here
+        ctrl(new LoopNode(ctrl()).peephole()); // Note we set back edge to null here
 
         // At loop head, we clone the current Scope (this includes all
         // names in every nesting level within the Scope).
@@ -181,50 +182,39 @@ public class Parser {
         // Create phis eagerly as part of cloning
         _scope = _scope.dup(true); // The true argument triggers creating phis
 
-        // Create continue scope - this has all the names
-        // in head scope but remove all the defs
-        _continueScope = _scope.dup().clearDefs();
-        var continueRegion = new ContBreakNode("Continue", (Node)null);
-        _continueScope.ctrl(continueRegion.peephole()); // No inputs yet
-
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
         // Setup projection nodes
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
 
-        // Clone the body Scope to create the exit Scope
-        // which accounts for any side effects in the predicate
-        // The exit Scope will be the final scope after the loop,
-        // And its control input is the False branch of the loop predicate
-        // Note that body Scope is still our current scope
-        var exit = _scope.dup();
-        _xScopes.push(exit);
+        // Clone the body Scope to create the exit Scope which accounts for any
+        // side effects in the predicate.  The exit Scope will be the final
+        // scope after the loop, and its control input is the False branch of
+        // the loop predicate.  Note that body Scope is still our current scope.
+        ctrl(ifF);
+        _xScopes.push(_breakScope = _scope.dup());
 
-        // The exit scope is also the break scope
-        _breakScope = exit;
-        var breakRegion = new ContBreakNode("Break", null, ifF);
-        exit.ctrl(breakRegion.peephole());
-
+        // No continues yet
+        _continueScope = null;
+        
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
-        continueRegion.finish();
-        // Merge current scope to continue scope
-        _continueScope.addScope(_scope, true);
-        _scope = _continueScope;
+        // Merge the loop bottom into other continue statements
+        _scope = jumpTo(_continueScope);
 
-        // The true branch loops back, so whatever is current control (_scope.ctrl) gets
-        // added to head loop as input. endLoop() updates the head scope,
-        // and goes through all the phis that were created earlier. For each
-        // phi, it sets the second input to the corresponding input from the back edge.
-        // If the phi is redundant, it is replaced by its sole input.
-        breakRegion.finish();
+        // The true branch loops back, so whatever is current _scope.ctrl gets
+        // added to head loop as input.  endLoop() updates the head scope, and
+        // goes through all the phis that were created earlier.  For each phi,
+        // it sets the second input to the corresponding input from the back
+        // edge.  If the phi is redundant, it is replaced by its sole input.
+        var exit = _breakScope;
         head.endLoop(_scope, exit);
         head.unkeep().kill();
 
@@ -239,23 +229,16 @@ public class Parser {
         return _scope = exit;
     }
 
-    private Node jumpTo(ScopeNode toScope) {
-        if (toScope == null) throw error("Not inside a loop");
-        if (_scope != toScope) toScope.addScope(_scope, false);
-        killControl();
-        return null;
+    private ScopeNode jumpTo(ScopeNode toScope) {
+        ScopeNode cur = _scope; // Current scope
+        _scope = null;          // Current scope no longer active
+        assert toScope != cur;
+        return ScopeNode.mergeScopes(cur,toScope);
     }
 
 
-    private Node parseBreak() {
-        require(";");
-        return jumpTo(_breakScope);
-    }
-
-    private Node parseContinue() {
-        require(";");
-        return jumpTo(_continueScope);
-    }
+    private Node parseBreak   () { return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
+    private Node parseContinue() { return (_continueScope = require(jumpTo( _continueScope ),";"));  }
 
     /**
      * Parses a statement
@@ -277,31 +260,24 @@ public class Parser {
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
-        int ndefs = _scope.nIns();
-        ScopeNode fScope = _scope.dup(); // Duplicate current scope
-        _xScopes.push(fScope); // For graph visualization we need all scopes
+        ScopeNode fScope = _xScopes.push(_scope.dup()); // Duplicate current scope
 
         // Parse the true side
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse true-side
-        ScopeNode tScope = _scope;
+        _xScopes.pop();         // Pop fScope from graph viz
+        ScopeNode tScope = _xScopes.push(_scope);
         
         // Parse the false side
-        _scope = fScope;        // Restore scope, then parse else block if any
+        _scope = fScope;
         ctrl(ifF);              // Ctrl token is now set to ifFalse projection
         if (matchx("else")) {
             parseStatement();
             fScope = _scope;
         }
-
-        if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
-            throw error("Cannot define a new name on one arm of an if");
-        
-        // Merge results
-        _scope = tScope;
         _xScopes.pop();       // Discard pushed from graph display
 
-        return ctrl(tScope.mergeScopes(fScope));
+        return (_scope = ScopeNode.mergeScopes(tScope,fScope));
     }
 
 
@@ -317,12 +293,8 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
-        killControl();
+        ctrl(ConstantNode.XCONTROL()); // Kill control
         return ret;
-    }
-
-    private void killControl() {
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
     }
 
     /**
@@ -491,7 +463,7 @@ public class Parser {
 
     // Require an exact match
     private void require(String syntax) { require(null, syntax); }
-    private Node require(Node n, String syntax) {
+    private <N extends Node> N require(N n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
     }
@@ -500,7 +472,7 @@ public class Parser {
         return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
     }
 
-    static RuntimeException error(String errorMessage) {
+    public static RuntimeException error( String errorMessage ) {
         return new RuntimeException(errorMessage);
     }
 

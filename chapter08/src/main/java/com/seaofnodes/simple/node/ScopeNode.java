@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -167,7 +166,7 @@ public class ScopeNode extends Node {
         dup.addDef(ctrl());      // Control input is just copied
         for( int i=1; i<nIns(); i++ ) {
             if ( !loop ) { dup.addDef(in(i)); }
-            else if (Parser.LAZY) {
+            else if( Parser.LAZY ) {
                 // For lazy phi we need to set a sentinel that will
                 // trigger phi creation on update
                 dup.addDef(this); // Add a sentinel which is self
@@ -185,73 +184,43 @@ public class ScopeNode extends Node {
     }
 
     public ScopeNode clearDefs() {
-        for( int i=1; i<nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ )
             setDef(i, null);
-        }
         return this;
     }
 
+
+    public static ScopeNode mergeScopes( ScopeNode lhs, ScopeNode rhs ) {
+        if( lhs == null ) return rhs;
+        if( rhs == null ) return lhs;
+        if( lhs.nIns() != rhs.nIns() )
+            throw Parser.error("Cannot define a new name on one arm of an if");
+        lhs.mergeScopes(rhs);   // Merge; kill rhs
+        return lhs;
+    }
+    
     /**
      * Merges the names whose node bindings differ, by creating Phi node for such names
      * The names could occur at all stack levels, but a given name can only differ in the
      * innermost stack level where the name is bound.
      *
      * @param that The ScopeNode to be merged into this
-     * @return A new node representing the merge point
      */
-    public Node mergeScopes(ScopeNode that) {
-        RegionNode r = (RegionNode) ctrl(new RegionNode("Region", null,ctrl(), that.ctrl()).keep());
+    public void mergeScopes( ScopeNode that) {
+        RegionNode r = new RegionNode(null,ctrl(), that.ctrl()).keep();
         String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
-        for (int i = 1; i < nIns(); i++) {
-            if( in(i) != that.in(i) ) { // No need for redundant Phis
+        for( int i = 1; i < nIns(); i++ )
+            if( in(i) != that.in(i) )  // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will triger a phi creation
-                Node phi;
-                if (Parser.LAZY)
-                    phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
-                else
-                   phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
-                setDef(i, phi);
-            }
-        }
+                setDef(i, new PhiNode(ns[i], r, this.look(i,ns), that.look(i,ns)).peephole() );        
         that.kill();            // Kill merged scope
-        return r.unkeep().peephole();
+        ctrl(r.unkeep().peephole());
     }
 
-    // This is only used for merging scope in continue and break
-    // where we can get 0 or more incoming scopes
-    //
-    public Node addScope(ScopeNode that, boolean isFinal) {
-        if (this == that)
-            return this.ctrl();
-        RegionNode r = (RegionNode) ctrl(); // Region was already created
-        String[] ns = reverseNames();
-        r.addDef(that.ctrl());
-        // Note that we skip i==0, which is bound to '$ctrl'
-        for (int i = 1; i < nIns(); i++) {
-            // We set all the defs to null via clearDefs() so that we
-            // can imply import all the defs the first time we are called
-            if( in(i) == null ) setDef(i, that.in(i));
-            else {
-                // Always create or update phi to keep control and phi aligned
-                Node n1 = Parser.LAZY ? this.lookup(ns[i]): in(i);
-                Node n2 = Parser.LAZY ? that.lookup(ns[i]): that.in(i);
-                if (n1 instanceof PhiNode phi && phi.region() == r) {
-                    phi.addDef(n2);
-                    setDef(i,phi.peephole());
-                }
-                else {
-                    Node phi = new PhiNode(ns[i], r, n1, n2).peephole();
-                    setDef(i, phi);
-                }
-            }
-        }
-        if (isFinal)
-            return ctrl(r.unkeep().peephole());
-        return ctrl(r.peephole());
-    }
-
+    private Node look( int i, String[] ns ) { return Parser.LAZY ? lookup(ns[i]) : in(i); }
+    
     // Merge the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {

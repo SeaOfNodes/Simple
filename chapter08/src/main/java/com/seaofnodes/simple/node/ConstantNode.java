@@ -42,4 +42,13 @@ public class ConstantNode extends Node {
 
     @Override
     public Node idealize() { return null; }
+
+    private static ConstantNode XCONT;
+    public static ConstantNode XCONTROL() {
+        if( XCONT == null )
+            XCONT = new ConstantNode(Type.XCONTROL).keep();
+        return XCONT;
+    }
+    public static void reset() { XCONT = null; }
+
 }

@@ -41,15 +41,13 @@ while(arg < 10) {
     if (arg == 5)
         continue;
     if (arg == 6)
-        break;         
+        break;
 }
 return arg;
                 """);
-        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        Node._disablePeephole = false;
+        assertEquals("return Phi(Region29,(Phi(Loop6,arg,Add)+1),Phi_arg);", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
     @Test
@@ -59,15 +57,13 @@ return arg;
 while(arg < 10) {
     arg = arg + 1;
     if (arg == 6)
-        break;         
+        break;
 }
 return arg;
                 """);
-        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        Node._disablePeephole = false;
+        assertEquals("return Phi(Region23,(Phi(Loop6,arg,Add)+1),Phi_arg);", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
 
@@ -80,15 +76,13 @@ while(arg < 10) {
     if (arg == 5)
         continue;
     if (arg == 6)
-        continue;         
+        continue;
 }
 return arg;
                 """);
-        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        Node._disablePeephole = false;
     }
 
 
@@ -99,15 +93,13 @@ return arg;
 while(arg < 10) {
     arg = arg + 1;
     if (arg == 5)
-        continue;     
+        continue;
 }
 return arg;
                 """);
-        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test
@@ -1059,7 +1051,7 @@ return a;""");
         parser.parse();
         StartNode start = Parser.START;
         for( Node use : start._outputs )
-            if( use instanceof ConstantNode con )
+            if( use instanceof ConstantNode con && con._type instanceof TypeInteger )
                 assertEquals(TypeInteger.constant(0),con._type);
     }
 
