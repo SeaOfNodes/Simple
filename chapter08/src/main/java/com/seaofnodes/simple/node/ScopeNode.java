@@ -193,6 +193,9 @@ public class ScopeNode extends Node {
     public static ScopeNode mergeScopes( ScopeNode lhs, ScopeNode rhs ) {
         if( lhs == null ) return rhs;
         if( rhs == null ) return lhs;
+        // Pop off extra scopes either side
+        while( rhs._scopes.size() > lhs._scopes.size() )  rhs.pop();
+        while( lhs._scopes.size() > rhs._scopes.size() )  lhs.pop();
         lhs.mergeScopes(rhs);   // Merge; kill rhs
         return lhs;
     }

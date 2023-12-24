@@ -145,6 +145,24 @@ return arg;
     }
         
     @Test
+    public void testChapter8Regress4() {
+        Parser parser = new Parser("""
+int a = 1;
+while(arg < 10) {
+    a = a + 1;
+    if (arg > 2) {
+        int a = 17;
+        break;
+    }
+}
+return a;
+""");
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region26,Phi(Loop7,1,(Phi_a+1)),Add);", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof RegionNode);                   
+    }
+        
+    @Test
     public void testChapter7Example() {
         Parser parser = new Parser(
                 """
@@ -175,7 +193,7 @@ if(arg){}else{
 return a;
 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region23,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Region22,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
     }
   
     @Test
@@ -196,7 +214,7 @@ while(i < arg) {
 return sum;
 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop8,0,Phi(Loop21,Phi_sum,(Phi(Loop,0,(Phi_j+1))+Phi_sum)));", stop.toString());
+        assertEquals("return Phi(Loop8,0,Phi(Loop20,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
@@ -214,7 +232,7 @@ return b;
 """);
         Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
+        assertEquals("return Phi(Loop8,2,Phi(Region26,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
         System.out.println(IRPrinter.prettyPrint(stop,99));
@@ -235,7 +253,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop8,2,(Phi(Region27,Phi_b,4)+1));", stop.toString());
+        assertEquals("return Phi(Loop8,2,(Phi(Region26,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }

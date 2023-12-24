@@ -13,7 +13,7 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
-    public static boolean LAZY = false;
+    public static boolean LAZY = true;
   
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
