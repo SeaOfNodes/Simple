@@ -118,20 +118,22 @@ return arg;
 
     @Test
     public void testChapter8Regress2() {
-        Parser parser = new Parser(
-                """
+        try { 
+            new Parser("""
 while(arg < 10) {
-    int a=arg+2;
-    if (a > 4)
-        break;
+    break;
+    arg = arg + 1;
 }
 return arg;
-                """);
-        StopNode stop = parser.parse(true);
-        assertEquals("return arg;", stop.toString());
-        System.out.println(IRPrinter.prettyPrint(stop,99));
+""").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Code after break or continue",e.getMessage());
+        }
     }
 
+
+        
     @Test
     public void testChapter7Example() {
         Parser parser = new Parser(

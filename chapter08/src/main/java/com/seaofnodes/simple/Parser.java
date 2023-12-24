@@ -138,6 +138,8 @@ public class Parser {
      * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
+        if( _scope==null )
+            throw error("Code after break or continue");
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
