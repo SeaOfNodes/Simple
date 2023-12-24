@@ -224,20 +224,36 @@ public class ScopeNode extends Node {
     public void endLoop(ScopeNode back, ScopeNode exit ) {
         Node ctrl = ctrl();
         assert ctrl instanceof LoopNode loop && loop.inProgress();
-        ctrl.setDef(2,back.ctrl());
-        for( int i=1; i<nIns(); i++ ) {
-            if( back.in(i) != this ) {
-                PhiNode phi = (PhiNode)in(i);
-                assert phi.region()==ctrl && phi.in(2)==null;
-                phi.setDef(2,back.in(i));
-                // Do an eager useless-phi removal
-                Node in = phi.peephole();
-                if( in != phi )
-                    phi.subsume(in);
+        if( back!=null ) {
+            ctrl.setDef(2,back.ctrl());
+            for( int i=1; i<nIns(); i++ ) {
+                if( back.in(i) != this ) {
+                    PhiNode phi = (PhiNode)in(i);
+                    assert phi.region()==ctrl && phi.in(2)==null;
+                    phi.setDef(2,back.in(i));
+                    // Do an eager useless-phi removal
+                    Node in = phi.peephole();
+                    if( in != phi )
+                        phi.subsume(in);
+                }
+                if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
+                    exit.setDef(i,in(i));
             }
-            if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
-                exit.setDef(i,in(i));
+            back.kill();            // Loop backedge is dead
+        } else {
+            // Loop-back path is dead; cap off all the half-built loop nodes.
+            ctrl.setDef(2,ConstantNode.XCONTROL());
+            ctrl(((LoopNode)ctrl).entry());
+            for( int i=1; i<nIns(); i++ )
+                if( in(i) instanceof PhiNode phi )
+                    phi.setDef(2,phi);
         }
-        back.kill();            // Loop backedge is dead
+        
+        // Replace a lazy-phi on the exit path also
+        for( int i=1; i<nIns(); i++ ) {
+            if( exit.in(i) == this )
+                exit.setDef(i,in(i));
+            exit.setDef(i,exit.in(i).peephole());
+        }
     }
 }

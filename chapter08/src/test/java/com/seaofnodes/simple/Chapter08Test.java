@@ -132,7 +132,17 @@ return arg;
         }
     }
 
-
+    @Test
+    public void testChapter8Regress3() {
+        Parser parser = new Parser("""
+while(arg < 10) {
+    break;
+}
+return arg;
+""");
+        StopNode stop = parser.parse(true);
+        assertEquals("return arg;", stop.toString());
+    }
         
     @Test
     public void testChapter7Example() {

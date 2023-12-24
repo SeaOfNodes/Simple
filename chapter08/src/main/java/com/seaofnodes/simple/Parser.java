@@ -125,7 +125,8 @@ public class Parser {
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
         // Exit scope
-        _scope.pop();
+        if( _scope != null )
+          _scope.pop();
         return null;
     }
 
@@ -209,7 +210,8 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
-        _scope = jumpTo(_continueScope);
+        if( _scope != null )
+            _scope = jumpTo(_continueScope);
 
         // The true branch loops back, so whatever is current _scope.ctrl gets
         // added to head loop as input.  endLoop() updates the head scope, and
