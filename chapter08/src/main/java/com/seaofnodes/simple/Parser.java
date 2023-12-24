@@ -233,7 +233,7 @@ public class Parser {
         ScopeNode cur = _scope; // Current scope
         _scope = null;          // Current scope no longer active
         assert toScope != cur;
-        return ScopeNode.mergeScopes(cur,toScope);
+        return ScopeNode.mergeScopes(toScope,cur);
     }
 
 

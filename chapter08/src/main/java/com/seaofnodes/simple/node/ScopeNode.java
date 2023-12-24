@@ -193,7 +193,7 @@ public class ScopeNode extends Node {
     public static ScopeNode mergeScopes( ScopeNode lhs, ScopeNode rhs ) {
         if( lhs == null ) return rhs;
         if( rhs == null ) return lhs;
-        if( lhs.nIns() != rhs.nIns() )
+        if( lhs.nIns() > rhs.nIns() )
             throw Parser.error("Cannot define a new name on one arm of an if");
         lhs.mergeScopes(rhs);   // Merge; kill rhs
         return lhs;

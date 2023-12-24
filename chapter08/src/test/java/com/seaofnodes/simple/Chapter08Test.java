@@ -23,11 +23,9 @@ while(arg < 10) {
 }
 return a;
                 """);
-        Node._disablePeephole = false;
         StopNode stop = parser.parse(true);
-//        assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
-//        assertTrue(stop.ret().ctrl() instanceof ProjNode);
-        Node._disablePeephole = false;
+        assertEquals("return Phi(Loop7,1,Phi(Region34,Phi_a,(Phi_a+1)));", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
@@ -46,7 +44,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region29,(Phi(Loop6,arg,Add)+1),Phi_arg);", stop.toString());
+        assertEquals("return Phi(Region29,Phi(Loop6,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -62,7 +60,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region23,(Phi(Loop6,arg,Add)+1),Phi_arg);", stop.toString());
+        assertEquals("return Phi(Region23,Phi(Loop6,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -100,6 +98,38 @@ return arg;
         StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
+    }
+
+    @Test
+    public void testChapter8Regress1() {
+        Parser parser = new Parser(
+                """
+while( arg < 10 ) {
+    int a = arg+2;
+    if( a > 4 )
+        break;
+}
+return arg;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return arg;", stop.toString());
+        System.out.println(IRPrinter.prettyPrint(stop,99));
+    }
+
+    @Test
+    public void testChapter8Regress2() {
+        Parser parser = new Parser(
+                """
+while(arg < 10) {
+    int a=arg+2;
+    if (a > 4)
+        break;
+}
+return arg;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return arg;", stop.toString());
+        System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
     @Test
