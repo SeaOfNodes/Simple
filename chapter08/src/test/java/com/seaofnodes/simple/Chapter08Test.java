@@ -163,6 +163,22 @@ return a;
     }
         
     @Test
+    public void testChapter8Regress5() {
+        Parser parser = new Parser("""
+int a = 1;
+while(1) {
+    a = a + 1;
+    if (a<10) continue;
+    break;
+}
+return a;
+""");
+        StopNode stop = parser.parse(true);
+        assertEquals("return (Phi(Loop7,1,Add)+1);", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+    }
+        
+    @Test
     public void testChapter7Example() {
         Parser parser = new Parser(
                 """

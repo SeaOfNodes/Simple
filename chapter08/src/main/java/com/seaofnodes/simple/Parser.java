@@ -210,8 +210,7 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
-        if( _scope != null )
-            _scope = jumpTo(_continueScope);
+        _scope = _scope == null ? _continueScope : jumpTo(_continueScope);
 
         // The true branch loops back, so whatever is current _scope.ctrl gets
         // added to head loop as input.  endLoop() updates the head scope, and
