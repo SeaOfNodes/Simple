@@ -260,8 +260,9 @@ public class Parser {
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
-        // In if true branch, the ifT proj node becomes the ctrl
-        // But first clone the scope and set it as current
+        int nDefs = _scope.nIns();
+        // Clone the scope and set it as current.  The clone will be used on
+        // the false arm, after parsing the true arm.
         ScopeNode fScope = _xScopes.push(_scope.dup()); // Duplicate current scope
 
         // Parse the true side
@@ -279,6 +280,11 @@ public class Parser {
         }
         _xScopes.pop();       // Discard pushed from graph display
 
+        // Check for making 1-statement dead defs
+        if( (fScope!=null && fScope.nIns() != nDefs) ||
+            (tScope!=null && tScope.nIns() != nDefs) )
+            throw Parser.error("Cannot define a new name on one arm of an if");
+        
         return (_scope = ScopeNode.mergeScopes(tScope,fScope));
     }
 

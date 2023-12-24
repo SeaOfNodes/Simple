@@ -800,7 +800,18 @@ return a;""");
             assertEquals("Undefined name 'b'",e.getMessage());
         }
     }
+
+    @Test
+    public void testChapter5Regress1() {
+        try { 
+            new Parser("if(arg==2) int a=1; else int b=2; return a;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
+        }
+    }
     
+
     @Test
     public void testChapter5BadNum() {
         try { 
