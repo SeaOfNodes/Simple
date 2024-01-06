@@ -183,80 +183,54 @@ public class ScopeNode extends Node {
         return dup;
     }
 
-    public ScopeNode clearDefs() {
-        for( int i=1; i<nIns(); i++ )
-            setDef(i, null);
-        return this;
-    }
-
-
-    public static ScopeNode mergeScopes( ScopeNode lhs, ScopeNode rhs ) {
-        if( lhs == null ) return rhs;
-        if( rhs == null ) return lhs;
-        // Pop off extra scopes either side
-        while( rhs._scopes.size() > lhs._scopes.size() )  rhs.pop();
-        while( lhs._scopes.size() > rhs._scopes.size() )  lhs.pop();
-        lhs.mergeScopes(rhs);   // Merge; kill rhs
-        return lhs;
-    }
-    
     /**
      * Merges the names whose node bindings differ, by creating Phi node for such names
      * The names could occur at all stack levels, but a given name can only differ in the
      * innermost stack level where the name is bound.
      *
      * @param that The ScopeNode to be merged into this
+     * @return A new node representing the merge point
      */
-    public void mergeScopes( ScopeNode that) {
-        RegionNode r = new RegionNode(null,ctrl(), that.ctrl()).keep();
+    public Node mergeScopes(ScopeNode that) {
+        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
         String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
-        for( int i = 1; i < nIns(); i++ )
-            if( in(i) != that.in(i) )  // No need for redundant Phis
+        for (int i = 1; i < nIns(); i++) {
+            if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will triger a phi creation
-                setDef(i, new PhiNode(ns[i], r, this.look(i,ns), that.look(i,ns)).peephole() );        
+                Node phi;
+                if (Parser.LAZY)
+                    phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
+                else
+                   phi = new PhiNode(ns[i], r, in(i), that.in(i)).peephole();
+                setDef(i, phi);
+            }
+        }
         that.kill();            // Kill merged scope
-        ctrl(r.unkeep().peephole());
+        return r.unkeep().peephole();
     }
-
-    private Node look( int i, String[] ns ) { return Parser.LAZY ? lookup(ns[i]) : in(i); }
     
     // Merge the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {
         Node ctrl = ctrl();
         assert ctrl instanceof LoopNode loop && loop.inProgress();
-        if( back!=null ) {
-            ctrl.setDef(2,back.ctrl());
-            for( int i=1; i<nIns(); i++ ) {
-                if( back.in(i) != this ) {
-                    PhiNode phi = (PhiNode)in(i);
-                    assert phi.region()==ctrl && phi.in(2)==null;
-                    phi.setDef(2,back.in(i));
-                    // Do an eager useless-phi removal
-                    Node in = phi.peephole();
-                    if( in != phi )
-                        phi.subsume(in);
-                }
-                if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
-                    exit.setDef(i,in(i));
-            }
-            back.kill();            // Loop backedge is dead
-        } else {
-            // Loop-back path is dead; cap off all the half-built loop nodes.
-            ctrl.setDef(2,ConstantNode.XCONTROL());
-            ctrl(((LoopNode)ctrl).entry());
-            for( int i=1; i<nIns(); i++ )
-                if( in(i) instanceof PhiNode phi )
-                    phi.setDef(2,phi);
-        }
-        
-        // Replace a lazy-phi on the exit path also
+        ctrl.setDef(2,back.ctrl());
         for( int i=1; i<nIns(); i++ ) {
-            if( exit.in(i) == this )
+            if( back.in(i) != this ) {
+                PhiNode phi = (PhiNode)in(i);
+                assert phi.region()==ctrl && phi.in(2)==null;
+                phi.setDef(2,back.in(i));
+                // Do an eager useless-phi removal
+                Node in = phi.peephole();
+                if( in != phi )
+                    phi.subsume(in);
+            }
+            if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
                 exit.setDef(i,in(i));
-            exit.setDef(i,exit.in(i).peephole());
         }
+        back.kill();            // Loop backedge is dead
     }
+
 }

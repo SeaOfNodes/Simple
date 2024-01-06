@@ -91,7 +91,7 @@ public class Parser {
     
     private Node ctrl() { return _scope.ctrl(); }
 
-    private void ctrl( Node n) { _scope.ctrl( n ); }
+    private Node ctrl(Node n) { return _scope.ctrl(n); }
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
@@ -125,8 +125,7 @@ public class Parser {
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
         // Exit scope
-        if( _scope != null )
-          _scope.pop();
+        _scope.pop();
         return null;
     }
 
@@ -139,8 +138,6 @@ public class Parser {
      * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if( _scope==null )
-            throw error("Code after break or continue");
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
@@ -210,7 +207,8 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
-        _scope = _scope == null ? _continueScope : jumpTo(_continueScope);
+        if (_continueScope != _scope)
+            _scope = jumpTo(_continueScope);
 
         // The true branch loops back, so whatever is current _scope.ctrl gets
         // added to head loop as input.  endLoop() updates the head scope, and
@@ -233,10 +231,17 @@ public class Parser {
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
+        if (toScope == null || toScope == _scope)
+            return _scope;
         ScopeNode cur = _scope; // Current scope
-        _scope = null;          // Current scope no longer active
-        assert toScope != cur;
-        return ScopeNode.mergeScopes(toScope,cur);
+        ctrl(ConstantNode.XCONTROL()); // Kill current scope
+        // Pop off extra scopes either side
+        while( cur._scopes.size() > toScope._scopes.size() )
+            cur.pop();
+        while( toScope._scopes.size() > cur._scopes.size() )
+            toScope.pop();
+        toScope.mergeScopes(cur);
+        return toScope;
     }
 
 
@@ -261,32 +266,33 @@ public class Parser {
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
-        int nDefs = _scope.nIns();
-        // Clone the scope and set it as current.  The clone will be used on
-        // the false arm, after parsing the true arm.
-        ScopeNode fScope = _xScopes.push(_scope.dup()); // Duplicate current scope
+        // In if true branch, the ifT proj node becomes the ctrl
+        // But first clone the scope and set it as current
+        int ndefs = _scope.nIns();
+        ScopeNode fScope = _scope.dup(); // Duplicate current scope
+        _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse true-side
-        _xScopes.pop();         // Pop fScope from graph viz
-        ScopeNode tScope = _xScopes.push(_scope);
+        ScopeNode tScope = _scope;
         
         // Parse the false side
-        _scope = fScope;
+        _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF);              // Ctrl token is now set to ifFalse projection
         if (matchx("else")) {
             parseStatement();
             fScope = _scope;
         }
+
+        if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
+            throw error("Cannot define a new name on one arm of an if");
+        
+        // Merge results
+        _scope = tScope;
         _xScopes.pop();       // Discard pushed from graph display
 
-        // Check for making 1-statement dead defs
-        if( (fScope!=null && fScope.nIns() != nDefs) ||
-            (tScope!=null && tScope.nIns() != nDefs) )
-            throw Parser.error("Cannot define a new name on one arm of an if");
-        
-        return (_scope = ScopeNode.mergeScopes(tScope,fScope));
+        return ctrl(tScope.mergeScopes(fScope));
     }
 
 
