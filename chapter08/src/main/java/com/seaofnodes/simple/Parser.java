@@ -231,14 +231,14 @@ public class Parser {
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
-        if (toScope == null || toScope == _scope)
-            return _scope;
-        ScopeNode cur = _scope; // Current scope
+        ScopeNode cur = _scope.dup();
         ctrl(ConstantNode.XCONTROL()); // Kill current scope
+        if (toScope == null)
+            return cur;
         // Pop off extra scopes either side
-        while( cur._scopes.size() > toScope._scopes.size() )
+        while( cur._scopes.size() > _breakScope._scopes.size() )
             cur.pop();
-        while( toScope._scopes.size() > cur._scopes.size() )
+        while( toScope._scopes.size() > _breakScope._scopes.size() )
             toScope.pop();
         toScope.mergeScopes(cur);
         return toScope;
