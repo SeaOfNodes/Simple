@@ -207,7 +207,7 @@ public class Parser {
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
-        if (_continueScope != _scope)
+        if (_continueScope != null)
             _scope = jumpTo(_continueScope);
 
         // The true branch loops back, so whatever is current _scope.ctrl gets
@@ -232,14 +232,13 @@ public class Parser {
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
-        ctrl(ConstantNode.XCONTROL()); // Kill current scope
-        if (toScope == null)
-            return cur;
-        // Pop off extra scopes either side
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
+        // Pop off extra scopes
         while( cur._scopes.size() > _breakScope._scopes.size() )
             cur.pop();
-        while( toScope._scopes.size() > _breakScope._scopes.size() )
-            toScope.pop();
+        if (toScope == null)
+            return cur;
+        assert toScope._scopes.size() <= _breakScope._scopes.size();
         toScope.mergeScopes(cur);
         return toScope;
     }
@@ -308,7 +307,7 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
-        ctrl(ConstantNode.XCONTROL()); // Kill control
+        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
         return ret;
     }
 

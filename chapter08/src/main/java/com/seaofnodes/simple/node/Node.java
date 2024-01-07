@@ -444,7 +444,6 @@ public abstract class Node {
     public static void reset() {
         UNIQUE_ID = 1;
         _disablePeephole=false;
-        ConstantNode.reset();
     }
 
     /**

@@ -232,5 +232,4 @@ public class ScopeNode extends Node {
         }
         back.kill();            // Loop backedge is dead
     }
-
 }
