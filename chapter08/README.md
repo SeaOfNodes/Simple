@@ -164,6 +164,55 @@ the active break scope.
 Since a `continue`/`break` target the immediate `while` loop within which they occur, we maintain a stack of the `continue` and `break` scopes.
 This is done by saving the previous `continue`/`break` scopes before parsing a `while` loop and restoring these afterward.
 
+## Examples
+
+### Example 1
+
+```java
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        continue;
+    if (arg == 6)
+        break;
+}
+return arg;
+```
+
+![Graph1](./docs/08-graph1.svg)
+
+
+### Example 2
+
+```java
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        continue;
+    if (arg == 6)
+        continue;
+}
+return arg;
+```
+
+![Graph1](./docs/08-graph2.svg)
+
+### Example 3
+
+```java
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        break;
+    if (arg == 6)
+        break;
+}
+return arg;
+```
+
+![Graph1](./docs/08-graph3.svg)
+
+
 ## Sea of Nodes Graph Evaluator
 
 TODO
