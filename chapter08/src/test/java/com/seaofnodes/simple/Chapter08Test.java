@@ -177,7 +177,7 @@ return a;
 """);
         StopNode stop = parser.parse(true);
         assertEquals("return (Phi(Loop7,1,Add)+1);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
         
     @Test
