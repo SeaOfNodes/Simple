@@ -28,13 +28,13 @@ We do this as follows:
 * When we merge scopes, we ensure lazy phi creation at the correct inner scope level by invoking lookup by name instead of directly accessing the defs.
 * Finally, in `ScopeNode.endLoop()` we clean up any leftover sentinels, replacing the sentinel with the input from loop head.
 
-## `continue` statements
+## `continue` statement
 
 In chapter7, we had a single backedge from the loop's end, flowing back to the loop head.
 
 With the addition of a `continue` statement, we can have multiple backedges flowing back to the loop head.
 
-We have several options to how we implement these backedges.
+We have several options regarding how we implement these backedges.
 
 1. The traditional way would be to let each backedge from continue merge into the loop head. Phis would require as many inputs as there are edges.
 2. The alternative is to maintain a single backedge flowing into the loop head, but create a separate merge point (Region) for the continues. 
@@ -45,7 +45,21 @@ We also experimented with option 2, but this is not adopted as a solution. For r
 
 TODO explain why we didn't consider option 1 (as per Cliff many good things arise from having a single backedge to loop head, but its not stated what these good things are).
 
+The implementation requires some careful handling of scopes. This is because we would like to only generate Phis for continues if necessary.
 
+A `continue` can be invoked in nested scopes (such as nested `if` statement). Since we want to lazily create the continue region, the first time
+we see a `continue`, we need to dupe the head scope, and merge the current scope into it to generate a continue scope and region. Subsequently, when we 
+another `continue`, we need to construct a new region and merge the previous continue scope with the current scope.
+
+The implementation does it somewhat differently. The first `continue` triggers a dupe of the current scope, but we truncate any nested lexical 
+scopes within the scope, in order to remove any name bindings that were not visible in the head scope. This becomes the base scope for 
+subsequent `continue` statements. After the loop is parsed, if we see that a continue scope was created, then we merge the current scope 
+into the continue scope, and the continue scope becomes the active scope.
+
+Since a `continue` targets the immediate `while` loop within which it occurs, we also must maintain a stack of the `continue` and `break` scopes.
+This is done by saving the previous `continue`/`break` scopes before parsing a `while` loop and restoring these afterwards.
+
+## `break` statement
 
 
 

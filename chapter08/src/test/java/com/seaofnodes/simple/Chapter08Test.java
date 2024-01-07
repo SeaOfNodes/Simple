@@ -10,6 +10,25 @@ import static org.junit.Assert.*;
 public class Chapter08Test {
 
     @Test
+    public void testChapter8Ex6() {
+        Parser parser = new Parser(
+                """
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5)
+        break;
+    if (arg == 6)
+        break;
+}
+return arg;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return Phi(Region36,Phi(Region25,Phi(Loop6,arg,(Phi_arg+1)),Add),Add);", stop.toString());
+        assertTrue(stop.ret().ctrl() instanceof RegionNode);
+    }
+
+
+    @Test
     public void testChapter8Ex5() {
         Parser parser = new Parser(
                 """
