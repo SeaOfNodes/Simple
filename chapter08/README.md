@@ -27,3 +27,26 @@ We do this as follows:
 * Subsequently, when a lookup accesses a name, we notice that the def is set to the Scope node, and we create a Phi at this point. The relevant implementation is in `ScopeNode.update()`.
 * When we merge scopes, we ensure lazy phi creation at the correct inner scope level by invoking lookup by name instead of directly accessing the defs.
 * Finally, in `ScopeNode.endLoop()` we clean up any leftover sentinels, replacing the sentinel with the input from loop head.
+
+## `continue` statements
+
+In chapter7, we had a single backedge from the loop's end, flowing back to the loop head.
+
+With the addition of a `continue` statement, we can have multiple backedges flowing back to the loop head.
+
+We have several options to how we implement these backedges.
+
+1. The traditional way would be to let each backedge from continue merge into the loop head. Phis would require as many inputs as there are edges.
+2. The alternative is to maintain a single backedge flowing into the loop head, but create a separate merge point (Region) for the continues. 
+3. A different approach to the one above is to create a stack of continue Regions rather than a single continue Region. This has the benefit of keeping our Phi's simple with just two inputs as they are now, whereas the other approaches require Phis with more than 2 inputs. On the other hand we end up with as many continue Regions as there are `continue` statements, and corresponding phis that are stacked.
+
+In this chapter we have adopted option 3 as it is the simplest implementation op top of our basic `while` loop architecture.
+We also experimented with option 2, but this is not adopted as a solution. For readers who would like to see this alternative solution, we provide a separate branch with such an implementation.
+
+TODO explain why we didn't consider option 1 (as per Cliff many good things arise from having a single backedge to loop head, but its not stated what these good things are).
+
+
+
+
+
+
