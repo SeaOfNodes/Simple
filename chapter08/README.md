@@ -47,7 +47,7 @@ TODO explain why we didn't consider option 1 (as per Cliff many good things aris
 
 The implementation requires some careful handling of scopes. This is because we would like to only generate Phis for continues if necessary.
 
-In our basic loop architecture, by the time we get to the loop backedge, we have already existed all nested blocks/scopes, we just to stitch together the
+In our basic loop architecture, by the time we get to the loop backedge, we have already exited all nested blocks/scopes, we just need to stitch together the
 current scope+ctrl into the Loop scope+ctrl and create Phi's as needed.
 
 A `continue` however, can occur inside nested scopes (such as nested `if` statement). Since we want to lazily create the continue region, the first time
