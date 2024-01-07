@@ -30,9 +30,9 @@ We do this as follows:
 
 ## `continue` statement
 
-In chapter7, we had a single backedge from the loop's end, flowing back to the loop head.
+In chapter7, we had a single backedge from the loop's end, flowing back to the loop head. 
 
-With the addition of a `continue` statement, we can have multiple backedges flowing back to the loop head.
+With the addition of a `continue` statement, we can have multiple backedges flowing back to the loop head. 
 
 We have several options regarding how we implement these backedges.
 
@@ -47,14 +47,19 @@ TODO explain why we didn't consider option 1 (as per Cliff many good things aris
 
 The implementation requires some careful handling of scopes. This is because we would like to only generate Phis for continues if necessary.
 
-A `continue` can be invoked in nested scopes (such as nested `if` statement). Since we want to lazily create the continue region, the first time
-we see a `continue`, we need to dupe the head scope, and merge the current scope into it to generate a continue scope and region. Subsequently, when we 
-another `continue`, we need to construct a new region and merge the previous continue scope with the current scope.
+In our basic loop architecture, by the time we get to the loop backedge, we have already existed all nested blocks/scopes, we just to stitch together the
+current scope+ctrl into the Loop scope+ctrl and create Phi's as needed.
 
-The implementation does it somewhat differently. The first `continue` triggers a dupe of the current scope, but we truncate any nested lexical 
-scopes within the scope, in order to remove any name bindings that were not visible in the head scope. This becomes the base scope for 
-subsequent `continue` statements. After the loop is parsed, if we see that a continue scope was created, then we merge the current scope 
-into the continue scope, and the continue scope becomes the active scope.
+A `continue` however, can occur inside nested scopes (such as nested `if` statement). Since we want to lazily create the continue region, the first time
+we see a `continue`, we need to dupe the head scope, and merge the current scope into it to generate a continue scope and region. Subsequently, when we 
+see another `continue`, we need to construct a new region and merge the previous continue scope with the current scope.
+
+The implementation does it somewhat differently. 
+
+* The first `continue` triggers a dupe of the current scope, but we truncate any nested lexical 
+scopes within the scope greater than the head scope, removing any name bindings that were not visible in the head scope. This is essentially ensuring that we "exit" any nested scopes.
+* The continue scope becomes the base scope for the subsequent `continue` statement, thus forming a stack of continue scopes/regions. 
+* After the loop is done, if we see that a continue scope was created within the loop, we must merge the current scope into the continue scope, and make the continue scope the active scope.
 
 Since a `continue` targets the immediate `while` loop within which it occurs, we also must maintain a stack of the `continue` and `break` scopes.
 This is done by saving the previous `continue`/`break` scopes before parsing a `while` loop and restoring these afterwards.
