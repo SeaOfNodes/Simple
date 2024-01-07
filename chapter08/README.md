@@ -25,9 +25,60 @@ created when we access a name? We need a way to flag that a particular name mapp
 We do this as follows:
 
 * In `ScopeNode.dup()`, if the Scope is being duplicated for a loop head, then instead of setting the name's definition to the original node, we set it to the Scope itself. This acts like a sentinel.
+
+    ```java
+            if ( !loop ) { dup.addDef(in(i)); }
+            else {
+                // For lazy phi we need to set a sentinel that will
+                // trigger phi creation on update
+                dup.addDef(this); // Add a sentinel which is self
+            }
+    ```
+
 * Subsequently, when a lookup accesses a name, we notice that the def is set to the Scope node, and we create a Phi at this point. The relevant implementation is in `ScopeNode.update()`.
+
+    ```java
+        if( old instanceof ScopeNode loop ) {
+            // Lazy Phi!
+            old = loop.in(idx) instanceof PhiNode phi && loop.ctrl()==phi.region()
+                // Loop already has a real Phi, use it
+                ? loop.in(idx)
+                // Set real Phi in the loop head
+                // The phi takes its one input (no backedge yet) from a recursive
+                // lookup, which might have insert a Phi in every loop nest.
+                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+            setDef(idx,old);
+        }
+    ```
+
 * When we merge scopes, we ensure lazy phi creation at the correct inner scope level by invoking lookup by name instead of directly accessing the defs.
+
+    ```java
+           if( in(i) != that.in(i) ) { // No need for redundant Phis
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will triger a phi creation
+                Node phi = new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole();
+                setDef(i, phi);
+           }
+    ```
+
 * Finally, in `ScopeNode.endLoop()` we clean up any leftover sentinels, replacing the sentinel with the input from loop head.
+
+    ```java
+        for( int i=1; i<nIns(); i++ ) {
+            if( back.in(i) != this ) {
+                PhiNode phi = (PhiNode)in(i);
+                assert phi.region()==ctrl && phi.in(2)==null;
+                phi.setDef(2,back.in(i));
+                // Do an eager useless-phi removal
+                Node in = phi.peephole();
+                if( in != phi )
+                    phi.subsume(in);
+            }
+            if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
+                exit.setDef(i,in(i));
+        }
+    ```
 
 ## `continue` Statement
 
@@ -59,8 +110,48 @@ The implementation is a variation of above.
 
 * The first `continue` triggers a dupe of the current scope; we prune any nested lexical 
 scopes deeper than the head scope, removing any name bindings that were not visible in the head scope. This is essentially ensuring that we "exit" any nested scopes.
+
+    We set the continue scope initially to null.
+
+    ```java
+        // No continues yet
+        _continueScope = null;
+    ```
+    When we parse continue, the first time `_continueScope` is null.
+
+    ```java
+        private Node parseContinue() { return (_continueScope = require(jumpTo( _continueScope ),";"));  }
+
+        private ScopeNode jumpTo(ScopeNode toScope) {
+            ScopeNode cur = _scope.dup();
+            ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
+            // Prune nested lexical scopes that have depth > than the loop head
+            // We use _breakScope as a proxy for the loop head scope to obtain the depth
+            while( cur._scopes.size() > _breakScope._scopes.size() )
+                cur.pop();
+            // If this is a continue then first time the target is null
+            // So we just use the pruned current scope as the base for the
+            // continue
+            if (toScope == null)
+                return cur;
+            // toScope is either the break scope, or a scope that was created here
+            assert toScope._scopes.size() <= _breakScope._scopes.size();
+            toScope.mergeScopes(cur);
+            return toScope;
+        }
+    ```
+  
 * The continue scope becomes the base scope for the subsequent `continue` statement, thus forming a stack of continue scopes/regions. 
 * After the loop is done, if we find that a continue scope was created within the loop, we must merge the current scope into the continue scope, and make the continue scope the active scope.
+
+    ```java
+        // Merge the loop bottom into other continue statements
+        if (_continueScope != null) {
+            _continueScope = jumpTo(_continueScope);
+            _scope.kill();
+            _scope = _continueScope;
+        }
+    ```
 
 ## `break` Statement
 
