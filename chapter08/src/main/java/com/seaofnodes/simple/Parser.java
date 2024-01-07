@@ -251,11 +251,7 @@ public class Parser {
         return toScope;
     }
 
-
-    private Node parseBreak   () {
-        assert _breakScope != null;
-        return (   _breakScope = require(jumpTo(    _breakScope ),";"));
-    }
+    private Node parseBreak   () { return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
     private Node parseContinue() { return (_continueScope = require(jumpTo( _continueScope ),";"));  }
 
     /**
