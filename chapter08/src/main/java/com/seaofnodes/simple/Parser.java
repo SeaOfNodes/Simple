@@ -191,8 +191,8 @@ public class Parser {
         ifNode.unkeep();
         Node ifF = new ProjNode(ifNode, 1, "False").peephole();
 
-        // Clone the body Scope to create the exit Scope which accounts for any
-        // side effects in the predicate.  The exit Scope will be the final
+        // Clone the body Scope to create the break/exit Scope which accounts for any
+        // side effects in the predicate.  The break/exit Scope will be the final
         // scope after the loop, and its control input is the False branch of
         // the loop predicate.  Note that body Scope is still our current scope.
         ctrl(ifF);
@@ -236,18 +236,26 @@ public class Parser {
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
         ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
-        // Pop off extra scopes
+        // Prune nested lexical scopes that have depth > than the loop head
+        // We use _breakScope as a proxy for the loop head scope to obtain the depth
         while( cur._scopes.size() > _breakScope._scopes.size() )
             cur.pop();
+        // If this is a continue then first time the target is null
+        // So we just use the pruned current scope as the base for the
+        // continue
         if (toScope == null)
             return cur;
+        // toScope is either the break scope, or a scope that was created here
         assert toScope._scopes.size() <= _breakScope._scopes.size();
         toScope.mergeScopes(cur);
         return toScope;
     }
 
 
-    private Node parseBreak   () { return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
+    private Node parseBreak   () {
+        assert _breakScope != null;
+        return (   _breakScope = require(jumpTo(    _breakScope ),";"));
+    }
     private Node parseContinue() { return (_continueScope = require(jumpTo( _continueScope ),";"));  }
 
     /**
