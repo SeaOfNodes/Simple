@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
-import java.util.Collection;
 import java.util.BitSet;
 
 public class RegionNode extends Node {
