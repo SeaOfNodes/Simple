@@ -66,6 +66,8 @@ This is done by saving the previous `continue`/`break` scopes before parsing a `
 
 ## `break` statement
 
-
+Implementing `break` is simpler than `continue`, because the exit scope is created before we parse the loop body. So this becomes the initial `break` scope.
+When we see `break`, we merge the current scope, after truncating any nested lexical scopes, to the current break scope, and the resulting new scope becomes
+the active break scope.
 
 
