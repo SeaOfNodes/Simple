@@ -177,10 +177,10 @@ public class Parser {
         // We create phis eagerly for all the names we find, see dup().
 
         // Save the current scope as the loop head
-        ScopeNode head = _xScopes.push(_scope).keep();
+        ScopeNode head = _scope.keep();
         // Clone the head Scope to create a new Scope for the body.
         // Create phis eagerly as part of cloning
-        _scope = _scope.dup(true); // The true argument triggers creating phis
+        _xScopes.push(_scope = _scope.dup(true)); // The true argument triggers creating phis
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
