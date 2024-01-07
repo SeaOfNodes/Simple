@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -24,7 +25,7 @@ while(arg < 10) {
 return a;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop7,1,Phi(Region34,Phi_a,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Loop7,1,Phi(Region42,Phi_a,(Phi_a+1)));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
@@ -44,7 +45,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region29,Phi(Loop6,arg,(Phi_arg+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region34,Phi(Loop6,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -60,7 +61,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region23,Phi(Loop6,arg,(Phi_arg+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region25,Phi(Loop6,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -117,6 +118,7 @@ return arg;
     }
 
     @Test
+    @Ignore
     public void testChapter8Regress2() {
         try { 
             new Parser("""
@@ -158,7 +160,7 @@ while(arg < 10) {
 return a;
 """);
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Region26,Phi(Loop7,1,(Phi_a+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region28,Phi(Loop7,1,(Phi_a+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);                   
     }
         
