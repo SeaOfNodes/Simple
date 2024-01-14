@@ -46,6 +46,8 @@ public class Parser {
      * List of keywords disallowed as identifiers
      */
     private final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("break");
+            add("continue");
             add("else");
             add("false");
             add("if");
@@ -53,8 +55,6 @@ public class Parser {
             add("return");
             add("true");
             add("while");
-            add("break");
-            add("continue");
         }};
 
     
@@ -250,8 +250,10 @@ public class Parser {
         return toScope;
     }
 
-    private Node parseBreak   () { return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
-    private Node parseContinue() { return (_continueScope = require(jumpTo( _continueScope ),";"));  }
+    private void checkLoopActive() { if (_breakScope == null) throw Parser.error("No active loop for a break or continue"); }
+
+    private Node parseBreak   () { checkLoopActive(); return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
+    private Node parseContinue() { checkLoopActive(); return (_continueScope = require(jumpTo( _continueScope ),";"));  }
 
     /**
      * Parses a statement

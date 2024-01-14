@@ -3,7 +3,6 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -140,11 +139,10 @@ return arg;
     }
 
     @Test
-    @Ignore
-    public void testChapter8Regress2() {
+    public void testChapter8BreakOutsideLoop() {
         try { 
             new Parser("""
-while(arg < 10) {
+if(arg < 10) {
     break;
     arg = arg + 1;
 }
@@ -152,7 +150,7 @@ return arg;
 """).parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Code after break or continue",e.getMessage());
+            assertEquals("No active loop for a break or continue",e.getMessage());
         }
     }
 
