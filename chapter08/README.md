@@ -185,7 +185,7 @@ The implementation is a variation of above.
 ## `break` Statement
 
 Implementing `break` is simpler than `continue`, because the exit scope is
-created before we parse the loop body.  So this becomes the initial `break`
+created before we parse the loop body, and this becomes the initial `break`
 scope.  When we see `break`, we merge the current scope, after pruning any
 nested lexical scopes, to the current break scope, and the resulting new scope
 becomes the active break scope.
