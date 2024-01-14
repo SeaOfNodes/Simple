@@ -35,7 +35,7 @@ The simple language will be a small subset of C.
 * [Chapter 5](chapter05/README.md): `if` statement. CFG construction.
 * [Chapter 6](chapter06/README.md): Peephole optimization around dead control flow. 
 * [Chapter 7](chapter07/README.md): `while` statement. Looping construct - eager phi approach.
-* Chapter 8: Looping construct continued, lazy phi creation, `break` and `continue` statements.
+* [Chapter 8](chapter08/README.md): Looping construct continued, lazy phi creation, `break` and `continue` statements.
 * Chapter 9: Global Value Numbering.
 * Chapter 10: Functions and calls.
 * Chapter 11: Boolean operators `&&`, `||` and `!` including short circuit.
