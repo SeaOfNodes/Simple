@@ -142,7 +142,7 @@ return arg;
     public void testChapter8BreakOutsideLoop() {
         try { 
             new Parser("""
-if(arg < 10) {
+if(arg <= 10) {
     break;
     arg = arg + 1;
 }
