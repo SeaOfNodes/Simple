@@ -140,10 +140,8 @@ public abstract class Node {
         sb.append("\n");
     }
 
-    public final String p(int depth) {
-        return IRPrinter.prettyPrint(this,depth);
-    }
-
+    public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
+    
     public boolean isMultiHead() { return false; }
     public boolean isMultiTail() { return false; }
     

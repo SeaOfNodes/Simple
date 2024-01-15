@@ -4,10 +4,20 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
 public class Chapter08Test {
+
+    @Test
+    @Ignore
+    public void testJig() {
+        Parser parser = new Parser("""
+// Insert test case here
+""");
+        StopNode stop = parser.parse(true);
+    }
 
     @Test
     public void testChapter8Ex6() {
