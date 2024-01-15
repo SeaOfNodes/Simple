@@ -36,15 +36,16 @@ The simple language will be a small subset of C.
 * [Chapter 6](chapter06/README.md): Peephole optimization around dead control flow. 
 * [Chapter 7](chapter07/README.md): `while` statement. Looping construct - eager phi approach.
 * [Chapter 8](chapter08/README.md): Looping construct continued, lazy phi creation, `break` and `continue` statements.
-* Chapter 9: Global Value Numbering.
-* Chapter 10: Functions and calls.
-* Chapter 11: Boolean operators `&&`, `||` and `!` including short circuit.
-* Chapter 12: Memory effects: general memory edges in SSA. Peephole optimization around
+* Chapter 9: Peeps on loops. Worklists.
+* Chapter 10: One dimensional static length array type. Array load/store.
+* Chapter 11: Memory effects: general memory edges in SSA. Peephole optimization around
   load-after-store/store-after-store.
-* Chapter 13: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not
+* Chapter 12: Global Value Numbering.
+* Chapter 13: Functions and calls.
+* Chapter 14: Boolean operators `&&`, `||` and `!` including short circuit.
+* Chapter 15: Equivalence class aliasing, fine grained peephole optimizations. Free ptr-to analysis in SoN; but does not
   handle aliasing in arrays.
-* Chapter 14: One dimensional static length array type. Array load/store.
-* Chapter 15: Global Code Motion - unwind SoN to CFG. Scheduling.
-* Chapter 16: Instruction selection, BURS.
-* Chapter 17: Backend register allocation.
-* Chapter 18: Garbage Collection.
+* Chapter 16: Global Code Motion - unwind SoN to CFG. Scheduling.
+* Chapter 17: Instruction selection, BURS.
+* Chapter 18: Backend register allocation.
+* Chapter 19: Garbage Collection.
