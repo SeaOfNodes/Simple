@@ -199,10 +199,10 @@ public class Parser {
         var lhs = parseAddition();
         if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
         if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
-        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
         if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
-        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
         if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
         return lhs;
     }
 

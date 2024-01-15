@@ -142,11 +142,12 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
-        String[] names = reverseNames(); // Get the variable names
+
         dup.addDef(ctrl());      // Control input is just copied
         for( int i=1; i<nIns(); i++ ) {
             if ( !loop ) { dup.addDef(in(i)); }
             else {
+                String[] names = reverseNames(); // Get the variable names
                 // Create a phi node with second input as null - to be filled in
                 // by endLoop() below
                 dup.addDef(new PhiNode(names[i], ctrl(), in(i), null).peephole());

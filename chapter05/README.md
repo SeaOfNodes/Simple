@@ -113,7 +113,7 @@ This involves following:
   updated to point to the `Phi` node.
 10. Finally, we set the `Region` node as the control token, and discard the duplicated `ScopeNode`.
 
-Implementation is in [`parseIf` method in `Parser`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/Parser.java#L146-L186).
+Implementation is in [`parseIf` method in `Parser`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/Parser.java#L149-L185).
 
 ## Operations on ScopeNodes
 
@@ -129,7 +129,7 @@ Our goals are:
 2) Make the new ScopeNode a user of all the bound nodes
 3) Ensure that the order of defs in the duplicate is the same to allow easy merging
 
-For implementation [see `scopeNode.dup()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L99-L119)
+For implementation [see `scopeNode.dup()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L142-L154)
 
 ### Merging two ScopeNodes
 
@@ -142,7 +142,7 @@ At the merge point we merge two ScopeNodes. The goals are:
 The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode. 
 Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
 
-For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L121-L136)
+For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L164-L173)
 
 ## Example
 

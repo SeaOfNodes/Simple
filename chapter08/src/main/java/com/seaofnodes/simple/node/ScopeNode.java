@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -36,7 +35,7 @@ public class ScopeNode extends Node {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Scope[ ");
-        String[] names = reverse_names();
+        String[] names = reverseNames();
         for( int j=0; j<nIns(); j++ ) {
             sb.append(names[j]).append(":");
             Node n = in(j);
@@ -50,8 +49,14 @@ public class ScopeNode extends Node {
         return sb.append("]");
     }
 
-    // Expensive...
-    public String[] reverse_names() {
+    /**
+     * Recover the names for all variable bindings.
+     * The result is an array of names that is aligned with the
+     * inputs to the Node.
+     *
+     * This is an expensive operation.
+     */
+    public String[] reverseNames() {
         String[] names = new String[nIns()];
         for( HashMap<String,Integer> syms : _scopes )
             for( String name : syms.keySet() )
@@ -64,29 +69,47 @@ public class ScopeNode extends Node {
     @Override public Node idealize() { return null; }
 
     public void push() { _scopes.push(new HashMap<>());  }
-    public void pop() { pop_n(_scopes.pop().size());  }
-    
-    // Create a new name in the current scope
+    public void pop() { popN(_scopes.pop().size());  }
+
+    /**
+     * Create a new name in the current scope
+     */
     public Node define( String name, Node n ) {
         HashMap<String,Integer> syms = _scopes.lastElement();
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
-        return add_def(n);
+        return addDef(n);
     }
-
-    // Lookup a name.  It is recursive to support lazy Phis on loops.
-    public Node lookup(String name) { return update(name,null,_scopes.size()-1);  }  
-    // If the name is present in any scope, then redefine else null
-    public Node update(String name, Node n) { return update(name,n,_scopes.size()-1); }
-    // Both recursive lookup and update.  If a Lazy Phi is found at any level,
-    // a concrete Phi is inserted at the loop head and also in the current
-    // scope.  The Lazy Phi does a recursive lookup for its input which may
-    // itself be Lazy.
-    private Node update( String name, Node n, int i ) {
-        if( i<0 ) return null;  // Missed in all scopes, not found
-        var syms = _scopes.get(i);
+    /**
+     * Lookup a name in all scopes starting from most deeply nested.
+     *
+     * @param name Name to be looked up
+     * @see #update(String, Node, int)
+     */
+    public Node lookup( String name ) { return update(name,null,_scopes.size()-1);  }
+    /**
+     * If the name is present in any scope, then redefine else null
+     *
+     * @param name Name being redefined
+     * @param n    The node to bind to the name
+     */
+    public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
+    /**
+     * Both recursive lookup and update.
+     *
+     * A shared implementation allows us to create lazy phis both during
+     * lookups and updates; the lazy phi creation is part of chapter 8.
+     *
+     * @param name  Name whose binding is being updated or looked up
+     * @param n     If null, do a lookup, else update binding
+     * @param nestingLevel The starting nesting level
+     * @return node being looked up, or the one that was updated
+     */
+    private Node update( String name, Node n, int nestingLevel ) {
+        if( nestingLevel<0 ) return null;  // Missed in all scopes, not found
+        var syms = _scopes.get(nestingLevel); // Get the symbol table for nesting level
         var idx = syms.get(name);
-        if( idx == null ) return update(name,n,i-1); // Missed in this scope, recursively look
+        if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
         Node old = in(idx);
         if( old instanceof ScopeNode loop ) {
             // Lazy Phi!
@@ -96,10 +119,10 @@ public class ScopeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.set_def(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,i),null).peephole());
-            set_def(idx,old);
+                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+            setDef(idx,old);
         }
-        return n==null ? old : set_def(idx,n); // Not lazy, so this is the answer
+        return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
     }
 
     public Node ctrl() { return in(0); }
@@ -114,7 +137,7 @@ public class ScopeNode extends Node {
      *
      * @return Node that was bound
      */
-    public Node ctrl(Node n) { return set_def(0,n); }
+    public Node ctrl(Node n) { return setDef(0,n); }
 
     /**
      * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
@@ -138,15 +161,15 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
-        String[] reverse = Parser.LAZY ? null : reverse_names();
-        dup.add_def(ctrl());      // Control input is just copied
-        for( int i=1; i<nIns(); i++ ) {
-            dup.add_def(loop ? (Parser.LAZY ? this : new PhiNode(reverse[i],ctrl(),in(i),null).peephole()) : in(i));
-            if( loop && !Parser.LAZY ) set_def(i,dup.in(i));
-        }
+
+        dup.addDef(ctrl());      // Control input is just copied
+        for( int i=1; i<nIns(); i++ )
+            // For lazy phis on loops we use a sentinel
+            // that will trigger phi creation on update
+            dup.addDef(loop ? this : in(i));
         return dup;
     }
-    
+
     /**
      * Merges the names whose node bindings differ, by creating Phi node for such names
      * The names could occur at all stack levels, but a given name can only differ in the
@@ -157,36 +180,35 @@ public class ScopeNode extends Node {
      */
     public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
-        String[] ns = reverse_names();
+        String[] ns = reverseNames();
         // Note that we skip i==0, which is bound to '$ctrl'
-        for (int i = 1; i < nIns(); i++) {
-            if( in(i) != that.in(i) ) { // No need for redundant Phis
-                Node n1 = Parser.LAZY ? this.lookup(ns[i]) :      in(i); // Must do a lookup to set lazy Phis
-                Node n2 = Parser.LAZY ? that.lookup(ns[i]) : that.in(i); // Must do a lookup to set lazy Phis
-                set_def(i, new PhiNode(ns[i], r, n1, n2).peephole());
-            }
-        }
+        for (int i = 1; i < nIns(); i++)
+            if( in(i) != that.in(i) ) // No need for redundant Phis
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will trigger a phi creation
+                setDef(i, new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }
     
     // Merge the backedge scope into this loop head scope
+    // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {
         Node ctrl = ctrl();
         assert ctrl instanceof LoopNode loop && loop.inProgress();
-        ctrl.set_def(2,back.ctrl());
+        ctrl.setDef(2,back.ctrl());
         for( int i=1; i<nIns(); i++ ) {
             if( back.in(i) != this ) {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==ctrl && phi.in(2)==null;
-                phi.set_def(2,back.in(i));
+                phi.setDef(2,back.in(i));
                 // Do an eager useless-phi removal
                 Node in = phi.peephole();
                 if( in != phi )
                     phi.subsume(in);
             }
             if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
-                exit.set_def(i,in(i));
+                exit.setDef(i,in(i));
         }
         back.kill();            // Loop backedge is dead
     }

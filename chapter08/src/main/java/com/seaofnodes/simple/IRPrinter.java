@@ -24,16 +24,16 @@ public class IRPrinter {
             Node n = rpos.get(i);
             if( n.isCFG() || n.isMultiHead() ) {
                 if( !gap ) sb.append("\n"); // Blank before multihead
-                n._print_line(sb); // Print head
+                n._printLine(sb); // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
                     if( !t.isMultiTail() ) { i++; break; }
-                    t._print_line(sb);
+                    t._printLine(sb);
                 }
                 sb.append("\n"); // Blank after multitail
                 gap = true;
             } else {
-                n._print_line( sb );
+                n._printLine( sb );
                 gap = false;
             }
         }

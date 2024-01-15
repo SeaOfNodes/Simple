@@ -13,7 +13,6 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
-
   
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -88,14 +87,14 @@ public class Parser {
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
-	    _xScopes.push(_scope);
+        _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
         _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
         _scope.pop();
-		_xScopes.pop();
+        _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         STOP.peephole();
         if( show ) showGraph();
@@ -269,10 +268,10 @@ public class Parser {
         var lhs = parseAddition();
         if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
         if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
-        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
         if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
-        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
         if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
         return lhs;
     }
 

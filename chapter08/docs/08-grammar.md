@@ -14,12 +14,22 @@ statement
     | expressionStatement
     | ifStatement
     | whileStatement
+    | breakStatement
+    | continueStatment
     | metaStatement
     ;
 
 whileStatement
     : 'while' '(' expression ')' statement
     ;
+
+breakStatement
+    : 'break' ';'
+    ;
+    
+continueStatement
+    : 'continue' ';'
+    ;    
 
 ifStatement
     : 'if' '(' expression ')' statement ('else' statement)?
