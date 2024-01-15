@@ -16,7 +16,7 @@ public class PhiNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( region().inProgress() )
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
             sb.append("Z");
         sb.append("Phi(");
         for( Node in : _inputs ) {
@@ -29,7 +29,7 @@ public class PhiNode extends Node {
         return sb;
     }
 
-    RegionNode region() { return (RegionNode)in(0); }
+    Node region() { return in(0); }
     @Override public boolean isMultiTail() { return true; }
 
     @Override
