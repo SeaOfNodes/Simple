@@ -69,6 +69,11 @@ public class AddNode extends Node {
             return spline_cmp(lhs,rhs) ? swap12() : phiCon(this,true);
 
         // Now we only see (add add non)
+
+        // Dead data cycle; comes about from dead infinite loops.  Do nothing,
+        // the loop will peep as dead after a bit.
+        if( lhs.in(1) == lhs )
+            return null;
         
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants

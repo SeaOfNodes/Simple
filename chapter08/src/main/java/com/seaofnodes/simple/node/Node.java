@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
@@ -100,6 +101,7 @@ public abstract class Node {
     public final String print() {
         return _print0(new StringBuilder(), new BitSet()).toString();
     }
+    
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
@@ -136,6 +138,10 @@ public abstract class Node {
         sb.append(" ]]  ");
         if( _type!= null ) _type._print(sb);
         sb.append("\n");
+    }
+
+    public final String p(int depth) {
+        return IRPrinter.prettyPrint(this,depth);
     }
 
     public boolean isMultiHead() { return false; }

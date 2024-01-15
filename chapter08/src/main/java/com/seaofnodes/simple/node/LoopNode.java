@@ -15,6 +15,12 @@ public class LoopNode extends RegionNode {
     public String label() { return "Loop"; }
 
     @Override
+    public Type compute() {
+        if( inProgress() ) return Type.CONTROL;
+        return entry()._type;
+    }
+
+    @Override
     public Node idealize() {
         return inProgress() ? null : super.idealize();
     }
