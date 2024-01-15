@@ -202,14 +202,22 @@ public class ScopeNode extends Node {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==ctrl && phi.in(2)==null;
                 phi.setDef(2,back.in(i));
-                // Do an eager useless-phi removal
-                Node in = phi.peephole();
-                if( in != phi )
-                    phi.subsume(in);
             }
             if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
                 exit.setDef(i,in(i));
         }
         back.kill();            // Loop backedge is dead
+        // Now one-time do a useless-phi removal
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof PhiNode phi ) {
+                // Do an eager useless-phi removal
+                Node in = phi.peephole();
+                if( in != phi ) {
+                    phi.subsume(in);
+                    setDef(i,in); // Set the update back into Scope
+                }
+            }
+        }
+
     }
 }
