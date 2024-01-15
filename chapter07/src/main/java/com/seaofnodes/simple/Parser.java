@@ -13,6 +13,7 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
+  
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -154,24 +155,24 @@ public class Parser {
         // point, and second is back edge that is set after loop is parsed
         // (see end_loop() call below).  Note that the absence of back edge is
         // used as an indicator to switch off peepholes of the region and
-        // associated phis.
+        // associated phis; see {@code inProgress()}.
 
-        ctrl(new LoopNode(ctrl(),null).peephole()); // Note we set back edge to null here
+        ctrl(new LoopNode(ctrl()).peephole()); // Note we set back edge to null here
 
         // At loop head, we clone the current Scope (this includes all
         // names in every nesting level within the Scope).
         // We create phis eagerly for all the names we find, see dup().
 
         // Save the current scope as the loop head
-        ScopeNode head = _xScopes.push(_scope).keep();
+        ScopeNode head = _scope.keep();
         // Clone the head Scope to create a new Scope for the body.
         // Create phis eagerly as part of cloning
-        _scope = _scope.dup(true); // The true argument triggers creating phis
+        _xScopes.push(_scope = _scope.dup(true)); // The true argument triggers creating phis
 
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
         // Setup projection nodes
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
@@ -337,10 +338,10 @@ public class Parser {
         var lhs = parseAddition();
         if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
         if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
-        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
         if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
-        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
         if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
+        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
         return lhs;
     }
 
@@ -437,7 +438,7 @@ public class Parser {
 
     // Require an exact match
     private void require(String syntax) { require(null, syntax); }
-    private Node require(Node n, String syntax) {
+    private <N extends Node> N require(N n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
     }
@@ -446,7 +447,7 @@ public class Parser {
         return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
     }
 
-    static RuntimeException error(String errorMessage) {
+    public static RuntimeException error( String errorMessage ) {
         return new RuntimeException(errorMessage);
     }
 

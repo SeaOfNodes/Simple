@@ -229,11 +229,11 @@ public abstract class Node {
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
         Utils.del(_outputs, Utils.find(_outputs, use));
-        return _outputs.size() == 0;
+        return _outputs.isEmpty();
     }
 
     // Shortcut for "popping" n nodes.  A "pop" is basically a
-    // set_def(last,null) followed by lowering the nIns() count.
+    // setDef(last,null) followed by lowering the nIns() count.
     void popN(int n) {
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.removeLast();
