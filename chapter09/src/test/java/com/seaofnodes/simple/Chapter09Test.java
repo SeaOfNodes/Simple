@@ -4,10 +4,19 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
 public class Chapter09Test {
+    @Test
+    @Ignore
+    public void testJig() {
+        Parser parser = new Parser("""
+// Insert test case here
+""");
+        StopNode stop = parser.parse(true);
+    }
 
     @Test
     public void testChapter8Ex6() {
@@ -138,6 +147,13 @@ return arg;
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
+    @Test
+    public void testChapter8Regress2() {
+        Parser parser = new Parser("if(1) return 0;  else while(arg>--arg) arg=arg+1; return 0;");
+        StopNode stop = parser.parse(true);
+        assertEquals("Stop[ return 0; return 0; ]", stop.toString());
+    }
+    
     @Test
     public void testChapter8BreakOutsideLoop() {
         try { 
