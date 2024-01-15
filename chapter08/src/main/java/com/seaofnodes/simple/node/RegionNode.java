@@ -7,8 +7,9 @@ import java.util.Collection;
 import java.util.BitSet;
 
 public class RegionNode extends Node {
-    public RegionNode(Node... inputs) { super(inputs); }
 
+    public RegionNode(Node... nodes) { super(nodes); }
+    
     @Override
     public String label() { return "Region"; }
 
@@ -22,6 +23,7 @@ public class RegionNode extends Node {
 
     @Override
     public Type compute() {
+        if( inProgress() ) return Type.CONTROL;
         Type t = Type.XCONTROL;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -30,6 +32,7 @@ public class RegionNode extends Node {
 
     @Override
     public Node idealize() {
+        if( inProgress() ) return null;
         int path = findDeadInput();
         if( path != 0 ) {
             for( Node phi : _outputs )
@@ -77,5 +80,8 @@ public class RegionNode extends Node {
         return (_idom=lhs);
     }
 
-    public boolean inProgress() { return false; }
+    // True if last input is null
+    public final boolean inProgress() {
+        return in(nIns()-1) == null;
+    }
 }

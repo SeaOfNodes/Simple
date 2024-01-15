@@ -153,8 +153,6 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
-    public Node out(int i) { return _outputs.get(i); }
-
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
@@ -229,11 +227,11 @@ public abstract class Node {
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
         Utils.del(_outputs, Utils.find(_outputs, use));
-        return _outputs.size() == 0;
+        return _outputs.isEmpty();
     }
 
     // Shortcut for "popping" n nodes.  A "pop" is basically a
-    // set_def(last,null) followed by lowering the nIns() count.
+    // setDef(last,null) followed by lowering the nIns() count.
     void popN(int n) {
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.removeLast();
@@ -443,7 +441,10 @@ public abstract class Node {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
+    public static void reset() {
+        UNIQUE_ID = 1;
+        _disablePeephole=false;
+    }
 
     /**
      * Debugging utility to find a Node by index
