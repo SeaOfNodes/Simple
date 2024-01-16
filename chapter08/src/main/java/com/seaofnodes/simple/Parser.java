@@ -272,7 +272,7 @@ public class Parser {
         // Setup projection nodes
         Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
         ifNode.unkeep();
-        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        Node ifF = new ProjNode(ifNode, 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
@@ -286,7 +286,7 @@ public class Parser {
         
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
-        ctrl(ifF);              // Ctrl token is now set to ifFalse projection
+        ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
         if (matchx("else")) {
             parseStatement();
             fScope = _scope;
