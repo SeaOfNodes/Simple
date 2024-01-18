@@ -8,7 +8,7 @@ import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
-public class Chapter09Test {
+public class Chapter08Test {
     @Test
     @Ignore
     public void testJig() {
