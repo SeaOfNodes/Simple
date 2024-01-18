@@ -34,7 +34,7 @@ public class ReturnNode extends Node {
   
     @Override
     public Type compute() {
-        return TypeTuple.make(ctrl()._type,expr()._type);
+        return new TypeTuple(ctrl()._type,expr()._type);
     }
 
     @Override

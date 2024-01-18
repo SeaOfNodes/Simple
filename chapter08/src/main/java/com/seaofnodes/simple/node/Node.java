@@ -1,20 +1,17 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IRPrinter;
-import com.seaofnodes.simple.Iterate;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
-import java.util.function.IntSupplier;
-import java.util.function.Function;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node implements IntSupplier {
+public abstract class Node {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
@@ -22,7 +19,6 @@ public abstract class Node implements IntSupplier {
      * as well as for computing equality of nodes (to be implemented later).
      */
     public final int _nid;
-    @Override public int getAsInt() { return _nid; }
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -262,7 +258,7 @@ public abstract class Node implements IntSupplier {
     }
 
     // Mostly used for asserts and printing.
-    public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
     // Shortcuts to stop DCE mid-parse
     // Add bogus null use to keep node alive
@@ -272,7 +268,7 @@ public abstract class Node implements IntSupplier {
 
 
     // Replace self with nnn in the graph, making 'this' go dead
-    public void subsume( Node nnn ) {
+    void subsume( Node nnn ) {
         assert nnn!=this;
         while( nOuts() > 0 ) {
             Node n = _outputs.removeLast();
@@ -293,19 +289,6 @@ public abstract class Node implements IntSupplier {
     public static boolean _disablePeephole = false;
 
     /**
-     * Try to peephole at this node and return a better replacement Node.
-     * Always returns some not-null Node (often this).
-     */
-    public final Node peephole( ) {
-        if (_disablePeephole) {
-            _type = compute();
-            return this;        // Peephole optimizations turned off
-        }
-        Node n = iter();
-        return n==null ? this : n; // Cannot return null for no-progress
-    }
-
-    /**
      * Try to peephole at this node and return a better replacement Node if
      * possible.  We compute a {@link Type} and then check and replace:
      * <ul>
@@ -318,22 +301,15 @@ public abstract class Node implements IntSupplier {
      * {@code (x+(1+2))}.  By canonicalizing expressions we fold common addressing
      * math constants, remove algebraic identities and generally simplify the
      * code. </li>
-     *
-     * Unlike peephole above, this explicitly returns null for no-change, or not-null
-     * for a better replacement (which can be this).
      * </ul>
      */
-    public final Node iter( ) {
-        Node progress = null;   // Set if progress
-        
+    public final Node peephole( ) {
         // Compute initial or improved Type
-        Type old = _type;
         Type type = _type = compute();
-        assert old==null || type.isa(old);
-        if( old==null ) Iterate.add(this);
-        if( old != type )
-            progress = this;
         
+        if (_disablePeephole)
+            return this;        // Peephole optimizations turned off
+
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
             return deadCodeElim(new ConstantNode(type).peephole());
@@ -346,9 +322,8 @@ public abstract class Node implements IntSupplier {
             // Recursively optimize
             return deadCodeElim(n.peephole());
         
-        return progress; 
+        return this;            // No progress
     }
-    public <N extends Node> N iterate() {  return (N)Iterate.iterate(this);  }
 
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
@@ -475,31 +450,23 @@ public abstract class Node implements IntSupplier {
         _disablePeephole=false;
     }
 
-
-    // Utility to walk the entire graph applying a function; return the first
-    // not-null result.
-    private static final BitSet WVISIT = new BitSet();
-    final public <E> E walk( Function<Node,E> pred ) {
-        assert WVISIT.isEmpty();
-        E rez = _walk(pred);
-        WVISIT.clear();
-        return rez;
-    }
-    
-    private <E> E _walk( Function<Node,E> pred ) {
-        if( WVISIT.get(_nid) ) return null; // Been there, done that
-        WVISIT.set(_nid);
-        E x = pred.apply(this);
-        if( x != null ) return x;
-        for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
-        for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
-        return null;
-    }
-    
     /**
      * Debugging utility to find a Node by index
      */
-    public Node find(int nid) {
-        return walk( n -> _nid==nid ? n : null );
+    public Node find(int nid) { return _find(new BitSet(),nid); }
+    private Node _find(BitSet visit, int nid) {
+        if( _nid==nid ) return this;
+        if( visit.get(_nid) ) return null;
+        visit.set(_nid);
+        for( Node def : _inputs )
+            if( def!=null ) {
+                Node rez = def._find(visit,nid);
+                if( rez != null ) return rez;
+            }
+        for( Node use : _outputs ) {
+            Node rez = use._find(visit,nid);
+            if( rez != null ) return rez;
+        }
+        return null;
     }
 }

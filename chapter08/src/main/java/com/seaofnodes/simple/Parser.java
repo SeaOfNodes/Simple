@@ -69,7 +69,6 @@ public class Parser {
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
-        Iterate.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -109,6 +108,7 @@ public class Parser {
         return STOP;
     }
 
+    
     /**
      * Parses a block
      *
