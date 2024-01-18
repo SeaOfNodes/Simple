@@ -4,10 +4,7 @@ public class TypeTuple extends Type {
   
     public final Type[] _types;
 
-    private TypeTuple(Type[] types) {
-        super(TTUPLE);
-        _types = types;
-    }
+    private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
     public static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
 
     @Override
@@ -17,7 +14,7 @@ public class TypeTuple extends Type {
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
             ts[i] = _types[i].meet(tt._types[i]);
-        return new TypeTuple(ts).intern();
+        return make(ts);
     }
 
     @Override
@@ -30,10 +27,10 @@ public class TypeTuple extends Type {
         return sb;
     }
 
-    public static final TypeTuple IF_BOTH    = new TypeTuple(new Type[]{Type. CONTROL,Type. CONTROL}).intern();
-    public static final TypeTuple IF_NEITHER = new TypeTuple(new Type[]{Type.XCONTROL,Type.XCONTROL}).intern();
-    public static final TypeTuple IF_TRUE    = new TypeTuple(new Type[]{Type. CONTROL,Type.XCONTROL}).intern();
-    public static final TypeTuple IF_FALSE   = new TypeTuple(new Type[]{Type.XCONTROL,Type. CONTROL}).intern();
+    public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});
+    public static final TypeTuple IF_NEITHER = make(new Type[]{Type.XCONTROL,Type.XCONTROL});
+    public static final TypeTuple IF_TRUE    = make(new Type[]{Type. CONTROL,Type.XCONTROL});
+    public static final TypeTuple IF_FALSE   = make(new Type[]{Type.XCONTROL,Type. CONTROL});
 
     @Override
     int hash() {
