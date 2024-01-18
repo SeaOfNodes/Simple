@@ -57,7 +57,7 @@ public class Type {
         return nnn;
     }
     
-    private int _hash;          // Hash cache; not-zero when set.
+    private int _hash;          // Never 0
     @Override
     public final int hashCode() {
         if( _hash!=0 ) return _hash;
@@ -75,7 +75,7 @@ public class Type {
         if( _type != t._type ) return false;
         return eq(t);
     }
-    // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
+    // Overridden in subclasses
     boolean eq(Type t) { return true; }
     
     

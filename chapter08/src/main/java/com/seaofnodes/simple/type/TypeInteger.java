@@ -5,9 +5,9 @@ package com.seaofnodes.simple.type;
  */
 public class TypeInteger extends Type {
 
-    public final static TypeInteger TOP = make(false, 0);
-    public final static TypeInteger BOT = make(false, 1);
-    public final static TypeInteger ZERO= make(true , 0);
+    public final static TypeInteger TOP = new TypeInteger(false, 0);
+    public final static TypeInteger BOT = new TypeInteger(false, 1);
+    public final static TypeInteger ZERO= new TypeInteger(true, 0);
 
     private final boolean _is_con;
 
@@ -26,7 +26,7 @@ public class TypeInteger extends Type {
         return new TypeInteger(is_con,con).intern();
     }
 
-    public static TypeInteger constant(long con) { return make(true, con); }
+    public static TypeInteger constant(long con) { return new TypeInteger(true, con); }
 
     public boolean isTop() { return !_is_con && _con==0; }
     public boolean isBot() { return !_is_con && _con==1; }

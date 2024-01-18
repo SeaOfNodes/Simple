@@ -42,13 +42,4 @@ public class ConstantNode extends Node {
 
     @Override
     public Node idealize() { return null; }
-
-    @Override
-    boolean eq(Node n) {
-        ConstantNode con = (ConstantNode)n; // Contract
-        return _con==con._con;
-    }
-
-    @Override
-    int hash() { return _con.hashCode(); }
 }

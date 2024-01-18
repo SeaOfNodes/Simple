@@ -184,7 +184,6 @@ public abstract class Node implements IntSupplier {
      * @return new_def for flow coding
      */
     Node setDef(int idx, Node new_def ) {
-        unlock();
         Node old_def = in(idx);
         if( old_def == new_def ) return this; // No change
         // If new def is not null, add the corresponding def->use edge
@@ -205,7 +204,6 @@ public abstract class Node implements IntSupplier {
     // shuffles the order deterministically - which is suitable for Region and
     // Phi, but not for every Node.
     void delDef(int idx) {
-        unlock();
         Node old_def = in(idx);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
@@ -221,7 +219,6 @@ public abstract class Node implements IntSupplier {
      * @return new_def for flow coding
      */
     Node addDef(Node new_def) {
-        unlock();
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
@@ -244,7 +241,6 @@ public abstract class Node implements IntSupplier {
     // Shortcut for "popping" n nodes.  A "pop" is basically a
     // setDef(last,null) followed by lowering the nIns() count.
     void popN(int n) {
-        unlock();
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.removeLast();
             if( old_def != null &&     // If it exists and
@@ -259,9 +255,8 @@ public abstract class Node implements IntSupplier {
      * code elimination.  This function is co-recursive with {@link #popN}.
      */
     public void kill( ) {
-        unlock();
         assert isUnused();      // Has no uses, so it is dead
-        popN(nIns());           // Set all inputs to null, recursively killing unused Nodes
+        popN(nIns());          // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead
         assert isDead();        // Really dead now
     }
@@ -296,7 +291,6 @@ public abstract class Node implements IntSupplier {
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
-
 
     /**
      * Try to peephole at this node and return a better replacement Node.
@@ -344,17 +338,8 @@ public abstract class Node implements IntSupplier {
         if (!(this instanceof ConstantNode) && type.isConstant())
             return deadCodeElim(new ConstantNode(type).peephole());
 
-        // Global Value Numbering
-        if( _hash==0 ) {
-            Node n = GVN.get(this); // Will set _hash as a side-effect
-            if( n==null )
-                GVN.put(this,this);  // Put in table now
-            else {
-                _hash = 0; // Clear, since it never went in the table
-                return deadCodeElim(n);// Return previous; does Common Subexpression Elimination
-            }
-        }
-
+        // Future chapter: Global Value Numbering goes here
+        
         // Ask each node for a better replacement
         Node n = idealize();
         if( n != null )         // Something changed
@@ -448,61 +433,6 @@ public abstract class Node implements IntSupplier {
     public abstract Node idealize();
 
 
-    
-    // Global Value Numbering.  Hash over opcode and inputs; hits in this table
-    // are structurally equal.
-    public static final HashMap<Node,Node> GVN = new HashMap<>();
-
-    // Two nodes are equal if they have the same inputs and the same "opcode"
-    // which means the same Java class, plus same internal parts.
-    @Override public final boolean equals( Object o ) {
-        if( o==this ) return true;
-        if( o.getClass() != getClass() ) return false;
-        Node n = (Node)o;
-        int len = _inputs.size();
-        if( len != n._inputs.size() ) return false;
-        for( int i=0; i<len; i++ )
-            if( in(i) != n.in(i) )
-                return false;
-        return eq(n);
-    }
-    // Subclasses add extra checks (such as ConstantNodes have same constant),
-    // and can assume "this!=n" and has the same Java class.
-    boolean eq( Node n ) { return true; }
-
-
-    // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
-    // table - and can have its edges hacke (which will change his hash
-    // anyways).  If Non-Zero then this Node is IN the GVN table, or is being
-    // probed to see if it can be inserted.  His edges are "locked", because
-    // hacking his edges will change his hash.
-    int _hash;
-
-    // If the _hash is set, then the Node is in the GVN table; remove it.
-    Node unlock() {
-        if( _hash!=0 ) {
-            Node old = GVN.remove(this); // Pull from table
-            assert old==this;
-            _hash=0;            // Out of table now
-        }
-        return this;
-    }
-
-    
-    // Hash of opcode and inputs
-    @Override public final int hashCode() {
-        if( _hash != 0 ) return _hash;
-        int hash = label().hashCode() + hash();
-        for( Node n : _inputs )
-            if( n != null )
-                hash = hash ^ (hash<<17) ^ (hash>>13) ^ n._nid;
-        if( hash==0 ) hash = 0xDEADBEEF; // Bad hash, so use some junky thing
-        return (_hash=hash);
-    }
-    // Subclasses add extra hash info (such as ConstantNodes constant)
-    int hash() { return 0; }
-    
-    
     // ------------------------------------------------------------------------
     // Peephole utilities
     
@@ -543,7 +473,6 @@ public abstract class Node implements IntSupplier {
     public static void reset() {
         UNIQUE_ID = 1;
         _disablePeephole=false;
-        GVN.clear();
     }
 
 
