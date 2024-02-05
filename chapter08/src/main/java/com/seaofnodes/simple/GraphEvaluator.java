@@ -9,6 +9,10 @@ import java.util.HashMap;
 
 public class GraphEvaluator {
 
+    public enum ResultType { VALUE, FALLTHROUGH, TIMEOUT }
+
+    public record Result(ResultType type, long value) {}
+
     /**
      * Find the start node from some node in the graph or null if there is no start node
      */
@@ -46,10 +50,6 @@ public class GraphEvaluator {
             if (use instanceof ProjNode proj && proj._idx == idx) return proj;
         }
         return null;
-    }
-
-    private static RuntimeException timeout() {
-        return new RuntimeException("Timeout");
     }
 
     /**
@@ -127,7 +127,7 @@ public class GraphEvaluator {
     /**
      * Run the graph until either a return is found or the number of loop iterations are done.
      */
-    private long evaluate(StartNode start, long parameter, int loops) {
+    private Result evaluate(StartNode start, long parameter, int loops) {
         var parameter1 = findProjection(start, 1);
         if (parameter1 != null) cacheValues.put(parameter1, parameter);
         Node control = findProjection(start, 0);
@@ -137,7 +137,7 @@ public class GraphEvaluator {
             switch (control) {
                 case RegionNode region -> {
                     if (region instanceof LoopNode && region.in(1) != prev) {
-                        if (loops--<=0) throw timeout();
+                        if (loops--<=0) return new Result(ResultType.TIMEOUT, 0);
                         latchLoopPhis(region, prev);
                     } else {
                         latchPhis(region, prev);
@@ -146,7 +146,7 @@ public class GraphEvaluator {
                 }
                 case IfNode cond -> next = findProjection(cond, getValue(cond.in(1)) != 0 ? 0 : 1);
                 case ReturnNode ret -> {
-                    return getValue(ret.in(1));
+                    return new Result(ResultType.VALUE, getValue(ret.in(1)));
                 }
                 case ProjNode ignored -> next = findControl(control);
                 default -> throw Utils.TODO("Unexpected control node " + control);
@@ -154,7 +154,7 @@ public class GraphEvaluator {
             prev = control;
             control = next;
         }
-        return 0;
+        return new Result(ResultType.FALLTHROUGH, 0);
     }
 
     public static long evaluate(Node graph) {
@@ -166,8 +166,14 @@ public class GraphEvaluator {
     }
 
     public static long evaluate(Node graph, long parameter, int loops) {
+        var res = evaluateWithResult(graph, parameter, loops);
+        if (res.type==ResultType.TIMEOUT) throw new RuntimeException("Timeout");
+        return res.value;
+    }
+
+    public static Result evaluateWithResult(Node graph, long parameter, int loops) {
         var start = findStart(new BitSet(), graph);
-        if (start == null) throw timeout();
+        if (start == null) return new Result(ResultType.TIMEOUT, 0);
         var evaluator = new GraphEvaluator();
         return evaluator.evaluate(start, parameter, loops);
     }
