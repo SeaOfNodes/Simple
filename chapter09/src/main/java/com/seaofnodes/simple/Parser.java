@@ -385,12 +385,12 @@ public class Parser {
         var lhs = parseAddition();
         while( true ) {
             if( false ) ;
-            else if( match("==") ) lhs = new BoolNode.EQ(lhs, parseComparison()).peephole();
-            else if( match("!=") ) lhs = new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
-            else if( match("<=") ) lhs = new BoolNode.LE(lhs, parseComparison()).peephole();
-            else if( match("<" ) ) lhs = new BoolNode.LT(lhs, parseComparison()).peephole();
-            else if( match(">=") ) lhs = new BoolNode.LE(parseComparison(), lhs).peephole();
-            else if( match(">" ) ) lhs = new BoolNode.LT(parseComparison(), lhs).peephole();
+            else if( match("==") ) lhs = new BoolNode.EQ(lhs, parseAddition()).peephole();
+            else if( match("!=") ) lhs = new NotNode(new BoolNode.EQ(lhs, parseAddition()).peephole()).peephole();
+            else if( match("<=") ) lhs = new BoolNode.LE(lhs, parseAddition()).peephole();
+            else if( match("<" ) ) lhs = new BoolNode.LT(lhs, parseAddition()).peephole();
+            else if( match(">=") ) lhs = new BoolNode.LE(parseAddition(), lhs).peephole();
+            else if( match(">" ) ) lhs = new BoolNode.LT(parseAddition(), lhs).peephole();
             else break;
         }
         return lhs;
@@ -427,8 +427,8 @@ public class Parser {
         var lhs = parseUnary();
         while( true ) {
             if( false ) ;
-            else if( match("*") ) lhs = new MulNode(lhs, parseMultiplication()).peephole();
-            else if( match("/") ) lhs = new DivNode(lhs, parseMultiplication()).peephole();
+            else if( match("*") ) lhs = new MulNode(lhs, parseUnary()).peephole();
+            else if( match("/") ) lhs = new DivNode(lhs, parseUnary()).peephole();
             else break;
         }
         return lhs;
