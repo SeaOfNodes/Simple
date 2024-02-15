@@ -508,6 +508,7 @@ public abstract class Node implements IntSupplier {
     
     // Swap inputs without letting either input go dead during the swap.
     Node swap12() {
+        unlock();               // Hash is order dependent
         Node tmp = in(1);
         _inputs.set(1,in(2));
         _inputs.set(2,tmp);

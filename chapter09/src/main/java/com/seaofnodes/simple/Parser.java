@@ -383,12 +383,16 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
-        if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
-        if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
-        if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
-        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
-        if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
-        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        while( true ) {
+            if( false ) ;
+            else if( match("==") ) lhs = new BoolNode.EQ(lhs, parseComparison()).peephole();
+            else if( match("!=") ) lhs = new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
+            else if( match("<=") ) lhs = new BoolNode.LE(lhs, parseComparison()).peephole();
+            else if( match("<" ) ) lhs = new BoolNode.LT(lhs, parseComparison()).peephole();
+            else if( match(">=") ) lhs = new BoolNode.LE(parseComparison(), lhs).peephole();
+            else if( match(">" ) ) lhs = new BoolNode.LT(parseComparison(), lhs).peephole();
+            else break;
+        }
         return lhs;
     }
 
@@ -402,8 +406,12 @@ public class Parser {
      */
     private Node parseAddition() {
         var lhs = parseMultiplication();
-        if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
-        if (match("-")) return new SubNode(lhs, parseAddition()).peephole();
+        while( true ) {
+            if( false ) ;
+            else if( match("+") ) lhs = new AddNode(lhs, parseMultiplication()).peephole();
+            else if( match("-") ) lhs = new SubNode(lhs, parseMultiplication()).peephole();
+            else break;
+        }
         return lhs;
     }
 
@@ -417,8 +425,12 @@ public class Parser {
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
-        if (match("*")) return new MulNode(lhs, parseMultiplication()).peephole();
-        if (match("/")) return new DivNode(lhs, parseMultiplication()).peephole();
+        while( true ) {
+            if( false ) ;
+            else if( match("*") ) lhs = new MulNode(lhs, parseMultiplication()).peephole();
+            else if( match("/") ) lhs = new DivNode(lhs, parseMultiplication()).peephole();
+            else break;
+        }
         return lhs;
     }
 

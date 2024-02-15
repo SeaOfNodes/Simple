@@ -19,6 +19,20 @@ public class Chapter08Test {
     }
 
     @Test
+    public void testPrecedence() {
+        Parser parser = new Parser("return 3-1+2;");
+        StopNode stop = parser.parse(true).iterate();
+        assertEquals("return 4;", stop.toString());
+    }
+
+    @Test
+    public void testSwap() {
+        Parser parser = new Parser("int v0=1+1+1; return v0;");
+        StopNode stop = parser.parse(true).iterate();
+        assertEquals("return 3;", stop.toString());
+    }
+
+    @Test
     public void testChapter8Ex6() {
         Parser parser = new Parser(
                 """
@@ -1103,7 +1117,7 @@ return a;""");
         Parser parser = new Parser("return 1+2*3+-5;");
         Node._disablePeephole = true; // disable peephole so we can observe full graph
         StopNode ret = parser.parse();
-        assertEquals("return (1+((2*3)+(-5)));", ret.print());
+        assertEquals("return ((1+(2*3))+(-5));", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
         System.out.println(gv.generateDotOutput(parser));
         Node._disablePeephole = false;
