@@ -66,7 +66,8 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
 JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
-	$(JVM) org.junit.runner.JUnitCore $(test_cp)
+	@echo "testing " $(test_cp)
+	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 
 .PHONY: clean
 clean:
