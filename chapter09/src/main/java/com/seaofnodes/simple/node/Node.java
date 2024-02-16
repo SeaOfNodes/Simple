@@ -183,7 +183,7 @@ public abstract class Node implements IntSupplier {
      * @param new_def the new definition
      * @return new_def for flow coding
      */
-    Node setDef(int idx, Node new_def ) {
+    public Node setDef(int idx, Node new_def ) {
         unlock();
         Node old_def = in(idx);
         if( old_def == new_def ) return this; // No change

@@ -15,7 +15,7 @@ public class Chapter02Test {
         Parser parser = new Parser("return 1+2*3+-5;");
         Node._disablePeephole = true; // disable peephole so we can observe full graph
         StopNode ret = parser.parse();
-        assertEquals("return ((1+(2*3))+(-5));", ret.print());
+        assertEquals("return ((1+(2*3))-5);", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
         System.out.println(gv.generateDotOutput(parser));
         Node._disablePeephole = false;

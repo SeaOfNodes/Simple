@@ -20,15 +20,15 @@ public class Chapter09Test {
     }
 
     @Test
-    public void testChapter9Precedence() {
+    public void testPrecedence() {
         Parser parser = new Parser("return 3-1+2;");
         StopNode stop = parser.parse(true).iterate();
         assertEquals("return 4;", stop.toString());
     }
 
     @Test
-    public void testChapter9Swap() {
-        Parser parser = new Parser("int v0=1+1+1; return v0;");
+    public void testSwap2() {
+        Parser parser = new Parser("return 1+(1+1);");
         StopNode stop = parser.parse(true).iterate();
         assertEquals("return 3;", stop.toString());
     }
