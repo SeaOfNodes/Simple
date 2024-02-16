@@ -27,7 +27,6 @@ public class Chapter09Test {
         assertEquals("Stop[ ]", stop.toString());
     }
 
-    //    @Ignore
     @Test
     public void testWhile1() {
         Parser parser = new Parser("""
