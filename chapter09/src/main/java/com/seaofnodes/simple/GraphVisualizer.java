@@ -20,15 +20,16 @@ public class GraphVisualizer {
     public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
     public GraphVisualizer() { this(false); }
 
-    public String generateDotOutput(Parser parser) {
+    public String generateDotOutput(Parser parse) { return generateDotOutput(parse.STOP,parse._scope,parse._xScopes); }
+    public String generateDotOutput(StopNode stop, Node scope, Stack<ScopeNode> xScopes) {
 
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
-        Collection<Node> all = findAll(parser);
+        Collection<Node> all = findAll(stop, scope);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter09 {\n");
         sb.append("/*\n");
-        sb.append(parser.src());
+        sb.append(stop._src);
         sb.append("\n*/\n");
         
         // To keep the Scopes below the graph and pointing up into the graph we
@@ -52,15 +53,17 @@ public class GraphVisualizer {
         nodes(sb, all);
         
         // Now the scopes, in a cluster no edges
-        for( ScopeNode scope : parser._xScopes )
-            scope( sb, scope );
+        if( xScopes != null )
+            for( ScopeNode xscope : xScopes )
+                scope( sb, xscope );
 
         // Walk the Node edges
         nodeEdges(sb, all);
 
         // Walk the active Scope edges
-        for( ScopeNode scope : parser._xScopes )
-            scopeEdges( sb, scope );
+        if( xScopes != null )
+            for( ScopeNode xscope : xScopes )
+                scopeEdges( sb, xscope );
         
         sb.append("}\n");
         return sb.toString();
@@ -232,12 +235,13 @@ public class GraphVisualizer {
     /**
      * Finds all nodes in the graph.
      */
-    private Collection<Node> findAll(Parser parser) {
+    private Collection<Node> findAll(Node stop, Node scope) {
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : Parser.START._outputs )
+        for( Node n : stop._inputs )
             walk(all, n);
-        for( Node n : parser._scope._inputs )
-            walk(all, n);
+        if( scope != null )
+            for( Node n : scope._inputs )
+                walk(all, n);
         return all.values();
     }
 

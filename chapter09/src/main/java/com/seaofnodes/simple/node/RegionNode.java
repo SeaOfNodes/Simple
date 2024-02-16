@@ -39,16 +39,16 @@ public class RegionNode extends Node {
                     phi.delDef(path);
             delDef(path);
 
-            // If down to a single input, become that input - but also make all
-            // Phis an identity on *their* single input.
-            if( nIns()==2 ) {
-                for( Node phi : _outputs )
-                    if( phi instanceof PhiNode )
-                        // Currently does not happen, because no loops
-                        throw Utils.TODO();
-                return in(1);
-            }
             return this;
+        }
+        // If down to a single input, become that input - but also make all
+        // Phis an identity on *their* single input.
+        if( nIns()==2 ) {
+            for( Node phi : _outputs )
+                if( phi instanceof PhiNode )
+                    // Currently does not happen, because no loops
+                    throw Utils.TODO();
+            return in(1);
         }
         return null;
     }
@@ -82,5 +82,10 @@ public class RegionNode extends Node {
     // True if last input is null
     public final boolean inProgress() {
         return in(nIns()-1) == null;
+    }
+
+    // Never equal if inProgress
+    @Override boolean eq( Node n ) {
+        return !inProgress();
     }
 }

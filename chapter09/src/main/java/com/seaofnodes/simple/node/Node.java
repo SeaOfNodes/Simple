@@ -363,7 +363,6 @@ public abstract class Node implements IntSupplier {
         
         return progress; 
     }
-    public <N extends Node> N iterate() {  return (N)Iterate.iterate(this);  }
 
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
@@ -572,6 +571,6 @@ public abstract class Node implements IntSupplier {
      * Debugging utility to find a Node by index
      */
     public Node find(int nid) {
-        return walk( n -> _nid==nid ? n : null );
+        return walk( n -> n._nid==nid ? n : null );
     }
 }

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.StopNode;
     
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -15,7 +16,8 @@ public abstract class Iterate {
     public static <N extends Node> N add( N n ) { return (N)WORK.push(n); }
     
     // Iterate peepholes to a fixed point
-    public static <N extends Node> N iterate(N stop) {
+    public static StopNode iterate(StopNode stop) { return iterate(stop,false); }
+    public static StopNode iterate(StopNode stop, boolean show) {
         assert progressOnList(stop);
         int cnt=0;
         
@@ -33,6 +35,8 @@ public abstract class Iterate {
             }
         }
         
+        if( show )
+            System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         return stop;
     }
 

@@ -74,7 +74,7 @@ public class Parser {
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
-        STOP = new StopNode();
+        STOP = new StopNode(source);
     }
 
     public Parser(String source) {
@@ -184,11 +184,10 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
+        Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-        ifNode.unkeep();
-        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -202,7 +201,7 @@ public class Parser {
         
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
-        ctrl(ifT);              // set ctrl token to ifTrue projection
+        ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
@@ -268,11 +267,10 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-        ifNode.unkeep();
-        Node ifF = new ProjNode(ifNode, 1, "False").peephole().keep();
+        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
@@ -280,7 +278,7 @@ public class Parser {
         _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
-        ctrl(ifT);              // set ctrl token to ifTrue projection
+        ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         parseStatement();       // Parse true-side
         ScopeNode tScope = _scope;
         
@@ -323,8 +321,8 @@ public class Parser {
      * Dumps out the node graph
      * @return {@code null}
      */
-    private Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(this));
+    Node showGraph() {
+        System.out.println(new GraphVisualizer().generateDotOutput(STOP,_scope,_xScopes));
         return null;
     }
 
