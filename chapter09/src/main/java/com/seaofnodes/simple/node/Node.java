@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.Iterate;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Work;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -392,8 +393,8 @@ public abstract class Node implements IntSupplier {
      * theory.  Much later on, this will become important and allow us to do
      * many fancy complex optimizations trivially... because theory.
      * <p>
-     * compute() needs to be stand-alone, and cannot recursively call compute
-     * on its inputs programs are cyclic (have loops!) and this will just
+     * {@link #compute()} needs to be stand-alone, and cannot recursively call compute
+     * on its inputs, because programs are cyclic (have loops!) and this will just
      * infinitely recurse until stack overflow.  Instead, compute typically
      * computes a new type from the {@link #_type} field of its inputs.
      */
@@ -438,15 +439,40 @@ public abstract class Node implements IntSupplier {
      * call peephole.
      * <p>
      * Since idealize calls peephole and peephole calls idealize, you must be
-     * careful that all idealizations are <em>monotonic</em>: all transforms remove
-     * some feature, so that the set of available transforms always shrinks.
-     * If you don't, you risk an infinite peephole loop!
+     * careful that all idealizations are <em>monotonic</em>: all transforms
+     * remove some feature, so that the set of available transforms always
+     * shrinks.  If you don't, you risk an infinite peephole loop!
      *
      * @return Either a new or changed node, or null for no changes.
      */
     public abstract Node idealize();
 
 
+    // Some of the peephole rules get complex, and search further afield than
+    // just the nearest neighbor.  These peepholes can fail the pattern match
+    // on a node some distance away, and if that node ever changes we should
+    // retry the peephole.  Track a set of Nodes dependent on `this`, and
+    // revisit them if `this` changes.
+    ArrayList<Node> _deps;
+
+    Node addDep( Node dep ) {
+        // Running peepholes during the big assert cannot have side effects
+        // like adding dependencies.
+        if( Iterate.midAssert() ) return this;
+        if( _deps==null ) _deps = new ArrayList<>();
+        if( Utils.find(_deps,dep) != -1 ) return this; // Already on the list
+        assert Utils.find(_inputs,dep)==-1 && Utils.find(_outputs,dep)==-1; // No need for deps on immediate neighbors
+        _deps.add(dep);
+        return this;
+    }
+
+    // Move the dependents onto a worklist, and clear for future dependents.
+    public void depsClear( Work<Node> work ) {
+        if( _deps==null ) return;
+        work.addAll(_deps);
+        _deps.clear();
+    }
+    
     
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.

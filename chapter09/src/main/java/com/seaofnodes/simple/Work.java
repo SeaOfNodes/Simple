@@ -1,9 +1,10 @@
 package com.seaofnodes.simple;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Random;
 import java.util.function.IntSupplier;
-import java.util.Arrays;
 
 // Classic worklist, with a fast add/remove, dup removal, random pull.
 public class Work<E extends IntSupplier> {
@@ -34,6 +35,11 @@ public class Work<E extends IntSupplier> {
         return x;
     }
 
+    public void addAll( ArrayList<E> ary ) {
+        for( E n : ary )
+            push(n);
+    }
+    
     // True if on the worklist
     boolean on( E x ) { return _on.get(x.getAsInt()); }
 

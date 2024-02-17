@@ -19,7 +19,6 @@ public class Chapter09Test {
         StopNode stop = parser.parse().iterate(true);
     }
 
-        
     @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
@@ -53,4 +52,25 @@ if(0) while(0) {
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return 3;", stop.toString());
     }
+
+    
+    @Test
+    public void testIterate() {
+        Parser parser = new Parser("""
+int one = 1;
+int a = 0;
+int zero = 0;
+while(arg) {
+    a = -(one + a + 2);
+    arg = arg + 1;
+    one = one + zero;
+}
+return a;
+""");
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return Phi(Loop9,0,(-(Phi_a+3)));", stop.toString());
+    }
+
+        
+
 }

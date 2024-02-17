@@ -31,6 +31,7 @@ public abstract class Iterate {
                     n.subsume(x);
                 for( Node z : x. _inputs ) WORK.push(z);
                 for( Node z : x._outputs ) WORK.push(z);
+                n.depsClear(WORK);
                 assert progressOnList(stop);
             }
         }
@@ -40,8 +41,31 @@ public abstract class Iterate {
         return stop;
     }
 
+    // Visit ALL nodes and confirm the invariant:
+    //   Either you are on the WORK worklist OR running `iter()` makes no progress.
+    
+    // This invariant ensures that no progress is missed, i.e., when the
+    // worklist is empty we have indeed done all that can be done.  To help
+    // with debugging, the {@code assert} is broken out in a place where it is easy to
+    // stop if a change is found.
+
+    // Also, the normal usage of `iter()` may attempt peepholes with distance
+    // neighbors and these should fail, but will then try to add dependencies
+    // {@link #Node.addDep} which is a side effect in an assert.  The {@link
+    // #midAssert} is used to stop this side effect.
+    private static boolean MID_ASSERT;
+    public static boolean midAssert() { return MID_ASSERT; }
     private static boolean progressOnList(Node stop) {
-        return stop.walk( n -> WORK.on(n) ? null : n.iter() ) == null;
+        MID_ASSERT = true;
+        Node changed = stop.walk( n -> {
+                if( WORK.on(n) ) return null;
+                Node m = n.iter();
+                if( m==null ) return null;
+                System.err.println("BREAK HERE FOR BUG");
+                return m;
+            });
+        MID_ASSERT = false;
+        return changed==null;
     }
 
     public static void reset() {
