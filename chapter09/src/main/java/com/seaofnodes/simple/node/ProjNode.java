@@ -46,4 +46,10 @@ public class ProjNode extends Node {
         }
         return null;
     }
+
+    @Override
+    boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }
+
+    @Override
+    int hash() { return _idx; }
 }

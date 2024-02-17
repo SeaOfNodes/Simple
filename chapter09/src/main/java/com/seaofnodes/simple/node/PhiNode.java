@@ -101,4 +101,14 @@ public class PhiNode extends Node {
             return false;
         return super.allCons();
     }
+
+    // True if last input is null
+    public final boolean inProgress() {
+        return in(nIns()-1) == null;
+    }
+
+    // Never equal if inProgress
+    @Override boolean eq( Node n ) {
+        return !inProgress();
+    }
 }

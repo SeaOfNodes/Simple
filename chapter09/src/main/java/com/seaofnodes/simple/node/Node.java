@@ -471,27 +471,25 @@ public abstract class Node implements IntSupplier {
 
 
     // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
-    // table - and can have its edges hacke (which will change his hash
-    // anyways).  If Non-Zero then this Node is IN the GVN table, or is being
+    // table - and can have its edges hacked (which will change his hash
+    // anyway).  If Non-Zero then this Node is IN the GVN table, or is being
     // probed to see if it can be inserted.  His edges are "locked", because
     // hacking his edges will change his hash.
     int _hash;
 
     // If the _hash is set, then the Node is in the GVN table; remove it.
-    Node unlock() {
-        if( _hash!=0 ) {
-            Node old = GVN.remove(this); // Pull from table
-            assert old==this;
-            _hash=0;            // Out of table now
-        }
-        return this;
+    void unlock() {
+        if( _hash==0 ) return;
+        Node old = GVN.remove(this); // Pull from table
+        assert old==this;
+        _hash=0;                // Out of table now
     }
 
     
     // Hash of opcode and inputs
     @Override public final int hashCode() {
         if( _hash != 0 ) return _hash;
-        int hash = label().hashCode() + hash();
+        int hash = hash();
         for( Node n : _inputs )
             if( n != null )
                 hash = hash ^ (hash<<17) ^ (hash>>13) ^ n._nid;
