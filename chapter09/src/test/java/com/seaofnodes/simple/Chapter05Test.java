@@ -67,7 +67,7 @@ else
     b=a+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((arg*2)+Phi(Region20,2,3));", ret.toString());
+        assertEquals("return ((arg*2)+Phi(Region20,#2,3));", ret.toString());
     }
 
     @Test
@@ -118,7 +118,7 @@ if( arg==0 )
 return arg+a+b;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
-        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region22,2,0));", stop.toString());
+        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region22,2,#0));", stop.toString());
     }
 
     @Test

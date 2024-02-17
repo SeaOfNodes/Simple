@@ -253,7 +253,7 @@ if( arg ) {
 return a+b+c;
 """);
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return (Phi(Region33,Phi(Region22,2,3),0)+Phi(Region,3,1));", ret.toString());
+        assertEquals("return (Phi(Region33,Phi(Region22,2,3),0)+Phi(Region,#3,1));", ret.toString());
     }
 
 
