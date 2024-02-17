@@ -77,7 +77,7 @@ public class AddNode extends Node {
         
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants
-        if( t2.isConstant() && lhs.in(2).addDep(this)._type.isConstant() )
+        if( lhs.in(2).addDep(this)._type.isConstant() && t2.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
 
