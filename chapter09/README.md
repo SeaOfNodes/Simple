@@ -99,17 +99,37 @@ The main issues we have to deal with:
   progressOnList(stop);`
 
 
+## Distant Neighbors
+
+For some peepholes the "neighborhood" is farther away than just the immediate
+uses or defs, and for these we need a longer range plan.  E.g. some peephole
+inspects "this -> A -> B -> C" and will swap itself for "D"; however it fails
+some test at "B".  Should "B" ever update we want to revisit "this" and recheck
+his peepholes.  So we will need to record a dependence of "this" in "B".
+Updating "B" throws the dependent list ("this") onto the "todo" list.
+
+An example of a distant neighbor check is in `AddNode`, where we check for
+stacked constants: `(Add (Add x 2) 1)` and we'd like `(Add x 3)` instead.
+Suppose we're doing this check and we find instead `(Add (Phi (Add x 2) self)
+1)` The check naturally bails out at the `Phi` since its not an `Add`, but the
+`(Phi y self)` only has one unique input, and will itself peephole to `y`
+eventually.  When it does, our stacked `Add` peephole can apply.  So the
+failing Add peephole calls `phi.addDep(Add)` and registers a dependency on the
+`Phi`.  If the `Phi` indeed later optimizes, we add its depencencies (e.g. the
+`Add`) back on our `Iterate` worklist and retry the stacked Add peephole.
+
+* We add a `ArrayList<Node> _deps` field to Node; initially null.
+* Some peepholes add dependencies if they fail a remote check, by calling
+  `distant.addDeps(this)`.  The `addDeps` call creates `_deps` and
+  filters for various kinds of duplicate adds.
+* The `Iterate` loop, when it finds a change, also moves all the 
+  dependents onto the worklist.
+
+
+## Other Concerns
+
 There are more issues we will want to deal with in a later Chapter:
 
-* For some peepholes the "neighborhood" is farther away than just the immediate
-  uses or defs; for these we need a longer range plan.  E.g. some peephole
-  inspects "this -> A -> B -> C" and will swap itself for "D"; however it fails
-  some test at "B".  Should "B" ever update we want to revisit "this" and
-  recheck his peepholes.  So we will need to record a dependence of "this" in
-  "B".  Updating "B" throws the dependent list ("this") onto the "todo" list.
-  This "large neighborhood" is not needed in this Chapter, so we defer it
-  until we see such peepholes.
-  
 * Blindly running peepholes in any order has some drawbacks:
   
   - Dead and dying stuff might get peepholes done... and then die.  Wasted work.
@@ -126,15 +146,18 @@ There are more issues we will want to deal with in a later Chapter:
   other things, before running all other peeps.  This implies a sorted
   worklist, but the count of unique orders is really limited - a radix sort is
   all that is needed.  We'll have to break up the peepholes into some
-  categories like "strictly reducing" vs "same Nodes but swapping e.g. `Mul`
-  for `Shift`, vs getting more freedom (edge bypass), vs "grow now because
-  shrink later".
+  categories like 
+  - "strictly reducing" vs 
+  - "same Nodes but swapping e.g. `Mul` for `Shift`, vs 
+  - getting more freedom (edge bypass), vs 
+  - "grow now because shrink later" (inlining lands in this camp).
   
 * Also there's a benefit to not always grabbing from either end of the list -
-  many peep patterns might go quadratic if approached from one end or
-  another, because they modify something then push it back onto the list
-  where it immediately gets pulled again.  I.e., you end up spinning in a
-  loop repeating the same peeps.  A psuedo-random pull uses randomization to
-  defeat bad peep patterns.
+  many peep patterns might go quadratic if approached from one end or another,
+  because they modify something then push it back onto the list where it
+  immediately gets pulled again.  I.e., you end up spinning in a loop repeating
+  the same peeps while slowly migrating a e.g. left-spine add-tree into a
+  right-spine add-tree.  A psuedo-random pull uses randomization to defeat bad
+  peep patterns.
 
 

@@ -66,7 +66,7 @@ public class AddNode extends Node {
         // Now we might see (add add non) or (add non non) but never (add non add) nor (add add add)
         if( !(lhs instanceof AddNode) )
             // Rotate; look for (add (phi cons) con/(phi cons))
-            return spline_cmp(lhs,rhs) ? swap12() : phiCon(this,true);
+            return spine_cmp(lhs,rhs) ? swap12() : phiCon(this,true);
 
         // Now we only see (add add non)
 
@@ -87,11 +87,11 @@ public class AddNode extends Node {
         Node phicon = phiCon(this,true);
         if( phicon!=null ) return phicon;
 
-        // Now we sort along the spline via rotates, to gather similar things together.
+        // Now we sort along the spine via rotates, to gather similar things together.
         
         // Do we rotate (x + y) + z
         // into         (x + z) + y ?
-        if( spline_cmp(lhs.in(2),rhs) )
+        if( spine_cmp(lhs.in(2),rhs) )
             return new AddNode(new AddNode(lhs.in(1),rhs).peephole(),lhs.in(2));
         
         return null;
@@ -138,12 +138,12 @@ public class AddNode extends Node {
         return op instanceof PhiNode phi && phi.allCons() ? phi : null;
     }
         
-    // Compare two off-spline nodes and decide what order they should be in.
+    // Compare two off-spine nodes and decide what order they should be in.
     // Do we rotate ((x + hi) + lo) into ((x + lo) + hi) ?
     // Generally constants always go right, then Phi-of-constants, then muls, then others.
     // Ties with in a category sort by node ID.
     // TRUE if swapping hi and lo.
-    static boolean spline_cmp( Node hi, Node lo ) {
+    static boolean spine_cmp( Node hi, Node lo ) {
         if( lo._type.isConstant() ) return false;
         if( hi._type.isConstant() ) return true ;
             
