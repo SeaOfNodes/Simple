@@ -110,7 +110,7 @@ public abstract class Node implements IntSupplier {
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
-        if (visited.get(_nid))
+        if (visited.get(_nid) && !(this instanceof ConstantNode) )
             return sb.append(label());
         visited.set(_nid);
         return isDead()
@@ -282,6 +282,7 @@ public abstract class Node implements IntSupplier {
         assert nnn!=this;
         while( nOuts() > 0 ) {
             Node n = _outputs.removeLast();
+            n.unlock();
             int idx = Utils.find(n._inputs, this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
@@ -460,8 +461,9 @@ public abstract class Node implements IntSupplier {
         // like adding dependencies.
         if( Iterate.midAssert() ) return this;
         if( _deps==null ) _deps = new ArrayList<>();
-        if( Utils.find(_deps,dep) != -1 ) return this; // Already on the list
-        assert Utils.find(_inputs,dep)==-1 && Utils.find(_outputs,dep)==-1; // No need for deps on immediate neighbors
+        if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
+        if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
+        if( Utils.find(_outputs,dep)!= -1 ) return this;
         _deps.add(dep);
         return this;
     }
