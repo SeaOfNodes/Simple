@@ -34,11 +34,12 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
-        if( !(region() instanceof RegionNode r) || r.inProgress() )
-            return Type.BOTTOM;            
+        if( !(region() instanceof RegionNode r) ) return _type;
+        if( r.inProgress() ) return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
-            t = t.meet(in(i)._type);
+            if( r.in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
+                t = t.meet(in(i)._type);
         return t;
     }
 
@@ -88,7 +89,7 @@ public class PhiNode extends Node {
             return null;    // Dead entry loops just ignore and let the loop collapse
         Node live = null;
         for( int i=1; i<nIns(); i++ ) {
-            if( region().in(i)._type != Type.XCONTROL && in(i) != this )
+            if( region().in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
                 if( live == null || live == in(i) ) live = in(i);
                 else return null;
         }

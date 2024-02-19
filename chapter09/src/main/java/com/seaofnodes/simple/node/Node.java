@@ -204,7 +204,8 @@ public abstract class Node implements IntSupplier {
   
     // Remove the numbered input, compressing the inputs in-place.  This
     // shuffles the order deterministically - which is suitable for Region and
-    // Phi, but not for every Node.
+    // Phi, but not for every Node.  If the def goes dead, it is recursively
+    // killed, which may include 'this' Node.
     void delDef(int idx) {
         unlock();
         Node old_def = in(idx);
@@ -256,14 +257,19 @@ public abstract class Node implements IntSupplier {
   
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
-     * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #popN}.
+     * to null.  This may recursively kill more Nodes, and is basically dead
+     * code elimination.
      */
     public void kill( ) {
         unlock();
         assert isUnused();      // Has no uses, so it is dead
-        popN(nIns());           // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead
+        while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
+            Node old_def = _inputs.removeLast();
+            if( old_def != null &&     // If it exists and
+                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                old_def.kill();        // Kill old def
+        }
         assert isDead();        // Really dead now
     }
 
@@ -336,12 +342,12 @@ public abstract class Node implements IntSupplier {
         
         // Compute initial or improved Type
         Type old = _type;
-        Type type = _type = compute();
-        assert old==null || type.isa(old);
+        Type type = compute();
+        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
         if( old==null ) Iterate.add(this);
-        if( old != type )
+        if( old != (_type=type) ) // Set _type late for easier assert debugging
             progress = this;
-        
+
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
             return deadCodeElim(new ConstantNode(type).peephole());

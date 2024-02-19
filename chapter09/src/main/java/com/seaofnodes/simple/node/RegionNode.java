@@ -34,9 +34,17 @@ public class RegionNode extends Node {
         if( inProgress() ) return null;
         int path = findDeadInput();
         if( path != 0 ) {
-            for( Node phi : _outputs )
-                if( phi instanceof PhiNode )
+            // Cannot use the obvious output iterator here, because a Phi
+            // deleting an input might recursively delete *itself*.  This
+            // shuffles the output array and we might miss iterating an
+            // unrelated Phi.
+            for( int i=0; i<nOuts(); i++ ) {
+                if( _outputs.get(i) instanceof PhiNode phi ) {
                     phi.delDef(path);
+                    if( phi.isDead() ) // Recursively deleted self
+                        i--;           // Have to revisit at the same index
+                }
+            }
             delDef(path);
 
             return this;
@@ -63,7 +71,10 @@ public class RegionNode extends Node {
     // Immediate dominator of Region is a little more complicated.
     private Node _idom;         // Immediate dominator cache
     @Override Node idom() {
-        if( _idom != null ) return _idom; // Return cached copy
+        if( _idom != null ) {
+            if( _idom.isDead() ) _idom=null;
+            else return _idom; // Return cached copy
+        }
         if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails
         Node lhs = in(1).idom();

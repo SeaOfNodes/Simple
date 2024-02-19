@@ -21,6 +21,8 @@ public class AddNode extends Node {
 
     @Override
     public Type compute() {
+        if( in(1)._type==Type.TOP ) return TypeInteger.TOP;
+        if( in(2)._type==Type.TOP ) return TypeInteger.TOP;
         if( in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1 ) {
             if (i0.isConstant() && i1.isConstant())
@@ -37,9 +39,6 @@ public class AddNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        // Already handled by peephole constant folding
-        assert !(t1.isConstant() && t2.isConstant());
-
         // Add of 0.  We do not check for (0+x) because this will already
         // canonicalize to (x+0)
         if( t2 instanceof TypeInteger i && i.value()==0 )
@@ -55,6 +54,10 @@ public class AddNode extends Node {
         if( !(lhs instanceof AddNode) && rhs instanceof AddNode )
             return swap12();
 
+        // x+(-y) becomes x-y
+        if( rhs instanceof MinusNode minus )
+            return new SubNode(lhs,minus.in(1));
+        
         // Now we might see (add add non) or (add non non) or (add add add) but never (add non add)
 
         // Do we have  x + (y + z) ?

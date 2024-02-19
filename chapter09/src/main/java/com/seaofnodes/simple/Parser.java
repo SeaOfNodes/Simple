@@ -384,13 +384,14 @@ public class Parser {
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
-            if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
-            if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
-            if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
-            if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
-            if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
-            if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
-            if( idx==0 ) break;
+            if( false ) ;
+            else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
+            else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
+            else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
+            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
+            else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
+            else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
+            else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             lhs.setDef(idx,parseAddition());
             lhs = lhs.peephole();
@@ -411,12 +412,12 @@ public class Parser {
     private Node parseAddition() {
         Node lhs = parseMultiplication();
         while( true ) {
-            Node rhs = null;
-            if( match("+") ) rhs = new AddNode(lhs,null);
-            if( match("-") ) rhs = new SubNode(lhs,null);
-            if( rhs==null ) break;
-            rhs.setDef(2,parseMultiplication());
-            lhs = rhs.peephole();
+            if( false ) ;
+            else if( match("+") ) lhs = new AddNode(lhs,null);
+            else if( match("-") ) lhs = new SubNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseMultiplication());
+            lhs = lhs.peephole();
         }
         return lhs;
     }
@@ -432,12 +433,12 @@ public class Parser {
     private Node parseMultiplication() {
         var lhs = parseUnary();
         while( true ) {
-            Node rhs = null;
-            if( match("*") ) rhs = new MulNode(lhs,null);
-            if( match("/") ) rhs = new DivNode(lhs,null);
-            if( rhs==null ) break;
-            rhs.setDef(2,parseUnary());
-            lhs = rhs.peephole();
+            if( false ) ;
+            else if( match("*") ) lhs = new MulNode(lhs,null);
+            else if( match("/") ) lhs = new DivNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseUnary());
+            lhs = lhs.peephole();
         }
         return lhs;
     }

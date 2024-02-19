@@ -13,13 +13,16 @@ public class Work<E extends IntSupplier> {
     private int _len;
     private final BitSet _on;   // Bit set if Node._nid is on worklist
     private final Random _R;
+    private final long _seed;
 
     Work() { this(123); }
     Work(long seed) {
         _es = new Object[1];
         _len=0;
         _on = new BitSet();
-        _R = new Random(seed);
+        _seed = seed;
+        _R = new Random();
+        _R.setSeed(_seed);
     }
 
     // Push on worklist, removing dups
@@ -56,5 +59,6 @@ public class Work<E extends IntSupplier> {
     public void clear() {
         _len = 0;
         _on.clear();
+        _R.setSeed(_seed);
     }
 }
