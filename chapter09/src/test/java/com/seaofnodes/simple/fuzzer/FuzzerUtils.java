@@ -49,12 +49,6 @@ class FuzzerUtils {
     }
 
     /**
-     * Copy of Iterate.WORK._R
-     * Used to reset the seed for new parse attempts
-     */
-    private static final Random WorkRandom;
-
-    /**
      * Copy of Node.WVISIST
      * Used to clear as exceptions might happen in the walk and left this bitset not cleared
      */
@@ -73,7 +67,6 @@ class FuzzerUtils {
 
     static {
         try {
-            WorkRandom = getFieldValue(getFieldValue(Iterate.class, "WORK"), "_R");
             NodeWalkVisit = getFieldValue(Node.class, "WVISIT");
             set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField(Iterate.class, "MID_ASSERT"));
         } catch (Exception e) {
@@ -127,7 +120,6 @@ class FuzzerUtils {
         try {
             System.setErr(NULL_PRINT_STREAM);
             System.setOut(NULL_PRINT_STREAM);
-            WorkRandom.setSeed(123);
             try {
                 set_MID_ASSERT.invokeExact(false);
             } catch (Throwable e) {
