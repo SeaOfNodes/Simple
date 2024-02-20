@@ -45,8 +45,10 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
-        if( !(region() instanceof RegionNode r ) || r.inProgress() )
-            return null;
+        if( !(region() instanceof RegionNode r ) )
+            return in(1);       // Input has collapse to e.g. starting control.
+        if( r.inProgress() || r.nIns()<=1 )
+            return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
@@ -97,10 +99,10 @@ public class PhiNode extends Node {
     }
 
     @Override
-    boolean allCons() {
+    boolean allCons(Node dep) {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
             return false;
-        return super.allCons();
+        return super.allCons(dep);
     }
 
     // True if last input is null

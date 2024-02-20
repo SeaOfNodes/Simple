@@ -11,7 +11,7 @@ import java.util.function.IntSupplier;
 // Classic worklist, with a fast add/remove, dup removal, random pull.
 public abstract class Iterate {
 
-    private static final Work<Node> WORK = new Work<>();
+    public static final Work<Node> WORK = new Work<>();
 
     public static <N extends Node> N add( N n ) { return (N)WORK.push(n); }
     
@@ -27,12 +27,16 @@ public abstract class Iterate {
             cnt++;              // Useful for debugging, searching which peephole broke things
             Node x = n.iter();
             if( x != null ) {
+                for( Node z : n. _inputs ) WORK.push(z);
                 if( x != n )
                     n.subsume(x);
+                if( x.isDead() ) continue;
+                if( x._type==null ) x._type = x.compute();
+                WORK.push(x);
                 for( Node z : x. _inputs ) WORK.push(z);
                 for( Node z : x._outputs ) WORK.push(z);
-                n.depsClear(WORK);
-                assert progressOnList(stop);
+                n.depsClear();
+                assert progressOnList(stop); // Very expensive assert
             }
         }
         

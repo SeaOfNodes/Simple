@@ -42,21 +42,20 @@ public class IfNode extends MultiNode {
         // Else true branch is reachable
         if (t instanceof TypeInteger ti && ti.isConstant())
             return ti==TypeInteger.ZERO ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
-
-        // Hunt up the immediate dominator tree.  If we find an identical if
-        // test on either the true or false branch, then this test matches.
-        for( Node dom = idom(), prior=this; dom!=null;  prior=dom, dom = dom.idom() )
-          if( dom instanceof IfNode iff && iff.pred()==pred )
-            return prior instanceof ProjNode proj
-              // Repeated test, dominated on one side.  Test result is the same.
-              ? (proj._idx==0 ? TypeTuple.IF_TRUE : TypeTuple.IF_FALSE)
-              : dom._type;      // Repeated test not dominated on one side
         
         return TypeTuple.IF_BOTH;
     }
-
+    
     @Override
     public Node idealize() {
+        // Hunt up the immediate dominator tree.  If we find an identical if
+        // test on either the true or false branch, that side wins.
+        if( !pred()._type.isConstant() && pred()._type != Type.TOP )
+            for( Node dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
+                if( dom instanceof IfNode iff && iff.pred()==pred() && prior instanceof ProjNode prj ) {
+                    setDef(1,new ConstantNode(TypeInteger.make(true,prj._idx==0?1:0)).peephole());
+                    return this;
+                }
         return null;
     }
 }

@@ -44,24 +44,15 @@ public class RegionNode extends Node {
             // shuffles the output array, and we might miss iterating an
             // unrelated Phi.
             for( int i=0; i<nOuts(); i++ ) {
-                if( _outputs.get(i) instanceof PhiNode phi ) {
-                    phi.delDef(path);
-                    if( phi.isDead() ) // Recursively deleted self
-                        i--;           // Have to revisit at the same index
-                }
+                if( _outputs.get(i) instanceof PhiNode phi &&
+                    phi.delDef(path).isDead() ) // Recursively deleted self
+                    i--;    // Have to revisit at the same index
             }
-            delDef(path);
-
-            return this;
+            return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
         }
-        // If down to a single input, become that input - but also make all
-        // Phis an identity on *their* single input.
-        if( nIns()==2 ) {
-            for( Node phi : _outputs )
-                if( phi instanceof PhiNode )
-                    phi.addDep(this); // Wait for the Phi to collapse and revisit
-            return in(1);             // Collapse if no Phis
-        }
+        // If down to a single input, become that input
+        if( nIns()==2 && !hasPhi() )
+            return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
         return null;
     }
 
@@ -72,6 +63,13 @@ public class RegionNode extends Node {
         return 0;               // All inputs alive
     }
 
+    private boolean hasPhi() {
+        for( Node phi : _outputs )
+            if( phi instanceof PhiNode )
+                return true;
+        return false;
+    }
+    
     // Immediate dominator of Region is a little more complicated.
     private Node _idom;         // Immediate dominator cache
     @Override Node idom() {

@@ -136,7 +136,7 @@ public abstract class Node implements IntSupplier {
             sb.append("     ");
         sb.append(" [[  ");
         for( Node use : _outputs )
-            sb.append("%4d ".formatted(use._nid));
+            sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
         int lim = 5 - Math.max(_inputs.size(),3);
         for( int i = _outputs.size(); i<lim; i++ )
             sb.append("     ");
@@ -187,7 +187,7 @@ public abstract class Node implements IntSupplier {
     public Node setDef(int idx, Node new_def ) {
         unlock();
         Node old_def = in(idx);
-        if( old_def == new_def ) return this; // No change
+        if( old_def == new_def ) return new_def; // No change
         // If new def is not null, add the corresponding def->use edge
         // This needs to happen before removing the old node's def->use edge as
         // the new_def might get killed if the old node kills it recursively.
@@ -206,13 +206,15 @@ public abstract class Node implements IntSupplier {
     // shuffles the order deterministically - which is suitable for Region and
     // Phi, but not for every Node.  If the def goes dead, it is recursively
     // killed, which may include 'this' Node.
-    void delDef(int idx) {
+    Node delDef(int idx) {
         unlock();
         Node old_def = in(idx);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
+        old_def.depsClear();
         Utils.del(_inputs, idx);
+        return this;
     }
 
     /**
@@ -316,7 +318,7 @@ public abstract class Node implements IntSupplier {
             return this;        // Peephole optimizations turned off
         }
         Node n = iter();
-        return n==null ? this : n; // Cannot return null for no-progress
+        return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
     }
 
     /**
@@ -338,22 +340,21 @@ public abstract class Node implements IntSupplier {
      * </ul>
      */
     public final Node iter( ) {
-        Node progress = null;   // Set if progress
-        
         // Compute initial or improved Type
-        if( _type==null ) Iterate.add(this); // Brand new node, put on WORK list
+        Type old = _type;
+        if( old==null ) Iterate.add(this); // Brand-new node, put on WORK list
         Type type = compute();
-        assert _type==null || type.isa(_type); // Since _type not set, can just re-run this in assert in the debugger
-        if( _type != type )
-            (progress = this)._type = type; // Set _type late for easier assert debugging
+        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
+        if( old != type )
+            _type = type;       // Set _type late for easier assert debugging
 
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
-            return deadCodeElim(new ConstantNode(type).peephole());
+            return new ConstantNode(type);
 
         // Global Value Numbering
         if( _hash==0 ) {
-            Node n = GVN.get(this); // Will set _hash as a side-effect
+            Node n = GVN.get(this); // Will set _hash as a side effect
             if( n==null )
                 GVN.put(this,this);  // Put in table now
             else {
@@ -365,10 +366,9 @@ public abstract class Node implements IntSupplier {
         // Ask each node for a better replacement
         Node n = idealize();
         if( n != null )         // Something changed
-            // Recursively optimize
-            return deadCodeElim(n.peephole());
+            return n;           // Report progress
         
-        return progress; 
+        return old==type ? null : this; // Report progress
     }
 
     // m is the new Node, self is the old.
@@ -474,9 +474,9 @@ public abstract class Node implements IntSupplier {
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
-    public void depsClear( Work<Node> work ) {
+    public void depsClear( ) {
         if( _deps==null ) return;
-        work.addAll(_deps);
+        Iterate.WORK.addAll(_deps);
         _deps.clear();
     }
     
@@ -547,10 +547,12 @@ public abstract class Node implements IntSupplier {
     
     // does this node contain all constants?
     // Ignores in(0), as is usually control.
-    boolean allCons() {
+    boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
-            if( !(in(i)._type.isConstant()) )
+            if( !(in(i)._type.isConstant()) ) {
+                in(i).addDep(dep); // If in(i) becomes a constant later, will trigger some peephole
                 return false;
+            }
         return true;
     }
 

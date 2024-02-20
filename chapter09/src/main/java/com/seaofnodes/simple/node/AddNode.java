@@ -68,7 +68,7 @@ public class AddNode extends Node {
         // Now we might see (add add non) or (add non non) but never (add non add) nor (add add add)
         if( !(lhs instanceof AddNode) )
             // Rotate; look for (add (phi cons) con/(phi cons))
-            return spine_cmp(lhs,rhs) ? swap12() : phiCon(this,true);
+            return spine_cmp(lhs,rhs,this) ? swap12() : phiCon(this,true);
 
         // Now we only see (add add non)
 
@@ -79,7 +79,7 @@ public class AddNode extends Node {
         
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants
-        if( lhs.in(2).addDep(this)._type.isConstant() && t2.isConstant() )
+        if( lhs.in(2).addDep(this)._type.isConstant() && rhs._type.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
 
@@ -93,7 +93,7 @@ public class AddNode extends Node {
         
         // Do we rotate (x + y) + z
         // into         (x + z) + y ?
-        if( spine_cmp(lhs.in(2),rhs) )
+        if( spine_cmp(lhs.in(2),rhs,this) )
             return new AddNode(new AddNode(lhs.in(1),rhs).peephole(),lhs.in(2));
         
         return null;
@@ -106,16 +106,16 @@ public class AddNode extends Node {
         Node lhs = op.in(1);
         Node rhs = op.in(2);
         // LHS is either a Phi of constants, or another op with Phi of constants
-        PhiNode lphi = pcon(lhs);
+        PhiNode lphi = pcon(lhs,op);
         if( rotate && lphi==null && lhs.nIns() > 2 ) {
             // Only valid to rotate constants if both are same associative ops
             if( lhs.getClass() != op.getClass() ) return null;
-            lphi = pcon(lhs.in(2)); // Will rotate with the Phi push
+            lphi = pcon(lhs.in(2),op); // Will rotate with the Phi push
         }
         if( lphi==null ) return null;
         
         // RHS is a constant or a Phi of constants
-        if( !(rhs instanceof ConstantNode) && pcon(rhs)==null )
+        if( !(rhs instanceof ConstantNode) && pcon(rhs,op)==null )
             return null;
         
         // If both are Phis, must be same Region
@@ -136,8 +136,8 @@ public class AddNode extends Node {
         return lhs==lphi ? phi : op.copy(lhs.in(1),phi);
     }
 
-    static PhiNode pcon(Node op) {
-        return op instanceof PhiNode phi && phi.allCons() ? phi : null;
+    static PhiNode pcon(Node op, Node dep) {
+        return op instanceof PhiNode phi && phi.allCons(dep) ? phi : null;
     }
         
     // Compare two off-spine nodes and decide what order they should be in.
@@ -145,12 +145,12 @@ public class AddNode extends Node {
     // Generally constants always go right, then Phi-of-constants, then muls, then others.
     // Ties with in a category sort by node ID.
     // TRUE if swapping hi and lo.
-    static boolean spine_cmp( Node hi, Node lo ) {
+    static boolean spine_cmp( Node hi, Node lo, Node dep ) {
         if( lo._type.isConstant() ) return false;
         if( hi._type.isConstant() ) return true ;
             
-        if( lo instanceof PhiNode && lo.allCons() ) return false;
-        if( hi instanceof PhiNode && hi.allCons() ) return true ;
+        if( lo instanceof PhiNode && lo.allCons(dep) ) return false;
+        if( hi instanceof PhiNode && hi.allCons(dep) ) return true ;
 
         if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
         if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;

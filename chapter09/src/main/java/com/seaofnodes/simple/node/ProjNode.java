@@ -7,7 +7,7 @@ import java.util.BitSet;
 
 public class ProjNode extends Node {
 
-    // Which slice of the incoming multi-part value
+    // Which slice of the incoming multipart value
     public final int _idx;
 
     // Debugging label
@@ -32,7 +32,7 @@ public class ProjNode extends Node {
 
     @Override
     public Type compute() {
-        Type t = ctrl()._type;
+        Type t = in(0)._type;
         return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 
