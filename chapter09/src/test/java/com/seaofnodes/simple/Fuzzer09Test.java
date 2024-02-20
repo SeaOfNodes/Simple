@@ -18,7 +18,7 @@ public class Fuzzer09Test {
     @Ignore
     public void fuzzPeeps() {
         var fuzzer = new Fuzzer();
-        for (int i=0; i<100000; i++)
+        for (int i=0; i<1000000; i++)
             fuzzer.fuzzPeeps(i);
         assertTrue(fuzzer.noExceptions());
     }
