@@ -341,12 +341,11 @@ public abstract class Node implements IntSupplier {
         Node progress = null;   // Set if progress
         
         // Compute initial or improved Type
-        Type old = _type;
+        if( _type==null ) Iterate.add(this); // Brand new node, put on WORK list
         Type type = compute();
-        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
-        if( old==null ) Iterate.add(this);
-        if( old != (_type=type) ) // Set _type late for easier assert debugging
-            progress = this;
+        assert _type==null || type.isa(_type); // Since _type not set, can just re-run this in assert in the debugger
+        if( _type != type )
+            (progress = this)._type = type; // Set _type late for easier assert debugging
 
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())

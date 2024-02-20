@@ -55,7 +55,8 @@ public class GraphVisualizer {
         // Now the scopes, in a cluster no edges
         if( xScopes != null )
             for( ScopeNode xscope : xScopes )
-                scope( sb, xscope );
+                if( !xscope.isDead() )
+                    scope( sb, xscope );
 
         // Walk the Node edges
         nodeEdges(sb, all);
@@ -63,7 +64,8 @@ public class GraphVisualizer {
         // Walk the active Scope edges
         if( xScopes != null )
             for( ScopeNode xscope : xScopes )
-                scopeEdges( sb, xscope );
+                if( !xscope.isDead() )
+                    scopeEdges( sb, xscope );
         
         sb.append("}\n");
         return sb.toString();

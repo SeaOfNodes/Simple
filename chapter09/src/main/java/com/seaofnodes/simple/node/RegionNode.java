@@ -33,10 +33,15 @@ public class RegionNode extends Node {
     public Node idealize() {
         if( inProgress() ) return null;
         int path = findDeadInput();
-        if( path != 0 ) {
+        if( path != 0 &&
+            // Do not delete the entry path of a loop (ok to remove the back
+            // edge and make the loop a single-entry Region which folds away
+            // the Loop).  Folding the entry path confused the loop structure,
+            // moving the backedge to the entry point.
+            !(this instanceof LoopNode loop && loop.entry()==in(path)) ) {
             // Cannot use the obvious output iterator here, because a Phi
             // deleting an input might recursively delete *itself*.  This
-            // shuffles the output array and we might miss iterating an
+            // shuffles the output array, and we might miss iterating an
             // unrelated Phi.
             for( int i=0; i<nOuts(); i++ ) {
                 if( _outputs.get(i) instanceof PhiNode phi ) {
@@ -54,9 +59,8 @@ public class RegionNode extends Node {
         if( nIns()==2 ) {
             for( Node phi : _outputs )
                 if( phi instanceof PhiNode )
-                    // Currently does not happen, because no loops
-                    throw Utils.TODO();
-            return in(1);
+                    phi.addDep(this); // Wait for the Phi to collapse and revisit
+            return in(1);             // Collapse if no Phis
         }
         return null;
     }
@@ -92,7 +96,7 @@ public class RegionNode extends Node {
 
     // True if last input is null
     public final boolean inProgress() {
-        return in(nIns()-1) == null;
+        return nIns()>1 && in(nIns()-1) == null;
     }
 
     // Never equal if inProgress

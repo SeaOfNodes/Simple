@@ -28,13 +28,10 @@ public class TypeInteger extends Type {
 
     public static TypeInteger constant(long con) { return make(true, con); }
 
-    public boolean isTop() { return !_is_con && _con==0; }
-    public boolean isBot() { return !_is_con && _con==1; }
-
     @Override 
     public StringBuilder _print(StringBuilder sb) {
-        if (isTop()) return sb.append("IntTop");
-        if (isBot()) return sb.append("IntBot");
+        if( this==TOP ) return sb.append("IntTop");
+        if( this==BOT ) return sb.append("IntBot");
         return sb.append(_con);
     }
 
@@ -47,13 +44,14 @@ public class TypeInteger extends Type {
     public Type xmeet(Type other) {
         TypeInteger i = (TypeInteger)other; // Contract
         // BOT wins
-        if (   isBot() ) return this;
-        if ( i.isBot() ) return i   ;
+        if ( this==BOT ) return this;
+        if ( i   ==BOT ) return i   ;
         // TOP loses
-        if ( i.isTop() ) return this;
-        if (   isTop() ) return i   ;
-        assert isConstant() && i.isConstant();
-        return _con==i._con ? this : TypeInteger.BOT;
+        if ( i   ==TOP ) return this;
+        if ( this==TOP ) return i   ;
+        // Since both are constants, and are never equals (contract) unequals
+        // constants fall to bottom
+        return BOT;
     }
 
     @Override

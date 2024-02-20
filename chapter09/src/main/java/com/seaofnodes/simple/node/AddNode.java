@@ -36,7 +36,6 @@ public class AddNode extends Node {
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
-        Type t1 = lhs._type;
         Type t2 = rhs._type;
 
         // Add of 0.  We do not check for (0+x) because this will already
@@ -116,7 +115,7 @@ public class AddNode extends Node {
         if( lphi==null ) return null;
         
         // RHS is a constant or a Phi of constants
-        if( !(rhs instanceof ConstantNode con) && pcon(rhs)==null )
+        if( !(rhs instanceof ConstantNode) && pcon(rhs)==null )
             return null;
         
         // If both are Phis, must be same Region

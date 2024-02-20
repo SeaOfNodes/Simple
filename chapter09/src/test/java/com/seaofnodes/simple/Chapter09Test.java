@@ -117,7 +117,7 @@ while(1) {
         Parser parser = new Parser("""
 {
     int v0=0;
-    while(1) 
+    while(1)
             int v1=0--0;
     while(v0) 
         break;
@@ -132,6 +132,40 @@ return 0!=0;
 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("Stop[ ]", stop.toString());
+    }
+
+    @Test
+    public void testFuzz6() {
+        Parser parser = new Parser("""
+int v0=0;
+while(0==1) while(v0)
+        v0=1+v0;
+                                   """);
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("Stop[ ]", stop.toString());
+    }
+
+    @Test
+    public void testFuzz7() {
+        Parser parser = new Parser("""
+while(1) {}
+int v0=0;
+while(v0)
+    {}
+int v1=0;
+while(1)
+        v1=1;
+return v1+v0;
+                                   """);
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("Stop[ ]", stop.toString());
+    }
+
+    @Test
+    public void testFuzz8() {
+        Parser parser = new Parser("while(arg) arg = arg - 1; #showGraph; return arg;");
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return Phi(Loop6,arg,(Phi_arg-1));", stop.toString());
     }
 
 }
