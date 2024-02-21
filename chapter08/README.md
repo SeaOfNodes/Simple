@@ -256,13 +256,13 @@ With that brief setup done, the control projection from the Start node is traver
 
 At this point, control flow is at the first region of the program, but it is treated just the same as any other region. There are two things that must be done at each region. First, resolve all phis to a specific value; and second to determine where control flow will continue to.
 
-It may seem like more than that should be done, but by resolving Phi nodes, any logic that is specific to the control flow path for the given will be resolved. Any other work will eventually be resolved later on as-needed. This is sufficient for the program to run!
+It may seem like more than that should be done, but by resolving phi nodes, any logic that is specific to the control flow path for the given will be resolved. Any other work will eventually be resolved later on as-needed. This is sufficient for the program to run!
 
-To find the next place control flow will move to for a Region is straightforward because any Region only has a single control node that uses it, so we search for that node in the Region's users.
+Finding the next place control flow will move to after a region is straightforward because any region only has a single control node that uses it. So we search for that node in the Region's users.
 
-Once we have that node, our behavior depends on what type of control flow. There are only 3 options: `RegionNode`, `IfNode`, and `ReturnNode`. If it is another `RegionNode`, we do the same again. If it's a `ReturnNode`, we can resolve the returned expression and return the program's value. Finally, for an `IfNode`, we must first resolve the test expression so that we can choose the false (projection 0) or true (projection 1) branch. Whichever projection from the `IfNode` is chosen, we step through that projection on to the control node (a `RegionNode`) that uses it.
+Once we have that node, our behavior depends on what type of control flow node we've landed on. There are only 3 options: `RegionNode`, `IfNode`, and `ReturnNode`. If it is another `RegionNode`, we do the same again. If it's a `ReturnNode`, we can resolve the returned expression and return the program's value. Finally, for an `IfNode`, we must first resolve the test expression so that we can choose the false (projection 0) or true (projection 1) branch. Whichever projection from the `IfNode` is chosen, we step through that projection on to the control node (a `RegionNode`) that uses it.
 
-We talk about resolving nodes above, but what does that mean? A node will either have a value (for instance a constant), will already be resolved with the resolved value cached, or it will operate on nodes that it uses, which must be resolved. Once a node's inputs are resolved, its operation may be performed on it. For instance, an `AddNode`'s value will be the sum of its two inputs. Once the value is resolved, it is cached, and the resolved value is returned.
+We talk about resolving nodes above, but what does that mean? A node will either have a value (for instance a constant), will already be resolved with the resolved value cached, or it will operate on nodes that it uses, which must be resolved. Once a node's inputs are resolved, its operation may be performed on them. For instance, an `AddNode`'s value will be the sum of its two inputs. Once the value is resolved, the resolved value is returned.
 
 With that, a simple non-looping program can be evaluated.
 
@@ -280,4 +280,17 @@ return t;
 ```
 
 In this code, the two statements within the loop may be evaluated in either order by the graph, so we must ensure that the new value `arg` is not cached before the value of `t` can be set to the previous value of `arg`.
+
+This approach to evaluation is useful for testing because it allows a program to be executed without worrying about instruction selection, register allocation or code generation. It can execute on any valid Sea of Nodes graph, as well, so execution results of unoptimized code can be checked against the results of optimized code! This fact lends itself to some interesting automated / regression testing ideas. For instance, the result of execution could be checked after every optimization step, possibly helping isolate some types of errors.
+
+``` java
+arg=arg+arg;
+arg=arg+arg;
+...
+arg=arg+arg;
+return arg;
+```
+
+On the other hand, this engine is not designed to be particularly fast! Because not all expressions are cached, it's possible to construct programs like the preceeding one which have exponential runtime.
+
 
