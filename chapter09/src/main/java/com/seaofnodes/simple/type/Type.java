@@ -119,7 +119,7 @@ public class Type {
     // Our lattice is defined with a MEET and a DUAL.
     // JOIN is dual of meet of both duals.
     public final Type join(Type t) {
-        if( this==t ) return this;
+        if( this==t ) return this; // Shortcut
         return dual().meet(t.dual()).dual();
     }
 

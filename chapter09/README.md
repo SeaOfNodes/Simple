@@ -63,6 +63,14 @@ we know it IS the "golden instance" and do no need to look in `GVN`.
 This entire optimization takes about 5 lines in `iter()`, plus the common
 shared `equals` and `hashCode` (about 50 more lines counting comments).
 
+One of our invariants is that Types monotonically increase while running
+peepholes.  GVN can break this briefly: of the two equivalent Nodes one has
+already had its `_type` lifted but not the other.  Depending on which of the
+two Nodes is kept, we might choose the Node with the "lower" `_type`.  This is
+"lower" in the Type lattice sense.  Both types must be correct, and a
+`compute()` call on both nodes must produce the same Type, which must be equal
+to the JOIN.  A fix is to compute a JOIN (not a MEET) over the two Nodes' types.  
+
 
 ## Post-Parse Iterate
 
