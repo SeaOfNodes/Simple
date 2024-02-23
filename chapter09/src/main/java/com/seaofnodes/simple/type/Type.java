@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Utils;
+
 import java.util.HashMap;
 
 /**
@@ -112,6 +114,24 @@ public class Type {
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
+    
+    // ----------------------------------------------------------
+    // Our lattice is defined with a MEET and a DUAL.
+    // JOIN is dual of meet of both duals.
+    public final Type join(Type t) {
+        if( this==t ) return this;
+        return dual().meet(t.dual()).dual();
+    }
+
+    public Type dual() {
+        return switch( _type ) {
+        case TBOT -> TOP;
+        case TTOP -> BOTTOM;
+        case TCTRL -> XCONTROL;
+        case TXCTRL -> CONTROL;
+        default -> throw Utils.TODO(); // Should not reach here
+        };
+    }
     
     // ----------------------------------------------------------
     @Override

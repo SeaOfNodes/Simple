@@ -102,6 +102,7 @@ public class PhiNode extends Node {
     boolean allCons(Node dep) {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
             return false;
+        r.addDep(dep);
         return super.allCons(dep);
     }
 

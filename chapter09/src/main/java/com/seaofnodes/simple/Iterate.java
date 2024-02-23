@@ -36,8 +36,8 @@ public abstract class Iterate {
                 for( Node z : x. _inputs ) WORK.push(z);
                 for( Node z : x._outputs ) WORK.push(z);
                 n.depsClear();
-            }
                 assert progressOnList(stop); // Very expensive assert
+            }
         }
         
         if( show )

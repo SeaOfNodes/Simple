@@ -17,6 +17,13 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
+    @Override public Type dual() {
+        Type[] ts = new Type[_types.length];
+        for( int i=0; i<_types.length; i++ )
+            ts[i] = _types[i].dual();
+        return make(ts);
+    }
+    
     @Override
     public StringBuilder _print(StringBuilder sb) {
         sb.append("[");

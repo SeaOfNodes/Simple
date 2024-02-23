@@ -360,6 +360,11 @@ public abstract class Node implements IntSupplier {
             if( n==null )
                 GVN.put(this,this);  // Put in table now
             else {
+                // Because of random worklist ordering, the two equal nodes
+                // might have different types.  Because of monotonicity, both
+                // types are valid.  To preserve monotonicity, the resulting
+                // shared Node has to have the best of both types.
+                n._type = n._type.join(_type);                
                 _hash = 0; // Clear, since it never went in the table
                 return deadCodeElim(n);// Return previous; does Common Subexpression Elimination
             }

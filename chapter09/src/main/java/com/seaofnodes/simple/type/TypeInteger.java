@@ -59,6 +59,12 @@ public class TypeInteger extends Type {
     }
 
     @Override
+    public Type dual() {
+        if( isConstant() ) return this; // Constants are a self-dual
+        return _con==0 ? BOT : TOP;
+    }
+    
+    @Override
     int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
     @Override
     public boolean eq( Type t ) {
