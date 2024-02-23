@@ -69,6 +69,11 @@ tests:	$(default_targets)
 	@echo "testing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 
+fuzzer: $(default_targets)
+	@echo "testing " $(test_cp)
+	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
+
+
 .PHONY: clean
 clean:
 	rm -rf build

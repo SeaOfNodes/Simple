@@ -14,7 +14,15 @@ public class Chapter09Test {
     @Ignore
     public void testJig() {
         Parser parser = new Parser("""
-// Insert test case here
+arg=1;
+while(arg) {}
+while(1) {
+        while(arg+0*-arg) arg=0;
+        break;
+}
+int v0=0;
+v0=-0;
+return 0;
 """);
         StopNode stop = parser.parse().iterate(true);
     }
@@ -119,13 +127,13 @@ while(1) {
     int v0=0;
     while(1)
             int v1=0--0;
-    while(v0) 
+    while(v0)
         break;
     while(-v0) {
         while(0+0+v0) continue;
         break;
     }
-    if(-0!=-0+0+v0) while(0+0+0+0) 
+    if(-0!=-0+0+v0) while(0+0+0+0)
                 break;
 }
 return 0!=0;

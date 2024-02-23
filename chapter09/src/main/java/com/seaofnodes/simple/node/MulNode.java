@@ -5,7 +5,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.BitSet;
 
-public class MulNode extends Node {
+public class MulNode extends IntDataNode {
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Mul"; }
@@ -20,14 +20,10 @@ public class MulNode extends Node {
     }
 
     @Override
-    public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(i0.value()*i1.value());
-            return i0.meet(i1);
-        }
-        return Type.BOTTOM;
+    public Type intCompute(TypeInteger i1, TypeInteger i2) {
+        if( i1._is_con && i2._is_con )
+            return TypeInteger.constant( i1._con * i2._con );
+        return TypeInteger.BOT;
     }
 
     @Override

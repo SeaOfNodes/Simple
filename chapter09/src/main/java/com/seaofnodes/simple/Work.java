@@ -26,7 +26,7 @@ public class Work<E extends IntSupplier> {
     }
 
     // Push on worklist, removing dups
-    E push( E x ) {
+    public E push( E x ) {
         if( x==null ) return null;
         int idx = x.getAsInt();
         if( !_on.get(idx) ) {

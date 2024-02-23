@@ -77,7 +77,8 @@ public class RegionNode extends Node {
             if( _idom.isDead() ) _idom=null;
             else return _idom; // Return cached copy
         }
-        if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
+        if( nIns()==2 ) return in(1); // 1-input is that one input
+        if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails
         Node lhs = in(1).idom();
         Node rhs = in(2).idom();

@@ -43,6 +43,9 @@ public class Type {
     public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
     public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
 
+    // Is high or on the lattice centerline.
+    public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
+
     // Strict constant values, things on the lattice centerline.
     // Excludes both high and low values
     public boolean isConstant() { return false; }

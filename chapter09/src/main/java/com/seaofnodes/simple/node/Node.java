@@ -268,9 +268,11 @@ public abstract class Node implements IntSupplier {
         _type=null;             // Flag as dead
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
-            if( old_def != null &&     // If it exists and
-                old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-                old_def.kill();        // Kill old def
+            if( old_def != null ) {
+                Iterate.WORK.push(old_def);// Revisit neighbor because removed use
+                if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                    old_def.kill();        // Kill old def
+            }
         }
         assert isDead();        // Really dead now
     }
@@ -349,7 +351,7 @@ public abstract class Node implements IntSupplier {
             _type = type;       // Set _type late for easier assert debugging
 
         // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && type.isConstant())
+        if (!(this instanceof ConstantNode) && type.isHighOrConst() )
             return new ConstantNode(type);
 
         // Global Value Numbering

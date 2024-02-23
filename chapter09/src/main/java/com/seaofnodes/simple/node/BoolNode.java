@@ -5,7 +5,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.BitSet;
 
-abstract public class BoolNode extends Node {
+abstract public class BoolNode extends IntDataNode {
 
     public BoolNode(Node lhs, Node rhs) {
         super(null, lhs, rhs);
@@ -27,14 +27,10 @@ abstract public class BoolNode extends Node {
     }
 
     @Override
-    public Type compute() {
-        if( in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1 ) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
-            return i0.meet(i1);
-        }
-        return Type.BOTTOM;
+    public Type intCompute(TypeInteger i1, TypeInteger i2) {
+        if( i1._is_con && i2._is_con )
+            return TypeInteger.constant( doOp(i1._con,i2._con) ? 1 : 0 );
+        return TypeInteger.BOT;
     }
 
     abstract boolean doOp(long lhs, long rhs);

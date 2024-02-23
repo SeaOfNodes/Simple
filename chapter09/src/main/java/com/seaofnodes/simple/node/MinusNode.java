@@ -5,7 +5,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.BitSet;
 
-public class MinusNode extends Node {
+public class MinusNode extends IntDataNode {
     public MinusNode(Node in) { super(null, in); }
 
     @Override public String label() { return "Minus"; }
@@ -19,10 +19,10 @@ public class MinusNode extends Node {
     }
   
     @Override
-    public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0)
-            return i0.isConstant() ? TypeInteger.constant(-i0.value()) : i0;
-        return in(1)._type;
+    public Type intCompute(TypeInteger i1, TypeInteger i2) {
+        if( i1._is_con )
+            return TypeInteger.constant( -i1._con );
+        return TypeInteger.BOT;
     }
 
     @Override

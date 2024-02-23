@@ -9,13 +9,13 @@ public class TypeInteger extends Type {
     public final static TypeInteger BOT = make(false, 1);
     public final static TypeInteger ZERO= make(true , 0);
 
-    private final boolean _is_con;
+    public final boolean _is_con;
 
     /**
      * The constant value or
-     * if not constant then 0=bottom, 1=top.
+     * if not constant then 1=bottom, 0=top.
      */
-    private final long _con;
+    public final long _con;
 
     private TypeInteger(boolean is_con, long con) {
         super(TINT);
@@ -36,12 +36,16 @@ public class TypeInteger extends Type {
     }
 
     @Override
+    public boolean isHighOrConst() { return _is_con || _con==0; }
+
+    @Override
     public boolean isConstant() { return _is_con; }
 
     public long value() { return _con; }
 
     @Override
     public Type xmeet(Type other) {
+        // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
         // BOT wins
         if ( this==BOT ) return this;
