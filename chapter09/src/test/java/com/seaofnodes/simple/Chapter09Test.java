@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
 import org.junit.Test;
@@ -174,6 +175,18 @@ return v1+v0;
         Parser parser = new Parser("while(arg) arg = arg - 1; #showGraph; return arg;");
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg-1));", stop.toString());
+    }
+
+    @Test
+    public void testMeet() {
+        Type t1 = Type.TOP;
+        Type t2 = TypeInteger.TOP;
+        Assert.assertEquals(TypeInteger.TOP, t1.meet(t2));
+        Assert.assertEquals(TypeInteger.TOP, t2.meet(t1));
+        t1 = Type.BOTTOM;
+        t2 = TypeInteger.BOT;
+        Assert.assertEquals(Type.BOTTOM, t1.meet(t2));
+        Assert.assertEquals(Type.BOTTOM, t2.meet(t1));
     }
 
 }

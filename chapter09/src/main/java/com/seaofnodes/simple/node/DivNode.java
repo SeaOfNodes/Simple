@@ -5,7 +5,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.BitSet;
 
-public class DivNode extends IntDataNode {
+public class DivNode extends Node {
     public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Div"; }
@@ -20,19 +20,19 @@ public class DivNode extends IntDataNode {
     }
   
     @Override
-    public Type intCompute(TypeInteger i1, TypeInteger i2) {
-        if( i1._is_con && i2._is_con )
-            return i2._con == 0
-                ? TypeInteger.ZERO
-                : TypeInteger.constant( i1._con / i2._con );
-        return TypeInteger.BOT;
+    public Type compute() {
+        if (in(1)._type instanceof TypeInteger i0 &&
+            in(2)._type instanceof TypeInteger i1) {
+            if (i0.isConstant() && i1.isConstant())
+                return i1.value() == 0
+                    ? TypeInteger.ZERO
+                    : TypeInteger.constant(i0.value()/i1.value());
+        }
+        return in(1)._type.meet(in(2)._type);
     }
 
     @Override
-    public Node idealize() {
-        // TODO: Divide by 1
-        return null;
-    }
+    public Node idealize() { return null; }
   
     @Override Node copy(Node lhs, Node rhs) { return new DivNode(lhs,rhs); }
 }

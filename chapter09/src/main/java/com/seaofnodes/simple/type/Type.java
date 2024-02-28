@@ -95,7 +95,7 @@ public class Type {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
-        return BOTTOM;        // Mixing 2 unrelated types
+        return xmeet(t);        // Mixing 2 unrelated types
     }
 
     // Compute meet right now.  Overridden in subclasses.
@@ -119,7 +119,7 @@ public class Type {
     // Our lattice is defined with a MEET and a DUAL.
     // JOIN is dual of meet of both duals.
     public final Type join(Type t) {
-        if( this==t ) return this; // Shortcut
+        if( this==t ) return this;
         return dual().meet(t.dual()).dual();
     }
 
