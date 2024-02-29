@@ -2,30 +2,60 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
-    
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Random;
-import java.util.function.IntSupplier;
 
-// Classic worklist, with a fast add/remove, dup removal, random pull.
-public abstract class Iterate {
+/**
+ * The IterOptim runs after parsing. It iterates the peepholes to a fixed point
+ * so that no more peepholes apply.  This should be linear because peepholes rarely
+ * (never?)  increase code size.  The graph should monotonically reduce in some
+ * dimension, which is usually size.  It might also reduce in e.g. number of
+ * MulNodes or Load/Store nodes, swapping out more "expensive" Nodes for cheaper
+ * ones.
+ *
+ * The theoretical overall worklist is mindless just grabbing the next thing and
+ * doing it.  If the graph changes, put the neighbors on the worklist.  Lather,
+ * Rinse, Repeat until the worklist runs dry.
+ *
+ * The main issues we have to deal with:
+ *
+ * <ul>
+ * <li>Nodes have uses; replacing some set of Nodes with another requires more graph
+ *   reworking.  Not rocket science, but it can be fiddly.  Its helpful to have a
+ *   small set of graph munging utilities, and the strong invariant that the graph
+ *   is stable and correct between peepholes.  In our case `Node.subsume` does
+ *   most of the munging, building on our prior stable Node utilities.</li>
+ *
+ * <li>Changing a Node also changes the graph "neighborhood".  The neigbors need to
+ *   be checked to see if THEY can also peephole, and so on.  After any peephole
+ *   or graph update we put a Nodes uses and defs on the worklist.</li>
+ *
+ * <li>Our strong invariant is that for all Nodes, either they are on the worklist
+ *   OR no peephole applies.  This invariant is easy to check, although expensive.
+ *   Basically the normal "iterate peepholes to a fixed point" is linear, and this
+ *   check is linear at each peephole step... so quadratic overall.  Its a useful
+ *   assert, but one we can disable once the overall algorithm is stable - and
+ *   then turn it back on again when some new set of peepholes is misbehaving.
+ *   The code for this is turned on in `IterOptim.iterate` as `assert
+ *   progressOnList(stop);`</li>
+ * </ul>
+ */
+public abstract class IterOptim {
 
-    public static final Work<Node> WORK = new Work<>();
+    public static final WorkList<Node> WORK = new WorkList<>();
 
     public static <N extends Node> N add( N n ) { return (N)WORK.push(n); }
-    
-    // Iterate peepholes to a fixed point
-    public static StopNode iterate(StopNode stop) { return iterate(stop,false); }
+
+    /**
+     * Iterate peepholes to a fixed point
+     */
     public static StopNode iterate(StopNode stop, boolean show) {
         assert progressOnList(stop);
         int cnt=0;
-        
+
         Node n;
         while( (n=WORK.pop()) != null ) {
             if( n.isDead() )  continue;
             cnt++;              // Useful for debugging, searching which peephole broke things
-            Node x = n.iter();
+            Node x = n.peepholeOpt();
             if( x != null ) {
                 for( Node z : n. _inputs ) WORK.push(z);
                 if( x != n )
@@ -63,7 +93,7 @@ public abstract class Iterate {
         MID_ASSERT = true;
         Node changed = stop.walk( n -> {
                 if( WORK.on(n) ) return null;
-                Node m = n.iter();
+                Node m = n.peepholeOpt();
                 if( m==null ) return null;
                 System.err.println("BREAK HERE FOR BUG");
                 return m;

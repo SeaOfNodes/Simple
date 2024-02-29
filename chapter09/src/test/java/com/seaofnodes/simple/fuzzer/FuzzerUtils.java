@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.fuzzer;
 
-import com.seaofnodes.simple.Iterate;
+import com.seaofnodes.simple.IterOptim;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
@@ -11,7 +11,6 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.util.BitSet;
-import java.util.Random;
 
 /**
  * Some utilities for the fuzzer.
@@ -68,7 +67,7 @@ class FuzzerUtils {
     static {
         try {
             NodeWalkVisit = getFieldValue(Node.class, "WVISIT");
-            set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField(Iterate.class, "MID_ASSERT"));
+            set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField(IterOptim.class, "MID_ASSERT"));
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }
