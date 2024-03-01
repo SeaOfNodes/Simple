@@ -40,7 +40,7 @@ public class IRPrinter {
         return sb.toString();
     }
 
-    private static void postOrd(Node n, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
+    public static void postOrd(Node n, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
         if( !bfs.get(n._nid) )
             return;  // Not in the BFS visit
         if( visit.get(n._nid) ) return; // Already post-order walked

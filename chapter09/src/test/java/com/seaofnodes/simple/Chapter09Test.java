@@ -85,7 +85,7 @@ while (arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = new IterOptim2().iterate(parser.parse(true), true);
         assertEquals("return Phi(Loop8,arg,(Phi_arg+4));", stop.toString());
         Assert.assertEquals(13, GraphEvaluator.evaluate(stop, 1));
     }
