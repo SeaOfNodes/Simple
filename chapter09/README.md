@@ -187,7 +187,7 @@ else {
 return x;
 ```
 
-Prior to GVN, this would result in following graph. Note that the `arg+arg` is translated to `arg+2`.
+Prior to GVN, this would result in following graph. Note that the `arg+arg` is translated to `arg*2`.
 
 ![Graph1](./docs/09-graph1.svg)
 
