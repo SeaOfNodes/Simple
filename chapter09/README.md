@@ -211,3 +211,25 @@ With GVN, the peepholes can do a better job:
 
 ![Graph4](./docs/09-graph4.svg)
 
+## Post Parse Iterative Optimizations
+
+The worklist based post parse optimization enables certain optimizations that are not available
+during parsing. For example:
+
+```java
+int step = 1;
+while (arg < 10) {
+    arg = arg + step + 1;
+}
+return arg;
+```
+
+While parsing the `while` loop it is not yet known that `step` is a constant and will not change. Therefore,
+without the post parse optimization we get following:
+
+![Graph5](./docs/09-graph5.svg)
+
+Enabling the post parse worklist based optimization yields below. Notice that now the graph shows `arg+2` inside the
+loop body:
+
+![Graph6](./docs/09-graph6.svg)

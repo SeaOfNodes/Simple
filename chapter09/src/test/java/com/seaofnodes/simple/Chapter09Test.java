@@ -59,6 +59,21 @@ return arg*arg-arg*arg;
     }
 
     @Test
+    public void testWorklist1() {
+        Parser parser = new Parser(
+                """
+int step = 1;
+while (arg < 10) {
+    arg = arg + step + 1;
+}
+return arg;
+                """);
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return Phi(Loop7,arg,(Phi_arg+2));", stop.toString());
+        Assert.assertEquals(11, GraphEvaluator.evaluate(stop, 1));
+    }
+
+    @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = parser.parse().iterate(true);
