@@ -266,7 +266,7 @@ public abstract class Node {
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
             if( old_def != null ) {
-                IterOptim.WORK.push(old_def);// Revisit neighbor because removed use
+                IterOptim.add(old_def);// Revisit neighbor because removed use
                 if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                     old_def.kill();        // Kill old def
             }
@@ -305,6 +305,7 @@ public abstract class Node {
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
+    public static boolean _disableDeps     = false;
 
 
     /**
@@ -466,6 +467,9 @@ public abstract class Node {
     ArrayList<Node> _deps;
 
     Node addDep( Node dep ) {
+        if (_disableDeps)
+            return this;
+
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( IterOptim.midAssert() ) return this;
@@ -480,7 +484,7 @@ public abstract class Node {
     // Move the dependents onto a worklist, and clear for future dependents.
     public void moveDepsToWorklist( ) {
         if( _deps==null ) return;
-        IterOptim.WORK.addAll(_deps);
+        IterOptim.addAll(_deps);
         _deps.clear();
     }
     

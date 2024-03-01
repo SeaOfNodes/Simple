@@ -74,6 +74,23 @@ return arg;
     }
 
     @Test
+    public void testWorklist2() {
+        Parser parser = new Parser(
+                """
+int cond = 0;
+int one = 1;
+while (arg < 10) {
+    if (cond) one = 2;
+    arg = arg + one*3 + 1;
+}
+return arg;
+                """);
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return Phi(Loop8,arg,(Phi_arg+4));", stop.toString());
+        Assert.assertEquals(13, GraphEvaluator.evaluate(stop, 1));
+    }
+
+    @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = parser.parse().iterate(true);
