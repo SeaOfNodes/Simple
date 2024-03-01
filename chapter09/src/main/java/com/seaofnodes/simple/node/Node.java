@@ -156,6 +156,7 @@ public abstract class Node {
      * @return Input node or null
      */
     public Node in(int i) { return _inputs.get(i); }
+    public Node out(int i) { return _outputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
 
