@@ -31,8 +31,8 @@ public class IterOptim2 {
     }
 
     public StopNode iterate(StopNode stopNode, Node startNode, boolean show) {
-        int iter = 0;
-        for (;;) {
+        int iter = 1;
+        for (;;iter++) {
             List<Node> rpos = rpo(startNode);
             boolean progress = false;
             for (int i = 0; i < rpos.size(); i++) {
