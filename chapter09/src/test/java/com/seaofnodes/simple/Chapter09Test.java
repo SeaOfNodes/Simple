@@ -48,6 +48,17 @@ return x;
     }
 
     @Test
+    public void testGVN2() {
+        Parser parser = new Parser(
+                """
+return arg*arg-arg*arg;
+                """);
+        StopNode stop = parser.parse(true);
+        assertEquals("return 0;", stop.toString());
+        Assert.assertEquals(0, GraphEvaluator.evaluate(stop, 1));
+    }
+
+    @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = parser.parse().iterate(true);

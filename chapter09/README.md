@@ -172,6 +172,8 @@ There are more issues we will want to deal with in a later Chapter:
 
 ## Common SubExpressions via GVN
 
+### Example 1
+
 Here is a small example that illustrates how GVN enables finding common sub-expressions.
 
 ```java
@@ -185,11 +187,27 @@ else {
 return x;
 ```
 
-Prior to GVN, this would result in following graph:
+Prior to GVN, this would result in following graph. Note that the `arg+arg` is translated to `arg+2`.
 
 ![Graph1](./docs/09-graph1.svg)
 
-Adding GVN, we get:
+Adding GVN, we get below. Note how the `arg*2` expression is now reused rather than appearing twice.
 
 ![Graph2](./docs/09-graph2.svg)
+
+### Example 2
+
+Being able to reuse common expressions, enables additional optimizations. Here is a simple example:
+
+```java
+return arg*arg-arg*arg;
+```
+
+Without GVN the peepholes cannot see that both sides of the subtraction have the same value.
+
+![Graph3](./docs/09-graph3.svg)
+
+With GVN, the peepholes can do a better job:
+
+![Graph4](./docs/09-graph4.svg)
 
