@@ -65,7 +65,7 @@ public abstract class IterOptim {
                 WORK.push(x);
                 for( Node z : x. _inputs ) WORK.push(z);
                 for( Node z : x._outputs ) WORK.push(z);
-                n.depsClear();
+                n.moveDepsToWorklist();
                 assert progressOnList(stop); // Very expensive assert
             }
         }

@@ -209,7 +209,7 @@ public abstract class Node {
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
-        old_def.depsClear();
+        old_def.moveDepsToWorklist();
         Utils.del(_inputs, idx);
         return this;
     }
@@ -478,7 +478,7 @@ public abstract class Node {
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
-    public void depsClear( ) {
+    public void moveDepsToWorklist( ) {
         if( _deps==null ) return;
         IterOptim.WORK.addAll(_deps);
         _deps.clear();
