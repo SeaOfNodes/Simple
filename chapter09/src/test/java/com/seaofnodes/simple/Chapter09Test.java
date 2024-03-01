@@ -91,6 +91,34 @@ return arg;
     }
 
     @Test
+    public void testWorklist3() {
+        Parser parser = new Parser(
+                """
+int v1 = 0;
+int v2 = 0;
+int v3 = 0;
+int v4 = 0;
+int v5 = 0;
+int v6 = 0;
+int v7 = 0;
+int v8 = 0;
+while (arg) {
+    if (v1) v2 = 1;
+    if (v2) v3 = 1;
+    if (v3) v4 = 1;
+    if (v4) v5 = 1;
+    if (v5) v6 = 1;
+    if (v6) v7 = 1;
+    if (v7) v8 = 1;
+    arg = arg + v8 + 1;
+}
+return arg;
+                """);
+        StopNode stop = new IterOptim2().iterate(parser.parse(true), Parser.START, true);
+        assertEquals("return Phi(Loop14,arg,(Phi_arg+1));", stop.toString());
+    }
+
+    @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = new IterOptim2().iterate(parser.parse(true), Parser.START, true);
