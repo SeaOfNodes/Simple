@@ -168,4 +168,28 @@ There are more issues we will want to deal with in a later Chapter:
   right-spine add-tree.  A psuedo-random pull uses randomization to defeat bad
   peep patterns.
 
+# Examples
+
+## Common SubExpressions via GVN
+
+Here is a small example that illustrates how GVN enables finding common sub-expressions.
+
+```java
+int x = arg + arg;
+if(arg < 10) {
+    return arg + arg;
+}
+else {
+    x = x + 1;
+}
+return x;
+```
+
+Prior to GVN, this would result in following graph:
+
+![Graph1](./docs/09-graph1.svg)
+
+Adding GVN, we get:
+
+![Graph2](./docs/09-graph2.svg)
 
