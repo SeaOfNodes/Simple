@@ -103,6 +103,7 @@ public abstract class IterOptim {
     public static boolean midAssert() { return MID_ASSERT; }
     private static boolean progressOnList(Node stop) {
         MID_ASSERT = true;
+        int old_cnt = Node.ITER_CNT, old_nop = Node.ITER_NOP_CNT;
         Node changed = stop.walk( n -> {
                 if( WORK.on(n) ) return null;
                 Node m = n.peepholeOpt();
@@ -110,6 +111,7 @@ public abstract class IterOptim {
                 System.err.println("BREAK HERE FOR BUG");
                 return m;
             });
+        Node.ITER_CNT = old_cnt;  Node.ITER_NOP_CNT = old_nop;
         MID_ASSERT = false;
         return changed==null;
     }

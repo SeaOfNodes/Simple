@@ -65,6 +65,7 @@ public abstract class Node {
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
+    public static int UID() { return UNIQUE_ID; }
 
     protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
@@ -373,9 +374,11 @@ public abstract class Node {
         Node n = idealize();
         if( n != null )         // Something changed
             return n;           // Report progress
-        
+
+        if( old==type ) ITER_NOP_CNT++;
         return old==type ? null : this; // Report progress
     }
+    public static int ITER_CNT, ITER_NOP_CNT;
 
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
@@ -586,6 +589,7 @@ public abstract class Node {
         UNIQUE_ID = 1;
         _disablePeephole=false;
         GVN.clear();
+        ITER_CNT = ITER_NOP_CNT = 0;
     }
 
 
