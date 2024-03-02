@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 
 public class RegionNode extends Node {
@@ -42,12 +44,11 @@ public class RegionNode extends Node {
             // Cannot use the obvious output iterator here, because a Phi
             // deleting an input might recursively delete *itself*.  This
             // shuffles the output array, and we might miss iterating an
-            // unrelated Phi.
-            for( int i=0; i<nOuts(); i++ ) {
-                if( _outputs.get(i) instanceof PhiNode phi &&
-                    phi.delDef(path).isDead() ) // Recursively deleted self
-                    i--;    // Have to revisit at the same index
-            }
+            // unrelated Phi. So clone the output list.
+            ArrayList<Node> outputs = (ArrayList<Node>) _outputs.clone();
+            for( int i=0; i<outputs.size(); i++ )
+                if( outputs.get(i) instanceof PhiNode phi )
+                    phi.delDef(path);
             return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
         }
         // If down to a single input, become that input
