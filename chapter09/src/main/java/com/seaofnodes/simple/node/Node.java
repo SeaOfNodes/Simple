@@ -1,13 +1,11 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IRPrinter;
-import com.seaofnodes.simple.Iterate;
+import com.seaofnodes.simple.IterOptim;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.Work;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
-import java.util.function.IntSupplier;
 import java.util.function.Function;
 
 /**
@@ -15,7 +13,7 @@ import java.util.function.Function;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node implements IntSupplier {
+public abstract class Node {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
@@ -23,7 +21,6 @@ public abstract class Node implements IntSupplier {
      * as well as for computing equality of nodes (to be implemented later).
      */
     public final int _nid;
-    @Override public int getAsInt() { return _nid; }
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -68,6 +65,7 @@ public abstract class Node implements IntSupplier {
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
+    public static int UID() { return UNIQUE_ID; }
 
     protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
@@ -159,6 +157,7 @@ public abstract class Node implements IntSupplier {
      * @return Input node or null
      */
     public Node in(int i) { return _inputs.get(i); }
+    public Node out(int i) { return _outputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
 
@@ -212,7 +211,7 @@ public abstract class Node implements IntSupplier {
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
-        old_def.depsClear();
+        old_def.moveDepsToWorklist();
         Utils.del(_inputs, idx);
         return this;
     }
@@ -269,7 +268,7 @@ public abstract class Node implements IntSupplier {
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
             if( old_def != null ) {
-                Iterate.WORK.push(old_def);// Revisit neighbor because removed use
+                IterOptim.add(old_def);// Revisit neighbor because removed use
                 if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                     old_def.kill();        // Kill old def
             }
@@ -308,6 +307,7 @@ public abstract class Node implements IntSupplier {
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
+    public static boolean _disableDeps     = false;
 
 
     /**
@@ -319,7 +319,7 @@ public abstract class Node implements IntSupplier {
             _type = compute();
             return this;        // Peephole optimizations turned off
         }
-        Node n = iter();
+        Node n = peepholeOpt();
         return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
     }
 
@@ -341,10 +341,10 @@ public abstract class Node implements IntSupplier {
      * for a better replacement (which can be this).
      * </ul>
      */
-    public final Node iter( ) {
+    public final Node peepholeOpt( ) {
         // Compute initial or improved Type
         Type old = _type;
-        if( old==null ) Iterate.add(this); // Brand-new node, put on WORK list
+        if( old==null ) IterOptim.add(this); // Brand-new node, put on WORK list
         Type type = compute();
         assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
         if( old != type )
@@ -374,9 +374,11 @@ public abstract class Node implements IntSupplier {
         Node n = idealize();
         if( n != null )         // Something changed
             return n;           // Report progress
-        
+
+        if( old==type ) ITER_NOP_CNT++;
         return old==type ? null : this; // Report progress
     }
+    public static int ITER_CNT, ITER_NOP_CNT;
 
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
@@ -469,9 +471,12 @@ public abstract class Node implements IntSupplier {
     ArrayList<Node> _deps;
 
     Node addDep( Node dep ) {
+        if (_disableDeps)
+            return this;
+
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
-        if( Iterate.midAssert() ) return this;
+        if( IterOptim.midAssert() ) return this;
         if( _deps==null ) _deps = new ArrayList<>();
         if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
         if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
@@ -481,9 +486,9 @@ public abstract class Node implements IntSupplier {
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
-    public void depsClear( ) {
+    public void moveDepsToWorklist( ) {
         if( _deps==null ) return;
-        Iterate.WORK.addAll(_deps);
+        IterOptim.addAll(_deps);
         _deps.clear();
     }
     
@@ -584,6 +589,7 @@ public abstract class Node implements IntSupplier {
         UNIQUE_ID = 1;
         _disablePeephole=false;
         GVN.clear();
+        ITER_CNT = ITER_NOP_CNT = 0;
     }
 
 

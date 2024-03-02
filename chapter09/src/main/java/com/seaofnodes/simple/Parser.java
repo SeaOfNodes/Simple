@@ -69,7 +69,7 @@ public class Parser {
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
-        Iterate.reset();
+        IterOptim.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;

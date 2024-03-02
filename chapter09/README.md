@@ -32,7 +32,7 @@ get the same result - and can be shared.
   constant 17 is not the same as 99, but both are the same `ConstantNode` class
   and label.  The `eq` and `hash` calls check (or hash) these extra bits.
 
-Since we edit the graph alot, Nodes can have their inputs change which changes
+Since we edit the graph a lot, Nodes can have their inputs change which changes
 their hash which means they can't be found in the GVN table.  E.g. we swap out
 the `Add` for a `Con` in:
 
@@ -53,14 +53,14 @@ remove the Node from `GVN` first, before modifying the edges.
   edge modify code paths already ensure the Node is re-peepholed, and during
   this revisit the Node will get re-inserted in the `GVN` table.
 
-This new `GVN` table is used in `iter()` (and `peephole()`) to look for common
+This new `GVN` table is used in `peepholeOpt()` (and `peephole()`) to look for common
 subexpressions on every peephole'd Node.  If the Node has a zero hash, we look
 for a hit against some previous identical Node.  If found, we use the prior
 Node and dead-code-eliminate this one.  If not found, we insert this Node
 into `GVN` as the "golden instance".  If a Node already has a non-zero hash
 we know it IS the "golden instance" and do no need to look in `GVN`.
 
-This entire optimization takes about 5 lines in `iter()`, plus the common
+This entire optimization takes about 5 lines in `peepholeOpt()`, plus the common
 shared `equals` and `hashCode` (about 50 more lines counting comments).
 
 One of our invariants is that Types monotonically increase while running
@@ -72,16 +72,16 @@ two Nodes is kept, we might choose the Node with the "lower" `_type`.  This is
 to the JOIN.  A fix is to compute a JOIN (not a MEET) over the two Nodes' types.  
 
 
-## Post-Parse Iterate
+## Post-Parse Iterative Peepholes
 
-The post-Parse Iterate algorithm iterates the peepholes to a fixed point - so
+The post-Parse `IterOptim` iterates the peepholes to a fixed point - so
 no more peepholes apply.  This should be linear because peepholes rarely
 (never?)  increase code size.  The graph should monotonically reduce in some
 dimension, which is usually size.  It might also reduce in e.g. number of
 MulNodes or Load/Store nodes, swapping out more "expensive" Nodes for cheaper
 ones.
 
-The theorectical overall worklist is mindless just grabbing the next thing and
+The theoretical overall worklist is mindless just grabbing the next thing and
 doing it.  If the graph changes, put the neighbors on the worklist.  Lather,
 Rinse, Repeat until the worklist runs dry.
 
@@ -103,7 +103,7 @@ The main issues we have to deal with:
   check is linear at each peephole step... so quadratic overall.  Its a useful
   assert, but one we can disable once the overall algorithm is stable - and
   then turn it back on again when some new set of peepholes is misbehaving.
-  The code for this is turned on in `Iterate.iterate` as `assert
+  The code for this is turned on in `IterOptim.iterate` as `assert
   progressOnList(stop);`
 
 
@@ -124,13 +124,13 @@ Suppose we're doing this check and we find instead `(Add (Phi (Add x 2) self)
 eventually.  When it does, our stacked `Add` peephole can apply.  So the
 failing Add peephole calls `phi.addDep(Add)` and registers a dependency on the
 `Phi`.  If the `Phi` indeed later optimizes, we add its depencencies (e.g. the
-`Add`) back on our `Iterate` worklist and retry the stacked Add peephole.
+`Add`) back on our `IterOptim` worklist and retry the stacked Add peephole.
 
 * We add a `ArrayList<Node> _deps` field to Node; initially null.
 * Some peepholes add dependencies if they fail a remote check, by calling
   `distant.addDeps(this)`.  The `addDeps` call creates `_deps` and
   filters for various kinds of duplicate adds.
-* The `Iterate` loop, when it finds a change, also moves all the 
+* The `IterOptim` loop, when it finds a change, also moves all the 
   dependents onto the worklist.
 
 
@@ -168,4 +168,68 @@ There are more issues we will want to deal with in a later Chapter:
   right-spine add-tree.  A psuedo-random pull uses randomization to defeat bad
   peep patterns.
 
+# Examples
 
+## Common SubExpressions via GVN
+
+### Example 1
+
+Here is a small example that illustrates how GVN enables finding common sub-expressions.
+
+```java
+int x = arg + arg;
+if(arg < 10) {
+    return arg + arg;
+}
+else {
+    x = x + 1;
+}
+return x;
+```
+
+Prior to GVN, this would result in following graph. Note that the `arg+arg` is translated to `arg*2`.
+
+![Graph1](./docs/09-graph1.svg)
+
+Adding GVN, we get below. Note how the `arg*2` expression is now reused rather than appearing twice.
+
+![Graph2](./docs/09-graph2.svg)
+
+### Example 2
+
+Being able to reuse common expressions, enables additional optimizations. Here is a simple example:
+
+```java
+return arg*arg-arg*arg;
+```
+
+Without GVN the peepholes cannot see that both sides of the subtraction have the same value.
+
+![Graph3](./docs/09-graph3.svg)
+
+With GVN, the peepholes can do a better job:
+
+![Graph4](./docs/09-graph4.svg)
+
+## Post Parse Iterative Optimizations
+
+The worklist based post parse optimization enables certain optimizations that are not available
+during parsing. For example:
+
+```java
+int step = 1;
+while (arg < 10) {
+    arg = arg + step + 1;
+}
+return arg;
+```
+
+While parsing the `while` loop it is not yet known that `step` is a constant and will not change. Therefore,
+without the post parse optimization we get following:
+
+![Graph5](./docs/09-graph5.svg)
+
+Enabling the post parse worklist based optimization yields below. Notice that now the graph shows `arg+2` inside the
+loop body:
+
+![Graph6](./docs/09-graph6.svg)

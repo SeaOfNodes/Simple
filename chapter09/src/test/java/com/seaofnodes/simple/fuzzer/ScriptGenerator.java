@@ -77,11 +77,11 @@ public class ScriptGenerator {
     /**
      * The depth of blocks allowed.
      */
-    private int depth = 7;
+    private int depth = 7; // 20;
     /**
      * The depth of expressions allowed.
      */
-    private int exprDepth = 3;
+    private int exprDepth = 3; // 30;
     /**
      * Current variables in scope.
      */
@@ -197,7 +197,7 @@ public class ScriptGenerator {
      * @return flags FLAG_STOP and FLAG_IF_WITHOUT_ELSE for the last statement generated
      */
     public int genStatements() {
-        var num = random.nextInt(10);
+        var num = random.nextInt(10); // (30);
         for (int i=0; i<num; i++) {
             printIndentation();
             var stop = genStatement();
