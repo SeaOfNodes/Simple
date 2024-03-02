@@ -119,6 +119,25 @@ return arg;
     }
 
     @Test
+    public void testRegionPeepBug() {
+        Parser parser = new Parser(
+                """
+int v0=0;
+int v1=0;
+while(v1+arg) {
+    arg=0;
+    int v2=v0;
+    while(arg+1) {}
+    v0=1;
+    v1=v2;
+}
+                """);
+        StopNode stop = new IterOptim2().iterate(parser.parse(true), Parser.START, true);
+        //StopNode stop = parser.parse().iterate(true);
+        assertEquals("Stop[ ]", stop.toString());
+    }
+
+    @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = new IterOptim2().iterate(parser.parse(true), Parser.START, true);
