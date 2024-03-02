@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 
@@ -68,14 +69,23 @@ public abstract class IterOptim {
             cnt++;              // Useful for debugging, searching which peephole broke things
             Node x = n.peepholeOpt();
             if( x != null ) {
-                for( Node z : n. _inputs ) WORK.push(z);
-                if( x != n )
-                    n.subsume(x);
                 if( x.isDead() ) continue;
                 if( x._type==null ) x._type = x.compute();
-                WORK.push(x);
-                for( Node z : x. _inputs ) WORK.push(z);
-                for( Node z : x._outputs ) WORK.push(z);
+                // Neighbors for worklist
+                if( x != n || !(x instanceof ConstantNode) ) {
+                    // All outputs of n (changing node) not x (prior existing node).
+                    for( Node z : n._outputs ) WORK.push(z);
+                    // Non-constants get a free "go again" in case they didn't
+                    // get made in their final form.
+                    if( !(x instanceof ConstantNode) )
+                        WORK.push(x);
+                    // If the result is not self, revisit all inputs (because
+                    // there's a new user), and replace in the graph.
+                    if( x != n ) {
+                        for( Node z : n. _inputs ) WORK.push(z);
+                        n.subsume(x);
+                    }
+                }
                 n.moveDepsToWorklist();
                 assert progressOnList(stop); // Very expensive assert
             }
