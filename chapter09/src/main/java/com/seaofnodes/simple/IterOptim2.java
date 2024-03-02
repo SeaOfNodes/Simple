@@ -30,7 +30,8 @@ public class IterOptim2 {
         return nodes;
     }
 
-    public StopNode iterate(StopNode stopNode, Node startNode, boolean show) {
+    public StopNode iterate(StopNode stopNode, boolean show) {
+        final Node startNode = Parser.START;    // We need the start node to get to the full graph
         int iter = 1;
         int count = 0;  // Count of nodes we peepholed
         for (;;iter++) {
