@@ -80,7 +80,8 @@ public abstract class IterOptim {
                 assert progressOnList(stop); // Very expensive assert
             }
         }
-        
+
+        System.out.println("Peepholed " + WORK._totalWork + " nodes");
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         return stop;
@@ -129,6 +130,9 @@ public abstract class IterOptim {
         private final Random _R;    // For randomizing pull from the WorkList
         private final long _seed;
 
+        /* Useful stat - how many nodes are processed in the post parse iterative opt */
+        private long _totalWork = 0;
+
         WorkList() { this(123); }
         WorkList(long seed) {
             _es = new Node[1];
@@ -151,6 +155,7 @@ public abstract class IterOptim {
                 if( _len==_es.length )
                     _es = Arrays.copyOf(_es,_len<<1);
                 _es[_len++] = x;
+                _totalWork++;
             }
             return x;
         }
@@ -181,6 +186,7 @@ public abstract class IterOptim {
             _len = 0;
             _on.clear();
             _R.setSeed(_seed);
+            _totalWork = 0;
         }
     }
 }

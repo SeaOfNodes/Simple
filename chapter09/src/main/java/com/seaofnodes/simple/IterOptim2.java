@@ -32,8 +32,10 @@ public class IterOptim2 {
 
     public StopNode iterate(StopNode stopNode, Node startNode, boolean show) {
         int iter = 1;
+        int count = 0;  // Count of nodes we peepholed
         for (;;iter++) {
             List<Node> rpos = rpo(startNode);
+            count += rpos.size();
             boolean progress = false;
             for (int i = 0; i < rpos.size(); i++) {
                 Node n = rpos.get(i);
@@ -48,7 +50,7 @@ public class IterOptim2 {
             }
             if (!progress) break;
         }
-        System.out.println("Completed in " + iter + " iterations");
+        System.out.println("Completed in " + iter + " iterations; peepholed " + count + " nodes");
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(stopNode,null,null));
         return stopNode;

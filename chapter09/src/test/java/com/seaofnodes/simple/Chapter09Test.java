@@ -115,6 +115,7 @@ while (arg) {
 return arg;
                 """);
         StopNode stop = new IterOptim2().iterate(parser.parse(true), Parser.START, true);
+        //StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Loop14,arg,(Phi_arg+1));", stop.toString());
     }
 
