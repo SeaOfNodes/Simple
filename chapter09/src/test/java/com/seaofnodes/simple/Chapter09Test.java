@@ -14,7 +14,7 @@ public class Chapter09Test {
 
     @BeforeClass
     public static void switchOpt() {
-        Node._disableDeps = true;
+        Node._disableDeps = false;
     }
     
     @Test
