@@ -58,9 +58,9 @@ subexpressions on every peephole'd Node.  If the Node has a zero hash, we look
 for a hit against some previous identical Node.  If found, we use the prior
 Node and dead-code-eliminate this one.  If not found, we insert this Node
 into `GVN` as the "golden instance".  If a Node already has a non-zero hash
-we know it IS the "golden instance" and do no need to look in `GVN`.
+we know it IS the "golden instance" and do not need to look in `GVN`.
 
-This entire optimization takes about 5 lines in `peepholeOpt()`, plus the common
+This entire optimization takes about a dozen lines in `iter()`, plus the common
 shared `equals` and `hashCode` (about 50 more lines counting comments).
 
 One of our invariants is that Types monotonically increase while running
@@ -126,6 +126,12 @@ failing Add peephole calls `phi.addDep(Add)` and registers a dependency on the
 `Phi`.  If the `Phi` indeed later optimizes, we add its depencencies (e.g. the
 `Add`) back on our `IterOptim` worklist and retry the stacked Add peephole.
 
+The general rule is:
+* **If a peephole pattern inspects a remote node, it must go on the dependency list!**
+* `node.in(1).in(2)` becomes `node.in(1).in(2).addDeps()`
+
+Changes:
+
 * We add a `ArrayList<Node> _deps` field to Node; initially null.
 * Some peepholes add dependencies if they fail a remote check, by calling
   `distant.addDeps(this)`.  The `addDeps` call creates `_deps` and
@@ -167,6 +173,19 @@ There are more issues we will want to deal with in a later Chapter:
   the same peeps while slowly migrating a e.g. left-spine add-tree into a
   right-spine add-tree.  A psuedo-random pull uses randomization to defeat bad
   peep patterns.
+
+* It may seem like an obvious simplication of the `Iterate` algorithm to just
+  pass over all the Nodes once or twice - perhaps even visiting them in a
+  defs-before-uses order (e.g. Reverse Post Order).  In the absense of loops
+  exactly one such pass will find all local peepholes, and indeed the Parser
+  already does this.  However, this will fail to find opportunities at loops
+  and farther remote cases - and to get those peepholes around loops will
+  require another visit.  Indeed its easy to construct a case requiring O(N)
+  passes, each of cost O(N) and the algorithm quickly goes quadratic.
+  
+  The `addDeps` solution avoids this quadratic cost, in exchange for some more
+  costs in writing peepholes.  
+
 
 # Examples
 
