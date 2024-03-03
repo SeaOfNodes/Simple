@@ -74,7 +74,7 @@ to the JOIN.  A fix is to compute a JOIN (not a MEET) over the two Nodes' types.
 
 ## Post-Parse Iterative Peepholes
 
-The post-Parse `IterOptim` iterates the peepholes to a fixed point - so
+The post-Parse `IterPeeps` iterates the peepholes to a fixed point - so
 no more peepholes apply.  This should be linear because peepholes rarely
 (never?)  increase code size.  The graph should monotonically reduce in some
 dimension, which is usually size.  It might also reduce in e.g. number of
@@ -103,7 +103,7 @@ The main issues we have to deal with:
   check is linear at each peephole step... so quadratic overall.  Its a useful
   assert, but one we can disable once the overall algorithm is stable - and
   then turn it back on again when some new set of peepholes is misbehaving.
-  The code for this is turned on in `IterOptim.iterate` as `assert
+  The code for this is turned on in `IterPeeps.iterate` as `assert
   progressOnList(stop);`
 
 
@@ -124,7 +124,7 @@ Suppose we're doing this check and we find instead `(Add (Phi (Add x 2) self)
 eventually.  When it does, our stacked `Add` peephole can apply.  So the
 failing Add peephole calls `phi.addDep(Add)` and registers a dependency on the
 `Phi`.  If the `Phi` indeed later optimizes, we add its depencencies (e.g. the
-`Add`) back on our `IterOptim` worklist and retry the stacked Add peephole.
+`Add`) back on our `IterPeeps` worklist and retry the stacked Add peephole.
 
 The general rule is:
 * **If a peephole pattern inspects a remote node, it must go on the dependency list!**
@@ -153,7 +153,7 @@ Changes:
 * Some peepholes (see above) add dependencies if they fail a remote check, by calling
   `distant.addDep(this)`.  The `addDep` call creates `_deps` and
   filters for various kinds of duplicate adds.
-* The `IterOptim` loop, when it finds a change, also moves all the 
+* The `IterPeeps` loop, when it finds a change, also moves all the 
   dependents onto the worklist.
 
 
@@ -191,15 +191,17 @@ There are more issues we will want to deal with in a later Chapter:
   right-spine add-tree.  A psuedo-random pull uses randomization to defeat bad
   peep patterns.
 
-* It may seem like an obvious simplication of the `Iterate` algorithm to just
-  pass over all the Nodes once or twice - perhaps even visiting them in a
-  defs-before-uses order (e.g. Reverse Post Order).  In the absense of loops
-  exactly one such pass will find all local peepholes, and indeed the Parser
-  already does this.  However, this will fail to find opportunities at loops
-  and farther remote cases - and to get those peepholes around loops will
-  require another visit.  Indeed its easy to construct a case requiring O(N)
-  passes, each of cost O(N) and the algorithm quickly goes quadratic.
+* Why isn't `IterPeeps` just passing over all of the Nodes once or twice,
+  instead of using a worklist with the `addDeps` mechanism?  We could even
+  visit them in a defs-before-uses order (e.g. Reverse Post Order).
   
+  In the absense of loops exactly one such pass will find all local peepholes,
+  and indeed the Parser already does this.  However, this will fail to find
+  opportunities at loops and farther remote cases - and to get those peepholes
+  around loops will require another visit.  It is easy to construct a case
+  requiring O(N) passes, each of cost O(N) and the algorithm quickly goes
+  quadratic.
+
   The `addDeps` solution avoids this quadratic cost, in exchange for some more
   costs in writing peepholes.  
 
