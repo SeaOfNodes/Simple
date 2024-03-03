@@ -77,11 +77,11 @@ public class ScriptGenerator {
     /**
      * The depth of blocks allowed.
      */
-    private int depth = 7; // 20;
+    private int depth = 20;
     /**
      * The depth of expressions allowed.
      */
-    private int exprDepth = 3; // 30;
+    private int exprDepth = 30;
     /**
      * Current variables in scope.
      */
@@ -135,7 +135,7 @@ public class ScriptGenerator {
      * @return The random name generated
      */
     private StringBuilder getRandomName() {
-        int len = random.nextInt(10) + 1;
+        int len = random.nextInt(30) + 1;
         StringBuilder sb = new StringBuilder(len);
         sb.append(VAR_CHARS.charAt(random.nextInt(VAR_CHARS.length()-10)));
         for (int i=1; i<len; i++)

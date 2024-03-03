@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
@@ -53,11 +54,14 @@ public class RegionNode extends Node {
                     if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
                         phi.delDef(path);
             }
+            _idom = null;       // Clear idom cache
             return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
         }
         // If down to a single input, become that input
-        if( nIns()==2 && !hasPhi() )
+        if( nIns()==2 && !hasPhi() ) {
+            _idom = null;       // Clear idom cache
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
+        }
         return null;
     }
 
@@ -95,7 +99,8 @@ public class RegionNode extends Node {
         }
         if( lhs==null ) return null;
         _idepth = lhs._idepth+1;
-        return (_idom=lhs);
+        if( !IterPeeps.midAssert() ) _idom=lhs;
+        return lhs;
     }
 
     // True if last input is null

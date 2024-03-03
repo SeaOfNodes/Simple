@@ -110,7 +110,7 @@ public class Fuzzer {
     }
 
     /**
-     * Run one test with the given seed.
+     * Run one test with the given seed, and check for peephole counts.
      * @param seed The seed to use for generating this test case
      */
     public int fuzzPeepTiming(long seed, int max_nids) {

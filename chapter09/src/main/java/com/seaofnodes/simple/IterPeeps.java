@@ -70,7 +70,7 @@ public abstract class IterPeeps {
             Node x = n.peepholeOpt();
             if( x != null ) {
                 if( x.isDead() ) continue;
-                // peepholeOpt can return brand new nodes, needing an initial type set
+                // peepholeOpt can return brand-new nodes, needing an initial type set
                 if( x._type==null ) x.setType(x.compute());
                 // Changes require neighbors onto the worklist
                 if( x != n || !(x instanceof ConstantNode) ) {

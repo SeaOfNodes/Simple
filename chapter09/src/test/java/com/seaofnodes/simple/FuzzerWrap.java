@@ -23,8 +23,8 @@ public class FuzzerWrap {
     }
 
 
-    @Ignore
     @Test
+    @Ignore
     public void fuzzPeepTiming() {
         var fuzzer = new Fuzzer();
         int max_nid=0;

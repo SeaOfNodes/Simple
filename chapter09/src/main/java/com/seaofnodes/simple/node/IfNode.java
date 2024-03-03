@@ -52,7 +52,7 @@ public class IfNode extends MultiNode {
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
             for( Node dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
-                if( dom instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof ProjNode prj ) {
+                if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof ProjNode prj ) {
                     setDef(1,new ConstantNode(TypeInteger.make(true,prj._idx==0?1:0)).peephole());
                     return this;
                 }
