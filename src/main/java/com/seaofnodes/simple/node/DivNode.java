@@ -27,9 +27,8 @@ public class DivNode extends Node {
                 return i1.value() == 0
                     ? TypeInteger.ZERO
                     : TypeInteger.constant(i0.value()/i1.value());
-            return i0.meet(i1);
         }
-        return Type.BOTTOM;
+        return in(1)._type.meet(in(2)._type);
     }
 
     @Override
