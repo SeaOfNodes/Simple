@@ -38,6 +38,8 @@ public class PhiNode extends Node {
         if( r.inProgress() ) return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
             if( r.in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
                 t = t.meet(in(i)._type);
         return t;
@@ -91,6 +93,8 @@ public class PhiNode extends Node {
             return null;    // Dead entry loops just ignore and let the loop collapse
         Node live = null;
         for( int i=1; i<nIns(); i++ ) {
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
             if( region().in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
                 if( live == null || live == in(i) ) live = in(i);
                 else return null;
@@ -102,8 +106,16 @@ public class PhiNode extends Node {
     boolean allCons(Node dep) {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
             return false;
-        r.addDep(dep);
-        return super.allCons(dep);
+        // Someone (dep) queried whether all inputs to the Phi are
+        // constants. If this is not true, then the dep is blocked from a
+        // potential peephole. So add dep as a dependency of the phi and the region
+        // if the phi's inputs are not all constants.
+        boolean allcons = super.allCons(dep);
+        if (!allcons)
+            // Since some phi input is not constant
+            // We ensure dep is added to the region as dependency
+            r.addDep(dep);
+        return allcons;
     }
 
     // True if last input is null

@@ -470,6 +470,11 @@ public abstract class Node {
     // revisit them if `this` changes.
     ArrayList<Node> _deps;
 
+    /**
+     * Add a node to the list o dependencies. Only add it if its not
+     * an input or output of this node, that is, it is at least one step
+     * away. The node being added must benefit from this node being peepholed.
+     */
     Node addDep( Node dep ) {
         if (_disableDeps)
             return this;
@@ -556,9 +561,17 @@ public abstract class Node {
         _inputs.set(2,tmp);
         return this;
     }
-    
-    // does this node contain all constants?
-    // Ignores in(0), as is usually control.
+
+    /**
+     * Does this node contain all constants?
+     * Ignores in(0), as is usually control.
+     * In an input is not a constant, we add dep as
+     * a dependency to it, because dep can make progress
+     * if the input becomes a constant later.
+     * It is sufficient for one of the non-const
+     * inputs to have the dependency so we don't bother
+     * checking the rest.
+     */
     boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
             if( !(in(i)._type.isConstant()) ) {

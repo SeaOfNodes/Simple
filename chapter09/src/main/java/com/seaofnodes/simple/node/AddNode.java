@@ -76,6 +76,10 @@ public class AddNode extends Node {
         
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants
+        // lhs.in(2) is con1 here
+        // If lhs.in(2) is not a constant, we add ourselves as a dependency
+        // because if it later became a constant then we could make this
+        // transformation.
         if( lhs.in(2).addDep(this)._type.isConstant() && rhs._type.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
@@ -133,6 +137,13 @@ public class AddNode extends Node {
         return lhs==lphi ? phi : op.copy(lhs.in(1),phi);
     }
 
+    /**
+     * Tests if the op is a phi and has all constant inputs.
+     * If not, returns null.
+     * If op is a phi, but its inputs are not all constants, then dep is added as
+     * a dependency to the phi's non-const input, because if later the input turn into a constant
+     * dep can make progress.
+     */
     static PhiNode pcon(Node op, Node dep) {
         return op instanceof PhiNode phi && phi.allCons(dep) ? phi : null;
     }
