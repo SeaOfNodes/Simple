@@ -1,0 +1,17 @@
+{
+  "ver": 1,
+  "comp": "chapter09/docs/09-graph6.svg",
+  "step": 1,
+  "roots": [21],
+  "scope": 0,
+  "nodes": [
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 4, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": {"par": 2, "idx": 1}},
+    {"id": 9, "label": "φ_arg", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}, {"idx": 2, "def": 25, "role": "DATA", "label": null, "backedge": true}], "proj": null},
+    {"id": 21, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 9, "role": "DATA", "label": null}], "proj": null},
+    {"id": 24, "label": "#2", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 25, "label": "+", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 9, "role": "DATA", "label": null}, {"idx": 2, "def": 24, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
