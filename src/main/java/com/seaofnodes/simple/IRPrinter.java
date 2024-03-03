@@ -48,14 +48,15 @@ public class IRPrinter {
         // First walk the CFG, then everything
         if( n.isCFG() ) {
             for( Node use : n._outputs )
-                if( use.isCFG() && use.nOuts()>=1 && !(use._outputs.get(0) instanceof LoopNode) )
+                if( use!=null && use.isCFG() && use.nOuts()>=1 && !(use._outputs.get(0) instanceof LoopNode) )
                     postOrd(use, rpos,visit,bfs);
             for( Node use : n._outputs )
-                if( use.isCFG() )
+                if( use!=null && use.isCFG() )
                     postOrd(use,rpos,visit,bfs);
         }
         for( Node use : n._outputs )
-            postOrd(use, rpos,visit,bfs);
+            if( use != null )
+                postOrd(use, rpos,visit,bfs);
         // Post-order
         rpos.add(n);
     }
