@@ -3,11 +3,16 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.IterPeeps;
 
 
 public class StopNode extends Node {
-    public StopNode(Node... inputs) {
-        super(inputs);
+
+    public final String _src;
+
+    public StopNode(String src) {
+        super();
+        _src = src;
     }
 
     @Override
@@ -51,4 +56,5 @@ public class StopNode extends Node {
         return addDef(node);
     }
 
+    public StopNode iterate() { return IterPeeps.iterate(this); }
 }
