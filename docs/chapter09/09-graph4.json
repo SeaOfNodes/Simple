@@ -1,0 +1,13 @@
+{
+  "ver": 1,
+  "comp": "chapter09/docs/09-graph4.svg",
+  "step": 1,
+  "roots": [10],
+  "scope": 0,
+  "nodes": [
+    {"id": 9, "label": "#0", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 10, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 9, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
