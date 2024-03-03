@@ -1,13 +1,77 @@
 package com.seaofnodes.simple.fuzzer;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
+
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
+import java.util.BitSet;
 
 /**
  * Some utilities for the fuzzer.
  */
 class FuzzerUtils {
+
+    /**
+     * Get the value of a private field
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T getFieldValue(Object obj, String name) throws NoSuchFieldException, IllegalAccessException {
+        return (T) (obj instanceof Class<?> clz ? getField(clz, name).get(null) : getField(obj.getClass(), name).get(obj));
+    }
+
+    /**
+     * Get access to a private field
+     */
+    public static Field getField(Class<?> clz, String name) throws NoSuchFieldException {
+        var field = clz.getDeclaredField(name);
+        try {
+            field.setAccessible(true);
+        } catch (Throwable e) {
+            // Intentionally left empty
+        }
+        return field;
+    }
+
+    /**
+     * Try to rethrow an exception or create a runtime exception and throw it.
+     */
+    public static RuntimeException rethrow(Throwable e) {
+        if (e instanceof RuntimeException re) return re;
+        if (e instanceof Error er) throw er;
+        return new RuntimeException(e);
+    }
+
+    /**
+     * Copy of Node.WVISIST
+     * Used to clear as exceptions might happen in the walk and left this bitset not cleared
+     */
+    private static final BitSet NodeWalkVisit;
+
+    /**
+     * Write access to Iterate.MID_ASSERT
+     * Exception could happen mid assert and left this at true. Used to reset to false prior to parsing.
+     */
+    private static final MethodHandle set_MID_ASSERT;
+
+    /**
+     * Some problems might trigger debug output. Suppress this output with a null print stream during fuzzing.
+     */
+    public static final PrintStream NULL_PRINT_STREAM = new PrintStream(OutputStream.nullOutputStream());
+
+    static {
+        try {
+            NodeWalkVisit = getFieldValue(Node.class, "WVISIT");
+            set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField( IterPeeps.class, "MID_ASSERT"));
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     /**
      * Check that eiter one of the objects is null or that both are equal.
@@ -50,9 +114,25 @@ class FuzzerUtils {
      * Parse script with peepholes enabled or disabled
      */
     public static StopNode parse(String script, boolean runPeeps) {
-        var parser = new Parser(script);
-        Node._disablePeephole = !runPeeps;
-        return parser.parse();
+        var err = System.err;
+        var out = System.out;
+        try {
+            System.setErr(NULL_PRINT_STREAM);
+            System.setOut(NULL_PRINT_STREAM);
+            try {
+                set_MID_ASSERT.invokeExact(false);
+            } catch (Throwable e) {
+                throw rethrow(e);
+            }
+            var parser = new Parser(script);
+            Node._disablePeephole = !runPeeps;
+            var stop = parser.parse();
+            return runPeeps ? stop.iterate() : stop;
+        } finally {
+            NodeWalkVisit.clear();
+            System.setErr(err);
+            System.setOut(out);
+        }
     }
 
 }

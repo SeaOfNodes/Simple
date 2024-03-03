@@ -1,5 +1,8 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Utils;
+
+import java.util.HashMap;
 
 /**
  * These types are part of a Monotone Analysis Framework,
@@ -18,6 +21,7 @@ package com.seaofnodes.simple.type;
  */
 
 public class Type {
+    static final HashMap<Type,Type> INTERN = new HashMap<>();
 
     // ----------------------------------------------------------
     // Simple types are implemented fully here.  "Simple" means: the code and
@@ -36,15 +40,53 @@ public class Type {
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl"};
     protected Type(byte type) { _type = type; }
 
-    public static final Type BOTTOM   = new Type( TBOT   ); // ALL
-    public static final Type TOP      = new Type( TTOP   ); // ANY
-    public static final Type CONTROL  = new Type( TCTRL  ); // Ctrl
-    public static final Type XCONTROL = new Type( TXCTRL ); // ~Ctrl
+    public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
+    public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
+    public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
+    public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
 
-    public boolean isConstant() { return _type == TTOP || _type == TXCTRL; }
+    // Is high or on the lattice centerline.
+    public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
+
+    // Strict constant values, things on the lattice centerline.
+    // Excludes both high and low values
+    public boolean isConstant() { return false; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
+    // ----------------------------------------------------------
+
+    // Factory method which interns "this"
+    protected <T extends Type> T intern() {
+        T nnn = (T)INTERN.get(this);
+        if( nnn==null )
+            INTERN.put(nnn=(T)this,this);
+        return nnn;
+    }
+
+    private int _hash;          // Hash cache; not-zero when set.
+    @Override
+    public final int hashCode() {
+        if( _hash!=0 ) return _hash;
+        _hash = hash();
+        if( _hash==0 ) _hash = 0xDEADBEEF; // Bad hash from subclass; use some junk thing
+        return _hash;
+    }
+    // Override in subclasses
+    int hash() { return _type; }
+
+    @Override
+    public final boolean equals( Object o ) {
+        if( o==this ) return true;
+        if( !(o instanceof Type t)) return false;
+        if( _type != t._type ) return false;
+        return eq(t);
+    }
+    // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
+    boolean eq(Type t) { return true; }
+
+
+    // ----------------------------------------------------------
     public final Type meet(Type t) {
         // Shortcut for the self case
         if( t == this ) return this;
@@ -53,7 +95,7 @@ public class Type {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
-        return BOTTOM;        // Mixing 2 unrelated types
+        return xmeet(t);        // Mixing 2 unrelated types
     }
 
     // Compute meet right now.  Overridden in subclasses.
@@ -70,6 +112,28 @@ public class Type {
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
 
+    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
+    public boolean isa( Type t ) { return meet(t)==t; }
+
+    // ----------------------------------------------------------
+    // Our lattice is defined with a MEET and a DUAL.
+    // JOIN is dual of meet of both duals.
+    public final Type join(Type t) {
+        if( this==t ) return this;
+        return dual().meet(t.dual()).dual();
+    }
+
+    public Type dual() {
+        return switch( _type ) {
+        case TBOT -> TOP;
+        case TTOP -> BOTTOM;
+        case TCTRL -> XCONTROL;
+        case TXCTRL -> CONTROL;
+        default -> throw Utils.TODO(); // Should not reach here
+        };
+    }
+
+    // ----------------------------------------------------------
     @Override
     public final String toString() {
         return _print(new StringBuilder()).toString();
