@@ -110,12 +110,8 @@ public class PhiNode extends Node {
         // constants. If this is not true, then the dep is blocked from a
         // potential peephole. So add dep as a dependency of the phi and the region
         // if the phi's inputs are not all constants.
-        boolean allcons = super.allCons(dep);
-        if (!allcons)
-            // Since some phi input is not constant
-            // We ensure dep is added to the region as dependency
-            r.addDep(dep);
-        return allcons;
+        r.addDep(dep);
+        return super.allCons(dep);
     }
 
     // True if last input is null
