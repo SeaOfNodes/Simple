@@ -78,11 +78,12 @@ public class Parser {
     public Parser(String source, TypeInteger arg) {
         PARSER = this;
         Node.reset();
+        IterPeeps.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
-        STOP = new StopNode();
+        STOP = new StopNode(source);
     }
 
     public Parser(String source) {
@@ -114,7 +115,6 @@ public class Parser {
         STOP.peephole();
         return STOP;
     }
-
 
     /**
      * Parses a block
@@ -191,11 +191,10 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).keep().peephole();
+        Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-        ifNode.unkeep();
-        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -209,7 +208,7 @@ public class Parser {
 
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
-        ctrl(ifT);              // set ctrl token to ifTrue projection
+        ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
@@ -253,7 +252,7 @@ public class Parser {
             return cur;
         // toScope is either the break scope, or a scope that was created here
         assert toScope._scopes.size() <= _breakScope._scopes.size();
-        toScope.mergeScopes(cur);
+        toScope.ctrl(toScope.mergeScopes(cur));
         return toScope;
     }
 
@@ -275,11 +274,10 @@ public class Parser {
         // Parse predicate
         var pred = require(parseExpression(), ")");
         // IfNode takes current control and predicate
-        IfNode ifNode = (IfNode)new IfNode(ctrl(), pred).<IfNode>keep().peephole();
+        Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode, 0, "True" ).peephole();
-        ifNode.unkeep();
-        Node ifF = new ProjNode(ifNode, 1, "False").peephole();
+        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
@@ -288,12 +286,13 @@ public class Parser {
         _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
-        ctrl(ifT);              // set ctrl token to ifTrue projection
+        ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         parseStatement();       // Parse true-side
         ScopeNode tScope = _scope;
 
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
+        ifF.unkeep();           // fScope already owns the false control
         if (matchx("else")) {
             parseStatement();
             fScope = _scope;
@@ -383,12 +382,23 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
-        if (match("==")) return new BoolNode.EQ(lhs, parseComparison()).peephole();
-        if (match("!=")) return new NotNode(new BoolNode.EQ(lhs, parseComparison()).peephole()).peephole();
-        if (match("<=")) return new BoolNode.LE(lhs, parseComparison()).peephole();
-        if (match("<" )) return new BoolNode.LT(lhs, parseComparison()).peephole();
-        if (match(">=")) return new BoolNode.LE(parseComparison(), lhs).peephole();
-        if (match(">" )) return new BoolNode.LT(parseComparison(), lhs).peephole();
+        while( true ) {
+            int idx=0;  boolean negate=false;
+            // Test for any local nodes made, and "keep" lhs during peepholes
+            if( false ) ;
+            else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
+            else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
+            else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
+            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
+            else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
+            else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
+            else break;
+            // Peepholes can fire, but lhs is already "hooked", kept alive
+            lhs.setDef(idx,parseAddition());
+            lhs = lhs.peephole();
+            if( negate )        // Extra negate for !=
+                lhs = new NotNode(lhs).peephole();
+        }
         return lhs;
     }
 
@@ -401,9 +411,15 @@ public class Parser {
      * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
-        var lhs = parseMultiplication();
-        if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
-        if (match("-")) return new SubNode(lhs, parseAddition()).peephole();
+        Node lhs = parseMultiplication();
+        while( true ) {
+            if( false ) ;
+            else if( match("+") ) lhs = new AddNode(lhs,null);
+            else if( match("-") ) lhs = new SubNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseMultiplication());
+            lhs = lhs.peephole();
+        }
         return lhs;
     }
 
@@ -417,8 +433,14 @@ public class Parser {
      */
     private Node parseMultiplication() {
         var lhs = parseUnary();
-        if (match("*")) return new MulNode(lhs, parseMultiplication()).peephole();
-        if (match("/")) return new DivNode(lhs, parseMultiplication()).peephole();
+        while( true ) {
+            if( false ) ;
+            else if( match("*") ) lhs = new MulNode(lhs,null);
+            else if( match("/") ) lhs = new DivNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseUnary());
+            lhs = lhs.peephole();
+        }
         return lhs;
     }
 
