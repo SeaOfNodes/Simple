@@ -5,35 +5,38 @@ package com.seaofnodes.simple.type;
  */
 public class TypeInteger extends Type {
 
-    public final static TypeInteger TOP = new TypeInteger(false, 0);
-    public final static TypeInteger BOT = new TypeInteger(false, 1);
-    public final static TypeInteger ZERO= new TypeInteger(true, 0);
+    public final static TypeInteger TOP = make(false, 0);
+    public final static TypeInteger BOT = make(false, 1);
+    public final static TypeInteger ZERO= make(true , 0);
 
-    private final boolean _is_con;
+    public final boolean _is_con;
 
     /**
      * The constant value or
-     * if not constant then 0=bottom, 1=top.
+     * if not constant then 1=bottom, 0=top.
      */
-    private final long _con;
+    public final long _con;
 
-    public TypeInteger(boolean is_con, long con) {
+    private TypeInteger(boolean is_con, long con) {
         super(TINT);
         _is_con = is_con;
         _con = con;
     }
+    public static TypeInteger make(boolean is_con, long con) {
+        return new TypeInteger(is_con,con).intern();
+    }
 
-    public static TypeInteger constant(long con) { return new TypeInteger(true, con); }
-
-    public boolean isTop() { return !_is_con && _con==0; }
-    public boolean isBot() { return !_is_con && _con==1; }
+    public static TypeInteger constant(long con) { return make(true, con); }
 
     @Override
     public StringBuilder _print(StringBuilder sb) {
-        if (isTop()) return sb.append("IntTop");
-        if (isBot()) return sb.append("IntBot");
+        if( this==TOP ) return sb.append("IntTop");
+        if( this==BOT ) return sb.append("IntBot");
         return sb.append(_con);
     }
+
+    @Override
+    public boolean isHighOrConst() { return _is_con || _con==0; }
 
     @Override
     public boolean isConstant() { return _is_con; }
@@ -42,22 +45,30 @@ public class TypeInteger extends Type {
 
     @Override
     public Type xmeet(Type other) {
-        if( this==other ) return this;
-        if (!(other instanceof TypeInteger i)) return super.meet(other);
+        // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
+        TypeInteger i = (TypeInteger)other; // Contract
         // BOT wins
-        if (   isBot() ) return this;
-        if ( i.isBot() ) return i   ;
+        if ( this==BOT ) return this;
+        if ( i   ==BOT ) return i   ;
         // TOP loses
-        if ( i.isTop() ) return this;
-        if (   isTop() ) return i   ;
-        assert isConstant() && i.isConstant();
-        return _con==i._con ? this : TypeInteger.BOT;
+        if ( i   ==TOP ) return this;
+        if ( this==TOP ) return i   ;
+        // Since both are constants, and are never equals (contract) unequals
+        // constants fall to bottom
+        return BOT;
     }
 
     @Override
-    public boolean equals( Object o ) {
-        if( o==this ) return true;
-        if( !(o instanceof TypeInteger i) ) return false;
+    public Type dual() {
+        if( isConstant() ) return this; // Constants are a self-dual
+        return _con==0 ? BOT : TOP;
+    }
+
+    @Override
+    int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
+    @Override
+    public boolean eq( Type t ) {
+        TypeInteger i = (TypeInteger)t; // Contract
         return _con==i._con && _is_con==i._is_con;
     }
 }
