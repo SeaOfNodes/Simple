@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.fuzzer;
 
 import com.seaofnodes.simple.GraphEvaluator;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 
 import java.util.ArrayList;
@@ -108,6 +110,45 @@ public class Fuzzer {
     }
 
     /**
+     * Run one test with the given seed, and check for peephole counts.
+     * @param seed The seed to use for generating this test case
+     */
+    public int fuzzPeepTiming(long seed, int max_nids) {
+        var rand = new Random(seed);
+        var sb = new StringBuilder();
+        new ScriptGenerator(rand, sb, true).genProgram();
+        try {
+            var parser = new Parser(sb.toString());
+
+            var stop = parser.parse();
+            int parse_peeps= Node.ITER_CNT;
+            int parse_nops = Node.ITER_NOP_CNT;
+            double parse_nop_ratio = (double)parse_nops/parse_peeps;
+            int nids = Node.UID();
+            if( nids <= max_nids ) return max_nids;
+
+            double parse_peeps_per_node = (double)parse_peeps/nids;
+
+            stop.iterate();
+            int iter_peeps= Node.ITER_CNT;
+            int iter_nops = Node.ITER_NOP_CNT;
+            double iter_nop_ratio = (double)iter_nops/iter_peeps;
+            double iter_peeps_per_node = (double)iter_peeps/nids;
+
+            System.out.printf("%6d | Parsing: peeps: %5d, nops: %5d, ratio: %5.3f, last UID: %5d ps/node: %5.3f  | Iter: peeps: %6d, nops: %6d, ratio: %5.3f, ps/node: %5.3f\n",
+                              seed,
+                              parse_peeps,parse_nops,parse_nop_ratio,nids,parse_peeps_per_node,
+                              iter_peeps , iter_nops, iter_nop_ratio,      iter_peeps_per_node);
+            return nids;
+        } catch (Throwable e) {
+            // ignore exceptions, let the normal fullPeeps catch and reduce,
+            // we're interested in valid program optimizations
+        }
+        return max_nids;
+    }
+
+
+    /**
      * Run one test with the given seed.
      * @param seed The seed to use for generating this test case
      */
@@ -117,6 +158,7 @@ public class Fuzzer {
         var valid = new ScriptGenerator(rand, sb, false).genProgram();
         check(sb.toString(), valid);
     }
+
 
     /**
      * Check that no exceptions happened.
