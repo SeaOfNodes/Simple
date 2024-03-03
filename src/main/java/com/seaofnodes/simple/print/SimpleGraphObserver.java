@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 import java.io.IOException;
 
-/** Chapter 8's compilation context; capture and event bookkeeping are shared. */
+/** Chapter 9's compilation context; capture and event bookkeeping are shared. */
 public class SimpleGraphObserver extends GraphCapture<Node> {
     private Parser _parser;
     private Node _ret;
@@ -21,6 +21,9 @@ public class SimpleGraphObserver extends GraphCapture<Node> {
         _parser._obs = this;
         _phase = "Parse";
         _ret = _parser.parse();
+        phase(_phase);
+        _phase = "Iter";
+        com.seaofnodes.simple.IterPeeps.iterate(_parser.STOP);
         phase(_phase);
     }
     @Override protected String phase() { return _phase; }

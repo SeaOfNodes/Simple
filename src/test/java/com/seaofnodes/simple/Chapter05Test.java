@@ -21,7 +21,7 @@ else {
 }
 
 return a;""");
-        StopNode ret = parser.parse();
+        StopNode ret = parser.parse().iterate();
         assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
     }
 
@@ -36,7 +36,7 @@ if (arg == 1) {
     c = 4;
 }
 return c;""", TypeInteger.BOT);
-        StopNode ret = parser.parse();
+        StopNode ret = parser.parse().iterate();
         assertEquals("return Phi(Region16,4,3);", ret.toString());
     }
 
@@ -64,7 +64,7 @@ if( arg==1 )
 else
     b=a+1;
 return a+b;""");
-        StopNode ret = parser.parse();
+        StopNode ret = parser.parse().iterate();
         assertEquals("return ((arg*2)+Phi(Region20,2,3));", ret.toString());
     }
 
@@ -79,7 +79,7 @@ if( arg==1 )
 else
     a=b+1;
 return a+b;""");
-        StopNode ret = parser.parse();
+        StopNode ret = parser.parse().iterate();
         assertEquals("return ((Phi(Region31,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
     }
 
@@ -99,7 +99,7 @@ else
     a=5;
 return a;
 """, TypeInteger.BOT);
-        StopNode stop = parser.parse();
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
     }
 
@@ -129,7 +129,7 @@ if( arg==1 )
     a=arg==3;
 }
 return a;""");
-        StopNode ret = parser.parse();
+        StopNode ret = parser.parse().iterate();
         assertEquals("return (arg==Phi(Region16,3,2));", ret.toString());
     }
 
@@ -168,6 +168,7 @@ return a;""");
             assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
         }
     }
+
 
     @Test
     public void testBadNum() {

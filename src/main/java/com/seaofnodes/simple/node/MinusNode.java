@@ -20,7 +20,7 @@ public class MinusNode extends Node {
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0)
             return i0.isConstant() ? TypeInteger.constant(-i0.value()) : i0;
-        return TypeInteger.BOT;
+        return in(1)._type==Type.TOP ? TypeInteger.TOP : TypeInteger.BOT;
     }
 
     @Override
