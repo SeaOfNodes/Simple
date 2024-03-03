@@ -1,12 +1,17 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.IterPeeps;
 
 import java.util.BitSet;
 
 public class StopNode extends Node {
-    public StopNode(Node... inputs) {
-        super(inputs);
+
+    public final String _src;
+
+    public StopNode(String src) {
+        super();
+        _src = src;
     }
 
     @Override
@@ -50,4 +55,6 @@ public class StopNode extends Node {
         return addDef(node);
     }
 
+    public StopNode iterate(            ) { return IterPeeps.iterate(this,false); }
+    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ); }
 }

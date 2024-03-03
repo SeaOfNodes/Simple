@@ -32,9 +32,8 @@ abstract public class BoolNode extends Node {
             in(2)._type instanceof TypeInteger i1 ) {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
-            return i0.meet(i1);
         }
-        return Type.BOTTOM;
+        return in(1)._type.meet(in(2)._type);
     }
 
     abstract boolean doOp(long lhs, long rhs);
