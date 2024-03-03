@@ -1,8 +1,8 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.fuzzer.Fuzzer;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.Ignore;
 
 
 import static org.junit.Assert.assertTrue;
@@ -18,9 +18,18 @@ public class FuzzerWrap {
     @Ignore
     public void fuzzPeeps() {
         var fuzzer = new Fuzzer();
-        for (int i=0; i<100000; i++)
+        for (int i=0; i<1000000; i++)
             fuzzer.fuzzPeeps(i);
         assertTrue(fuzzer.noExceptions());
     }
 
+
+    @Test
+    @Ignore
+    public void fuzzPeepTiming() {
+        var fuzzer = new Fuzzer();
+        int max_nid=0;
+        for (int i=0; i<1000000; i++)
+            max_nid = fuzzer.fuzzPeepTiming(i, max_nid);
+    }
 }

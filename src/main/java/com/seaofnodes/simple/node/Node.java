@@ -1,10 +1,12 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IRPrinter;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -63,6 +65,7 @@ public abstract class Node {
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
      * */
     private static int UNIQUE_ID = 1;
+    public static int UID() { return UNIQUE_ID; }
 
     protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
@@ -105,7 +108,7 @@ public abstract class Node {
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
-        if (visited.get(_nid))
+        if (visited.get(_nid) && !(this instanceof ConstantNode) )
             return sb.append(label());
         visited.set(_nid);
         return isDead()
@@ -131,7 +134,7 @@ public abstract class Node {
             sb.append("     ");
         sb.append(" [[  ");
         for( Node use : _outputs )
-            sb.append("%4d ".formatted(use._nid));
+            sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
         int lim = 5 - Math.max(_inputs.size(),3);
         for( int i = _outputs.size(); i<lim; i++ )
             sb.append("     ");
@@ -154,6 +157,7 @@ public abstract class Node {
      * @return Input node or null
      */
     public Node in(int i) { return _inputs.get(i); }
+    public Node out(int i) { return _outputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
 
@@ -179,9 +183,10 @@ public abstract class Node {
      * @param new_def the new definition
      * @return new_def for flow coding
      */
-    Node setDef(int idx, Node new_def ) {
+    public Node setDef(int idx, Node new_def ) {
+        unlock();
         Node old_def = in(idx);
-        if( old_def == new_def ) return this; // No change
+        if( old_def == new_def ) return new_def; // No change
         // If new def is not null, add the corresponding def->use edge
         // This needs to happen before removing the old node's def->use edge as
         // the new_def might get killed if the old node kills it recursively.
@@ -198,13 +203,17 @@ public abstract class Node {
 
     // Remove the numbered input, compressing the inputs in-place.  This
     // shuffles the order deterministically - which is suitable for Region and
-    // Phi, but not for every Node.
-    void delDef(int idx) {
+    // Phi, but not for every Node.  If the def goes dead, it is recursively
+    // killed, which may include 'this' Node.
+    Node delDef(int idx) {
+        unlock();
         Node old_def = in(idx);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
+        old_def.moveDepsToWorklist();
         Utils.del(_inputs, idx);
+        return this;
     }
 
     /**
@@ -215,6 +224,7 @@ public abstract class Node {
      * @return new_def for flow coding
      */
     Node addDef(Node new_def) {
+        unlock();
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
@@ -237,6 +247,7 @@ public abstract class Node {
     // Shortcut for "popping" n nodes.  A "pop" is basically a
     // setDef(last,null) followed by lowering the nIns() count.
     void popN(int n) {
+        unlock();
         for( int i=0; i<n; i++ ) {
             Node old_def = _inputs.removeLast();
             if( old_def != null &&     // If it exists and
@@ -247,18 +258,26 @@ public abstract class Node {
 
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
-     * to null.  This may recursively kill more Nodes and is basically dead
-     * code elimination.  This function is co-recursive with {@link #popN}.
+     * to null.  This may recursively kill more Nodes, and is basically dead
+     * code elimination.
      */
     public void kill( ) {
+        unlock();
         assert isUnused();      // Has no uses, so it is dead
-        popN(nIns());          // Set all inputs to null, recursively killing unused Nodes
         _type=null;             // Flag as dead
+        while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
+            Node old_def = _inputs.removeLast();
+            if( old_def != null ) {
+                IterPeeps.add(old_def);// Revisit neighbor because removed use
+                if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+                    old_def.kill();        // Kill old def
+            }
+        }
         assert isDead();        // Really dead now
     }
 
     // Mostly used for asserts and printing.
-    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+    public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
     // Shortcuts to stop DCE mid-parse
     // Add bogus null use to keep node alive
@@ -268,10 +287,11 @@ public abstract class Node {
 
 
     // Replace self with nnn in the graph, making 'this' go dead
-    void subsume( Node nnn ) {
+    public void subsume( Node nnn ) {
         assert nnn!=this;
         while( nOuts() > 0 ) {
             Node n = _outputs.removeLast();
+            n.unlock();
             int idx = Utils.find(n._inputs, this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
@@ -289,6 +309,19 @@ public abstract class Node {
     public static boolean _disablePeephole = false;
 
     /**
+     * Try to peephole at this node and return a better replacement Node.
+     * Always returns some not-null Node (often this).
+     */
+    public final Node peephole( ) {
+        if (_disablePeephole) {
+            _type = compute();
+            return this;        // Peephole optimizations turned off
+        }
+        Node n = peepholeOpt();
+        return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
+    }
+
+    /**
      * Try to peephole at this node and return a better replacement Node if
      * possible.  We compute a {@link Type} and then check and replace:
      * <ul>
@@ -301,29 +334,45 @@ public abstract class Node {
      * {@code (x+(1+2))}.  By canonicalizing expressions we fold common addressing
      * math constants, remove algebraic identities and generally simplify the
      * code. </li>
+     *
+     * Unlike peephole above, this explicitly returns null for no-change, or not-null
+     * for a better replacement (which can be this).
      * </ul>
      */
-    public final Node peephole( ) {
+    public final Node peepholeOpt( ) {
+        ITER_CNT++;
         // Compute initial or improved Type
-        Type type = _type = compute();
-
-        if (_disablePeephole)
-            return this;        // Peephole optimizations turned off
+        Type old = setType(compute());
 
         // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && type.isConstant())
-            return deadCodeElim(new ConstantNode(type).peephole());
+        if (!(this instanceof ConstantNode) && _type.isHighOrConst() )
+            return new ConstantNode(_type).peepholeOpt();
 
-        // Future chapter: Global Value Numbering goes here
+        // Global Value Numbering
+        if( _hash==0 ) {
+            Node n = GVN.get(this); // Will set _hash as a side effect
+            if( n==null )
+                GVN.put(this,this);  // Put in table now
+            else {
+                // Because of random worklist ordering, the two equal nodes
+                // might have different types.  Because of monotonicity, both
+                // types are valid.  To preserve monotonicity, the resulting
+                // shared Node has to have the best of both types.
+                n.setType(n._type.join(_type));
+                _hash = 0; // Clear, since it never went in the table
+                return deadCodeElim(n);// Return previous; does Common Subexpression Elimination
+            }
+        }
 
         // Ask each node for a better replacement
         Node n = idealize();
         if( n != null )         // Something changed
-            // Recursively optimize
-            return deadCodeElim(n.peephole());
+            return n;           // Report progress
 
-        return this;            // No progress
+        if( old==_type ) ITER_NOP_CNT++;
+        return old==_type ? null : this; // Report progress
     }
+    public static int ITER_CNT, ITER_NOP_CNT;
 
     // m is the new Node, self is the old.
     // Return 'm', which may have zero uses but is alive nonetheless.
@@ -353,12 +402,25 @@ public abstract class Node {
      * theory.  Much later on, this will become important and allow us to do
      * many fancy complex optimizations trivially... because theory.
      * <p>
-     * compute() needs to be stand-alone, and cannot recursively call compute
-     * on its inputs programs are cyclic (have loops!) and this will just
+     * {@link #compute()} needs to be stand-alone, and cannot recursively call compute
+     * on its inputs, because programs are cyclic (have loops!) and this will just
      * infinitely recurse until stack overflow.  Instead, compute typically
      * computes a new type from the {@link #_type} field of its inputs.
      */
     public abstract Type compute();
+
+    // Set the type.  Assert monotonic progress.
+    // If changing, add users to worklist.
+    public Type setType(Type type) {
+        Type old = _type;
+        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
+        if( old == type ) return old;
+        _type = type;       // Set _type late for easier assert debugging
+        IterPeeps.addAll(_outputs);
+        moveDepsToWorklist();
+        return old;
+    }
+
 
     /**
      * This function rewrites the current Node into a more "idealized" form.
@@ -399,13 +461,97 @@ public abstract class Node {
      * call peephole.
      * <p>
      * Since idealize calls peephole and peephole calls idealize, you must be
-     * careful that all idealizations are <em>monotonic</em>: all transforms remove
-     * some feature, so that the set of available transforms always shrinks.
-     * If you don't, you risk an infinite peephole loop!
+     * careful that all idealizations are <em>monotonic</em>: all transforms
+     * remove some feature, so that the set of available transforms always
+     * shrinks.  If you don't, you risk an infinite peephole loop!
      *
      * @return Either a new or changed node, or null for no changes.
      */
     public abstract Node idealize();
+
+
+    // Some of the peephole rules get complex, and search further afield than
+    // just the nearest neighbor.  These peepholes can fail the pattern match
+    // on a node some distance away, and if that node ever changes we should
+    // retry the peephole.  Track a set of Nodes dependent on `this`, and
+    // revisit them if `this` changes.
+    ArrayList<Node> _deps;
+
+    /**
+     * Add a node to the list o dependencies. Only add it if its not
+     * an input or output of this node, that is, it is at least one step
+     * away. The node being added must benefit from this node being peepholed.
+     */
+    Node addDep( Node dep ) {
+        // Running peepholes during the big assert cannot have side effects
+        // like adding dependencies.
+        if( IterPeeps.midAssert() ) return this;
+        if( _deps==null ) _deps = new ArrayList<>();
+        if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
+        if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
+        if( Utils.find(_outputs,dep)!= -1 ) return this;
+        _deps.add(dep);
+        return this;
+    }
+
+    // Move the dependents onto a worklist, and clear for future dependents.
+    public void moveDepsToWorklist( ) {
+        if( _deps==null ) return;
+        IterPeeps.addAll(_deps);
+        _deps.clear();
+    }
+
+
+    // Global Value Numbering.  Hash over opcode and inputs; hits in this table
+    // are structurally equal.
+    public static final HashMap<Node,Node> GVN = new HashMap<>();
+
+    // Two nodes are equal if they have the same inputs and the same "opcode"
+    // which means the same Java class, plus same internal parts.
+    @Override public final boolean equals( Object o ) {
+        if( o==this ) return true;
+        if( o.getClass() != getClass() ) return false;
+        Node n = (Node)o;
+        int len = _inputs.size();
+        if( len != n._inputs.size() ) return false;
+        for( int i=0; i<len; i++ )
+            if( in(i) != n.in(i) )
+                return false;
+        return eq(n);
+    }
+    // Subclasses add extra checks (such as ConstantNodes have same constant),
+    // and can assume "this!=n" and has the same Java class.
+    boolean eq( Node n ) { return true; }
+
+
+    // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
+    // table - and can have its edges hacked (which will change his hash
+    // anyway).  If Non-Zero then this Node is IN the GVN table, or is being
+    // probed to see if it can be inserted.  His edges are "locked", because
+    // hacking his edges will change his hash.
+    int _hash;
+
+    // If the _hash is set, then the Node is in the GVN table; remove it.
+    void unlock() {
+        if( _hash==0 ) return;
+        Node old = GVN.remove(this); // Pull from table
+        assert old==this;
+        _hash=0;                // Out of table now
+    }
+
+
+    // Hash of opcode and inputs
+    @Override public final int hashCode() {
+        if( _hash != 0 ) return _hash;
+        int hash = hash();
+        for( Node n : _inputs )
+            if( n != null )
+                hash = hash ^ (hash<<17) ^ (hash>>13) ^ n._nid;
+        if( hash==0 ) hash = 0xDEADBEEF; // Bad hash, so use some junky thing
+        return (_hash=hash);
+    }
+    // Subclasses add extra hash info (such as ConstantNodes constant)
+    int hash() { return 0; }
 
 
     // ------------------------------------------------------------------------
@@ -413,18 +559,29 @@ public abstract class Node {
 
     // Swap inputs without letting either input go dead during the swap.
     Node swap12() {
+        unlock();               // Hash is order dependent
         Node tmp = in(1);
         _inputs.set(1,in(2));
         _inputs.set(2,tmp);
         return this;
     }
 
-    // does this node contain all constants?
-    // Ignores in(0), as is usually control.
-    boolean allCons() {
+    /**
+     * Does this node contain all constants?
+     * Ignores in(0), as is usually control.
+     * In an input is not a constant, we add dep as
+     * a dependency to it, because dep can make progress
+     * if the input becomes a constant later.
+     * It is sufficient for one of the non-const
+     * inputs to have the dependency so we don't bother
+     * checking the rest.
+     */
+    boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
-            if( !(in(i)._type.isConstant()) )
+            if( !(in(i)._type.isConstant()) ) {
+                in(i).addDep(dep); // If in(i) becomes a constant later, will trigger some peephole
                 return false;
+            }
         return true;
     }
 
@@ -448,25 +605,35 @@ public abstract class Node {
     public static void reset() {
         UNIQUE_ID = 1;
         _disablePeephole=false;
+        GVN.clear();
+        ITER_CNT = ITER_NOP_CNT = 0;
+    }
+
+
+    // Utility to walk the entire graph applying a function; return the first
+    // not-null result.
+    private static final BitSet WVISIT = new BitSet();
+    final public <E> E walk( Function<Node,E> pred ) {
+        assert WVISIT.isEmpty();
+        E rez = _walk(pred);
+        WVISIT.clear();
+        return rez;
+    }
+
+    private <E> E _walk( Function<Node,E> pred ) {
+        if( WVISIT.get(_nid) ) return null; // Been there, done that
+        WVISIT.set(_nid);
+        E x = pred.apply(this);
+        if( x != null ) return x;
+        for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
+        for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
+        return null;
     }
 
     /**
      * Debugging utility to find a Node by index
      */
-    public Node find(int nid) { return _find(new BitSet(),nid); }
-    private Node _find(BitSet visit, int nid) {
-        if( _nid==nid ) return this;
-        if( visit.get(_nid) ) return null;
-        visit.set(_nid);
-        for( Node def : _inputs )
-            if( def!=null ) {
-                Node rez = def._find(visit,nid);
-                if( rez != null ) return rez;
-            }
-        for( Node use : _outputs ) {
-            Node rez = use._find(visit,nid);
-            if( rez != null ) return rez;
-        }
-        return null;
+    public Node find(int nid) {
+        return walk( n -> n._nid==nid ? n : null );
     }
 }
