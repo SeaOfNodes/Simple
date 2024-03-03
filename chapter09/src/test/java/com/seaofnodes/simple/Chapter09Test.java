@@ -12,11 +12,6 @@ import static org.junit.Assert.*;
 
 public class Chapter09Test {
 
-    @BeforeClass
-    public static void switchOpt() {
-        Node._disableDeps = false;
-    }
-    
     @Test
     @Ignore
     public void testJig() {

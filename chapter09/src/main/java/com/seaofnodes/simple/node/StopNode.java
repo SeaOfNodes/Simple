@@ -56,12 +56,6 @@ public class StopNode extends Node {
         return addDef(node);
     }
 
-    public StopNode iterate(            ) {
-        if (Node._disableDeps) return new IterOptim2().iterate(this, false);
-        else                   return IterPeeps.iterate(this,false);
-    }
-    public StopNode iterate(boolean show) {
-        if (Node._disableDeps) return new IterOptim2().iterate(this, show);
-        else                   return IterPeeps.iterate(this,show);
-    }
+    public StopNode iterate(            ) { return IterPeeps.iterate(this,false); }
+    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ); }
 }

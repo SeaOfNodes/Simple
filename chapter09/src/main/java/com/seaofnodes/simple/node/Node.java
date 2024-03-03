@@ -307,8 +307,6 @@ public abstract class Node {
      * full graph, vs the optimized graph.
      */
     public static boolean _disablePeephole = false;
-    public static boolean _disableDeps     = false;
-
 
     /**
      * Try to peephole at this node and return a better replacement Node.
@@ -485,9 +483,6 @@ public abstract class Node {
      * away. The node being added must benefit from this node being peepholed.
      */
     Node addDep( Node dep ) {
-        if (_disableDeps)
-            return this;
-
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( IterPeeps.midAssert() ) return this;
