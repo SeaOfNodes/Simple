@@ -25,20 +25,15 @@ public class AddNode extends Node {
             in(2)._type instanceof TypeInteger i1 ) {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()+i1.value());
-            return i0.meet(i1);
         }
-        return Type.BOTTOM;
+        return in(1)._type.meet(in(2)._type);
     }
 
     @Override
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
-        Type t1 = lhs._type;
         Type t2 = rhs._type;
-
-        // Already handled by peephole constant folding
-        assert !(t1.isConstant() && t2.isConstant());
 
         // Add of 0.  We do not check for (0+x) because this will already
         // canonicalize to (x+0)
@@ -55,6 +50,10 @@ public class AddNode extends Node {
         if( !(lhs instanceof AddNode) && rhs instanceof AddNode )
             return swap12();
 
+        // x+(-y) becomes x-y
+        if( rhs instanceof MinusNode minus )
+            return new SubNode(lhs,minus.in(1));
+
         // Now we might see (add add non) or (add non non) or (add add add) but never (add non add)
 
         // Do we have  x + (y + z) ?
@@ -66,7 +65,7 @@ public class AddNode extends Node {
         // Now we might see (add add non) or (add non non) but never (add non add) nor (add add add)
         if( !(lhs instanceof AddNode) )
             // Rotate; look for (add (phi cons) con/(phi cons))
-            return spline_cmp(lhs,rhs) ? swap12() : phiCon(this,true);
+            return spine_cmp(lhs,rhs,this) ? swap12() : phiCon(this,true);
 
         // Now we only see (add add non)
 
@@ -77,7 +76,11 @@ public class AddNode extends Node {
 
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants
-        if( lhs.in(2)._type.isConstant() && t2.isConstant() )
+        // lhs.in(2) is con1 here
+        // If lhs.in(2) is not a constant, we add ourselves as a dependency
+        // because if it later became a constant then we could make this
+        // transformation.
+        if( lhs.in(2).addDep(this)._type.isConstant() && rhs._type.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
 
@@ -87,11 +90,11 @@ public class AddNode extends Node {
         Node phicon = phiCon(this,true);
         if( phicon!=null ) return phicon;
 
-        // Now we sort along the spline via rotates, to gather similar things together.
+        // Now we sort along the spine via rotates, to gather similar things together.
 
         // Do we rotate (x + y) + z
         // into         (x + z) + y ?
-        if( spline_cmp(lhs.in(2),rhs) )
+        if( spine_cmp(lhs.in(2),rhs,this) )
             return new AddNode(new AddNode(lhs.in(1),rhs).peephole(),lhs.in(2));
 
         return null;
@@ -104,16 +107,16 @@ public class AddNode extends Node {
         Node lhs = op.in(1);
         Node rhs = op.in(2);
         // LHS is either a Phi of constants, or another op with Phi of constants
-        PhiNode lphi = pcon(lhs);
+        PhiNode lphi = pcon(lhs,op);
         if( rotate && lphi==null && lhs.nIns() > 2 ) {
             // Only valid to rotate constants if both are same associative ops
             if( lhs.getClass() != op.getClass() ) return null;
-            lphi = pcon(lhs.in(2)); // Will rotate with the Phi push
+            lphi = pcon(lhs.in(2),op); // Will rotate with the Phi push
         }
         if( lphi==null ) return null;
 
         // RHS is a constant or a Phi of constants
-        if( !(rhs instanceof ConstantNode con) && pcon(rhs)==null )
+        if( !(rhs instanceof ConstantNode) && pcon(rhs,op)==null )
             return null;
 
         // If both are Phis, must be same Region
@@ -134,21 +137,31 @@ public class AddNode extends Node {
         return lhs==lphi ? phi : op.copy(lhs.in(1),phi);
     }
 
-    static PhiNode pcon(Node op) {
-        return op instanceof PhiNode phi && phi.allCons() ? phi : null;
+    /**
+     * Tests if the op is a phi and has all constant inputs.
+     * If not, returns null.
+     * If op is a phi, but its inputs are not all constants, then dep is added as
+     * a dependency to the phi's non-const input, because if later the input turn into a constant
+     * dep can make progress.
+     */
+    static PhiNode pcon(Node op, Node dep) {
+        return op instanceof PhiNode phi && phi.allCons(dep) ? phi : null;
     }
 
-    // Compare two off-spline nodes and decide what order they should be in.
+    // Compare two off-spine nodes and decide what order they should be in.
     // Do we rotate ((x + hi) + lo) into ((x + lo) + hi) ?
     // Generally constants always go right, then Phi-of-constants, then muls, then others.
     // Ties with in a category sort by node ID.
     // TRUE if swapping hi and lo.
-    static boolean spline_cmp( Node hi, Node lo ) {
+    static boolean spine_cmp( Node hi, Node lo, Node dep ) {
         if( lo._type.isConstant() ) return false;
         if( hi._type.isConstant() ) return true ;
 
-        if( lo instanceof PhiNode && lo.allCons() ) return false;
-        if( hi instanceof PhiNode && hi.allCons() ) return true ;
+        if( lo instanceof PhiNode lphi && lphi.region()._type==Type.XCONTROL ) return false;
+        if( hi instanceof PhiNode hphi && hphi.region()._type==Type.XCONTROL ) return false;
+
+        if( lo instanceof PhiNode && lo.allCons(dep) ) return false;
+        if( hi instanceof PhiNode && hi.allCons(dep) ) return true ;
 
         if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
         if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;
