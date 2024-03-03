@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -212,6 +213,8 @@ public class ScopeNode extends Node {
             if( in(i) instanceof PhiNode phi ) {
                 // Do an eager useless-phi removal
                 Node in = phi.peephole();
+                IterPeeps.addAll(phi._outputs);
+                phi.moveDepsToWorklist();
                 if( in != phi ) {
                     phi.subsume(in);
                     setDef(i,in); // Set the update back into Scope

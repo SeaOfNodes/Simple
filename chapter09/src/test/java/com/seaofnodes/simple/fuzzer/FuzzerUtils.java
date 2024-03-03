@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.fuzzer;
 
-import com.seaofnodes.simple.IterOptim;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
@@ -67,7 +67,7 @@ class FuzzerUtils {
     static {
         try {
             NodeWalkVisit = getFieldValue(Node.class, "WVISIT");
-            set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField(IterOptim.class, "MID_ASSERT"));
+            set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField( IterPeeps.class, "MID_ASSERT"));
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }

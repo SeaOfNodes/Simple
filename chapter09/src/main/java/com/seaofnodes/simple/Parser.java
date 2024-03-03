@@ -69,7 +69,7 @@ public class Parser {
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
-        IterOptim.reset();
+        IterPeeps.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -245,7 +245,7 @@ public class Parser {
             return cur;
         // toScope is either the break scope, or a scope that was created here
         assert toScope._scopes.size() <= _breakScope._scopes.size();
-        toScope.mergeScopes(cur);
+        toScope.ctrl(toScope.mergeScopes(cur));
         return toScope;
     }
 

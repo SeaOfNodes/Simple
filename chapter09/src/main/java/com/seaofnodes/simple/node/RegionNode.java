@@ -44,11 +44,15 @@ public class RegionNode extends Node {
             // Cannot use the obvious output iterator here, because a Phi
             // deleting an input might recursively delete *itself*.  This
             // shuffles the output array, and we might miss iterating an
-            // unrelated Phi. So clone the output list.
-            ArrayList<Node> outputs = (ArrayList<Node>) _outputs.clone();
-            for( int i=0; i<outputs.size(); i++ )
-                if( outputs.get(i) instanceof PhiNode phi )
-                    phi.delDef(path);
+            // unrelated Phi. So on rare occasions we repeat the loop to get
+            // all the Phis.
+            int nouts = 0;
+            while( nouts != nOuts() ) {
+                nouts = nOuts();
+                for( int i=0; i<nOuts(); i++ )
+                    if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
+                        phi.delDef(path);
+            }
             return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
         }
         // If down to a single input, become that input

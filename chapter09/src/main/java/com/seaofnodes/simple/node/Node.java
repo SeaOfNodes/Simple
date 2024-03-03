@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IRPrinter;
-import com.seaofnodes.simple.IterOptim;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
@@ -268,7 +268,7 @@ public abstract class Node {
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
             if( old_def != null ) {
-                IterOptim.add(old_def);// Revisit neighbor because removed use
+                IterPeeps.add(old_def);// Revisit neighbor because removed use
                 if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                     old_def.kill();        // Kill old def
             }
@@ -342,17 +342,13 @@ public abstract class Node {
      * </ul>
      */
     public final Node peepholeOpt( ) {
+        ITER_CNT++;
         // Compute initial or improved Type
-        Type old = _type;
-        if( old==null ) IterOptim.add(this); // Brand-new node, put on WORK list
-        Type type = compute();
-        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
-        if( old != type )
-            _type = type;       // Set _type late for easier assert debugging
+        Type old = setType(compute());
 
         // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && type.isHighOrConst() )
-            return new ConstantNode(type);
+        if (!(this instanceof ConstantNode) && _type.isHighOrConst() )
+            return new ConstantNode(_type).peepholeOpt();
 
         // Global Value Numbering
         if( _hash==0 ) {
@@ -364,7 +360,7 @@ public abstract class Node {
                 // might have different types.  Because of monotonicity, both
                 // types are valid.  To preserve monotonicity, the resulting
                 // shared Node has to have the best of both types.
-                n._type = n._type.join(_type);                
+                n.setType(n._type.join(_type));
                 _hash = 0; // Clear, since it never went in the table
                 return deadCodeElim(n);// Return previous; does Common Subexpression Elimination
             }
@@ -375,8 +371,8 @@ public abstract class Node {
         if( n != null )         // Something changed
             return n;           // Report progress
 
-        if( old==type ) ITER_NOP_CNT++;
-        return old==type ? null : this; // Report progress
+        if( old==_type ) ITER_NOP_CNT++;
+        return old==_type ? null : this; // Report progress
     }
     public static int ITER_CNT, ITER_NOP_CNT;
 
@@ -415,6 +411,19 @@ public abstract class Node {
      */
     public abstract Type compute();
 
+    // Set the type.  Assert monotonic progress.
+    // If changing, add users to worklist.
+    public Type setType(Type type) {
+        Type old = _type;
+        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
+        if( old == type ) return old;
+        _type = type;       // Set _type late for easier assert debugging
+        IterPeeps.addAll(_outputs);
+        moveDepsToWorklist();
+        return old;
+    }
+
+    
     /**
      * This function rewrites the current Node into a more "idealized" form.
      * This is the bulk of our peephole rewrite rules, and we use this to
@@ -481,7 +490,7 @@ public abstract class Node {
 
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
-        if( IterOptim.midAssert() ) return this;
+        if( IterPeeps.midAssert() ) return this;
         if( _deps==null ) _deps = new ArrayList<>();
         if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
         if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
@@ -493,7 +502,7 @@ public abstract class Node {
     // Move the dependents onto a worklist, and clear for future dependents.
     public void moveDepsToWorklist( ) {
         if( _deps==null ) return;
-        IterOptim.addAll(_deps);
+        IterPeeps.addAll(_deps);
         _deps.clear();
     }
     

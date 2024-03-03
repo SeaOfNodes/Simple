@@ -34,7 +34,8 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
-        if( !(region() instanceof RegionNode r) ) return _type;
+        if( !(region() instanceof RegionNode r) )
+            return region()._type==Type.XCONTROL ? Type.TOP : _type;
         if( r.inProgress() ) return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
@@ -104,13 +105,11 @@ public class PhiNode extends Node {
 
     @Override
     boolean allCons(Node dep) {
-        if( !(region() instanceof RegionNode r) || r.inProgress() )
-            return false;
-        // Someone (dep) queried whether all inputs to the Phi are
-        // constants. If this is not true, then the dep is blocked from a
-        // potential peephole. So add dep as a dependency of the phi and the region
-        // if the phi's inputs are not all constants.
-        r.addDep(dep);
+        if( !(region() instanceof RegionNode r) ) return false;
+        // When the region completes (is no longer in progress) the Phi can
+        // become a "all constants" Phi, and the "dep" might make progress.
+        addDep(dep);
+        if( r.inProgress() ) return false;
         return super.allCons(dep);
     }
 

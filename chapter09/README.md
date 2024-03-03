@@ -129,18 +129,23 @@ failing Add peephole calls `phi.addDep(Add)` and registers a dependency on the
 The general rule is:
 * **If a peephole pattern inspects a remote node, it must go on the dependency list!**
 * `node.in(1).in(2)` becomes `node.in(1).in(2).addDep(node)`
-* In this chapter we trigger on following patterns
 
-   * A peep sees a `Phi` as input. This can be direct or indirect, e.g. `(Add Add( (Phi x) 2 ) 1)`. 
-     The peep can progress if the `Phi` can collapse to a `Constant`. Thus, we make the 
-     node a dependent on the `Phi`'s input. We also make the node a dependent of the `Phi`'s region.
-     See `Node.allCons()` and `PhiNode.allCons()`.
-   * The pattern `(Add (Add x 1) 2)` adds the node as dependency of `x` because `x` becoming a constant
-     would enable progress. See `AddNode.idealize()`
-   * When computing a `Phi`'s type, if we observe that the associated region's
-     corresponding control is live, we add the `Phi` as a dependent of the region's control input,
-     because if that control goes dead, it would allow the `Phi` to undergo peephole. See `PhiNode.compute()`
-     and `PhiNode.singleUniqueInput()`.
+
+In this chapter we trigger on following patterns
+
+* Some peeps interact with `Phi` inputs; this can be direct or indirect,
+  e.g. `(Add Add( (Phi x) 2 ) 1)`.  The peep can progress if all of the `Phi`'s
+  inputs are `Constant`'s.  Thus, we make the node a dependent on the `Phi`'s
+  input.  We also make the node a dependent of the `Phi`'s region.  See
+  `Node.allCons()` and `PhiNode.allCons()`.
+* The pattern `(Add (Add x 1) 2)` adds the outer `Add` as dependency of `x`
+  because `x` becoming a constant would enable progress.  See
+  `AddNode.idealize()`
+* When computing a `Phi`'s type, if we observe that the associated region's
+  corresponding control is live, we add the `Phi` as a dependent of the
+  region's control input, because if that control goes dead, it would allow the
+  `Phi` to undergo peephole.  See `PhiNode.compute()` and
+  `PhiNode.singleUniqueInput()`.
 
 Changes:
 

@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterOptim2;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.IterOptim;
+import com.seaofnodes.simple.IterPeeps;
 
 import java.util.BitSet;
 
@@ -58,10 +58,10 @@ public class StopNode extends Node {
 
     public StopNode iterate(            ) {
         if (Node._disableDeps) return new IterOptim2().iterate(this, false);
-        else                   return IterOptim.iterate(this,false);
+        else                   return IterPeeps.iterate(this,false);
     }
     public StopNode iterate(boolean show) {
         if (Node._disableDeps) return new IterOptim2().iterate(this, show);
-        else                   return IterOptim.iterate(this,show);
+        else                   return IterPeeps.iterate(this,show);
     }
 }
