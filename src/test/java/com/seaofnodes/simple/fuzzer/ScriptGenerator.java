@@ -16,20 +16,6 @@ import java.util.Random;
 public class ScriptGenerator {
 
     /**
-     * Get the list of keywords from the parser.
-     */
-    @SuppressWarnings("unchecked")
-    private static HashSet<String> getKeywords() {
-        try {
-            var field = Parser.class.getDeclaredField("KEYWORDS");
-            field.setAccessible(true);
-            return (HashSet<String>) field.get(new Parser(""));
-        } catch (Throwable e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    /**
      * Number of spaces per indentation
      */
     private static final int INDENTATION = 4;
@@ -40,7 +26,15 @@ public class ScriptGenerator {
     /**
      * List of keywords not valid for identifiers.
      */
-    private static final HashSet<String> KEYWORDS = getKeywords();
+    private static final HashSet<String> KEYWORDS;
+
+    static {
+        try {
+            KEYWORDS = FuzzerUtils.getFieldValue(new Parser(""), "KEYWORDS");
+        } catch (Throwable e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     /**
      * Flag for a statement that it does not pass on control flow to the next statement.
@@ -83,11 +77,11 @@ public class ScriptGenerator {
     /**
      * The depth of blocks allowed.
      */
-    private int depth = 7;
+    private int depth = 20;
     /**
      * The depth of expressions allowed.
      */
-    private int exprDepth = 3;
+    private int exprDepth = 30;
     /**
      * Current variables in scope.
      */
@@ -141,7 +135,7 @@ public class ScriptGenerator {
      * @return The random name generated
      */
     private StringBuilder getRandomName() {
-        int len = random.nextInt(10) + 1;
+        int len = random.nextInt(30) + 1;
         StringBuilder sb = new StringBuilder(len);
         sb.append(VAR_CHARS.charAt(random.nextInt(VAR_CHARS.length()-10)));
         for (int i=1; i<len; i++)
@@ -203,7 +197,7 @@ public class ScriptGenerator {
      * @return flags FLAG_STOP and FLAG_IF_WITHOUT_ELSE for the last statement generated
      */
     public int genStatements() {
-        var num = random.nextInt(10);
+        var num = random.nextInt(10); // (30);
         for (int i=0; i<num; i++) {
             printIndentation();
             var stop = genStatement();

@@ -16,7 +16,7 @@ public class PhiNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( region().inProgress() )
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
             sb.append("Z");
         sb.append("Phi(");
         for( Node in : _inputs ) {
@@ -29,23 +29,29 @@ public class PhiNode extends Node {
         return sb;
     }
 
-    RegionNode region() { return (RegionNode)in(0); }
+    Node region() { return in(0); }
     @Override public boolean isMultiTail() { return true; }
 
     @Override
     public Type compute() {
-        if( !(region() instanceof RegionNode r) || r.inProgress() )
-            return Type.BOTTOM;
+        if( !(region() instanceof RegionNode r) )
+            return region()._type==Type.XCONTROL ? Type.TOP : _type;
+        if( r.inProgress() ) return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
-            t = t.meet(in(i)._type);
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
+            if( r.in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
+                t = t.meet(in(i)._type);
         return t;
     }
 
     @Override
     public Node idealize() {
-        if( !(region() instanceof RegionNode r ) || r.inProgress() )
-            return null;
+        if( !(region() instanceof RegionNode r ) )
+            return in(1);       // Input has collapse to e.g. starting control.
+        if( r.inProgress() || r.nIns()<=1 )
+            return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
@@ -84,11 +90,13 @@ public class PhiNode extends Node {
      * If only single unique input, return it
      */
     private Node singleUniqueInput() {
+        if( region() instanceof LoopNode loop && loop.entry()._type == Type.XCONTROL )
+            return null;    // Dead entry loops just ignore and let the loop collapse
         Node live = null;
         for( int i=1; i<nIns(); i++ ) {
-            if( region() instanceof LoopNode loop && loop.entry()._type == Type.XCONTROL )
-                return null;    // Dead entry loops just ignore and let the loop collapse
-            if( region().in(i)._type != Type.XCONTROL && in(i) != this )
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
+            if( region().in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
                 if( live == null || live == in(i) ) live = in(i);
                 else return null;
         }
@@ -96,9 +104,22 @@ public class PhiNode extends Node {
     }
 
     @Override
-    boolean allCons() {
-        if( !(region() instanceof RegionNode r) || r.inProgress() )
-            return false;
-        return super.allCons();
+    boolean allCons(Node dep) {
+        if( !(region() instanceof RegionNode r) ) return false;
+        // When the region completes (is no longer in progress) the Phi can
+        // become a "all constants" Phi, and the "dep" might make progress.
+        addDep(dep);
+        if( r.inProgress() ) return false;
+        return super.allCons(dep);
+    }
+
+    // True if last input is null
+    public final boolean inProgress() {
+        return in(nIns()-1) == null;
+    }
+
+    // Never equal if inProgress
+    @Override boolean eq( Node n ) {
+        return !inProgress();
     }
 }

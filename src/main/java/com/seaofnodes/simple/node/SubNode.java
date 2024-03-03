@@ -29,9 +29,8 @@ public class SubNode extends Node {
             in(2)._type instanceof TypeInteger i1) {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()-i1.value());
-            return i0.meet(i1);
         }
-        return Type.BOTTOM;
+        return in(1)._type.meet(in(2)._type);
     }
 
     @Override

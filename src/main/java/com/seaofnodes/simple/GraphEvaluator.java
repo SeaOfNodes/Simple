@@ -167,7 +167,7 @@ public class GraphEvaluator {
 
     public static long evaluate(Node graph, long parameter, int loops) {
         var res = evaluateWithResult(graph, parameter, loops);
-        if (res.type==ResultType.TIMEOUT) throw new RuntimeException("Timeout");
+        if (res.type== ResultType.TIMEOUT) throw new RuntimeException("Timeout");
         return res.value;
     }
 
