@@ -1,0 +1,67 @@
+digraph chapter08 {
+/*
+int x = arg + arg;
+if(arg < 10) {
+    return arg + arg;
+}
+else {
+    x = x + 1;
+}
+return x;
+
+*/
+	rankdir=BT;
+	ordering="in";
+	concentrate="true";
+	compound="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_7 [ label="2" ];
+		Mul8 [ label="*" ];
+		Con_9 [ label="10" ];
+		LT10 [ label="<" ];
+		If11 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_16 [ label="2" ];
+		Mul17 [ label="*" ];
+		Return18 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		Con_20 [ label="1" ];
+		Add21 [ label="+" ];
+		Return24 [ shape=box style=filled fillcolor=yellow label="Return" ];
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return18[taillabel=0 color=red];
+	Stop3 -> Return24[taillabel=1 color=red];
+	Mul8 -> Start2:p1[taillabel=1];
+	Mul8 -> Con_7[taillabel=2];
+	LT10 -> Start2:p1[taillabel=1];
+	LT10 -> Con_9[taillabel=2];
+	If11 -> Start2:p0[taillabel=0 color=red];
+	If11 -> LT10[taillabel=1];
+	Mul17 -> Start2:p1[taillabel=1];
+	Mul17 -> Con_16[taillabel=2];
+	Return18 -> If11:p0[taillabel=0 color=red];
+	Return18 -> Mul17[taillabel=1];
+	Add21 -> Mul8[taillabel=1];
+	Add21 -> Con_20[taillabel=2];
+	Return24 -> If11:p1[taillabel=0 color=red];
+	Return24 -> Add21[taillabel=1];
+}

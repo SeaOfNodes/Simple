@@ -8,7 +8,7 @@ import java.util.BitSet;
 /**
  * A Constant node represents a constant value.  At present, the only constants
  * that we allow are integer literals; therefore Constants contain an integer
- * value. As we add other types of constants, we will refactor how we represent
+ * value.  As we add other types of constants, we will refactor how we represent
  * Constants.
  * <p>
  * Constants have no semantic inputs. However, we set Start as an input to
@@ -25,7 +25,7 @@ public class ConstantNode extends Node {
     }
 
     @Override
-    public String label() { return ""+_con; }
+    public String label() { return "#"+_con; }
 
     @Override
     public String uniqueName() { return "Con_" + _nid; }
@@ -42,4 +42,17 @@ public class ConstantNode extends Node {
 
     @Override
     public Node idealize() { return null; }
+
+    @Override
+    boolean eq(Node n) {
+        ConstantNode con = (ConstantNode)n; // Contract
+        return _con==con._con;
+    }
+
+    @Override
+    int hash() { return _con.hashCode(); }
+
+    // Dead control is its own idom root
+    Node idom() { return null; }
+
 }
