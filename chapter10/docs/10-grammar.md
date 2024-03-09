@@ -9,6 +9,7 @@ program
 
 statement
     : returnStatement
+    | structDeclaration
     | declStatement
     | blockStatment 
     | expressionStatement
@@ -17,6 +18,18 @@ statement
     | breakStatement
     | continueStatment
     | metaStatement
+    ;
+
+field
+    : 'int' IDENTIFIER ';'
+    ;
+
+fields
+    : field+
+    ;    
+
+structDeclaration
+    : 'struct' IDENTIFIER '{' fields '}'
     ;
 
 whileStatement
@@ -47,8 +60,13 @@ blockStatement
     : '{' statement+ '}'
     ;
 
+structName
+    : IDENTIFIER
+    ;
+
 declStatement
     : 'int' IDENTIFIER '=' expression ';'
+    | structName IDENTIFIER ';'
     ;
 
 returnStatement
@@ -76,11 +94,21 @@ unaryExpression
     | primaryExpression
     ;
 
+newExpression
+    : 'new' IDENTIFIER 
+    ;
+
+fieldExpression
+    : primaryExpresson '.' IDENIFIER
+    ;
+
 primaryExpression
     : IDENTIFIER
     | INTEGER_LITERAL
     | 'true'
     | 'false'
+    | newExpression
+    | fieldExpression
     | '(' expression ')'
     ;
 
