@@ -41,3 +41,37 @@ Note that the `x` and `y` in `Vector2D` do not alias `x` and `y` in `Vector3D`.
 
 In this chapter we do not have inheritance or sub-typing. But if we had subtyping and `Vector3D` 
 was a subtype of `Vector2D` then `x` and `y` would alias and would be given the same alias class. 
+
+## Extensions to Intermediate Representation
+
+We add following new Node types sto support memory operations
+
+| Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
+|-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
+| New       | Mem     | Create ptr to new object           | Memory, Struct type                                              | Ptr value                                             |
+| Store     | Mem     | Stores a value in a struct field   | Memory (aliased by struct+field), Ptr, Field, Value              | Memory (aliased by struct+field)                      |
+| Load      | Mem     | Loads a value from a field         | Memory (aliased by struct+field), Ptr, Field                     | Value loaded                                          |
+
+Additional following Node types will be enhanced:
+
+| Node Name | Type    | Changes                                          |
+|-----------|---------|--------------------------------------------------|
+| Start     | Control | Start will produce the initial Memory projection |
+| Phi       | Data    | Will allow merging Store and Load ops            |
+
+## A simple example
+
+Let us now see how we would represent following.
+
+```java
+struct Vector2D { int x; int y; }
+
+Vector2D v = new Vector2D;
+v.x = 1;
+if (arg)
+    v.y = 2;
+else
+    v.y = 3;
+return v;
+```
+
