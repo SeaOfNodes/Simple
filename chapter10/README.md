@@ -44,7 +44,7 @@ was a subtype of `Vector2D` then `x` and `y` would alias and would be given the 
 
 ## Extensions to Intermediate Representation
 
-We add following new Node types sto support memory operations
+We add following new Node types to support memory operations
 
 | Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
 |-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
@@ -52,7 +52,7 @@ We add following new Node types sto support memory operations
 | Store     | Mem     | Stores a value in a struct field   | Memory (aliased by struct+field), Ptr, Field, Value              | Memory (aliased by struct+field)                      |
 | Load      | Mem     | Loads a value from a field         | Memory (aliased by struct+field), Ptr, Field                     | Value loaded                                          |
 
-Additional following Node types will be enhanced:
+Additionally, the following Node types will be enhanced:
 
 | Node Name | Type    | Changes                                          |
 |-----------|---------|--------------------------------------------------|
