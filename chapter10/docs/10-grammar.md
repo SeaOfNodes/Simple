@@ -54,6 +54,7 @@ metaStatement
 
 expressionStatement
     : IDENTIFIER '=' expression ';'
+    : fieldExpression '=' expression ';'
     ;
 
 blockStatement
