@@ -1,4 +1,4 @@
-# Grammar for Chapter 8
+# Grammar for Chapter 10
 
 ```antlrv4
 grammar SimpleLanguage;
