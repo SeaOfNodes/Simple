@@ -99,7 +99,7 @@ newExpression
     ;
 
 fieldExpression
-    : primaryExpresson '.' IDENIFIER
+    : primaryExpresson '.' IDENTIFIER
     ;
 
 primaryExpression
