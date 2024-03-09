@@ -10,13 +10,13 @@ Here is the [complete language grammar](docs/10-grammar.md) for this chapter.
 
 ## Memory
 
-Until now we have dealt with scalar values that fit a single machine register. We now introduce aggregate type `struct` that may or may not fit a register
-depending on the number of fields in the `struct`. To support values of such a type, we need the concept of `Memory`.
+Until now we have dealt with scalar values that fit a single machine register. We now introduce aggregate type `struct` have reference semantics and thus do not work well with registers, 
+even if the struct would fit into a register. To support values of such a type, we need the concept of `Memory`.
 
 The core ideas regarding `Memory` are:
 
 * The program starts with a single `Memory` value that encapsulates the whole of available memory.
-* Each `struct` type carves out this memory such as all instances of a particular field in a given struct goes into the same slice. We call identify this via "alias classes". Conceptually, we can think of an "alias class"
+* Each `struct` type carves out this memory such as all instances of a particular field in a given struct goes into the same slice. We can identify this via "alias classes". Conceptually, we can think of an "alias class"
   as a unique integer ID assigned to each field in a struct, where distinct struct types have their own set of ids. For example:
 
 Suppose we have declared two struct types like so:
