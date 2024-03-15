@@ -55,6 +55,7 @@ public class Parser {
             add("return");
             add("true");
             add("while");
+            add("struct");
         }};
 
     
@@ -67,9 +68,12 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
+    public static Map<String, TypeStruct> _structTypes = new HashMap<>();
+
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
+        _structTypes.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -144,8 +148,39 @@ public class Parser {
         else if (matchx("while")) return parseWhile();
         else if (matchx("break")) return parseBreak();
         else if (matchx("continue")) return parseContinue();
+        else if (matchx("struct")) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else return parseExpressionStatement();
+    }
+
+    private void parseField(TypeStruct structType) {
+        if (matchx("int")) {
+            String fieldName = requireId();
+            require(";");
+            structType.addField(fieldName, TypeInteger.TOP);
+        }
+        else throw errorSyntax("A field declaration is expected");
+    }
+
+    /**
+     * Parse a struct declaration, and return the following statement.
+     * Only allowed in top level scope.
+     * Structs cannot be redefined.
+     *
+     * @return The statement following the struct
+     */
+    private Node parseStruct() {
+        if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
+        String typeName = requireId();
+        if (_structTypes.containsKey(typeName)) throw errorSyntax("struct " + typeName + " cannot be redefined");
+        TypeStruct structType = new TypeStruct(typeName);
+        require("{");
+        while (!peek('}') && !_lexer.isEOF())
+            parseField(structType);
+        require("}");
+        if (structType.numFields() == 0) throw errorSyntax("struct " + typeName + " must contain 1 or more fields");
+        _structTypes.put(typeName, structType);
+        return parseStatement();
     }
 
     /**
@@ -503,6 +538,8 @@ public class Parser {
         if (id != null && !KEYWORDS.contains(id) ) return id;
         throw error("Expected an identifier, found '"+id+"'");
     }
+
+
 
     // Require an exact match
     private void require(String syntax) { require(null, syntax); }
