@@ -364,23 +364,42 @@ public class Parser {
     }
 
     /**
-     * Parses an expression statement
+     * Parses an expression statement or a declaration statement where type is a struct
      *
      * <pre>
-     *     name '=' expression ';'
+     *     name '=' expression ';'                      // assignment
+     *     typename name '=' expression ';'             // decl
+     *     fieldExpression '=' expression ';'           // store
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpressionStatement() {
         var name = requireId();
+        // If the identifier is a struct type then
+        // parse as a variable declaration
         TypeStruct structType = _structTypes.get(name);
         if (structType != null)
             return parseDecl(structType);
+        String fieldName = null;
+        // If name is followed by .field then it must be a store
+        if (match("."))
+            fieldName = requireId();
         require("=");
         var expr = require(parseExpression(), ";");
-        if (structType != null)
-            typeCheck(structType, expr, name);
-        if( _scope.update(name, expr)==null )
+        if (fieldName != null) {
+            // Store expression
+            Node n = _scope.lookup(name);
+            if (n == null) throw error("Undefined name '" + name + "'");
+            if (n._type instanceof TypeMemPtr ptr) {
+                structType = ptr.structType();
+                TypeField field = structType.getField(fieldName);
+                if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
+                return new StoreNode(field, n, expr, null); // TODO mem slice
+            }
+            else throw error("Expected '" + name + "' to be a reference to a struct");
+        }
+        // TODO we need to do a type check of name
+        else if( _scope.update(name, expr)==null )
             throw error("Undefined name '" + name + "'");
         return expr;
     }
@@ -545,7 +564,7 @@ public class Parser {
             String structName = requireId();
             TypeStruct structType = _structTypes.get(structName);
             if( structType == null) throw errorSyntax("Unknown struct type '" + structName + "'");
-            return new NewNode(new TypeMemPtr(structType)); // TODO mem input
+            return new NewNode(new TypeMemPtr(structType)).keep().peephole().unkeep(); // TODO mem input
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");

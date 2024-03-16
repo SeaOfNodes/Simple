@@ -1,24 +1,22 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.TypeField;
 
 import java.util.BitSet;
 
-public class NewNode extends Node {
+public class StoreNode extends Node {
 
-    TypeMemPtr _ptr;
+    TypeField _field;
 
-    public NewNode(TypeMemPtr ptr, Node... inputs) {
-        super(inputs);
-        this._ptr = ptr;
+    public StoreNode(TypeField field, Node memPtr, Node value, Node memSlice) {
+        super(memPtr, value);
+        _field = field;
     }
-
-    public TypeMemPtr ptr() { return _ptr; }
 
     @Override
     public String label() {
-        return "New";
+        return "Store";
     }
 
     @Override
@@ -28,7 +26,7 @@ public class NewNode extends Node {
 
     @Override
     public Type compute() {
-        return _ptr;
+        return null;
     }
 
     @Override

@@ -20,8 +20,10 @@ public class TypeStruct extends Type {
     public void addField(String fieldName, Type fieldType) {
         if (_fields.containsKey(fieldName))
             throw Parser.error("Field " + fieldName + " already present in struct " + _name);
-        _fields.put(fieldName, new TypeField(fieldType, fieldName));
+        _fields.put(fieldName, new TypeField(this, fieldType, fieldName));
     }
+
+    public TypeField getField(String fieldName) { return _fields.get(fieldName); }
 
     public int numFields() { return _fields.size(); }
 
