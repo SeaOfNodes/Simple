@@ -20,6 +20,7 @@ struct Foo {
 Foo foo = null;
 Bar bar = new Bar;
 bar.a = 1;
+bar.a = 2;
 return bar.a;
                 """);
         StopNode stop = parser.parse(true);

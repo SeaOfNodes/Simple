@@ -414,7 +414,7 @@ public class Parser {
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
-                return new StoreNode(field, _scope.lookup(field.aliasName()), n, expr).peephole();
+                return _scope.update(field.aliasName(), new StoreNode(field, _scope.lookup(field.aliasName()), n, expr).peephole());
             }
             else throw error("Expected '" + name + "' to be a reference to a struct");
         }
