@@ -15,8 +15,15 @@ import java.util.BitSet;
  */
 public class ReturnNode extends Node {
 
-    public ReturnNode(Node ctrl, Node data, Node memMerge) {
-        super(ctrl, data, memMerge);
+    public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
+        super(ctrl, data);
+        // We lookup memory slices by the naming convention that they start with $
+        // We could also use implicit knowledge that all memory projects are at offset >= 2
+        String[] names = scope.reverseNames();
+        for (String name: names) {
+            if (!name.equals("$ctrl") && name.startsWith("$"))
+                addDef(scope.lookup(name));
+        }
     }
 
     public Node ctrl() { return in(0); }

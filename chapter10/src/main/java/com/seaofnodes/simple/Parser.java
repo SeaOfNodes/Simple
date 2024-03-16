@@ -362,7 +362,7 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, new MemMergeNode(_scope).peephole()).peephole());
+        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
         ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
         return ret;
     }
