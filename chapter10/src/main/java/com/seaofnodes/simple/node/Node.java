@@ -81,7 +81,11 @@ public abstract class Node {
     public abstract String label();
 
     // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
-    public String uniqueName() { return label() + _nid; }
+    public String uniqueName() {
+        // Get rid of $ as graphviz doesn't like it
+        String label = label().replaceAll("\\$", "");
+        return label + _nid;
+    }
 
     // Graphical label, e.g. "+" or "Region" or "=="
     public String glabel() { return label(); }

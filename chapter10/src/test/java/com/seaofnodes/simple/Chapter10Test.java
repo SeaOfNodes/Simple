@@ -26,4 +26,21 @@ return bar.a;
         StopNode stop = parser.parse(true);
     }
 
+    @Test
+    public void testExample() {
+        Parser parser = new Parser(
+                """
+struct Vector2D { int x; int y; }
+
+Vector2D v = new Vector2D;
+v.x = 1;
+if (arg)
+    v.y = 2;
+else
+    v.y = 3;
+return v;
+                """);
+        StopNode stop = parser.parse(true);
+    }
+
 }

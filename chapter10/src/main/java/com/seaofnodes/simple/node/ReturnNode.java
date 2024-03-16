@@ -15,8 +15,8 @@ import java.util.BitSet;
  */
 public class ReturnNode extends Node {
 
-    public ReturnNode(Node ctrl, Node data) {
-        super(ctrl, data);
+    public ReturnNode(Node ctrl, Node data, Node memMerge) {
+        super(ctrl, data, memMerge);
     }
 
     public Node ctrl() { return in(0); }

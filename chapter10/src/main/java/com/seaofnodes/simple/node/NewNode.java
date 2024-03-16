@@ -22,6 +22,11 @@ public class NewNode extends Node {
     }
 
     @Override
+    public String glabel() {
+        return "New " + ptr();
+    }
+
+    @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb;
     }

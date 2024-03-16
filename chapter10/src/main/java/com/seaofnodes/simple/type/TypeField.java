@@ -3,7 +3,7 @@ package com.seaofnodes.simple.type;
 /**
  * Represents a field in a struct
  */
-public class TypeField {
+public class TypeField implements AliasSource {
 
     /**
      * Alias ID generator - we start at 2 because START uses 0 and 1 slots,
@@ -33,6 +33,11 @@ public class TypeField {
         this._alias = _ALIAS_ID++;
     }
 
-    public String aliasName() { return "$mem#" + _alias; }
+    @Override
+    public String aliasName() { return "$" + _structType._name + "_" + _fieldName; }
 
+    @Override
+    public int alias() { return _alias; }
+
+    public static void reset() { _ALIAS_ID = 2; }
 }

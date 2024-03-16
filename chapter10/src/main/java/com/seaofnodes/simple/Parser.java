@@ -75,6 +75,7 @@ public class Parser {
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
+        TypeField.reset(); // Reset aliases
         _structTypes.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -361,7 +362,7 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
+        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, new MemMergeNode(_scope).peephole()).peephole());
         ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
         return ret;
     }
