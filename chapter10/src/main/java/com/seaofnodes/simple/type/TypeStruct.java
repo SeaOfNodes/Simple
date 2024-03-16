@@ -2,6 +2,7 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Parser;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 
@@ -26,6 +27,7 @@ public class TypeStruct extends Type {
     public TypeField getField(String fieldName) { return _fields.get(fieldName); }
 
     public int numFields() { return _fields.size(); }
+    public Collection<TypeField> fields() { return _fields.values(); }
 
     @Override
     int hash() { return Objects.hash(_type, _name); }

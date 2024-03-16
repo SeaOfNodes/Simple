@@ -41,7 +41,7 @@ public class ProjNode extends Node {
         if( ctrl()._type instanceof TypeTuple tt ) {
             if( tt._types[_idx]==Type.XCONTROL )
                 return new ConstantNode(Type.XCONTROL).peephole(); // We are dead
-            if( tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
+            if( ctrl() instanceof IfNode && tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
                 return ctrl().in(0);               // We become our input control
         }
         return null;

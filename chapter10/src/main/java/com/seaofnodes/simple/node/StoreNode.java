@@ -5,13 +5,10 @@ import com.seaofnodes.simple.type.TypeField;
 
 import java.util.BitSet;
 
-public class StoreNode extends Node {
+public class StoreNode extends MemOpNode {
 
-    TypeField _field;
-
-    public StoreNode(TypeField field, Node memPtr, Node value, Node memSlice) {
-        super(null, memPtr, value);
-        _field = field;
+    public StoreNode(TypeField field, Node memSlice, Node memPtr, Node value) {
+        super(field, memSlice, memPtr, value);
     }
 
     @Override
@@ -26,7 +23,7 @@ public class StoreNode extends Node {
 
     @Override
     public Type compute() {
-        return null;
+        return memSlice()._type;
     }
 
     @Override

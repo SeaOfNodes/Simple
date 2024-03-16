@@ -25,4 +25,9 @@ public class TypeMemPtr extends Type {
             return ptr.isNull();
         return false;
     }
+
+    @Override
+    public StringBuilder _print(StringBuilder sb) {
+        return sb.append("ptr(" + _structType._name + ")");
+    }
 }

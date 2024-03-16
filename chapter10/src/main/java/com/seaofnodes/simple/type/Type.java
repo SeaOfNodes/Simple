@@ -33,8 +33,9 @@ public class Type {
     static final byte TSIMPLE = 4; // End of the Simple Types
     static final byte TINT    = 5; // All Integers; see TypeInteger
     static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMEMPTR = 7; // Memory pointer type; a collection of Alias#s
-    static final byte TSTRUCT = 8; // Memory Structs; tuples with named fields
+    static final byte TMEMSLICE = 7; // A slice of memory - with specific alias
+    static final byte TMEMPTR   = 8; // Memory pointer type
+    static final byte TSTRUCT   = 9; // Memory Structs; tuples with named fields
 
     public final byte _type;
 

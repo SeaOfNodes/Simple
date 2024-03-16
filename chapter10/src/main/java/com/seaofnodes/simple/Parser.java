@@ -168,7 +168,7 @@ public class Parser {
         if (matchx("int")) {
             String fieldName = requireId();
             require(";");
-            structType.addField(fieldName, TypeInteger.TOP);
+            structType.addField(fieldName, TypeInteger.BOT);
         }
         else throw errorSyntax("A field declaration is expected, only fields of type 'int' are supported at present");
     }
@@ -193,6 +193,7 @@ public class Parser {
         // if we support classes we will need to allow
         if (structType.numFields() == 0) throw errorSyntax("struct '" + typeName + "' must contain 1 or more fields");
         _structTypes.put(typeName, structType);
+        START.addMemProj(structType, _scope);
         return parseStatement();
     }
 
@@ -413,7 +414,7 @@ public class Parser {
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
-                return new StoreNode(field, n, expr, null); // TODO mem slice
+                return new StoreNode(field, _scope.lookup(field.aliasName()), n, expr).peephole();
             }
             else throw error("Expected '" + name + "' to be a reference to a struct");
         }
@@ -438,6 +439,8 @@ public class Parser {
         TypeStruct structType = null;
         if (t instanceof TypeStruct ts) structType = ts;
         if (structType != null && match(";")) {
+            // typename name ';'
+            // Assign a null value
             var expr = new ConstantNode(new TypeMemPtr(null)).peephole();
             _scope.define(name, expr);
             return expr;
@@ -596,7 +599,7 @@ public class Parser {
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
-                return new LoadNode(field, n, null); // TODO mem slice
+                return new LoadNode(field, _scope.lookup(field.aliasName()), n).peephole();
             }
             else throw error("Expected '" + name + "' to be a reference to a struct");
         }

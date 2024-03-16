@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.type.*;
 
+import java.util.Arrays;
 import java.util.BitSet;
 
 /**
@@ -14,12 +14,32 @@ import java.util.BitSet;
  */
 public class StartNode extends MultiNode {
 
-    final TypeTuple _args;
+    TypeTuple _args;
     
     public StartNode(Type[] args) {
         super();
         _args = TypeTuple.make(args);
         _type = _args;
+    }
+
+    /**
+     * Creates a projection for each of the struct's fields, using the field alias
+     * as the key.
+     */
+    public TypeTuple addMemProj(TypeStruct structType, ScopeNode scopeNode) {
+        Type[] args = Arrays.copyOf(_args._types, _args._types.length + structType.numFields());
+        int i = _args._types.length;
+        for (TypeField field: structType.fields()) {
+            args[i++] = new TypeMemSlice(field);
+        }
+        _args = TypeTuple.make(args);
+        _type = compute(); // FIXME this is a hack because of chicken and egg situation, proj needs input node to have types already set
+        for (TypeField field: structType.fields()) {
+            String name = field.aliasName();
+            Node n = new MemProjNode(this, field._alias, name, field).peephole();
+            scopeNode.define(name, n);
+        }
+        return (TypeTuple) _type;
     }
 
     @Override
