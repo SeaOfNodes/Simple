@@ -15,6 +15,13 @@ import java.util.Random;
  */
 public class ScriptGenerator {
 
+    private static final int MAX_STATEMENTS_PER_BLOCK = 10;
+    private static final int MAX_BINARY_EXPRESSIONS_PER_EXPRESSION = 10;
+    private static final int MAX_UNARY_EXPRESSIONS_PER_EXPRESSION = 6;
+    private static final int MAX_NAME_LENGTH = 30;
+    private static final int MAX_BLOCK_DEPTH = 10;
+    private static final int MAX_EXPRESSION_DEPTH = 30;
+
     /**
      * Number of spaces per indentation
      */
@@ -53,6 +60,24 @@ public class ScriptGenerator {
      */
     private static final String[] UNARY_OP = {"-"};
 
+    private static class Type {
+        final String name;
+        Type(String name) {this.name=name;}
+    }
+
+    private static class TypeStruct extends Type {
+        record Field (String name, Type type) {}
+        final Field[] fields;
+        TypeStruct(String name, Field[] fields) {
+            super(name);
+            this.fields = fields;
+        }
+    }
+
+    private static final Type TYPE_INT = new Type("int");
+
+
+    private record Variable(String name, Type type) {}
 
     /**
      * The random number generator used for random decisions.
@@ -77,23 +102,32 @@ public class ScriptGenerator {
     /**
      * The depth of blocks allowed.
      */
-    private int depth = 20;
+    private int depth = MAX_BLOCK_DEPTH;
     /**
      * The depth of expressions allowed.
      */
-    private int exprDepth = 30;
+    private int exprDepth = MAX_EXPRESSION_DEPTH;
     /**
      * Current variables in scope.
      */
-    private final ArrayList<String> variables = new ArrayList<>();
+    private final ArrayList<Variable> variables = new ArrayList<>();
+    /**
+     * All defined structs.
+     */
+    private final ArrayList<TypeStruct> structs = new ArrayList<>();
+    /**
+     * Allow to declare structs.
+     */
+    private boolean allowStructs = true;
     /**
      * If this needs to generate valid scripts or is also allowed to generate invalid ones.
      */
-    private final boolean generateValid;
+    private boolean generateValid;
     /**
      * If this script might be invalid.
      */
     private boolean maybeInvalid = false;
+
 
     /**
      *
@@ -135,12 +169,32 @@ public class ScriptGenerator {
      * @return The random name generated
      */
     private StringBuilder getRandomName() {
-        int len = random.nextInt(30) + 1;
+        int len = random.nextInt(MAX_NAME_LENGTH) + 1;
         StringBuilder sb = new StringBuilder(len);
         sb.append(VAR_CHARS.charAt(random.nextInt(VAR_CHARS.length()-10)));
         for (int i=1; i<len; i++)
             sb.append(VAR_CHARS.charAt(random.nextInt(VAR_CHARS.length())));
         return sb;
+    }
+
+    private boolean generateInvalid() {
+        if (generateValid || random.nextInt(1000)>2) return false;
+        maybeInvalid = true;
+        return true;
+    }
+
+    private int lookup(String name) {
+        for (int i=variables.size()-1; i>=0; i--) {
+            if (variables.get(i).name.equals(name)) return i;
+        }
+        return -1;
+    }
+
+    private TypeStruct getStruct(String name) {
+        for (var s:structs) {
+            if (s.name.equals(name)) return s;
+        }
+        return null;
     }
 
     /**
@@ -152,35 +206,57 @@ public class ScriptGenerator {
         if (currScopeStart > 0 && random.nextInt(10) > 7) {
             // Use a variable outside the current scope.
             var v = variables.get(random.nextInt(currScopeStart));
-            if (variables.lastIndexOf(v) < currScopeStart) return v;
+            if (variables.lastIndexOf(v) < currScopeStart) return v.name;
             if (!generateValid) {
                 maybeInvalid = true;
-                return v;
+                return v.name;
             }
         }
         // Generate a new random variable name
         StringBuilder sb = getRandomName();
         var v = sb.toString();
-        if (!generateValid && (KEYWORDS.contains(v) || variables.lastIndexOf(v) >= currScopeStart)) {
+        if (!generateValid && (KEYWORDS.contains(v) || lookup(v) >= currScopeStart)) {
             maybeInvalid = true;
             return v;
         }
-        while (KEYWORDS.contains(v) || variables.lastIndexOf(v) >= currScopeStart) {
+        while (KEYWORDS.contains(v) || lookup(v) >= currScopeStart) {
             sb.append(VAR_CHARS.charAt(random.nextInt(VAR_CHARS.length())));
             v = sb.toString();
         }
         return v;
     }
 
+    private String getStructName() {
+        if (!structs.isEmpty() && generateInvalid()) return structs.get(random.nextInt(structs.size())).name;
+        // Generate a new random struct name
+        StringBuilder sb = getRandomName();
+        var v = sb.toString();
+        if (!generateValid && (KEYWORDS.contains(v) || getStruct(v) != null)) {
+            maybeInvalid = true;
+            return v;
+        }
+        while (KEYWORDS.contains(v) || getStruct(v) != null) {
+            sb.append(VAR_CHARS.charAt(random.nextInt(VAR_CHARS.length())));
+            v = sb.toString();
+        }
+        return v;
+    }
 
+    private Type getType() {
+        if (structs.isEmpty() || random.nextBoolean()) return TYPE_INT;
+        var idx = random.nextInt(structs.size());
+        return structs.get(idx);
+    }
 
     /**
      * Generates a program and writes it into the string builder supplied in the constructor.
      * @return If the program is allowed to be invalid returns if something potentially invalid was generated.
      */
     public boolean genProgram() {
+        var oldGenerateValid = generateValid;
+        if (!generateValid && random.nextBoolean()) generateValid = true;
         this.maybeInvalid = false;
-        variables.add(ScopeNode.ARG0);
+        variables.add(new Variable(ScopeNode.ARG0, TYPE_INT));
         currScopeStart = variables.size();
         if ((genStatements() & FLAG_STOP) == 0) {
             if (generateValid || random.nextInt(10)<7) {
@@ -189,6 +265,7 @@ public class ScriptGenerator {
                 this.maybeInvalid = true;
             }
         }
+        generateValid = oldGenerateValid;
         return !this.maybeInvalid;
     }
 
@@ -197,7 +274,7 @@ public class ScriptGenerator {
      * @return flags FLAG_STOP and FLAG_IF_WITHOUT_ELSE for the last statement generated
      */
     public int genStatements() {
-        var num = random.nextInt(10); // (30);
+        var num = random.nextInt(MAX_STATEMENTS_PER_BLOCK * (depth+1));
         for (int i=0; i<num; i++) {
             printIndentation();
             var stop = genStatement();
@@ -212,14 +289,33 @@ public class ScriptGenerator {
      * @return flags FLAG_STOP and FLAG_IF_WITHOUT_ELSE for the generated statement
      */
     public int genStatement() {
-        return switch (random.nextInt(10)) {
+        return switch (random.nextInt(11)) {
+            case 0 -> allowStructs || generateInvalid() ? genStruct() : genAssignment();
             case 1 -> genBlock();
             case 2 -> genIf();
-            case 3 -> genWhile();
-            case 4, 5 -> genDecl();
-            case 6, 7, 8 -> genAssignment();
+            case 3 -> genCountedLoop();
+            case 4 -> genWhile();
+            case 5, 6 -> genDecl();
+            case 7, 8, 9 -> genAssignment();
             default -> genExit();
         };
+    }
+
+    public int genStruct() {
+        var name = getStructName();
+        var fields = new TypeStruct.Field[generateInvalid() ? 0 : random.nextInt(10)];
+        sb.append("struct ").append(name).append(" {\n");
+        indentation += INDENTATION;
+        for (int i=0; i<fields.length; i++) {
+            var fieldName = getRandomName();
+            var type = generateInvalid() ? getType() : TYPE_INT;
+            printIndentation().append(type.name).append(" ").append(fieldName).append(";\n");
+            fields[i] = new TypeStruct.Field(fieldName.toString(), type);
+        }
+        indentation -= INDENTATION;
+        printIndentation().append("}");
+        structs.add(new TypeStruct(name, fields));
+        return 0;
     }
 
     /**
@@ -228,13 +324,15 @@ public class ScriptGenerator {
      * @return flags FLAG_STOP and FLAG_IF_WITHOUT_ELSE for the generated statement
      */
     public int genStatementBlock() {
+        var oldAllowStructs = allowStructs;
+        allowStructs = false;
         indentation += INDENTATION;
         int res;
         if (depth == 0) {
             res = random.nextBoolean() ? genAssignment() : genExit();
         } else {
             depth--;
-            res = switch (random.nextInt(10)) {
+            res = switch (random.nextInt(11)) {
                 case 1, 2, 3, 4, 5 -> {
                     depth++;
                     indentation -= INDENTATION;
@@ -244,13 +342,15 @@ public class ScriptGenerator {
                     yield ret;
                 }
                 case 6 -> genIf();
-                case 7 -> genWhile();
-                case 8 -> genAssignment();
+                case 7 -> genCountedLoop();
+                case 8 -> genWhile();
+                case 9 -> genAssignment();
                 default -> genExit();
             };
             depth++;
         }
         indentation -= INDENTATION;
+        allowStructs = oldAllowStructs;
         return res;
     }
 
@@ -284,9 +384,11 @@ public class ScriptGenerator {
             sb.append("{}");
             return 0;
         }
-        depth--;
-        int oldCSS = currScopeStart;
+        var oldAllowStructs = allowStructs;
+        var oldCSS = currScopeStart;
+        allowStructs = false;
         currScopeStart = variables.size();
+        depth--;
         sb.append("{\n");
         indentation += INDENTATION;
         var stop = genStatements();
@@ -294,8 +396,9 @@ public class ScriptGenerator {
         printIndentation().append("}");
         while (variables.size() > currScopeStart)
             variables.removeLast();
-        currScopeStart = oldCSS;
         depth++;
+        currScopeStart = oldCSS;
+        allowStructs = oldAllowStructs;
         return stop & ~FLAG_IF_WITHOUT_ELSE;
     }
 
@@ -305,7 +408,7 @@ public class ScriptGenerator {
      */
     public int genIf() {
         sb.append("if(");
-        genExpression();
+        genExpression(TYPE_INT);
         sb.append(") ");
         var stop = genStatementBlock();
         if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
@@ -324,7 +427,7 @@ public class ScriptGenerator {
      */
     public int genWhile() {
         sb.append("while(");
-        genExpression();
+        genExpression(TYPE_INT);
         sb.append(") ");
         loopDepth++;
         genStatementBlock();
@@ -333,15 +436,53 @@ public class ScriptGenerator {
     }
 
     /**
+     * Generate a counted loop of the form
+     * <code>
+     *     {
+     *         int varname = start_expr;
+     *         while (varname < end_expr) loop_body;
+     *     }
+     * </code>
+     * @return 0
+     */
+    public int genCountedLoop() {
+        var oldCSS = currScopeStart;
+        currScopeStart = variables.size();
+        sb.append("{\n");
+        indentation += INDENTATION;
+        String name = getVarName();
+        printIndentation().append("int ").append(name).append("=");
+        genExpression(TYPE_INT);
+        sb.append(";\n");
+        variables.add(new Variable(name, TYPE_INT));
+        printIndentation().append("while(").append(name).append("<");
+        genExpression(TYPE_INT);
+        sb.append(") ");
+        loopDepth++;
+        genStatementBlock();
+        loopDepth--;
+        indentation -= INDENTATION;
+        printIndentation().append("}");
+        while (variables.size() > currScopeStart)
+            variables.removeLast();
+        currScopeStart = oldCSS;
+        return 0;
+    }
+
+    /**
      * Generate a declaration statement.
      * @return 0
      */
     public int genDecl() {
-        String name = getVarName();
-        sb.append("int ").append(name).append("=");
-        genExpression();
+        var type = getType();
+        var name = getVarName();
+        sb.append(generateInvalid() ? getRandomName() : type.name).append(" ").append(name);
+        if (type == TYPE_INT || random.nextBoolean()) {
+            sb.append("=");
+            genExpression(type);
+        }
         sb.append(";");
-        variables.add(name);
+        variables.add(new Variable(name, type));
         return 0;
     }
 
@@ -351,9 +492,26 @@ public class ScriptGenerator {
      */
     public int genAssignment() {
         if (variables.isEmpty()) return genDecl();
-        genVariable();
+        Type type;
+        if (generateInvalid()) {
+            sb.append(getRandomName());
+            type = getType();
+        } else {
+            var variable = variables.get(random.nextInt(variables.size()));
+            sb.append(variable.name);
+            type = variable.type;
+        }
+        if (generateInvalid()) {
+            var name = getRandomName();
+            sb.append(".").append(name);
+            type = getType();
+        } else if (type instanceof TypeStruct s && s.fields.length > 0 && random.nextBoolean()) {
+            var field = s.fields[random.nextInt(s.fields.length)];
+            sb.append(".").append(field.name);
+            type = field.type;
+        }
         sb.append("=");
-        genExpression();
+        genExpression(type);
         sb.append(";");
         return 0;
     }
@@ -363,93 +521,139 @@ public class ScriptGenerator {
      * @return FLAG_STOP
      */
     public int genReturn() {
+        var type = getType();
         sb.append("return ");
-        genExpression();
+        genExpression(type);
         sb.append(";");
         return FLAG_STOP;
     }
-
 
     /**
      * Generate a binary expression.
      * This method does not care about operator precedence.
      */
-    public void genExpression() {
-        var num = randLog(10);
+    public void genExpression(Type type) {
+        if (generateInvalid()) type = getType();
+        if (type != TYPE_INT) {
+            genUnary(type);
+            return;
+        }
+        var num = randLog(MAX_BINARY_EXPRESSIONS_PER_EXPRESSION);
         while(num-->0) {
-            genUnary();
+            genUnary(TYPE_INT);
             sb.append(BINARY_OP[random.nextInt(BINARY_OP.length)]);
         }
-        genUnary();
+        genUnary(TYPE_INT);
     }
 
     /**
      * Generate a unary expression.
      */
-    public void genUnary() {
-        var num = randLog(6);
+    public void genUnary(Type type) {
+        if (generateInvalid()) type = getType();
+        if (type != TYPE_INT) {
+            genSuffix(type);
+            return;
+        }
+        var num = randLog(MAX_UNARY_EXPRESSIONS_PER_EXPRESSION);
         while(num-->0) {
             sb.append(UNARY_OP[random.nextInt(UNARY_OP.length)]);
         }
-        genPrimary();
+        genSuffix(TYPE_INT);
+    }
+
+    /**
+     * Generate
+     */
+    public void genSuffix(Type type) {
+        if (generateInvalid()) type = getType();
+        if (type == TYPE_INT && random.nextBoolean()) {
+            var t = getType();
+            if (generateInvalid()) {
+                var field = getRandomName();
+                genPrimary(t);
+                sb.append(".").append(field);
+                return;
+            } else if (t instanceof TypeStruct s && s.fields.length > 0) {
+                var field = s.fields[random.nextInt(s.fields.length)];
+                if (field.type == TYPE_INT) {
+                    genPrimary(t);
+                    sb.append(".").append(field.name);
+                    return;
+                }
+            }
+        }
+        genPrimary(type);
     }
 
     /**
      * Generate a primary expression.
      */
-    public void genPrimary() {
-        switch (random.nextInt(10)) {
-            case 0:
-                sb.append("true");
-                break;
-            case 1:
-                sb.append("false");
-                break;
-            case 2:
-                if (exprDepth == 0) {
-                    // Ensure termination of the generator.
-                    if (random.nextBoolean()) {
-                        genNumber();
-                    } else {
-                        genVariable();
-                    }
-                } else {
-                    sb.append("(");
-                    exprDepth--;
-                    genExpression();
-                    exprDepth++;
-                    sb.append(")");
-                }
-                break;
-            case 3, 4, 5, 6:
-                genNumber();
-                break;
-            default:
-                genVariable();
+    public void genPrimary(Type type) {
+        if (generateInvalid()) type = getType();
+        var rand = random.nextInt(10);
+        if (rand == 0 && exprDepth != 0) {
+            sb.append("(");
+            exprDepth--;
+            genExpression(type);
+            exprDepth++;
+            sb.append(")");
+        } else if (rand < 6) {
+            genVariable(type);
+        } else {
+            genConst(type);
         }
     }
 
     /**
-     * Generate a number.
+     * Generate a constant.
      */
-    public void genNumber() {
-        sb.append(random.nextInt(100));
+    public void genConst(Type type) {
+        if (generateInvalid()) type = getType();
+        if (type == TYPE_INT) {
+            var rand = random.nextInt(10);
+            switch (rand) {
+                case 0 -> sb.append("true");
+                case 1 -> sb.append("false");
+                default -> sb.append(random.nextInt(1<<(rand-2)));
+            }
+        } else {
+            if (random.nextBoolean()) {
+                sb.append("null");
+            } else {
+                sb.append("new ").append(generateInvalid() ? getRandomName() : type.name);
+            }
+        }
     }
 
     /**
      * Generate a variable. If there are none generate a number instead.
      * If the program is allowed to be invalid a random name can be generated in some cases.
      */
-    public void genVariable() {
-        if (!generateValid && random.nextInt(100)>97) {
+    public void genVariable(Type type) {
+        if (generateInvalid()) {
             sb.append(getRandomName());
-            maybeInvalid = true;
             return;
         }
-        if (variables.isEmpty()) {
-            genNumber();
+        if (generateInvalid()) type = getType();
+        int num = 0;
+        for (var v:variables) {
+            if (v.type == type) num++;
+        }
+        if (num == 0) {
+            genConst(type);
         } else {
-            sb.append(variables.get(random.nextInt(variables.size())));
+            var idx = random.nextInt(num);
+            for (var v:variables) {
+                if (v.type == type) {
+                    if (idx == 0) {
+                        sb.append(v.name);
+                        return;
+                    }
+                    idx--;
+                }
+            }
+            throw new AssertionError();
         }
     }
 
