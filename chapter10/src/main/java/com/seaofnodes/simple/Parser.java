@@ -52,10 +52,12 @@ public class Parser {
             add("false");
             add("if");
             add("int");
+            add("new");
+            add("null");
             add("return");
+            add("struct");
             add("true");
             add("while");
-            add("struct");
         }};
 
     
@@ -155,13 +157,20 @@ public class Parser {
         else return parseExpressionStatement();
     }
 
+    /**
+     * Parse a struct field.
+     * Only integer fields allowed at the moment.
+     * <pre>
+     *     int IDENTIFIER ;
+     * </pre>
+     */
     private void parseField(TypeStruct structType) {
         if (matchx("int")) {
             String fieldName = requireId();
             require(";");
             structType.addField(fieldName, TypeInteger.TOP);
         }
-        else throw errorSyntax("A field declaration is expected");
+        else throw errorSyntax("A field declaration is expected, only fields of type 'int' are supported at present");
     }
 
     /**
@@ -174,13 +183,15 @@ public class Parser {
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
-        if (_structTypes.containsKey(typeName)) throw errorSyntax("struct " + typeName + " cannot be redefined");
+        if (_structTypes.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
         TypeStruct structType = new TypeStruct(typeName);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseField(structType);
         require("}");
-        if (structType.numFields() == 0) throw errorSyntax("struct " + typeName + " must contain 1 or more fields");
+        // For now, we don't allow empty structs but in future
+        // if we support classes we will need to allow
+        if (structType.numFields() == 0) throw errorSyntax("struct '" + typeName + "' must contain 1 or more fields");
         _structTypes.put(typeName, structType);
         return parseStatement();
     }
@@ -375,13 +386,21 @@ public class Parser {
      */
     private Node parseExpressionStatement() {
         var name = requireId();
-        // If the identifier is a struct type then
-        // parse as a variable declaration
-        TypeStruct structType = _structTypes.get(name);
-        if (structType != null)
-            return parseDecl(structType);
+        // If name is followed by another Identifier then
+        // it must be a declaration
+        if (peekIsId()) {
+            TypeStruct structType = _structTypes.get(name);
+            if (structType != null) return parseDecl(structType);
+            else throw error("No struct type definition found for '" + name + "'");
+        }
         String fieldName = null;
         // If name is followed by .field then it must be a store
+        // Since our structs only have int fields at the moment, we
+        // cannot have expressions such as x.y.z - in future the parsing
+        // will have to be more sophisticated to support that.
+        // Also in future we will need to have late resolution of load vs store.
+        // But because our expression statement at present always expects
+        // an assignment we don't need that complication yet.
         if (match("."))
             fieldName = requireId();
         require("=");
@@ -391,7 +410,7 @@ public class Parser {
             Node n = _scope.lookup(name);
             if (n == null) throw error("Undefined name '" + name + "'");
             if (n._type instanceof TypeMemPtr ptr) {
-                structType = ptr.structType();
+                TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
                 return new StoreNode(field, n, expr, null); // TODO mem slice
@@ -569,6 +588,18 @@ public class Parser {
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);
+        if( n==null ) throw error("Undefined name '" + name + "'");
+        if (match(".")) {
+            // Load expression
+            String fieldName = requireId();
+            if (n._type instanceof TypeMemPtr ptr) {
+                TypeStruct structType = ptr.structType();
+                TypeField field = structType.getField(fieldName);
+                if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
+                return new LoadNode(field, n, null); // TODO mem slice
+            }
+            else throw error("Expected '" + name + "' to be a reference to a struct");
+        }
         if( n!=null ) return n;
         throw error("Undefined name '" + name + "'");
     }
@@ -593,6 +624,7 @@ public class Parser {
     private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
     // Return true and do NOT skip if 'ch' is next
     private boolean peek(char ch) { return _lexer.peek(ch); }
+    private boolean peekIsId() { return _lexer.peekIsId(); }
 
     // Require and return an identifier
     private String requireId() {
@@ -703,11 +735,15 @@ public class Parser {
             skipWhiteSpace();
             return peek()==ch;
         }
-        
+
+        boolean peekIsId() {
+            skipWhiteSpace();
+            return isIdStart(peek());
+        }
+
         // Return an identifier or null
         String matchId() {
-            skipWhiteSpace();
-            return isIdStart(peek()) ? parseId() : null;
+            return peekIsId() ? parseId() : null;
         }
 
         // Used for errors

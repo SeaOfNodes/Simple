@@ -10,7 +10,7 @@ public class StoreNode extends Node {
     TypeField _field;
 
     public StoreNode(TypeField field, Node memPtr, Node value, Node memSlice) {
-        super(memPtr, value);
+        super(null, memPtr, value);
         _field = field;
     }
 

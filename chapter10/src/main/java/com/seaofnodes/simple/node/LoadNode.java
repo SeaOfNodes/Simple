@@ -1,10 +1,19 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeField;
 
 import java.util.BitSet;
 
 public class LoadNode extends Node {
+
+    TypeField _field;
+
+    public LoadNode(TypeField field, Node memPtr, Node memSlice) {
+        super(null, memPtr);
+        _field = field;
+    }
+
     @Override
     public String label() {
         return "Load";
