@@ -9,8 +9,8 @@ public class NewNode extends Node {
 
     TypeMemPtr _ptr;
 
-    public NewNode(TypeMemPtr ptr, Node... inputs) {
-        super(inputs);
+    public NewNode(TypeMemPtr ptr) {
+        super((Node) null);
         this._ptr = ptr;
     }
 

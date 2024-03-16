@@ -5,12 +5,12 @@ import java.util.Objects;
 /**
  * Represents a slice of memory corresponding to an alias
  */
-public class TypeMemSlice extends Type {
+public class TypeMem extends Type {
 
     private final AliasSource _aliasSource;
 
-    public TypeMemSlice(AliasSource aliasSource) {
-        super(TMEMSLICE);
+    public TypeMem(AliasSource aliasSource) {
+        super(TMEM);
         this._aliasSource = aliasSource;
     }
 
@@ -21,7 +21,7 @@ public class TypeMemSlice extends Type {
 
     @Override
     boolean eq(Type t) {
-        if (t instanceof TypeMemSlice ts)
+        if (t instanceof TypeMem ts)
             return ts._aliasSource.alias() == _aliasSource.alias();
         return false;
     }

@@ -46,22 +46,21 @@ was a subtype of `Vector2D` then `x` and `y` would alias and would be given the 
 
 We add following new Node types to support memory operations:
 
-| Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
-|-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
-| New       | Mem     | Create ptr to new object           | Memory, Struct type                                              | Ptr value, Memory slices (aliased by field)           |
-| Store     | Mem     | Stores a value in a struct field   | Memory slice (aliased by struct+field), Ptr, Field, Value        | Memory slice (aliased by struct+field)                |
-| Load      | Mem     | Loads a value from a field         | Memory slice (aliased by struct+field), Ptr, Field               | Value loaded                                          |
-| Merge     | Mem     | Merges memory back into 1 value    | Memory slices (multiple aliases)                                 | Merged memory value                                   |
+| Node Name | Type    | Description                        | Inputs                                                           | Value                                  |
+|-----------|---------|------------------------------------|------------------------------------------------------------------|----------------------------------------|
+| New       | Mem     | Create ptr to new object           | Memory, Struct type                                              | Ptr value                              |
+| Store     | Mem     | Stores a value in a struct field   | Memory slice (aliased by struct+field), Ptr, Field, Value        | Memory slice (aliased by struct+field) |
+| Load      | Mem     | Loads a value from a field         | Memory slice (aliased by struct+field), Ptr, Field               | Value loaded                           |
 
 * Above, "Ptr" refers to the base address of the allocated object. Within the context of a single program (function), each `Ptr` represents a distinct object in memory.
 * A "Memory Slice" represents a slice of memory where all stores and loads alias. Different slices do not alias.
 
 Additionally, the following Node types will be enhanced:
 
-| Node Name | Type    | Changes                                                                        |
-|-----------|---------|--------------------------------------------------------------------------------|
-| Start     | Control | Start will produce the initial Memory projections, one per slice               |
-| Phi       | Mem     | Memory slices as input, the output is the slice from the selected control flow |
+| Node Name | Type    | Changes                                                          |
+|-----------|---------|------------------------------------------------------------------|
+| Start     | Control | Start will produce the initial Memory projections, one per slice |
+| Return    | Control | Will merge all memory slices                                     |
 
 ## A simple example
 
