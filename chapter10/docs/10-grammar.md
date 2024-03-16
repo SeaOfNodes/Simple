@@ -54,7 +54,7 @@ metaStatement
 
 expressionStatement
     : IDENTIFIER '=' expression ';'
-    : fieldExpression '=' expression ';'
+    | fieldExpression '=' expression ';'
     ;
 
 blockStatement
@@ -108,6 +108,7 @@ primaryExpression
     | INTEGER_LITERAL
     | 'true'
     | 'false'
+    | 'null'
     | newExpression
     | fieldExpression
     | '(' expression ')'

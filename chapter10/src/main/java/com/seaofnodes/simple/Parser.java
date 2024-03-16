@@ -142,7 +142,7 @@ public class Parser {
      */
     private Node parseStatement() {
         if (matchx("return")  ) return parseReturn();
-        else if (matchx("int")) return parseDecl();
+        else if (matchx("int")) return parseDecl(TypeInteger.TOP);
         else if (match ("{"  )) return require(parseBlock(),"}");
         else if (matchx("if" )) return parseIf();
         else if (matchx("while")) return parseWhile();
@@ -150,6 +150,8 @@ public class Parser {
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
+        // declarations of vars with struct type are handled in parseExpressionStatement due
+        // to ambiguity
         else return parseExpressionStatement();
     }
 
@@ -371,8 +373,13 @@ public class Parser {
      */
     private Node parseExpressionStatement() {
         var name = requireId();
+        TypeStruct structType = _structTypes.get(name);
+        if (structType != null)
+            return parseDecl(structType);
         require("=");
         var expr = require(parseExpression(), ";");
+        if (structType != null)
+            typeCheck(structType, expr, name);
         if( _scope.update(name, expr)==null )
             throw error("Undefined name '" + name + "'");
         return expr;
@@ -383,17 +390,46 @@ public class Parser {
      *
      * <pre>
      *     'int' name = expression ';'
+     *     typename name = new expression ';'
+     *     typename name ';'
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseDecl() {
-        // Type is 'int' for now
+    private Node parseDecl(Type t) {
         var name = requireId();
+        TypeStruct structType = null;
+        if (t instanceof TypeStruct ts) structType = ts;
+        if (structType != null && match(";")) {
+            var expr = new ConstantNode(new TypeMemPtr(null)).peephole();
+            _scope.define(name, expr);
+            return expr;
+        }
         require("=");
         var expr = require(parseExpression(), ";");
+        typeCheck(structType, expr, name);
         if( _scope.define(name,expr) == null )
             throw error("Redefining name '" + name + "'");
         return expr;
+    }
+
+    private void typeCheck(TypeStruct structType, Node expr, String name) {
+        if (structType != null) {
+            if (expr instanceof NewNode newNode) {
+                if (!newNode.ptr().structType().equals(structType))
+                    throw errorSyntax("new expression is not compatible with the variable " + name);
+            }
+            else if (expr instanceof ConstantNode cnode) {
+                if (!cnode._type.isNull())
+                    throw errorSyntax("expression cannot be assigned to variable " + name);
+            }
+            else if (expr._type instanceof TypeStruct ts) {
+                if (!structType.equals(ts))
+                    throw errorSyntax("expression cannot be assigned to variable " + name);
+            }
+            else {
+                throw errorSyntax("expression cannot be assigned to variable " + name);
+            }
+        }
     }
 
     /**
@@ -495,7 +531,7 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral | Identifier | true | false | '(' expression ')'
+     *     primaryExpr : integerLiteral | Identifier | true | false | null | new Identifier | '(' expression ')'
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
@@ -504,6 +540,13 @@ public class Parser {
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
+        if( matchx("null") ) return new ConstantNode(new TypeMemPtr(null)).peephole();
+        if( matchx("new") ) {
+            String structName = requireId();
+            TypeStruct structType = _structTypes.get(structName);
+            if( structType == null) throw errorSyntax("Unknown struct type '" + structName + "'");
+            return new NewNode(new TypeMemPtr(structType)); // TODO mem input
+        }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);

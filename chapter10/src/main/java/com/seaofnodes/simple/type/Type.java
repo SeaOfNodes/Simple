@@ -33,6 +33,8 @@ public class Type {
     static final byte TSIMPLE = 4; // End of the Simple Types
     static final byte TINT    = 5; // All Integers; see TypeInteger
     static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMEMPTR = 7; // Memory pointer type; a collection of Alias#s
+    static final byte TSTRUCT = 8; // Memory Structs; tuples with named fields
 
     public final byte _type;
 
@@ -51,6 +53,8 @@ public class Type {
     // Strict constant values, things on the lattice centerline.
     // Excludes both high and low values
     public boolean isConstant() { return false; }
+
+    public boolean isNull() { return false; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
