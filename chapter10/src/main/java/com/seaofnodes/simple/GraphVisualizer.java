@@ -27,7 +27,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(stop, scope);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter09 {\n");
+        sb.append("digraph chapter10 {\n");
         sb.append("/*\n");
         sb.append(stop._src);
         sb.append("\n*/\n");
@@ -176,7 +176,7 @@ public class GraphVisualizer {
             // Do not display the Constant->Start edge;
             // ProjNodes handled by Multi;
             // ScopeNodes are done separately
-            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode || n instanceof NewNode )
                 continue;
             for( int i=0; i<n.nIns(); i++ ) {
                 Node def = n.in(i);

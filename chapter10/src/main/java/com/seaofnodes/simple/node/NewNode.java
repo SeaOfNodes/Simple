@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
@@ -10,7 +11,7 @@ public class NewNode extends Node {
     TypeMemPtr _ptr;
 
     public NewNode(TypeMemPtr ptr) {
-        super((Node) null);
+        super(Parser.START);
         this._ptr = ptr;
     }
 
@@ -28,7 +29,7 @@ public class NewNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb;
+        return sb.append("new ").append(_ptr._print(sb));
     }
 
     @Override

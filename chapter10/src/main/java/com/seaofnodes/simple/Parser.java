@@ -585,7 +585,7 @@ public class Parser {
             String structName = requireId();
             TypeStruct structType = _structTypes.get(structName);
             if( structType == null) throw errorSyntax("Unknown struct type '" + structName + "'");
-            return new NewNode(new TypeMemPtr(structType).intern()).keep().peephole().unkeep(); // TODO mem input
+            return new NewNode(new TypeMemPtr(structType).intern()).peephole();
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
