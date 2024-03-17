@@ -566,7 +566,7 @@ public class Parser {
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
-        return parsePostfixExpr(parsePrimary());
+        return parsePostfix(parsePrimary());
     }
 
     /**
@@ -604,7 +604,7 @@ public class Parser {
      *     expr '.' IDENTIFIER
      * </pre>
      */
-    private Node parsePostfixExpr(Node expr) {
+    private Node parsePostfix(Node expr) {
         if (match(".")) {
             String fieldName = requireId();
             if (expr._type instanceof TypeMemPtr ptr) {
