@@ -30,7 +30,7 @@ public class StartNode extends MultiNode {
         Type[] args = Arrays.copyOf(_args._types, _args._types.length + structType.numFields());
         int i = _args._types.length;
         for (TypeField field: structType.fields()) {
-            args[i++] = new TypeMem(field);
+            args[i++] = new TypeMem(field).intern();
         }
         _args = TypeTuple.make(args);
         _type = compute(); // FIXME this is a hack because of chicken and egg situation, proj needs input node to have types already set

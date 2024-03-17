@@ -56,13 +56,14 @@ public class Type {
     public boolean isConstant() { return false; }
 
     public boolean isNull() { return false; }
+    public boolean maybeNull() { return false; }
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     // ----------------------------------------------------------
 
     // Factory method which interns "this"
-    protected <T extends Type> T intern() {
+    public  <T extends Type> T intern() {
         T nnn = (T)INTERN.get(this);
         if( nnn==null ) 
             INTERN.put(nnn=(T)this,this);

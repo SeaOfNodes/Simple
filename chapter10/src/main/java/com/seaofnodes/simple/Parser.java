@@ -412,8 +412,8 @@ public class Parser {
             Node n = _scope.lookup(name);
             if (n == null) throw error("Undefined name '" + name + "'");
             if (n._type instanceof TypeMemPtr ptr) {
-                if (ptr.isNull())
-                    throw error("Attempt to access '" + fieldName + "' from null reference");
+                if (ptr.maybeNull())
+                    throw error("Attempt to access '" + fieldName + "' from potentially null reference");
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
@@ -444,7 +444,7 @@ public class Parser {
         if (structType != null && match(";")) {
             // typename name ';'
             // Assign a null value
-            var expr = new ConstantNode(new TypeMemPtr(null)).peephole();
+            var expr = new ConstantNode(TypeMemPtr.NULLPTR).peephole();
             _scope.define(name, expr);
             return expr;
         }
@@ -584,12 +584,12 @@ public class Parser {
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
-        if( matchx("null") ) return new ConstantNode(new TypeMemPtr(null)).peephole();
+        if( matchx("null") ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
             TypeStruct structType = _structTypes.get(structName);
             if( structType == null) throw errorSyntax("Unknown struct type '" + structName + "'");
-            return new NewNode(new TypeMemPtr(structType)).keep().peephole().unkeep(); // TODO mem input
+            return new NewNode(new TypeMemPtr(structType).intern()).keep().peephole().unkeep(); // TODO mem input
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
@@ -610,8 +610,8 @@ public class Parser {
         if (match(".")) {
             String fieldName = requireId();
             if (expr._type instanceof TypeMemPtr ptr) {
-                if (ptr.isNull())
-                    throw error("Attempt to access '" + fieldName + "' from null reference");
+                if (ptr.maybeNull())
+                    throw error("Attempt to access '" + fieldName + "' from potentially null reference");
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");

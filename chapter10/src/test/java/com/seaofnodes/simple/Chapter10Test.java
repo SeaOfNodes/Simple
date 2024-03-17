@@ -61,7 +61,7 @@ int v3=v1.zAicm;
             fail();
         }
         catch (RuntimeException e) {
-            assertEquals("Attempt to access 'zAicm' from null reference",e.getMessage());
+            assertEquals("Attempt to access 'zAicm' from potentially null reference",e.getMessage());
         }
     }
 
@@ -114,7 +114,13 @@ bar.a = 1;
 return bar.a;             
                 """);
 
-        StopNode stop = parser.parse(true);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (RuntimeException e) {
+            assertEquals("Attempt to access 'a' from potentially null reference", e.getMessage());
+        }
     }
 
     @Test
@@ -130,7 +136,13 @@ bar.a = 1;
 return bar.a;             
                 """);
 
-        StopNode stop = parser.parse(true);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (RuntimeException e) {
+            assertEquals("Attempt to access 'a' from potentially null reference", e.getMessage());
+        }
     }
 
     @Test
@@ -150,7 +162,7 @@ return bar.a;
             fail();
         }
         catch (RuntimeException e) {
-            assertEquals("Attempt to access 'a' from null reference", e.getMessage());
+            assertEquals("Attempt to access 'a' from potentially null reference", e.getMessage());
         }
     }
 
