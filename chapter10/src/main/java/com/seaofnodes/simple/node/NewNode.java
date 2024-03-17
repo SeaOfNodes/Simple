@@ -40,4 +40,10 @@ public class NewNode extends Node {
     public Node idealize() {
         return null;
     }
+
+    @Override
+    boolean eq(Node n) { return false; }
+
+    @Override
+    int hash() { return System.identityHashCode(this); }
 }

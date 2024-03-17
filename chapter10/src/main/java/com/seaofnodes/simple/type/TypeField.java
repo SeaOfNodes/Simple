@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import java.util.Objects;
+
 /**
  * Represents a field in a struct
  */
@@ -40,4 +42,17 @@ public class TypeField implements AliasSource {
     public int alias() { return _alias; }
 
     public static void reset() { _ALIAS_ID = 2; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TypeField typeField = (TypeField) o;
+        return Objects.equals(_structType, typeField._structType) && Objects.equals(_fieldName, typeField._fieldName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(_structType, _fieldName);
+    }
 }

@@ -412,11 +412,7 @@ public class Parser {
             Node n = _scope.lookup(name);
             if (n == null) throw error("Undefined name '" + name + "'");
             if (n._type instanceof TypeMemPtr ptr) {
-                if (ptr.maybeNull())
-                    throw error("Attempt to access '" + fieldName + "' from potentially null reference");
-                TypeStruct structType = ptr.structType();
-                TypeField field = structType.getField(fieldName);
-                if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
+                TypeField field = getTypeField(ptr, fieldName);
                 return _scope.update(field.aliasName(), new StoreNode(field, _scope.lookup(field.aliasName()), n, expr).peephole());
             }
             else throw error("Expected '" + name + "' to be a reference to a struct");
@@ -610,16 +606,21 @@ public class Parser {
         if (match(".")) {
             String fieldName = requireId();
             if (expr._type instanceof TypeMemPtr ptr) {
-                if (ptr.maybeNull())
-                    throw error("Attempt to access '" + fieldName + "' from potentially null reference");
-                TypeStruct structType = ptr.structType();
-                TypeField field = structType.getField(fieldName);
-                if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
+                TypeField field = getTypeField(ptr, fieldName);
                 return new LoadNode(field, _scope.lookup(field.aliasName()), expr).peephole();
             }
             else throw error("Expected reference to a struct");
         }
         else return expr;
+    }
+
+    private static TypeField getTypeField(TypeMemPtr ptr, String fieldName) {
+        if (ptr.maybeNull())
+            throw error("Attempt to access '" + fieldName + "' from potentially null reference");
+        TypeStruct structType = ptr.structType();
+        TypeField field = structType.getField(fieldName);
+        if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
+        return field;
     }
 
     /**
