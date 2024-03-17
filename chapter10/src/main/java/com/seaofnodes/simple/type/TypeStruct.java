@@ -30,6 +30,13 @@ public class TypeStruct extends Type {
     public Collection<TypeField> fields() { return _fields.values(); }
 
     @Override
+    protected Type xmeet(Type t) {
+        TypeStruct other = (TypeStruct) t;
+        if (other == this) return this;
+        else throw new RuntimeException("Unexpected meet of struct types");
+    }
+
+    @Override
     int hash() { return Objects.hash(_type, _name); }
 
     @Override

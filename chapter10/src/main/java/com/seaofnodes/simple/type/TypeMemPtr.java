@@ -15,6 +15,13 @@ public class TypeMemPtr extends Type {
     public boolean isNull() { return _structType == null; }
 
     @Override
+    protected Type xmeet(Type t) {
+        TypeMemPtr other = (TypeMemPtr) t;
+        if (_structType == other._structType) return this;
+        else throw new RuntimeException("Unexpected meet of type MemPtr");
+    }
+
+    @Override
     int hash() { return _structType != null ? _structType.hash() : TMEMPTR; }
 
     @Override

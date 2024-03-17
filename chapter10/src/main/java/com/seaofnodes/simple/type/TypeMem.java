@@ -15,6 +15,13 @@ public class TypeMem extends Type {
     }
 
     @Override
+    protected Type xmeet(Type t) {
+        TypeMem other = (TypeMem) t;
+        if (other._aliasSource.alias() == _aliasSource.alias()) return this;
+        else throw new RuntimeException("Unexpected meet between Mem types");
+    }
+
+    @Override
     int hash() {
         return Objects.hash(_type, _aliasSource.alias());
     }
