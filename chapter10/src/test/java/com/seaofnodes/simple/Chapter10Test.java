@@ -83,4 +83,21 @@ arg=0+new s0.0;
         }
     }
 
+    @Test
+    public void testLoop() {
+        Parser parser = new Parser(
+                """
+struct Bar {
+    int a;
+}
+Bar bar = new Bar;
+while (arg) {
+    bar.a = bar.a + 2;
+    arg = arg + 1;
+}
+return bar.a;                
+                """);
+
+        StopNode stop = parser.parse(true);
+    }
 }

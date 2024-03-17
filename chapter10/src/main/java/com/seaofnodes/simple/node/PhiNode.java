@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 import java.util.BitSet;
 
@@ -36,7 +37,7 @@ public class PhiNode extends Node {
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? Type.TOP : _type;
-        if( r.inProgress() ) return Type.BOTTOM;
+        if( r.inProgress() ) return isMemPhi();
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
@@ -44,6 +45,17 @@ public class PhiNode extends Node {
             if( r.in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
                 t = t.meet(in(i)._type);
         return t;
+    }
+
+    /**
+     * If its a memory ptr hi then all inputs will have the same type
+     * so we can compute the type baed on first input.
+     */
+    private Type isMemPhi() {
+        if( nIns() >= 2
+            && in(1)._type instanceof TypeMemPtr)
+            return in(1)._type;
+        return Type.BOTTOM;
     }
 
     @Override
