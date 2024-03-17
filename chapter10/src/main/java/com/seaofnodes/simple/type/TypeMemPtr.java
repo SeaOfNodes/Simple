@@ -49,6 +49,7 @@ public class TypeMemPtr extends Type {
         // a ptr is equal to itself
         if (this == t) return true;
         if (t instanceof TypeMemPtr ptr) {
+            if (_structType != ptr._structType) return false;
             if (isNull()) return ptr.isNull();
             if (maybeNull()) return ptr.maybeNull();
         }

@@ -193,7 +193,7 @@ public class Parser {
         // For now, we don't allow empty structs but in future
         // if we support classes we will need to allow
         if (structType.numFields() == 0) throw errorSyntax("struct '" + typeName + "' must contain 1 or more fields");
-        _structTypes.put(typeName, structType);
+        _structTypes.put(typeName, structType.intern());
         START.addMemProj(structType, _scope);
         return parseStatement();
     }
