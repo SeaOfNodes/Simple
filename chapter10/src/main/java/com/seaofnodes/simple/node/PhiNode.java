@@ -48,8 +48,8 @@ public class PhiNode extends Node {
     }
 
     /**
-     * If its a memory ptr hi then all inputs will have the same type
-     * so we can compute the type baed on first input.
+     * If this is a memory ptr phi then all inputs will have the same type
+     * so we can compute the type based on first input.
      */
     private Type isMemPhi() {
         if( nIns() >= 2

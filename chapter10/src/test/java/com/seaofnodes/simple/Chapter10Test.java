@@ -100,4 +100,59 @@ return bar.a;
 
         StopNode stop = parser.parse(true);
     }
+
+    @Test
+    public void testIf() {
+        Parser parser = new Parser(
+                """
+struct Bar {
+    int a;
+}
+Bar bar = new Bar;
+if (arg) bar = null;
+bar.a = 1;
+return bar.a;             
+                """);
+
+        StopNode stop = parser.parse(true);
+    }
+
+    @Test
+    public void testIf2() {
+        Parser parser = new Parser(
+                """
+struct Bar {
+    int a;
+}
+Bar bar = null;
+if (arg) bar = new Bar;
+bar.a = 1;
+return bar.a;             
+                """);
+
+        StopNode stop = parser.parse(true);
+    }
+
+    @Test
+    public void testIf3() {
+        Parser parser = new Parser(
+                """
+struct Bar {
+    int a;
+}
+Bar bar = null;
+if (arg) bar = null;
+bar.a = 1;
+return bar.a;             
+                """);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (RuntimeException e) {
+            assertEquals("Attempt to access 'a' from null reference", e.getMessage());
+        }
+    }
+
+
 }

@@ -412,6 +412,8 @@ public class Parser {
             Node n = _scope.lookup(name);
             if (n == null) throw error("Undefined name '" + name + "'");
             if (n._type instanceof TypeMemPtr ptr) {
+                if (ptr.isNull())
+                    throw error("Attempt to access '" + fieldName + "' from null reference");
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");

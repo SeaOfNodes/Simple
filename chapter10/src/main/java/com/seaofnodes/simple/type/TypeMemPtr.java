@@ -17,6 +17,8 @@ public class TypeMemPtr extends Type {
     @Override
     protected Type xmeet(Type t) {
         TypeMemPtr other = (TypeMemPtr) t;
+        if (isNull() && !other.isNull()) return other;
+        if (!isNull() && other.isNull()) return this;
         if (_structType == other._structType) return this;
         else throw new RuntimeException("Unexpected meet of type MemPtr");
     }
@@ -35,6 +37,7 @@ public class TypeMemPtr extends Type {
 
     @Override
     public StringBuilder _print(StringBuilder sb) {
+        if (isNull()) return sb.append("null");
         return sb.append("ptr(" + _structType._name + ")");
     }
 }
