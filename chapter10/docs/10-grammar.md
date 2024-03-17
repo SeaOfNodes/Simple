@@ -110,8 +110,8 @@ primaryExpression
     | 'false'
     | 'null'
     | newExpression
-    | fieldExpression
     | '(' expression ')'
+    | fieldExpression
     ;
 
 INTEGER_LITERAL

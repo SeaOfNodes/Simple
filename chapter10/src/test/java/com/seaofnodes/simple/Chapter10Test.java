@@ -3,6 +3,9 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 public class Chapter10Test {
 
 
@@ -41,6 +44,43 @@ else
 return v;
                 """);
         StopNode stop = parser.parse(true);
+    }
+
+    @Test
+    public void testBug() {
+        Parser parser = new Parser(
+                """
+struct s0 {
+    int v0;
+}
+s0 v1=null;
+int v3=v1.zAicm;
+                """);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (RuntimeException e) {
+            assertEquals("Attempt to access 'zAicm' from null reference",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testBug2() {
+        Parser parser = new Parser(
+                """
+struct s0 {
+    int v0;
+}
+arg=0+new s0.0;
+                """);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (RuntimeException e) {
+            assertEquals("Expected an identifier, found 'null'",e.getMessage());
+        }
     }
 
 }

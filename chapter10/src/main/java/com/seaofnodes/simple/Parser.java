@@ -560,13 +560,13 @@ public class Parser {
      * Parse a unary minus expression.
      *
      * <pre>
-     *     unaryExpr : ('-') unaryExpr | primaryExpr
+     *     unaryExpr : ('-') unaryExpr | postfixExpr | primaryExpr
      * </pre>
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
-        return parsePrimary();
+        return parsePostfixExpr(parsePrimary());
     }
 
     /**
@@ -592,20 +592,32 @@ public class Parser {
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);
-        if( n==null ) throw error("Undefined name '" + name + "'");
+        if( n!=null ) return n;
+        throw error("Undefined name '" + name + "'");
+    }
+
+    /**
+     * Parse postfix expression. For now this is just a field
+     * expression, but in future could be array index too.
+     *
+     * <pre>
+     *     expr '.' IDENTIFIER
+     * </pre>
+     */
+    private Node parsePostfixExpr(Node expr) {
         if (match(".")) {
-            // Load expression
             String fieldName = requireId();
-            if (n._type instanceof TypeMemPtr ptr) {
+            if (expr._type instanceof TypeMemPtr ptr) {
+                if (ptr.isNull())
+                    throw error("Attempt to access '" + fieldName + "' from null reference");
                 TypeStruct structType = ptr.structType();
                 TypeField field = structType.getField(fieldName);
                 if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
-                return new LoadNode(field, _scope.lookup(field.aliasName()), n).peephole();
+                return new LoadNode(field, _scope.lookup(field.aliasName()), expr).peephole();
             }
-            else throw error("Expected '" + name + "' to be a reference to a struct");
+            else throw error("Expected reference to a struct");
         }
-        if( n!=null ) return n;
-        throw error("Undefined name '" + name + "'");
+        else return expr;
     }
 
     /**
