@@ -615,8 +615,8 @@ public class Parser {
     }
 
     private static TypeField getTypeField(TypeMemPtr ptr, String fieldName) {
-        if (ptr.maybeNull())
-            throw error("Attempt to access '" + fieldName + "' from potentially null reference");
+        if (ptr.isNull())
+            throw error("Attempt to access '" + fieldName + "' from null reference");
         TypeStruct structType = ptr.structType();
         TypeField field = structType.getField(fieldName);
         if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");

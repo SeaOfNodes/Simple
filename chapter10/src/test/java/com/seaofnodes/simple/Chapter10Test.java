@@ -61,7 +61,7 @@ int v3=v1.zAicm;
             fail();
         }
         catch (RuntimeException e) {
-            assertEquals("Attempt to access 'zAicm' from potentially null reference",e.getMessage());
+            assertEquals("Attempt to access 'zAicm' from null reference",e.getMessage());
         }
     }
 
@@ -113,14 +113,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;             
                 """);
-
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (RuntimeException e) {
-            assertEquals("Attempt to access 'a' from potentially null reference", e.getMessage());
-        }
+        StopNode stop = parser.parse(true);
     }
 
     @Test
@@ -135,14 +128,7 @@ if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;             
                 """);
-
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (RuntimeException e) {
-            assertEquals("Attempt to access 'a' from potentially null reference", e.getMessage());
-        }
+        StopNode stop = parser.parse(true);
     }
 
     @Test
@@ -162,8 +148,39 @@ return bar.a;
             fail();
         }
         catch (RuntimeException e) {
-            assertEquals("Attempt to access 'a' from potentially null reference", e.getMessage());
+            assertEquals("Attempt to access 'a' from null reference", e.getMessage());
         }
+    }
+
+    @Test
+    public void testWhileWithNullInside() {
+        Parser parser = new Parser(
+                """
+struct s0 {int v0;}
+s0 v0 = new s0;
+int ret = 0;
+while(arg) {
+    ret = v0.v0;
+    v0 = null;
+    arg = arg - 1;
+}
+return ret;     
+                """);
+        StopNode stop = parser.parse(true);
+    }
+
+    @Test
+    public void testRedeclareStruct() {
+        Parser parser = new Parser(
+                """
+struct s0 {
+    int v0;
+}
+s0 v1=new s0;
+s0 v1;
+v1=new s0;  
+                """);
+        StopNode stop = parser.parse(true);
     }
 
 

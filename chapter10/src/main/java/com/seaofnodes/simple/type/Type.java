@@ -120,6 +120,7 @@ public class Type {
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
+    public Type widen() { return BOTTOM; }
     
     // ----------------------------------------------------------
     // Our lattice is defined with a MEET and a DUAL.

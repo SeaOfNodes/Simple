@@ -42,6 +42,12 @@ public class TypeMemPtr extends Type {
     }
 
     @Override
+    public Type widen() {
+        if (!isNull()) return new TypeMemPtr(_structType, true).intern();
+        return this;
+    }
+
+    @Override
     int hash() { return Objects.hash(_structType != null ? _structType.hash() : TMEMPTR, _maybeNull); }
 
     @Override

@@ -59,6 +59,9 @@ public class TypeInteger extends Type {
     }
 
     @Override
+    public Type widen() { return BOT; }
+
+    @Override
     public Type dual() {
         if( isConstant() ) return this; // Constants are a self-dual
         return _con==0 ? BOT : TOP;
