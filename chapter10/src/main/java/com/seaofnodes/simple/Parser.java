@@ -437,16 +437,16 @@ public class Parser {
         var name = requireId();
         TypeStruct structType = null;
         if (t instanceof TypeStruct ts) structType = ts;
+        Node expr; // initial value
         if (structType != null && match(";")) {
             // typename name ';'
             // Assign a null value
-            var expr = new ConstantNode(TypeMemPtr.NULLPTR).peephole();
-            if( _scope.define(name,expr) == null )
-                throw error("Redefining name '" + name + "'");
-            return expr;
+            expr = new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         }
-        require("=");
-        var expr = require(parseExpression(), ";");
+        else {
+            require("=");
+            expr = require(parseExpression(), ";");
+        }
         typeCheck(structType, expr, name);
         if( _scope.define(name,expr) == null )
             throw error("Redefining name '" + name + "'");
