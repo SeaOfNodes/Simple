@@ -441,7 +441,8 @@ public class Parser {
             // typename name ';'
             // Assign a null value
             var expr = new ConstantNode(TypeMemPtr.NULLPTR).peephole();
-            _scope.define(name, expr);
+            if( _scope.define(name,expr) == null )
+                throw error("Redefining name '" + name + "'");
             return expr;
         }
         require("=");

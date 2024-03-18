@@ -180,7 +180,13 @@ s0 v1=new s0;
 s0 v1;
 v1=new s0;  
                 """);
-        StopNode stop = parser.parse(true);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (RuntimeException e) {
+            assertEquals("Redefining name 'v1'", e.getMessage());
+        }
     }
 
 
