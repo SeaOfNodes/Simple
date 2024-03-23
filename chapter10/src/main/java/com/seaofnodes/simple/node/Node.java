@@ -122,31 +122,6 @@ public abstract class Node {
     // Every Node implements this; a partial-line recursive print
     abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
 
-
-    // Print a node on 1 line, columnar aligned, as:
-    // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
-    // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
-    public void _printLine(StringBuilder sb ) {
-        sb.append("%4d %-7.7s ".formatted(_nid,label()));
-        if( _inputs==null ) {
-            sb.append("DEAD\n");
-            return;
-        }
-        for( Node def : _inputs )
-            sb.append(def==null ? "____ " : "%4d ".formatted(def._nid));
-        for( int i = _inputs.size(); i<3; i++ )
-            sb.append("     ");
-        sb.append(" [[  ");
-        for( Node use : _outputs )
-            sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
-        int lim = 5 - Math.max(_inputs.size(),3);
-        for( int i = _outputs.size(); i<lim; i++ )
-            sb.append("     ");
-        sb.append(" ]]  ");
-        if( _type!= null ) _type._print(sb);
-        sb.append("\n");
-    }
-
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
     
     public boolean isMultiHead() { return false; }

@@ -34,7 +34,5 @@ public class TypeMem extends Type {
     }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) {
-        return sb.append(_aliasSource.aliasName());
-    }
+    public StringBuilder _print(StringBuilder sb) { return sb.append("Mem#").append(_aliasSource.alias()); }
 }

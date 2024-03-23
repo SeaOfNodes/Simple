@@ -60,6 +60,11 @@ public class Type {
 
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
+    /**
+     * Display Type name in a format that's good for IR printer
+     */
+    public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
+
     // ----------------------------------------------------------
 
     // Factory method which interns "this"

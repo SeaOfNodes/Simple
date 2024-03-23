@@ -189,5 +189,43 @@ v1=new s0;
         }
     }
 
+    @Test
+    public void test1() {
+        Parser parser = new Parser(
+                """
+struct s0 {int v0;}
+s0 ret = new s0;
+while(arg) {
+    s0 v0 = new s0;
+    v0.v0 = arg;
+    arg = arg-1;
+    if (arg==5) ret=v0;
+    #showGraph;
+}
+return ret;                
+                """);
+        StopNode stop = parser.parse(true);
+        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+    }
+
+    @Test
+    public void test2() {
+        Parser parser = new Parser(
+                """
+struct s0 {int v0;}
+s0 ret = new s0;
+s0 v0 = new s0;
+while(arg) {
+    v0.v0 = arg;
+    arg = arg-1;
+    if (arg==5) ret=v0;
+        #showGraph;
+}
+return ret;          
+                """);
+        StopNode stop = parser.parse(true);
+        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+    }
+
 
 }

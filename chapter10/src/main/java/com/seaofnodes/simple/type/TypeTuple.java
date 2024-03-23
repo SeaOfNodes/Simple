@@ -34,6 +34,19 @@ public class TypeTuple extends Type {
         return sb;
     }
 
+    /**
+     * Display Type name in a format that's good for IR printer
+     */
+    @Override
+    public StringBuilder typeName(StringBuilder sb) {
+        sb.append("[");
+        for( Type t : _types )
+            t.typeName(sb).append(",");
+        sb.setLength(sb.length()-1);
+        sb.append("]");
+        return sb;
+    }
+
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});
     public static final TypeTuple IF_NEITHER = make(new Type[]{Type.XCONTROL,Type.XCONTROL});
     public static final TypeTuple IF_TRUE    = make(new Type[]{Type. CONTROL,Type.XCONTROL});

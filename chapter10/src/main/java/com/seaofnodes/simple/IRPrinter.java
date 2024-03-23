@@ -8,8 +8,61 @@ import java.util.BitSet;
 
 public class IRPrinter {
 
-    // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
+    // Print a node on 1 line, columnar aligned, as:
+    // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
+    // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
+    public static void _printLine( Node n, StringBuilder sb ) {
+        sb.append("%4d %-7.7s ".formatted(n._nid,n.label()));
+        if( n._inputs==null ) {
+            sb.append("DEAD\n");
+            return;
+        }
+        for( Node def : n._inputs )
+            sb.append(def==null ? "____ " : "%4d ".formatted(def._nid));
+        for( int i = n._inputs.size(); i<3; i++ )
+            sb.append("     ");
+        sb.append(" [[  ");
+        for( Node use : n._outputs )
+            sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
+        int lim = 5 - Math.max(n._inputs.size(),3);
+        for( int i = n._outputs.size(); i<lim; i++ )
+            sb.append("     ");
+        sb.append(" ]]  ");
+        if( n._type!= null ) n._type._print(sb);
+        sb.append("\n");
+    }
+
+    // Print a node on 1 line, format is inspired by LLVM
+    // %id: TYPE = NODE(inputs ....)
+    // Nodes as referred to as %id
+    public static void _printLineLlvmFormat( Node n, StringBuilder sb ) {
+        sb.append("%%%d: ".formatted(n._nid));
+        if( n._inputs==null ) {
+            sb.append("DEAD\n");
+            return;
+        }
+        if( n._type!= null ) n._type.typeName(sb);
+        sb.append(" = ").append( n.label() ).append( "(" );
+        for( int i = 0; i < n._inputs.size(); i++ ) {
+            Node def = n.in(i);
+            if (i > 0)
+                sb.append(", ");
+            sb.append(def == null ? "_" : "%%%d".formatted(def._nid));
+        }
+        sb.append(")").append("\n");
+    }
+
+    public static void printLine( Node n, StringBuilder sb, boolean llvmFormat ) {
+        if (llvmFormat) _printLineLlvmFormat( n, sb );
+        else            _printLine          ( n, sb );
+    }
+
     public static String prettyPrint(Node node, int depth) {
+        return prettyPrint( node, depth, false );
+    }
+
+    // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
+    public static String prettyPrint( Node node, int depth, boolean llvmFormat ) {
         // First, a Breadth First Search at a fixed depth.
         BFS bfs = new BFS(node,depth);
         // Convert just that set to a post-order
@@ -24,16 +77,16 @@ public class IRPrinter {
             Node n = rpos.get(i);
             if( n.isCFG() || n.isMultiHead() ) {
                 if( !gap ) sb.append("\n"); // Blank before multihead
-                n._printLine(sb); // Print head
+                printLine( n, sb, llvmFormat ); // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
                     if( !t.isMultiTail() ) { i++; break; }
-                    t._printLine(sb);
+                    printLine( t, sb, llvmFormat );
                 }
                 sb.append("\n"); // Blank after multitail
                 gap = true;
             } else {
-                n._printLine( sb );
+                printLine( n, sb, llvmFormat );
                 gap = false;
             }
         }

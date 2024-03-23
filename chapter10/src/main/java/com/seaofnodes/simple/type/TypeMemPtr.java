@@ -65,7 +65,7 @@ public class TypeMemPtr extends Type {
     @Override
     public StringBuilder _print(StringBuilder sb) {
         if (isNull()) return sb.append("null");
-        sb.append("ptr(" + _structType._name + ")");
+        sb.append("Ptr(" + _structType._name + ")");
         if (maybeNull()) sb.append("|null");
         return sb;
     }
