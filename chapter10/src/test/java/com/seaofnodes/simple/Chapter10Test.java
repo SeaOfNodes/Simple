@@ -228,4 +228,21 @@ return ret;
     }
 
 
+    @Test
+    public void test3() {
+        Parser parser = new Parser(
+                """
+struct s0 {int v0;}
+s0 ret = new s0;
+while(arg < 10) {
+    s0 v0 = new s0;
+    if (arg == 5) ret=v0;
+    arg = arg + 1;
+}
+return ret;                
+                """);
+        StopNode stop = parser.parse(true);
+        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+    }
+
 }

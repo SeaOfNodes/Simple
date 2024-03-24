@@ -586,13 +586,25 @@ public class Parser {
             String structName = requireId();
             TypeStruct structType = _structTypes.get(structName);
             if( structType == null) throw errorSyntax("Unknown struct type '" + structName + "'");
-            return new NewNode(new TypeMemPtr(structType).intern()).peephole();
+            return newStruct(structType);
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);
         if( n!=null ) return n;
         throw error("Undefined name '" + name + "'");
+    }
+
+    /**
+     * Return a NewNode but also generate instructions to initialize it.
+     */
+    private Node newStruct(TypeStruct structType) {
+        Node n = new NewNode(new TypeMemPtr(structType).intern()).peephole();
+        Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
+        for (TypeField field: structType.fields()) {
+            _scope.update(field.aliasName(), new StoreNode(field, _scope.lookup(field.aliasName()), n, initValue).peephole());
+        }
+        return n;
     }
 
     /**
