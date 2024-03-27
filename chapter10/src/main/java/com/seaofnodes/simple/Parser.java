@@ -599,7 +599,7 @@ public class Parser {
      * Return a NewNode but also generate instructions to initialize it.
      */
     private Node newStruct(TypeStruct structType) {
-        Node n = new NewNode(new TypeMemPtr(structType).intern()).peephole();
+        Node n = new NewNode(new TypeMemPtr(structType).intern(), ctrl()).peephole();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
         for (TypeField field: structType.fields()) {
             _scope.update(field.aliasName(), new StoreNode(field, _scope.lookup(field.aliasName()), n, initValue).peephole());

@@ -176,7 +176,7 @@ public class GraphVisualizer {
             // Do not display the Constant->Start edge;
             // ProjNodes handled by Multi;
             // ScopeNodes are done separately
-            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode || n instanceof NewNode )
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
                 continue;
             for( int i=0; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
@@ -195,8 +195,11 @@ public class GraphVisualizer {
                     } else sb.append(def.uniqueName());
                     // Number edges, so we can see how they track
                     sb.append("[taillabel=").append(i);
+                    // The edge from New to ctrl is just for anchoring the New
+                    if ( n instanceof NewNode )
+                        sb.append(" color=green");
                     // control edges are colored red
-                    if( def.isCFG() )
+                    else if( def.isCFG() )
                         sb.append(" color=red");
                     // Backedges do not add a ranking constraint
                     if( i==2 && (n instanceof PhiNode || n instanceof LoopNode) )

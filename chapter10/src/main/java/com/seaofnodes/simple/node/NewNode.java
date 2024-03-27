@@ -10,8 +10,8 @@ public class NewNode extends Node {
 
     TypeMemPtr _ptr;
 
-    public NewNode(TypeMemPtr ptr) {
-        super(Parser.START);
+    public NewNode(TypeMemPtr ptr, Node ctrl) {
+        super(ctrl);
         this._ptr = ptr;
     }
 
