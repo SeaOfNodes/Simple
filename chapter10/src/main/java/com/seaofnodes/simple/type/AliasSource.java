@@ -5,5 +5,15 @@ package com.seaofnodes.simple.type;
  */
 public interface AliasSource {
     int alias();
-    String aliasName();
+
+    /**
+     * Alias names - requirement is that they start with $ so we can use
+     * them as special var names. We rely upon this naming convention to find all the
+     * mem slices
+     */
+    default String aliasName() {
+        // The $ prefix is allow use of this as a special var name
+        //
+        return "$Alias" + alias();
+    }
 }

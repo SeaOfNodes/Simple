@@ -8,12 +8,6 @@ import java.util.Objects;
 public class TypeField implements AliasSource {
 
     /**
-     * Alias ID generator - we start at 2 because START uses 0 and 1 slots,
-     * by starting at 2, our alias ID is nicely mapped to a slot in Start.
-     */
-    static int _ALIAS_ID = 2;
-
-    /**
      * Struct type that owns this field
      */
     final TypeStruct _structType;
@@ -28,20 +22,24 @@ public class TypeField implements AliasSource {
 
     public final int _alias;
 
-    public TypeField(TypeStruct _structType, Type _fieldType, String _fieldName) {
+    public TypeField(TypeStruct _structType, Type _fieldType, String _fieldName, int alias) {
         this._structType = _structType;
         this._fieldType = _fieldType;
         this._fieldName = _fieldName;
-        this._alias = _ALIAS_ID++;
+        this._alias = alias;
     }
 
+    /**
+     * Alias names - requirement is that they start with $ so we can use
+     * them as special var names. We rely upon this naming convention to find all the
+     * mem slices
+     */
     @Override
     public String aliasName() { return "$" + _structType._name + "_" + _fieldName; }
 
     @Override
     public int alias() { return _alias; }
 
-    public static void reset() { _ALIAS_ID = 2; }
 
     @Override
     public boolean equals(Object o) {

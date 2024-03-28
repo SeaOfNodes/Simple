@@ -75,7 +75,7 @@ public class Parser {
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        TypeField.reset(); // Reset aliases
+        TypeStruct.resetAliasId(); // Reset aliases
         _structTypes.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -413,7 +413,7 @@ public class Parser {
             if (n == null) throw error("Undefined name '" + name + "'");
             if (n._type instanceof TypeMemPtr ptr) {
                 TypeField field = getTypeField(ptr, fieldName);
-                return _scope.update(field.aliasName(), new StoreNode(field, _scope.lookup(field.aliasName()), n, expr).peephole());
+                return memAlias(field, new StoreNode(field, memAlias(field), n, expr).peephole());
             }
             else throw error("Expected '" + name + "' to be a reference to a struct");
         }
@@ -602,10 +602,17 @@ public class Parser {
         Node n = new NewNode(new TypeMemPtr(structType).intern(), ctrl()).peephole();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
         for (TypeField field: structType.fields()) {
-            _scope.update(field.aliasName(), new StoreNode(field, _scope.lookup(field.aliasName()), n, initValue).peephole());
+            memAlias(field, new StoreNode(field, memAlias(field), n, initValue).peephole());
         }
         return n;
     }
+
+    // We set up memory aliases by inserting special vars in the scope
+    // these variables are prefixed by $ so they cannot be referenced in Simple code.
+    // using vars has the benefit that all the existing machinery of scoping and phis work
+    // as expected
+    private Node memAlias(TypeField field)             { return _scope.lookup(field.aliasName()); }
+    private Node memAlias(TypeField field, Node store) { return _scope.update(field.aliasName(), store); }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -620,9 +627,9 @@ public class Parser {
             String fieldName = requireId();
             if (expr._type instanceof TypeMemPtr ptr) {
                 TypeField field = getTypeField(ptr, fieldName);
-                return new LoadNode(field, _scope.lookup(field.aliasName()), expr).peephole();
+                return new LoadNode(field, memAlias(field), expr).peephole();
             }
-            else throw error("Expected reference to a struct");
+            else throw error("Expected reference to a struct but got " + expr.toString());
         }
         else return expr;
     }

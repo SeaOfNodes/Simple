@@ -10,7 +10,7 @@ Here is the [complete language grammar](docs/10-grammar.md) for this chapter.
 
 ## Memory
 
-Until now we have dealt with scalar values that fit a single machine register. We now introduce aggregate type `struct` have reference semantics and thus do not work well with registers, 
+Until now we have dealt with scalar values that fit a single machine register. We now introduce aggregate type `struct` that have reference semantics and thus do not work as register values, 
 even if the struct would fit into a register. To support values of such a type, we need the concept of `Memory`.
 
 The core ideas regarding `Memory` are:
@@ -46,12 +46,13 @@ was a subtype of `Vector2D` then `x` and `y` would alias and would be given the 
 
 We add following new Node types to support memory operations:
 
-| Node Name | Type    | Description                        | Inputs                                                           | Value                                  |
-|-----------|---------|------------------------------------|------------------------------------------------------------------|----------------------------------------|
-| New       | Mem     | Create ptr to new object           | Memory, Struct type                                              | Ptr value                              |
-| Store     | Mem     | Stores a value in a struct field   | Memory slice (aliased by struct+field), Ptr, Field, Value        | Memory slice (aliased by struct+field) |
-| Load      | Mem     | Loads a value from a field         | Memory slice (aliased by struct+field), Ptr, Field               | Value loaded                           |
+| Node Name | Type | Description                      | Inputs                                                    | Value                                  |
+|-----------|------|----------------------------------|-----------------------------------------------------------|----------------------------------------|
+| New       | Mem  | Create ptr to new object         | Control, Struct type                                      | Ptr value                              |
+| Store     | Mem  | Stores a value in a struct field | Memory slice (aliased by struct+field), Ptr, Field, Value | Memory slice (aliased by struct+field) |
+| Load      | Mem  | Loads a value from a field       | Memory slice (aliased by struct+field), Ptr, Field        | Value loaded                           |
 
+* New takes the current control as an input so that it is pinned correctly in the control flow. Conceptually the control input is also a proxy for all memory that originates from the Start node.
 * Above, "Ptr" refers to the base address of the allocated object. Within the context of a single program (function), each `Ptr` represents a distinct object in memory.
 * A "Memory Slice" represents a slice of memory where all stores and loads alias. Different slices do not alias.
 
