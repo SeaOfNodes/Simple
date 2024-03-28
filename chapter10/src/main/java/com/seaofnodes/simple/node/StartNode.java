@@ -29,15 +29,19 @@ public class StartNode extends MultiNode {
     public TypeTuple addMemProj(TypeStruct structType, ScopeNode scopeNode) {
         Type[] args = Arrays.copyOf(_args._types, _args._types.length + structType.numFields());
         int i = _args._types.length;
+        int origLength = i;
         for (TypeField field: structType.fields()) {
-            args[i++] = new TypeMem(field).intern();
+            args[i++] = TypeMem.make(field);
         }
         _args = TypeTuple.make(args);
-        _type = compute(); // FIXME this is a hack because of chicken and egg situation, proj needs input node to have types already set
+        _type = compute(); // proj needs input node to have types already set
+        i = origLength;
         for (TypeField field: structType.fields()) {
             String name = field.aliasName();
-            Node n = new MemProjNode(this, field._alias, name, field).peephole();
+            assert field.alias() == i;
+            Node n = new ProjNode(this, field.alias(), name).peephole();
             scopeNode.define(name, n);
+            i++;
         }
         return (TypeTuple) _type;
     }

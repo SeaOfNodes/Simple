@@ -9,10 +9,12 @@ public class TypeMem extends Type {
 
     private final AliasSource _aliasSource;
 
-    public TypeMem(AliasSource aliasSource) {
+    private TypeMem(AliasSource aliasSource) {
         super(TMEM);
         this._aliasSource = aliasSource;
     }
+
+    public static TypeMem make(AliasSource aliasSource) { return new TypeMem(aliasSource).intern(); }
 
     @Override
     protected Type xmeet(Type t) {

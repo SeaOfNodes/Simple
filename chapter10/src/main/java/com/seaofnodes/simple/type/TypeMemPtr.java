@@ -9,17 +9,20 @@ public class TypeMemPtr extends Type {
 
     public static TypeMemPtr NULLPTR = new TypeMemPtr(null).intern();
 
-    public TypeMemPtr(TypeStruct structType) {
+    private TypeMemPtr(TypeStruct structType) {
         super(TMEMPTR);
         _structType = structType;
         _maybeNull = structType == null;
     }
 
-    public TypeMemPtr(TypeStruct structType, boolean maybeNull) {
+    private TypeMemPtr(TypeStruct structType, boolean maybeNull) {
         super(TMEMPTR);
         _structType = structType;
         _maybeNull = maybeNull;
     }
+
+    public static TypeMemPtr make(TypeStruct structType) { return new TypeMemPtr(structType).intern(); }
+    public static TypeMemPtr make(TypeStruct structType, boolean maybeNull) { return new TypeMemPtr(structType, maybeNull).intern(); }
 
     public TypeStruct structType() { return _structType; }
 
@@ -32,8 +35,8 @@ public class TypeMemPtr extends Type {
     @Override
     protected Type xmeet(Type t) {
         TypeMemPtr other = (TypeMemPtr) t;
-        if (isNull() && !other.isNull()) return new TypeMemPtr(other._structType, true).intern();
-        if (!isNull() && other.isNull()) return new TypeMemPtr(_structType, true).intern();
+        if (isNull() && !other.isNull()) return TypeMemPtr.make(other._structType, true);
+        if (!isNull() && other.isNull()) return TypeMemPtr.make(_structType, true);
         if (_structType == other._structType) {
             if (other._maybeNull) return other;
             return this;
@@ -43,7 +46,7 @@ public class TypeMemPtr extends Type {
 
     @Override
     public Type widen() {
-        if (!isNull()) return new TypeMemPtr(_structType, true).intern();
+        if (!isNull()) return TypeMemPtr.make(_structType, true);
         return this;
     }
 
