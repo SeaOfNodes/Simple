@@ -150,4 +150,8 @@ public class Type {
     public final String toString() {
         return _print(new StringBuilder()).toString();
     }
+
+    public static void reset() {
+        INTERN.clear();
+    }
 }
