@@ -77,7 +77,6 @@ public class Parser {
         IterPeeps.reset();
         TypeStruct.resetAliasId(); // Reset aliases
         _structTypes.clear();
-        Type.reset(); // Clear intern'd types
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;

@@ -46,11 +46,13 @@ public class TypeField implements AliasSource {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TypeField typeField = (TypeField) o;
-        return Objects.equals(_structType, typeField._structType) && Objects.equals(_fieldName, typeField._fieldName);
+        return Objects.equals(_structType, typeField._structType)
+                && Objects.equals(_fieldName, typeField._fieldName)
+                && Objects.equals(_alias, typeField._alias);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(_structType, _fieldName);
+        return Objects.hash(_structType, _fieldName, _alias);
     }
 }

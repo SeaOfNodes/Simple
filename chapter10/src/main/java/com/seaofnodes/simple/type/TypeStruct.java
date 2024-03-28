@@ -45,7 +45,7 @@ public class TypeStruct extends Type {
     @Override
     protected Type xmeet(Type t) {
         TypeStruct other = (TypeStruct) t;
-        if (other == this) return this;
+        if (equals(other)) return this;
         else throw new RuntimeException("Unexpected meet of struct types");
     }
 
@@ -54,8 +54,18 @@ public class TypeStruct extends Type {
 
     @Override
     boolean eq(Type t) {
-        if (t instanceof TypeStruct other)
-            return _name.equals(other._name);
+        // We must do a deep equals because of interning
+        if (t instanceof TypeStruct other) {
+            if ( !_name.equals(other._name) )
+                return false;
+            if ( _fields.size() != other._fields.size() )
+                return false;
+            for (TypeField field : _fields.values()) {
+                if ( !field.equals(other._fields.get(field)) )
+                    return false;
+            }
+            return true;
+        }
         return false;
     }
 
