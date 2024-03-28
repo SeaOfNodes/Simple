@@ -600,12 +600,12 @@ public class Parser {
      * Return a NewNode but also generate instructions to initialize it.
      */
     private Node newStruct(TypeStruct structType) {
-        Node n = new NewNode(new TypeMemPtr(structType).intern(), ctrl()).peephole();
+        Node n = new NewNode(new TypeMemPtr(structType).intern(), ctrl()).peephole().keep();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
         for (TypeField field: structType.fields()) {
             memAlias(field, new StoreNode(field, memAlias(field), n, initValue).peephole());
         }
-        return n;
+        return n.unkeep();
     }
 
     // We set up memory aliases by inserting special vars in the scope

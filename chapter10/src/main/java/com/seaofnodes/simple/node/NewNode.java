@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
@@ -43,7 +42,7 @@ public class NewNode extends Node {
     }
 
     @Override
-    boolean eq(Node n) { return false; }
+    boolean eq(Node n) { return this == n; }
 
     @Override
     int hash() { return System.identityHashCode(this); }

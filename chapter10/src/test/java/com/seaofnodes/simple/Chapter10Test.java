@@ -245,4 +245,24 @@ return ret;
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
     }
 
+    @Test
+    public void testBug3() {
+        Parser parser = new Parser(
+                """
+struct s0 {
+    int f0;
+}
+if(0>=0) return new s0;
+return new s0;
+int v0=null.f0;            
+                """);
+        try {
+            StopNode stop = parser.parse(true);
+            fail();
+        }
+        catch (Exception e) {
+            assertEquals("Attempt to access 'f0' from null reference", e.getMessage());
+        }
+    }
+
 }

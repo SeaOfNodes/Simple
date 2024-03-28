@@ -22,11 +22,11 @@ public class TypeField implements AliasSource {
 
     public final int _alias;
 
-    public TypeField(TypeStruct _structType, Type _fieldType, String _fieldName, int alias) {
-        this._structType = _structType;
-        this._fieldType = _fieldType;
-        this._fieldName = _fieldName;
-        this._alias = alias;
+    public TypeField(TypeStruct structType, Type fieldType, String fieldName, int alias) {
+        _structType = structType;
+        _fieldType = fieldType;
+        _fieldName = fieldName;
+        _alias = alias;
     }
 
     /**
