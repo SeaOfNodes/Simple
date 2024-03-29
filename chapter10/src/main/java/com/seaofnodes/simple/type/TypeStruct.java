@@ -12,30 +12,30 @@ import java.util.Objects;
 public class TypeStruct extends Type {
 
     public final String _name;
-    private final TypeField[] _fields;
+    private final StructField[] _fields;
 
-    private TypeStruct(String name, List<TypeField> fields) {
+    private TypeStruct(String name, List<StructField> fields) {
         super(Type.TSTRUCT);
         _name = name;
-        _fields = fields.toArray(new TypeField[fields.size()]);
+        _fields = fields.toArray(new StructField[fields.size()]);
         for (int i = 0; i < fields.size(); i++) {
-            TypeField field = fields.get(i);
+            StructField field = fields.get(i);
             // We copy the field because parser does not have this, we also add an alias
-            _fields[i] = new TypeField(this, field._fieldType, field._fieldName, Utils.nextAliasId());
+            _fields[i] = new StructField(this, field._fieldType, field._fieldName, Utils.nextAliasId());
         }
     }
 
-    public static TypeStruct make(String name, List<TypeField> fields) { return new TypeStruct(name, fields).intern(); }
+    public static TypeStruct make(String name, List<StructField> fields) { return new TypeStruct(name, fields).intern(); }
 
-    public TypeField getField(String fieldName) {
-        for (TypeField field: _fields)
+    public StructField getField(String fieldName) {
+        for (StructField field: _fields)
             if (field._fieldName.equals(fieldName))
                 return field;
         return null;
     }
 
     public int numFields() { return _fields.length; }
-    public TypeField[] fields() { return _fields; }
+    public StructField[] fields() { return _fields; }
 
     @Override
     protected Type xmeet(Type t) {

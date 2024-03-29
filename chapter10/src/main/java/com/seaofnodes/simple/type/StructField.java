@@ -3,9 +3,9 @@ package com.seaofnodes.simple.type;
 import java.util.Objects;
 
 /**
- * Represents a field in a struct
+ * Represents a field in a struct. This is not a Type in the type system.
  */
-public class TypeField implements AliasSource {
+public class StructField implements AliasSource {
 
     /**
      * Struct type that owns this field
@@ -22,7 +22,7 @@ public class TypeField implements AliasSource {
 
     public final int _alias;
 
-    public TypeField(TypeStruct structType, Type fieldType, String fieldName, int alias) {
+    public StructField(TypeStruct structType, Type fieldType, String fieldName, int alias) {
         _structType = structType;
         _fieldType = fieldType;
         _fieldName = fieldName;
@@ -47,8 +47,11 @@ public class TypeField implements AliasSource {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        TypeField typeField = (TypeField) o;
+        StructField typeField = (StructField) o;
+        // two fields referring to same struct (or null) are the same
+        // if other values are the same
         return _structType == typeField._structType
+                && _fieldType == typeField._fieldType
                 && Objects.equals(_fieldName, typeField._fieldName)
                 && Objects.equals(_alias, typeField._alias);
     }

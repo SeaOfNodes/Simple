@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.LoopNode;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.ProjNode;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -32,11 +33,19 @@ public class IRPrinter {
         sb.append("\n");
     }
 
+    private static StringBuilder nodeId(StringBuilder sb, Node n) {
+        sb.append("%%%d".formatted(n._nid));
+        if (n instanceof ProjNode proj) {
+            sb.append(".").append(proj._idx);
+        }
+        return sb;
+    }
+
     // Print a node on 1 line, format is inspired by LLVM
     // %id: TYPE = NODE(inputs ....)
     // Nodes as referred to as %id
     public static void _printLineLlvmFormat( Node n, StringBuilder sb ) {
-        sb.append("%%%d: ".formatted(n._nid));
+        nodeId(sb, n).append(": ");
         if( n._inputs==null ) {
             sb.append("DEAD\n");
             return;
@@ -47,7 +56,8 @@ public class IRPrinter {
             Node def = n.in(i);
             if (i > 0)
                 sb.append(", ");
-            sb.append(def == null ? "_" : "%%%d".formatted(def._nid));
+            if (def == null) sb.append("_");
+            else             nodeId(sb, def);
         }
         sb.append(")").append("\n");
     }

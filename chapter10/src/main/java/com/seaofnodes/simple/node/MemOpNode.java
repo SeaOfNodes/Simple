@@ -1,12 +1,15 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.TypeField;
+import com.seaofnodes.simple.type.StructField;
 
+/**
+ * Convenience common base for Load and Store.
+ */
 abstract class MemOpNode extends Node {
 
-    protected TypeField _field;
+    protected StructField _field;
 
-    public MemOpNode(TypeField field, Node memSlice, Node memPtr, Node value) {
+    public MemOpNode(StructField field, Node memSlice, Node memPtr, Node value) {
         super(null, memSlice, memPtr, value);
         this._field = field;
     }

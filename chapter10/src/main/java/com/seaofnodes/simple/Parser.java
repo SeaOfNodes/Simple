@@ -165,11 +165,11 @@ public class Parser {
      *     int IDENTIFIER ;
      * </pre>
      */
-    private TypeField parseField() {
+    private StructField parseField() {
         if (matchx("int")) {
             String fieldName = requireId();
             require(";");
-            return new TypeField(null, TypeInteger.BOT, fieldName, 0);
+            return new StructField(null, TypeInteger.BOT, fieldName, 0);
         }
         else throw errorSyntax("A field declaration is expected, only fields of type 'int' are supported at present");
     }
@@ -185,10 +185,10 @@ public class Parser {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
         if (_structTypes.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
-        ArrayList<TypeField> fields = new ArrayList<>();
+        ArrayList<StructField> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {
-            TypeField field = parseField();
+            StructField field = parseField();
             if (fields.contains(field)) throw errorSyntax("Field '" + field._fieldName + "' already defined in struct '" + typeName + "'");
             fields.add(field);
         }
@@ -416,7 +416,7 @@ public class Parser {
             Node n = _scope.lookup(name);
             if (n == null) throw error("Undefined name '" + name + "'");
             if (n._type instanceof TypeMemPtr ptr) {
-                TypeField field = getTypeField(ptr, fieldName);
+                StructField field = getTypeField(ptr, fieldName);
                 return memAlias(field, new StoreNode(field, memAlias(field), n, expr).peephole());
             }
             else throw error("Expected '" + name + "' to be a reference to a struct");
@@ -605,7 +605,7 @@ public class Parser {
     private Node newStruct(TypeStruct structType) {
         Node n = new NewNode(TypeMemPtr.make(structType), ctrl()).peephole().keep();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
-        for (TypeField field: structType.fields()) {
+        for (StructField field: structType.fields()) {
             memAlias(field, new StoreNode(field, memAlias(field), n, initValue).peephole());
         }
         return n.unkeep();
@@ -615,8 +615,8 @@ public class Parser {
     // these variables are prefixed by $ so they cannot be referenced in Simple code.
     // using vars has the benefit that all the existing machinery of scoping and phis work
     // as expected
-    private Node memAlias(TypeField field)             { return _scope.lookup(field.aliasName()); }
-    private Node memAlias(TypeField field, Node store) { return _scope.update(field.aliasName(), store); }
+    private Node memAlias(StructField field)             { return _scope.lookup(field.aliasName()); }
+    private Node memAlias(StructField field, Node store) { return _scope.update(field.aliasName(), store); }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -630,7 +630,7 @@ public class Parser {
         if (match(".")) {
             String fieldName = requireId();
             if (expr._type instanceof TypeMemPtr ptr) {
-                TypeField field = getTypeField(ptr, fieldName);
+                StructField field = getTypeField(ptr, fieldName);
                 return new LoadNode(field, memAlias(field), expr).peephole();
             }
             else throw error("Expected reference to a struct but got " + expr.toString());
@@ -638,11 +638,11 @@ public class Parser {
         else return expr;
     }
 
-    private static TypeField getTypeField(TypeMemPtr ptr, String fieldName) {
+    private static StructField getTypeField(TypeMemPtr ptr, String fieldName) {
         if (ptr.isNull())
             throw error("Attempt to access '" + fieldName + "' from null reference");
         TypeStruct structType = ptr.structType();
-        TypeField field = structType.getField(fieldName);
+        StructField field = structType.getField(fieldName);
         if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + structType._name + "'");
         return field;
     }

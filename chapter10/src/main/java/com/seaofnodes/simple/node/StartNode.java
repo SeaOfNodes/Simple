@@ -6,11 +6,11 @@ import java.util.Arrays;
 import java.util.BitSet;
 
 /**
- * The Start node represents the start of the function.  For now, we do not
- * have any inputs to Start because our function does not yet accept
- * parameters.  When we add parameters the value of Start will be a tuple, and
- * will require Projections to extract the values.  We discuss this in detail
- * in Chapter 9: Functions and Calls.
+ * The Start node represents the start of the function.
+ *
+ * Start initially has 1 input (arg) from outside and the initial control.
+ * In ch10 we also add mem aliases as structs get defined; each field in struct
+ * adds a distinct alias to Start's tuple.
  */
 public class StartNode extends MultiNode {
 
@@ -27,16 +27,21 @@ public class StartNode extends MultiNode {
      * as the key.
      */
     public TypeTuple addMemProj(TypeStruct structType, ScopeNode scopeNode) {
+        // resize the tuple's type array to include all fields of the struct
         Type[] args = Arrays.copyOf(_args._types, _args._types.length + structType.numFields());
         int i = _args._types.length;
         int origLength = i;
-        for (TypeField field: structType.fields()) {
+        // The new members of the tuple get a mem type with an alias
+        for (StructField field: structType.fields()) {
             args[i++] = TypeMem.make(field);
         }
         _args = TypeTuple.make(args);
         _type = compute(); // proj needs input node to have types already set
-        i = origLength;
-        for (TypeField field: structType.fields()) {
+        i = origLength; // for assertion below
+        // For each of the fields we now add a mem projection
+        // note that the alias matches the slot of the field in the
+        // tuple - this we assert below
+        for (StructField field: structType.fields()) {
             String name = field.aliasName();
             assert field.alias() == i;
             Node n = new ProjNode(this, field.alias(), name).peephole();
