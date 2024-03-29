@@ -24,6 +24,9 @@ public class TypeMem extends Type {
     }
 
     @Override
+    public Type glb() { return this; }
+
+    @Override
     int hash() {
         return Objects.hash(_type, _aliasSource.alias());
     }

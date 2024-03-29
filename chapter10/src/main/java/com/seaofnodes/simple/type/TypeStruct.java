@@ -50,6 +50,9 @@ public class TypeStruct extends Type {
     }
 
     @Override
+    public Type glb() { return this; }
+
+    @Override
     int hash() { return Objects.hash(_type, _name); }
 
     @Override

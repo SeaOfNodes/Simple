@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
 
 import java.util.BitSet;
 
@@ -38,14 +37,18 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? Type.TOP : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return in(1)._type.widen();
-        Type t = Type.TOP;
+        // However the type we compute must stay within the domain of the Phi
+        // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem
+        // To ensure this we need to default to the GLB of the first input
+        // FIXME actually we should do GLB of first non-null input
+        if( r.inProgress() ) return in(1)._type.glb();
+        Type t = null;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
             if( r.in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
-                t = t.meet(in(i)._type);
-        return t;
+                t = (t == null) ? in(i)._type : t.meet(in(i)._type);
+        return t == null ? in(1)._type.glb() : t;
     }
 
     @Override

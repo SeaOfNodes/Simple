@@ -125,8 +125,12 @@ public class Type {
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
-    public Type widen() { return BOTTOM; }
-    
+
+    /**
+     * Compute greatest lower bound in the lattice
+     */
+    public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
+
     // ----------------------------------------------------------
     // Our lattice is defined with a MEET and a DUAL.
     // JOIN is dual of meet of both duals.

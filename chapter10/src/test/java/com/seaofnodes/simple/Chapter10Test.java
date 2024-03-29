@@ -44,6 +44,7 @@ else
 return v;
                 """);
         StopNode stop = parser.parse(true);
+        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
     }
 
     @Test
@@ -263,6 +264,22 @@ int v0=null.f0;
         catch (Exception e) {
             assertEquals("Attempt to access 'f0' from null reference", e.getMessage());
         }
+    }
+
+    @Test
+    public void testBug4() {
+        Parser parser = new Parser(
+                """
+if(0) {
+    while(0) if(arg) continue;
+    int v0=0;
+    while(1) {
+        int arg=-arg;
+        v0=arg;
+    }
+}         
+                   """);
+        StopNode stop = parser.parse(true);
     }
 
 }

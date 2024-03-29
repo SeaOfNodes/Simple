@@ -71,7 +71,7 @@ public class TypeInteger extends Type {
     }
 
     @Override
-    public Type widen() { return BOT; }
+    public Type glb() { return BOT; }
 
     @Override
     public Type dual() {

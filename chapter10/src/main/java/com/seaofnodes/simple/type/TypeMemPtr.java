@@ -45,7 +45,8 @@ public class TypeMemPtr extends Type {
     }
 
     @Override
-    public Type widen() {
+    public Type glb() {
+        // If we are null - then return ptr|null
         if (!isNull()) return TypeMemPtr.make(_structType, true);
         return this;
     }
