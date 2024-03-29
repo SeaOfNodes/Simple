@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -11,36 +11,31 @@ import java.util.Objects;
  */
 public class TypeStruct extends Type {
 
-    /**
-     * Represents the starting alias ID - which is 2 because then it nicely
-     * slots into Start's projections. Start already uses slots 0-1.
-     */
-    static final int _RESET_ALIAS_ID = 2;
-
-    /**
-     * Alias ID generator - we start at 2 because START uses 0 and 1 slots,
-     * by starting at 2, our alias ID is nicely mapped to a slot in Start.
-     */
-    static int _ALIAS_ID = _RESET_ALIAS_ID;
-
     public final String _name;
-    private LinkedHashMap<String, TypeField> _fields = new LinkedHashMap<>();
+    private final TypeField[] _fields;
 
-    public TypeStruct(String name) {
+    private TypeStruct(String name, List<TypeField> fields) {
         super(Type.TSTRUCT);
-        this._name = name;
+        _name = name;
+        _fields = fields.toArray(new TypeField[fields.size()]);
+        for (int i = 0; i < fields.size(); i++) {
+            TypeField field = fields.get(i);
+            // We copy the field because parser does not have this, we also add an alias
+            _fields[i] = new TypeField(this, field._fieldType, field._fieldName, Utils.nextAliasId());
+        }
     }
 
-    public void addField(String fieldName, Type fieldType) {
-        if (_fields.containsKey(fieldName))
-            throw Parser.error("Field '" + fieldName + "' already present in struct '" + _name + "'");
-        _fields.put(fieldName, new TypeField(this, fieldType, fieldName, _ALIAS_ID++));
+    public static TypeStruct make(String name, List<TypeField> fields) { return new TypeStruct(name, fields).intern(); }
+
+    public TypeField getField(String fieldName) {
+        for (TypeField field: _fields)
+            if (field._fieldName.equals(fieldName))
+                return field;
+        return null;
     }
 
-    public TypeField getField(String fieldName) { return _fields.get(fieldName); }
-
-    public int numFields() { return _fields.size(); }
-    public Collection<TypeField> fields() { return _fields.values(); }
+    public int numFields() { return _fields.length; }
+    public TypeField[] fields() { return _fields; }
 
     @Override
     protected Type xmeet(Type t) {
@@ -53,7 +48,7 @@ public class TypeStruct extends Type {
     public Type glb() { return this; }
 
     @Override
-    int hash() { return Objects.hash(_type, _name); }
+    int hash() { return Objects.hash(_type, _name, _fields); }
 
     @Override
     boolean eq(Type t) {
@@ -61,13 +56,7 @@ public class TypeStruct extends Type {
         if (t instanceof TypeStruct other) {
             if ( !_name.equals(other._name) )
                 return false;
-            if ( _fields.size() != other._fields.size() )
-                return false;
-            for (TypeField field : _fields.values()) {
-                if ( !field.equals(other._fields.get(field)) )
-                    return false;
-            }
-            return true;
+            return Arrays.equals(_fields, other._fields );
         }
         return false;
     }
@@ -77,8 +66,4 @@ public class TypeStruct extends Type {
         return sb.append(_name);
     }
 
-    /**
-     * Resets the alias IDs for new parse
-     */
-    public static void resetAliasId() { _ALIAS_ID = _RESET_ALIAS_ID; }
 }

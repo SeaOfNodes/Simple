@@ -40,19 +40,21 @@ public class TypeField implements AliasSource {
     @Override
     public int alias() { return _alias; }
 
+    @Override
+    public String toString() { return _fieldType.toString() + " " + _fieldName; }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TypeField typeField = (TypeField) o;
-        return Objects.equals(_structType, typeField._structType)
+        return _structType == typeField._structType
                 && Objects.equals(_fieldName, typeField._fieldName)
                 && Objects.equals(_alias, typeField._alias);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(_structType, _fieldName, _alias);
+        return Objects.hash(_fieldName, _alias);
     }
 }

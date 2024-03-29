@@ -75,7 +75,7 @@ public class Parser {
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        TypeStruct.resetAliasId(); // Reset aliases
+        Utils.resetAliasId(); // Reset aliases
         _structTypes.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -165,11 +165,11 @@ public class Parser {
      *     int IDENTIFIER ;
      * </pre>
      */
-    private void parseField(TypeStruct structType) {
+    private TypeField parseField() {
         if (matchx("int")) {
             String fieldName = requireId();
             require(";");
-            structType.addField(fieldName, TypeInteger.BOT);
+            return new TypeField(null, TypeInteger.BOT, fieldName, 0);
         }
         else throw errorSyntax("A field declaration is expected, only fields of type 'int' are supported at present");
     }
@@ -185,15 +185,19 @@ public class Parser {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
         if (_structTypes.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
-        TypeStruct structType = new TypeStruct(typeName);
+        ArrayList<TypeField> fields = new ArrayList<>();
         require("{");
-        while (!peek('}') && !_lexer.isEOF())
-            parseField(structType);
+        while (!peek('}') && !_lexer.isEOF()) {
+            TypeField field = parseField();
+            if (fields.contains(field)) throw errorSyntax("Field '" + field._fieldName + "' already defined in struct '" + typeName + "'");
+            fields.add(field);
+        }
         require("}");
         // For now, we don't allow empty structs but in future
         // if we support classes we will need to allow
+        TypeStruct structType = TypeStruct.make(typeName, fields);
         if (structType.numFields() == 0) throw errorSyntax("struct '" + typeName + "' must contain 1 or more fields");
-        _structTypes.put(typeName, structType.intern());
+        _structTypes.put(typeName, structType);
         START.addMemProj(structType, _scope);
         return parseStatement();
     }

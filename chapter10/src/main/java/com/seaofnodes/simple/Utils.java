@@ -36,4 +36,23 @@ public class Utils {
                 return i;
         return -1;
     }
+
+    /**
+     * Represents the starting alias ID - which is 2 because then it nicely
+     * slots into Start's projections. Start already uses slots 0-1.
+     */
+    static final int _RESET_ALIAS_ID = 2;
+
+    /**
+     * Alias ID generator - we start at 2 because START uses 0 and 1 slots,
+     * by starting at 2, our alias ID is nicely mapped to a slot in Start.
+     */
+    static int _ALIAS_ID = _RESET_ALIAS_ID;
+
+    /**
+     * Resets the alias IDs for new parse
+     */
+    public static void resetAliasId() { _ALIAS_ID = _RESET_ALIAS_ID; }
+    public static int nextAliasId() { return _ALIAS_ID++; }
+
 }
