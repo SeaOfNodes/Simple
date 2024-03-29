@@ -18,7 +18,7 @@ public class StoreNode extends MemOpNode {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb;
+        return sb.append(".").append(_field._fieldName).append("=").append(value()).append(";");
     }
 
     @Override

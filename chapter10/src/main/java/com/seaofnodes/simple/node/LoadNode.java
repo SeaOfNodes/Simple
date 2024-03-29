@@ -17,9 +17,7 @@ public class LoadNode extends MemOpNode {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb;
-    }
+    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_field._fieldName); }
 
     @Override
     public Type compute() {

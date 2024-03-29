@@ -34,7 +34,9 @@ public class ReturnNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return expr()._print0(sb.append("return "), visited).append(";");
+        sb.append("return ");
+        expr()._print0(sb, visited);
+        return sb.append(";");
     }
 
     @Override public boolean isCFG() { return true; }
