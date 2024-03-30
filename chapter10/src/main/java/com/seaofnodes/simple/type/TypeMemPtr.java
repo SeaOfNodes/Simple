@@ -81,8 +81,9 @@ public class TypeMemPtr extends Type {
 
     @Override
     public Type glb() {
-        // If we are not null - then return ptr|null
-        if (!isNull()) return TypeMemPtr.make(_structType, true);
+        if ( this == TOP ) return BOT;
+        // If we are not null ptr - then return ptr|null
+        if ( _structType != null && _tptr == NOTNULL ) return TypeMemPtr.make(_structType, true);
         return this;
     }
 
