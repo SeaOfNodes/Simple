@@ -8,13 +8,14 @@ public class PhiNode extends Node {
 
     final String _label;
 
-    // However the type we compute must stay within the domain of the Phi
+    // The Phi type we compute must stay within the domain of the Phi
     // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem
     // Since phis are always created with at least 1 input - we can use this
-    // as the starting type for the Phi
-    final Type _phiType;
+    // as the starting type for the Phi; subsequent updates start from the local
+    // TOP of this type
+    final Type _initialType;
     
-    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; _phiType = in(1)._type; }
+    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; _initialType = in(1)._type; }
 
     @Override public String label() { return "Phi_"+_label; }
 
@@ -43,9 +44,9 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? Type.TOP : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _phiType.glb();
+        if( r.inProgress() ) return _initialType.glb();
         // Set type to local top of the starting type
-        Type t = _phiType.glb().dual();
+        Type t = _initialType.glb().dual();
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
