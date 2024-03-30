@@ -1,7 +1,11 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.type.*;
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -337,6 +341,60 @@ s0 v1=v0;
                     """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("Stop[ ]", stop.toString());
+    }
+
+    @Test
+    public void testTypeLattice() {
+        TypeStruct s1 = TypeStruct.make("s1", Arrays.asList(
+                            new StructField(null, TypeInteger.BOT, "a", 0),
+                            new StructField(null, TypeInteger.BOT, "b", 0)));
+        TypeStruct s2 = TypeStruct.make("s2", Arrays.asList(
+                            new StructField(null, TypeInteger.BOT, "a", 0),
+                            new StructField(null, TypeInteger.BOT, "b", 0)));
+        Assert.assertEquals(s1, s1.glb());
+        Assert.assertEquals(s1, s1.dual());
+        Assert.assertEquals(s1, s1.glb().dual());
+
+        TypeMem m1 = TypeMem.make(s1.getField("a"));
+        TypeMem m2 = TypeMem.make(s1.getField("b"));
+        TypeMem m3 = TypeMem.make(s2.getField("a"));
+        TypeMem m4 = TypeMem.make(s2.getField("b"));
+
+        Assert.assertNotEquals(m1, m2);
+        Assert.assertNotEquals(m2, m3);
+        Assert.assertNotEquals(m3, m4);
+
+        Assert.assertEquals(Type.BOTTOM, s1.meet(s2));
+        Assert.assertEquals(Type.BOTTOM, m1.meet(m2));
+        Assert.assertEquals(Type.BOTTOM, m2.meet(m3));
+        Assert.assertEquals(Type.BOTTOM, m3.meet(m4));
+
+        Assert.assertEquals(m1, m1.glb());
+        Assert.assertEquals(m1, m1.dual());
+        Assert.assertEquals(m1, m1.glb().dual());
+
+        TypeMemPtr ptr1 = TypeMemPtr.make(s1);
+        Assert.assertEquals(s1, ptr1.structType());
+        TypeMemPtr ptr2 = TypeMemPtr.make(s2);
+        Assert.assertEquals(s2, ptr2.structType());
+
+        TypeMemPtr ptr1opt = TypeMemPtr.make(s1, true);
+        Assert.assertEquals(s1, ptr1opt.structType());
+        Assert.assertTrue(ptr1opt.maybeNull());
+        Assert.assertFalse(ptr1opt.isNull());
+        TypeMemPtr ptr2opt = TypeMemPtr.make(s2, true);
+        Assert.assertEquals(s2, ptr2opt.structType());
+
+        Assert.assertNotEquals(ptr1, ptr2);
+        Assert.assertNotEquals(ptr1, ptr1.glb());
+        Assert.assertEquals(ptr1opt, ptr1.glb());
+
+        Assert.assertEquals(TypeMemPtr.TOP, TypeMemPtr.BOT.dual());
+        Assert.assertEquals(TypeMemPtr.BOT, TypeMemPtr.TOP.dual());
+        Assert.assertEquals(ptr1, ptr1.dual());
+        Assert.assertEquals(ptr1.glb(), ptr1.glb().dual());
+        Assert.assertEquals(TypeMemPtr.BOT, ptr1.meet(ptr2));
+        Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULLPTR));
     }
 
 }

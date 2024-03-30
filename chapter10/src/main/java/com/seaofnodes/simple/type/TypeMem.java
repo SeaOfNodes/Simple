@@ -7,6 +7,9 @@ import java.util.Objects;
  */
 public class TypeMem extends Type {
 
+    // For now in terms of the lattice
+    // a memory alias just stays as is
+
     private final AliasSource _aliasSource;
 
     private TypeMem(AliasSource aliasSource) {
@@ -20,8 +23,11 @@ public class TypeMem extends Type {
     protected Type xmeet(Type t) {
         TypeMem other = (TypeMem) t;
         if (other._aliasSource.alias() == _aliasSource.alias()) return this;
-        else throw new RuntimeException("Unexpected meet between Mem types");
+        else return Type.BOTTOM; // This means parse or syntax error as its not legal
     }
+
+    @Override
+    public Type dual() { return this; }
 
     @Override
     public Type glb() { return this; }

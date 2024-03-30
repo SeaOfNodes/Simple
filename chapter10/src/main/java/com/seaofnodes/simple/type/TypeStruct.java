@@ -11,6 +11,9 @@ import java.util.Objects;
  */
 public class TypeStruct extends Type {
 
+    // For now in terms of the lattice
+    // a struct type just stays as is
+
     public final String _name;
     private final StructField[] _fields;
 
@@ -41,8 +44,11 @@ public class TypeStruct extends Type {
     protected Type xmeet(Type t) {
         TypeStruct other = (TypeStruct) t;
         if (equals(other)) return this;
-        else throw new RuntimeException("Unexpected meet of struct types");
+        else return Type.BOTTOM; // This means parser or syntax error as it is not legal
     }
+
+    @Override
+    public Type dual() { return this; }
 
     @Override
     public Type glb() { return this; }
@@ -56,6 +62,7 @@ public class TypeStruct extends Type {
         if (t instanceof TypeStruct other) {
             if ( !_name.equals(other._name) )
                 return false;
+            // FIXME this may not work when we have self referential structs
             return Arrays.equals(_fields, other._fields );
         }
         return false;
