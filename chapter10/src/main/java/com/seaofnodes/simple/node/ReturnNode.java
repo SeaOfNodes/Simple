@@ -28,7 +28,7 @@ public class ReturnNode extends Node {
 
     public Node ctrl() { return in(0); }
     public Node expr() { return in(1); }
-  
+
     @Override
     public String label() { return "Return"; }
 
@@ -40,7 +40,7 @@ public class ReturnNode extends Node {
     }
 
     @Override public boolean isCFG() { return true; }
-  
+
     @Override
     public Type compute() {
         return TypeTuple.make(ctrl()._type,expr()._type);
