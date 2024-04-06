@@ -8,7 +8,7 @@ public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Add"; }
-    
+
     @Override public String glabel() { return "+"; }
 
     @Override
@@ -17,7 +17,7 @@ public class AddNode extends Node {
         in(2)._print0(sb.append("+"), visited);
         return sb.append(")");
     }
-  
+
 
     @Override
     public Type compute() {
@@ -39,13 +39,13 @@ public class AddNode extends Node {
         // canonicalize to (x+0)
         if( t2 instanceof TypeInteger i && i.value()==0 )
             return lhs;
-              
+
         // Add of same to a multiply by 2
         if( lhs==rhs )
             return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)).peephole());
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
-        
+
         // Move non-adds to RHS
         if( !(lhs instanceof AddNode) && rhs instanceof AddNode )
             return swap12();
@@ -53,7 +53,7 @@ public class AddNode extends Node {
         // x+(-y) becomes x-y
         if( rhs instanceof MinusNode minus )
             return new SubNode(lhs,minus.in(1));
-        
+
         // Now we might see (add add non) or (add non non) or (add add add) but never (add non add)
 
         // Do we have  x + (y + z) ?
@@ -73,7 +73,7 @@ public class AddNode extends Node {
         // the loop will peep as dead after a bit.
         if( lhs.in(1) == lhs )
             return null;
-        
+
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants
         // lhs.in(2) is con1 here
@@ -91,12 +91,12 @@ public class AddNode extends Node {
         if( phicon!=null ) return phicon;
 
         // Now we sort along the spine via rotates, to gather similar things together.
-        
+
         // Do we rotate (x + y) + z
         // into         (x + z) + y ?
         if( spine_cmp(lhs.in(2),rhs,this) )
             return new AddNode(new AddNode(lhs.in(1),rhs).peephole(),lhs.in(2));
-        
+
         return null;
     }
 
@@ -114,11 +114,11 @@ public class AddNode extends Node {
             lphi = pcon(lhs.in(2),op); // Will rotate with the Phi push
         }
         if( lphi==null ) return null;
-        
+
         // RHS is a constant or a Phi of constants
         if( !(rhs instanceof ConstantNode) && pcon(rhs,op)==null )
             return null;
-        
+
         // If both are Phis, must be same Region
         if( rhs instanceof PhiNode && lphi.in(0) != rhs.in(0) )
             return null;
@@ -147,7 +147,7 @@ public class AddNode extends Node {
     static PhiNode pcon(Node op, Node dep) {
         return op instanceof PhiNode phi && phi.allCons(dep) ? phi : null;
     }
-        
+
     // Compare two off-spine nodes and decide what order they should be in.
     // Do we rotate ((x + hi) + lo) into ((x + lo) + hi) ?
     // Generally constants always go right, then Phi-of-constants, then muls, then others.
@@ -165,10 +165,10 @@ public class AddNode extends Node {
 
         if( lo instanceof PhiNode && !(hi instanceof PhiNode) ) return true;
         if( hi instanceof PhiNode && !(lo instanceof PhiNode) ) return false;
-        
+
         // Same category of "others"
         return lo._nid > hi._nid;
     }
-    
+
     @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
 }
