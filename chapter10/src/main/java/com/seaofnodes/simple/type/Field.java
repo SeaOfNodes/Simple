@@ -70,4 +70,6 @@ public class Field extends Type {
     public StringBuilder _print( StringBuilder sb ) {
         return _type._print(sb.append(_fname).append(":"));
     }
+
+    @Override public String str() { return _fname; }
 }

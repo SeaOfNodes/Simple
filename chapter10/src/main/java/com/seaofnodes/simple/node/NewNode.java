@@ -27,7 +27,7 @@ public class NewNode extends Node {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("new ");
-        return _ptr._print(sb);
+        return sb.append(_ptr._obj.str());
     }
 
     @Override

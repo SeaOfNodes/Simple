@@ -208,7 +208,7 @@ return a;""");
             new Parser("int a=1; ififif(arg)inta=2;return a;").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected =: (",e.getMessage());
+            assertEquals("Undefined name 'ififif'",e.getMessage());
         }
     }
 

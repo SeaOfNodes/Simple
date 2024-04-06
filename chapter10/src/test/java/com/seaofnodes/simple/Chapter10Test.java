@@ -51,7 +51,7 @@ return v;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return new Ptr(Vector2D);", stop.toString());
+        assertEquals("return new Vector2D;", stop.toString());
     }
 
     @Test
@@ -61,7 +61,7 @@ return v;
 struct s0 {
     int v0;
 }
-s0 v1=null;
+s0? v1=null;
 int v3=v1.zAicm;
                 """);
         try {
@@ -69,7 +69,7 @@ int v3=v1.zAicm;
             fail();
         }
         catch (RuntimeException e) {
-            assertEquals("Attempt to access 'zAicm' from null reference",e.getMessage());
+            assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());
         }
     }
 
@@ -122,8 +122,12 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
                 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        assertEquals("return .a;", stop.toString());
+        try {
+            StopNode stop = parser.parse(true).iterate(true);
+            fail();
+        } catch (RuntimeException e) {
+            assertEquals("Type null is not of declared type *Bar",e.getMessage());
+        }
     }
 
     @Test
@@ -133,13 +137,17 @@ return bar.a;
 struct Bar {
     int a;
 }
-Bar bar = null;
+Bar? bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
                 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        assertEquals("return .a;", stop.toString());
+        try {
+            StopNode stop = parser.parse(true).iterate(true);
+            fail();
+        } catch (RuntimeException e) {
+            assertEquals("Might be null accessing 'a'",e.getMessage());
+        }
     }
 
     @Test
@@ -159,16 +167,15 @@ return bar.a;
             fail();
         }
         catch (RuntimeException e) {
-            assertEquals("Attempt to access 'a' from null reference", e.getMessage());
+            assertEquals("Type null is not of declared type *Bar", e.getMessage());
         }
     }
 
     @Test
     public void testWhileWithNullInside() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {int v0;}
-s0 v0 = new s0;
+s0? v0 = new s0;
 int ret = 0;
 while(arg) {
     ret = v0.v0;
@@ -176,9 +183,13 @@ while(arg) {
     arg = arg - 1;
 }
 return ret;
-                """);
-        StopNode stop = parser.parse(true).iterate(true);
-        assertEquals("return Phi(Loop11,0,.v0);", stop.toString());
+""");
+        try {
+            StopNode stop = parser.parse(true).iterate(true);
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Might be null accessing 'v0'", e.getMessage());
+        }
     }
 
     @Test
@@ -188,8 +199,8 @@ return ret;
 struct s0 {
     int v0;
 }
-s0 v1=new s0;
-s0 v1;
+s0? v1=new s0;
+s0? v1;
 v1=new s0;
                 """);
         try {
@@ -218,7 +229,7 @@ return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return Phi(Loop10,new Ptr(s0),Phi(Region31,new Ptr(s0),Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop12,new s0,Phi(Region33,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -238,7 +249,7 @@ return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return Phi(Loop13,new Ptr(s0),Phi(Region32,new Ptr(s0),Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop15,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
     }
 
 
@@ -257,7 +268,7 @@ return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return Phi(Loop10,new Ptr(s0),Phi(Region30,new Ptr(s0),Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop12,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -276,7 +287,7 @@ int v0=null.f0;
             fail();
         }
         catch (Exception e) {
-            assertEquals("Attempt to access 'f0' from null reference", e.getMessage());
+            assertEquals("Accessing unknown field 'f0' from 'null'", e.getMessage());
         }
     }
 
@@ -309,7 +320,7 @@ else return new s0;
 if(new s0.f0) return 0;
                     """);
         StopNode stop = parser.parse(true).iterate(true);
-        assertEquals("return new Ptr(s0);", stop.toString());
+        assertEquals("return new s0;", stop.toString());
     }
 
     @Test
@@ -338,8 +349,9 @@ struct s0 {
 s0 v0=new s0;
 while(v0.f0) {}
 s0 v1=v0;
+return v1;
                     """);
         StopNode stop = parser.parse().iterate(true);
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return new s0;", stop.toString());
     }
 }

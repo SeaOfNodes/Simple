@@ -14,8 +14,8 @@ public class PhiNode extends Node {
     // as the starting type for the Phi; subsequent updates start from the local
     // TOP of this type
     final Type _initialType;
-    
-    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; _initialType = in(1)._type; }
+
+    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; _initialType = in(1)._type.glb(); }
 
     @Override public String label() { return "Phi_"+_label; }
 
@@ -44,9 +44,9 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? Type.TOP : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _initialType.glb();
+        if( r.inProgress() ) return _initialType;
         // Set type to local top of the starting type
-        Type t = _initialType.glb().dual();
+        Type t = _initialType.dual();
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
@@ -68,7 +68,7 @@ public class PhiNode extends Node {
             return live;
 
         // Pull "down" a common data op.  One less op in the world.  One more
-        // Phi, but Phis do not make code.        
+        // Phi, but Phis do not make code.
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);

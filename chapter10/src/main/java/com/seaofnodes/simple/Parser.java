@@ -145,7 +145,7 @@ public class Parser {
     private Node parseStatement() {
         if( false ) return null;
         else if (matchx("return")  ) return parseReturn();
-        else if (matchx("int")     ) return parseDecl(TypeInteger.TOP);
+        else if (matchx("int")     ) return parseDecl(TypeInteger.BOT);
         else if (match ("{")       ) return require(parseBlock(),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
@@ -378,48 +378,64 @@ public class Parser {
      * Parses an expression statement or a declaration statement where type is a struct
      *
      * <pre>
-     *     name '=' expression ';'                      // assignment
-     *     typename name '=' expression ';'             // decl
-     *     fieldExpression '=' expression ';'           // store
+     *      name;         // Error
+     * type name;         // Define name with default initial value
+     * type name = expr;  // Define name with given   initial value
+     *      name = expr;  // Reassign existing
+     *             expr   // Something else
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpressionStatement() {
-        var name = requireId();
-        boolean orNull = match("?");
-        // If name is followed by another Identifier then
-        // it must be a declaration
-        if( peekIsId() ) {
-            TypeStruct obj = OBJS.get(name);
-            if( obj == null ) throw error("No struct type definition found for '" + name + "'");
-            return parseDecl(TypeMemPtr.make(obj,orNull));
+        int old = _lexer._position;
+        Type t = type();
+        String name = requireId();
+        Node expr;
+        if( match(";") ) {      // Assign a default value
+            // No type and no expr is an error
+            if( t==null ) throw errorSyntax("expression");
+            expr = new ConstantNode(t.makeInit()).peephole();
+        } else if( match("=") ) { // Assign "= expr;"
+            expr = require(parseExpression(), ";");
+        } else {                // Neither, so just a normal expression parse
+            _lexer._position = old;
+            return parseExpression();
         }
-        String fieldName = null;
-        // If name is followed by .field then it must be a store
-        // Since our structs only have int fields at the moment, we
-        // cannot have expressions such as x.y.z - in future the parsing
-        // will have to be more sophisticated to support that.
-        // Also in future we will need to have late resolution of load vs store.
-        // But because our expression statement at present always expects
-        // an assignment we don't need that complication yet.
-        if (match("."))
-            fieldName = requireId();
-        require("=");
-        var expr = require(parseExpression(), ";");
-        if (fieldName != null) {
-            // Store expression
+
+        // Defining a new variable vs updating an old one
+        if( t != null ) {
+            if( _scope.define(name,expr) == null )
+                throw error("Redefining name '" + name + "'");
+        } else {
             Node n = _scope.lookup(name);
-            if (n == null) throw error("Undefined name '" + name + "'");
-            if (n._type instanceof TypeMemPtr ptr) {
-                Field field = getTypeField(ptr, fieldName);
-                return memAlias(field, new StoreNode(field, memAlias(field), n, expr).peephole());
-            }
-            else throw error("Expected '" + name + "' to be a reference to a struct");
+            if( n==null )
+                throw error("Undefined name '" + name + "'");
+            // TODO: Get the actual Parser declared type.
+            // This hack gets the last assigned type and widens it, preserving
+            // not-null-ness.  This is very close to any Parser declared type right now.
+            t = n._type.glb();  // Get existing type
+            if( n._type instanceof TypeMemPtr ptr && !ptr._nil )
+                t = TypeMemPtr.make(ptr._obj,false);
+            _scope.update(name,expr);
         }
-        // TODO we need to do a type check of name
-        else if( _scope.update(name, expr)==null )
-            throw error("Undefined name '" + name + "'");
+        // TODO: Delay this type check until after optimization
+        if( !expr._type.isa(t) )
+              throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
+    }
+
+    // Parse a type-or-null
+    private Type type() {
+        int old = _lexer._position;
+        String tname = _lexer.matchId();
+        if( tname==null ) return null;
+        if( tname.equals("int") ) return TypeInteger.BOT;
+        TypeStruct obj = OBJS.get(tname);
+        if( obj != null )
+            return TypeMemPtr.make(obj,match("?"));
+        // Not a type; unwind the parse
+        _lexer._position = old;
+        return null;
     }
 
     /**
@@ -438,7 +454,7 @@ public class Parser {
             // Assign "= expr;"
             : require(require("=").parseExpression(), ";");
         if( !expr._type.isa(t) )
-            throw errorSyntax("Expresssion type " + expr._type + " is not of declared type " + t);
+            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         if( _scope.define(name,expr) == null )
             throw error("Redefining name '" + name + "'");
         return expr;
@@ -591,27 +607,25 @@ public class Parser {
      * expression, but in future could be array index too.
      *
      * <pre>
-     *     expr '.' IDENTIFIER
+     *     expr ('.' IDENTIFIER)* [ = expr ]
      * </pre>
      */
     private Node parsePostfix(Node expr) {
-        if (match(".")) {
-            String fieldName = requireId();
-            if (expr._type instanceof TypeMemPtr ptr) {
-                Field field = getTypeField(ptr, fieldName);
-                return new LoadNode(field, memAlias(field), expr).peephole();
-            }
-            else throw error("Expected reference to a struct but got " + expr.toString());
-        }
-        else return expr;
-    }
+        if( !match(".") ) return expr;
 
-    private static Field getTypeField(TypeMemPtr ptr, String fieldName) {
-        if( ptr._nil )
-            throw error("Attempt to access '" + fieldName + "' from null reference");
-        Field field = ptr._obj.get(fieldName);
-        if (field == null) throw error("Unknown field '" + fieldName + "' in struct '" + ptr._obj._name + "'");
-        return field;
+        if( !(expr._type instanceof TypeMemPtr ptr) )
+            throw error("Expected struct reference but got " + expr._type.str());
+
+        String name = requireId();
+        Field field = ptr._obj==null ? null : ptr._obj.get(name);
+        if( field == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+
+        if( match("=") ) {
+            Node val = require(parseExpression(),";");
+            return memAlias(field, new StoreNode(field, memAlias(field), expr, val).peephole());
+        }
+
+        return parsePostfix(new LoadNode(field, memAlias(field), expr).peephole());
     }
 
     /**

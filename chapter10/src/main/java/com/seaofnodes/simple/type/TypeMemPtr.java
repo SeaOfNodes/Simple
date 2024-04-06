@@ -10,8 +10,7 @@ import java.util.ArrayList;
 public class TypeMemPtr extends Type {
     // A TMP is pair (obj,nil)
     // where obj is one of
-    //    (none,TypeStruct,many).
-    // The "many" means a confusion of TypeStructs; such a ptr can only be null-checked
+    //    (null,TypeStruct).
     // where nil is one of
     //    (true,false) meaning an explicit null is allowed or not
 
@@ -52,7 +51,11 @@ public class TypeMemPtr extends Type {
     }
 
     @Override
-    public Type glb() { return make(_obj.glb(),true); }
+    public Type glb() {
+        if( _obj==null ) return BOT;
+        return make(_obj.glb(),true);
+    }
+    @Override public TypeMemPtr makeInit() { return NULL; }
 
     @Override
     int hash() { return (_obj==null ? 0xDEADBEEF : _obj.hashCode()) ^ (_nil ? 1024 : 0); }
@@ -72,4 +75,11 @@ public class TypeMemPtr extends Type {
         else _obj._print(sb);
         return sb.append(_nil ? "?" : "");
     }
+
+    @Override public String str() {
+        if( this==NULL ) return "null";
+        String s = _obj==null ? "void" : _obj._name;
+        return "*"+s+(_nil ? "?" : "");
+    }
+
 }

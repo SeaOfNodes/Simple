@@ -579,6 +579,9 @@ public abstract class Node {
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
+    // Report any post-optimize errors
+    String err() { return null; }
+
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.

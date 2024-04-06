@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Field;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 /**
  * Convenience common base for Load and Store.
@@ -27,5 +28,13 @@ abstract class MemOpNode extends Node {
     @Override
     int hash() {
         return _field._alias;
+    }
+
+    @Override
+    String err() {
+        TypeMemPtr ptr = (TypeMemPtr)ptr()._type; // Invariant
+        return ptr._nil
+            ? "Might be null accessing '" + _field.str() + "'"
+            : null;
     }
 }

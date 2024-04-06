@@ -41,6 +41,12 @@ public class TypeInteger extends Type {
         return sb.append(_con);
     }
 
+    @Override public String str() {
+        if( this==TOP ) return "~int";
+        if( this==BOT ) return  "int";
+        return ""+_con;
+    }
+
     /**
      * Display Type name in a format that's good for IR printer
      */

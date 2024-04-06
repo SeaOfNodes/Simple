@@ -71,7 +71,7 @@ public class Chapter02Test {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected =: ",e.getMessage());
+            assertEquals("Undefined name 'ret'",e.getMessage());
         }
     }
     @Test

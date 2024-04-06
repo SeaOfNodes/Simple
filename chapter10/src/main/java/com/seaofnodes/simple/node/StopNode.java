@@ -8,7 +8,7 @@ import java.util.BitSet;
 public class StopNode extends Node {
 
     public final String _src;
-    
+
     public StopNode(String src) {
         super();
         _src = src;
@@ -35,7 +35,7 @@ public class StopNode extends Node {
     public ReturnNode ret() {
         return nIns()==1 ? (ReturnNode)in(0) : null;
     }
-    
+
     @Override
     public Type compute() {
         return Type.BOTTOM;
@@ -55,6 +55,11 @@ public class StopNode extends Node {
         return addDef(node);
     }
 
-    public StopNode iterate(            ) { return IterPeeps.iterate(this,false); }
-    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ); }
+    public StopNode iterate(            ) { return IterPeeps.iterate(this,false).typeCheck(); }
+    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ).typeCheck(); }
+    StopNode typeCheck() {
+        String err = walk( Node::err );
+        if( err != null ) throw new RuntimeException(err);
+        return this;
+    }
 }

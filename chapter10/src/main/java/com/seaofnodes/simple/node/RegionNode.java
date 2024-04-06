@@ -11,7 +11,7 @@ import java.util.BitSet;
 public class RegionNode extends Node {
 
     public RegionNode(Node... nodes) { super(nodes); }
-    
+
     @Override
     public String label() { return "Region"; }
 
@@ -51,8 +51,10 @@ public class RegionNode extends Node {
             while( nouts != nOuts() ) {
                 nouts = nOuts();
                 for( int i=0; i<nOuts(); i++ )
-                    if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
+                    if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() ) {
                         phi.delDef(path);
+                        IterPeeps.addAll(phi._outputs);
+                    }
             }
             _idom = null;       // Clear idom cache
             return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
@@ -78,7 +80,7 @@ public class RegionNode extends Node {
                 return true;
         return false;
     }
-    
+
     // Immediate dominator of Region is a little more complicated.
     private Node _idom;         // Immediate dominator cache
     @Override Node idom() {
