@@ -1,11 +1,16 @@
 package com.seaofnodes.simple.type;
 
+import java.util.ArrayList;
+
 public class TypeTuple extends Type {
-  
+
     public final Type[] _types;
 
     private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
     public static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
+
+    private static TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
+    public static void gather(ArrayList<Type> ts) {  ts.add(TEST); }
 
     @Override
     public Type xmeet(Type other) {
@@ -66,7 +71,7 @@ public class TypeTuple extends Type {
         for( Type type : _types ) sum ^= type.hashCode();
         return sum;
     }
-    
+
     @Override
     boolean eq( Type t ) {
         TypeTuple tt = (TypeTuple)t; // Contract

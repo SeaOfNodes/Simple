@@ -36,23 +36,23 @@ public class Utils {
                 return i;
         return -1;
     }
-
     /**
-     * Represents the starting alias ID - which is 2 because then it nicely
-     * slots into Start's projections. Start already uses slots 0-1.
+     * Search a list for an element by reference
+     *
+     * @param ary List to search in
+     * @param x Object to be searched
+     * @return >= 0 on success, -1 on failure
      */
-    static final int _RESET_ALIAS_ID = 2;
+    public static <E> int find( E[] ary, E x ) {
+        for( int i=0; i<ary.length; i++ )
+            if( ary[i]==x )
+                return i;
+        return -1;
+    }
 
-    /**
-     * Alias ID generator - we start at 2 because START uses 0 and 1 slots,
-     * by starting at 2, our alias ID is nicely mapped to a slot in Start.
-     */
-    static int _ALIAS_ID = _RESET_ALIAS_ID;
+    // Rotate a long, nice for hashes
+    public static long rot( long x, int n ) { return (x<<n) | (x>>>n); }
 
-    /**
-     * Resets the alias IDs for new parse
-     */
-    public static void resetAliasId() { _ALIAS_ID = _RESET_ALIAS_ID; }
-    public static int nextAliasId() { return _ALIAS_ID++; }
-
+    // Fold a 64bit hash into 32 bits
+    public static int fold( long x ) { return (int)((x>>32) ^ x); }
 }

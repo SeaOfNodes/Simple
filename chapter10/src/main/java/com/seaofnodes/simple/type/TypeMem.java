@@ -1,49 +1,62 @@
 package com.seaofnodes.simple.type;
 
-import java.util.Objects;
+import com.seaofnodes.simple.Utils;
+import java.lang.Long;
+import java.util.BitSet;
+import java.util.ArrayList;
+
 
 /**
- * Represents a slice of memory corresponding to an alias
+ * Represents a slice of memory corresponding to a set of aliases
  */
 public class TypeMem extends Type {
 
-    // For now in terms of the lattice
-    // a memory alias just stays as is
+    // Which slice of memory?
+    //  0 means TOP, no slice.
+    // -1 means BOT, all memory.
+    //  N means slice#N.
+    private final int _alias;
 
-    private final AliasSource _aliasSource;
+    private TypeMem(int alias) { super(TMEM); _alias = alias; }
 
-    private TypeMem(AliasSource aliasSource) {
-        super(TMEM);
-        this._aliasSource = aliasSource;
+    public static TypeMem make(int alias) { return new TypeMem(alias).intern(); }
+    public static final TypeMem TOP = make( 0);
+    public static final TypeMem BOT = make(-1);
+
+
+    public static void gather(ArrayList<Type> ts) { ts.add(make(1)); ts.add(BOT); }
+
+    @Override
+    protected TypeMem xmeet(Type t) {
+        TypeMem that = (TypeMem) t; // Invariant: TypeMem and unequal
+        return _alias==0 ? that : (that._alias==0 ? this : BOT);
     }
 
-    public static TypeMem make(AliasSource aliasSource) { return new TypeMem(aliasSource).intern(); }
-
     @Override
-    protected Type xmeet(Type t) {
-        TypeMem other = (TypeMem) t;
-        if (other._aliasSource.alias() == _aliasSource.alias()) return this;
-        else return Type.BOTTOM; // This means parse or syntax error as its not legal
+    public Type dual() {
+        if( _alias== 0 ) return BOT;
+        if( _alias==-1 ) return TOP;
+        return this;
     }
 
     @Override
-    public Type dual() { return this; }
+    public Type glb() { return TypeMem.BOT; }
 
     @Override
-    public Type glb() { return this; }
-
-    @Override
-    int hash() {
-        return Objects.hash(_type, _aliasSource.alias());
-    }
+    int hash() { return 9876543 + _alias; }
 
     @Override
     boolean eq(Type t) {
-        if (t instanceof TypeMem ts)
-            return ts._aliasSource.alias() == _aliasSource.alias();
-        return false;
+        TypeMem that = (TypeMem) t; // Invariant
+        return _alias == that._alias;
     }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) { return sb.append("Mem#").append(_aliasSource.alias()); }
+    public StringBuilder _print(StringBuilder sb) {
+        return sb.append("MEM#").append( switch(_alias) {
+            case  0 -> "TOP";
+            case -1 -> "BOT";
+            default -> ""+_alias;
+            });
+    }
 }

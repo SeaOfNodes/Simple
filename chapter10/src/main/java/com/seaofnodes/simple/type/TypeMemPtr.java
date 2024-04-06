@@ -1,113 +1,75 @@
 package com.seaofnodes.simple.type;
 
-import java.util.Objects;
+import java.util.ArrayList;
 
 /**
- * Represents a Ptr. Ptrs are either null, or Ptr to a struct type
- * or a union of the two. Because Simple is a safe language we do not
- * have an untyped Ptr other than null.
+ * Represents a Ptr. Ptrs are either null, or Ptr to a struct type or a union
+ * of the two. Because Simple is a safe language we do not have an untyped Ptr
+ * other than null.
  */
 public class TypeMemPtr extends Type {
+    // A TMP is pair (obj,nil)
+    // where obj is one of
+    //    (none,TypeStruct,many).
+    // The "many" means a confusion of TypeStructs; such a ptr can only be null-checked
+    // where nil is one of
+    //    (true,false) meaning an explicit null is allowed or not
 
-    /*
-                      ANY
-                   /      \
-                 NULL    PTRCON
-                  \       /
-                  PTRCON|NULL
-                     |
-                    ALL
-    */
+    public final TypeStruct _obj; // null, a TypeStruct, or sentinal TypeStruct.MANY
+    public boolean _nil;
 
-    private static final int ANY = 0;
-    private static final int NOTNULL = 1;
-    private static final int NULL = 2;
-    private static final int ALL = 3;      // Actually cannot happen as Simple doesn't allow void*, but useful to get BOT
-
-    // All ptrs are typed ptrs or null
-    // A typed ptr has _structType set
-
-    TypeStruct _structType;
-    int _tptr;
-
-    public static final TypeMemPtr TOP     = TypeMemPtr.make(null, ANY);
-    public static final TypeMemPtr NULLPTR = TypeMemPtr.make(null, NULL);
-    public static final TypeMemPtr BOT     = TypeMemPtr.make(null, ALL);
-
-    private TypeMemPtr(TypeStruct structType) {
-        this(structType, NOTNULL);
-    }
-
-    private TypeMemPtr(TypeStruct structType, int tptr)
-    {
+    private TypeMemPtr(TypeStruct obj, boolean nil) {
         super(TMEMPTR);
-        if (tptr == NOTNULL && structType == null)
-            throw new AssertionError("Not null ptr must have struct type");
-        _structType = structType;
-        _tptr = tptr;
+        _obj = obj;
+        _nil = nil;
     }
+    public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
+    public static TypeMemPtr make(TypeStruct obj) { return TypeMemPtr.make(obj, false); }
 
-    public static TypeMemPtr make(TypeStruct structType) { return TypeMemPtr.make(structType, NOTNULL); }
-    public static TypeMemPtr make(TypeStruct structType, boolean maybeNull) { return TypeMemPtr.make(structType, maybeNull?NULL:NOTNULL); }
-    private static TypeMemPtr make(TypeStruct structType, int tptr) { return new TypeMemPtr(structType, tptr).intern(); }
-
-    public TypeStruct structType() { return _structType; }
-
-    @Override
-    public boolean isNull() { return _structType == null && _tptr == NULL; }
-
-    @Override
-    public boolean maybeNull() { return _tptr == NULL; }
+    public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
+    public static TypeMemPtr NULL= make(null,true);
+    public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
+    public static void gather(ArrayList<Type> ts) { ts.add(NULL); ts.add(BOT); ts.add(TEST); }
 
     @Override
     protected Type xmeet(Type t) {
-        TypeMemPtr other = (TypeMemPtr) t;
-        if (this == other) return this;
-        if (isNull() && !other.isNull()) return TypeMemPtr.make(other._structType, true);
-        if (!isNull() && other.isNull()) return TypeMemPtr.make(_structType, true);
-        if (_structType == other._structType) {
-            if (other.maybeNull()) return other;
-            return                 this;
-        }
-        return BOT;
+        TypeMemPtr that = (TypeMemPtr) t;
+        return TypeMemPtr.make(xmeet(that._obj), _nil | that._nil);
+    }
+    // Meet (null,TS,MANY) vs (null,TS,MANY)
+    private TypeStruct xmeet(TypeStruct obj) {
+        if( _obj == obj ) return  obj; // If same, then same
+        if( _obj == null) return  obj; // If either is null, take the other
+        if(  obj == null) return _obj;
+        return TypeStruct.BOT; // Must be unequal
+    }
+
+
+    @Override
+    public Type dual() { return TypeMemPtr.make(dual(_obj), !_nil); }
+    private TypeStruct dual(TypeStruct obj) {
+        return obj==null ? TypeStruct.BOT : (obj==TypeStruct.BOT ? null : obj);
     }
 
     @Override
-    public Type dual() {
-        if( this == TOP ) return BOT;
-        if( this == BOT ) return TOP;
-        return this;
-    }
+    public Type glb() { return make(_obj.glb(),true); }
 
     @Override
-    public Type glb() {
-        if ( this == TOP ) return BOT;
-        // If we are not null ptr - then return ptr|null
-        if ( _structType != null && _tptr == NOTNULL ) return TypeMemPtr.make(_structType, true);
-        return this;
-    }
-
-    @Override
-    int hash() { return Objects.hash(_structType != null ? _structType.hash() : TMEMPTR, _tptr); }
+    int hash() { return (_obj==null ? 0xDEADBEEF : _obj.hashCode()) ^ (_nil ? 1024 : 0); }
 
     @Override
     boolean eq(Type t) {
-        // a ptr is equal to itself
-        if (this == t) return true;
-        if (t instanceof TypeMemPtr ptr) {
-            return _structType == ptr._structType
-                    && _tptr == ptr._tptr;
-        }
-        return false;
+        TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
+        return _obj == ptr._obj  && _nil == ptr._nil;
     }
 
+    // [void,name,MANY]*[,?]
     @Override
     public StringBuilder _print(StringBuilder sb) {
-        if (isNull()) return sb.append("null");
-        if (this == TOP) return sb.append("PtrTop");
-        if (this == BOT) return sb.append("PtrBot");
-        sb.append("Ptr(" + _structType._name + ")");
-        if (maybeNull()) sb.append("|null");
-        return sb;
+        if( this==NULL ) return sb.append("null");
+        sb.append("*");
+        if( _obj==null ) sb.append("void");
+        else _obj._print(sb);
+        return sb.append(_nil ? "?" : "");
     }
 }

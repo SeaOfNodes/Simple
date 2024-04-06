@@ -2,12 +2,13 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Utils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
  * These types are part of a Monotone Analysis Framework,
  * @see <a href="https://www.cse.psu.edu/~gxt29/teaching/cse597s21/slides/08monotoneFramework.pdf">see for example this set of slides</a>.
- * <p> 
+ * <p>
  * The types form a lattice; @see <a href="https://en.wikipedia.org/wiki/Lattice_(order)">a symmetric complete bounded (ranked) lattice.</a>
  * <p>
  * This wild lattice theory will be needed later to allow us to easily beef up
@@ -18,7 +19,7 @@ import java.util.HashMap;
  * actual implementation is darn near trivial and is generally really obvious
  * what we're doing with it.  Right now, it's just simple integer math to do
  * simple constant folding e.g. 1+2 == 3 stuff.
- */    
+ */
 
 public class Type {
     static final HashMap<Type,Type> INTERN = new HashMap<>();
@@ -33,9 +34,10 @@ public class Type {
     static final byte TSIMPLE = 4; // End of the Simple Types
     static final byte TINT    = 5; // All Integers; see TypeInteger
     static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMEM     = 7; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TMEMPTR  = 8; // Memory pointer type
-    static final byte TSTRUCT  = 9; // Memory Structs; tuples with named fields
+    static final byte TMEM    = 7; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TMEMPTR = 8; // Memory pointer type
+    static final byte TSTRUCT = 9; // Structs; tuples with named fields
+    static final byte TFLD    =10; // Fields into struct
 
     public final byte _type;
 
@@ -47,6 +49,18 @@ public class Type {
     public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
     public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
     public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
+    public static Type[] gather() {
+        ArrayList<Type> ts = new ArrayList<>();
+        ts.add(BOTTOM);
+        ts.add(CONTROL);
+        Field.gather(ts);
+        TypeInteger.gather(ts);
+        TypeMem.gather(ts);
+        TypeMemPtr.gather(ts);
+        TypeStruct.gather(ts);
+        TypeTuple.gather(ts);
+        return ts.toArray(new Type[ts.size()]);
+    }
 
     // Is high or on the lattice centerline.
     public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
@@ -55,15 +69,14 @@ public class Type {
     // Excludes both high and low values
     public boolean isConstant() { return false; }
 
-    public boolean isNull() { return false; }
-    public boolean maybeNull() { return false; }
-
     public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     /**
      * Display Type name in a format that's good for IR printer
      */
     public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
+
+    public Type makeInit() { throw Utils.TODO(); }
 
     // ----------------------------------------------------------
 
@@ -79,11 +92,11 @@ public class Type {
     // Factory method which interns "this"
     public  <T extends Type> T intern() {
         T nnn = (T)INTERN.get(this);
-        if( nnn==null ) 
+        if( nnn==null )
             INTERN.put(nnn=(T)this,this);
         return nnn;
     }
-    
+
     private int _hash;          // Hash cache; not-zero when set.
     @Override
     public final int hashCode() {
@@ -94,7 +107,7 @@ public class Type {
     }
     // Override in subclasses
     int hash() { return _type; }
-    
+
     @Override
     public final boolean equals( Object o ) {
         if( o==this ) return true;
@@ -104,8 +117,8 @@ public class Type {
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
     boolean eq(Type t) { return true; }
-    
-    
+
+
     // ----------------------------------------------------------
     public final Type meet(Type t) {
         // Shortcut for the self case
@@ -115,7 +128,7 @@ public class Type {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
-        return xmeet(t);        // Mixing 2 unrelated types
+        return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 
     // Compute meet right now.  Overridden in subclasses.
@@ -132,22 +145,6 @@ public class Type {
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
 
-    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    public boolean isa( Type t ) { return meet(t)==t; }
-
-    /**
-     * Compute greatest lower bound in the lattice
-     */
-    public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
-
-    // ----------------------------------------------------------
-    // Our lattice is defined with a MEET and a DUAL.
-    // JOIN is dual of meet of both duals.
-    public final Type join(Type t) {
-        if( this==t ) return this;
-        return dual().meet(t.dual()).dual();
-    }
-
     public Type dual() {
         return switch( _type ) {
         case TBOT -> TOP;
@@ -157,7 +154,23 @@ public class Type {
         default -> throw Utils.TODO(); // Should not reach here
         };
     }
-    
+
+    // ----------------------------------------------------------
+    // Our lattice is defined with a MEET and a DUAL.
+    // JOIN is dual of meet of both duals.
+    public final Type join(Type t) {
+        if( this==t ) return this;
+        return dual().meet(t.dual()).dual();
+    }
+
+    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
+    public boolean isa( Type t ) { return meet(t)==t; }
+
+    /**
+     * Compute greatest lower bound in the lattice
+     */
+    public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
+
     // ----------------------------------------------------------
     @Override
     public final String toString() {

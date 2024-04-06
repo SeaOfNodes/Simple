@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import java.util.ArrayList;
+
 /**
  * Integer Type
  */
@@ -28,9 +30,11 @@ public class TypeInteger extends Type {
 
     public static TypeInteger constant(long con) { return make(true, con); }
 
+    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); }
+
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
-    @Override 
+    @Override
     public StringBuilder _print(StringBuilder sb) {
         if( this==TOP ) return sb.append("IntTop");
         if( this==BOT ) return sb.append("IntBot");
@@ -71,14 +75,14 @@ public class TypeInteger extends Type {
     }
 
     @Override
-    public Type glb() { return BOT; }
-
-    @Override
     public Type dual() {
         if( isConstant() ) return this; // Constants are a self-dual
         return _con==0 ? BOT : TOP;
     }
-    
+
+    @Override
+    public Type glb() { return BOT; }
+
     @Override
     int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
     @Override

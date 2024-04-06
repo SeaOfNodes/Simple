@@ -24,7 +24,7 @@ struct Bar {
 struct Foo {
     int x;
 }
-Foo foo = null;
+Foo? foo = null;
 Bar bar = new Bar;
 bar.a = 1;
 bar.a = 2;
@@ -103,7 +103,7 @@ while (arg) {
     bar.a = bar.a + 2;
     arg = arg + 1;
 }
-return bar.a;                
+return bar.a;
                 """);
 
         StopNode stop = parser.parse(true).iterate(true);
@@ -120,7 +120,7 @@ struct Bar {
 Bar bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
-return bar.a;             
+return bar.a;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return .a;", stop.toString());
@@ -136,7 +136,7 @@ struct Bar {
 Bar bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
-return bar.a;             
+return bar.a;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return .a;", stop.toString());
@@ -152,7 +152,7 @@ struct Bar {
 Bar bar = null;
 if (arg) bar = null;
 bar.a = 1;
-return bar.a;             
+return bar.a;
                 """);
         try {
             StopNode stop = parser.parse(true);
@@ -175,7 +175,7 @@ while(arg) {
     v0 = null;
     arg = arg - 1;
 }
-return ret;     
+return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return Phi(Loop11,0,.v0);", stop.toString());
@@ -190,7 +190,7 @@ struct s0 {
 }
 s0 v1=new s0;
 s0 v1;
-v1=new s0;  
+v1=new s0;
                 """);
         try {
             StopNode stop = parser.parse(true);
@@ -214,7 +214,7 @@ while(arg) {
     if (arg==5) ret=v0;
     #showGraph;
 }
-return ret;                
+return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
@@ -234,7 +234,7 @@ while(arg) {
     if (arg==5) ret=v0;
         #showGraph;
 }
-return ret;          
+return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
@@ -253,7 +253,7 @@ while(arg < 10) {
     if (arg == 5) ret=v0;
     arg = arg + 1;
 }
-return ret;                
+return ret;
                 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
@@ -269,7 +269,7 @@ struct s0 {
 }
 if(0>=0) return new s0;
 return new s0;
-int v0=null.f0;            
+int v0=null.f0;
                 """);
         try {
             StopNode stop = parser.parse(true);
@@ -291,7 +291,7 @@ if(0) {
         int arg=-arg;
         v0=arg;
     }
-}         
+}
                    """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("Stop[ ]", stop.toString());
@@ -306,7 +306,7 @@ struct s0 {
 }
 if(0) return 0;
 else return new s0;
-if(new s0.f0) return 0;                   
+if(new s0.f0) return 0;
                     """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return new Ptr(s0);", stop.toString());
@@ -323,7 +323,7 @@ while(0<arg) {
     while(1) v4=-v4;
     while(0) arg=-1;
 }
-return 0;                
+return 0;
                     """);
         StopNode stop = parser.parse().iterate(true);
     }
@@ -337,64 +337,9 @@ struct s0 {
 }
 s0 v0=new s0;
 while(v0.f0) {}
-s0 v1=v0;          
+s0 v1=v0;
                     """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("Stop[ ]", stop.toString());
     }
-
-    @Test
-    public void testTypeLattice() {
-        TypeStruct s1 = TypeStruct.make("s1", Arrays.asList(
-                            new StructField(null, TypeInteger.BOT, "a", 0),
-                            new StructField(null, TypeInteger.BOT, "b", 0)));
-        TypeStruct s2 = TypeStruct.make("s2", Arrays.asList(
-                            new StructField(null, TypeInteger.BOT, "a", 0),
-                            new StructField(null, TypeInteger.BOT, "b", 0)));
-        Assert.assertEquals(s1, s1.glb());
-        Assert.assertEquals(s1, s1.dual());
-        Assert.assertEquals(s1, s1.glb().dual());
-
-        TypeMem m1 = TypeMem.make(s1.getField("a"));
-        TypeMem m2 = TypeMem.make(s1.getField("b"));
-        TypeMem m3 = TypeMem.make(s2.getField("a"));
-        TypeMem m4 = TypeMem.make(s2.getField("b"));
-
-        Assert.assertNotEquals(m1, m2);
-        Assert.assertNotEquals(m2, m3);
-        Assert.assertNotEquals(m3, m4);
-
-        Assert.assertEquals(Type.BOTTOM, s1.meet(s2));
-        Assert.assertEquals(Type.BOTTOM, m1.meet(m2));
-        Assert.assertEquals(Type.BOTTOM, m2.meet(m3));
-        Assert.assertEquals(Type.BOTTOM, m3.meet(m4));
-
-        Assert.assertEquals(m1, m1.glb());
-        Assert.assertEquals(m1, m1.dual());
-        Assert.assertEquals(m1, m1.glb().dual());
-
-        TypeMemPtr ptr1 = TypeMemPtr.make(s1);
-        Assert.assertEquals(s1, ptr1.structType());
-        TypeMemPtr ptr2 = TypeMemPtr.make(s2);
-        Assert.assertEquals(s2, ptr2.structType());
-
-        TypeMemPtr ptr1opt = TypeMemPtr.make(s1, true);
-        Assert.assertEquals(s1, ptr1opt.structType());
-        Assert.assertTrue(ptr1opt.maybeNull());
-        Assert.assertFalse(ptr1opt.isNull());
-        TypeMemPtr ptr2opt = TypeMemPtr.make(s2, true);
-        Assert.assertEquals(s2, ptr2opt.structType());
-
-        Assert.assertNotEquals(ptr1, ptr2);
-        Assert.assertNotEquals(ptr1, ptr1.glb());
-        Assert.assertEquals(ptr1opt, ptr1.glb());
-
-        Assert.assertEquals(TypeMemPtr.TOP, TypeMemPtr.BOT.dual());
-        Assert.assertEquals(TypeMemPtr.BOT, TypeMemPtr.TOP.dual());
-        Assert.assertEquals(ptr1, ptr1.dual());
-        Assert.assertEquals(ptr1.glb(), ptr1.glb().dual());
-        Assert.assertEquals(TypeMemPtr.BOT, ptr1.meet(ptr2));
-        Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULLPTR));
-    }
-
 }

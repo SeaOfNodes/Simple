@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
 
 import java.util.BitSet;
@@ -12,7 +13,7 @@ public class ProjNode extends Node {
 
     // Debugging label
     public final String _label;
-    
+
     public ProjNode(MultiNode ctrl, int idx, String label) {
         super(ctrl);
         _idx = idx;
@@ -27,6 +28,7 @@ public class ProjNode extends Node {
 
     @Override public boolean isCFG() { return _idx==0 || ctrl() instanceof IfNode; }
     @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
 
     public MultiNode ctrl() { return (MultiNode)in(0); }
 

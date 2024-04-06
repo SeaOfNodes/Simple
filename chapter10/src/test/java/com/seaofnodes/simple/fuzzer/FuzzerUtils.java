@@ -18,7 +18,7 @@ import java.util.BitSet;
 class FuzzerUtils {
 
     /**
-     * Get the value of a private field
+     * Get the val of a private field
      */
     @SuppressWarnings("unchecked")
     public static <T> T getFieldValue(Object obj, String name) throws NoSuchFieldException, IllegalAccessException {

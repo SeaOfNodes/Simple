@@ -14,16 +14,14 @@ public class NewNode extends Node {
         this._ptr = ptr;
     }
 
-    public TypeMemPtr ptr() { return _ptr; }
-
     @Override
     public String label() {
-        return "New";
+        return "new";
     }
 
     @Override
     public String glabel() {
-        return "New " + ptr();
+        return "new " + _ptr._obj._name;
     }
 
     @Override

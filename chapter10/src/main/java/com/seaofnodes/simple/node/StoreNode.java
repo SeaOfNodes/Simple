@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.StructField;
+import com.seaofnodes.simple.type.Field;
+import com.seaofnodes.simple.type.TypeMem;
 
 import java.util.BitSet;
 
@@ -17,23 +18,25 @@ public class StoreNode extends MemOpNode {
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(StructField field, Node memSlice, Node memPtr, Node value) {
+    public StoreNode(Field field, Node memSlice, Node memPtr, Node value) {
         super(field, memSlice, memPtr, value);
     }
 
     @Override
-    public String label() {
-        return "Store";
-    }
+    public String label() { return "Store"; }
+    @Override
+    public String glabel() { return "."+_field._fname+" ="; }
+    @Override
+    public boolean isMem() { return true; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append(".").append(_field._fieldName).append("=").append(value()).append(";");
+        return sb.append(".").append(_field._fname).append("=").append( val()).append(";");
     }
 
     @Override
     public Type compute() {
-        return memSlice()._type;
+        return TypeMem.make(_field._alias);
     }
 
     @Override

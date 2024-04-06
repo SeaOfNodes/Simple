@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.StructField;
+import com.seaofnodes.simple.type.Field;
 
 import java.util.BitSet;
 
@@ -18,21 +18,22 @@ public class LoadNode extends MemOpNode {
      * @param memSlice The memory alias node - this is updated after a Store
      * @param memPtr The ptr to the struct from where we load a field
      */
-    public LoadNode(StructField field, Node memSlice, Node memPtr) {
+    public LoadNode(Field field, Node memSlice, Node memPtr) {
         super(field, memSlice, memPtr, null);
     }
 
     @Override
-    public String label() {
-        return "Load";
-    }
+    public String label() { return "Load"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_field._fieldName); }
+    public String glabel() { return "."+_field._fname; }
+
+    @Override
+    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_field._fname); }
 
     @Override
     public Type compute() {
-        return _field._fieldType;
+        return _field._type;
     }
 
     @Override
