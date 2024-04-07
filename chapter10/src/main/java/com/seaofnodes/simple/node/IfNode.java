@@ -1,15 +1,16 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
-
 import java.util.BitSet;
 
 public class IfNode extends MultiNode {
 
     public IfNode(Node ctrl, Node pred) {
         super(ctrl, pred);
+        IterPeeps.add(this);    // Because idoms are complex, just add it
     }
 
     @Override
@@ -42,10 +43,10 @@ public class IfNode extends MultiNode {
         // Else true branch is reachable
         if (t instanceof TypeInteger ti && ti.isConstant())
             return ti==TypeInteger.ZERO ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
-        
+
         return TypeTuple.IF_BOTH;
     }
-    
+
     @Override
     public Node idealize() {
         // Hunt up the immediate dominator tree.  If we find an identical if

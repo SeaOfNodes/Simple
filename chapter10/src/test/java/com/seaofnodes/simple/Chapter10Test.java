@@ -329,4 +329,36 @@ return v1;
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return new s0;", stop.toString());
     }
+
+
+    @Test
+    public void testBug8() {
+        Parser parser = new Parser("""
+int v2=0;
+while(0)
+while(0) {}
+{
+    {
+        {
+            int v36=0;
+            {
+                while(0) {
+                    {
+                        while(-v2) {
+                            {
+                                while(v36) {
+                                                while(v2) return 0;
+                                                break;
+                                }                            }
+                            if(-v2) break;
+                        }
+                    }
+                }
+            }
+        }    }
+}
+    """);
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("Stop[ ]", stop.toString());
+    }
 }
