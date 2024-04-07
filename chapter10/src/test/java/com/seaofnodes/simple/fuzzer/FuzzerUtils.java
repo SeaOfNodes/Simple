@@ -74,10 +74,12 @@ class FuzzerUtils {
     }
 
     /**
-     * Check that eiter one of the objects is null or that both are equal.
+     * Check that the messages are similar.
      */
-    private static boolean equalOrNull(Object a, Object b) {
+    private static boolean similarMessages(String a, String b) {
         if (a == null || b == null) return true;
+        a = a.replaceAll("'\\w+'", "'normalized'").replaceAll("variable \\w+", "variable normalized");
+        b = b.replaceAll("'\\w+'", "'normalized'").replaceAll("variable \\w+", "variable normalized");
         return a.equals(b);
     }
 
@@ -96,7 +98,7 @@ class FuzzerUtils {
     public static boolean isExceptionFromSameCause(Throwable a, Throwable b) {
         if (a == null || b == null) return a == b; // Handle the null case
         if (a.getClass() != b.getClass()) return false; // Different classes
-        if (!equalOrNull(a.getMessage(), b.getMessage())) return false; // Different messages. Null is allowed as wildcard
+        if (!similarMessages(a.getMessage(), b.getMessage())) return false; // Different messages. Null is allowed as wildcard
         var s1 = a.getStackTrace();
         var s2 = b.getStackTrace();
         if (!sameStackTraceOrigin(s1, s2)) return false; // Different stack trace origins
