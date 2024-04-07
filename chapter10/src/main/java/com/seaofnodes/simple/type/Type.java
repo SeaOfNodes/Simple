@@ -59,6 +59,9 @@ public class Type {
         TypeMemPtr.gather(ts);
         TypeStruct.gather(ts);
         TypeTuple.gather(ts);
+        int sz = ts.size();
+        for( int i = 0; i < sz; i++ )
+            ts.add(ts.get(i).dual());
         return ts.toArray(new Type[ts.size()]);
     }
 

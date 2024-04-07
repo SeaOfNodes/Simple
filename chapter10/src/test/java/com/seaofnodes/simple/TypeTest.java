@@ -10,7 +10,7 @@ import java.util.Arrays;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-public class TestType {
+public class TypeTest {
 
     // Test basic properties and GLB
     @Test

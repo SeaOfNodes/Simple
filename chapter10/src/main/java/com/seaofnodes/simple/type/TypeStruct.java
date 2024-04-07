@@ -62,7 +62,7 @@ public class TypeStruct extends Type {
     }
 
     @Override
-    public Type dual() {
+    public TypeStruct dual() {
         if( this==TOP ) return BOT;
         if( this==BOT ) return TOP;
         Field[] flds = new Field[_fields.length];

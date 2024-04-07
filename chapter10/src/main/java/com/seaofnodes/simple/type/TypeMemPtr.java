@@ -15,7 +15,7 @@ public class TypeMemPtr extends Type {
     //    (true,false) meaning an explicit null is allowed or not
 
     public final TypeStruct _obj; // null, a TypeStruct, or sentinal TypeStruct.MANY
-    public boolean _nil;
+    public final boolean _nil;
 
     private TypeMemPtr(TypeStruct obj, boolean nil) {
         super(TMEMPTR);
@@ -26,29 +26,21 @@ public class TypeMemPtr extends Type {
     public static TypeMemPtr make(TypeStruct obj) { return TypeMemPtr.make(obj, false); }
 
     public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
-    public static TypeMemPtr NULL= make(null,true);
+    public static TypeMemPtr TOP = BOT.dual();
+    public static TypeMemPtr NULL= make(TypeStruct.TOP,true);
+    public static TypeMemPtr VOID= NULL.dual(); // A bottom mix of not-null ptrs
     public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
     public static void gather(ArrayList<Type> ts) { ts.add(NULL); ts.add(BOT); ts.add(TEST); }
 
     @Override
     protected Type xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
-        return TypeMemPtr.make(xmeet(that._obj), _nil | that._nil);
-    }
-    // Meet (null,TS,MANY) vs (null,TS,MANY)
-    private TypeStruct xmeet(TypeStruct obj) {
-        if( _obj == obj ) return  obj; // If same, then same
-        if( _obj == null) return  obj; // If either is null, take the other
-        if(  obj == null) return _obj;
-        return TypeStruct.BOT; // Must be unequal
+        return TypeMemPtr.make((TypeStruct)_obj.meet(that._obj), _nil | that._nil);
     }
 
 
     @Override
-    public Type dual() { return TypeMemPtr.make(dual(_obj), !_nil); }
-    private TypeStruct dual(TypeStruct obj) {
-        return obj==null ? TypeStruct.BOT : (obj==TypeStruct.BOT ? null : obj);
-    }
+    public TypeMemPtr dual() { return TypeMemPtr.make(_obj==null ? null : _obj.dual(), !_nil); }
 
     @Override
     public Type glb() {
@@ -70,16 +62,14 @@ public class TypeMemPtr extends Type {
     @Override
     public StringBuilder _print(StringBuilder sb) {
         if( this==NULL ) return sb.append("null");
-        sb.append("*");
-        if( _obj==null ) sb.append("void");
-        else _obj._print(sb);
-        return sb.append(_nil ? "?" : "");
+        if( this==VOID ) return sb.append("*void");
+        return _obj._print(sb.append("*")).append(_nil ? "?" : "");
     }
 
     @Override public String str() {
         if( this==NULL ) return "null";
-        String s = _obj==null ? "void" : _obj._name;
-        return "*"+s+(_nil ? "?" : "");
+        if( this==VOID ) return "*void";
+        return "*"+_obj.str()+(_nil ? "?" : "");
     }
 
 }
