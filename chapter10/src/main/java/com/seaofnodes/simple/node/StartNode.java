@@ -43,7 +43,7 @@ public class StartNode extends MultiNode {
         for( int alias = len; alias <= max; alias++ ) {
             String name = "$"+alias;
             Node n = new ProjNode(this, alias, name).peephole();
-            scope.define(name, n);
+            scope.define(name, args[alias], n);
         }
     }
 

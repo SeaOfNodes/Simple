@@ -27,7 +27,7 @@ public class TypeMem extends Type {
     public static void gather(ArrayList<Type> ts) { ts.add(make(1)); ts.add(BOT); }
 
     @Override
-    protected TypeMem xmeet(Type t) {
+    TypeMem xmeet(Type t) {
         TypeMem that = (TypeMem) t; // Invariant: TypeMem and unequal
         return _alias==0 ? that : (that._alias==0 ? this : BOT);
     }

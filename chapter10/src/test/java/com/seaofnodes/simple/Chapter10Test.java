@@ -15,8 +15,7 @@ public class Chapter10Test {
 
     @Test
     public void testStruct() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct Bar {
     int a;
     int b;
@@ -29,7 +28,7 @@ Bar bar = new Bar;
 bar.a = 1;
 bar.a = 2;
 return bar.a;
-                """);
+""");
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
         assertEquals("return .a;", stop.toString());
@@ -37,8 +36,7 @@ return bar.a;
 
     @Test
     public void testExample() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct Vector2D { int x; int y; }
 
 Vector2D v = new Vector2D;
@@ -48,7 +46,7 @@ if (arg)
 else
     v.y = 3;
 return v;
-                """);
+""");
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
         assertEquals("return new Vector2D;", stop.toString());
@@ -56,14 +54,13 @@ return v;
 
     @Test
     public void testBug() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {
     int v0;
 }
 s0? v1=null;
 int v3=v1.zAicm;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true);
             fail();
@@ -75,13 +72,10 @@ int v3=v1.zAicm;
 
     @Test
     public void testBug2() {
-        Parser parser = new Parser(
-                """
-struct s0 {
-    int v0;
-}
+        Parser parser = new Parser("""
+struct s0 { int v0; }
 arg=0+new s0.0;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true);
             fail();
@@ -93,18 +87,15 @@ arg=0+new s0.0;
 
     @Test
     public void testLoop() {
-        Parser parser = new Parser(
-                """
-struct Bar {
-    int a;
-}
+        Parser parser = new Parser("""
+struct Bar { int a; }
 Bar bar = new Bar;
 while (arg) {
     bar.a = bar.a + 2;
     arg = arg + 1;
 }
 return bar.a;
-                """);
+""");
 
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return .a;", stop.toString());
@@ -112,16 +103,13 @@ return bar.a;
 
     @Test
     public void testIf() {
-        Parser parser = new Parser(
-                """
-struct Bar {
-    int a;
-}
+        Parser parser = new Parser("""
+struct Bar { int a; }
 Bar bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true).iterate(true);
             fail();
@@ -132,8 +120,7 @@ return bar.a;
 
     @Test
     public void testIf2() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct Bar {
     int a;
 }
@@ -141,7 +128,7 @@ Bar? bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true).iterate(true);
             fail();
@@ -152,8 +139,7 @@ return bar.a;
 
     @Test
     public void testIf3() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct Bar {
     int a;
 }
@@ -161,7 +147,7 @@ Bar bar = null;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true);
             fail();
@@ -194,15 +180,14 @@ return ret;
 
     @Test
     public void testRedeclareStruct() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {
     int v0;
 }
 s0? v1=new s0;
 s0? v1;
 v1=new s0;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true);
             fail();
@@ -214,8 +199,7 @@ v1=new s0;
 
     @Test
     public void test1() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {int v0;}
 s0 ret = new s0;
 while(arg) {
@@ -226,7 +210,7 @@ while(arg) {
     #showGraph;
 }
 return ret;
-                """);
+""");
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
         assertEquals("return Phi(Loop12,new s0,Phi(Region33,new s0,Phi_ret));", stop.toString());
@@ -234,8 +218,7 @@ return ret;
 
     @Test
     public void test2() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {int v0;}
 s0 ret = new s0;
 s0 v0 = new s0;
@@ -246,7 +229,7 @@ while(arg) {
         #showGraph;
 }
 return ret;
-                """);
+""");
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
         assertEquals("return Phi(Loop15,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
@@ -255,8 +238,7 @@ return ret;
 
     @Test
     public void test3() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {int v0;}
 s0 ret = new s0;
 while(arg < 10) {
@@ -265,7 +247,7 @@ while(arg < 10) {
     arg = arg + 1;
 }
 return ret;
-                """);
+""");
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
         assertEquals("return Phi(Loop12,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
@@ -273,15 +255,14 @@ return ret;
 
     @Test
     public void testBug3() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {
     int f0;
 }
 if(0>=0) return new s0;
 return new s0;
 int v0=null.f0;
-                """);
+""");
         try {
             StopNode stop = parser.parse(true);
             fail();
@@ -293,8 +274,7 @@ int v0=null.f0;
 
     @Test
     public void testBug4() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 if(0) {
     while(0) if(arg) continue;
     int v0=0;
@@ -303,30 +283,28 @@ if(0) {
         v0=arg;
     }
 }
-                   """);
+   """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("Stop[ ]", stop.toString());
     }
 
     @Test
     public void testBug5() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 struct s0 {
     int f0;
 }
 if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
-                    """);
+    """);
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return new s0;", stop.toString());
     }
 
     @Test
     public void testBug6MissedWorklist() {
-        Parser parser = new Parser(
-                """
+        Parser parser = new Parser("""
 while(0) {}
 int v4=0;
 while(0<arg) {
@@ -335,22 +313,19 @@ while(0<arg) {
     while(0) arg=-1;
 }
 return 0;
-                    """);
+    """);
         StopNode stop = parser.parse().iterate(true);
     }
 
     @Test
     public void testBug7() {
-        Parser parser = new Parser(
-                """
-struct s0 {
-    int f0;
-}
-s0 v0=new s0;
+        Parser parser = new Parser("""
+struct s0 {  int f0; }
+s0 v0 = new s0;
 while(v0.f0) {}
-s0 v1=v0;
+s0 v1 = v0;
 return v1;
-                    """);
+    """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return new s0;", stop.toString());
     }

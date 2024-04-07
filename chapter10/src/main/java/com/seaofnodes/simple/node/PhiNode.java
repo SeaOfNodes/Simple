@@ -8,14 +8,11 @@ public class PhiNode extends Node {
 
     final String _label;
 
-    // The Phi type we compute must stay within the domain of the Phi
-    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem
-    // Since phis are always created with at least 1 input - we can use this
-    // as the starting type for the Phi; subsequent updates start from the local
-    // TOP of this type
-    final Type _initialType;
+    // The Phi type we compute must stay within the domain of the Phi.
+    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
+    final Type _declaredType;
 
-    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; _initialType = in(1)._type.glb(); }
+    public PhiNode(String label, Type init, Node... inputs) { super(inputs); _label = label;  assert init!=null; _declaredType = init; }
 
     @Override public String label() { return "Phi_"+_label; }
 
@@ -44,9 +41,9 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? Type.TOP : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _initialType;
+        if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type
-        Type t = _initialType.dual();
+        Type t = _declaredType.glb().dual();
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
@@ -80,8 +77,8 @@ public class PhiNode extends Node {
                 lhss[i] = in(i).in(1);
                 rhss[i] = in(i).in(2);
             }
-            Node phi_lhs = new PhiNode(_label,lhss).peephole();
-            Node phi_rhs = new PhiNode(_label,rhss).peephole();
+            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
+            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
             return op.copy(phi_lhs,phi_rhs);
         }
 

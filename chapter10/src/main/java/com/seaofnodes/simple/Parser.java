@@ -104,8 +104,8 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
         _scope.pop();
         _xScopes.pop();
@@ -404,23 +404,17 @@ public class Parser {
 
         // Defining a new variable vs updating an old one
         if( t != null ) {
-            if( _scope.define(name,expr) == null )
+            if( _scope.define(name,t,expr) == null )
                 throw error("Redefining name '" + name + "'");
         } else {
             Node n = _scope.lookup(name);
+            t = _scope.lookup_type(name);
             if( n==null )
                 throw error("Undefined name '" + name + "'");
-            // TODO: Get the actual Parser declared type.
-            // This hack gets the last assigned type and widens it, preserving
-            // not-null-ness.  This is very close to any Parser declared type right now.
-            t = n._type.glb();  // Get existing type
-            if( n._type instanceof TypeMemPtr ptr && !ptr._nil )
-                t = TypeMemPtr.make(ptr._obj,false);
             _scope.update(name,expr);
         }
-        // TODO: Delay this type check until after optimization
         if( !expr._type.isa(t) )
-              throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
+            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
     }
 
@@ -455,7 +449,7 @@ public class Parser {
             : require(require("=").parseExpression(), ";");
         if( !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
-        if( _scope.define(name,expr) == null )
+        if( _scope.define(name,t,expr) == null )
             throw error("Redefining name '" + name + "'");
         return expr;
     }

@@ -33,11 +33,10 @@ public class TypeMemPtr extends Type {
     public static void gather(ArrayList<Type> ts) { ts.add(NULL); ts.add(BOT); ts.add(TEST); }
 
     @Override
-    protected Type xmeet(Type t) {
+    Type xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
         return TypeMemPtr.make((TypeStruct)_obj.meet(that._obj), _nil | that._nil);
     }
-
 
     @Override
     public TypeMemPtr dual() { return TypeMemPtr.make(_obj==null ? null : _obj.dual(), !_nil); }

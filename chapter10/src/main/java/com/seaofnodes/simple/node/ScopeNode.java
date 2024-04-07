@@ -23,10 +23,14 @@ public class ScopeNode extends Node {
      */
     public final Stack<HashMap<String, Integer>> _scopes;
 
+    // Defined types for every name
+    public Stack<HashMap<String, Type>> _types;
+
 
     // A new ScopeNode
     public ScopeNode() {
         _scopes = new Stack<>();
+        _types  = new Stack<>();
         _type = Type.BOTTOM;
     }
 
@@ -69,14 +73,15 @@ public class ScopeNode extends Node {
 
     @Override public Node idealize() { return null; }
 
-    public void push() { _scopes.push(new HashMap<>());  }
-    public void pop() { popN(_scopes.pop().size());  }
+    public void push() { _scopes.push(new HashMap<>());  _types.push(new HashMap<>()); }
+    public void pop() { popN(_scopes.pop().size()); _types.pop(); }
 
     /**
      * Create a new name in the current scope
      */
-    public Node define( String name, Node n ) {
+    public Node define( String name, Type t, Node n ) {
         HashMap<String,Integer> syms = _scopes.lastElement();
+        _types.lastElement().put(name,t);
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
         return addDef(n);
@@ -97,7 +102,7 @@ public class ScopeNode extends Node {
     public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
     /**
      * Both recursive lookup and update.
-     *
+     * <p>
      * A shared implementation allows us to create lazy phis both during
      * lookups and updates; the lazy phi creation is part of chapter 8.
      *
@@ -120,10 +125,19 @@ public class ScopeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+                : loop.setDef(idx,new PhiNode(name,lookup_type(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
             setDef(idx,old);
         }
         return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
+    }
+
+    // Return declared type
+    public Type lookup_type( String name ) {
+        for( int i=_types.size(); i>0; i-- ) {
+            Type t = _types.get(i-1).get(name);
+            if( t != null ) return t;
+        }
+        return null;
     }
 
     public Node ctrl() { return in(0); }
@@ -162,8 +176,10 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
+        for( HashMap<String,Type> ts : _types )
+            dup._types.push(ts); // Types don't change, just keep stacks aligned
 
-        dup.addDef(ctrl());      // Control input is just copied
+        dup.addDef(ctrl());     // Control input is just copied
         for( int i=1; i<nIns(); i++ )
             // For lazy phis on loops we use a sentinel
             // that will trigger phi creation on update
@@ -187,7 +203,7 @@ public class ScopeNode extends Node {
             if( in(i) != that.in(i) ) // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
-                setDef(i, new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
+                setDef(i, new PhiNode(ns[i], this.lookup_type(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }

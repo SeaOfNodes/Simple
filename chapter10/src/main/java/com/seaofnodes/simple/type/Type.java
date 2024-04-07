@@ -135,7 +135,7 @@ public class Type {
     // Compute meet right now.  Overridden in subclasses.
     // Handle cases where 'this.is_simple()' and unequal to 't'.
     // Subclassed xmeet calls can assert that '!t.is_simple()'.
-    protected Type xmeet(Type t) {
+    Type xmeet(Type t) {
         assert is_simple(); // Should be overridden in subclass
         // ANY meet anything is thing; thing meet ALL is ALL
         if( _type==TBOT || t._type==TTOP ) return this;

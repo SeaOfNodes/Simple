@@ -13,7 +13,7 @@ public class TypeTuple extends Type {
     public static void gather(ArrayList<Type> ts) {  ts.add(TEST); }
 
     @Override
-    public Type xmeet(Type other) {
+    Type xmeet(Type other) {
         TypeTuple tt = (TypeTuple)other;     // contract from xmeet
         assert _types.length == tt._types.length;
         Type[] ts = new Type[_types.length];

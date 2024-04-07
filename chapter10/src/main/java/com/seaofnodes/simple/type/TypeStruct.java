@@ -38,7 +38,7 @@ public class TypeStruct extends Type {
     }
 
     @Override
-    protected Type xmeet(Type t) {
+    Type xmeet(Type t) {
         TypeStruct that = (TypeStruct) t;
         if( this==TOP ) return that;
         if( that==TOP ) return this;

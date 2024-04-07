@@ -47,6 +47,13 @@ public class Field extends Type {
     public static final Field TEST = make("test",TypeInteger.ZERO,"test");
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); }
 
+    @Override Field xmeet( Type that ) {
+        Field fld = (Field)that; // Invariant
+        assert _sname.equals(fld._sname);
+        assert _fname.equals(fld._fname);
+        return make(_sname,_type.meet(fld._type),_fname);
+    }
+
     @Override
     public Field dual() { return make(_sname,_type.dual(),_fname,_alias); }
 
