@@ -15,12 +15,12 @@ import java.util.Random;
  */
 public class ScriptGenerator {
 
-    private static final int MAX_STATEMENTS_PER_BLOCK = 10;
+    private static final int MAX_STATEMENTS_PER_BLOCK = 5;
     private static final int MAX_BINARY_EXPRESSIONS_PER_EXPRESSION = 10;
     private static final int MAX_UNARY_EXPRESSIONS_PER_EXPRESSION = 6;
     private static final int MAX_NAME_LENGTH = 30;
-    private static final int MAX_BLOCK_DEPTH = 10;
-    private static final int MAX_EXPRESSION_DEPTH = 30;
+    private static final int MAX_BLOCK_DEPTH = 4;
+    private static final int MAX_EXPRESSION_DEPTH = 10;
 
     /**
      * Number of spaces per indentation
@@ -446,6 +446,7 @@ public class ScriptGenerator {
      * @return 0
      */
     public int genCountedLoop() {
+        if (depth == 0) return genWhile();
         var oldCSS = currScopeStart;
         currScopeStart = variables.size();
         sb.append("{\n");
@@ -457,10 +458,18 @@ public class ScriptGenerator {
         variables.add(new Variable(name, TYPE_INT));
         printIndentation().append("while(").append(name).append("<");
         genExpression(TYPE_INT);
-        sb.append(") ");
+        sb.append(") {\n");
+        indentation += INDENTATION;
+        depth--;
         loopDepth++;
-        genStatementBlock();
+        printIndentation().append(name).append("=").append(name).append("+");
+        genExpression(TYPE_INT);
+        sb.append(";\n");
+        genStatements();
         loopDepth--;
+        depth++;
+        indentation -= INDENTATION;
+        printIndentation().append("}\n");
         indentation -= INDENTATION;
         printIndentation().append("}");
         while (variables.size() > currScopeStart)

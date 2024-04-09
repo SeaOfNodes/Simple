@@ -1,7 +1,10 @@
 package com.seaofnodes.simple.fuzzer;
 
+import java.util.Arrays;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -13,35 +16,45 @@ import java.util.regex.Pattern;
  */
 public class Reducer {
 
+    private interface Replacer extends BiConsumer<StringBuilder, Matcher> {}
+
     /**
      * Holder for the rewrite rules
      */
-    private record Replace(Pattern p, String r) {}
+    private record Replace(Pattern pattern, boolean iterate, Replacer... replacements) {
+        Replace(Pattern p, Object... replacements) {
+            this(p, replacements[0] == Boolean.TRUE, Arrays.stream(replacements).filter(o->!(o instanceof Boolean)).map(Replace::from).toArray(Replacer[]::new));
+        }
+        private static Replacer from(Object o) {
+            if (o instanceof Replacer r) return r;
+            if (o instanceof Integer i) return (s, m)->s.append(m.group(i));
+            if (o instanceof String r) return (s, m)->s.append(r);
+            throw new IllegalArgumentException();
+        }
+    }
 
     /**
      * List of rewrite rules.
      */
     private static final Replace[] REPLACEMENTS = {
+            new Replace(Pattern.compile("\\b(?:[^\\W0]|\\w\\w+)\\b"), "0", "1"),
+            new Replace(Pattern.compile("(?<=\\n|^)[^\\n]+(?=\\n|$)"), true, ""),
             new Replace(Pattern.compile("(?<=[+\\-*/<>=(])--"), ""),
             new Replace(Pattern.compile("\\b--"), "+"),
-            new Replace(Pattern.compile("\\b\\+-"), "-"),
-            new Replace(Pattern.compile("\\bfalse\\b"), "0"),
-            new Replace(Pattern.compile("\\btrue\\b"), "1"),
             new Replace(Pattern.compile("-"), ""),
+            new Replace(Pattern.compile("\\b\\+-"), "-"),
             new Replace(Pattern.compile("(?<![+\\-*/<>=])(?:-|\\*|/|>=|<=|>|<|!=|==)(?![+\\-*/<>=])"), "+"),
-            new Replace(Pattern.compile("\\{(?:[^{}]|\\{})+}"), "{}"),
-            new Replace(Pattern.compile("\\{((?:[^{}]|\\{})+)}"), "$1"),
-            new Replace(Pattern.compile("\\(([^()]+)\\)"), "$1"),
-            new Replace(Pattern.compile("\\b\\w+\\b"), "0"),
-            new Replace(Pattern.compile("\\b(?:[^\\W0]|\\w\\w+)\\b"), "1"),
+            new Replace(Pattern.compile("\\{((?:[^{}]|\\{})+)(?:\\n[ \\t]*)?}"), "", "{}", 1),
+            new Replace(Pattern.compile("(?<=\\n|^)([ \\t]*)\\{\\n(.*?)\\n\\1}", Pattern.DOTALL), 2),
+            new Replace(Pattern.compile("\\(([^()]+)\\)"), 1),
             new Replace(Pattern.compile("\\d+\\+"), ""),
             new Replace(Pattern.compile("\\+\\d+"), ""),
-            new Replace(Pattern.compile("(?<=\\n|^)[^\\n]*(?=\\n|$)"), "\n"),
-            new Replace(Pattern.compile("\\n+"), "\n"),
+            new Replace(Pattern.compile("\\n\\n+"), "\n"),
             new Replace(Pattern.compile("^\\n+|\\n+$"), ""),
             new Replace(Pattern.compile("else *"), ""),
             new Replace(Pattern.compile("\\bif\\([^()]+\\) *"), ""),
             new Replace(Pattern.compile("\\bwhile\\([^()]+\\) *"), ""),
+            new Replace(Pattern.compile("\\bstruct \\w+ \\{[^{}]*}"), "")
     };
 
     /**
@@ -60,24 +73,31 @@ public class Reducer {
     /**
      * Rewrites the script with one rewrite rule.
      */
-    private String doReplacement(String script, Pattern pattern, String with) {
+    private String doReplacement(String script, Pattern pattern, Replacer[] replacements) {
         var matcher = pattern.matcher(script);
         var sb = new StringBuilder();
-        int last = 0;
-        while (matcher.find()) {
-            var pos = sb.length();
-            matcher.appendReplacement(sb, with);
-            var tail = sb.length();
-            matcher.appendTail(sb);
-            if (tester.test(sb.toString())) {
-                sb.setLength(tail);
-            } else {
-                sb.setLength(pos);
-                sb.append(script, last, matcher.end());
-            }
+        var last = 0;
+        var skip = 0;
+        outer:
+        while (matcher.find(last + skip)) {
+            sb.append(script, last, matcher.start());
             last = matcher.end();
+            skip = last == matcher.start() ? 1 : 0;
+            var pos = sb.length();
+            for (var replacement : replacements) {
+                replacement.accept(sb, matcher);
+                var tail = sb.length();
+                sb.append(script, last, script.length());
+                if (tester.test(sb.toString())) {
+                    sb.setLength(tail);
+                    continue outer;
+                }
+                sb.setLength(pos);
+            }
+            last = matcher.start();
+            skip = 1;
         }
-        matcher.appendTail(sb);
+        sb.append(script, last, script.length());
         return sb.toString();
     }
 
@@ -86,16 +106,20 @@ public class Reducer {
      */
     private String cleanVariables(String script) {
         var matcher = Pattern.compile("\\b([0-9a-zA-Z_]+) ([0-9a-zA-Z_]+)").matcher(script);
-        int num = 0;
+        int[] num = {0, 0};
         while (matcher.find()) {
             var type = matcher.group(1);
             var var = matcher.group(2);
             if (type.equals("new")) continue;
             String prefix = "v";
-            if (type.equals("struct")) prefix = "s";
+            int t = 0;
+            if (type.equals("struct")) {
+                t = 1;
+                prefix = "s";
+            }
             if (var.matches(prefix+"\\d+")) continue;
-            while (script.contains(prefix+num)) num++;
-            var n = script.replaceAll("\\b"+var+"\\b", prefix + num);
+            while (script.contains(prefix+num[t])) num[t]++;
+            var n = script.replaceAll("\\b"+var+"\\b", prefix + num[t]);
             if (tester.test(n)) {
                 script = n;
             }
@@ -108,7 +132,11 @@ public class Reducer {
      */
     private String doAllReplacements(String script) {
         for (var replace: REPLACEMENTS) {
-            script = doReplacement(script, replace.p, replace.r);
+            String old;
+            do {
+                old = script;
+                script = doReplacement(script, replace.pattern, replace.replacements);
+            } while (replace.iterate && !old.equals(script));
         }
         return script;
     }
