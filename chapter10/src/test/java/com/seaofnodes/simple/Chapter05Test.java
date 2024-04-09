@@ -9,7 +9,7 @@ import org.junit.Ignore;
 import static org.junit.Assert.*;
 
 public class Chapter05Test {
-    
+
     @Test
     public void testIfStmt() {
         Parser parser = new Parser(
@@ -24,9 +24,9 @@ else {
 #showGraph;
 return a;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
+        assertEquals("return Phi(Region18,(arg+2),(arg-3));", ret.toString());
     }
-  
+
     @Test
     public void testTest() {
         Parser parser = new Parser(
@@ -41,20 +41,20 @@ return c;""", TypeInteger.BOT);
         StopNode ret = parser.parse().iterate(true);
         assertEquals("return Phi(Region16,4,3);", ret.toString());
     }
-    
+
     @Test
     public void testReturn2() {
         Parser parser = new Parser(
 """
-if( arg==1 ) 
-    return 3; 
-else 
-    return 4; 
+if( arg==1 )
+    return 3;
+else
+    return 4;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("Stop[ return 3; return 4; ]", stop.toString());
     }
-    
+
     @Test
     public void testIfMergeB() {
         Parser parser = new Parser(
@@ -67,7 +67,7 @@ else
     b=a+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((arg*2)+Phi(Region20,2,3));", ret.toString());
+        assertEquals("return ((arg*2)+Phi(Region21,2,3));", ret.toString());
     }
 
     @Test
@@ -82,7 +82,7 @@ else
     a=b+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((Phi(Region31,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
+        assertEquals("return ((Phi(Region32,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
     }
 
     @Test
@@ -102,7 +102,7 @@ else
 return a;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
+        assertEquals("return Phi(Region36,Phi(Region22,2,3),Phi(Region34,4,5));", stop.toString());
     }
 
     @Test
@@ -118,7 +118,7 @@ if( arg==0 )
 return arg+a+b;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
-        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region22,2,0));", stop.toString());
+        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region28,2,0));", stop.toString());
     }
 
     @Test
@@ -140,20 +140,20 @@ return a;""");
       StopNode stop = new Parser("return true;").parse();
       assertEquals("return 1;",stop.toString());
     }
-    
+
     @Test
     public void testHalfDef() {
-        try { 
+        try {
             new Parser("if( arg==1 ) int b=2; return b;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
         }
     }
-    
+
     @Test
     public void testHalfDef2() {
-        try { 
+        try {
             new Parser("if( arg==1 ) { int b=2; } else { int b=3; } return b;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -163,38 +163,38 @@ return a;""");
 
     @Test
     public void testRegress1() {
-        try { 
+        try {
             new Parser("if(arg==2) int a=1; else int b=2; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
         }
     }
-    
+
 
     @Test
     public void testBadNum() {
-        try { 
+        try {
             new Parser("return 1-;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage());
         }
     }
-      
+
     @Test
     public void testKeyword1() {
-        try { 
+        try {
             new Parser("int true=0; return true;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Expected an identifier, found 'true'",e.getMessage());
         }
     }
-      
+
     @Test
     public void testKeyword2() {
-        try { 
+        try {
             new Parser("int else=arg; if(else) else=2; else else=1; return else;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -204,7 +204,7 @@ return a;""");
 
     @Test
         public void testKeyword3() {
-        try { 
+        try {
             new Parser("int a=1; ififif(arg)inta=2;return a;").parse();
             fail();
         } catch( RuntimeException e ) {

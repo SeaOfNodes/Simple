@@ -313,7 +313,7 @@ public class Parser {
     private Node parseIf() {
         require("(");
         // Parse predicate
-        var pred = require(parseExpression(), ")");
+        var pred = require(parseExpression(), ")").keep();
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
@@ -327,16 +327,21 @@ public class Parser {
 
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
+        CastNode cast = _scope.upcast(ifT,pred,false); // Up-cast predicate
         parseStatement();       // Parse true-side
+        _scope.uncast(cast);    // Restore predicate ("uncast" past test)
         ScopeNode tScope = _scope;
 
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
         if (matchx("else")) {
+            cast = _scope.upcast(ifF,pred,true); // Up-cast predicate
             parseStatement();
+            _scope.uncast(cast);    // Restore predicate ("uncast" past test)
             fScope = _scope;
         }
+        pred.unkeep();
 
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
@@ -399,7 +404,7 @@ public class Parser {
             expr = require(parseExpression(), ";");
         } else {                // Neither, so just a normal expression parse
             _lexer._position = old;
-            return parseExpression();
+            return require(parseExpression(),";");
         }
 
         // Defining a new variable vs updating an old one
@@ -541,12 +546,13 @@ public class Parser {
      * Parse a unary minus expression.
      *
      * <pre>
-     *     unaryExpr : ('-') unaryExpr | postfixExpr | primaryExpr
+     *     unaryExpr : ('-') | '!') unaryExpr | postfixExpr | primaryExpr
      * </pre>
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
+        if (match("!")) return new   NotNode(parseUnary()).peephole();
         return parsePostfix(parsePrimary());
     }
 
@@ -615,8 +621,13 @@ public class Parser {
         if( field == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
         if( match("=") ) {
-            Node val = require(parseExpression(),";");
-            return memAlias(field, new StoreNode(field, memAlias(field), expr, val).peephole());
+            // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
+            if( peek('=') ) _lexer._position--;
+            else {
+                Node val = parseExpression();
+                memAlias(field, new StoreNode(field, memAlias(field), expr, val).peephole());
+                return expr;        // "obj.a = expr" returns the expression while updating memory
+            }
         }
 
         return parsePostfix(new LoadNode(field, memAlias(field), expr).peephole());

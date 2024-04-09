@@ -38,7 +38,6 @@ return bar.a;
     public void testExample() {
         Parser parser = new Parser("""
 struct Vector2D { int x; int y; }
-
 Vector2D v = new Vector2D;
 v.x = 1;
 if (arg)
@@ -61,13 +60,8 @@ struct s0 {
 s0? v1=null;
 int v3=v1.zAicm;
 """);
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (RuntimeException e) {
-            assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());
-        }
+        try { parser.parse(true);  fail(); }
+        catch( Exception e ) {  assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());  }
     }
 
     @Test
@@ -76,13 +70,8 @@ int v3=v1.zAicm;
 struct s0 { int v0; }
 arg=0+new s0.0;
 """);
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (RuntimeException e) {
-            assertEquals("Expected an identifier, found 'null'",e.getMessage());
-        }
+        try { parser.parse(true); fail(); }
+        catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
     }
 
     @Test
@@ -96,7 +85,6 @@ while (arg) {
 }
 return bar.a;
 """);
-
         StopNode stop = parser.parse(true).iterate(true);
         assertEquals("return .a;", stop.toString());
     }
@@ -110,51 +98,63 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try {
-            StopNode stop = parser.parse(true).iterate(true);
-            fail();
-        } catch (RuntimeException e) {
-            assertEquals("Type null is not of declared type *Bar",e.getMessage());
-        }
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
     @Test
     public void testIf2() {
         Parser parser = new Parser("""
-struct Bar {
-    int a;
-}
+struct Bar { int a; }
 Bar? bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
 """);
-        try {
-            StopNode stop = parser.parse(true).iterate(true);
-            fail();
-        } catch (RuntimeException e) {
-            assertEquals("Might be null accessing 'a'",e.getMessage());
-        }
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'a'",e.getMessage()); }
     }
 
     @Test
     public void testIf3() {
         Parser parser = new Parser("""
-struct Bar {
-    int a;
-}
+struct Bar { int a; }
 Bar bar = null;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (RuntimeException e) {
-            assertEquals("Type null is not of declared type *Bar", e.getMessage());
-        }
+        try { parser.parse(true); fail(); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
+    }
+
+    @Test
+    public void testIfOrNull() {
+        Parser parser = new Parser("""
+struct Bar { int a; }
+Bar? bar = new Bar;
+if (arg) bar = null;
+if( bar ) bar.a = 1;
+return bar;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Region18,null,new Bar);", stop.toString());
+    }
+
+    @Test
+    public void testIfOrNull2() {
+        Parser parser = new Parser(
+"""
+struct Bar { int a; }
+Bar? bar = new Bar;
+if (arg) bar = null;
+int rez = 3;
+if( !bar ) rez=4;
+else bar.a = 1;
+return rez;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Region35,4,3);", stop.toString());
     }
 
     @Test
@@ -170,12 +170,8 @@ while(arg) {
 }
 return ret;
 """);
-        try {
-            StopNode stop = parser.parse(true).iterate(true);
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Might be null accessing 'v0'", e.getMessage());
-        }
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
 
     @Test
@@ -188,13 +184,8 @@ s0? v1=new s0;
 s0? v1;
 v1=new s0;
 """);
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (RuntimeException e) {
-            assertEquals("Redefining name 'v1'", e.getMessage());
-        }
+        try { parser.parse(true); fail(); }
+        catch( Exception e ) { assertEquals("Redefining name 'v1'", e.getMessage()); }
     }
 
     @Test
@@ -263,13 +254,8 @@ if(0>=0) return new s0;
 return new s0;
 int v0=null.f0;
 """);
-        try {
-            StopNode stop = parser.parse(true);
-            fail();
-        }
-        catch (Exception e) {
-            assertEquals("Accessing unknown field 'f0' from 'null'", e.getMessage());
-        }
+        try { parser.parse(true); fail(); }
+        catch( Exception e ) { assertEquals("Accessing unknown field 'f0' from 'null'", e.getMessage()); }
     }
 
     @Test

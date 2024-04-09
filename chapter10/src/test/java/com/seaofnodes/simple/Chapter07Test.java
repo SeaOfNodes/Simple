@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 
 public class Chapter07Test {
 
-        
+
     @Test
     public void testExample() {
         Parser parser = new Parser(
@@ -31,7 +31,6 @@ public class Chapter07Test {
     @Test
     public void testRegression() {
         Parser parser = new Parser(
-
 """
 int a = 1;
 if(arg){}else{
@@ -42,9 +41,9 @@ if(arg){}else{
 return a;
 """);
         StopNode stop = parser.parse().iterate(true);
-        assertEquals("return Phi(Region22,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Region24,1,Phi(Loop13,1,(Phi_a+1)));", stop.toString());
     }
-  
+
     @Test
     public void testWhileNested() {
         Parser parser = new Parser(
@@ -81,7 +80,7 @@ return b;
 """);
         Node._disablePeephole = true;
         StopNode stop = parser.parse(true);
-        assertEquals("return Phi(Loop8,2,Phi(Region26,Phi_b,4));", stop.toString());
+        assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
         System.out.println(IRPrinter.prettyPrint(stop,99));
@@ -102,7 +101,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse().iterate(true);
-        assertEquals("return Phi(Loop8,2,(Phi(Region26,Phi_b,4)+1));", stop.toString());
+        assertEquals("return Phi(Loop8,2,(Phi(Region27,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
@@ -242,4 +241,3 @@ return a;
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 }
-        

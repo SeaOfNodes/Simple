@@ -208,6 +208,7 @@ public class ScopeNode extends Node {
                 // by name as it will trigger a phi creation
                 setDef(i, new PhiNode(ns[i], this.lookup_type(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
+        IterPeeps.add(r);
         return r.unkeep().peephole();
     }
 
@@ -249,49 +250,46 @@ public class ScopeNode extends Node {
 
     // This Scope looks for direct variable uses, or certain simple
     // combinations, and replaces the variable with the upcast variant.
-    public CastNode upcast( Node ctrl, Node pred ) {
-        if( pred.isDead() ) return null; // Already folding the IF
-        int idx = Utils.find(_inputs, pred);
-        // Direct use of a value as predicate.  This is a zero/null test.
-        if( idx != -1 )
-            return pred._type instanceof TypeMemPtr tmp
-                // Upcast the ptr to not-null ptr, and replace in scope
-                ? replace(pred,new CastNode(TypeMemPtr.VOID,ctrl,pred).peephole())
-                // Must be an `int`, since int and ptr are the only two value types
-                // being tested.
-                // No representation for a generic not-null int, so no upcast.
-                : null;
+    public CastNode upcast( Node ctrl, Node pred, boolean invert ) {
+        if( ctrl._type==Type.XCONTROL ) return null;
+        // Invert the If conditional
+        if( invert )
+            pred = pred instanceof NotNode not ? not.in(1) : new NotNode(pred).peephole();
 
+        // Direct use of a value as predicate.  This is a zero/null test.
+        if( Utils.find(_inputs, pred) != -1 ) {
+            if( !(pred._type instanceof TypeMemPtr tmp) )
+                // Must be an `int`, since int and ptr are the only two value types
+                // being tested. No representation for a generic not-null int, so no upcast.
+                return null;
+            if( tmp.isa(TypeMemPtr.VOID) )
+                return null;    // Already not-null, no reason to upcast
+            // Upcast the ptr to not-null ptr, and replace in scope
+            return replace(pred,new CastNode(TypeMemPtr.VOID,ctrl,pred).peephole());
+        }
+
+        if( pred instanceof NotNode not ) {
+            // Direct use of a !value as predicate.  This is a zero/null test.
+            if( Utils.find(_inputs, not.in(1)) != -1 ) {
+                Type tinit = not.in(1)._type.makeInit();
+                if( not.in(1)._type.isa(tinit) ) return null; // Already zero/null, no reason to upcast
+                return replace(not.in(1), new CastNode(tinit,null,not.in(1)).peephole());
+            }
+        }
         // Apr/9/2024: Attempted to replace X with Y if guarded by a test of
         // X==Y.  This didn't seem to help very much, or at least in the test
         // cases seen so far was a very minor help.
-
-        //// Test of X==Y
-        //if( pred instanceof BoolNode.EQ eq ) {
-        //    // Interesting choices are:
-        //    // - neither X nor Y in scope, meaning they are already complex expressions.  No upcast.
-        //    // - Something's in scope; upcast the in-scope to the other.
-        //    idx = eq.in(1) instanceof ConstantNode ? -1 : Utils.find(_inputs, eq.in(1));
-        //    if( idx != -1 ) return replace(eq.in(1),eq.in(2));
-        //    idx = eq.in(2) instanceof ConstantNode ? -1 : Utils.find(_inputs, eq.in(2));
-        //    if( idx != -1 ) return replace(eq.in(2),eq.in(1));
-        //    return null;        // Neither in scope, no cast
-        //}
-
-        // Ignoring !X, because IfNode will flip
 
         // No upcast
         return null;
     }
 
     private CastNode replace( Node old, Node cast ) {
-        if( old==null ) return null;
-        if( old==cast ) return null;
+        assert old!=null && old!=cast;
         for( int i=0; i<nIns(); i++ )
             if( in(i)==old )
                 setDef(i,cast);
-        cast.keep();
-        return (CastNode)cast;
+        return cast.keep();
     }
 
     public void uncast( CastNode cast ) {
@@ -299,6 +297,7 @@ public class ScopeNode extends Node {
         for( int i=0; i<nIns(); i++ )
             if( in(i)==cast )
                 setDef(i,cast.in(1));
-        cast.unkeep();
+        cast.unkeep()._peep = true;
+        IterPeeps.add(cast);
     }
 }

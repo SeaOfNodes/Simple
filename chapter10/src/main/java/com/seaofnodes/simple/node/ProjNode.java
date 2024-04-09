@@ -46,6 +46,11 @@ public class ProjNode extends Node {
             if( ctrl() instanceof IfNode && tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
                 return ctrl().in(0);               // We become our input control
         }
+
+        // Flip a negating if-test, to remove the not
+        if( ctrl() instanceof IfNode iff && iff.pred() instanceof NotNode not )
+            return new ProjNode((MultiNode)new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
+
         return null;
     }
 

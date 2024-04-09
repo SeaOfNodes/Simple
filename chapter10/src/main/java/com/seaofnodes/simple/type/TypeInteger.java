@@ -89,6 +89,8 @@ public class TypeInteger extends Type {
     @Override
     public Type glb() { return BOT; }
 
+    @Override public TypeInteger makeInit() { return ZERO; }
+
     @Override
     int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
     @Override
