@@ -47,6 +47,8 @@ public class TypeTuple extends Type {
         return sb;
     }
 
+    @Override public String str() { return _print(new StringBuilder()).toString(); }
+
     /**
      * Display Type name in a format that's good for IR printer
      */

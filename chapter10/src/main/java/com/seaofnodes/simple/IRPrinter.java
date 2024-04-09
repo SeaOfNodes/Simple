@@ -29,7 +29,7 @@ public class IRPrinter {
         for( int i = n._outputs.size(); i<lim; i++ )
             sb.append("     ");
         sb.append(" ]]  ");
-        if( n._type!= null ) n._type._print(sb);
+        if( n._type!= null ) sb.append(n._type.str());
         sb.append("\n");
     }
 

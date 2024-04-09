@@ -15,14 +15,10 @@ public class NewNode extends Node {
     }
 
     @Override
-    public String label() {
-        return "new";
-    }
+    public String label() { return "new"; }
 
     @Override
-    public String glabel() {
-        return "new " + _ptr._obj._name;
-    }
+    public String glabel() { return "new " + _ptr._obj._name; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -31,18 +27,14 @@ public class NewNode extends Node {
     }
 
     @Override
-    public Type compute() {
-        return _ptr;
-    }
+    public Type compute() { return _ptr; }
 
     @Override
-    public Node idealize() {
-        return null;
-    }
+    public Node idealize() { return null; }
 
     @Override
     boolean eq(Node n) { return this == n; }
 
     @Override
-    int hash() { return System.identityHashCode(this); }
+    int hash() { return _ptr.hashCode(); }
 }

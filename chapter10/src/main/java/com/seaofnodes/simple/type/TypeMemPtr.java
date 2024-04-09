@@ -61,13 +61,13 @@ public class TypeMemPtr extends Type {
     @Override
     public StringBuilder _print(StringBuilder sb) {
         if( this==NULL ) return sb.append("null");
-        if( this==VOID ) return sb.append("*void");
+        if( this==VOID ) return sb.append("void*");
         return _obj._print(sb.append("*")).append(_nil ? "?" : "");
     }
 
     @Override public String str() {
         if( this==NULL ) return "null";
-        if( this==VOID ) return "*void";
+        if( this==VOID ) return "void*";
         return "*"+_obj.str()+(_nil ? "?" : "");
     }
 

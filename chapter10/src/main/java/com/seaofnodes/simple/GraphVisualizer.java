@@ -39,8 +39,10 @@ public class GraphVisualizer {
         // still making the subgraphs DOT gets confused.
         sb.append("\trankdir=BT;\n"); // Force Nodes before Scopes
 
+        // CNC - turned off Apr/8/2024, gives more flex in the layout and
+        // removes some of the more ludicrous layout choices.
         // Preserve node input order
-        sb.append("\tordering=\"in\";\n");
+        //sb.append("\tordering=\"in\";\n");
 
         // Merge multiple edges hitting the same node.  Makes common shared
         // nodes much prettier to look at.

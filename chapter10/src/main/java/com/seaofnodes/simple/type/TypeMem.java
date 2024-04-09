@@ -59,4 +59,6 @@ public class TypeMem extends Type {
             default -> ""+_alias;
             });
     }
+
+    @Override public String str() { return _print(new StringBuilder()).toString(); }
 }

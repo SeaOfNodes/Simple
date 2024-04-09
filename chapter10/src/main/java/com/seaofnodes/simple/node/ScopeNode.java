@@ -2,6 +2,9 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 import java.util.*;
 
@@ -238,5 +241,64 @@ public class ScopeNode extends Node {
             }
         }
 
+    }
+
+
+    // Up-casting: using the results of an If to improve a value.
+    // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
+
+    // This Scope looks for direct variable uses, or certain simple
+    // combinations, and replaces the variable with the upcast variant.
+    public CastNode upcast( Node ctrl, Node pred ) {
+        if( pred.isDead() ) return null; // Already folding the IF
+        int idx = Utils.find(_inputs, pred);
+        // Direct use of a value as predicate.  This is a zero/null test.
+        if( idx != -1 )
+            return pred._type instanceof TypeMemPtr tmp
+                // Upcast the ptr to not-null ptr, and replace in scope
+                ? replace(pred,new CastNode(TypeMemPtr.VOID,ctrl,pred).peephole())
+                // Must be an `int`, since int and ptr are the only two value types
+                // being tested.
+                // No representation for a generic not-null int, so no upcast.
+                : null;
+
+        // Apr/9/2024: Attempted to replace X with Y if guarded by a test of
+        // X==Y.  This didn't seem to help very much, or at least in the test
+        // cases seen so far was a very minor help.
+
+        //// Test of X==Y
+        //if( pred instanceof BoolNode.EQ eq ) {
+        //    // Interesting choices are:
+        //    // - neither X nor Y in scope, meaning they are already complex expressions.  No upcast.
+        //    // - Something's in scope; upcast the in-scope to the other.
+        //    idx = eq.in(1) instanceof ConstantNode ? -1 : Utils.find(_inputs, eq.in(1));
+        //    if( idx != -1 ) return replace(eq.in(1),eq.in(2));
+        //    idx = eq.in(2) instanceof ConstantNode ? -1 : Utils.find(_inputs, eq.in(2));
+        //    if( idx != -1 ) return replace(eq.in(2),eq.in(1));
+        //    return null;        // Neither in scope, no cast
+        //}
+
+        // Ignoring !X, because IfNode will flip
+
+        // No upcast
+        return null;
+    }
+
+    private CastNode replace( Node old, Node cast ) {
+        if( old==null ) return null;
+        if( old==cast ) return null;
+        for( int i=0; i<nIns(); i++ )
+            if( in(i)==old )
+                setDef(i,cast);
+        cast.keep();
+        return (CastNode)cast;
+    }
+
+    public void uncast( CastNode cast ) {
+        if( cast==null ) return;
+        for( int i=0; i<nIns(); i++ )
+            if( in(i)==cast )
+                setDef(i,cast.in(1));
+        cast.unkeep();
     }
 }

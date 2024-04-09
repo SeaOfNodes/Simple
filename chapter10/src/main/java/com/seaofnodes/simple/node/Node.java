@@ -326,7 +326,7 @@ public abstract class Node {
         Type old = setType(compute());
 
         // Replace constant computations from non-constants with a constant node
-        if (!(this instanceof ConstantNode) && _type.isHighOrConst() )
+        if( !(this instanceof ConstantNode) && _type.isHighOrConst() )
             return new ConstantNode(_type).peepholeOpt();
 
         // Global Value Numbering
