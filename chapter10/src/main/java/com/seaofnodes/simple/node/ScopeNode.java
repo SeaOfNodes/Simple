@@ -297,7 +297,7 @@ public class ScopeNode extends Node {
         for( int i=0; i<nIns(); i++ )
             if( in(i)==cast )
                 setDef(i,cast.in(1));
-        cast.unkeep()._peep = true;
+        cast.<CastNode>unkeep()._peep = true;
         IterPeeps.add(cast);
     }
 }
