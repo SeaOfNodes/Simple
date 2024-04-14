@@ -63,21 +63,45 @@ public class ScriptGenerator {
     private static class Type {
         final String name;
         Type(String name) {this.name=name;}
+        boolean isa(Type other) { return this == other; }
     }
 
     private static class TypeStruct extends Type {
         record Field (String name, Type type) {}
         final Field[] fields;
+        final TypeNullable nullable = new TypeNullable(this);
         TypeStruct(String name, Field[] fields) {
             super(name);
             this.fields = fields;
         }
+        boolean isa(Type other) { return this == other || other == nullable; }
+    }
+
+    private static class TypeNullable extends Type {
+
+        final Type base;
+
+        TypeNullable(Type base) {
+            super(base.name+"?");
+            this.base = base;
+        }
+
     }
 
     private static final Type TYPE_INT = new Type("int");
 
 
-    private record Variable(String name, Type type) {}
+    private static class Variable {
+        final String name;
+        final Type declared;
+        Type type;
+
+        Variable(String name, Type type) {
+            this.name = name;
+            this.declared = type;
+            this.type = type;
+        }
+    }
 
     /**
      * The random number generator used for random decisions.
@@ -245,7 +269,9 @@ public class ScriptGenerator {
     private Type getType() {
         if (structs.isEmpty() || random.nextBoolean()) return TYPE_INT;
         var idx = random.nextInt(structs.size());
-        return structs.get(idx);
+        TypeStruct struct = structs.get(idx);
+        if (random.nextBoolean()) return struct.nullable;
+        return struct;
     }
 
     /**
@@ -289,7 +315,7 @@ public class ScriptGenerator {
      * @return flags FLAG_STOP and FLAG_IF_WITHOUT_ELSE for the generated statement
      */
     public int genStatement() {
-        return switch (random.nextInt(11)) {
+        return switch (random.nextInt(12)) {
             case 0 -> allowStructs || generateInvalid() ? genStruct() : genAssignment();
             case 1 -> genBlock();
             case 2 -> genIf();
@@ -297,6 +323,7 @@ public class ScriptGenerator {
             case 4 -> genWhile();
             case 5, 6 -> genDecl();
             case 7, 8, 9 -> genAssignment();
+            case 10 -> genNullCheck();
             default -> genExit();
         };
     }
@@ -332,7 +359,7 @@ public class ScriptGenerator {
             res = random.nextBoolean() ? genAssignment() : genExit();
         } else {
             depth--;
-            res = switch (random.nextInt(11)) {
+            res = switch (random.nextInt(12)) {
                 case 1, 2, 3, 4, 5 -> {
                     depth++;
                     indentation -= INDENTATION;
@@ -345,6 +372,7 @@ public class ScriptGenerator {
                 case 7 -> genCountedLoop();
                 case 8 -> genWhile();
                 case 9 -> genAssignment();
+                case 10 -> genNullCheck();
                 default -> genExit();
             };
             depth++;
@@ -419,6 +447,44 @@ public class ScriptGenerator {
             stop = FLAG_IF_WITHOUT_ELSE;
         }
         return stop;
+    }
+
+    /**
+     * Generate a block with a null check
+     * if (nullable) { handle_nullable_as_non_nullable; }
+     */
+    public int genNullCheck() {
+        int num = 0;
+        for (var v : variables) {
+            if (v.declared instanceof TypeNullable) num++;
+        }
+        if (num == 0) return genIf();
+        var idx = random.nextInt(num);
+        for (var v:variables) {
+            if (v.declared instanceof TypeNullable n) {
+                if (idx == 0) {
+                    boolean negate = random.nextBoolean();
+                    sb.append("if(");
+                    if (negate) sb.append("!");
+                    sb.append(v.name).append(")");
+                    if (!negate) v.type = n.base;
+                    var stop = genStatementBlock();
+                    v.type = n;
+                    if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
+                        sb.append("\n");
+                        printIndentation().append("else ");
+                        if (negate) v.type = n.base;
+                        stop &= genStatementBlock();
+                        v.type = n;
+                    } else {
+                        stop = FLAG_IF_WITHOUT_ELSE;
+                    }
+                    return stop;
+                }
+                idx--;
+            }
+        }
+        throw new AssertionError();
     }
 
     /**
@@ -508,7 +574,7 @@ public class ScriptGenerator {
         } else {
             var variable = variables.get(random.nextInt(variables.size()));
             sb.append(variable.name);
-            type = variable.type;
+            type = variable.declared;
         }
         if (generateInvalid()) {
             var name = getRandomName();
@@ -626,12 +692,14 @@ public class ScriptGenerator {
                 case 1 -> sb.append("false");
                 default -> sb.append(random.nextInt(1<<(rand-2)));
             }
-        } else {
+        } else if (type instanceof TypeNullable n) {
             if (random.nextBoolean()) {
                 sb.append("null");
             } else {
-                sb.append("new ").append(generateInvalid() ? getRandomName() : type.name);
+                sb.append("new ").append(generateInvalid() ? getRandomName() : n.base.name);
             }
+        } else {
+            sb.append("new ").append(generateInvalid() ? getRandomName() : type.name);
         }
     }
 
@@ -647,14 +715,14 @@ public class ScriptGenerator {
         if (generateInvalid()) type = getType();
         int num = 0;
         for (var v:variables) {
-            if (v.type == type) num++;
+            if (v.type.isa(type)) num++;
         }
         if (num == 0) {
             genConst(type);
         } else {
             var idx = random.nextInt(num);
             for (var v:variables) {
-                if (v.type == type) {
+                if (v.type.isa(type)) {
                     if (idx == 0) {
                         sb.append(v.name);
                         return;
