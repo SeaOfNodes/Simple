@@ -185,11 +185,7 @@ public class Type {
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }
 
-    private static HashMap<Type,Type> DEFAULT_INTERN;
     public static void reset() {
-        if (DEFAULT_INTERN == null) DEFAULT_INTERN = new HashMap<>(INTERN);
-        INTERN.clear();
-        INTERN.putAll(DEFAULT_INTERN);
         Field.resetField();
     }
 }
