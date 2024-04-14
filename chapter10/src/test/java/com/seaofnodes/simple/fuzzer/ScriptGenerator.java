@@ -6,6 +6,7 @@ import com.seaofnodes.simple.node.ScopeNode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.function.Predicate;
 
 /**
  * Generate a pseudo random script.
@@ -18,7 +19,7 @@ public class ScriptGenerator {
     private static final int MAX_STATEMENTS_PER_BLOCK = 5;
     private static final int MAX_BINARY_EXPRESSIONS_PER_EXPRESSION = 10;
     private static final int MAX_UNARY_EXPRESSIONS_PER_EXPRESSION = 6;
-    private static final int MAX_NAME_LENGTH = 30;
+    private static final int MAX_NAME_LENGTH = 10;
     private static final int MAX_BLOCK_DEPTH = 4;
     private static final int MAX_EXPRESSION_DEPTH = 10;
 
@@ -94,12 +95,15 @@ public class ScriptGenerator {
     private static class Variable {
         final String name;
         final Type declared;
+        final Variable shadowing;
         Type type;
+        boolean shadowed = false;
 
-        Variable(String name, Type type) {
+        Variable(String name, Type type, Variable var) {
             this.name = name;
             this.declared = type;
             this.type = type;
+            this.shadowing = var;
         }
     }
 
@@ -201,12 +205,21 @@ public class ScriptGenerator {
         return sb;
     }
 
+    /**
+     * Should invalid code be generated?
+     * @return True if invalid code should be generated
+     */
     private boolean generateInvalid() {
         if (generateValid || random.nextInt(1000)>2) return false;
         maybeInvalid = true;
         return true;
     }
 
+    /**
+     * Lookup a variable by name
+     * @param name name of the variable
+     * @return The index of the variable in variables or -1
+     */
     private int lookup(String name) {
         for (int i=variables.size()-1; i>=0; i--) {
             if (variables.get(i).name.equals(name)) return i;
@@ -214,6 +227,61 @@ public class ScriptGenerator {
         return -1;
     }
 
+    /**
+     * Lookup a variable by name
+     * @param name name of the variable
+     * @return THe variable of null if not found
+     */
+    private Variable lookupVar(String name) {
+        int idx = lookup(name);
+        return idx == -1 ? null : variables.get(idx);
+    }
+
+    /**
+     * Add a variable to the current scope
+     * @param name The name of the variable
+     * @param type The declared type of the variable
+     */
+    private void addVariable(String name, Type type) {
+        var old = lookupVar(name);
+        variables.add(new Variable(name, type, old));
+        if (old != null) old.shadowed = true;
+    }
+
+    /**
+     * Pop variables to level to
+     * @param to Level until which variables should be popped
+     */
+    private void popVariables(int to) {
+        while (variables.size() > to) {
+            var v = variables.removeLast();
+            if (v.shadowing != null) v.shadowing.shadowed = false;
+        }
+    }
+
+    /**
+     * Get a random visible variable patching pred
+     * @param pred The predicate the variable needs to match
+     * @return A random visible variable matching pred or null if no variable mached pred.
+     */
+    private Variable findVisibleVariablesMatching(Predicate<Variable> pred) {
+        int num=0;
+        for (var v:variables) {
+            if (!v.shadowed && pred.test(v)) num++;
+        }
+        if (num == 0) return null;
+        num = random.nextInt(num);
+        for (var v:variables) {
+            if (!v.shadowed && pred.test(v) && num-- == 0) return v;
+        }
+        throw new AssertionError();
+    }
+
+    /**
+     * Get a structure by name
+     * @param name Name of the structure
+     * @return The structure of null
+     */
     private TypeStruct getStruct(String name) {
         for (var s:structs) {
             if (s.name.equals(name)) return s;
@@ -230,7 +298,7 @@ public class ScriptGenerator {
         if (currScopeStart > 0 && random.nextInt(10) > 7) {
             // Use a variable outside the current scope.
             var v = variables.get(random.nextInt(currScopeStart));
-            if (variables.lastIndexOf(v) < currScopeStart) return v.name;
+            if (lookup(v.name) < currScopeStart) return v.name;
             if (!generateValid) {
                 maybeInvalid = true;
                 return v.name;
@@ -250,6 +318,10 @@ public class ScriptGenerator {
         return v;
     }
 
+    /**
+     * Get a random structure name
+     * @return A random structure name
+     */
     private String getStructName() {
         if (!structs.isEmpty() && generateInvalid()) return structs.get(random.nextInt(structs.size())).name;
         // Generate a new random struct name
@@ -266,6 +338,10 @@ public class ScriptGenerator {
         return v;
     }
 
+    /**
+     * Get a random type
+     * @return A random type
+     */
     private Type getType() {
         if (structs.isEmpty() || random.nextBoolean()) return TYPE_INT;
         var idx = random.nextInt(structs.size());
@@ -282,7 +358,7 @@ public class ScriptGenerator {
         var oldGenerateValid = generateValid;
         if (!generateValid && random.nextBoolean()) generateValid = true;
         this.maybeInvalid = false;
-        variables.add(new Variable(ScopeNode.ARG0, TYPE_INT));
+        addVariable(ScopeNode.ARG0, TYPE_INT);
         currScopeStart = variables.size();
         if ((genStatements() & FLAG_STOP) == 0) {
             if (generateValid || random.nextInt(10)<7) {
@@ -328,6 +404,10 @@ public class ScriptGenerator {
         };
     }
 
+    /**
+     * Generate a new structure
+     * @return 0
+     */
     public int genStruct() {
         var name = getStructName();
         var fields = new TypeStruct.Field[generateInvalid() ? 0 : random.nextInt(10)];
@@ -422,8 +502,7 @@ public class ScriptGenerator {
         var stop = genStatements();
         indentation -= INDENTATION;
         printIndentation().append("}");
-        while (variables.size() > currScopeStart)
-            variables.removeLast();
+        popVariables(currScopeStart);
         depth++;
         currScopeStart = oldCSS;
         allowStructs = oldAllowStructs;
@@ -454,37 +533,26 @@ public class ScriptGenerator {
      * if (nullable) { handle_nullable_as_non_nullable; }
      */
     public int genNullCheck() {
-        int num = 0;
-        for (var v : variables) {
-            if (v.declared instanceof TypeNullable) num++;
+        var v = findVisibleVariablesMatching(va->va.declared instanceof TypeNullable);
+        if (v == null) return genIf();
+        var n = (TypeNullable)v.declared;
+        boolean negate = random.nextBoolean();
+        sb.append("if(");
+        if (negate) sb.append("!");
+        sb.append(v.name).append(")");
+        if (!negate) v.type = n.base;
+        var stop = genStatementBlock();
+        v.type = n;
+        if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
+            sb.append("\n");
+            printIndentation().append("else ");
+            if (negate) v.type = n.base;
+            stop &= genStatementBlock();
+            v.type = n;
+        } else {
+            stop = FLAG_IF_WITHOUT_ELSE;
         }
-        if (num == 0) return genIf();
-        var idx = random.nextInt(num);
-        for (var v:variables) {
-            if (v.declared instanceof TypeNullable n) {
-                if (idx == 0) {
-                    boolean negate = random.nextBoolean();
-                    sb.append("if(");
-                    if (negate) sb.append("!");
-                    sb.append(v.name).append(")");
-                    if (!negate) v.type = n.base;
-                    var stop = genStatementBlock();
-                    v.type = n;
-                    if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
-                        sb.append("\n");
-                        printIndentation().append("else ");
-                        if (negate) v.type = n.base;
-                        stop &= genStatementBlock();
-                        v.type = n;
-                    } else {
-                        stop = FLAG_IF_WITHOUT_ELSE;
-                    }
-                    return stop;
-                }
-                idx--;
-            }
-        }
-        throw new AssertionError();
+        return stop;
     }
 
     /**
@@ -521,7 +589,7 @@ public class ScriptGenerator {
         printIndentation().append("int ").append(name).append("=");
         genExpression(TYPE_INT);
         sb.append(";\n");
-        variables.add(new Variable(name, TYPE_INT));
+        addVariable(name, TYPE_INT);
         printIndentation().append("while(").append(name).append("<");
         genExpression(TYPE_INT);
         sb.append(") {\n");
@@ -538,8 +606,7 @@ public class ScriptGenerator {
         printIndentation().append("}\n");
         indentation -= INDENTATION;
         printIndentation().append("}");
-        while (variables.size() > currScopeStart)
-            variables.removeLast();
+        popVariables(currScopeStart);
         currScopeStart = oldCSS;
         return 0;
     }
@@ -552,12 +619,12 @@ public class ScriptGenerator {
         var type = getType();
         var name = getVarName();
         sb.append(generateInvalid() ? getRandomName() : type.name).append(" ").append(name);
-        if (type == TYPE_INT || random.nextBoolean()) {
+        if (!(type instanceof TypeNullable) || random.nextBoolean()) {
             sb.append("=");
             genExpression(type);
         }
         sb.append(";");
-        variables.add(new Variable(name, type));
+        addVariable(name, type);
         return 0;
     }
 
@@ -566,27 +633,30 @@ public class ScriptGenerator {
      * @return 0
      */
     public int genAssignment() {
-        if (variables.isEmpty()) return genDecl();
         Type type;
+        Type declared;
         if (generateInvalid()) {
             sb.append(getRandomName());
             type = getType();
+            declared = type;
         } else {
-            var variable = variables.get(random.nextInt(variables.size()));
-            sb.append(variable.name);
-            type = variable.declared;
+            var v = findVisibleVariablesMatching(va->true);
+            if (v == null) return genDecl();
+            sb.append(v.name);
+            type = v.type;
+            declared = v.declared;
         }
         if (generateInvalid()) {
             var name = getRandomName();
             sb.append(".").append(name);
-            type = getType();
+            declared = getType();
         } else if (type instanceof TypeStruct s && s.fields.length > 0 && random.nextBoolean()) {
             var field = s.fields[random.nextInt(s.fields.length)];
             sb.append(".").append(field.name);
-            type = field.type;
+            declared = field.type;
         }
         sb.append("=");
-        genExpression(type);
+        genExpression(declared);
         sb.append(";");
         return 0;
     }
@@ -713,25 +783,10 @@ public class ScriptGenerator {
             return;
         }
         if (generateInvalid()) type = getType();
-        int num = 0;
-        for (var v:variables) {
-            if (v.type.isa(type)) num++;
-        }
-        if (num == 0) {
-            genConst(type);
-        } else {
-            var idx = random.nextInt(num);
-            for (var v:variables) {
-                if (v.type.isa(type)) {
-                    if (idx == 0) {
-                        sb.append(v.name);
-                        return;
-                    }
-                    idx--;
-                }
-            }
-            throw new AssertionError();
-        }
+        var t = type;
+        var v = findVisibleVariablesMatching(va->va.type.isa(t));
+        if (v == null) genConst(type);
+        else sb.append(v.name);
     }
 
 }
