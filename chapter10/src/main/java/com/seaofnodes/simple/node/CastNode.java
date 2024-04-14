@@ -15,7 +15,12 @@ import java.util.BitSet;
 public class CastNode extends Node {
     private final Type _t;
     boolean _peep;
-    public CastNode(Type t, Node ctrl, Node in) { super(ctrl, in); _t = t; _peep=false; }
+    public CastNode(Type t, Node ctrl, Node in) {
+        super(ctrl, in);
+        _t = t;
+        _peep=false;
+        setType(compute());
+    }
 
     @Override public String label() { return "("+_t.str()+")"; }
 

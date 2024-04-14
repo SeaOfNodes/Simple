@@ -273,7 +273,7 @@ public class ScopeNode extends Node {
             if( Utils.find(_inputs, not.in(1)) != -1 ) {
                 Type tinit = not.in(1)._type.makeInit();
                 if( not.in(1)._type.isa(tinit) ) return null; // Already zero/null, no reason to upcast
-                return replace(not.in(1), new CastNode(tinit,null,not.in(1)).peephole());
+                return replace(not.in(1), new CastNode(tinit,null,not.in(1)));
             }
         }
         // Apr/9/2024: Attempted to replace X with Y if guarded by a test of
