@@ -75,6 +75,7 @@ public class Parser {
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
+        Type.reset();
         OBJS.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
