@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 import com.seaofnodes.simple.type.*;
 import org.junit.Assert;
@@ -343,8 +344,20 @@ while(0) {}
             }
         }    }
 }
-    """);
+""");
         StopNode stop = parser.parse().iterate(true);
         assertEquals("Stop[ ]", stop.toString());
     }
+
+    @Test
+    public void testBug9() {
+        Parser parser = new Parser("""
+int v0=arg==0;
+while(v0) continue;
+return 0;
+""");
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return 0;", stop.toString());
+    }
+
 }
