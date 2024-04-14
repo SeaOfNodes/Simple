@@ -1,8 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.node.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +88,8 @@ public abstract class IterPeeps {
                 n.moveDepsToWorklist();
                 assert progressOnList(stop); // Very expensive assert
             }
+            if( n.isUnused() && !(n instanceof StopNode) )
+                n.kill();       // Just plain dead
         }
 
         if( show )
@@ -99,7 +99,7 @@ public abstract class IterPeeps {
 
     // Visit ALL nodes and confirm the invariant:
     //   Either you are on the WORK worklist OR running `iter()` makes no progress.
-    
+
     // This invariant ensures that no progress is missed, i.e., when the
     // worklist is empty we have indeed done all that can be done.  To help
     // with debugging, the {@code assert} is broken out in a place where it is easy to

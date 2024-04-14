@@ -250,7 +250,7 @@ public class ScopeNode extends Node {
 
     // This Scope looks for direct variable uses, or certain simple
     // combinations, and replaces the variable with the upcast variant.
-    public CastNode upcast( Node ctrl, Node pred, boolean invert ) {
+    public Node upcast( Node ctrl, Node pred, boolean invert ) {
         if( ctrl._type==Type.XCONTROL ) return null;
         // Invert the If conditional
         if( invert )
@@ -273,7 +273,7 @@ public class ScopeNode extends Node {
             if( Utils.find(_inputs, not.in(1)) != -1 ) {
                 Type tinit = not.in(1)._type.makeInit();
                 if( not.in(1)._type.isa(tinit) ) return null; // Already zero/null, no reason to upcast
-                return replace(not.in(1), new CastNode(tinit,null,not.in(1)));
+                return replace(not.in(1), new ConstantNode(tinit).peephole());
             }
         }
         // Apr/9/2024: Attempted to replace X with Y if guarded by a test of
@@ -284,20 +284,12 @@ public class ScopeNode extends Node {
         return null;
     }
 
-    private CastNode replace( Node old, Node cast ) {
+    private Node replace( Node old, Node cast ) {
         assert old!=null && old!=cast;
         for( int i=0; i<nIns(); i++ )
             if( in(i)==old )
                 setDef(i,cast);
-        return cast.keep();
+        return cast;
     }
 
-    public void uncast( CastNode cast ) {
-        if( cast==null ) return;
-        for( int i=0; i<nIns(); i++ )
-            if( in(i)==cast )
-                setDef(i,cast.in(1));
-        cast.<CastNode>unkeep()._peep = true;
-        IterPeeps.add(cast);
-    }
 }

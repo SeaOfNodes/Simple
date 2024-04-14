@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Field;
+import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
 /**
@@ -32,8 +33,8 @@ abstract class MemOpNode extends Node {
 
     @Override
     String err() {
-        TypeMemPtr ptr = (TypeMemPtr)ptr()._type; // Invariant
-        return ptr._nil
+        Type ptr = ptr()._type;
+        return (ptr==Type.BOTTOM || (ptr instanceof TypeMemPtr tmp && tmp._nil) )
             ? "Might be null accessing '" + _field.str() + "'"
             : null;
     }

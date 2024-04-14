@@ -14,11 +14,9 @@ import java.util.BitSet;
 // If goes out of scope.
 public class CastNode extends Node {
     private final Type _t;
-    boolean _peep;
     public CastNode(Type t, Node ctrl, Node in) {
         super(ctrl, in);
         _t = t;
-        _peep=false;
         setType(compute());
     }
 
@@ -34,14 +32,11 @@ public class CastNode extends Node {
 
     @Override
     public Type compute() {
-        if( !_peep ) return in(1)._type.glb();
         return in(1)._type.join(_t);
     }
 
     @Override
     public Node idealize() {
-        if( !_peep ) return null;
-        // Remove if already lifted enough
         return in(1)._type.isa(_t) ? in(1) : null;
     }
 }

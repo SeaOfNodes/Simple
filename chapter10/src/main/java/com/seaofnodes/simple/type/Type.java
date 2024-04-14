@@ -77,7 +77,7 @@ public class Type {
      */
     public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
 
-    public Type makeInit() { throw Utils.TODO(); }
+    public Type makeInit() { return null; }
 
     // ----------------------------------------------------------
 

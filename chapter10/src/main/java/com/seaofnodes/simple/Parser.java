@@ -328,18 +328,16 @@ public class Parser {
 
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
-        CastNode cast = _scope.upcast(ifT,pred,false); // Up-cast predicate
+        _scope.upcast(ifT,pred,false); // Up-cast predicate
         parseStatement();       // Parse true-side
-        _scope.uncast(cast);    // Restore predicate ("uncast" past test)
         ScopeNode tScope = _scope;
 
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
         if (matchx("else")) {
-            cast = _scope.upcast(ifF,pred,true); // Up-cast predicate
+            _scope.upcast(ifF,pred,true); // Up-cast predicate
             parseStatement();
-            _scope.uncast(cast);    // Restore predicate ("uncast" past test)
             fScope = _scope;
         }
         pred.unkeep();

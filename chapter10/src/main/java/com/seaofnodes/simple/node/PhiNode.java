@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.Utils;
 
 import java.util.BitSet;
 
@@ -80,6 +81,30 @@ public class PhiNode extends Node {
             Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
             Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
             return op.copy(phi_lhs,phi_rhs);
+        }
+
+        // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
+        if( nIns()==3 ) {
+            if( in(1) instanceof CastNode cast && cast.in(1).addDep(this)==in(2) ) return in(2);
+            if( in(2) instanceof CastNode cast && cast.in(1).addDep(this)==in(1) ) return in(1);
+        }
+        // If merging a null-checked null and the checked value, just use the value.
+        // if( val ) ..; phi(Region,False=0/null,True=val);
+        // then replace with plain val.
+        if( nIns()==3 ) {
+            int nullx = -1;
+            if( in(1)._type == in(1)._type.makeInit() ) nullx = 1;
+            if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
+            if( nullx != -1 ) {
+                Node val = in(3-nullx);
+                if( region().idom() instanceof IfNode iff && iff.pred()==val ) {
+                    // Must walk the idom on the null side to make sure we hit False.
+                    Node idom = region().in(nullx);
+                    while( idom.in(0) != iff ) idom = idom.idom();
+                    if( idom instanceof ProjNode proj && proj._idx==1 )
+                        return val;
+                }
+            }
         }
 
         return null;
