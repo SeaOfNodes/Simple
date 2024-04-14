@@ -36,13 +36,15 @@ public class Fuzzer {
      * @param script The script causing the exception
      * @param reproducer Reproducer which should be used to reproduce the test case.
      */
-    private void recordException(Throwable e, String script, Consumer<String> reproducer) {
+    private void recordException(Throwable e, String script, Consumer<String> reproducer, long seed) {
         for (var ex : exceptions) {
             if (FuzzerUtils.isExceptionFromSameCause(ex, e)) return;
         }
         exceptions.add(e);
         System.out.println("========== Stack ==========");
         e.printStackTrace(System.out);
+        System.out.println("========== Seed ==========");
+        System.out.println(seed);
         System.out.println("========== Code ===========");
         System.out.println(script);
         System.out.println("========= Reduced =========");
@@ -102,11 +104,11 @@ public class Fuzzer {
      * @param script The script to test.
      * @param valid If the script is valid or if it might contain syntax errors.
      */
-    private void check(String script, boolean valid) {
+    private void check(String script, boolean valid, long seed) {
         try {
             runCheck(script, valid);
         } catch (Throwable e) {
-            recordException(e, script, s->runCheck(s, valid));
+            recordException(e, script, s->runCheck(s, valid), seed);
         }
     }
 
@@ -156,8 +158,8 @@ public class Fuzzer {
     public void fuzzPeeps(long seed) {
         var rand = new Random(seed);
         var sb = new StringBuilder();
-        var valid = new ScriptGenerator(rand, sb, false).genProgram();
-        check(sb.toString(), valid);
+        var valid = new ScriptGenerator(rand, sb, true).genProgram();
+        check(sb.toString(), valid, seed);
     }
 
     
