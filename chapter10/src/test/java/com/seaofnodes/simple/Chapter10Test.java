@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 import com.seaofnodes.simple.type.*;
 import org.junit.Assert;
@@ -138,7 +139,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return Phi(Region18,null,new Bar);", stop.toString());
+        assertEquals("return Phi(Region14,null,new Bar);", stop.toString());
     }
 
     @Test
@@ -154,7 +155,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return Phi(Region35,4,3);", stop.toString());
+        assertEquals("return Phi(Region31,4,3);", stop.toString());
     }
 
     @Test
@@ -204,7 +205,7 @@ return ret;
 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return Phi(Loop12,new s0,Phi(Region33,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop9,new s0,Phi(Region29,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -223,7 +224,7 @@ return ret;
 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return Phi(Loop15,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop12,new s0,Phi(Region30,new s0,Phi_ret));", stop.toString());
     }
 
 
@@ -241,7 +242,7 @@ return ret;
 """);
         StopNode stop = parser.parse(true).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return Phi(Loop12,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop9,new s0,Phi(Region28,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -343,8 +344,20 @@ while(0) {}
             }
         }    }
 }
-    """);
+""");
         StopNode stop = parser.parse().iterate(true);
         assertEquals("Stop[ ]", stop.toString());
     }
+
+    @Test
+    public void testBug9() {
+        Parser parser = new Parser("""
+int v0=arg==0;
+while(v0) continue;
+return 0;
+""");
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return 0;", stop.toString());
+    }
+
 }

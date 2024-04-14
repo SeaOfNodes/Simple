@@ -79,4 +79,8 @@ public class Field extends Type {
     }
 
     @Override public String str() { return _fname; }
+
+    static void resetField() {
+        UNIQUE_ALIAS = 1;
+    }
 }

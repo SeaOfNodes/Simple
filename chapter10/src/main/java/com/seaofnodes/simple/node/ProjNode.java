@@ -48,7 +48,7 @@ public class ProjNode extends Node {
         }
 
         // Flip a negating if-test, to remove the not
-        if( ctrl() instanceof IfNode iff && iff.pred() instanceof NotNode not )
+        if( ctrl() instanceof IfNode iff && iff.pred().addDep(this) instanceof NotNode not )
             return new ProjNode((MultiNode)new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
 
         return null;
