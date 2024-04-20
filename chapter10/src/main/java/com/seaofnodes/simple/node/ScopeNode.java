@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
 import java.util.*;
@@ -262,10 +261,10 @@ public class ScopeNode extends Node {
                 // Must be an `int`, since int and ptr are the only two value types
                 // being tested. No representation for a generic not-null int, so no upcast.
                 return null;
-            if( tmp.isa(TypeMemPtr.VOID) )
+            if( tmp.isa(TypeMemPtr.PTR) )
                 return null;    // Already not-null, no reason to upcast
             // Upcast the ptr to not-null ptr, and replace in scope
-            return replace(pred,new CastNode(TypeMemPtr.VOID,ctrl,pred).peephole());
+            return replace(pred,new CastNode(TypeMemPtr.PTR,ctrl,pred).peephole());
         }
 
         if( pred instanceof NotNode not ) {

@@ -1,11 +1,8 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.StopNode;
 import com.seaofnodes.simple.type.*;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -63,6 +60,19 @@ public class TypeTest {
         Assert.assertEquals(ptr1.glb(), ptr1.dual().glb());
         Assert.assertEquals(TypeMemPtr.BOT, ptr1.meet(ptr2nil));
         Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULL));
+
+        TypeMemPtr TOP = TypeMemPtr.TOP;
+        TypeMemPtr BOT = TypeMemPtr.BOT;
+        TypeMemPtr PTR = TypeMemPtr.PTR;
+        TypeMemPtr NULL = TypeMemPtr.NULL;
+        Type PTR_meet_NULL = NULL.meet(PTR);
+        Assert.assertEquals(BOT, PTR_meet_NULL);
+        Type ptr1_meet_ptr2 = ptr1.meet(ptr2);
+        Assert.assertEquals(PTR, ptr1_meet_ptr2);
+        Type NULL_join_ptr1 = NULL.join(ptr1);
+        Assert.assertEquals(TOP, NULL_join_ptr1);
+        Type NULL_join_PTR = PTR.join(NULL);
+        Assert.assertEquals(TOP, NULL_join_PTR);
     }
 
     // Test theoretical properties.

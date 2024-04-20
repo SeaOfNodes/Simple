@@ -3,7 +3,7 @@
 In this chapter:
 
 * We add user defined struct types in the Simple language.
-* We introduce the concept of Memory and Aliasing.
+* We introduce the concept of Memory, Memory Pointers and Aliasing.
 * We add new nodes to represent operations on memory - such as creating new instance of a struct, storing and loading struct fields.
 
 Here is the [complete language grammar](docs/10-grammar.md) for this chapter.
@@ -51,6 +51,7 @@ We add following new Node types to support memory operations:
 | New       | Mem  | Create ptr to new object         | Control, Struct type                                      | Ptr value                              |
 | Store     | Mem  | Stores a value in a struct field | Memory slice (aliased by struct+field), Ptr, Field, Value | Memory slice (aliased by struct+field) |
 | Load      | Mem  | Loads a value from a field       | Memory slice (aliased by struct+field), Ptr, Field        | Value loaded                           |
+| Cast      | ?    | Upcasts a value                  | ?                                                         | ?                                      | 
 
 * New takes the current control as an input so that it is pinned correctly in the control flow. Conceptually the control input is also a proxy for all memory that originates from the Start node.
 * Above, "Ptr" refers to the base address of the allocated object. Within the context of a single program (function), each `Ptr` represents a distinct object in memory.
@@ -62,6 +63,31 @@ Additionally, the following Node types will be enhanced:
 |-----------|---------|------------------------------------------------------------------|
 | Start     | Control | Start will produce the initial Memory projections, one per slice |
 | Return    | Control | Will merge all memory slices                                     |
+
+## Enhanced Type Lattice
+
+The Type Lattice for Simple has a major revision in this chapter. 
+
+![Graph1](./docs/lattice.svg)
+
+Within the Type Lattice, we now have following domains:
+
+* Control type - this represents control flow
+* Integer type - Integer values
+* Struct type (new) - Represents user defined struct types, a struct type is allowed to have members of Integer type only in this chapter
+* Pointer type - Represents a pointer to a struct type
+  * `Null` is a special pointer type that represents a pointer to non-existent memory object
+  * `*void` is a synonym for `*$BOT` - i.e. it represents a Non-Null pointer to all possible struct types, akin to `void *` in C.
+  * `?` suffix represents the union of a pointer to some type and `Null`.
+  * `Null` pointer evaluates to False and non-Null pointers evaluate to True, as in C.
+* Memory - Represents memory and memory slices
+  * `#n` - refers to a memory slice
+
+A key change in the Sea of Nodes type computation is to ensure that values stay inside the domain after they are created. To support this, each domain within the lattice has a local Top and Bottom type.
+The Parser now tracks the declared type of a variable; the actual type is tracked in the Sea of Nodes graph. 
+
+
+
 
 ## A simple example
 

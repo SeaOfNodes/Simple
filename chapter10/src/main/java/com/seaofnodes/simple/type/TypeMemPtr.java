@@ -3,18 +3,22 @@ package com.seaofnodes.simple.type;
 import java.util.ArrayList;
 
 /**
- * Represents a Ptr. Ptrs are either null, or Ptr to a struct type or a union
- * of the two. Because Simple is a safe language we do not have an untyped Ptr
- * other than null.
+ * Represents a Pointer to memory.
+ *
+ * Null is generic pointer to non-existent memory.
+ * *void is a non-Null pointer to all possible structs.
+ * Pointers can be to specific struct types, or a union with Null.
+ * The distinguished *$BOT ptr represents union of *void and Null.
+ * The distinguished *$TOP ptr represents the dual of *$BOT.
  */
 public class TypeMemPtr extends Type {
-    // A TMP is pair (obj,nil)
+    // A TypeMemPtr is pair (obj,nil)
     // where obj is one of
     //    (null,TypeStruct).
     // where nil is one of
     //    (true,false) meaning an explicit null is allowed or not
 
-    public final TypeStruct _obj; // null, a TypeStruct, or sentinal TypeStruct.MANY
+    public final TypeStruct _obj; // null, a TypeStruct, or sentinel TypeStruct.MANY
     public final boolean _nil;
 
     private TypeMemPtr(TypeStruct obj, boolean nil) {
@@ -28,7 +32,7 @@ public class TypeMemPtr extends Type {
     public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
     public static TypeMemPtr TOP = BOT.dual();
     public static TypeMemPtr NULL= make(TypeStruct.TOP,true);
-    public static TypeMemPtr VOID= NULL.dual(); // A bottom mix of not-null ptrs
+    public static TypeMemPtr PTR = NULL.dual(); // A bottom mix of not-null ptrs
     public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
     public static void gather(ArrayList<Type> ts) { ts.add(NULL); ts.add(BOT); ts.add(TEST); }
 
@@ -61,13 +65,13 @@ public class TypeMemPtr extends Type {
     @Override
     public StringBuilder _print(StringBuilder sb) {
         if( this==NULL ) return sb.append("null");
-        if( this==VOID ) return sb.append("void*");
+        if( this==PTR  ) return sb.append("*void");
         return _obj._print(sb.append("*")).append(_nil ? "?" : "");
     }
 
     @Override public String str() {
         if( this==NULL ) return "null";
-        if( this==VOID ) return "void*";
+        if( this==PTR  ) return "*void";
         return "*"+_obj.str()+(_nil ? "?" : "");
     }
 
