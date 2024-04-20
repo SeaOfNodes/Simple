@@ -75,12 +75,14 @@ Within the Type Lattice, we now have following domains:
 * Control type - this represents control flow
 * Integer type - Integer values
 * Struct type (new) - Represents user defined struct types, a struct type is allowed to have members of Integer type only in this chapter
-* Pointer type - Represents a pointer to a struct type
-  * `Null` is a special pointer type that represents a pointer to non-existent memory object
+  * `$TOP` represents local Top for struct type
+  * `$BOT` represents local Bottom for struct type
+* Pointer type (new) - Represents a pointer to a struct type
+  * `Null` is a special pointer to non-existent memory object
   * `*void` is a synonym for `*$BOT` - i.e. it represents a Non-Null pointer to all possible struct types, akin to `void *` in C.
   * `?` suffix represents the union of a pointer to some type and `Null`.
   * `Null` pointer evaluates to False and non-Null pointers evaluate to True, as in C.
-* Memory - Represents memory and memory slices
+* Memory (new) - Represents memory and memory slices
   * `#n` - refers to a memory slice
 
 A key change in the Sea of Nodes type computation is to ensure that values stay inside the domain after they are created. To support this, each domain within the lattice has a local Top and Bottom type.

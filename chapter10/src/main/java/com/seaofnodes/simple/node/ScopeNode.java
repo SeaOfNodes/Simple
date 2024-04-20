@@ -25,7 +25,9 @@ public class ScopeNode extends Node {
      */
     public final Stack<HashMap<String, Integer>> _scopes;
 
-    // Defined types for every name
+    /**
+     * Tracks declared types for every name
+     */
     public Stack<HashMap<String, Type>> _types;
 
 
@@ -81,9 +83,9 @@ public class ScopeNode extends Node {
     /**
      * Create a new name in the current scope
      */
-    public Node define( String name, Type t, Node n ) {
+    public Node define( String name, Type declaredType, Node n ) {
         HashMap<String,Integer> syms = _scopes.lastElement();
-        _types.lastElement().put(name,t);
+        _types.lastElement().put(name,declaredType);
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
         return addDef(n);
@@ -127,14 +129,14 @@ public class ScopeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(idx,new PhiNode(name,lookup_type(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+                : loop.setDef(idx,new PhiNode(name, lookupDeclaredType(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
             setDef(idx,old);
         }
         return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
     }
 
     // Return declared type
-    public Type lookup_type( String name ) {
+    public Type lookupDeclaredType( String name ) {
         for( int i=_types.size(); i>0; i-- ) {
             Type t = _types.get(i-1).get(name);
             if( t != null ) return t;
@@ -205,7 +207,7 @@ public class ScopeNode extends Node {
             if( in(i) != that.in(i) ) // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
-                setDef(i, new PhiNode(ns[i], this.lookup_type(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
+                setDef(i, new PhiNode(ns[i], this.lookupDeclaredType(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
         IterPeeps.add(r);
         return r.unkeep().peephole();

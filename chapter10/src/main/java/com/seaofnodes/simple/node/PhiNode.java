@@ -13,7 +13,7 @@ public class PhiNode extends Node {
     // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     final Type _declaredType;
 
-    public PhiNode(String label, Type init, Node... inputs) { super(inputs); _label = label;  assert init!=null; _declaredType = init; }
+    public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
     @Override public String label() { return "Phi_"+_label; }
 

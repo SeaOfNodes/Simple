@@ -412,7 +412,7 @@ public class Parser {
                 throw error("Redefining name '" + name + "'");
         } else {
             Node n = _scope.lookup(name);
-            t = _scope.lookup_type(name);
+            t = _scope.lookupDeclaredType(name);
             if( n==null )
                 throw error("Undefined name '" + name + "'");
             _scope.update(name,expr);
