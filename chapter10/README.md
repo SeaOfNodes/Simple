@@ -79,11 +79,30 @@ Within the Type Lattice, we now have following domains:
   * `$BOT` represents local Bottom for struct type
 * Pointer type (new) - Represents a pointer to a struct type
   * `Null` is a special pointer to non-existent memory object
+  * We use the prefix `*` to mean pointer-to. Thus `*S1` means pointer to `S1`, `*$TOP` means pointer to `$TOP`.
   * `*void` is a synonym for `*$BOT` - i.e. it represents a Non-Null pointer to all possible struct types, akin to `void *` in C.
   * `?` suffix represents the union of a pointer to some type and `Null`.
   * `Null` pointer evaluates to False and non-Null pointers evaluate to True, as in C.
 * Memory (new) - Represents memory and memory slices
   * `#n` - refers to a memory slice
+
+We make use of following operations on the lattice.
+
+* The `meet` operation takes two types and computes the greatest lower bound type.
+  * Example, meet of `*S1` and `*S1` results in `*void`.
+  * Meet of `*S1` and struct `Null` results in `*S1?`
+  * Meet of `*void` and `Null` results in `*$BOT?`; bear in mind that `*void` is a synonym for `*$BOT`.
+  * Meet of `1` and `2` results in `Int Bot`.
+  * Meet of `#1` and `#2` results in `MEM#BOT`.
+* The `join` operation takes two types and computes the least upper bound type.
+  * Example, join of `*S1` and `*S2` results in `*$TOP`.
+  * Join of `1` and `2` results in `Int Top`.
+  * Join of `*void` and `Null` results in `*$TOP`.
+* The `dual` operation can be described as follows:
+  * Find the corresponding node of a lattice if you invert the lattice.
+    * Thus, dual of `Top` is `Bot`.
+    * dual of `*$TOP` is `*$BOT?`.
+  * For structs, the dual is obtained by computing the dual of each struct member.
 
 A key change in the Sea of Nodes type computation is to ensure that values stay inside the domain after they are created. To support this, each domain within the lattice has a local Top and Bottom type.
 The Parser now tracks the declared type of a variable; the actual type is tracked in the Sea of Nodes graph. 

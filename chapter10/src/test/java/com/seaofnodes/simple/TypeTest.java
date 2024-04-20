@@ -73,6 +73,8 @@ public class TypeTest {
         Assert.assertEquals(TOP, NULL_join_ptr1);
         Type NULL_join_PTR = PTR.join(NULL);
         Assert.assertEquals(TOP, NULL_join_PTR);
+        Type ptr1_dual = ptr1.dual();
+        Type nullableptr1_dual = ptr1nil.dual();
     }
 
     // Test theoretical properties.
