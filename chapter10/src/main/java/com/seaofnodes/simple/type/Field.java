@@ -8,7 +8,17 @@ import java.util.ArrayList;
  */
 public class Field extends Type {
 
-    private static int UNIQUE_ALIAS=1;
+    /**
+     * Represents the starting alias ID - which is 2 because then it nicely
+     * slots into Start's projections. Start already uses slots 0-1.
+     */
+    private static final int _RESET_ALIAS_ID = 2;
+
+    /**
+     * Alias ID generator - we start at 2 because START uses 0 and 1 slots,
+     * by starting at 2, our alias ID is nicely mapped to a slot in Start.
+     */
+    private static int _ALIAS_ID = _RESET_ALIAS_ID;
 
     // The triple {structName,type,fieldName} uniquely identifies a field.
 
@@ -38,9 +48,9 @@ public class Field extends Type {
     }
     // Make with new alias
     public static Field make( String sname, Type type, String fname ) {
-        Field fld = make(sname,type,fname,UNIQUE_ALIAS).intern();
-        if( fld._alias == UNIQUE_ALIAS )
-            UNIQUE_ALIAS++;
+        Field fld = make(sname,type,fname,_ALIAS_ID).intern();
+        if( fld._alias == _ALIAS_ID )
+            _ALIAS_ID++;
         return fld;
     }
 
@@ -81,6 +91,6 @@ public class Field extends Type {
     @Override public String str() { return _fname; }
 
     static void resetField() {
-        UNIQUE_ALIAS = 1;
+        _ALIAS_ID = _RESET_ALIAS_ID;
     }
 }
