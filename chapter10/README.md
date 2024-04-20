@@ -75,8 +75,8 @@ Within the Type Lattice, we now have following domains:
 * Control type - this represents control flow
 * Integer type - Integer values
 * Struct type (new) - Represents user defined struct types, a struct type is allowed to have members of Integer type only in this chapter
-  * `$TOP` represents local Top for struct type
-  * `$BOT` represents local Bottom for struct type
+  * `$TOP` represents local Top for struct type; implies all we know about the type is that it is a struct but, we do not know if it is a specific struct, or all possible structs, etc.
+  * `$BOT` represents local Bottom for struct type; implies that we know the value can definitely all possible struct types
 * Pointer type (new) - Represents a pointer to a struct type
   * `Null` is a special pointer to non-existent memory object
   * We use the prefix `*` to mean pointer-to. Thus `*S1` means pointer to `S1`, `*$TOP` means pointer to `$TOP`.
@@ -89,7 +89,7 @@ Within the Type Lattice, we now have following domains:
 We make use of following operations on the lattice.
 
 * The `meet` operation takes two types and computes the greatest lower bound type.
-  * Example, meet of `*S1` and `*S1` results in `*void`.
+  * Example, meet of `*S1` and `*S2` results in `*void`.
   * Meet of `*S1` and struct `Null` results in `*S1?`
   * Meet of `*void` and `Null` results in `*$BOT?`; bear in mind that `*void` is a synonym for `*$BOT`.
   * Meet of `1` and `2` results in `Int Bot`.
@@ -99,10 +99,10 @@ We make use of following operations on the lattice.
   * Join of `1` and `2` results in `Int Top`.
   * Join of `*void` and `Null` results in `*$TOP`.
 * The `dual` operation can be described as follows:
-  * Find the corresponding node of a lattice if you invert the lattice.
+  * Find the corresponding node of the lattice after you invert the lattice.
     * Thus, dual of `Top` is `Bot`.
     * dual of `*$TOP` is `*$BOT?`.
-  * For structs, the dual is obtained by computing the dual of each struct member.
+  * However, for structs, the dual is obtained by computing the dual of each struct member. Thus, dual of `*S1` is not `*S1?`.
 
 A key change in the Sea of Nodes type computation is to ensure that values stay inside the domain after they are created. To support this, each domain within the lattice has a local Top and Bottom type.
 The Parser now tracks the declared type of a variable; the actual type is tracked in the Sea of Nodes graph. 
