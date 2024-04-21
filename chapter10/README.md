@@ -88,13 +88,13 @@ Within the Type Lattice, we now have following domains:
 
 We make use of following operations on the lattice.
 
-* The `meet` operation takes two types and computes the greatest lower bound type.
+* The `meet` operation takes two types and computes the greatest lower bound type. While not generally true, in Simple this approximates to creating a union (ORing) of its input types. 
   * Example, meet of `*S1` and `*S2` results in `*void`.
   * Meet of `*S1` and struct `Null` results in `*S1?`
   * Meet of `*void` and `Null` results in `*$BOT?`; bear in mind that `*void` is a synonym for `*$BOT`.
   * Meet of `1` and `2` results in `Int Bot`.
   * Meet of `#1` and `#2` results in `MEM#BOT`.
-* The `join` operation takes two types and computes the least upper bound type.
+* The `join` operation takes two types and computes the least upper bound type. While not generally true, in Simple this approximates to creating an intersection (ANDing) of its input types.
   * Example, join of `*S1` and `*S2` results in `*$TOP`.
   * Join of `1` and `2` results in `Int Top`.
   * Join of `*void` and `Null` results in `*$TOP`.
@@ -104,13 +104,35 @@ We make use of following operations on the lattice.
     * dual of `*$TOP` is `*$BOT?`.
   * However, for structs, the dual is obtained by computing the dual of each struct member. Thus, dual of `*S1` is not `*S1?`.
 
-A key change in the Sea of Nodes type computation is to ensure that values stay inside the domain after they are created. To support this, each domain within the lattice has a local Top and Bottom type.
-The Parser now tracks the declared type of a variable; the actual type is tracked in the Sea of Nodes graph. 
+As we construct the Sea of Nodes graph, we ensure that values stay inside the domain they are created in.
+There are some nuances worth highlighting.
+
+* When Phis are created, the initial type of the Phi is based on the declared type of its first input. This is a pessimistic type because we do not yet know what other types will be met. 
+* When all the inputs of the Phi are know, we start with the local Top of the declared type, and then compute a meet of all the input types. This computation results in a more refined type for the Phi.
+
+## Changes to Parsing
+
+In previous chapters the only available type was Integer. Now, variables can be of integer type or pointer to Struct types.
+To support this, the Parser now tracks the declared type of a variable.
+The declared type of a variable defines the set of values that can be legitimately assigned to the variable.
+The Sea of Nodes graph also tracks the actual type of values assigned to variables, these type transitions are defined by the Type lattice described in the previous section.
+
+## Null Pointer Analysis
+
+The Simple language syntax allows a pointer variable to be specified as Null-able.
+
+When the Parser encounters conditions that test the truthiness of a pointer variable, it uses this knowledge to refine the type information in the branches that follow.
+
+TODO
+ 
 
 
 
 
-## A simple example
+
+## Examples
+
+### Example 1
 
 Let us now see how we would represent following.
 

@@ -8,10 +8,6 @@ import java.util.BitSet;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
 // Can also be used to make a type-assertion if ctrl is null.
-
-// Disallowed to peephole on creation, as the Cast is ALSO a marker in the
-// Scope of what got upcast - can needs to be removed from the Scope after the
-// If goes out of scope.
 public class CastNode extends Node {
     private final Type _t;
     public CastNode(Type t, Node ctrl, Node in) {
