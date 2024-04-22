@@ -16,8 +16,29 @@ even if the struct would fit into a register. To support values of such a type, 
 The core ideas regarding `Memory` are:
 
 * The program starts with a single `Memory` value that encapsulates the whole of available memory.
-* Each `struct` type carves out this memory such that all instances of a particular field in a given struct goes into the same slice. We can identify this via "alias classes". Conceptually, we can think of an "alias class"
-  as a unique integer ID assigned to each field in a struct, where distinct struct types have their own set of ids. 
+* Each `struct` type carves out this memory such that all instances of a particular field in a given struct goes into the same slice. We can identify this via "alias classes". 
+
+### Alias Classes
+
+Aliasing describes a situation in which a data location in memory can be accessed through multiple symbolic names (variables) in the program. Modifying the data through one name implicitly modifies the values
+associated with all the aliased names. 
+
+The compiler's goal is to ensure that data accesses to memory via aliased symbols are serialized as defined by the source program, whereas data that is not aliased is allowed to be accessed in parallel. Moreover, 
+knowledge about aliasing helps the compiler eliminate redundant loads and stores.
+
+Simple, like Java, is a strongly typed language. Therefore, two variables that have incompatible types cannot possibly be names to the same location in memory. We can therefore use type information to determine
+which symbols alias, i.e., potentially reference the same location in memory. To do this, we divide/slice all memory into disjoint sets called alias classes.
+
+We implement the "alias class" as a unique integer ID assigned to each field in a struct, where distinct struct types have their own set of ids. Thus, every field in every struct type is a new alias class.
+In later chapters as we implement arrays and subtyping, our strategy for assigning alias classes will be enhanced.
+
+Alias classes enable the compiler to reorder instructions that do pointer accesses. Our approach combines type and field information so that loads and stores to different fields in
+the same or different types can be performed in parallel, while ensuring that loads and stores to the same field of a struct type are serialized.
+
+For background information and overview of type based alias analysis, please refer to the paper `Type Based Alias Analysis`.[^1]
+Our approach is a form of TBAA similar to the "FieldTypeDecl" algorithm described in the paper. We do not track aliasing by instance of a Struct type.
+
+### Implementation of Alias Classes
 
 For example, suppose we have declared two struct types like so:
 
@@ -41,12 +62,6 @@ Note that the `x` and `y` in `Vector2D` do not alias `x` and `y` in `Vector3D`.
 
 In this chapter we do not have inheritance or sub-typing. But if we had subtyping and `Vector3D` 
 was a subtype of `Vector2D` then `x` and `y` would alias and would be given the same alias class.
-
-The alias classes enable the compiler to reorder instructions that do pointer accesses. Our approach combines type and field information so that loads and stores to different fields in 
-the same or different types can be performed in parallel, while ensuring that loads and stores to the same field of a struct type are serialized.
-
-A good overview of type based alias analysis can be found in the paper `Type Based Alias Analysis`.[^1]
-Our approach is a form of TBAA similar to the "FieldTypeDecl" algorithm described in the paper. We do not track aliasing by instance of a Struct type.
 
 ## Extensions to Intermediate Representation
 
