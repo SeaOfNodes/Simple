@@ -263,10 +263,10 @@ public class ScopeNode extends Node {
                 // Must be an `int`, since int and ptr are the only two value types
                 // being tested. No representation for a generic not-null int, so no upcast.
                 return null;
-            if( tmp.isa(TypeMemPtr.PTR) )
+            if( tmp.isa(TypeMemPtr.VOIDPTR) )
                 return null;    // Already not-null, no reason to upcast
             // Upcast the ptr to not-null ptr, and replace in scope
-            return replace(pred,new CastNode(TypeMemPtr.PTR,ctrl,pred).peephole());
+            return replace(pred,new CastNode(TypeMemPtr.VOIDPTR,ctrl,pred).peephole());
         }
 
         if( pred instanceof NotNode not ) {

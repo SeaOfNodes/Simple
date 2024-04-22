@@ -59,12 +59,12 @@ public class TypeTest {
         Assert.assertEquals(ptr1, ptr1.dual().dual());
         Assert.assertEquals(ptr1.glb(), ptr1.dual().glb());
         Assert.assertEquals(TypeMemPtr.BOT, ptr1.meet(ptr2nil));
-        Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULL));
+        Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULLPTR));
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
         TypeMemPtr BOT = TypeMemPtr.BOT;
-        TypeMemPtr PTR = TypeMemPtr.PTR;
-        TypeMemPtr NULL = TypeMemPtr.NULL;
+        TypeMemPtr PTR = TypeMemPtr.VOIDPTR;
+        TypeMemPtr NULL = TypeMemPtr.NULLPTR;
         Type PTR_meet_NULL = NULL.meet(PTR);
         Assert.assertEquals(BOT, PTR_meet_NULL);
         Type ptr1_meet_ptr2 = ptr1.meet(ptr2);

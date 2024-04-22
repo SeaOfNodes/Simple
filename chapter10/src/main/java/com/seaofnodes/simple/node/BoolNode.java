@@ -56,7 +56,7 @@ abstract public class BoolNode extends Node {
                     return new EQ(in(2),in(1));
             }
             // Equals X==0 becomes a !X
-            if( (in(2)._type == TypeInteger.ZERO || in(2)._type == TypeMemPtr.NULL) )
+            if( (in(2)._type == TypeInteger.ZERO || in(2)._type == TypeMemPtr.NULLPTR) )
                 return new NotNode(in(1));
         }
 

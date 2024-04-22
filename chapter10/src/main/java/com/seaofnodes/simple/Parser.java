@@ -568,7 +568,7 @@ public class Parser {
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
-        if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULL).peephole();
+        if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
             TypeStruct obj = OBJS.get(structName);

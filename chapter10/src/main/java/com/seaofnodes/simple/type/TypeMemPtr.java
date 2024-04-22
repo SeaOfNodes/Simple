@@ -31,10 +31,10 @@ public class TypeMemPtr extends Type {
 
     public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
     public static TypeMemPtr TOP = BOT.dual();
-    public static TypeMemPtr NULL= make(TypeStruct.TOP,true);
-    public static TypeMemPtr PTR = NULL.dual(); // A bottom mix of not-null ptrs
+    public static TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
+    public static TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
     public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
-    public static void gather(ArrayList<Type> ts) { ts.add(NULL); ts.add(BOT); ts.add(TEST); }
+    public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
 
     @Override
     Type xmeet(Type t) {
@@ -50,7 +50,7 @@ public class TypeMemPtr extends Type {
         if( _obj==null ) return BOT;
         return make(_obj.glb(),true);
     }
-    @Override public TypeMemPtr makeInit() { return NULL; }
+    @Override public TypeMemPtr makeInit() { return NULLPTR; }
 
     @Override
     int hash() { return (_obj==null ? 0xDEADBEEF : _obj.hashCode()) ^ (_nil ? 1024 : 0); }
@@ -64,14 +64,14 @@ public class TypeMemPtr extends Type {
     // [void,name,MANY]*[,?]
     @Override
     public StringBuilder _print(StringBuilder sb) {
-        if( this==NULL ) return sb.append("null");
-        if( this==PTR  ) return sb.append("*void");
+        if( this== NULLPTR) return sb.append("null");
+        if( this== VOIDPTR) return sb.append("*void");
         return _obj._print(sb.append("*")).append(_nil ? "?" : "");
     }
 
     @Override public String str() {
-        if( this==NULL ) return "null";
-        if( this==PTR  ) return "*void";
+        if( this== NULLPTR) return "null";
+        if( this== VOIDPTR) return "*void";
         return "*"+_obj.str()+(_nil ? "?" : "");
     }
 

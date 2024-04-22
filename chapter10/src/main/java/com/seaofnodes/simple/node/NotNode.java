@@ -24,10 +24,12 @@ public class NotNode extends Node {
         case TypeInteger i0:
             return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
         case TypeMemPtr p0:
-            // top->top, bot->bot, null->1, void->0, ptr/NOT->0, ptr/nil->bot
-            if( p0 == TypeMemPtr.TOP  ) return TypeInteger.TOP;
-            if( p0 == TypeMemPtr.NULL ) return TypeInteger.constant(1);
-            if( !p0._nil )              return TypeInteger.constant(0);
+            // top->top, bot->bot, null->1, *void->0, not-null ptr->0, ptr/nil->bot
+            // If input in null then true
+            // If input is not null ptr then false
+            if( p0 == TypeMemPtr.TOP  )    return TypeInteger.TOP;
+            if( p0 == TypeMemPtr.NULLPTR ) return TypeInteger.constant(1);
+            if( !p0._nil )                 return TypeInteger.constant(0);
             return TypeInteger.BOT;
         case Type t:
             if( t0.getClass() != Type.class )
