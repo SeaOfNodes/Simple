@@ -93,7 +93,7 @@ This involves following:
 
 1. We create an `IfNode` with the current control token, i.e. the node mapped to
   `$ctrl`, and the `if` predicate expression as inputs.
-2. We add two `ProjNodes` - one for the `True` branch (call if `ifT`), and the
+2. We add two `ProjNodes` - one for the `True` branch (call it `ifT`), and the
   other for the `False` branch (call it `ifF`) - these extract values from the
   tuple result of the `IfNode`.
 3. We duplicate the current `ScopeNode`.  The duplicated `ScopeNode` contains
