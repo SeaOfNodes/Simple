@@ -16,7 +16,7 @@ even if the struct would fit into a register. To support values of such a type, 
 The core ideas regarding `Memory` are:
 
 * The program starts with a single `Memory` value that encapsulates the whole of available memory.
-* Each `struct` type carves out this memory such that all instances of a particular field in a given struct goes into the same slice. We can identify this via "alias classes". 
+* Each `struct` type carves out this memory such that all instances of a particular field in a given struct goes into an "alias class". 
 
 ### Alias Classes
 
@@ -101,11 +101,13 @@ Within the Type Lattice, we now have the following type domains:
 * Pointer type (new) - Represents a pointer to a struct type
   * `null` is a pointer to non-existent memory object
   * We use the prefix `*` to mean pointer-to. Thus `*S1` means pointer to `S1`, `*$TOP` means pointer to `$TOP`.
-  * `*void` is a synonym for `*$BOT` - i.e. it represents a Non-Null pointer to all possible struct types, akin to `void *` in C.
+  * `*void` is a synonym for `*$BOT` - i.e. it represents a Non-Null pointer to all possible struct types, akin to `void *` in C except not null.
   * `?` suffix represents the union of a pointer to some type and `null`.
   * `null` pointer evaluates to False and non-null pointers evaluate to True, as in C.
 * Memory (new) - Represents memory and memory slices
+  * `MEM#TOP` - Nothing known about a slice 
   * `#n` - refers to a memory slice
+  * `MEM#BOT` - all of memory
 
 We make use of following operations on the lattice.
 
@@ -144,12 +146,35 @@ The Simple language syntax allows a pointer variable to be specified as Null-abl
 
 When the Parser encounters conditions that test the truthiness of a pointer variable, it uses this knowledge to refine the type information in the branches that follow.
 
-TODO describe how this works
- 
+Here are two motivating examples:
 
+```java
+struct Bar { int a; }
+Bar? bar = new Bar;
+if (arg) bar = null;
+if( bar ) bar.a = 1;
+```
+If `bar` is not `null` above, then we would like to allow the assignment to `bar.a`.
 
+```java
+struct Bar { int a; }
+Bar? bar = new Bar;
+if (arg) bar = null;
+int rez = 3;
+if( !bar ) rez=4;
+else bar.a = 1;
+```
+If `bar` is `null` then we would like `!bar` to evaluate to `true`. In the else branch we know `bar` is not null, hence the assignment to `bar.a` should be allowed.
 
+To enable this behaviour, we make following enhancements.
 
+* When computing a type for Not, we produce an Integer type when its input is a ptr. When the input is a `null` we convert to `1` and when is a not `null` ptr value, we convert to `0`. See `NotNode.compute()`.
+* We "wrap" the predicate of an `If` node with an up-cast when we see that the predicate is a ptr value. The wrapping occurs separately for the true and the false branches of the `If`; the false branch inverts the predicate. The up-cast is applied
+  when we observe that the predicate is a nullable ptr, in which case we join the predicate's type to `*void` thereby lifting the type in the lattice while retaining all the information present in the predicate's type. The up-cast is represented by the
+  Cast op, and if applicable, we replace all occurrences of the original predicate with the up-cast in the current scope. The change is local to each branch of the `If`. The up-cast gets peepholed to its input when the input's type is a super type of
+  the up-cast target type. See `ScopeNode.upcast()` method, and `CastNode`.
+
+  
 
 ## Examples
 
