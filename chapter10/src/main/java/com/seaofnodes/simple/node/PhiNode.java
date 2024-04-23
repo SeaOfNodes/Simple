@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.Utils;
 
 import java.util.BitSet;
@@ -36,6 +37,8 @@ public class PhiNode extends Node {
 
     Node region() { return in(0); }
     @Override public boolean isMultiTail() { return true; }
+    @Override
+    public boolean isMem() { return _declaredType instanceof TypeMem; }
 
     @Override
     public Type compute() {
