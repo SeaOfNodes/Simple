@@ -38,6 +38,14 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+
+        // Simple Load-after-Store on same address.
+        if( mem() instanceof StoreNode st &&
+            ptr() == st.ptr() ) { // Must check same object
+            assert _field==st._field; // Equiv class aliasing is perfect
+            return st.val();
+        }
+
         return null;
     }
 }
