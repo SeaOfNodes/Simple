@@ -70,7 +70,7 @@ tests:	$(default_targets)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 
 fuzzer: $(default_targets)
-	@echo "testing " $(test_cp)
+	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
 
