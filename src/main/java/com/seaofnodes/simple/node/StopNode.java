@@ -51,10 +51,17 @@ public class StopNode extends Node {
         return null;
     }
 
+    @Override public Node idom() { return null; }
+
     public Node addReturn(Node node) {
         return addDef(node);
     }
 
-    public StopNode iterate(            ) { return IterPeeps.iterate(this,false); }
-    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ); }
+    public StopNode iterate(            ) { return IterPeeps.iterate(this,false).typeCheck(); }
+    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ).typeCheck(); }
+    StopNode typeCheck() {
+        String err = walk( Node::err );
+        if( err != null ) throw new RuntimeException(err);
+        return this;
+    }
 }

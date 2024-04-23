@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import java.util.ArrayList;
+
 public class TypeTuple extends Type {
 
     public final Type[] _types;
@@ -7,8 +9,11 @@ public class TypeTuple extends Type {
     private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
     public static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
 
+    private static TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
+    public static void gather(ArrayList<Type> ts) {  ts.add(TEST); }
+
     @Override
-    public Type xmeet(Type other) {
+    Type xmeet(Type other) {
         TypeTuple tt = (TypeTuple)other;     // contract from xmeet
         assert _types.length == tt._types.length;
         Type[] ts = new Type[_types.length];
@@ -25,10 +30,33 @@ public class TypeTuple extends Type {
     }
 
     @Override
+    public Type glb() {
+        Type[] ts = new Type[_types.length];
+        for( int i=0; i<_types.length; i++ )
+            ts[i] = _types[i].glb();
+        return make(ts);
+    }
+
+    @Override
     public StringBuilder _print(StringBuilder sb) {
         sb.append("[");
         for( Type t : _types )
             t._print(sb).append(",");
+        sb.setLength(sb.length()-1);
+        sb.append("]");
+        return sb;
+    }
+
+    @Override public String str() { return _print(new StringBuilder()).toString(); }
+
+    /**
+     * Display Type name in a format that's good for IR printer
+     */
+    @Override
+    public StringBuilder typeName(StringBuilder sb) {
+        sb.append("[");
+        for( Type t : _types )
+            t.typeName(sb).append(",");
         sb.setLength(sb.length()-1);
         sb.append("]");
         return sb;
