@@ -2,6 +2,7 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Utils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -33,6 +34,10 @@ public class Type {
     static final byte TSIMPLE = 4; // End of the Simple Types
     static final byte TINT    = 5; // All Integers; see TypeInteger
     static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMEM    = 7; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TMEMPTR = 8; // Memory pointer type
+    static final byte TSTRUCT = 9; // Structs; tuples with named fields
+    static final byte TFLD    =10; // Fields into struct
 
     public final byte _type;
 
@@ -44,6 +49,21 @@ public class Type {
     public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
     public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
     public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
+    public static Type[] gather() {
+        ArrayList<Type> ts = new ArrayList<>();
+        ts.add(BOTTOM);
+        ts.add(CONTROL);
+        Field.gather(ts);
+        TypeInteger.gather(ts);
+        TypeMem.gather(ts);
+        TypeMemPtr.gather(ts);
+        TypeStruct.gather(ts);
+        TypeTuple.gather(ts);
+        int sz = ts.size();
+        for( int i = 0; i < sz; i++ )
+            ts.add(ts.get(i).dual());
+        return ts.toArray(new Type[ts.size()]);
+    }
 
     // Is high or on the lattice centerline.
     public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
@@ -52,12 +72,26 @@ public class Type {
     // Excludes both high and low values
     public boolean isConstant() { return false; }
 
-    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
+    /**
+     * Display Type name in a format that's good for IR printer
+     */
+    public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
+
+    public Type makeInit() { return null; }
 
     // ----------------------------------------------------------
 
+    // Notes on Type interning.
+    // At the moment it is not easy to reset the interned types
+    // because we hold static references to several types and these are scattered
+    // around. This means the INTERN cache will retain all types from
+    // every run of the Parser. For this to work correctly types must be
+    // rigorous about defining when they are the same. Also types need to be
+    // immutable once defined.
+    // The rationale for interning is performance.
+
     // Factory method which interns "this"
-    protected <T extends Type> T intern() {
+    public  <T extends Type> T intern() {
         T nnn = (T)INTERN.get(this);
         if( nnn==null )
             INTERN.put(nnn=(T)this,this);
@@ -95,13 +129,13 @@ public class Type {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
-        return xmeet(t);        // Mixing 2 unrelated types
+        return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 
     // Compute meet right now.  Overridden in subclasses.
     // Handle cases where 'this.is_simple()' and unequal to 't'.
     // Subclassed xmeet calls can assert that '!t.is_simple()'.
-    protected Type xmeet(Type t) {
+    Type xmeet(Type t) {
         assert is_simple(); // Should be overridden in subclass
         // ANY meet anything is thing; thing meet ALL is ALL
         if( _type==TBOT || t._type==TTOP ) return this;
@@ -110,17 +144,6 @@ public class Type {
         if( !t.is_simple() ) return BOTTOM;
         // 't' is {TCTRL,TXCTRL}
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
-    }
-
-    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    public boolean isa( Type t ) { return meet(t)==t; }
-
-    // ----------------------------------------------------------
-    // Our lattice is defined with a MEET and a DUAL.
-    // JOIN is dual of meet of both duals.
-    public final Type join(Type t) {
-        if( this==t ) return this;
-        return dual().meet(t.dual()).dual();
     }
 
     public Type dual() {
@@ -134,8 +157,31 @@ public class Type {
     }
 
     // ----------------------------------------------------------
+    // Our lattice is defined with a MEET and a DUAL.
+    // JOIN is dual of meet of both duals.
+    public final Type join(Type t) {
+        if( this==t ) return this;
+        return dual().meet(t.dual()).dual();
+    }
+
+    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
+    public boolean isa( Type t ) { return meet(t)==t; }
+
+    /**
+     * Compute greatest lower bound in the lattice
+     */
+    public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
+
+    // ----------------------------------------------------------
+    // Useful in the debugger, which calls toString everywhere.
+    // This is a more verbose dev-friendly print.
     @Override
     public final String toString() {
         return _print(new StringBuilder()).toString();
     }
+
+    public StringBuilder _print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
+
+    // This is used by error messages, and is a shorted print.
+    public String str() { return STRS[_type]; }
 }
