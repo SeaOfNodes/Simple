@@ -1,0 +1,161 @@
+digraph Lattice {
+    compound = true;
+    // Define nodes
+    splines=false;
+    node [shape=circle, style=filled];
+    nodesep=0.6;
+
+    TOP [label=<<B>⊤</B >>, fillcolor=black, fontcolor=white];
+    BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
+
+    // ----------------------
+    // Control
+    XCTRL [label=<<B>⊤</B >:ctrl>, fillcolor=yellow, shape=oval];
+    CTRL  [label=<<B>⊥</B>:ctrl>, fillcolor=yellow, shape=oval];
+
+    TOP   -> XCTRL;
+    XCTRL -> CTRL;
+    CTRL  -> BOT;
+
+    // ----------------------
+    // Integers
+    INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
+    INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
+
+    INT_MINDOTS [label="...", fillcolor=lightblue, shape=oval];
+    INT_ZERO    [label="0"  , fillcolor=lightblue];
+    INT_MAXDOTS [label="...", fillcolor=lightblue, shape=oval];
+
+    TOP         -> INT_TOP;
+    INT_TOP     -> INT_MINDOTS;
+    INT_TOP     -> INT_ZERO;
+    INT_TOP     -> INT_MAXDOTS;
+    INT_MINDOTS -> INT_BOT;
+    INT_ZERO    -> INT_BOT;
+    INT_MAXDOTS -> INT_BOT;
+    INT_BOT     -> BOT;
+
+    INT_MINDOTS -> INT_ZERO -> INT_MAXDOTS [style=invis];
+
+    // ----------------------
+    // Pointers, just a boolean nil/not and a struct
+    PTR  [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD BGCOLOR="green"><FONT color="white">*ptr</FONT></TD></TR>
+        <TR><TD BGCOLOR="lightgreen">struct</TD></TR>
+      </TABLE>
+    >];
+    PTR0  [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD BGCOLOR="green"><FONT color="white">*ptr?</FONT></TD></TR>
+        <TR><TD BGCOLOR="lightgreen">struct</TD></TR>
+      </TABLE>
+    >];
+    
+    TOP  -> PTR;
+    PTR  -> PTR0;
+    PTR0 -> BOT;
+
+    // ----------------------
+    // Structs
+    STRUCT_TOP    [label=<<B>⊤</B >:struct>, fillcolor=lightgreen, shape=oval];
+    STRUCT_BOT    [label=<<B>⊥</B>:struct>, fillcolor=lightgreen, shape=oval];
+
+    STRUCT_S1  [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
+      </TABLE>
+    >];
+    STRUCT_S2  [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
+        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
+      </TABLE>
+    >];
+    STRUCT_SN  [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
+        <TR><TD BGCOLOR="lightgreen">...  </TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
+        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
+      </TABLE>
+    >];
+
+
+    TOP          -> STRUCT_TOP;
+    STRUCT_TOP   -> STRUCT_S1;
+    STRUCT_TOP   -> STRUCT_S2;
+    STRUCT_TOP   -> STRUCT_SN;
+    STRUCT_S1    -> STRUCT_BOT;
+    STRUCT_S2    -> STRUCT_BOT;
+    STRUCT_SN    -> STRUCT_BOT;
+    STRUCT_BOT   -> BOT;
+
+    STRUCT_S1 -> STRUCT_S2 -> STRUCT_SN [style=invis];
+
+    // ----------------------
+    // Memory
+    MEM_TOP       [label=<<B>⊤</B >:mem>, fillcolor=blue, fontcolor=white, shape=oval];
+    MEM_BOT       [label=<<B>⊥</B>:mem>, fillcolor=blue, fontcolor=white, shape=oval];
+    MEM_ALIAS1    [label="#1"     , fillcolor=blue, fontcolor=white];
+    MEM_ALIASDOTS [label="..."    , fillcolor=blue, fontcolor=white, shape=oval];
+    MEM_ALIASN    [label="#n"     , fillcolor=blue, fontcolor=white];
+
+    TOP          -> MEM_TOP;
+    MEM_TOP      -> MEM_ALIAS1;
+    MEM_TOP      -> MEM_ALIASDOTS;
+    MEM_TOP      -> MEM_ALIASN;
+    MEM_ALIAS1   -> MEM_BOT;
+    MEM_ALIASDOTS -> MEM_BOT;
+    MEM_ALIASN    -> MEM_BOT;
+    MEM_BOT       -> BOT;
+
+    MEM_ALIAS1 -> MEM_ALIASDOTS -> MEM_ALIASN [style=invis];
+
+    // ----------------------
+    // Tuples
+
+    TUPLE_TOP [label=<<B>⊤</B >:tuple>, fillcolor=pink, shape=oval];
+    TUPLE_BOT [label=<<B>⊥</B>:tuple>, fillcolor=pink, shape=oval];
+
+    TUPLE1 [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+    TUPLE2 [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+    TUPLEN [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">...</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+
+
+    TOP -> TUPLE_TOP;
+    TUPLE_TOP -> TUPLE1;
+    TUPLE_TOP -> TUPLE2;
+    TUPLE_TOP -> TUPLEN;
+    TUPLE1 -> TUPLE_BOT;
+    TUPLE2 -> TUPLE_BOT;
+    TUPLEN -> TUPLE_BOT;
+    TUPLE_BOT -> BOT;
+
+    // ----------------------
+    // Additional customization
+    {rank=same; TOP;}
+    {rank=same; INT_TOP; XCTRL; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
+    {rank=same; INT_MINDOTS; INT_ZERO; INT_MAXDOTS;
+                STRUCT_S1; STRUCT_S2; STRUCT_SN;
+                MEM_ALIAS1; MEM_ALIASDOTS; MEM_ALIASN;}
+    {rank=same; INT_BOT; CTRL; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
+    {rank=same; BOT;}
+}

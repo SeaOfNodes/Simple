@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 import java.util.*;
 
@@ -23,10 +25,16 @@ public class ScopeNode extends Node {
      */
     public final Stack<HashMap<String, Integer>> _scopes;
 
+    /**
+     * Tracks declared types for every name
+     */
+    public Stack<HashMap<String, Type>> _types;
+
 
     // A new ScopeNode
     public ScopeNode() {
         _scopes = new Stack<>();
+        _types  = new Stack<>();
         _type = Type.BOTTOM;
     }
 
@@ -69,14 +77,15 @@ public class ScopeNode extends Node {
 
     @Override public Node idealize() { return null; }
 
-    public void push() { _scopes.push(new HashMap<>());  }
-    public void pop() { popN(_scopes.pop().size());  }
+    public void push() { _scopes.push(new HashMap<>());  _types.push(new HashMap<>()); }
+    public void pop() { popN(_scopes.pop().size()); _types.pop(); }
 
     /**
      * Create a new name in the current scope
      */
-    public Node define( String name, Node n ) {
+    public Node define( String name, Type declaredType, Node n ) {
         HashMap<String,Integer> syms = _scopes.lastElement();
+        _types.lastElement().put(name,declaredType);
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
         return addDef(n);
@@ -97,7 +106,7 @@ public class ScopeNode extends Node {
     public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
     /**
      * Both recursive lookup and update.
-     *
+     * <p>
      * A shared implementation allows us to create lazy phis both during
      * lookups and updates; the lazy phi creation is part of chapter 8.
      *
@@ -120,10 +129,19 @@ public class ScopeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+                : loop.setDef(idx,new PhiNode(name, lookupDeclaredType(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
             setDef(idx,old);
         }
         return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
+    }
+
+    // Return declared type
+    public Type lookupDeclaredType( String name ) {
+        for( int i=_types.size(); i>0; i-- ) {
+            Type t = _types.get(i-1).get(name);
+            if( t != null ) return t;
+        }
+        return null;
     }
 
     public Node ctrl() { return in(0); }
@@ -162,8 +180,10 @@ public class ScopeNode extends Node {
         // 3) Ensure that the order of defs is the same to allow easy merging
         for( HashMap<String,Integer> syms : _scopes )
             dup._scopes.push(new HashMap<>(syms));
+        for( HashMap<String,Type> ts : _types )
+            dup._types.push(ts); // Types don't change, just keep stacks aligned
 
-        dup.addDef(ctrl());      // Control input is just copied
+        dup.addDef(ctrl());     // Control input is just copied
         for( int i=1; i<nIns(); i++ )
             // For lazy phis on loops we use a sentinel
             // that will trigger phi creation on update
@@ -187,8 +207,9 @@ public class ScopeNode extends Node {
             if( in(i) != that.in(i) ) // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
-                setDef(i, new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
+                setDef(i, new PhiNode(ns[i], this.lookupDeclaredType(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
+        IterPeeps.add(r);
         return r.unkeep().peephole();
     }
 
@@ -216,11 +237,61 @@ public class ScopeNode extends Node {
                 IterPeeps.addAll(phi._outputs);
                 phi.moveDepsToWorklist();
                 if( in != phi ) {
-                    phi.subsume(in);
+                    if( !phi.iskeep() ) // Keeping phi around for parser elsewhere
+                        phi.subsume(in);
                     setDef(i,in); // Set the update back into Scope
                 }
             }
         }
 
     }
+
+
+    // Up-casting: using the results of an If to improve a value.
+    // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
+
+    // This Scope looks for direct variable uses, or certain simple
+    // combinations, and replaces the variable with the upcast variant.
+    public Node upcast( Node ctrl, Node pred, boolean invert ) {
+        if( ctrl._type==Type.XCONTROL ) return null;
+        // Invert the If conditional
+        if( invert )
+            pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
+
+        // Direct use of a value as predicate.  This is a zero/null test.
+        if( Utils.find(_inputs, pred) != -1 ) {
+            if( !(pred._type instanceof TypeMemPtr tmp) )
+                // Must be an `int`, since int and ptr are the only two value types
+                // being tested. No representation for a generic not-null int, so no upcast.
+                return null;
+            if( tmp.isa(TypeMemPtr.VOIDPTR) )
+                return null;    // Already not-null, no reason to upcast
+            // Upcast the ptr to not-null ptr, and replace in scope
+            return replace(pred,new CastNode(TypeMemPtr.VOIDPTR,ctrl,pred).peephole());
+        }
+
+        if( pred instanceof NotNode not ) {
+            // Direct use of a !value as predicate.  This is a zero/null test.
+            if( Utils.find(_inputs, not.in(1)) != -1 ) {
+                Type tinit = not.in(1)._type.makeInit();
+                if( not.in(1)._type.isa(tinit) ) return null; // Already zero/null, no reason to upcast
+                return replace(not.in(1), new ConstantNode(tinit).peephole());
+            }
+        }
+        // Apr/9/2024: Attempted to replace X with Y if guarded by a test of
+        // X==Y.  This didn't seem to help very much, or at least in the test
+        // cases seen so far was a very minor help.
+
+        // No upcast
+        return null;
+    }
+
+    private Node replace( Node old, Node cast ) {
+        assert old!=null && old!=cast;
+        for( int i=0; i<nIns(); i++ )
+            if( in(i)==old )
+                setDef(i,cast);
+        return cast;
+    }
+
 }
