@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.*;
 public final class IRPrinter extends IRAdapter<Node> {
     private static final com.seaofnodes.print.IRPrinter<Node> PRINT =
         new com.seaofnodes.print.IRPrinter<>(new IRPrinter());
-    @Override public String type(Node n) { return n._type==null ? "" : n._type.toString(); }
+    @Override public String type(Node n) { return n._type==null ? "" : n._type.str(); }
     @Override public int inputColumns() { return 3; }
     @Override public Kind kind(Node n) {
         if( n instanceof StartNode ) return Kind.START;
