@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import java.util.ArrayList;
+
 /**
  * Integer Type
  */
@@ -28,11 +30,31 @@ public class TypeInteger extends Type {
 
     public static TypeInteger constant(long con) { return make(true, con); }
 
+    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); }
+
+    // FIXME this display format is problematic
+    // In visualizer '#' gets prepended if its a constant
     @Override
     public StringBuilder _print(StringBuilder sb) {
         if( this==TOP ) return sb.append("IntTop");
         if( this==BOT ) return sb.append("IntBot");
         return sb.append(_con);
+    }
+
+    @Override public String str() {
+        if( this==TOP ) return "~int";
+        if( this==BOT ) return  "int";
+        return ""+_con;
+    }
+
+    /**
+     * Display Type name in a format that's good for IR printer
+     */
+    @Override
+    public StringBuilder typeName(StringBuilder sb) {
+        if( this==TOP ) return sb.append("IntTop");
+        if( this==BOT ) return sb.append("IntBot");
+        return sb.append("Int");
     }
 
     @Override
@@ -63,6 +85,11 @@ public class TypeInteger extends Type {
         if( isConstant() ) return this; // Constants are a self-dual
         return _con==0 ? BOT : TOP;
     }
+
+    @Override
+    public Type glb() { return BOT; }
+
+    @Override public TypeInteger makeInit() { return ZERO; }
 
     @Override
     int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
