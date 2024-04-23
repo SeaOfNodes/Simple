@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.Utils;
 
 import java.util.BitSet;
 
@@ -8,7 +10,11 @@ public class PhiNode extends Node {
 
     final String _label;
 
-    public PhiNode(String label, Node... inputs) { super(inputs); _label = label; }
+    // The Phi type we compute must stay within the domain of the Phi.
+    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
+    final Type _declaredType;
+
+    public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
     @Override public String label() { return "Phi_"+_label; }
 
@@ -31,17 +37,21 @@ public class PhiNode extends Node {
 
     Node region() { return in(0); }
     @Override public boolean isMultiTail() { return true; }
+    @Override
+    public boolean isMem() { return _declaredType instanceof TypeMem; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? Type.TOP : _type;
-        if( r.inProgress() ) return Type.BOTTOM;
-        Type t = Type.TOP;
+        // During parsing Phis have to be computed type pessimistically.
+        if( r.inProgress() ) return _declaredType;
+        // Set type to local top of the starting type
+        Type t = _declaredType.glb().dual();
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( r.in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
+            if( r.in(i).addDep(this)._type != Type.XCONTROL )
                 t = t.meet(in(i)._type);
         return t;
     }
@@ -71,9 +81,33 @@ public class PhiNode extends Node {
                 lhss[i] = in(i).in(1);
                 rhss[i] = in(i).in(2);
             }
-            Node phi_lhs = new PhiNode(_label,lhss).peephole();
-            Node phi_rhs = new PhiNode(_label,rhss).peephole();
+            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
+            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
             return op.copy(phi_lhs,phi_rhs);
+        }
+
+        // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
+        if( nIns()==3 ) {
+            if( in(1) instanceof CastNode cast && cast.in(1).addDep(this)==in(2) ) return in(2);
+            if( in(2) instanceof CastNode cast && cast.in(1).addDep(this)==in(1) ) return in(1);
+        }
+        // If merging a null-checked null and the checked value, just use the value.
+        // if( val ) ..; phi(Region,False=0/null,True=val);
+        // then replace with plain val.
+        if( nIns()==3 ) {
+            int nullx = -1;
+            if( in(1)._type == in(1)._type.makeInit() ) nullx = 1;
+            if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
+            if( nullx != -1 ) {
+                Node val = in(3-nullx);
+                if( region().idom() instanceof IfNode iff && iff.pred().addDep(this)==val ) {
+                    // Must walk the idom on the null side to make sure we hit False.
+                    Node idom = region().in(nullx);
+                    while( idom.in(0) != iff ) idom = idom.idom();
+                    if( idom instanceof ProjNode proj && proj._idx==1 )
+                        return val;
+                }
+            }
         }
 
         return null;

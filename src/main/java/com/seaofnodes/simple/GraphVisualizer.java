@@ -27,7 +27,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(stop, scope);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter09 {\n");
+        sb.append("digraph chapter10 {\n");
         sb.append("/*\n");
         sb.append(stop._src);
         sb.append("\n*/\n");
@@ -39,8 +39,10 @@ public class GraphVisualizer {
         // still making the subgraphs DOT gets confused.
         sb.append("\trankdir=BT;\n"); // Force Nodes before Scopes
 
+        // CNC - turned off Apr/8/2024, gives more flex in the layout and
+        // removes some of the more ludicrous layout choices.
         // Preserve node input order
-        sb.append("\tordering=\"in\";\n");
+        //sb.append("\tordering=\"in\";\n");
 
         // Merge multiple edges hitting the same node.  Makes common shared
         // nodes much prettier to look at.
@@ -195,9 +197,14 @@ public class GraphVisualizer {
                     } else sb.append(def.uniqueName());
                     // Number edges, so we can see how they track
                     sb.append("[taillabel=").append(i);
+                    // The edge from New to ctrl is just for anchoring the New
+                    if ( n instanceof NewNode )
+                        sb.append(" color=green");
                     // control edges are colored red
-                    if( def.isCFG() )
+                    else if( def.isCFG() )
                         sb.append(" color=red");
+                    else if( def.isMem() )
+                        sb.append(" color=blue");
                     // Backedges do not add a ranking constraint
                     if( i==2 && (n instanceof PhiNode || n instanceof LoopNode) )
                         sb.append(" constraint=false");
