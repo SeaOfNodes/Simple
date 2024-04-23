@@ -178,6 +178,7 @@ public abstract class Node {
             old_def.kill();     // Kill old def
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
+        moveDepsToWorklist();
         // Return self for easy flow-coding
         return new_def;
     }
@@ -459,9 +460,9 @@ public abstract class Node {
     ArrayList<Node> _deps;
 
     /**
-     * Add a node to the list o dependencies. Only add it if its not
-     * an input or output of this node, that is, it is at least one step
-     * away. The node being added must benefit from this node being peepholed.
+     * Add a node to the list of dependencies.  Only add it if its not an input
+     * or output of this node, that is, it is at least one step away.  The node
+     * being added must benefit from this node being peepholed.
      */
     Node addDep( Node dep ) {
         // Running peepholes during the big assert cannot have side effects

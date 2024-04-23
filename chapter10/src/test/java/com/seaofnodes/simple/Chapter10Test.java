@@ -30,7 +30,7 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
+        StopNode stop = parser.parse(false).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
         assertEquals("return .a;", stop.toString());
     }

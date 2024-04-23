@@ -18,7 +18,6 @@ abstract class MemOpNode extends Node {
 
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
-    public Node val() { return nIns() > 3 ? in(3) : null; }
 
     @Override
     boolean eq(Node n) {
