@@ -26,5 +26,11 @@ public class MinusNode extends Node {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        // -(-x) is x
+        if( in(1) instanceof MinusNode minus )
+            return minus.in(1);
+
+        return null;
+    }
 }

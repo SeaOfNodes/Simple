@@ -45,14 +45,17 @@ public class Parser {
     /**
      * List of keywords disallowed as identifiers
      */
-    private final HashSet<String> KEYWORDS = new HashSet<>(){{
+    private static final HashSet<String> KEYWORDS = new HashSet<>(){{
             add("break");
             add("continue");
             add("else");
             add("false");
             add("if");
             add("int");
+            add("new");
+            add("null");
             add("return");
+            add("struct");
             add("true");
             add("while");
         }};
@@ -67,9 +70,13 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
+    // Mapping from a Struct name to a Struct.
+    public static Map<String, TypeStruct> OBJS = new HashMap<>();
+
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
+        OBJS.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -98,8 +105,8 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
         _scope.pop();
         _xScopes.pop();
@@ -137,16 +144,58 @@ public class Parser {
      * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if (matchx("return")  ) return parseReturn();
-        else if (matchx("int")) return parseDecl();
-        else if (match ("{"  )) return require(parseBlock(),"}");
-        else if (matchx("if" )) return parseIf();
-        else if (matchx("while")) return parseWhile();
-        else if (matchx("break")) return parseBreak();
+        if( false ) return null;
+        else if (matchx("return")  ) return parseReturn();
+        else if (matchx("int")     ) return parseDecl(TypeInteger.BOT);
+        else if (match ("{")       ) return require(parseBlock(),"}");
+        else if (matchx("if")      ) return parseIf();
+        else if (matchx("while")   ) return parseWhile();
+        else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
+        else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
-        else if (matchx(";")) return null; // Empty statement
+        else if (matchx(";")       ) return null; // Empty statement
+        // declarations of vars with struct type are handled in parseExpressionStatement due
+        // to ambiguity
         else return parseExpressionStatement();
+    }
+
+    /**
+     * Parse a struct field.
+     * <pre>
+     *     int IDENTIFIER ;
+     * </pre>
+     */
+    private Field parseField(String sname) {
+        if( matchx("int") )     // Currently only parsing "int" type fields
+            return require(Field.make(requireId().intern(),TypeInteger.BOT),";");
+        throw errorSyntax("A field type is expected, only type 'int' is supported at present");
+    }
+
+    /**
+     * Parse a struct declaration, and return the following statement.
+     * Only allowed in top level scope.
+     * Structs cannot be redefined.
+     *
+     * @return The statement following the struct
+     */
+    private Node parseStruct() {
+        if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
+        String typeName = requireId();
+        if ( OBJS.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        ArrayList<Field> fields = new ArrayList<>();
+        require("{");
+        while (!peek('}') && !_lexer.isEOF()) {
+            Field field = parseField(typeName);
+            if (fields.contains(field)) throw errorSyntax("Field '" + field + "' already defined in struct '" + typeName + "'");
+            fields.add(field);
+        }
+        require("}");
+        // Build and install the TypeStruct
+        TypeStruct ts = TypeStruct.make(typeName, fields);
+        OBJS.put(typeName, ts); // Insert the struct name in the collection of all struct names
+        START.addMemProj(ts, _scope); // Insert memory edges
+        return parseStatement();
     }
 
     /**
@@ -241,7 +290,7 @@ public class Parser {
             cur.pop();
         // If this is a continue then first time the target is null
         // So we just use the pruned current scope as the base for the
-        // continue
+        // "continue"
         if (toScope == null)
             return cur;
         // toScope is either the break scope, or a scope that was created here
@@ -266,7 +315,7 @@ public class Parser {
     private Node parseIf() {
         require("(");
         // Parse predicate
-        var pred = require(parseExpression(), ")");
+        var pred = require(parseExpression(), ")").keep();
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
@@ -280,6 +329,7 @@ public class Parser {
 
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
+        _scope.upcast(ifT,pred,false); // Up-cast predicate
         parseStatement();       // Parse true-side
         ScopeNode tScope = _scope;
 
@@ -287,9 +337,11 @@ public class Parser {
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
         if (matchx("else")) {
+            _scope.upcast(ifF,pred,true); // Up-cast predicate
             parseStatement();
             fScope = _scope;
         }
+        pred.unkeep();
 
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
@@ -313,7 +365,7 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
-        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr).peephole());
+        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
         ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
         return ret;
     }
@@ -328,39 +380,85 @@ public class Parser {
     }
 
     /**
-     * Parses an expression statement
+     * Parses an expression statement or a declaration statement where type is a struct
      *
      * <pre>
-     *     name '=' expression ';'
+     *      name;         // Error
+     * type name;         // Define name with default initial value
+     * type name = expr;  // Define name with given   initial value
+     *      name = expr;  // Reassign existing
+     *             expr   // Something else
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpressionStatement() {
-        var name = requireId();
-        require("=");
-        var expr = require(parseExpression(), ";");
-        if( _scope.update(name, expr)==null )
-            throw error("Undefined name '" + name + "'");
+        int old = _lexer._position;
+        Type t = type();
+        String name = requireId();
+        Node expr;
+        if( match(";") ) {      // Assign a default value
+            // No type and no expr is an error
+            if( t==null ) throw errorSyntax("expression");
+            expr = new ConstantNode(t.makeInit()).peephole();
+        } else if( match("=") ) { // Assign "= expr;"
+            expr = require(parseExpression(), ";");
+        } else {                // Neither, so just a normal expression parse
+            _lexer._position = old;
+            return require(parseExpression(),";");
+        }
+
+        // Defining a new variable vs updating an old one
+        if( t != null ) {
+            if( _scope.define(name,t,expr) == null )
+                throw error("Redefining name '" + name + "'");
+        } else {
+            Node n = _scope.lookup(name);
+            t = _scope.lookupDeclaredType(name);
+            if( n==null )
+                throw error("Undefined name '" + name + "'");
+            _scope.update(name,expr);
+        }
+        if( !expr._type.isa(t) )
+            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
+    }
+
+    // Parse a type-or-null
+    private Type type() {
+        int old = _lexer._position;
+        String tname = _lexer.matchId();
+        if( tname==null ) return null;
+        if( tname.equals("int") ) return TypeInteger.BOT;
+        TypeStruct obj = OBJS.get(tname);
+        if( obj != null )
+            return TypeMemPtr.make(obj,match("?"));
+        // Not a type; unwind the parse
+        _lexer._position = old;
+        return null;
     }
 
     /**
      * Parses a declStatement
      *
      * <pre>
-     *     'int' name = expression ';'
+     *     type name = expression ';'
      * </pre>
-     * @return an expression {@link Node}, never {@code null}
+     * @return an expression {@link Node}
      */
-    private Node parseDecl() {
-        // Type is 'int' for now
+    private Node parseDecl(Type t) {
         var name = requireId();
-        require("=");
-        var expr = require(parseExpression(), ";");
-        if( _scope.define(name,expr) == null )
+        var expr = match(";")
+            // Assign a null value
+            ? new ConstantNode(t.makeInit()).peephole()
+            // Assign "= expr;"
+            : require(require("=").parseExpression(), ";");
+        if( !expr._type.isa(t) )
+            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
+        if( _scope.define(name,t,expr) == null )
             throw error("Redefining name '" + name + "'");
         return expr;
     }
+
 
     /**
      * Parse an expression of the form:
@@ -448,20 +546,21 @@ public class Parser {
      * Parse a unary minus expression.
      *
      * <pre>
-     *     unaryExpr : ('-') unaryExpr | primaryExpr
+     *     unaryExpr : ('-') | '!') unaryExpr | postfixExpr | primaryExpr
      * </pre>
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
         if (match("-")) return new MinusNode(parseUnary()).peephole();
-        return parsePrimary();
+        if (match("!")) return new   NotNode(parseUnary()).peephole();
+        return parsePostfix(parsePrimary());
     }
 
     /**
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral | Identifier | true | false | '(' expression ')'
+     *     primaryExpr : integerLiteral | Identifier | true | false | null | new Identifier | '(' expression ')'
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
@@ -470,11 +569,73 @@ public class Parser {
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
+        if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
+        if( matchx("new") ) {
+            String structName = requireId();
+            TypeStruct obj = OBJS.get(structName);
+            if( obj == null) throw errorSyntax("Unknown struct type '" + structName + "'");
+            return newStruct(obj);
+        }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
         Node n = _scope.lookup(name);
         if( n!=null ) return n;
         throw error("Undefined name '" + name + "'");
+    }
+
+    /**
+     * Return a NewNode but also generate instructions to initialize it.
+     */
+    private Node newStruct( TypeStruct obj ) {
+        Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
+        Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
+        int alias = START._aliasStarts.get(obj._name);
+        for( Field field : obj._fields ) {
+            memAlias(alias, new StoreNode(field._fname, alias, memAlias(alias), n, initValue).peephole());
+            alias++;
+        }
+        return n.unkeep();
+    }
+
+    // We set up memory aliases by inserting special vars in the scope these
+    // variables are prefixed by $ so they cannot be referenced in Simple code.
+    // Using vars has the benefit that all the existing machinery of scoping
+    // and phis work as expected
+    private Node memAlias(int alias         ) { return _scope.lookup(memName(alias)    ); }
+    private Node memAlias(int alias, Node st) { return _scope.update(memName(alias), st); }
+    public static String memName(int alias) { return ("$"+alias).intern(); }
+
+    /**
+     * Parse postfix expression. For now this is just a field
+     * expression, but in future could be array index too.
+     *
+     * <pre>
+     *     expr ('.' IDENTIFIER)* [ = expr ]
+     * </pre>
+     */
+    private Node parsePostfix(Node expr) {
+        if( !match(".") ) return expr;
+
+        if( !(expr._type instanceof TypeMemPtr ptr) )
+            throw error("Expected struct reference but got " + expr._type.str());
+
+        String name = requireId().intern();
+        int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
+        if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        int alias = START._aliasStarts.get(ptr._obj._name)+idx;
+
+        if( match("=") ) {
+            // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
+            if( peek('=') ) _lexer._position--;
+            else {
+                Node val = parseExpression();
+                memAlias(alias, new StoreNode(name, alias, memAlias(alias), expr, val).peephole());
+                return expr;        // "obj.a = expr" returns the expression while updating memory
+            }
+        }
+
+        Type declaredType = ptr._obj._fields[idx]._type;
+        return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
     }
 
     /**
@@ -497,6 +658,7 @@ public class Parser {
     private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
     // Return true and do NOT skip if 'ch' is next
     private boolean peek(char ch) { return _lexer.peek(ch); }
+    private boolean peekIsId() { return _lexer.peekIsId(); }
 
     // Require and return an identifier
     private String requireId() {
@@ -505,9 +667,11 @@ public class Parser {
         throw error("Expected an identifier, found '"+id+"'");
     }
 
+
+
     // Require an exact match
-    private void require(String syntax) { require(null, syntax); }
-    private <N extends Node> N require(N n, String syntax) {
+    private Parser require(String syntax) { require(null, syntax); return this; }
+    private <N> N require(N n, String syntax) {
         if (match(syntax)) return n;
         throw errorSyntax(syntax);
     }
@@ -594,6 +758,8 @@ public class Parser {
             return true;
         }
 
+        // Match must be exact and not followed by more ID characters.
+        // Prevents identifier "ifxy" from matching an "if" statement.
         boolean matchx(String syntax) {
             if( !match(syntax) ) return false;
             if( !isIdLetter(peek()) ) return true;
@@ -606,10 +772,14 @@ public class Parser {
             return peek()==ch;
         }
 
+        boolean peekIsId() {
+            skipWhiteSpace();
+            return isIdStart(peek());
+        }
+
         // Return an identifier or null
         String matchId() {
-            skipWhiteSpace();
-            return isIdStart(peek()) ? parseId() : null;
+            return peekIsId() ? parseId() : null;
         }
 
         // Used for errors
