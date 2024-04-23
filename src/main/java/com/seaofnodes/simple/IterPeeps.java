@@ -1,8 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.node.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +88,8 @@ public abstract class IterPeeps {
                 n.moveDepsToWorklist();
                 assert progressOnList(stop); // Very expensive assert
             }
+            if( n.isUnused() && !(n instanceof StopNode) )
+                n.kill();       // Just plain dead
         }
 
         if( show )
