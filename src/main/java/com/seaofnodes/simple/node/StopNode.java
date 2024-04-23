@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Parser;
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.IterPeeps;
 
@@ -52,9 +54,22 @@ public class StopNode extends Node {
         return null;
     }
 
+    @Override public Node idom() { return null; }
+
     public Node addReturn(Node node) {
         return addDef(node);
     }
 
-    public StopNode iterate() { return IterPeeps.iterate(this); }
+    public StopNode iterate() { return IterPeeps.iterate(this).typeCheck(); }
+    public StopNode typeCheck() {
+        var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
+        String err = walk(n -> {
+            String msg = n.err();
+            if( msg != null && obs != null ) obs.error(n, msg);
+            return msg;
+        });
+        if( err != null ) throw new RuntimeException(err);
+        if( obs != null ) obs.phase("TypeCheck");
+        return this;
+    }
 }
