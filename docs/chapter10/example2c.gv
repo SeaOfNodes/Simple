@@ -1,0 +1,53 @@
+digraph chapter10 {
+/*
+struct Bar {
+    int a;
+    int b;
+}
+struct Foo {
+    int x;
+}
+Foo? foo = null;
+Bar bar = new Bar;
+bar.a = 1;
+bar.a = 2;
+return bar.a;
+
+*/
+	rankdir=BT;
+	concentrate="true";
+	compound="true";
+	subgraph cluster_Nodes {
+		Con_16 [ label="#2" ];
+		Store17 [ label=".a =" ];
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p2">$2</TD><TD PORT="p3">$3</TD><TD PORT="p4">$4</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Return19 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		new10 [ label="new Bar" ];
+		Con_11 [ label="#0" ];
+		Store13 [ label=".b =" ];
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Store17 -> Start2:p2[taillabel=1 color=blue];
+	Store17 -> new10[taillabel=2];
+	Store17 -> Con_16[taillabel=3];
+	Return19 -> Start2:p0[taillabel=0 color=red];
+	Return19 -> Con_16[taillabel=1];
+	Return19 -> Store17[taillabel=2 color=blue];
+	Return19 -> Store13[taillabel=3 color=blue];
+	Return19 -> Start2:p4[taillabel=4 color=blue];
+	Stop3 -> Return19[taillabel=0 color=red];
+	new10 -> Start2:p0[taillabel=0 color=green];
+	Store13 -> Start2:p3[taillabel=1 color=blue];
+	Store13 -> new10[taillabel=2];
+	Store13 -> Con_11[taillabel=3];
+}
