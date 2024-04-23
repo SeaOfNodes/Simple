@@ -85,6 +85,9 @@ public class Chapter04Test {
         ReturnNode ret = stop.ret();
         assertTrue(ret.in(0) instanceof ProjNode);
         assertTrue(ret.in(1) instanceof ProjNode);
+        assertEquals(1, ((ProjNode)ret.in(1))._idx);
+        assertTrue(ret.in(2) instanceof ProjNode);
+        assertEquals(2, ((ProjNode)ret.in(2))._idx);
     }
 
     @Test
