@@ -51,7 +51,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 7](docs/chapter07/README.md): `while` statement; looping constructs - eager phi approach.
 * [Chapter 8](docs/chapter08/README.md): Looping constructs continued, lazy phi creation, `break` and `continue` statements.
 * [Chapter 9](docs/chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
-* Chapter 10: User defined structs, pointers and null
+* [Chapter 10](docs/chapter10/README.md): User defined structs, pointers and null
   analysis. One memory value in SSA. Loads, stores, and an executable evaluator.
 * Chapter 11: Equivalence class aliasing. Lazy memory
   partitioning with `MemMerge`, `MemPhi`, and `BulkMemPhi`.
