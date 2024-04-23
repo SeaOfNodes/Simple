@@ -2,25 +2,15 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.type.*;
 
-
-/**
- * The Start node represents the start of the function.  For now, we do not
- * have any inputs to Start because our function does not yet accept
- * parameters.  When we add parameters the value of Start will be a tuple, and
- * will require Projections to extract the values.  We discuss this in detail
- * in Chapter 9: Functions and Calls.
- */
+/** The entry tuple: control, initial whole-memory state, and argument. */
 public class StartNode extends MultiNode {
-
     final TypeTuple _args;
 
     public StartNode(Type[] args) {
         super();
-        _args = TypeTuple.make(args);
-        _type = _args;
+        _type = _args = TypeTuple.make(args);
     }
 
     @Override
@@ -40,8 +30,6 @@ public class StartNode extends MultiNode {
     public Node idealize() { return null; }
 
     // No immediate dominator, and idepth==0
-    @Override
-    Node idom() { return null; }
     @Override int idepth() { return 0; }
-
+    @Override Node idom() { return null; }
 }
