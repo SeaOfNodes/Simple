@@ -41,7 +41,7 @@ public class Chapter01Test {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected =: ",e.getMessage());
+            assertEquals("Undefined name 'ret'",e.getMessage());
         }
     }
 
@@ -83,7 +83,7 @@ public class Chapter01Test {
             new Parser("return100").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected =: ",e.getMessage());
+            assertEquals("Undefined name 'return100'",e.getMessage());
         }
     }
 

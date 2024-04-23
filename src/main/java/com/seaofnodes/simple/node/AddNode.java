@@ -132,7 +132,7 @@ public class AddNode extends Node {
         for( int i=1; i<ns.length; i++ )
             ns[i] = op.copy(lphi.in(i), rhs instanceof PhiNode ? rhs.in(i) : rhs).peephole();
         String label = lphi._label + (rhs instanceof PhiNode rphi ? rphi._label : "");
-        Node phi = new PhiNode(label,ns).peephole();
+        Node phi = new PhiNode(label,lphi._declaredType,ns).peephole();
         // Rotate needs another op, otherwise just the phi
         return lhs==lphi ? phi : op.copy(lhs.in(1),phi);
     }

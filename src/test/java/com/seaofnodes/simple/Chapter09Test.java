@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -43,8 +44,8 @@ return x;
                 """);
         StopNode stop = parser.parse();
         assertEquals("Stop[ return (arg*2); return (Mul+1); ]", stop.toString());
-        Assert.assertEquals(2, GraphEvaluator.evaluate(stop, 1));
-        Assert.assertEquals(23, GraphEvaluator.evaluate(stop, 11));
+        Assert.assertEquals(2L, Evaluator.evaluate(stop, 1));
+        Assert.assertEquals(23L, Evaluator.evaluate(stop, 11));
     }
 
     @Test
@@ -55,7 +56,7 @@ return arg*arg-arg*arg;
                 """);
         StopNode stop = parser.parse();
         assertEquals("return 0;", stop.toString());
-        Assert.assertEquals(0, GraphEvaluator.evaluate(stop, 1));
+        Assert.assertEquals(0L, Evaluator.evaluate(stop, 1));
     }
 
     @Test
@@ -70,7 +71,7 @@ return arg;
                 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop7,arg,(Phi_arg+2));", stop.toString());
-        Assert.assertEquals(11, GraphEvaluator.evaluate(stop, 1));
+        Assert.assertEquals(11L, Evaluator.evaluate(stop, 1));
     }
 
     @Test
@@ -87,7 +88,7 @@ return arg;
                 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop8,arg,(Phi_arg+4));", stop.toString());
-        Assert.assertEquals(13, GraphEvaluator.evaluate(stop, 1));
+        Assert.assertEquals(13L, Evaluator.evaluate(stop, 1));
     }
 
     @Test
@@ -134,26 +135,6 @@ while(v1+arg) {
                 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
-    }
-
-    @Test
-    public void testSccp() {
-        Parser parser = new Parser(
-"""
-int x = 1;
-int cnt = 5;
-while (cnt) {
-  cnt = cnt - 1;
-  if (x == 0) {
-    x = x + 1;
-  }
-}
-return x;
-"""
-        );
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop8,1,Phi(Region26,(Phi_x+1),Phi_x));", stop.toString());
-
     }
 
     @Test

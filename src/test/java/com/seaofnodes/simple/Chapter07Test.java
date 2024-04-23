@@ -37,7 +37,7 @@ if(arg){}else{
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region22,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Region24,1,Phi(Loop13,1,(Phi_a+1)));", stop.toString());
     }
 
     @Test
@@ -74,7 +74,7 @@ return b;
 """);
         Node._disablePeephole = true;
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop8,2,Phi(Region26,Phi_b,4));", stop.toString());
+        assertEquals("return Phi(Loop8,2,Phi(Region27,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         Node._disablePeephole = false;
     }
@@ -94,7 +94,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop8,2,(Phi(Region26,Phi_b,4)+1));", stop.toString());
+        assertEquals("return Phi(Loop8,2,(Phi(Region27,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 

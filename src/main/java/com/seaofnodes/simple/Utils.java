@@ -36,4 +36,30 @@ public class Utils {
                 return i;
         return -1;
     }
+    /**
+     * Search a list for an element by reference
+     *
+     * @param ary List to search in
+     * @param x Object to be searched
+     * @return >= 0 on success, -1 on failure
+     */
+    public static <E> int find( E[] ary, E x ) {
+        for( int i=0; i<ary.length; i++ )
+            if( ary[i]==x )
+                return i;
+        return -1;
+    }
+
+    // Rotate a long, nice for hashes
+    public static long rot( long x, int n ) { return (x<<n) | (x>>>n); }
+
+    // Fold a 64bit hash into 32 bits
+    public static int fold( long x ) { return (int)((x>>32) ^ x); }
+
+    public static boolean eq(String s0, String s1) {
+        if( s0==s1 ) return true;
+        assert s0==s0.intern();
+        assert s1==s1.intern();
+        return false;
+    }
 }

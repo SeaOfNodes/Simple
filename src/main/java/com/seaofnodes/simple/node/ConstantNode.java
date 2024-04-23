@@ -51,8 +51,4 @@ public class ConstantNode extends Node {
 
     @Override
     int hash() { return _con.hashCode(); }
-
-    // Dead control is its own idom root
-    Node idom() { return null; }
-
 }
