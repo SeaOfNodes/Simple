@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="20" viewBox="0 0 60 20" role="img" aria-labelledby="title">
+  <title id="title">Integer</title>
+  <rect width="60" height="20" rx="2" fill="#add8e6"/>
+  <text x="30.0" y="14" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#000000">Integer</text>
+</svg>
