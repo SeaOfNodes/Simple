@@ -1,15 +1,16 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
-
 import java.util.BitSet;
 
 public class IfNode extends MultiNode {
 
     public IfNode(Node ctrl, Node pred) {
         super(ctrl, pred);
+        IterPeeps.add(this);    // Because idoms are complex, just add it
     }
 
     @Override

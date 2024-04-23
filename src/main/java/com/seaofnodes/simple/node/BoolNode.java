@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 import java.util.BitSet;
 
@@ -44,10 +45,25 @@ abstract public class BoolNode extends Node {
         if( in(1)==in(2) )
             return new ConstantNode(TypeInteger.constant(doOp(3,3)?1:0));
 
+        // Equals pushes constant to the right; 5==X becomes X==5.
+        if( this instanceof EQ ) {
+            if( !(in(2) instanceof ConstantNode) ) {
+                // con==noncon becomes noncon==con
+                if( in(1) instanceof ConstantNode )
+                    return new EQ(in(2),in(1));
+                // Equals sorts by NID otherwise: non.high == non.low becomes non.low == non.high
+                else if( in(1)._nid > in(2)._nid )
+                    return new EQ(in(2),in(1));
+            }
+            // Equals X==0 becomes a !X
+            if( (in(2)._type == TypeInteger.ZERO || in(2)._type == TypeMemPtr.NULLPTR) )
+                return new NotNode(in(1));
+        }
+
         // Do we have ((x * (phi cons)) * con) ?
         // Do we have ((x * (phi cons)) * (phi cons)) ?
         // Push constant up through the phi: x * (phi con0*con0 con1*con1...)
-        Node phicon = AddNode.phiCon(this,false);
+        Node phicon = AddNode.phiCon(this,this instanceof EQ);
         if( phicon!=null ) return phicon;
 
         return null;
