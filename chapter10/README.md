@@ -278,8 +278,8 @@ The graph from above will have the shape:
 
 The equivalence aliasing makes it possible to optimize following scenarios:
 
-* Store followed by another Store to the same field inside an object; the first Store is redundant
-* Load followed by a Store to a field inside an Object; if the object itself does not escape then the Store can be eliminated
+* Store followed by another Store to the same field inside an object; the first Store is redundant if there are no other references to the first Store
+* Load followed by a Store to a field inside an Object; the Load can be eliminated and the input value of the Store passed through.
 
 Both of these examples are illustrated in the example below:
 
