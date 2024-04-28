@@ -28,7 +28,7 @@ Foo? foo = null;
 Bar bar = new Bar;
 bar.a = 1;
 bar.a = 2;
-return bar;
+return bar.a;
 """);
         StopNode stop = parser.parse(false).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
