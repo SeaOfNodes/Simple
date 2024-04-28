@@ -255,7 +255,7 @@ public class ScopeNode extends Node {
         if( ctrl._type==Type.XCONTROL ) return null;
         // Invert the If conditional
         if( invert )
-            pred = pred instanceof NotNode not ? not.in(1) : new NotNode(pred).peephole();
+            pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
 
         // Direct use of a value as predicate.  This is a zero/null test.
         if( Utils.find(_inputs, pred) != -1 ) {

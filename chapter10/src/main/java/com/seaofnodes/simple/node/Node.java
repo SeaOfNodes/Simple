@@ -265,7 +265,11 @@ public abstract class Node {
     // Add bogus null use to keep node alive
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
-    public <N extends Node> N unkeep() { delUse(null); return (N)this; }
+    public <N extends Node> N unkeep() {
+        assert Utils.find(_outputs, null) != -1;
+        delUse(null);
+        return (N)this;
+    }
 
 
     // Replace self with nnn in the graph, making 'this' go dead
