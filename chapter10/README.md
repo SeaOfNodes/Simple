@@ -254,12 +254,7 @@ To enable this behaviour, we make following enhancements.
   ptr.  When the input is a `null` we convert to `1` and when is a not `null`
   ptr value, we convert to `0`.  See `NotNode.compute()`.
   
-
-## Examples
-
-We now look at some examples.
-
-### Example 1
+## Memory Operations Example
 
 This is a simple example illustrating how loads and stores are ordered based on aliasing.
 
@@ -278,6 +273,44 @@ return v;
 The graph from above will have the shape:
 
 ![Graph1](./docs/example1.svg)
+
+## Additional Peephole Optimizations
+
+The equivalence aliasing makes it possible to optimize following scenarios:
+
+* Store followed by another Store to the same field inside an object; the first Store is redundant if there are no other references to the first Store
+* Load followed by a Store to a field inside an Object; the Load can be eliminated and the input value of the Store passed through.
+
+Both of these examples are illustrated in the example below:
+
+```java
+struct Bar {
+  int a;
+  int b;
+}
+struct Foo {
+  int x;
+}
+Foo? foo = null;
+Bar bar = new Bar;
+bar.a = 1;
+bar.a = 2;
+return bar.a;
+```
+
+Before the peephole optimizations, we get:
+
+![Graph2a](./docs/example2a.svg)
+
+After enabling Store-Store peephole we get:
+
+![Graph2b](./docs/example2b.svg)
+
+After load-after-store elision:
+
+![Graph2c](./docs/example2c.svg)
+
+Note that at this stage the `bar` object is dead therefore the allocation of bar can be dropped.
 
 
 [^1]: Diwan A., McKinley K.S., Moss J.E.B. (1998).

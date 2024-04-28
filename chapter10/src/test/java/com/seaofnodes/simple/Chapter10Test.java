@@ -30,9 +30,9 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
+        StopNode stop = parser.parse(false).iterate(true);
         System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        assertEquals("return .a;", stop.toString());
+        assertEquals("return 2;", stop.toString());
     }
 
     @Test
@@ -86,8 +86,8 @@ while (arg) {
 }
 return bar.a;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        assertEquals("return .a;", stop.toString());
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Loop10,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
@@ -188,6 +188,31 @@ v1=new s0;
         try { parser.parse(true); fail(); }
         catch( Exception e ) { assertEquals("Redefining name 'v1'", e.getMessage()); }
     }
+
+    @Test
+    public void testIter() {
+        // Build and use an iterator
+        Parser parser = new Parser(
+"""
+struct Iter {
+    int x;
+    int len;
+}
+Iter i = new Iter;
+i.len = arg;
+int sum=0;
+while( i.x < i.len ) {
+    sum = sum + i.x;
+    i.x = i.x + 1;
+}
+return sum;
+""");
+        StopNode stop = parser.parse().iterate(true);
+        assertEquals("return Phi(Loop14,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+    }
+
+
+
 
     @Test
     public void test1() {
