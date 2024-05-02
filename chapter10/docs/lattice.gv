@@ -21,6 +21,8 @@ digraph Lattice {
     INT_MAXDOTS [label="..." shape=none style=none];
     INT_MAX [label="+n"];
 
+    TUPLE [label="TUPLE"];
+
     STRUCT_TOP [label="$TOP"];
     STRUCT_S1  [label="S1"];
     STRUCT_S2  [label="S2"];
@@ -68,6 +70,9 @@ digraph Lattice {
 
     INT_MIN -> INT_MINDOTS -> INT_MINUS -> INT_ZERO -> INT_PLUS -> INT_MAXDOTS -> INT_MAX [style=invis];
 
+    TOP          -> TUPLE;
+    TUPLE        -> BOT;
+
     TOP          -> STRUCT_TOP;
     STRUCT_TOP   -> STRUCT_S1;
     STRUCT_TOP   -> STRUCT_S2;
@@ -112,7 +117,7 @@ digraph Lattice {
     {rank=same; INT_MIN; INT_MINDOTS;
                 INT_MINUS; INT_ZERO;
                 INT_PLUS; INT_MAXDOTS;
-                INT_MAX; STRUCT_S1; STRUCT_S2;
+                INT_MAX; TUPLE; STRUCT_S1; STRUCT_S2;
                 PTR_NULL; PTR_VOIDPTR;
                 MEM_ALIAS1; MEM_ALIAS2;
                 MEM_ALIASDOTS; MEM_ALIASN;}

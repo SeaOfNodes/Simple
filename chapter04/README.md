@@ -19,22 +19,22 @@ Following are revised or new nodes
 |-----------|----------------|------------------------------------------------|-----------------------|----------------------------------------------------------------------------|
 | MultiNode | Abstract class | A node that has a tuple result                 |                       | A tuple                                                                    |
 | Start     | Control        | Start of function, now a MultiNode             |                       | A tuple with a ctrl token and an `arg` data node                           |
-| Proj      | ?              | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     | 
+| Proj      | Data           | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     | 
 | Bool      | Data           | Represents results of a comparison operator    | Two data nodes        | Result is a comparison, represented as integer value where 1=true, 0=false |
 | Not       | Data           | Logical not                                    | One data node         | Result converts 0 to 1 and vice versa                                      |
 
 Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 
-| Node Name | Type    | Description                        | Inputs                                                           | Value                        |
-|-----------|---------|------------------------------------|------------------------------------------------------------------|------------------------------|
-| Return    | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function |
-| Constant  | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant        |
-| Add       | Data    | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation  |
-| Sub       | Data    | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract       |
-| Mul       | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
-| Div       | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
-| Minus     | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
-| Scope     | ?       | Represents scopes in the graph     | All nodes that define variables                                  | None                         |
+| Node Name | Type         | Description                        | Inputs                                                           | Value                        |
+|-----------|--------------|------------------------------------|------------------------------------------------------------------|------------------------------|
+| Return    | Control      | End of function                    | Predecessor control node, Data node value                        | Return value of the function |
+| Constant  | Data         | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant        |
+| Add       | Data         | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation  |
+| Sub       | Data         | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract       |
+| Mul       | Data         | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
+| Div       | Data         | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
+| Minus     | Data         | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
+| Scope     | Symbol Table | Represents scopes in the graph     | All nodes that define variables                                  | None                         |
 
 ## Projection Nodes
 
@@ -51,13 +51,13 @@ Start node.
 
 ## Changes to Type System
 
-In [Chapter 2](../chapter02/README.md) we introduced the Type System.  Here is a summary of key points:
+In [Chapter 2](../chapter02/README.md) we introduced the Type System. 
 
 We annotate Nodes with Types.
 
 The Type annotation serves two purposes:
 
-* it defines the set of operations allowed on the Node, and
+* It defines the set of operations allowed on the Node, and
 * it defines the set of values the Node takes on.
 
 The type itself is identified by the Java class sub-typing relationship; all
@@ -76,40 +76,37 @@ Type
 We mentioned in [Chapter 2](../chapter02/README.md) that the set of values associated with a Type at a specific Node
 can be conveniently represented as a "lattice".
 
-Our lattice elements can be one of three types:
+Our enhanced Lattice looks like this.
 
-* the highest element is "top", denoted by T.
-* The lowest is bottom, denoted by ⊥,
-* All elements in the middle are constants.
+![Lattice](./docs/lattice.svg)
 
-Assigning ⊥ means that the Node's value is known to be not a compile time
-constant, whereas assigning T means that the Node's value may be some (as yet)
-undetermined constant. The transition of the Node's type can occur from T to
-some constant to ⊥.
 
 In this chapter we introduce the possibility of a program input variable named
-`arg`; this variable is usually unknown so ⊥ .
+`arg`; all we know about this variable is that it is some integer value, but we do not know whether it is a constant or not.
 
 To support the requirements for non-constant integer values, we enhance `TypeInteger` to
-allow it to represent `Top` and `Bot` integer types in addition to the earlier constant value.
+allow it to represent `IntTop` and `IntBot` integer types in addition to the earlier constant value.
 
-Now that integer values may be constants or non-constants, we need to introduce the meet operator
-in our lattice. The meet operator describes rules that define the resulting type when we combine
+Now that integer values may be constants or non-constants, we need to introduce the "meet" operator
+in our lattice. The `meet` operator describes rules that define the resulting type when we combine
 integer values.
 
-|      | ⊥ | Con1 | Con2 | T    |
-|------|---|------|------|------|
-| ⊥    | ⊥ | ⊥    | ⊥    | ⊥    |
-| Con1 | ⊥ | Con1 | ⊥    | Con1 |
-| T    | ⊥ | Con1 | Con2 | T    | 
+|        | IntBot | Con1   | Con2   | IntTop |
+|--------|--------|--------|--------|--------|
+| IntBot | IntBot | IntBot | IntBot | IntBot |
+| Con1   | IntBot | Con1   | IntBot | Con1   |
+| IntTop | IntBot | Con1   | Con2   | IntTop |
 
+In the table above `Con1` and `Con2` represent two distinct integer values, and serve to explain the rules below.
 
-The `meet` of `Top` with anything is that thing.
-The `meet` of `Bot` with anything is `Bot`.
-The `meet` of anything with itself is that thing.
-The `meet` of two unrelated constants is `Bot`.
-Currently, all our integer valued nodes are either a constant or a Bottom integer type.
-When we start optimizing loops, we will start seeing Top values.
+* The `meet` of `IntTop` with any integer constant is that constant.
+* The `meet` of `IntBot` with any integer value is `IntBot`.
+* The `meet` of any integer with itself is that integer.
+* The `meet` of two unrelated integer constants is `IntBot`.
+
+Currently, all our integer valued nodes are either a constant or a `IntBot` integer type.
+When we start optimizing loops, we will start seeing `IntTop` values.
+
 
 ## `$ctrl` name binding
 
