@@ -62,14 +62,14 @@ It is useful for the compiler to know at various points of the program whether
 a node's value is a constant. The compiler can use this knowledge to perform various
 optimizations such as:
 
-* Evaluate expressions at compile time and replace an expression with a constant
+* Evaluate expressions at compile time and replace an expression with a constant.
 * The compiler may be able to identify regions of code that are dead and no
   longer needed, such as when a conditional branch always take one of the
-  branches
-* Pointers may be known to be not-null, and a null check can be skipped.
-* Array indices may be known to be in-range, and a range check can be skipped
+  branches ([Chapter 6](../chapter06/README.md)).
+* Pointers may be known to be not-null, and a null check can be skipped ([Chapter 10](../chapter10/README.md)).
+* Array indices may be known to be in-range, and a range check can be skipped.
 * Many additional optimizations are possible when the compiler learns more
-  about the possible set of Node values
+  about the possible set of Node values.
 
 In order to achieve above, we annotate Nodes with Types.
 
@@ -95,20 +95,17 @@ structure:
 
 Our lattice elements can be one of three types:
 
-* the highest element is "top", denoted by T.
-* The lowest is bottom, denoted by ⊥,
-* All elements in the middle are constants.
+* The highest element is "top", denoted by T; assigning T means that the Node's value may or may not be a compile time constant.
+* All elements in the middle are constants. 
+* The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the Node's value is **not** a compile time constant.
 
-Assigning ⊥ means that the Node's value is known to be not a compile time
-constant, whereas assigning T means that the Node's value may be some (as yet)
-undetermined constant.  The transition of the Node's type can occur from T to
-some constant to ⊥.
+An invariant of peephole optimizations is that the type of a Node always moves down the lattice.
 
 In later chapters we will explore extending this lattice, as it frequently
 forms the heart of core optimizations we want our compiler to do.
 
 There are other important properties of the Lattice that we discuss in [Chapter
-4](../chapter04/README.md), such as the "meet" operator and its rules.
+4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
 
 
 ## Nodes Pre Peephole Optimization

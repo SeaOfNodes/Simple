@@ -32,9 +32,9 @@ To recap, our list of Nodes are:
 
 In this chapter we introduce:
 
-| Node Name | Type | Description                    | Inputs                          | Value |
-|-----------|------|--------------------------------|---------------------------------|-------|
-| Scope     | ?    | Represents scopes in the graph | All nodes that define variables | None  |
+| Node Name | Type         | Description                    | Inputs                          | Value |
+|-----------|--------------|--------------------------------|---------------------------------|-------|
+| Scope     | Symbol Table | Represents scopes in the graph | All nodes that define variables | None  |
 
 
 ## Symbol Tables

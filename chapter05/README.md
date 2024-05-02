@@ -27,7 +27,7 @@ Here is a recap of the nodes introduced in previous chapters:
 |-----------|----------------|---------|------------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | Multi     | Abstract class | 4       | A node that has a tuple result                 |                                                                               | A tuple                                                                    |
 | Start     | Control        | 1       | Start of function, now a MultiNode             |                                                                               | A tuple with a ctrl token and an `arg` data node                           |
-| Proj      | ?              | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     | 
+| Proj      | Data           | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     | 
 | Bool      | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                                | Result is a comparison, represented as integer value where 1=true, 0=false |
 | Not       | Data           | 4       | Logical not                                    | One data node                                                                 | Result converts 0 to 1 and vice versa                                      |
 | Return    | Control        | 1       | End of function                                | Predecessor control node and a data node for the return value of the function | Return value of the function                                               |
@@ -37,7 +37,7 @@ Here is a recap of the nodes introduced in previous chapters:
 | Mul       | Data           | 2       | Multiply two values                            | Two data nodes without restrictions on the order                              | Result of the multiplication                                               |
 | Div       | Data           | 2       | Divide a value by another                      | Two data nodes, the first one is divided by the second one                    | Result of the division                                                     |
 | Minus     | Data           | 2       | Negate a value                                 | One data node which value is negated                                          | Result of the negation                                                     |
-| Scope     | ?              | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
+| Scope     | Symbol Table   | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
 
 ## `If` Nodes
 
