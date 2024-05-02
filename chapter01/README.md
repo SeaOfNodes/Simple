@@ -25,11 +25,8 @@ If necessary the reader can consult a standard compiler text book.
 
 ## Architecture
 
-We design our parser and compiler to illustrate some key aspects of the Sea of Nodes
-Intermediate Representation: 
-
-* We construct the intermediate Sea of Nodes representation directly as we parse the language. There is no Abstract Syntax Tree representation.
-* The compiler will perform a few basic local optimizations as we build the IR; this is a key benefit of the Sea of Nodes IR. This aspect is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
+We construct the intermediate Sea of Nodes (SoN) representation directly as we parse the language. There is no Abstract Syntax Tree representation. The reason for this is to demonstrate a key benefit of the SoN IR: 
+a number of pessimistic peephole optimizations can be performed while parsing a language. This aspect is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
 
 ## Data Structures
 
@@ -121,7 +118,7 @@ at very little cost (nearly always small constant time) because all dependencies
 Each node is assigned a unique dense integer Node ID when created. This ID is
 useful for debugging, efficiently computing equality and e.g. as an index into
 a bit vector, which in turn is used to efficiently visit a (possibly cyclic)
-graph.  We discuss Node equality in Chapter 9 Global Value Numbering.
+graph.  We discuss Node equality in [Chapter 9](../chapter09/README.md).
 
 ### Start Node
 
@@ -148,7 +145,7 @@ The Return node has two inputs.  The first input is a control node and the
 second is the data node that supplies the return value.
 
 In this presentation, Return functions as a Stop node, since multiple `return` statements are not possible.
-The Stop node will be introduced in Chapter 5 when we implement `if` statements. 
+The Stop node will be introduced in [Chapter 5](../chapter05/README.md) when we implement `if` statements. 
 
 The Return's output is the value from the data node.
 
