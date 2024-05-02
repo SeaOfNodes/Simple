@@ -126,6 +126,7 @@ Within the Type Lattice, we now have the following type domains:
 
 * Control type - this represents control flow
 * Integer type - Integer values
+* Tuple type - when a Node results in more than one value
 * Struct type (new) - Represents user defined struct types, a struct type is allowed to have members of Integer type only in this chapter
   * `$TOP` represents local Top for struct type; all we know about the type is that it is a struct but, we do not know if it is a specific struct, or all possible structs, etc.
   * `$BOT` represents local Bottom for struct type; we definitely know the value can take all possible struct types.
@@ -273,6 +274,12 @@ return v;
 The graph from above will have the shape:
 
 ![Graph1](./docs/example1.svg)
+
+The graph visual has the following enhancements:
+
+* The memory edges are shown in green and blue.
+* The green edges occur on New nodes and anchor the ptr to a control flow node.
+* The blue edges show the threading of a memory op via the equivalence aliasing.
 
 ## Additional Peephole Optimizations
 

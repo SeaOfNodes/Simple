@@ -7,17 +7,15 @@ digraph Lattice {
     TOP [label="⊤"];
     BOT [label="⊥"];
 
-    CTRL [label="Ctrl"];
     XCTRL [label="~Ctrl"];
+    CTRL [label="Ctrl"];
 
     INT_TOP [label="IntTop"];
     INT_BOT [label="IntBot"];
 
     INT_MIN [label="-n"];
     INT_MINDOTS [label="..." shape=none style=none];
-    INT_MINUS [label="-1"];
     INT_ZERO [label="0"];
-    INT_PLUS [label="1"];
     INT_MAXDOTS [label="..." shape=none style=none];
     INT_MAX [label="+n"];
 
@@ -25,16 +23,19 @@ digraph Lattice {
 
     STRUCT_TOP [label="$TOP"];
     STRUCT_S1  [label="S1"];
-    STRUCT_S2  [label="S2"];
+    STRUCT_DOTS  [label="..." shape=none style=none];
+    STRUCT_SN  [label="Sn"];
     STRUCT_BOT [label="$BOT"]
 
     PTR_TOP      [label="*$TOP"];
     PTR_NULL     [label="null"];
     PTR_VOIDPTR  [label="*void"];
     PTR_S1       [label="*S1"];
-    PTR_S2       [label="*S2"];
+    PTR_SDOTS    [label="..." shape=none style=none];
+    PTR_SN       [label="*SN"];
     PTR_S1OPT    [label="*S1?"];
-    PTR_S2OPT    [label="*S2?"];
+    PTR_SOPTDOTS    [label="..." shape=none style=none];
+    PTR_SNOPT    [label="*SN?"];
     PTR_BOT      [label="*$BOT?"];
 
     MEM_TOP      [label="MEM#TOP"];
@@ -47,55 +48,63 @@ digraph Lattice {
     // Define edges
     edge [arrowhead=none];
 
-    TOP -> CTRL;
-    CTRL -> XCTRL;
-    XCTRL -> BOT;
+    TOP -> XCTRL;
+    XCTRL -> CTRL;
+    CTRL -> BOT;
 
     TOP         -> INT_TOP;
     INT_TOP     -> INT_MIN;
     INT_TOP     -> INT_MINDOTS;
-    INT_TOP     -> INT_MINUS;
     INT_TOP     -> INT_ZERO;
-    INT_TOP     -> INT_PLUS;
     INT_TOP     -> INT_MAXDOTS;
     INT_TOP     -> INT_MAX;
     INT_MIN     -> INT_BOT;
     INT_MINDOTS -> INT_BOT;
-    INT_MINUS   -> INT_BOT;
     INT_ZERO    -> INT_BOT;
-    INT_PLUS    -> INT_BOT;
     INT_MAXDOTS -> INT_BOT;
     INT_MAX     -> INT_BOT;
     INT_BOT     -> BOT;
 
-    INT_MIN -> INT_MINDOTS -> INT_MINUS -> INT_ZERO -> INT_PLUS -> INT_MAXDOTS -> INT_MAX [style=invis];
+    INT_MIN -> INT_MINDOTS -> INT_ZERO -> INT_MAXDOTS -> INT_MAX [style=invis];
 
     TOP          -> TUPLE;
     TUPLE        -> BOT;
 
     TOP          -> STRUCT_TOP;
     STRUCT_TOP   -> STRUCT_S1;
-    STRUCT_TOP   -> STRUCT_S2;
+    STRUCT_TOP   -> STRUCT_DOTS;
+    STRUCT_TOP   -> STRUCT_SN;
     STRUCT_S1    -> STRUCT_BOT;
-    STRUCT_S2    -> STRUCT_BOT;
+    STRUCT_DOTS  -> STRUCT_BOT;
+    STRUCT_SN    -> STRUCT_BOT;
     STRUCT_BOT   -> BOT;
+
+    STRUCT_S1 -> STRUCT_DOTS -> STRUCT_SN [style=invis];
 
     TOP          -> PTR_TOP;
     PTR_TOP      -> PTR_S1;
-    PTR_TOP      -> PTR_S2;
+    PTR_TOP      -> PTR_SDOTS;
+    PTR_TOP      -> PTR_SN;
     PTR_TOP      -> PTR_NULL;
     PTR_TOP      -> PTR_VOIDPTR;
     PTR_NULL     -> PTR_BOT;
     PTR_NULL     -> PTR_S1OPT;
-    PTR_NULL     -> PTR_S2OPT;
+    PTR_NULL     -> PTR_SOPTDOTS;
+    PTR_NULL     -> PTR_SNOPT;
     PTR_S1       -> PTR_S1OPT;
     PTR_S1       -> PTR_VOIDPTR;
-    PTR_S2       -> PTR_S2OPT;
-    PTR_S2       -> PTR_VOIDPTR;
+    PTR_SDOTS    -> PTR_SOPTDOTS;
+    PTR_SDOTS    -> PTR_VOIDPTR;
+    PTR_SN       -> PTR_SNOPT;
+    PTR_SN       -> PTR_VOIDPTR;
     PTR_VOIDPTR  -> PTR_BOT;
     PTR_S1OPT    -> PTR_BOT;
-    PTR_S2OPT    -> PTR_BOT;
+    PTR_SOPTDOTS -> PTR_BOT;
+    PTR_SNOPT    -> PTR_BOT;
     PTR_BOT      -> BOT;
+
+    PTR_S1 -> PTR_SDOTS -> PTR_SN [style=invis];
+    PTR_S1OPT -> PTR_SOPTDOTS -> PTR_SNOPT [style=invis];
 
     TOP          -> MEM_TOP;
     MEM_TOP      -> MEM_ALIAS1;
@@ -111,17 +120,16 @@ digraph Lattice {
     MEM_ALIAS1 -> MEM_ALIAS2 -> MEM_ALIASDOTS -> MEM_ALIASN [style=invis];
 
     // Additional customization
-    {rank=same; TOP}
-    {rank=same; INT_TOP; CTRL; STRUCT_TOP; PTR_TOP; MEM_TOP;}
-    {rank=same; PTR_S1; PTR_S2;}
+    {rank=same; TOP;}
+    {rank=same; INT_TOP; XCTRL; STRUCT_TOP; PTR_TOP; MEM_TOP;}
+    {rank=same; PTR_S1; PTR_SDOTS; PTR_SN;}
     {rank=same; INT_MIN; INT_MINDOTS;
-                INT_MINUS; INT_ZERO;
-                INT_PLUS; INT_MAXDOTS;
-                INT_MAX; TUPLE; STRUCT_S1; STRUCT_S2;
+                INT_ZERO; INT_MAXDOTS;
+                INT_MAX; TUPLE; STRUCT_S1; STRUCT_DOTS; STRUCT_SN;
                 PTR_NULL; PTR_VOIDPTR;
                 MEM_ALIAS1; MEM_ALIAS2;
                 MEM_ALIASDOTS; MEM_ALIASN;}
-    {rank=same; PTR_S1OPT; PTR_S2OPT;}
-    {rank=same; INT_BOT; XCTRL; STRUCT_BOT; PTR_BOT; MEM_BOT;}
+    {rank=same; PTR_S1OPT; PTR_SOPTDOTS; PTR_SNOPT; }
+    {rank=same; INT_BOT; CTRL; STRUCT_BOT; PTR_BOT; MEM_BOT;}
     {rank=same; BOT;}
 }
