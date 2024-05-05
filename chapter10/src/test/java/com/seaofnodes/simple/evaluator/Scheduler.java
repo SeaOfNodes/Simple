@@ -17,13 +17,22 @@ public class Scheduler {
 
         final BuildBlock dom;
         final int depth;
+        final BuildBlock[] prev;
         final Node entry;
         final ArrayList<Node> reverseSchedule = new ArrayList<>();
 
-        BuildBlock(BuildBlock dom, Node entry) {
+        BuildBlock(Node entry, int depth, BuildBlock... prev) {
+            BuildBlock dom = null;
+            int max = -1;
+            for(var bb: prev) {
+                max = Math.max(max, bb.depth);
+                dom = dom==null?bb:dom(dom, bb);
+            }
+            assert depth > max;
             this.dom = dom;
-            this.depth = dom == null ? 0 : dom.depth+1;
+            this.depth = depth;
             this.entry = entry;
+            this.prev = prev;
         }
 
     }
@@ -94,8 +103,7 @@ public class Scheduler {
 
     private void optionalRefinePlacement(NodeData data, Node before) {
         od(before).ifPresent(d->{
-            var b = dom(data.block, d.block);
-            if (d.block == b) data.block = b;
+            if (isBefore(d.block, data.block)) refinePlacement(data, d.block);
         });
     }
 
@@ -107,6 +115,20 @@ public class Scheduler {
         assert !isPinnedNode(data);
         data.block = data.block == null ? block : dom(data.block, block);
         assert isValid(data);
+    }
+
+    private static boolean isBefore(BuildBlock a, BuildBlock b) {
+        while (b.depth > a.depth) {
+            if (b.dom.depth > a.depth) {
+                b = b.dom;
+            } else {
+                for (int i=0; i<b.prev.length-1; i++) {
+                    if (isBefore(a, b.prev[i])) return true;
+                }
+                b = b.prev[b.prev.length-1];
+            }
+        }
+        return a == b;
     }
 
     private void doSchedule() {
@@ -122,8 +144,9 @@ public class Scheduler {
                 var mem = l.in(1);
                 for(var out : mem._outputs) {
                     if (out instanceof PhiNode p) {
+                        // TODO fix partial domination
                         var r = p.in(0);
-                        for(int i=1; i<p.nIns(); i++) {
+                        for (int i = 1; i < p.nIns(); i++) {
                             if (p.in(i) == mem) optionalRefinePlacement(data, r.in(i));
                         }
                     } else if (!(out instanceof LoadNode)) {
@@ -197,26 +220,24 @@ public class Scheduler {
         var phiQueue = new NodeQueue();
         queue.push(d(start));
         NodeData data;
+        int depth = 0;
         while ((data=queue.pop())!=null) {
             var node = data.node;
             assert node.isCFG();
             BuildBlock block;
             switch (node) {
                 case StartNode s:
-                    block = new BuildBlock(null, s);
+                    block = new BuildBlock(s, depth++);
                     break;
                 case LoopNode l:
-                    block = new BuildBlock(d(l.in(1)).block, l);
+                    block = new BuildBlock(l, depth++, d(l.in(1)).block);
                     break;
                 case RegionNode r:
-                    block = null;
+                    var prev = new ArrayList<BuildBlock>();
                     for(int i=1; i<r.nIns(); i++) {
-                        var d = od(r.in(i)).orElse(null);
-                        if (d != null) {
-                            block = block == null ? d.block : dom(block, d.block);
-                        }
+                        od(r.in(i)).ifPresent(d->prev.add(d.block));
                     }
-                    block = new BuildBlock(block, r);
+                    block = new BuildBlock(r, depth++, prev.toArray(BuildBlock[]::new));
                     break;
                 case IfNode i:
                     block = d(i.in(0)).block;
@@ -225,7 +246,7 @@ public class Scheduler {
                     block = d(r.in(0)).block;
                     break;
                 default:
-                    block = new BuildBlock(d(node.in(0)).block, node);
+                    block = new BuildBlock(node, depth++, d(node.in(0)).block);
             }
             data.block = block;
             if (node instanceof RegionNode r) {
