@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
@@ -26,8 +27,8 @@ return arg;
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Region36,Phi(Region25,Phi(Loop6,arg,(Phi_arg+1)),Add),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
-        Assert.assertEquals(5, GraphEvaluator.evaluate(stop, 1));
-        Assert.assertEquals(10, GraphEvaluator.evaluate(stop, 6));
+        Assert.assertEquals(5L, Evaluator.evaluate(stop, 1));
+        Assert.assertEquals(10L, Evaluator.evaluate(stop, 6));
     }
 
 
