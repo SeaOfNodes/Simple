@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.fuzzer;
 
-import com.seaofnodes.simple.GraphEvaluator;
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
 
@@ -53,21 +54,30 @@ public class Fuzzer {
         System.out.flush();
     }
 
+    private static boolean neq(Object a, Object b) {
+        if (Objects.equals(a, b)) return false;
+        if (a instanceof Evaluator.Obj ea && b instanceof Evaluator.Obj eb) {
+            if (ea.struct() != eb.struct()) return true;
+            for(int i=0;i<ea.fields().length;i++) {
+                if (neq(ea.fields()[i], eb.fields()[i])) return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Check that two graphs result in the same output when supplied with a value
-     * @param stop1 Stop node of the first graph
-     * @param stop2 Stop node of the second graph
+     * @param e1 Evaluator for the first graph
+     * @param e2 Evaluator for the second graph
      * @param in The input value to both graphs to test for an equal output
      */
-    private static void checkGraphs(StopNode stop1, StopNode stop2, long in) {
-        if (true) return;
-        var e1 = GraphEvaluator.evaluateWithResult(stop1, in, EVAL_TIMEOUT);
-        var e2 = GraphEvaluator.evaluateWithResult(stop2, in, EVAL_TIMEOUT);
-        if (e1.type() == GraphEvaluator.ResultType.TIMEOUT || e2.type() == GraphEvaluator.ResultType.TIMEOUT) return;
-        if (e1.type() != e2.type())
-            throw new RuntimeException("Different calculations types " + e1.type() + " vs " + e2.type());
-        if (e1.value() != e2.value())
-            throw new RuntimeException("Different calculations values " + e1.value() + " vs " + e2.value());
+    private static void checkGraphs(Evaluator e1, Evaluator e2, long in) {
+        var r1 = e1.evaluate(in, EVAL_TIMEOUT);
+        var r2 = e2.evaluate(in, EVAL_TIMEOUT);
+        if (r1 == Evaluator.Status.TIMEOUT || r2 == Evaluator.Status.TIMEOUT) return;
+        if (neq(r1, r2))
+            throw new RuntimeException("Different calculations values " + r1 + " vs " + r2);
     }
 
     /**
@@ -94,9 +104,11 @@ public class Fuzzer {
             throw e1;
         }
         var stop2 = FuzzerUtils.parse(script, true);
-        checkGraphs(stop1, stop2, 0);
-        checkGraphs(stop1, stop2, 1);
-        checkGraphs(stop1, stop2, 10);
+        var e1 = new Evaluator(stop1);
+        var e2 = new Evaluator(stop2);
+        checkGraphs(e1, e2, 0);
+        checkGraphs(e1, e2, 1);
+        checkGraphs(e1, e2, 10);
     }
 
     /**
