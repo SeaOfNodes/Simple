@@ -21,19 +21,19 @@ public class SchedulerTest {
     @Ignore
     public void testJig() {
         Parser parser = new Parser("""
-struct s0 {
-    int v0;
-    int v1;
+struct S {
+    int f;
 }
-s0 v4=new s0;
-while(new s0.v0) {}
-while(v4.v1) {}
-return v4.v0;
+S v=new S;
+v.f = 2;
+int i=v.f;
+if (arg) v.f=1;
+return i;
 """);
         StopNode._disablePeephole = true;
         StopNode stop = parser.parse(true);//.iterate(true);
         var eval = new Evaluator(stop);
-        assertEquals(0L, eval.evaluate(0, 10));
+        assertEquals(2L, eval.evaluate(1, 10));
     }
 
     @Test
@@ -50,6 +50,25 @@ return v0;
         var eval = new Evaluator(stop);
         assertObj(eval.evaluate(0, 10), "S", 0L);
         assertObj(eval.evaluate(1, 10), "S", 1L);
+    }
+
+    @Test
+    public void testStoreInIf2() {
+        Parser parser = new Parser("""
+struct S {
+    int f;
+}
+S v=new S;
+v.f = 2;
+int i=new S.f;
+i=v.f;
+if (arg) v.f=1;
+return i;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        var eval = new Evaluator(stop);
+        assertEquals(2L, eval.evaluate(0, 10));
+        assertEquals(2L, eval.evaluate(1, 10));
     }
 
 }
