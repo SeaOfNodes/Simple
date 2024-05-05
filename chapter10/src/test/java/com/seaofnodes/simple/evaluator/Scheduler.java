@@ -4,10 +4,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.IdentityHashMap;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * A late scheduler for test cases.
@@ -47,12 +44,12 @@ public class Scheduler {
     /**
      * Definition of a block in the building process.
      */
-    private static class BuildBlock {
+    private static class BasicBlock {
 
         /**
          * Dominator of this block
          */
-        final BuildBlock dom;
+        final BasicBlock dom;
         /**
          * Id of this block where <code>a.depth < b.depth</code> means that a is before b or
          * both are in different branches.
@@ -61,7 +58,7 @@ public class Scheduler {
         /**
          * Previous blocks
          */
-        final BuildBlock[] prev;
+        final BasicBlock[] prev;
         /**
          * Entry to this block
          */
@@ -77,8 +74,8 @@ public class Scheduler {
          * @param depth The depth of this node. All previous nodes need to have a lower value.
          * @param prev The previous blocks.
          */
-        BuildBlock(Node entry, int depth, BuildBlock... prev) {
-            BuildBlock dom = null;
+        BasicBlock(Node entry, int depth, BasicBlock... prev) {
+            BasicBlock dom = null;
             int max = -1;
             for(var bb: prev) {
                 max = Math.max(max, bb.depth);
@@ -104,11 +101,6 @@ public class Scheduler {
         final Node node;
 
         /**
-         * Used as a link in NodeQueue
-         */
-        NodeData next;
-
-        /**
          * Number of alive users not yet scheduled.
          */
         int users = 1;
@@ -117,7 +109,7 @@ public class Scheduler {
          * Block into which the node should be placed so far.
          * This will be updated with every placed use.
          */
-        BuildBlock block;
+        BasicBlock block;
 
         /**
          * Initialize ancillary data for a node
@@ -130,48 +122,13 @@ public class Scheduler {
     }
 
     /**
-     * Node queue with a stack design.
-     */
-    private static class NodeQueue {
-
-        /**
-         * Node link
-         */
-        private NodeData first;
-
-        /**
-         * Push node onto this queue.
-         * @param node The node to push
-         */
-        void push(NodeData node) {
-            assert node.next == null;
-            node.next = first;
-            first = node;
-        }
-
-        /**
-         * Pop the last pushed node or return <code>null</code>.
-         * @return The last pushed node or <code>null</code> if the queue is empty.
-         */
-        NodeData pop() {
-            var n = first;
-            if (n != null) {
-                first = n.next;
-                n.next = null;
-            }
-            return n;
-        }
-
-    }
-
-    /**
      * Ancillary data for nodes.
      */
     private final IdentityHashMap<Node, NodeData> data = new IdentityHashMap<>();
     /**
      * List of nodes which can be placed since all users are placed.
      */
-    private final NodeQueue scheduleQueue = new NodeQueue();
+    private final Stack<NodeData> scheduleQueue = new Stack<>();
 
     /**
      * Get the ancillary data for an alive node.
@@ -216,7 +173,7 @@ public class Scheduler {
      * @param b Block b
      * @return The dominator of <code>a</code> and <code>b</code>
      */
-    private static BuildBlock dom(BuildBlock a, BuildBlock b) {
+    private static BasicBlock dom(BasicBlock a, BasicBlock b) {
         while (a!=b) {
             if (a.depth >= b.depth) a=a.dom;
             if (b.depth > a.depth) b=b.dom;
@@ -230,7 +187,7 @@ public class Scheduler {
      * @param b Block b
      * @return true is a is before b.
      */
-    private static boolean isBefore(BuildBlock a, BuildBlock b) {
+    private static boolean isBefore(BasicBlock a, BasicBlock b) {
         while (b.depth > a.depth) {
             while (b.dom.depth > a.depth) b = b.dom;
             for (int i=0; i<b.prev.length-1; i++) {
@@ -255,7 +212,7 @@ public class Scheduler {
      * @param data The node to refine.
      * @param block The block before the node should be scheduled.
      */
-    private void refinePlacement(NodeData data, BuildBlock block) {
+    private void refinePlacement(NodeData data, BasicBlock block) {
         assert !isPinnedNode(data);
         data.block = data.block == null ? block : dom(data.block, block);
         assert isValid(data);
@@ -278,8 +235,8 @@ public class Scheduler {
      * Schedule all nodes not yet scheduled.
      */
     private void doSchedule() {
-        NodeData data;
-        while ((data=scheduleQueue.pop()) != null) {
+        while (!scheduleQueue.isEmpty()) {
+            var data = scheduleQueue.pop();
             assert !isPinnedNode(data);
 
             assert data.block != null;
@@ -343,7 +300,7 @@ public class Scheduler {
      * @param data The node to update
      * @param block The block before which the node should happen.
      */
-    private void update(NodeData data, BuildBlock block) {
+    private void update(NodeData data, BasicBlock block) {
         assert block != null;
         if (data.users == 0) {
             assert isPinnedNode(data);
@@ -375,9 +332,9 @@ public class Scheduler {
      * Schedule all phi nodes.
      * @param phiQueue List of all the phi nodes to schedule.
      */
-    private void schedulePhis(NodeQueue phiQueue) {
-        NodeData data;
-        while((data=phiQueue.pop()) != null) {
+    private void schedulePhis(Stack<NodeData> phiQueue) {
+        while(!phiQueue.empty()) {
+            var data = phiQueue.pop();
             var phi = (PhiNode) data.node;
             var r = phi.in(0);
             data.block = d(r).block;
@@ -393,28 +350,28 @@ public class Scheduler {
      * @param start The start node.
      */
     private void doBuildCTF(StartNode start) {
-        var queue = new NodeQueue();
-        var phiQueue = new NodeQueue();
+        var queue = new Stack<NodeData>();
+        var phiQueue = new Stack<NodeData>();
         queue.push(d(start));
-        NodeData data;
         int depth = 0;
-        while ((data=queue.pop())!=null) {
+        while (!queue.isEmpty()) {
+            var data = queue.pop();
             var node = data.node;
             assert node.isCFG();
-            BuildBlock block;
+            BasicBlock block;
             switch (node) {
                 case StartNode s:
-                    block = new BuildBlock(s, depth++);
+                    block = new BasicBlock(s, depth++);
                     break;
                 case LoopNode l:
-                    block = new BuildBlock(l, depth++, d(l.in(1)).block);
+                    block = new BasicBlock(l, depth++, d(l.in(1)).block);
                     break;
                 case RegionNode r:
-                    var prev = new ArrayList<BuildBlock>();
+                    var prev = new ArrayList<BasicBlock>();
                     for(int i=1; i<r.nIns(); i++) {
                         od(r.in(i)).ifPresent(d->prev.add(d.block));
                     }
-                    block = new BuildBlock(r, depth++, prev.toArray(BuildBlock[]::new));
+                    block = new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
                     break;
                 case IfNode i:
                     block = d(i.in(0)).block;
@@ -423,7 +380,7 @@ public class Scheduler {
                     block = d(r.in(0)).block;
                     break;
                 default:
-                    block = new BuildBlock(node, depth++, d(node.in(0)).block);
+                    block = new BasicBlock(node, depth++, d(node.in(0)).block);
             }
             data.block = block;
             if (node instanceof RegionNode r) {
@@ -455,7 +412,7 @@ public class Scheduler {
      * @param node Node which should be marked alive.
      * @param cfg If this node is a CFG node.
      */
-    private void markAlive(NodeQueue queue, Node node, boolean cfg) {
+    private void markAlive(Stack<NodeData> queue, Node node, boolean cfg) {
         var nd = od(node).orElse(null);
         if (nd != null) {
             // Node was already visited, just increase the users.
@@ -476,13 +433,13 @@ public class Scheduler {
      * @param node THe start node.
      */
     private void doMarkAlive(Node node) {
-        var cfgQueue = new NodeQueue();
-        var dataQueue = new NodeQueue();
-        var mem = new NodeQueue();
+        var cfgQueue = new Stack<NodeData>();
+        var dataQueue = new Stack<NodeData>();
+        var mem = new Stack<NodeData>();
         markAlive(cfgQueue, node, true);
-        NodeData data;
         // Mark all CFG nodes.
-        while ((data=cfgQueue.pop()) != null) {
+        while (!cfgQueue.isEmpty()) {
+            var data = cfgQueue.pop();
             node = data.node;
             assert node.isCFG();
             if (!(node instanceof ReturnNode)) {
@@ -491,7 +448,8 @@ public class Scheduler {
             for (var in : node._inputs) if(in!=null && !in.isCFG() && isNotXCtrl(in)) markAlive(dataQueue, in, false);
         }
         // Mark all other nodes.
-        while ((data=dataQueue.pop()) != null) {
+        while (!dataQueue.isEmpty()) {
+            var data = dataQueue.pop();
             node = data.node;
             assert !node.isCFG();
             if (node instanceof PhiNode phi) {
@@ -505,7 +463,8 @@ public class Scheduler {
             if (node instanceof StoreNode) mem.push(data);
         }
         // Handle store nodes and increase load with an anti-dep to the store.
-        while ((data=mem.pop()) != null) {
+        while (!mem.isEmpty()) {
+            var data = mem.pop();
             node = data.node;
             for(var out:node.in(1)._outputs) {
                 if (out instanceof LoadNode) od(out).ifPresent(d->d.users++);
@@ -520,7 +479,7 @@ public class Scheduler {
      * @param block The block from which the nodes should be appended.
      * @return The combined new array.
      */
-    private static Node[] appendNodes(Node[] arr, Node node, BuildBlock block) {
+    private static Node[] appendNodes(Node[] arr, Node node, BasicBlock block) {
         var idx = arr.length;
         arr = Arrays.copyOf(arr, arr.length+block.reverseSchedule.size()+(node==null?0:1));
         if (node != null) arr[idx++] = node;
@@ -552,13 +511,13 @@ public class Scheduler {
      */
     private Block build(Node start) {
         var blocks = new IdentityHashMap<Node, Block>();
-        var queue = new NodeQueue();
+        var queue = new Stack<NodeData>();
         queue.push(d(start));
-        NodeData data;
 
         // Visit all CFG nodes and create blocks for them.
         // This can combine blocks.
-        while((data=queue.pop())!=null) {
+        while(!queue.isEmpty()) {
+            var data = queue.pop();
             var first = data.node;
             Node prev;
             var last = first;
