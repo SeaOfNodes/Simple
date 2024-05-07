@@ -23,10 +23,10 @@ public class ConstantNode extends Node {
         super(Parser.START);
         _con = type;
     }
-    
+
     @Override
     public String label() { return "#"+_con; }
-  
+
     @Override
     public String uniqueName() { return "Con_" + _nid; }
 
@@ -34,9 +34,9 @@ public class ConstantNode extends Node {
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return _con._print(sb);
     }
-    
+
     @Override public boolean isMultiTail() { return true; }
-    
+
     @Override
     public Type compute() { return _con; }
 
@@ -51,8 +51,4 @@ public class ConstantNode extends Node {
 
     @Override
     int hash() { return _con.hashCode(); }
-
-    // Dead control is its own idom root
-    Node idom() { return null; }
-
 }

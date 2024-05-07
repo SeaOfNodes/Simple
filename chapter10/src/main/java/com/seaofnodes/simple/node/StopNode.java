@@ -51,6 +51,8 @@ public class StopNode extends Node {
         return null;
     }
 
+    @Override public Node idom() { return null; }
+
     public Node addReturn(Node node) {
         return addDef(node);
     }

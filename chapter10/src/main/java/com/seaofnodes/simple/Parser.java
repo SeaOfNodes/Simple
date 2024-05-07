@@ -618,6 +618,7 @@ public class Parser {
         String name = requireId();
         Field field = ptr._obj==null ? null : ptr._obj.get(name);
         if( field == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        field = field.glb();    // Even if the parser knows the field is a high type, use the low one
 
         if( match("=") ) {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment

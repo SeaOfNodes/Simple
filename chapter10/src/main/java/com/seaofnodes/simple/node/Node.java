@@ -51,15 +51,6 @@ public abstract class Node {
 
 
     /**
-     * Immediate dominator tree depth, used to approximate a real IDOM during
-     * parsing where we do not have the whole program, and also peepholes
-     * change the CFG incrementally.
-     * <p>
-     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
-     */
-    int _idepth;
-
-    /**
      * A private Global Static mutable counter, for unique node id generation.
      * To make the compiler multithreaded, this field will have to move into a TLS.
      * Starting with value 1, to avoid bugs confusing node ID 0 with uninitialized values.
@@ -553,14 +544,11 @@ public abstract class Node {
     }
 
     /**
-     * Does this node contain all constants?
-     * Ignores in(0), as is usually control.
-     * In an input is not a constant, we add dep as
-     * a dependency to it, because dep can make progress
-     * if the input becomes a constant later.
-     * It is sufficient for one of the non-const
-     * inputs to have the dependency so we don't bother
-     * checking the rest.
+     * Does this node contain all constants?  Ignores in(0), as is usually
+     * control.  In an input is not a constant, we add dep as a dependency to
+     * it because dep can make progress if the input becomes a constant later.
+     * It is sufficient for one of the non-const inputs to have the dependency,
+     * so we don't bother checking the rest.
      */
     boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
@@ -571,13 +559,19 @@ public abstract class Node {
         return true;
     }
 
+
+    /**
+     * Immediate dominator tree depth, used to approximate a real IDOM during
+     * parsing where we do not have the whole program, and also peepholes
+     * change the CFG incrementally.
+     * <p>
+     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
+     */
+    public int _idepth;
+    int idepth() { return _idepth==0 ? idom()._idepth+1 : _idepth; }
+
     // Return the immediate dominator of this Node and compute dom tree depth.
-    Node idom() {
-        Node idom = in(0);
-        if( idom._idepth==0 ) idom.idom(); // Recursively set _idepth
-        if( _idepth==0 ) _idepth = idom._idepth+1;
-        return idom;
-    }
+    Node idom() { return in(0); }
 
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.

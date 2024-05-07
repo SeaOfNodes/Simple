@@ -25,5 +25,6 @@ public class LoopNode extends RegionNode {
         return inProgress() ? null : super.idealize();
     }
 
-    @Override Node idom() { return entry(); }    
+    // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
+    @Override Node idom() { return entry(); }
 }
