@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.Field;
-import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 
@@ -47,6 +45,7 @@ public class StoreNode extends MemOpNode {
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
             ptr()==st.ptr() &&  // Must check same object
+            ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
             st.checkNoUseBeyond(this) ) {

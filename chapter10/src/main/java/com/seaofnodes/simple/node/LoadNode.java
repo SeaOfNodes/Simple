@@ -53,8 +53,8 @@ public class LoadNode extends MemOpNode {
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
         if( mem() instanceof PhiNode phi && phi.nIns()== 3 &&
-            ((phi.in(1) instanceof StoreNode st1 && ptr()==st1.ptr()) ||
-             (phi.in(2) instanceof StoreNode st2 && ptr()==st2.ptr()) ) ) {
+            ((phi.in(1) instanceof StoreNode st1 && ptr()==st1.ptr() && phi.in(2)!=phi ) ||
+             (phi.in(2) instanceof StoreNode st2 && ptr()==st2.ptr() && phi.in(1)!=phi ) ) ) {
             Node ld1 = new LoadNode(_field,phi.in(1),ptr()).peephole();
             Node ld2 = new LoadNode(_field,phi.in(2),ptr()).peephole();
             return new PhiNode(_field._fname,_type,phi.region(),ld1,ld2);

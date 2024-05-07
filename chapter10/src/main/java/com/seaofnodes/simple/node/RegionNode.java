@@ -56,14 +56,11 @@ public class RegionNode extends Node {
                         IterPeeps.addAll(phi._outputs);
                     }
             }
-            _idom = null;       // Clear idom cache
             return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
         }
         // If down to a single input, become that input
-        if( nIns()==2 && !hasPhi() ) {
-            _idom = null;       // Clear idom cache
+        if( nIns()==2 && !hasPhi() )
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
-        }
         return null;
     }
 
@@ -82,26 +79,28 @@ public class RegionNode extends Node {
     }
 
     // Immediate dominator of Region is a little more complicated.
-    private Node _idom;         // Immediate dominator cache
+    @Override int idepth() {
+        if( _idepth!=0 ) return _idepth;
+        int d=0;
+        for( Node n : _inputs )
+            if( n!=null )
+                d = Math.max(d,n.idepth());
+        return _idepth=d;
+    }
+
     @Override Node idom() {
-        if( _idom != null ) {
-            if( _idom.isDead() ) _idom=null;
-            else return _idom; // Return cached copy
-        }
         if( nIns()==2 ) return in(1); // 1-input is that one input
         if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
-        // Walk the LHS & RHS idom trees in parallel until they match, or either fails
-        Node lhs = in(1).idom();
-        Node rhs = in(2).idom();
+        // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
+        // Because this does not cache, it can be linear in the size of the program.
+        Node lhs = in(1);
+        Node rhs = in(2);
         while( lhs != rhs ) {
           if( lhs==null || rhs==null ) return null;
-          var comp = lhs._idepth - rhs._idepth;
+          var comp = lhs.idepth() - rhs.idepth();
           if( comp >= 0 ) lhs = lhs.idom();
           if( comp <= 0 ) rhs = rhs.idom();
         }
-        if( lhs==null ) return null;
-        _idepth = lhs._idepth+1;
-        if( !IterPeeps.midAssert() ) _idom=lhs;
         return lhs;
     }
 
