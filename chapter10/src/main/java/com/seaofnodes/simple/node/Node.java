@@ -257,10 +257,11 @@ public abstract class Node {
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
     public <N extends Node> N unkeep() {
-        assert Utils.find(_outputs, null) != -1;
         delUse(null);
         return (N)this;
     }
+    // Test "keep" status
+    public boolean iskeep() { return Utils.find(_outputs,null) != -1; }
 
 
     // Replace self with nnn in the graph, making 'this' go dead

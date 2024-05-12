@@ -289,7 +289,7 @@ public class Parser {
             cur.pop();
         // If this is a continue then first time the target is null
         // So we just use the pruned current scope as the base for the
-        // continue
+        // "continue"
         if (toScope == null)
             return cur;
         // toScope is either the break scope, or a scope that was created here
