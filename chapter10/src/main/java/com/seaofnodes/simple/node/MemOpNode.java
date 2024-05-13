@@ -7,13 +7,15 @@ import com.seaofnodes.simple.type.TypeMemPtr;
 /**
  * Convenience common base for Load and Store.
  */
-abstract class MemOpNode extends Node {
+public abstract class MemOpNode extends Node {
 
-    protected Field _field;
+    public final String _name;
+    public final int _alias;
 
-    public MemOpNode(Field field, Node memSlice, Node memPtr, Node value) {
+    public MemOpNode(String name, int alias, Node memSlice, Node memPtr, Node value) {
         super(null, memSlice, memPtr, value);
-        this._field = field;
+        _name  = name;
+        _alias = alias;
     }
 
     public Node mem() { return in(1); }
@@ -22,19 +24,17 @@ abstract class MemOpNode extends Node {
     @Override
     boolean eq(Node n) {
         MemOpNode mem = (MemOpNode)n; // Invariant
-        return _field.equals(mem._field);
+        return _alias==mem._alias;    // When comparing types error to use "equals"; always use "=="
     }
 
     @Override
-    int hash() {
-        return _field._alias;
-    }
+    int hash() { return _alias; }
 
     @Override
     String err() {
         Type ptr = ptr()._type;
         return (ptr==Type.BOTTOM || (ptr instanceof TypeMemPtr tmp && tmp._nil) )
-            ? "Might be null accessing '" + _field.str() + "'"
+            ? "Might be null accessing '" + _name + "'"
             : null;
     }
 }

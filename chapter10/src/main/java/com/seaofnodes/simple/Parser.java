@@ -70,12 +70,12 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
+    // Mapping from a Struct name to a Struct.
     public static Map<String, TypeStruct> OBJS = new HashMap<>();
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        Type.reset();
         OBJS.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -167,7 +167,7 @@ public class Parser {
      */
     private Field parseField(String sname) {
         if( matchx("int") )     // Currently only parsing "int" type fields
-            return require(Field.make(sname,TypeInteger.BOT,requireId()),";");
+            return require(Field.make(requireId().intern(),TypeInteger.BOT),";");
         throw errorSyntax("A field type is expected, only type 'int' is supported at present");
     }
 
@@ -585,11 +585,13 @@ public class Parser {
     /**
      * Return a NewNode but also generate instructions to initialize it.
      */
-    private Node newStruct(TypeStruct obj) {
+    private Node newStruct( TypeStruct obj ) {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
-        for (Field field: obj._fields) {
-            memAlias(field, new StoreNode(field, memAlias(field), n, initValue).peephole());
+        int alias = START._aliasStarts.get(obj._name);
+        for( Field field : obj._fields ) {
+            memAlias(alias, new StoreNode(field._fname, alias, memAlias(alias), n, initValue).peephole());
+            alias++;
         }
         return n.unkeep();
     }
@@ -598,8 +600,9 @@ public class Parser {
     // variables are prefixed by $ so they cannot be referenced in Simple code.
     // Using vars has the benefit that all the existing machinery of scoping
     // and phis work as expected
-    private Node memAlias(Field fld         ) { return _scope.lookup(fld.aliasName()    ); }
-    private Node memAlias(Field fld, Node st) { return _scope.update(fld.aliasName(), st); }
+    private Node memAlias(int alias         ) { return _scope.lookup(memName(alias)    ); }
+    private Node memAlias(int alias, Node st) { return _scope.update(memName(alias), st); }
+    public static String memName(int alias) { return ("$"+alias).intern(); }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -615,22 +618,23 @@ public class Parser {
         if( !(expr._type instanceof TypeMemPtr ptr) )
             throw error("Expected struct reference but got " + expr._type.str());
 
-        String name = requireId();
-        Field field = ptr._obj==null ? null : ptr._obj.get(name);
-        if( field == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-        field = field.glb();    // Even if the parser knows the field is a high type, use the low one
+        String name = requireId().intern();
+        int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
+        if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        int alias = START._aliasStarts.get(ptr._obj._name)+idx;
 
         if( match("=") ) {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                memAlias(field, new StoreNode(field, memAlias(field), expr, val).peephole());
+                memAlias(alias, new StoreNode(name, alias, memAlias(alias), expr, val).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }
 
-        return parsePostfix(new LoadNode(field, memAlias(field), expr).peephole());
+        Type declaredType = ptr._obj._fields[idx]._type;
+        return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
     }
 
     /**

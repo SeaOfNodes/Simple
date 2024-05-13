@@ -29,30 +29,10 @@ public class Evaluator {
         }
     }
 
-    private static final MethodHandle get_MemOpNode_field;
-
-    static {
-        try {
-            var MemOpNode = Class.forName("com.seaofnodes.simple.node.MemOpNode");
-            var field = MemOpNode.getDeclaredField("_field");
-            field.setAccessible(true);
-            get_MemOpNode_field = MethodHandles.lookup().unreflectGetter(field);
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    private static int getFieldIndex(TypeStruct struct, Node memop) {
-        Field field;
-        try {
-            field = (Field)get_MemOpNode_field.invoke(memop);
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
-        }
-        for(int i=0;i<struct._fields.length;i++) {
-            if (struct._fields[i]._alias == field._alias) return i;
-        }
-        throw new AssertionError("Field "+field._fname+" of struct " +field._sname + " not found in struct " + struct._name);
+    private static int getFieldIndex(TypeStruct struct, MemOpNode memop) {
+        int idx = struct.find(memop._name);
+        if( idx >= 0 ) return idx;
+        throw new AssertionError("Field "+memop._name+" not found in struct " + struct._name);
     }
 
     public enum Status {

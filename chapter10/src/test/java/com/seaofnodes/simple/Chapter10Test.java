@@ -13,6 +13,24 @@ import static org.junit.Assert.fail;
 
 public class Chapter10Test {
 
+    @Test
+    public void testFuzzer() {
+        Parser parser = new Parser(
+"""
+struct s0 {
+    int v0;
+}
+s0 v5 = new s0;
+int v6 = new s0.v0;
+s0? arg=v5;
+if( arg ) v5 = new s0;
+else      v6 = 0;
+s0 v7=v5;
+return 0;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 0;", stop.toString());
+    }
 
     @Test
     public void testStruct() {

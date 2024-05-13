@@ -12,29 +12,31 @@ import java.util.BitSet;
  */
 public class LoadNode extends MemOpNode {
 
+    Type _declaredType;
     /**
      * Load a value from a ptr.field.
      *
-     * @param field The struct field we are loading
+     * @param name  The field we are loading
      * @param memSlice The memory alias node - this is updated after a Store
      * @param memPtr The ptr to the struct from where we load a field
      */
-    public LoadNode(Field field, Node memSlice, Node memPtr) {
-        super(field, memSlice, memPtr, null);
+    public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
+        super(name, alias, memSlice, memPtr, null);
+        _declaredType = glb;
     }
 
     @Override
     public String label() { return "Load"; }
 
     @Override
-    public String glabel() { return "."+_field._fname; }
+    public String glabel() { return "."+_name; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_field._fname); }
+    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
     @Override
     public Type compute() {
-        return _field._type;
+        return _declaredType;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class LoadNode extends MemOpNode {
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
             ptr() == st.ptr() ) { // Must check same object
-            assert _field==st._field; // Equiv class aliasing is perfect
+            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
             return st.val();
         }
 
@@ -59,9 +61,9 @@ public class LoadNode extends MemOpNode {
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                Node ld1 = new LoadNode(_field,memphi.in(1),ptr()).peephole();
-                Node ld2 = new LoadNode(_field,memphi.in(2),ptr()).peephole();
-                return new PhiNode(_field._fname,_type,memphi.region(),ld1,ld2);
+                Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
+                Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
+                return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
             }
         }
 
