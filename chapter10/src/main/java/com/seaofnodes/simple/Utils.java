@@ -55,4 +55,11 @@ public class Utils {
 
     // Fold a 64bit hash into 32 bits
     public static int fold( long x ) { return (int)((x>>32) ^ x); }
+
+    public static boolean eq(String s0, String s1) {
+        if( s0==s1 ) return true;
+        assert s0==s0.intern();
+        assert s1==s1.intern();
+        return false;
+    }
 }

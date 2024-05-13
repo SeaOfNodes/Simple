@@ -13,19 +13,19 @@ public class TypeTest {
     @Test
     public void testTypeAdHoc() {
         TypeStruct s1 = TypeStruct.make("s1", new Field[]{
-                Field.make("s1", TypeInteger.BOT, "a"),
-                Field.make("s1", TypeInteger.BOT, "b") });
+                Field.make("a", TypeInteger.BOT),
+                Field.make("b", TypeInteger.BOT) });
         TypeStruct s2 = TypeStruct.make("s2", new Field[]{
-                Field.make("s2", TypeInteger.BOT, "a"),
-                Field.make("s2", TypeInteger.BOT, "b") });
+                Field.make("a", TypeInteger.BOT),
+                Field.make("b", TypeInteger.BOT) });
         Assert.assertEquals(s1, s1.glb());
         Assert.assertNotEquals(s1, s1.dual());
         Assert.assertEquals(s1, s1.dual().glb());
 
-        TypeMem m1 = TypeMem.make(s1.get("a")._alias);
-        TypeMem m2 = TypeMem.make(s1.get("b")._alias);
-        TypeMem m3 = TypeMem.make(s2.get("a")._alias);
-        TypeMem m4 = TypeMem.make(s2.get("b")._alias);
+        TypeMem m1 = TypeMem.make(1);
+        TypeMem m2 = TypeMem.make(2);
+        TypeMem m3 = TypeMem.make(3);
+        TypeMem m4 = TypeMem.make(4);
 
         Assert.assertNotEquals(m1, m2);
         Assert.assertNotEquals(m2, m3);

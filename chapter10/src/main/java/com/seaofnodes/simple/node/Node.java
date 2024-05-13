@@ -257,10 +257,11 @@ public abstract class Node {
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
     public <N extends Node> N unkeep() {
-        assert Utils.find(_outputs, null) != -1;
         delUse(null);
         return (N)this;
     }
+    // Test "keep" status
+    public boolean iskeep() { return Utils.find(_outputs,null) != -1; }
 
 
     // Replace self with nnn in the graph, making 'this' go dead
@@ -561,16 +562,17 @@ public abstract class Node {
 
 
     /**
-     * Immediate dominator tree depth, used to approximate a real IDOM during
-     * parsing where we do not have the whole program, and also peepholes
-     * change the CFG incrementally.
+     * Immediate dominator tree depth, used to approximate a real IDOM depth
+     * during parsing where we do not have the whole program, and also
+     * peepholes change the CFG incrementally.
      * <p>
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
-    public int _idepth;
-    int idepth() { return _idepth==0 ? idom()._idepth+1 : _idepth; }
+    public int _idepth;         // IDOM depth approx; Zero is unset; non-zero is cached legit
+    final int _idepth(int idx) { return _idepth==0 ? (_idepth=in(idx).idepth()+1) : _idepth; }
+    int idepth() { return _idepth(0); }
 
-    // Return the immediate dominator of this Node and compute dom tree depth.
+    // Return the immediate dominator of this Node.
     Node idom() { return in(0); }
 
     // Make a shallow copy (same class) of this Node, with given inputs and

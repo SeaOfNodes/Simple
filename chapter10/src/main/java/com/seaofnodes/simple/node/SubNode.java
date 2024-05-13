@@ -18,7 +18,7 @@ public class SubNode extends Node {
         in(2)._print0(sb.append("-"), visited);
         return sb.append(")");
     }
-  
+
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
@@ -34,6 +34,10 @@ public class SubNode extends Node {
         // Sub of same is 0
         if( in(1)==in(2) )
             return new ConstantNode(TypeInteger.constant(0));
+
+        // x - (-y) is x+y
+        if( in(2) instanceof MinusNode minus )
+            return new AddNode(in(1),minus.in(1));
 
         return null;
     }

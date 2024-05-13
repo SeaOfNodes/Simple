@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * The Start node represents the start of the function.
@@ -17,10 +18,16 @@ public class StartNode extends MultiNode {
     // This field is NOT final, because the tuple expands as we add memory aliases
     TypeTuple _args;
 
+    // The alias number of the first field in the struct.
+    //
+    public final HashMap<String,Integer> _aliasStarts;
+
+
     public StartNode(Type[] args) {
         super();
         _args = TypeTuple.make(args);
         _type = _args;
+        _aliasStarts = new HashMap<>();
     }
 
     /**
@@ -28,20 +35,21 @@ public class StartNode extends MultiNode {
      * as the key.
      */
     public void addMemProj( TypeStruct ts, ScopeNode scope) {
-        if( ts._fields.length==0 ) return; // No projections to add
         int len = _args._types.length;
-        int max = ts._fields[ts._fields.length-1]._alias; // Max alias
-        if( len > max ) return; // Already big enough
+        _aliasStarts.put(ts._name,len);
+
         // resize the tuple's type array to include all fields of the struct
-        Type[] args = Arrays.copyOf(_args._types, max+1);
+        int max = len + ts._fields.length;
+        Type[] args = Arrays.copyOf(_args._types, max);
+
         // The new members of the tuple get a mem type with an alias
-        for( int alias = len; alias <= max; alias++ )
+        for( int alias = len; alias < max; alias++ )
             args[alias] = TypeMem.make(alias);
         _type = _args = TypeTuple.make(args);
         // For each of the fields we now add a mem projection.  Note that the
         // alias matches the slot of the field in the tuple
-        for( int alias = len; alias <= max; alias++ ) {
-            String name = "$"+alias;
+        for( int alias = len; alias < max; alias++ ) {
+            String name = Parser.memName(alias);
             Node n = new ProjNode(this, alias, name).peephole();
             scope.define(name, args[alias], n);
         }
