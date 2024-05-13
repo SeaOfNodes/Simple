@@ -572,7 +572,7 @@ public abstract class Node {
     final int _idepth(int idx) { return _idepth==0 ? (_idepth=in(idx).idepth()+1) : _idepth; }
     int idepth() { return _idepth(0); }
 
-    // Return the immediate dominator of this Node and compute dom tree depth.
+    // Return the immediate dominator of this Node.
     Node idom() { return in(0); }
 
     // Make a shallow copy (same class) of this Node, with given inputs and

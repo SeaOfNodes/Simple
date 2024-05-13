@@ -11,7 +11,7 @@ target/
 *.iml
 
 # Editors
-.#*
+#*
 *~
 TAGS
 
