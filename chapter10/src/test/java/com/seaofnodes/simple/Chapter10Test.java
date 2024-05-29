@@ -17,16 +17,22 @@ public class Chapter10Test {
     public void testFuzzer() {
         Parser parser = new Parser(
 """
-struct s0 {
-    int v0;
+int a = arg/3;
+int b = arg*5;
+int x = arg*7;
+int y = arg/11;
+int p; int g; int h;
+if( (arg/13)==0 ) {
+    p = x + y;
+    g = x;
+    h = y;
+} else {
+    p = a + b;
+    g = a;
+    h = b;
 }
-s0 v5 = new s0;
-int v6 = new s0.v0;
-s0? arg=v5;
-if( arg ) v5 = new s0;
-else      v6 = 0;
-s0 v7=v5;
-return 0;
+int r = g+h;
+return p-r;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 0;", stop.toString());
