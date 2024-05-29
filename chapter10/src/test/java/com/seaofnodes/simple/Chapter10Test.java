@@ -17,18 +17,40 @@ public class Chapter10Test {
     public void testFuzzer() {
         Parser parser = new Parser(
 """
-struct s0 {
-    int v0;
+int a = arg/3;
+int b = arg*5;
+int c = arg*7;
+int d = arg/11;
+int sum; int x; int y;
+if( (arg/13)==0 ) {
+    sum = a + b;
+    x = a;
+    y = b;
+} else {
+    sum = c + d;
+    x = c;
+    y = d;
 }
-s0 v5 = new s0;
-int v6 = new s0.v0;
-s0? arg=v5;
-if( arg ) v5 = new s0;
-else      v6 = 0;
-s0 v7=v5;
-return 0;
+int negativeSum = -x - y;
+return sum + negativeSum;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return 0;", stop.toString());
+    }
+
+    @Test
+    public void testJules() {
+        Parser parser = new Parser(
+"""
+int y = 3*arg - 8;
+while( y - ((y / 30498)*30498) == 234) {
+  arg = 3*arg - 8;
+  y = 3*y - 8;
+}
+arg = 3*arg - 8;
+return arg - y;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
         assertEquals("return 0;", stop.toString());
     }
 
