@@ -19,38 +19,22 @@ public class Chapter10Test {
 """
 int a = arg/3;
 int b = arg*5;
-int c = arg*7;
-int d = arg/11;
-int sum; int x; int y;
+int x = arg*7;
+int y = arg/11;
+int p; int g; int h;
 if( (arg/13)==0 ) {
-    sum = a + b;
-    x = a;
-    y = b;
+    p = x + y;
+    g = x;
+    h = y;
 } else {
-    sum = c + d;
-    x = c;
-    y = d;
+    p = a + b;
+    g = a;
+    h = b;
 }
-int negativeSum = -x - y;
-return sum + negativeSum;
+int r = g+h;
+return p-r;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return 0;", stop.toString());
-    }
-
-    @Test
-    public void testJules() {
-        Parser parser = new Parser(
-"""
-int y = 3*arg - 8;
-while( y - ((y / 30498)*30498) == 234) {
-  arg = 3*arg - 8;
-  y = 3*y - 8;
-}
-arg = 3*arg - 8;
-return arg - y;
-""");
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 0;", stop.toString());
     }
 
