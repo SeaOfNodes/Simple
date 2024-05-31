@@ -358,7 +358,7 @@ public abstract class Node {
     private Node deadCodeElim(Node m) {
         // If self is going dead and not being returned here (Nodes returned
         // from peephole commonly have no uses (yet)), then kill self.
-        if( m != this && isUnused() ) {
+        if( m != this && isUnused() && !isDead() ) {
             // Killing self - and since self recursively kills self's inputs we
             // might end up killing 'm', which we are returning as a live Node.
             // So we add a bogus extra null output edge to stop kill().
