@@ -105,7 +105,7 @@ public abstract class CFGNode extends Node {
 
     // ------------------------------------------------------------------------
     private static void schedEarly(StopNode stop) {
-        schedEarly(stop);
+        _schedEarly(stop, new BitSet());
     }
 
     //
@@ -113,13 +113,15 @@ public abstract class CFGNode extends Node {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
         for( Node def : n._inputs )
-            _schedEarly(def,visit);
-        if( !(n instanceof CFGNode) ) {
-            assert n.in(0)==null;
+            if( def != null )
+                _schedEarly(def,visit);
+        // If not-pinned and not-CFG
+        if( !n.isCFG() && n.in(0)==null ) {
             CFGNode early = null;
-            for( Node def : n._inputs ) {
+            for( int i=1; i<n.nIns(); i++ ) {
+                Node def = n.in(i);
                 CFGNode cfg = (CFGNode)def.in(0);
-                if( early==null || cfg.idepth() < early.idepth() )
+                if( early==null || cfg.idepth() > early.idepth() )
                     early = cfg;
             }
             n.setDef(0,early);
