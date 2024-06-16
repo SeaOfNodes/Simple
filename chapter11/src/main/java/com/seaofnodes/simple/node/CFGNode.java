@@ -25,6 +25,17 @@ public abstract class CFGNode extends Node {
 
     CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
+    // Arrange that the existing isCFG() Nodes form a valid CFG.  The
+    // Node.use(0) is always a block tail (either IfNode or head of the
+    // following block).  There are no unreachable infinite loops.
+    public static void buildCFG( StopNode stop ) {
+
+        fixLoops(stop);
+        schedEarly(stop);
+        //throw Utils.TODO();
+    }
+
+
     // ------------------------------------------------------------------------
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM during
@@ -58,15 +69,6 @@ public abstract class CFGNode extends Node {
     }
 
     // ------------------------------------------------------------------------
-    // Arrange that the existing isCFG() Nodes form a valid CFG.  The
-    // Node.use(0) is always a block tail (either IfNode or head of the
-    // following block).  There are no unreachable infinite loops.
-    public static void buildCFG( StopNode stop ) {
-
-        fixLoops(stop);
-        //throw Utils.TODO();
-    }
-
     // Backwards walk on the CFG only, looking for unreachable code - which has
     // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
     // loop becomes reachable.  Also, set loop nesting depth
@@ -99,5 +101,28 @@ public abstract class CFGNode extends Node {
         for( Node use : _outputs )
             if( use instanceof CFGNode cfg )
                 cfg.walkInfinite(visit,stop);
+    }
+
+    // ------------------------------------------------------------------------
+    private static void schedEarly(StopNode stop) {
+        schedEarly(stop);
+    }
+
+    //
+    private static void _schedEarly(Node n, BitSet visit) {
+        if( visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);
+        for( Node def : n._inputs )
+            _schedEarly(def,visit);
+        if( !(n instanceof CFGNode) ) {
+            assert n.in(0)==null;
+            CFGNode early = null;
+            for( Node def : n._inputs ) {
+                CFGNode cfg = (CFGNode)def.in(0);
+                if( early==null || cfg.idepth() < early.idepth() )
+                    early = cfg;
+            }
+            n.setDef(0,early);
+        }
     }
 }
