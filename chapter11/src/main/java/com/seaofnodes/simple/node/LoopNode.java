@@ -47,16 +47,15 @@ public class LoopNode extends RegionNode {
         // directly on the If) we found our exit.
         CFGNode x = back();
         while( x != this ) {
-            if( x instanceof CProjNode exit ) break;
+            if( x instanceof CProjNode exit )
+                return;         // Found an exit, not an infinite loop
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        if( x==this ) {
-            NeverNode iff = new NeverNode(back());
-            CProjNode t = new CProjNode(iff,0,"True" );
-            CProjNode f = new CProjNode(iff,1,"False");
-            setDef(2,f);
-            stop.addDef(new ReturnNode(t,new ConstantNode(TypeInteger.ZERO),null));
-        }
+        NeverNode iff = new NeverNode(back());
+        CProjNode t = new CProjNode(iff,0,"True" );
+        CProjNode f = new CProjNode(iff,1,"False");
+        setDef(2,f);
+        stop.addDef(new ReturnNode(t,new ConstantNode(TypeInteger.ZERO),null));
     }
 }

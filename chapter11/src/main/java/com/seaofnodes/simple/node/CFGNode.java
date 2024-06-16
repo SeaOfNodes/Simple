@@ -44,13 +44,15 @@ public abstract class CFGNode extends Node {
 
     // Loop nesting depth
     public int _loop_depth;
-
+    // Tik-tok recursion pattern.  This method is final, and every caller does
+    // this work.
     final int walkUnreach( HashSet<CFGNode> unreach ) {
         if( _loop_depth != 0 ) return _loop_depth;
         _loop_depth = _walkUnreach(unreach);
-        unreach.remove(this);
+        unreach.remove(this);   // Since we reached here... Node was not unreachable
         return _loop_depth;
     }
+    // Tik-tok recursion pattern; not-final; callers override this.
     int _walkUnreach( HashSet<CFGNode> unreach ) {
         return cfg(0).walkUnreach(unreach);
     }
