@@ -113,4 +113,6 @@ public class RegionNode extends Node {
     @Override boolean eq( Node n ) {
         return !inProgress();
     }
+
+    @Override public Node getBlockStart() { return this; }
 }

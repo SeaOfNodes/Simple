@@ -135,10 +135,6 @@ public abstract class Node {
 
     public boolean isUnused() { return nOuts() == 0; }
 
-    public boolean isCFG() { return false; }
-
-    public boolean isMem() { return false; }
-
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
      * the corresponding <em>use->def</em> edge.  This may make the original
@@ -530,6 +526,19 @@ public abstract class Node {
     // Subclasses add extra hash info (such as ConstantNodes constant)
     int hash() { return 0; }
 
+    // ------------------------------------------------------------------------
+    //
+
+    /** Is this Node control-flow-graph related */
+    public boolean isCFG() { return false; }
+
+    /** Is this Node Memory related */
+    public boolean isMem() { return false; }
+
+    /** Return block start from a isCFG() */
+    public Node getBlockStart() { return null; }
+
+    public void addAntiDeps() {}
 
     // ------------------------------------------------------------------------
     // Peephole utilities

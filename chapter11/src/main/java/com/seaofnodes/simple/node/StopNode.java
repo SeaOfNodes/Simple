@@ -64,4 +64,6 @@ public class StopNode extends Node {
         if( err != null ) throw new RuntimeException(err);
         return this;
     }
+
+    @Override public Node getBlockStart() { return this; }
 }

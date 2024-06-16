@@ -67,4 +67,6 @@ public class StartNode extends MultiNode {
     // No immediate dominator, and idepth==0
     @Override int idepth() { return 0; }
     @Override Node idom() { return null; }
+
+    @Override public Node getBlockStart() { return this; }
 }
