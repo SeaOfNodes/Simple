@@ -108,23 +108,25 @@ public abstract class CFGNode extends Node {
         _schedEarly(stop, new BitSet());
     }
 
-    //
+    // Backwards post-order pass.  Schedule all inputs first, then take the max
+    // dom-depth scheduled input as this schedule.
     private static void _schedEarly(Node n, BitSet visit) {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
         for( Node def : n._inputs )
             if( def != null )
                 _schedEarly(def,visit);
-        // If not-pinned and not-CFG
+        // If not-pinned (e.g. constants, projections) and not-CFG
         if( !n.isCFG() && n.in(0)==null ) {
-            CFGNode early = null;
-            for( int i=1; i<n.nIns(); i++ ) {
-                Node def = n.in(i);
-                CFGNode cfg = (CFGNode)def.in(0);
-                if( early==null || cfg.idepth() > early.idepth() )
-                    early = cfg;
+            // Check all inputs' controls
+            CFGNode early = (CFGNode)n.in(1).in(0);
+            for( int i=2; i<n.nIns(); i++ ) {
+                CFGNode cfg = ((CFGNode)n.in(i).in(0));
+                if( cfg.idepth() > early.idepth() )
+                    early = cfg; // Latest/deepest input
             }
-            n.setDef(0,early);
+            n.setDef(0,early);  // First place this can go
+            n.antiDep();        // Loads can now place anti-deps
         }
     }
 }
