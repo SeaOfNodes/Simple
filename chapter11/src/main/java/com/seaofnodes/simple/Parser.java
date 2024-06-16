@@ -735,7 +735,16 @@ public class Parser {
          * Return the next non-white-space character
          */
         private void skipWhiteSpace() {
-            while (isWhiteSpace()) _position++;
+            while( true ) {
+                if( isWhiteSpace() ) _position++;
+                // Skip // to end of line
+                else if( _position+2 < _input.length &&
+                         _input[_position  ] == '/' &&
+                         _input[_position+1] == '/') {
+                    _position += 2;
+                    while( !isEOF() && _input[_position] != '\n' ) _position++;
+                } else break;
+            }
         }
 
 

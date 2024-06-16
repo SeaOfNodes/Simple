@@ -84,7 +84,7 @@ public class RegionNode extends Node {
         int d=0;
         for( Node n : _inputs )
             if( n!=null )
-                d = Math.max(d,n.idepth());
+                d = Math.max(d,n.idepth()+1);
         return _idepth=d;
     }
 

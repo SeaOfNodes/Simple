@@ -26,5 +26,7 @@ public class LoopNode extends RegionNode {
     }
 
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
+    @Override int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override Node idom() { return entry(); }
 }

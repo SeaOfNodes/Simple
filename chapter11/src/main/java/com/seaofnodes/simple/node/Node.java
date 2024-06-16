@@ -568,7 +568,7 @@ public abstract class Node {
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     public int _idepth;
-    int idepth() { return _idepth==0 ? idom()._idepth+1 : _idepth; }
+    int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
 
     // Return the immediate dominator of this Node and compute dom tree depth.
     Node idom() { return in(0); }
