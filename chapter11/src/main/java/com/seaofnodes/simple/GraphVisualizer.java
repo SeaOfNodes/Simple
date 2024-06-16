@@ -191,7 +191,7 @@ public class GraphVisualizer {
                 } else if( def != null ) {
                     // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
-                    if( def instanceof ProjNode proj ) {
+                    if( def instanceof CProjNode proj ) {
                         String mname = proj.ctrl().uniqueName();
                         sb.append(mname).append(":p").append(proj._idx);
                     } else sb.append(def.uniqueName());
@@ -231,7 +231,7 @@ public class GraphVisualizer {
                   .append(scopeName).append(":")
                   .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
                   .append(" -> ");
-                if( def instanceof ProjNode proj ) {
+                if( def instanceof CProjNode proj ) {
                     String mname = proj.ctrl().uniqueName();
                     sb.append(mname).append(":p").append(proj._idx);
                 } else sb.append(def.uniqueName());

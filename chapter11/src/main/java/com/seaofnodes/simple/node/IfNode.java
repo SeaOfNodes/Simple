@@ -5,8 +5,9 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
 import java.util.BitSet;
+import java.util.HashSet;
 
-public class IfNode extends MultiNode {
+public class IfNode extends CFGNode implements MultiNode {
 
     public IfNode(Node ctrl, Node pred) {
         super(ctrl, pred);
@@ -22,7 +23,6 @@ public class IfNode extends MultiNode {
         return in(1)._print0(sb, visited).append(" )");
     }
 
-    @Override public boolean isCFG() { return true; }
     @Override public boolean isMultiHead() { return true; }
 
     public Node ctrl() { return in(0); }
@@ -52,12 +52,19 @@ public class IfNode extends MultiNode {
         // Hunt up the immediate dominator tree.  If we find an identical if
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
-            for( Node dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
-                if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof ProjNode prj ) {
+            for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
+                if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof CProjNode prj ) {
                     setDef(1,new ConstantNode(TypeInteger.make(true,prj._idx==0?1:0)).peephole());
                     return this;
                 }
         return null;
+    }
+
+    @Override int _walkUnreach( HashSet<CFGNode> unreach ) {
+        for( Node proj : _outputs )
+            if( ((CProjNode)proj)._loop_depth == 0 )
+                unreach.add((CProjNode)proj);
+        return super._walkUnreach(unreach);
     }
 
     @Override public Node getBlockStart() { return ctrl().getBlockStart(); }

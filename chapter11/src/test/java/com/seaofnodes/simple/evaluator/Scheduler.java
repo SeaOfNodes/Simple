@@ -496,7 +496,7 @@ public class Scheduler {
      */
     private static Node findSingleCFGOut(Node node) {
         if (node instanceof StartNode) {
-            for(var n:node._outputs) if (n instanceof ProjNode p && p._idx==0) return p;
+            for(var n:node._outputs) if (n instanceof CProjNode p && p._idx==0) return p;
             return null;
         }
         assert node._outputs.stream().filter(Node::isCFG).limit(2).count()<=1;
@@ -563,7 +563,7 @@ public class Scheduler {
             switch(block.exit) {
                 case null: break;
                 case IfNode i:
-                    for(var out:i._outputs) if (out instanceof ProjNode p) block.next[p._idx] = blocks.get(p);
+                    for(var out:i._outputs) if (out instanceof CProjNode p) block.next[p._idx] = blocks.get(p);
                     break;
                 case RegionNode r:
                     block.next[0] = blocks.get(r);

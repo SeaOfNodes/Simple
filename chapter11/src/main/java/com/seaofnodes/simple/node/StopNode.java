@@ -5,7 +5,7 @@ import com.seaofnodes.simple.IterPeeps;
 
 import java.util.BitSet;
 
-public class StopNode extends Node {
+public class StopNode extends CFGNode {
 
     public final String _src;
 
@@ -51,7 +51,7 @@ public class StopNode extends Node {
         return null;
     }
 
-    @Override public Node idom() { return null; }
+    @Override public CFGNode idom() { return null; }
 
     public Node addReturn(Node node) {
         return addDef(node);

@@ -3,12 +3,12 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashSet;
 
-public class RegionNode extends Node {
+public class RegionNode extends CFGNode {
 
     public RegionNode(Node... nodes) { super(nodes); }
 
@@ -20,7 +20,6 @@ public class RegionNode extends Node {
         return sb.append(label()).append(_nid);
     }
 
-    @Override public boolean isCFG() { return true; }
     @Override public boolean isMultiHead() { return true; }
 
     @Override
@@ -84,17 +83,17 @@ public class RegionNode extends Node {
         int d=0;
         for( Node n : _inputs )
             if( n!=null )
-                d = Math.max(d,n.idepth()+1);
+                d = Math.max(d,((CFGNode)n).idepth()+1);
         return _idepth=d;
     }
 
-    @Override Node idom() {
-        if( nIns()==2 ) return in(1); // 1-input is that one input
+    @Override CFGNode idom() {
+        if( nIns()==2 ) return cfg(1); // 1-input is that one input
         if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
         // Because this does not cache, it can be linear in the size of the program.
-        Node lhs = in(1);
-        Node rhs = in(2);
+        CFGNode lhs = cfg(1);
+        CFGNode rhs = cfg(2);
         while( lhs != rhs ) {
           if( lhs==null || rhs==null ) return null;
           var comp = lhs.idepth() - rhs.idepth();
@@ -102,6 +101,13 @@ public class RegionNode extends Node {
           if( comp <= 0 ) rhs = rhs.idom();
         }
         return lhs;
+    }
+
+    @Override int _walkUnreach( HashSet<CFGNode> unreach ) {
+        int d = 0;
+        for( int i=1; i<nIns(); i++ )
+            d = Math.max(d,cfg(i).walkUnreach(unreach));
+        return d;
     }
 
     // True if last input is null

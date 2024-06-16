@@ -1,12 +1,7 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
-import com.seaofnodes.simple.type.*;
-import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;

@@ -105,8 +105,8 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
         _scope.pop();
         _xScopes.pop();
@@ -235,8 +235,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -318,8 +318,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();

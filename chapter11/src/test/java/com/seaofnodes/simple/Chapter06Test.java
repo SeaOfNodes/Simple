@@ -19,7 +19,7 @@ return 1;
 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return 2;", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
     @Test
@@ -48,7 +48,7 @@ return a;
 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return 2;", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
     @Test

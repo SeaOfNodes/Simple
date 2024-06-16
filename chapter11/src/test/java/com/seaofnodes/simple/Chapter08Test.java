@@ -49,7 +49,7 @@ return a;
                 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Loop7,1,Phi(Region42,Phi_a,(Phi_a+1)));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertTrue(stop.ret().ctrl() instanceof CProjNode);
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
 
@@ -104,7 +104,7 @@ return arg;
                 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
 
@@ -121,7 +121,7 @@ return arg;
                 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Loop6,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode);
+        assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
     @Test
@@ -206,7 +206,7 @@ return a;
 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return (Phi(Loop7,1,Add)+1);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof ProjNode prj && prj._idx==1 );
+        assertTrue(stop.ret().ctrl() instanceof CProjNode prj && prj._idx==1 );
     }
 
 }
