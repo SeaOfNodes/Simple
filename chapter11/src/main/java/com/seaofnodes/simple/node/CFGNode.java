@@ -23,7 +23,7 @@ public abstract class CFGNode extends Node {
 
     @Override public boolean isCFG() { return true; }
 
-    CFGNode cfg(int idx) { return (CFGNode)in(idx); }
+    public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
     // Arrange that the existing isCFG() Nodes form a valid CFG.  The
     // Node.use(0) is always a block tail (either IfNode or head of the
@@ -32,7 +32,21 @@ public abstract class CFGNode extends Node {
 
         fixLoops(stop);
         schedEarly(stop);
+        SCHEDULED = true;
+        System.out.println(stop.p(99));
         //throw Utils.TODO();
+    }
+
+    // Block head is Start, Region, CProj, but not e.g. If, Return, Stop
+    public boolean blockHead() { return false; }
+
+    // Should be exactly 1 tail from a block head
+    public CFGNode blockTail() {
+        assert blockHead();
+        for( Node n : _outputs )
+            if( n instanceof CFGNode cfg )
+                return cfg;
+        return null;
     }
 
 
@@ -45,7 +59,7 @@ public abstract class CFGNode extends Node {
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     public int _idepth;
-    int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
 
     // Return the immediate dominator of this Node and compute dom tree depth.
     CFGNode idom() { return cfg(0); }
@@ -126,7 +140,8 @@ public abstract class CFGNode extends Node {
                     early = cfg; // Latest/deepest input
             }
             n.setDef(0,early);  // First place this can go
-            n.antiDep();        // Loads can now place anti-deps
+            if( n instanceof LoadNode load )
+                load.addAntiDeps(); // Loads can now place anti-deps
         }
     }
 }

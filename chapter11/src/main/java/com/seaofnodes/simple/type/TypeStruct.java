@@ -110,11 +110,11 @@ public class TypeStruct extends Type {
 
     @Override
     public StringBuilder _print(StringBuilder sb) {
-        sb.append(_name).append(" {\n");
+        sb.append(_name).append(" {");
         for( Field f : _fields ) {
             sb.append("  ").append(f._fname).append(":");
             f._type._print(sb);
-            sb.append(";\n");
+            sb.append(";");
         }
         return sb.append("}");
     }

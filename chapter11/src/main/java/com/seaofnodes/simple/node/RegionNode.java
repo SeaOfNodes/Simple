@@ -21,6 +21,7 @@ public class RegionNode extends CFGNode {
     }
 
     @Override public boolean isMultiHead() { return true; }
+    @Override public boolean blockHead() { return true; }
 
     @Override
     public Type compute() {
@@ -78,7 +79,7 @@ public class RegionNode extends CFGNode {
     }
 
     // Immediate dominator of Region is a little more complicated.
-    @Override int idepth() {
+    @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;
         int d=0;
         for( Node n : _inputs )

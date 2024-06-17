@@ -57,6 +57,7 @@ public class StartNode extends CFGNode implements MultiNode {
     }
 
     @Override public boolean isMultiHead() { return true; }
+    @Override public boolean blockHead() { return true; }
 
     @Override
     public TypeTuple compute() { return _args; }
@@ -65,7 +66,7 @@ public class StartNode extends CFGNode implements MultiNode {
     public Node idealize() { return null; }
 
     // No immediate dominator, and idepth==0
-    @Override int idepth() { return 0; }
+    @Override public int idepth() { return 0; }
     @Override CFGNode idom() { return null; }
 
     @Override int _walkUnreach( HashSet<CFGNode> unreach ) { return 1; }

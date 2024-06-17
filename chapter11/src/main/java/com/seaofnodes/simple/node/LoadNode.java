@@ -20,7 +20,7 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(Field field, Node memSlice, Node memPtr) {
-        super(field, memSlice, memPtr, null);
+        super(field, memSlice, memPtr);
     }
 
     @Override
@@ -63,8 +63,7 @@ public class LoadNode extends MemOpNode {
         return null;
     }
 
-    @Override
-    public void addAntiDeps() {
+    void addAntiDeps() {
         // Look at users of our Memory Input
         for (Node n : mem()._outputs)
             // Store at same alias?

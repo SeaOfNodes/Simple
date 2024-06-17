@@ -11,9 +11,13 @@ abstract class MemOpNode extends Node {
 
     protected Field _field;
 
+    public MemOpNode(Field field, Node memSlice, Node memPtr) {
+        super(null, memSlice, memPtr);
+        _field = field;
+    }
     public MemOpNode(Field field, Node memSlice, Node memPtr, Node value) {
-        super(null, memSlice, memPtr, value);
-        this._field = field;
+        this(field, memSlice, memPtr);
+        addDef(value);
     }
 
     public Node mem() { return in(1); }

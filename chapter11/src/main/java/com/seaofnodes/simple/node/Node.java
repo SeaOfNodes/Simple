@@ -86,6 +86,7 @@ public abstract class Node implements OutNode {
     // ------------------------------------------------------------------------
 
     // Debugger Printing.
+    public static boolean SCHEDULED; // True if debug printer can use schedule info
 
     // {@code toString} is what you get in the debugger.  It has to print 1
     // line (because this is what a debugger typically displays by default) and
@@ -540,8 +541,6 @@ public abstract class Node implements OutNode {
     /** Return block start from a isCFG() */
     public Node getBlockStart() { return null; }
 
-    public void addAntiDeps() {}
-
     // ------------------------------------------------------------------------
     // Peephole utilities
 
@@ -588,6 +587,7 @@ public abstract class Node implements OutNode {
         _disablePeephole=false;
         GVN.clear();
         ITER_CNT = ITER_NOP_CNT = 0;
+        SCHEDULED = false;
     }
 
 

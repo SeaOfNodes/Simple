@@ -9,8 +9,8 @@ import java.util.HashSet;
 public class LoopNode extends RegionNode {
     public LoopNode( Node entry ) { super(null,entry,null); }
 
-    CFGNode entry() { return cfg(1); }
-    CFGNode back () { return cfg(2); }
+    public CFGNode entry() { return cfg(1); }
+    public CFGNode back () { return cfg(2); }
 
     @Override
     public String label() { return "Loop"; }
@@ -27,7 +27,7 @@ public class LoopNode extends RegionNode {
     }
 
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-    @Override int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override CFGNode idom() { return entry(); }
 
@@ -56,6 +56,6 @@ public class LoopNode extends RegionNode {
         CProjNode t = new CProjNode(iff,0,"True" );
         CProjNode f = new CProjNode(iff,1,"False");
         setDef(2,f);
-        stop.addDef(new ReturnNode(t,new ConstantNode(TypeInteger.ZERO),null));
+        stop.addDef(new ReturnNode(t,new ConstantNode(TypeInteger.ZERO).peephole(),null));
     }
 }
