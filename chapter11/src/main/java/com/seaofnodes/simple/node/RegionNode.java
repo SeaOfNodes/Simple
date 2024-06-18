@@ -93,15 +93,7 @@ public class RegionNode extends CFGNode {
         if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
         // Because this does not cache, it can be linear in the size of the program.
-        CFGNode lhs = cfg(1);
-        CFGNode rhs = cfg(2);
-        while( lhs != rhs ) {
-          if( lhs==null || rhs==null ) return null;
-          var comp = lhs.idepth() - rhs.idepth();
-          if( comp >= 0 ) lhs = lhs.idom();
-          if( comp <= 0 ) rhs = rhs.idom();
-        }
-        return lhs;
+        return idom(cfg(1),cfg(2));
     }
 
     @Override int _walkUnreach( HashSet<CFGNode> unreach ) {

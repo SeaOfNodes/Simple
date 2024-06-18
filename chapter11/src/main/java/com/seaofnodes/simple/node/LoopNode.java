@@ -57,5 +57,11 @@ public class LoopNode extends RegionNode {
         CProjNode f = new CProjNode(iff,1,"False");
         setDef(2,f);
         stop.addDef(new ReturnNode(t,new ConstantNode(TypeInteger.ZERO).peephole(),null));
+        // All Phis are dead also
+        for( int i=0; i<nOuts(); i++ )
+            if( out(i) instanceof PhiNode phi ) {
+                phi.setDef(2,null);
+                i--;
+            }
     }
 }

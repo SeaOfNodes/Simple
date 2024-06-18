@@ -163,11 +163,11 @@ public abstract class Node implements OutNode {
         // the new_def might get killed if the old node kills it recursively.
         if( new_def != null )
             new_def.addUse(this);
+        // Set the new_def over the old (killed) edge
+        _inputs.set(idx,new_def);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
-        // Set the new_def over the old (killed) edge
-        _inputs.set(idx,new_def);
         moveDepsToWorklist();
         // Return self for easy flow-coding
         return new_def;
@@ -540,6 +540,9 @@ public abstract class Node implements OutNode {
 
     /** Return block start from a isCFG() */
     public Node getBlockStart() { return null; }
+
+    /** Pinned in the schedule */
+    public boolean isPinned() { return false; }
 
     // ------------------------------------------------------------------------
     // Peephole utilities

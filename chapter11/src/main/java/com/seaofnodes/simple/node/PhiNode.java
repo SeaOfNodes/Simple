@@ -37,8 +37,8 @@ public class PhiNode extends Node {
 
     CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMultiTail() { return true; }
-    @Override
-    public boolean isMem() { return _declaredType instanceof TypeMem; }
+    @Override public boolean isMem() { return _declaredType instanceof TypeMem; }
+    @Override public boolean isPinned() { return true; }
 
     @Override
     public Type compute() {

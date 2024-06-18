@@ -1,10 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.Utils;
 
 import java.util.BitSet;
 import java.util.HashSet;
+import java.util.HashMap;
 
 /** Control Flow Graph Nodes
  *
@@ -22,6 +24,7 @@ public abstract class CFGNode extends Node {
     public CFGNode(Node... nodes) { super(nodes); }
 
     @Override public boolean isCFG() { return true; }
+    @Override public boolean isPinned() { return true; }
 
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
@@ -29,12 +32,10 @@ public abstract class CFGNode extends Node {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( StopNode stop ) {
-
         fixLoops(stop);
         schedEarly(stop);
         SCHEDULED = true;
-        System.out.println(stop.p(99));
-        //throw Utils.TODO();
+        schedLate(Parser.START);
     }
 
     // Block head is Start, Region, CProj, but not e.g. If, Return, Stop
@@ -64,6 +65,15 @@ public abstract class CFGNode extends Node {
     // Return the immediate dominator of this Node and compute dom tree depth.
     CFGNode idom() { return cfg(0); }
 
+    // Return the LCA of two idoms
+    public static CFGNode idom(CFGNode lhs, CFGNode rhs) {
+        while( lhs != rhs ) {
+            var comp = lhs.idepth() - rhs.idepth();
+            if( comp >= 0 ) lhs = lhs.idom();
+            if( comp <= 0 ) rhs = rhs.idom();
+        }
+        return lhs;
+    }
 
     // ------------------------------------------------------------------------
 
@@ -144,4 +154,68 @@ public abstract class CFGNode extends Node {
                 load.addAntiDeps(); // Loads can now place anti-deps
         }
     }
+
+    // ------------------------------------------------------------------------
+    private static void schedLate(StartNode start) {
+        CFGNode[] late = new CFGNode[Node.UID()];
+        Node[] ns = new Node[Node.UID()];
+        _schedLate(start,ns,late);
+        for( int i=0; i<late.length; i++ )
+            if( ns[i] != null )
+                ns[i].setDef(0,late[i]);
+    }
+
+    // Forwards post-order pass.  Schedule all outputs first, then draw a
+    // idom-tree line from the LCA of uses to the early schedule.  Schedule is
+    // legal anywhere on this line; pick the most control-dependent (largest
+    // idepth) in the shallowest loop nest.
+    private static void _schedLate(Node n, Node[] ns, CFGNode[] late) {
+        if( late[n._nid]!=null ) return; // Been there, done that
+        // These I know the late schedule of, and need to set early for loops
+        if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
+        if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
+        for( Node use : n._outputs )
+            _schedLate(use,ns,late);
+        if( n.isPinned() ) return; // Already implicitly scheduled
+
+        // Walk uses, gathering the LCA (Least Common Ancestor) of uses
+        CFGNode lca = null;
+        for( Node use : n._outputs ) {
+            CFGNode cfg = use_block(n,use, late);
+            assert cfg.blockHead();
+            if( lca == null ) lca = cfg;
+            else lca = idom(lca,cfg);
+        }
+
+        // Walk up from the LCA to the early, looking for best.
+        CFGNode early = ((CFGNode)n.in(0)).idom();
+        CFGNode best = lca;
+        for( ; lca != early; lca = lca.idom() )
+            if( better(lca,best) )
+                best = lca;
+        assert !(best instanceof IfNode);
+        ns  [n._nid] = n;
+        late[n._nid] = best;
+    }
+
+    // Block of use.  Normally from late[] schedule, except for Phis, which go
+    // to the matching Region input.
+    private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
+        if( !(use instanceof PhiNode phi) )
+            return late[use._nid];
+        CFGNode found=null;
+        for( int i=1; i<phi.nIns(); i++ )
+            if( phi.in(i)==n )
+                if( found==null ) found = phi.region().cfg(i);
+                else Utils.TODO(); // Can be more than once
+        assert found!=null;
+        return found;
+    }
+
+    // Least loop depth first, then largest idepth
+    private static boolean better( CFGNode lca, CFGNode best ) {
+        return lca._loop_depth < best._loop_depth ||
+                (lca.idepth() > best.idepth() || best instanceof IfNode);
+    }
+
 }
