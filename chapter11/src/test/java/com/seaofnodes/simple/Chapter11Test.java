@@ -63,4 +63,42 @@ return primeCount;
         assertEquals(4L, Evaluator.evaluate(stop, 10)); // 2, 3, 5, 7
     }
 
+    @Test
+    public void testRegression1() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v = new S;
+S t = new S;
+int i = 0;
+if (arg) {
+    if (arg+1) v = t;
+    i = v.f;
+} else {
+    v.f = 2;
+}
+return i;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Region31,.f,0);", stop.toString());
+    }
+
+    @Test
+    public void testRegression2() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v0 = new S;
+S? v1;
+if (arg) v1 = new S;
+if (v1) {
+    v0.f = v1.f;
+} else {
+    v0.f = 2;
+}
+return v0;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return new S;", stop.toString());
+    }
 }

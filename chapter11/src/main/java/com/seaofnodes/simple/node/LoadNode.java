@@ -62,14 +62,4 @@ public class LoadNode extends MemOpNode {
 
         return null;
     }
-
-    void addAntiDeps() {
-        // Look at users of our Memory Input
-        for (Node n : mem()._outputs)
-            // Store at same alias?
-            if( n instanceof StoreNode st && st._field._alias == _field._alias &&
-                // Add anti-dep once
-                Utils.find(_outputs, st) == -1 )
-                st.addDef(this);
-    }
 }

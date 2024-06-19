@@ -9,13 +9,13 @@ import java.util.HashSet;
 import java.util.HashMap;
 
 /** Control Flow Graph Nodes
- *
+ * <p>
  *  CFG nodes have a immediate dominator depth (idepth) and a loop nesting
  *  depth(loop_depth).
- *
+ * <p>
  *  idepth is computed lazily upon first request, and is valid even in the
- *  Parser, and is used by peepholes during parsing and afterwards.
- *
+ *  Parser, and is used by peepholes during parsing and afterward.
+ * <p>
  *  loop_depth is computed after optimization as part of scheduling.
  *
  */
@@ -150,8 +150,6 @@ public abstract class CFGNode extends Node {
                     early = cfg; // Latest/deepest input
             }
             n.setDef(0,early);  // First place this can go
-            if( n instanceof LoadNode load )
-                load.addAntiDeps(); // Loads can now place anti-deps
         }
     }
 
@@ -165,6 +163,8 @@ public abstract class CFGNode extends Node {
                 ns[i].setDef(0,late[i]);
     }
 
+    private int _anti;          // Per-CFG field to help find anti-deps
+
     // Forwards post-order pass.  Schedule all outputs first, then draw a
     // idom-tree line from the LCA of uses to the early schedule.  Schedule is
     // legal anywhere on this line; pick the most control-dependent (largest
@@ -174,8 +174,21 @@ public abstract class CFGNode extends Node {
         // These I know the late schedule of, and need to set early for loops
         if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
         if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
-        for( Node use : n._outputs )
+
+        for( Node use : n._outputs ) {
+            if( late[use._nid]!=null ) continue; // Been there, done that
+            // Backedges get walked as part of the normal forwards flow
+            if( isBackEdge(use,n) ) continue;
+            // Walk Stores before Loads, so we can get the anti-deps right
+            if( use._type instanceof TypeMem )
+                _schedLate(use,ns,late);
+        }
+        for( Node use : n._outputs ) {
+            if( late[use._nid]!=null ) continue; // Been there, done that
+            // Backedges get walked as part of the normal forwards flow
+            if( isBackEdge(use,n) ) continue;
             _schedLate(use,ns,late);
+        }
         if( n.isPinned() ) return; // Already implicitly scheduled
 
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
@@ -187,10 +200,37 @@ public abstract class CFGNode extends Node {
             else lca = idom(lca,cfg);
         }
 
+        CFGNode early = (CFGNode)n.in(0);
+        // Loads may need anti-dependencies
+        if( n instanceof LoadNode load ) {
+            // We ccould skip final-field loads here.
+            // Walk LCA->early, flagging Load's block location choices
+            for( CFGNode cfg=lca; cfg!=early.idom(); cfg = cfg.idom() )
+                cfg._anti = load._nid;
+            // Walk load->mem uses, looking for Stores causing an anti-dep
+            for( Node mem : load.mem()._outputs ) {
+                switch( mem ) {
+                case StoreNode st:
+                    lca = anti_dep(load,late[st._nid],lca,st);
+                    break;
+                case PhiNode phi:
+                    // Repeat anti-dep for matching Phi inputs.
+                    // No anti-dep edges but may raise the LCA.
+                    for( int i=1; i<phi.nIns(); i++ )
+                        if( phi.in(i)==load.mem() )
+                            lca = anti_dep(load,phi.region().cfg(i),lca,null);
+                    break;
+                case LoadNode ld: break; // Loads do not cause anti-deps on other loads
+                case ReturnNode ret: break; // Load must already be ahead of Return
+                default: throw Utils.TODO();
+                }
+            }
+        }
+
         // Walk up from the LCA to the early, looking for best.
-        CFGNode early = ((CFGNode)n.in(0)).idom();
         CFGNode best = lca;
-        for( ; lca != early; lca = lca.idom() )
+        lca = lca.idom();       // Already found best for starting LCA
+        for( ; lca != early.idom(); lca = lca.idom() )
             if( better(lca,best) )
                 best = lca;
         assert !(best instanceof IfNode);
@@ -218,4 +258,27 @@ public abstract class CFGNode extends Node {
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
+    private static boolean isBackEdge(Node use, Node n) {
+        if( use instanceof LoopNode loop && loop.back()==n )
+            return true;
+        if( use instanceof PhiNode phi && phi.region() instanceof LoopNode && phi.in(2)==n )
+            return true;
+        return false;
+    }
+
+    //
+    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode lca, Node st ) {
+        CFGNode defblk = (CFGNode)load.mem().in(0);
+        // Walk store blocks "reach" from its scheduled location to its earliest
+        for( ; stblk != defblk; stblk = stblk.idom() ) {
+            // Store and Load overlap, need anti-dependence
+            if( stblk._anti==load._nid ) {
+                CFGNode oldlca = lca;
+                lca = idom(lca,stblk); // Raise Loads LCA
+                if( oldlca != lca )    // And if something moved,
+                    st.addDef(load);   // Add anti-dep as well
+            }
+        }
+        return lca;
+    }
 }
