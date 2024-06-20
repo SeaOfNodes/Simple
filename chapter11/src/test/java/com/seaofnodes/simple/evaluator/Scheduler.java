@@ -164,7 +164,7 @@ public class Scheduler {
      * @return true if the node is not XCtrl.
      */
     private static boolean isNotXCtrl(Node node) {
-        return !(node instanceof ConstantNode c && c.compute() == Type.XCONTROL);
+        return !(node instanceof ConstantNode c && c.compute() == Type.XCONTROL) && !(node instanceof XCtrlNode);
     }
 
     /**
@@ -322,6 +322,8 @@ public class Scheduler {
             for(int i=1; i<r.nIns(); i++) {
                 if (od(r.in(i)).map(d->d.block==null).orElse(false)) return false;
             }
+        } else if (node instanceof XCtrlNode) {
+            return false;
         } else {
             assert d(node.in(0)).block != null;
         }
