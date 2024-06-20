@@ -397,7 +397,7 @@ public class Scheduler {
                 }
             }
             if (!(node instanceof ReturnNode))
-                for (Node n:node._outputs) if (n.isCFG() && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
+                for (Node n:node._outputs) if (n!=null && n.isCFG() && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
             var b = block;
             for(var in:data.node._inputs) od(in).ifPresent(d->update(d, b));
         }
@@ -443,7 +443,7 @@ public class Scheduler {
             node = data.node;
             assert node.isCFG();
             if (!(node instanceof ReturnNode)) {
-                for (var out : node._outputs) if (out.isCFG() && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
+                for (var out : node._outputs) if (out!=null && out.isCFG() && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
             }
             for (var in : node._inputs) if(in!=null && !in.isCFG() && isNotXCtrl(in)) markAlive(dataQueue, in, false);
         }

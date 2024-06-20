@@ -24,7 +24,7 @@ else {
 #showGraph;
 return a;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return Phi(Region18,(arg+2),(arg-3));", ret.toString());
+        assertEquals("return Phi(Region20,(arg+2),(arg-3));", ret.toString());
     }
 
     @Test
@@ -39,7 +39,7 @@ if (arg == 1) {
 }
 return c;""", TypeInteger.BOT);
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return Phi(Region16,4,3);", ret.toString());
+        assertEquals("return Phi(Region18,4,3);", ret.toString());
     }
 
     @Test
@@ -67,7 +67,7 @@ else
     b=a+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((arg*2)+Phi(Region21,2,3));", ret.toString());
+        assertEquals("return ((arg*2)+Phi(Region23,2,3));", ret.toString());
     }
 
     @Test
@@ -82,7 +82,7 @@ else
     a=b+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((Phi(Region32,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
+        assertEquals("return ((Phi(Region34,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
     }
 
     @Test
@@ -102,7 +102,7 @@ else
 return a;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region36,Phi(Region22,2,3),Phi(Region34,4,5));", stop.toString());
+        assertEquals("return Phi(Region38,Phi(Region24,2,3),Phi(Region36,4,5));", stop.toString());
     }
 
     @Test
@@ -118,7 +118,7 @@ if( arg==0 )
 return arg+a+b;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
-        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region28,2,0));", stop.toString());
+        assertEquals("return ((arg+Phi(Region15,1,0))+Phi(Region30,2,0));", stop.toString());
     }
 
     @Test
@@ -132,7 +132,7 @@ if( arg==1 )
 }
 return a;""");
         StopNode ret = parser.parse().iterate();
-        assertEquals("return (arg==Phi(Region16,3,2));", ret.toString());
+        assertEquals("return (arg==Phi(Region18,3,2));", ret.toString());
     }
 
     @Test

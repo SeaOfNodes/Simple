@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ public class RegionNode extends CFGNode {
                         IterPeeps.addAll(phi._outputs);
                     }
             }
-            return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
+            return isDead() ? Parser.XCTRL : delDef(path);
         }
         // If down to a single input, become that input
         if( nIns()==2 && !hasPhi() )

@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.Utils;
 import java.util.BitSet;
 import java.util.HashSet;
 
@@ -68,7 +69,7 @@ public class LoopNode extends RegionNode {
         CProjNode t = new CProjNode(iff,0,"True" );
         CProjNode f = new CProjNode(iff,1,"False");
         setDef(2,f);
-        stop.addDef(new ReturnNode(t,new ConstantNode(TypeInteger.ZERO).peephole(),null));
+        stop.addDef(new ReturnNode(t,Parser.ZERO,null));
         // All Phis are dead also
         for( int i=0; i<nOuts(); i++ )
             if( out(i) instanceof PhiNode phi ) {

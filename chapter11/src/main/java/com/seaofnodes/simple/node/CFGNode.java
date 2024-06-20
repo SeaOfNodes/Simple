@@ -98,6 +98,7 @@ public abstract class CFGNode extends Node {
         // Backwards walk from Stop, looking for unreachable code
         BitSet visit = new BitSet();
         HashSet<CFGNode> unreach = new HashSet<>();
+        unreach.add(Parser.START);
         for( Node ret : stop._inputs )
             ((ReturnNode)ret).walkUnreach(visit,unreach);
         if( unreach.isEmpty() ) return;
@@ -137,7 +138,7 @@ public abstract class CFGNode extends Node {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
         for( Node def : n._inputs )
-            if( def != null )
+            if( def != null && !isBackEdge(n,def) )
                 _schedEarly(def,visit);
         // If not-pinned (e.g. constants, projections) and not-CFG
         if( !n.isCFG() && n.in(0)==null ) {
@@ -181,6 +182,7 @@ public abstract class CFGNode extends Node {
         if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
 
         for( Node use : n._outputs ) {
+            if( use==null ) continue;            // Pinned constant
             if( late[use._nid]!=null ) continue; // Been there, done that
             // Backedges get walked as part of the normal forwards flow
             if( isBackEdge(use,n) ) continue;
@@ -189,6 +191,7 @@ public abstract class CFGNode extends Node {
                 _schedLate(use,ns,late);
         }
         for( Node use : n._outputs ) {
+            if( use==null ) continue;            // Pinned constant
             if( late[use._nid]!=null ) continue; // Been there, done that
             // Backedges get walked as part of the normal forwards flow
             if( isBackEdge(use,n) ) continue;
@@ -199,6 +202,7 @@ public abstract class CFGNode extends Node {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
         CFGNode lca = null;
         for( Node use : n._outputs ) {
+            if( use==null ) return; // Some constants are "keep" for entire program; pre-pinned to program start
             CFGNode cfg = use_block(n,use, late);
             assert cfg.blockHead();
             if( lca == null ) lca = cfg;
@@ -210,7 +214,7 @@ public abstract class CFGNode extends Node {
         if( n instanceof LoadNode load ) {
             // We ccould skip final-field loads here.
             // Walk LCA->early, flagging Load's block location choices
-            for( CFGNode cfg=lca; cfg!=early.idom(); cfg = cfg.idom() )
+            for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
                 cfg._anti = load._nid;
             // Walk load->mem uses, looking for Stores causing an anti-dep
             for( Node mem : load.mem()._outputs ) {
@@ -234,11 +238,16 @@ public abstract class CFGNode extends Node {
 
         // Walk up from the LCA to the early, looking for best.
         CFGNode best = lca;
-        lca = lca.idom();       // Already found best for starting LCA
-        for( ; lca != early.idom(); lca = lca.idom() )
-            if( better(lca,best) )
-                best = lca;
-        assert !(best instanceof IfNode);
+        if( early==null ) {
+            if( !lca.blockHead() )
+                best = lca.cfg(0);
+        } else {
+            lca = lca.idom();       // Already found best for starting LCA
+            for( ; early!=null && lca != early.idom(); lca = lca.idom() )
+                if( better(lca,best) )
+                    best = lca;
+            assert !(best instanceof IfNode);
+        }
         ns  [n._nid] = n;
         late[n._nid] = best;
     }

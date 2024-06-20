@@ -208,7 +208,7 @@ public class IRPrinter {
             sb.append("%-13.13s".formatted(label(blk)+":"));
             sb.append( "     ".repeat(4) ).append(" [[  ");
             if( blk instanceof RegionNode || blk instanceof StopNode )
-                for( int i=1; i<blk.nIns(); i++ )
+                for( int i=(blk instanceof StopNode ? 0 : 1); i<blk.nIns(); i++ )
                     label(sb,blk.cfg(i));
             else if( !(blk instanceof StartNode) )
                 label(sb,blk.cfg(0));

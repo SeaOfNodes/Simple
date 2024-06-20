@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
@@ -18,7 +19,7 @@ public class SubNode extends Node {
         in(2)._print0(sb.append("-"), visited);
         return sb.append(")");
     }
-  
+
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
@@ -33,7 +34,7 @@ public class SubNode extends Node {
     public Node idealize() {
         // Sub of same is 0
         if( in(1)==in(2) )
-            return new ConstantNode(TypeInteger.constant(0));
+            return Parser.ZERO;
 
         return null;
     }

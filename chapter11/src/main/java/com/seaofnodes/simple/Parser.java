@@ -23,6 +23,9 @@ public class Parser {
      */
     public static StartNode START;
 
+    public static ConstantNode ZERO;
+    public static XCtrlNode XCTRL;
+
     public StopNode STOP;
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
@@ -82,6 +85,8 @@ public class Parser {
         _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         STOP = new StopNode(source);
+        ZERO = new ConstantNode(TypeInteger.constant(0)).peephole().keep();
+        XCTRL= new XCtrlNode().peephole().keep();
     }
 
     public Parser(String source) {
@@ -108,6 +113,8 @@ public class Parser {
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
+        if( ctrl()._type==Type.CONTROL )
+            STOP.addReturn(new ReturnNode(ctrl(), new ConstantNode(TypeInteger.constant(0)).peephole(), _scope).peephole());
         _scope.pop();
         _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
@@ -282,7 +289,7 @@ public class Parser {
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
+        ctrl(XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
         while( cur._scopes.size() > _breakScope._scopes.size() )
@@ -365,7 +372,7 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        ctrl(XCTRL);            // Kill control
         return ret;
     }
 
@@ -567,7 +574,7 @@ public class Parser {
         if( _lexer.isNumber() ) return parseIntegerLiteral();
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
-        if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
+        if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
@@ -587,10 +594,8 @@ public class Parser {
      */
     private Node newStruct(TypeStruct obj) {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
-        Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
-        for (Field field: obj._fields) {
-            memAlias(field, new StoreNode(field, memAlias(field), n, initValue).peephole());
-        }
+        for( Field field: obj._fields )
+            memAlias(field, new StoreNode(field, memAlias(field), n, ZERO).peephole());
         return n.unkeep();
     }
 
