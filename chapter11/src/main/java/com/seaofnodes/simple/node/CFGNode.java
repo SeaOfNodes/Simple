@@ -77,19 +77,17 @@ public abstract class CFGNode extends Node {
 
     // ------------------------------------------------------------------------
 
-    // Loop nesting depth
-    public int _loop_depth;
     // Tik-tok recursion pattern.  This method is final, and every caller does
     // this work.
-    final int walkUnreach( HashSet<CFGNode> unreach ) {
-        if( _loop_depth != 0 ) return _loop_depth;
-        _loop_depth = _walkUnreach(unreach);
+    final void walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
+        if( visit.get(_nid) ) return;
+        visit.set(_nid);
+        _walkUnreach(visit,unreach);
         unreach.remove(this);   // Since we reached here... Node was not unreachable
-        return _loop_depth;
     }
     // Tik-tok recursion pattern; not-final; callers override this.
-    int _walkUnreach( HashSet<CFGNode> unreach ) {
-        return cfg(0).walkUnreach(unreach);
+    void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
+        cfg(0).walkUnreach(visit,unreach);
     }
 
     // ------------------------------------------------------------------------
@@ -98,26 +96,27 @@ public abstract class CFGNode extends Node {
     // loop becomes reachable.  Also, set loop nesting depth
     private static void fixLoops(StopNode stop) {
         // Backwards walk from Stop, looking for unreachable code
+        BitSet visit = new BitSet();
         HashSet<CFGNode> unreach = new HashSet<>();
         for( Node ret : stop._inputs )
-            ((ReturnNode)ret).walkUnreach(unreach);
+            ((ReturnNode)ret).walkUnreach(visit,unreach);
         if( unreach.isEmpty() ) return;
 
         // Forwards walk from unreachable, looking for loops with no exit test.
-        BitSet visit = new BitSet();
+        visit.clear();
         for( CFGNode cfg : unreach )
             cfg.walkInfinite(visit,stop);
         // Set loop depth on remaining graph
         unreach.clear();
+        visit.clear();
         for( Node ret : stop._inputs )
-            ((ReturnNode)ret).walkUnreach(unreach);
+            ((ReturnNode)ret).walkUnreach(visit,unreach);
         assert unreach.isEmpty();
     }
 
     // Forwards walk over previously unreachable, looking for loops with no
     // exit test.
     private void walkInfinite( BitSet visit, StopNode stop ) {
-        assert _loop_depth==0;
         if( visit.get(_nid) ) return; // Been there, done that
         visit.set(_nid);
         if( this instanceof LoopNode loop )
@@ -151,7 +150,13 @@ public abstract class CFGNode extends Node {
             }
             n.setDef(0,early);  // First place this can go
         }
+        if( n instanceof CFGNode cfg )
+            cfg.loopDepth();
     }
+
+    // Loop nesting depth
+    public int _loopDepth;
+    int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(0).loopDepth()) : _loopDepth; }
 
     // ------------------------------------------------------------------------
     private static void schedLate(StartNode start) {
@@ -254,7 +259,7 @@ public abstract class CFGNode extends Node {
 
     // Least loop depth first, then largest idepth
     private static boolean better( CFGNode lca, CFGNode best ) {
-        return lca._loop_depth < best._loop_depth ||
+        return lca._loopDepth < best._loopDepth ||
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
@@ -275,7 +280,7 @@ public abstract class CFGNode extends Node {
             if( stblk._anti==load._nid ) {
                 CFGNode oldlca = lca;
                 lca = idom(lca,stblk); // Raise Loads LCA
-                if( oldlca != lca )    // And if something moved,
+                if( oldlca != lca && st != null ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
             }
         }

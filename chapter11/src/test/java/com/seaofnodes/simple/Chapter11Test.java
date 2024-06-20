@@ -64,7 +64,25 @@ return primeCount;
     }
 
     @Test
-    public void testRegression1() {
+    public void testAntiDeps1() {
+        Parser parser = new Parser(
+"""
+struct S {
+    int f;
+}
+S v=new S;
+v.f = 2;
+int i=new S.f;
+i=v.f;
+if (arg) v.f=1;
+return i;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return .f;", stop.toString());
+    }
+
+    @Test
+    public void testAntiDeps2() {
         Parser parser = new Parser(
 """
 struct S { int f; }
@@ -84,7 +102,7 @@ return i;
     }
 
     @Test
-    public void testRegression2() {
+    public void testAntiDeps3() {
         Parser parser = new Parser(
 """
 struct S { int f; }
@@ -97,6 +115,40 @@ if (v1) {
     v0.f = 2;
 }
 return v0;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return new S;", stop.toString());
+    }
+
+
+    @Test
+    public void testAntiDeps4() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v = new S;
+S t = new S;
+int i = v.f;
+if (arg+1) arg= 0;
+while (arg) v.f = 2;
+return i;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return .f;", stop.toString());
+    }
+
+    @Test
+    public void testAntiDeps5() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v = new S;
+while(1) {
+    while(arg+1) { arg=arg-1; }
+    if (arg) break;
+    v.f = 2;
+}
+return v;
 """);
         StopNode stop = parser.parse(false).iterate(true);
         assertEquals("return new S;", stop.toString());

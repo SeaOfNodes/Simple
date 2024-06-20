@@ -96,12 +96,12 @@ public class RegionNode extends CFGNode {
         return idom(cfg(1),cfg(2));
     }
 
-    @Override int _walkUnreach( HashSet<CFGNode> unreach ) {
-        int d = 0;
+    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
         for( int i=1; i<nIns(); i++ )
-            d = Math.max(d,cfg(i).walkUnreach(unreach));
-        return d;
+            cfg(i).walkUnreach(visit,unreach);
     }
+
+    @Override int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
 
     // True if last input is null
     public final boolean inProgress() {

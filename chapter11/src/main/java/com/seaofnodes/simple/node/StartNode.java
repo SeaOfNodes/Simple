@@ -69,7 +69,9 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public int idepth() { return 0; }
     @Override CFGNode idom() { return null; }
 
-    @Override int _walkUnreach( HashSet<CFGNode> unreach ) { return 1; }
+    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) { }
+
+    @Override int loopDepth() { return (_loopDepth=1); }
 
     @Override public Node getBlockStart() { return this; }
 }
