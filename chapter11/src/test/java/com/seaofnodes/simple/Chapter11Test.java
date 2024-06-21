@@ -338,9 +338,7 @@ return primeCount;
     public void testAntiDeps1() {
         Parser parser = new Parser(
 """
-struct S {
-    int f;
-}
+struct S { int f; }
 S v=new S;
 v.f = 2;
 int i=new S.f;

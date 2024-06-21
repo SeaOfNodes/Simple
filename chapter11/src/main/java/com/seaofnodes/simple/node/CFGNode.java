@@ -212,7 +212,7 @@ public abstract class CFGNode extends Node {
         CFGNode early = (CFGNode)n.in(0);
         // Loads may need anti-dependencies
         if( n instanceof LoadNode load ) {
-            // We ccould skip final-field loads here.
+            // We could skip final-field loads here.
             // Walk LCA->early, flagging Load's block location choices
             for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
                 cfg._anti = load._nid;
@@ -243,7 +243,7 @@ public abstract class CFGNode extends Node {
                 best = lca.cfg(0);
         } else {
             lca = lca.idom();       // Already found best for starting LCA
-            for( ; early!=null && lca != early.idom(); lca = lca.idom() )
+            for( ; lca != early.idom(); lca = lca.idom() )
                 if( better(lca,best) )
                     best = lca;
             assert !(best instanceof IfNode);
