@@ -19,7 +19,7 @@ Following are revised or new nodes
 |-----------|----------------|------------------------------------------------|-----------------------|----------------------------------------------------------------------------|
 | MultiNode | Abstract class | A node that has a tuple result                 |                       | A tuple                                                                    |
 | Start     | Control        | Start of function, now a MultiNode             |                       | A tuple with a ctrl token and an `arg` data node                           |
-| Proj      | Data           | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     | 
+| Proj      | Data           | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     |
 | Bool      | Data           | Represents results of a comparison operator    | Two data nodes        | Result is a comparison, represented as integer value where 1=true, 0=false |
 | Not       | Data           | Logical not                                    | One data node         | Result converts 0 to 1 and vice versa                                      |
 
@@ -51,7 +51,7 @@ Start node.
 
 ## Changes to Type System
 
-In [Chapter 2](../chapter02/README.md) we introduced the Type System. 
+In [Chapter 2](../chapter02/README.md) we introduced the Type System.
 
 We annotate Nodes with Types.
 
@@ -128,7 +128,7 @@ clutter and help draw reader's attention to the more important aspects of the gr
 
 ## More Peephole Optimizations
 
-Now that we have non-constant integer values, we do additional optimizations, rearranging algebraic 
+Now that we have non-constant integer values, we do additional optimizations, rearranging algebraic
 expressions to enable constant folding. For example:
 
 ```
@@ -162,9 +162,9 @@ Here is a (partial) list of peepholes introduced in this Chapter:
 | ((arg1 + con) + arg2) | ((arg1 + arg2) + con) | Move constants to right, to encourage folding  |
 | (arg + arg)           | (arg * 2)             | Sum-of-products form                           |
 
-## Code Walkthrough 
+## Code Walkthrough
 
-The peephole optimizations introduced in this chapter are local. They are triggered during parsing 
+The peephole optimizations introduced in this chapter are local. They are triggered during parsing
 as new nodes are created, before the newly created node has any uses.
 
 For example, when we parse a unary expression, and create a Node for the parsed expression,
@@ -199,7 +199,7 @@ by all subclasses of `Node`.
 public final Node peephole( ) {
     // Compute initial or improved Type
     Type type = _type = compute();
-    
+
     // Replace constant computations from non-constants with a constant node
     if (!(this instanceof ConstantNode) && type.isConstant())
         return deadCodeElim(new ConstantNode(type).peephole());
@@ -209,7 +209,7 @@ public final Node peephole( ) {
     if( n != null )         // Something changed
         // Recursively optimize
         return deadCodeElim(n.peephole());
-    
+
     return this;            // No progress
 }
 ```

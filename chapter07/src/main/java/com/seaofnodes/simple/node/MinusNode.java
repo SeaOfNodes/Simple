@@ -9,15 +9,15 @@ public class MinusNode extends Node {
     public MinusNode(Node in) { super(null, in); }
 
     @Override public String label() { return "Minus"; }
-  
+
     @Override public String glabel() { return "-"; }
-  
+
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("(-"), visited);
         return sb.append(")");
     }
-  
+
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0)

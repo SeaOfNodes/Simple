@@ -7,7 +7,7 @@ import java.util.HashMap;
 /**
  * These types are part of a Monotone Analysis Framework,
  * @see <a href="https://www.cse.psu.edu/~gxt29/teaching/cse597s21/slides/08monotoneFramework.pdf">see for example this set of slides</a>.
- * <p> 
+ * <p>
  * The types form a lattice; @see <a href="https://en.wikipedia.org/wiki/Lattice_(order)">a symmetric complete bounded (ranked) lattice.</a>
  * <p>
  * This wild lattice theory will be needed later to allow us to easily beef up
@@ -18,7 +18,7 @@ import java.util.HashMap;
  * actual implementation is darn near trivial and is generally really obvious
  * what we're doing with it.  Right now, it's just simple integer math to do
  * simple constant folding e.g. 1+2 == 3 stuff.
- */    
+ */
 
 public class Type {
     static final HashMap<Type,Type> INTERN = new HashMap<>();
@@ -59,11 +59,11 @@ public class Type {
     // Factory method which interns "this"
     protected <T extends Type> T intern() {
         T nnn = (T)INTERN.get(this);
-        if( nnn==null ) 
+        if( nnn==null )
             INTERN.put(nnn=(T)this,this);
         return nnn;
     }
-    
+
     private int _hash;          // Hash cache; not-zero when set.
     @Override
     public final int hashCode() {
@@ -74,7 +74,7 @@ public class Type {
     }
     // Override in subclasses
     int hash() { return _type; }
-    
+
     @Override
     public final boolean equals( Object o ) {
         if( o==this ) return true;
@@ -84,8 +84,8 @@ public class Type {
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
     boolean eq(Type t) { return true; }
-    
-    
+
+
     // ----------------------------------------------------------
     public final Type meet(Type t) {
         // Shortcut for the self case
@@ -114,7 +114,7 @@ public class Type {
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
-    
+
     // ----------------------------------------------------------
     // Our lattice is defined with a MEET and a DUAL.
     // JOIN is dual of meet of both duals.
@@ -132,7 +132,7 @@ public class Type {
         default -> throw Utils.TODO(); // Should not reach here
         };
     }
-    
+
     // ----------------------------------------------------------
     @Override
     public final String toString() {

@@ -14,7 +14,7 @@ import java.util.*;
  */
 public class Parser {
 
-  
+
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -56,12 +56,12 @@ public class Parser {
 
     @Override
     public String toString() { return _lexer.toString(); }
-  
+
     String src() { return new String( _lexer._input ); }
 
     // Debugging utility to find a Node by index
     public static Node find(int nid) { return START.find(nid); }
-    
+
     private Node ctrl() { return _scope.ctrl(); }
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
@@ -395,7 +395,7 @@ public class Parser {
             skipWhiteSpace();
             return peek()==ch;
         }
-        
+
         // Return an identifier or null
         String matchId() {
             skipWhiteSpace();
@@ -422,7 +422,7 @@ public class Parser {
             return TypeInteger.constant(Long.parseLong(snum));
         }
 
-        // First letter of an identifier 
+        // First letter of an identifier
         private boolean isIdStart(char ch) {
             return Character.isAlphabetic(ch) || ch == '_';
         }
@@ -438,7 +438,7 @@ public class Parser {
             return new String(_input, start, --_position - start);
         }
 
-        // 
+        //
         private boolean isPunctuation(char ch) {
             return "=;[]<>()+-/*".indexOf(ch) != -1;
         }

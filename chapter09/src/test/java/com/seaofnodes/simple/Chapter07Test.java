@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 
 public class Chapter07Test {
 
-        
+
     @Test
     public void testExample() {
         Parser parser = new Parser(
@@ -44,7 +44,7 @@ return a;
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Region22,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
     }
-  
+
     @Test
     public void testWhileNested() {
         Parser parser = new Parser(
@@ -242,4 +242,3 @@ return a;
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
 }
-        

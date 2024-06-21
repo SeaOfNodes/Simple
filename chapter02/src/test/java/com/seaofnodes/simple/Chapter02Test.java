@@ -73,7 +73,7 @@ public class Chapter02Test {
         Parser parser = new Parser("return 1;");
         ReturnNode ret = parser.parse();
         StartNode start = Parser.START;
-        
+
         assertEquals(start, ret.ctrl());
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
@@ -96,7 +96,7 @@ public class Chapter02Test {
 
     @Test
     public void testBad1() {
-        try { 
+        try {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -106,7 +106,7 @@ public class Chapter02Test {
 
     @Test
     public void testBad2() {
-        try { 
+        try {
             new Parser("return 0123;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -122,7 +122,7 @@ public class Chapter02Test {
 
     @Test
     public void testBad4() {
-        try { 
+        try {
             new Parser("return 100").parse();
             fail();
         } catch( RuntimeException e ) {

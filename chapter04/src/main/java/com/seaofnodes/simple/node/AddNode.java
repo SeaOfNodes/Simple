@@ -6,7 +6,7 @@ public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Add"; }
-    
+
     @Override public String glabel() { return "+"; }
 
     @Override
@@ -15,7 +15,7 @@ public class AddNode extends Node {
         in(2)._print0(sb.append("+"));
         return sb.append(")");
     }
-  
+
 
     @Override
     public Type compute() {
@@ -42,13 +42,13 @@ public class AddNode extends Node {
         // canonicalize to (x+0)
         if( t2 instanceof TypeInteger i && i.value()==0 )
             return lhs;
-              
+
         // Add of same to a multiply by 2
         if( lhs==rhs )
             return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)).peephole());
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
-        
+
         // Move non-adds to RHS
         if( !(lhs instanceof AddNode) && rhs instanceof AddNode )
             return swap12();
@@ -66,19 +66,19 @@ public class AddNode extends Node {
             return spline_cmp(lhs,rhs) ? swap12() : null;
 
         // Now we only see (add add non)
-        
+
         // Do we have (x + con1) + con2?
         // Replace with (x + (con1+con2) which then fold the constants
         if( lhs.in(2)._type.isConstant() && t2.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
         // Now we sort along the spline via rotates, to gather similar things together.
-        
+
         // Do we rotate (x + y) + z
         // into         (x + z) + y ?
         if( spline_cmp(lhs.in(2),rhs) )
             return new AddNode(new AddNode(lhs.in(1),rhs).peephole(),lhs.in(2));
-        
+
         return null;
     }
 
@@ -94,5 +94,5 @@ public class AddNode extends Node {
         // Same category of "others"
         return lo._nid > hi._nid;
     }
-        
+
 }

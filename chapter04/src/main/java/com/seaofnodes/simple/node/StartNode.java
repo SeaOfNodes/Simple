@@ -13,7 +13,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 public class StartNode extends MultiNode {
 
     final TypeTuple _args;
-    
+
     public StartNode(Type[] args) {
         super();
         _args = new TypeTuple(args);

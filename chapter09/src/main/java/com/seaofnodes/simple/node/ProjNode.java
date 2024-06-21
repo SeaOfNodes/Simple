@@ -12,7 +12,7 @@ public class ProjNode extends Node {
 
     // Debugging label
     public final String _label;
-    
+
     public ProjNode(MultiNode ctrl, int idx, String label) {
         super(ctrl);
         _idx = idx;

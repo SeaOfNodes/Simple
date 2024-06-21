@@ -9,7 +9,7 @@ import org.junit.Ignore;
 import static org.junit.Assert.*;
 
 public class Chapter02Test {
-    
+
     @Test
     public void testParseGrammar() {
         Parser parser = new Parser("return 1+2*3+-5;");
@@ -64,10 +64,10 @@ public class Chapter02Test {
         GraphVisualizer gv = new GraphVisualizer();
         System.out.println(gv.generateDotOutput(parser));
     }
-    
+
     @Test
     public void testBad1() {
-        try { 
+        try {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -82,7 +82,7 @@ public class Chapter02Test {
 
     @Test
     public void testBad4() {
-        try { 
+        try {
             new Parser("return 100").parse();
             fail();
         } catch( RuntimeException e ) {

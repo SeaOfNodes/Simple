@@ -21,7 +21,7 @@ public class GraphVisualizer {
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
-        
+
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
         // different subgraph cluster.  THEN we can draw edges between the
@@ -35,10 +35,10 @@ public class GraphVisualizer {
         // Merge multiple edges hitting the same node.  Makes common shared
         // nodes much prettier to look at.
         sb.append("\tconcentrate=\"true\";\n");
-        
+
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
-        
+
         // Now the scopes, in a cluster no edges
         scopes(sb, parser._scope);
 
@@ -47,7 +47,7 @@ public class GraphVisualizer {
 
         // Walk the Scope edges
         scopeEdges(sb, parser._scope);
-        
+
         sb.append("}\n");
         return sb.toString();
     }
@@ -124,7 +124,7 @@ public class GraphVisualizer {
             }
         }
     }
-    
+
     // Walk the scope edges
     private void scopeEdges( StringBuilder sb, ScopeNode scopenode ) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
@@ -144,7 +144,7 @@ public class GraphVisualizer {
             level++;
         }
     }
-    
+
     /**
      * Finds all nodes in the graph.
      */

@@ -30,7 +30,7 @@ public class StopNode extends Node {
     public ReturnNode ret() {
         return nIns()==1 ? (ReturnNode)in(0) : null;
     }
-    
+
     @Override
     public Type compute() {
         return Type.BOTTOM;

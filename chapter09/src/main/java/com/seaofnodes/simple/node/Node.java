@@ -49,7 +49,7 @@ public abstract class Node {
      */
     public Type _type;
 
-    
+
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM during
      * parsing where we do not have the whole program, and also peepholes
@@ -58,7 +58,7 @@ public abstract class Node {
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     int _idepth;
-    
+
     /**
      * A private Global Static mutable counter, for unique node id generation.
      * To make the compiler multithreaded, this field will have to move into a TLS.
@@ -88,9 +88,9 @@ public abstract class Node {
 
 
     // ------------------------------------------------------------------------
-    
+
     // Debugger Printing.
-    
+
     // {@code toString} is what you get in the debugger.  It has to print 1
     // line (because this is what a debugger typically displays by default) and
     // has to be robust with broken graph/nodes.
@@ -104,7 +104,7 @@ public abstract class Node {
     public final String print() {
         return _print0(new StringBuilder(), new BitSet()).toString();
     }
-    
+
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     final StringBuilder _print0(StringBuilder sb, BitSet visited) {
@@ -144,13 +144,13 @@ public abstract class Node {
     }
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
-    
+
     public boolean isMultiHead() { return false; }
     public boolean isMultiTail() { return false; }
-    
+
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
-    
+
     /**
      * Gets the ith input node
      * @param i Offset of the input node
@@ -166,19 +166,19 @@ public abstract class Node {
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
-  
+
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
      * the corresponding <em>use->def</em> edge.  This may make the original
      * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
      * <p>
-     
+
      * This method is the normal path for altering a Node, because it does the
      * proper default edge maintenance.  It also <em>immediately</em> kills
      * Nodes that lose their last use; at times care must be taken to avoid
      * killing Nodes that are being used without having an output Node.  This
      * definitely happens in the middle of recursive {@link #peephole} calls.
-     *     
+     *
      * @param idx which def to set
      * @param new_def the new definition
      * @return new_def for flow coding
@@ -200,7 +200,7 @@ public abstract class Node {
         // Return self for easy flow-coding
         return new_def;
     }
-  
+
     // Remove the numbered input, compressing the inputs in-place.  This
     // shuffles the order deterministically - which is suitable for Region and
     // Phi, but not for every Node.  If the def goes dead, it is recursively
@@ -255,7 +255,7 @@ public abstract class Node {
                 old_def.kill();        // Kill old def
         }
     }
-  
+
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
      * to null.  This may recursively kill more Nodes, and is basically dead
@@ -298,10 +298,10 @@ public abstract class Node {
         }
         kill();
     }
-    
+
     // ------------------------------------------------------------------------
     // Graph-based optimizations
-    
+
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -390,7 +390,7 @@ public abstract class Node {
         }
         return m;
     }
-  
+
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
@@ -421,7 +421,7 @@ public abstract class Node {
         return old;
     }
 
-    
+
     /**
      * This function rewrites the current Node into a more "idealized" form.
      * This is the bulk of our peephole rewrite rules, and we use this to
@@ -500,8 +500,8 @@ public abstract class Node {
         IterPeeps.addAll(_deps);
         _deps.clear();
     }
-    
-    
+
+
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.
     public static final HashMap<Node,Node> GVN = new HashMap<>();
@@ -539,7 +539,7 @@ public abstract class Node {
         _hash=0;                // Out of table now
     }
 
-    
+
     // Hash of opcode and inputs
     @Override public final int hashCode() {
         if( _hash != 0 ) return _hash;
@@ -552,11 +552,11 @@ public abstract class Node {
     }
     // Subclasses add extra hash info (such as ConstantNodes constant)
     int hash() { return 0; }
-    
-    
+
+
     // ------------------------------------------------------------------------
     // Peephole utilities
-    
+
     // Swap inputs without letting either input go dead during the swap.
     Node swap12() {
         unlock();               // Hash is order dependent
@@ -619,7 +619,7 @@ public abstract class Node {
         WVISIT.clear();
         return rez;
     }
-    
+
     private <E> E _walk( Function<Node,E> pred ) {
         if( WVISIT.get(_nid) ) return null; // Been there, done that
         WVISIT.set(_nid);
@@ -629,7 +629,7 @@ public abstract class Node {
         for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
         return null;
     }
-    
+
     /**
      * Debugging utility to find a Node by index
      */

@@ -7,15 +7,15 @@ public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
 
     @Override public String label() { return "Not"; }
-  
+
     @Override public String glabel() { return "!"; }
-  
+
     @Override
     StringBuilder _print1(StringBuilder sb) {
         in(1)._print0(sb.append("(!"));
         return sb.append(")");
     }
-  
+
     @Override
     public Type compute() {
         if( in(1)._type instanceof TypeInteger i0 )

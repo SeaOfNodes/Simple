@@ -74,9 +74,9 @@ public abstract class Node {
 
 
     // ------------------------------------------------------------------------
-    
+
     // Debugger Printing.
-    
+
     // {@code toString} is what you get in the debugger.  It has to print 1
     // line (because this is what a debugger typically displays by default) and
     // has to be robust with broken graph/nodes.
@@ -103,7 +103,7 @@ public abstract class Node {
     // Every Node implements this.
     abstract StringBuilder _print1(StringBuilder sb);
 
-    
+
     /**
      * Gets the ith input node
      * @param i Offset of the input node
@@ -120,13 +120,13 @@ public abstract class Node {
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
-  
+
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
      * the corresponding <em>use->def</em> edge.  This may make the original
      * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
-     *     
+     *
      * @param idx which def to set
      * @param new_def the new definition
      * @return new_def for flow coding
@@ -195,7 +195,7 @@ public abstract class Node {
     public final Node peephole( ) {
         // Compute initial or improved Type
         Type type = _type = compute();
-        
+
         if (_disablePeephole)
             return this;        // Peephole optimizations turned off
 
@@ -206,15 +206,15 @@ public abstract class Node {
         }
 
         // Future chapter: Global Value Numbering goes here
-        
+
         // Ask each node for a better replacement
         Node n = idealize();
         if( n != null ) return n;
-        
+
         return this;            // No progress
     }
 
-  
+
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>

@@ -244,7 +244,7 @@ public class Parser {
             return TypeInteger.constant(Long.parseLong(snum));
         }
 
-        // First letter of an identifier 
+        // First letter of an identifier
         private boolean isIdStart(char ch) {
             return Character.isAlphabetic(ch) || ch == '_';
         }
@@ -260,7 +260,7 @@ public class Parser {
             return new String(_input, start, --_position - start);
         }
 
-        // 
+        //
         private boolean isPunctuation(char ch) {
             return "=;[]<>()+-/*".indexOf(ch) != -1;
         }

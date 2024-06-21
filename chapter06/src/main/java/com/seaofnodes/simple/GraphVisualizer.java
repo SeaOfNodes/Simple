@@ -21,7 +21,7 @@ public class GraphVisualizer {
         sb.append("/*\n");
         sb.append(parser.src());
         sb.append("\n*/\n");
-        
+
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
         // different subgraph cluster.  THEN we can draw edges between the
@@ -35,10 +35,10 @@ public class GraphVisualizer {
         // Merge multiple edges hitting the same node.  Makes common shared
         // nodes much prettier to look at.
         sb.append("\tconcentrate=\"true\";\n");
-        
+
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
-        
+
         // Now the scopes, in a cluster no edges
         for (ScopeNode sn: parser._xScopes)
             scopes(sb, sn);
@@ -49,7 +49,7 @@ public class GraphVisualizer {
         // Walk the Scope edges
         for (ScopeNode sn: parser._xScopes)
             scopeEdges(sb, sn);
-        
+
         sb.append("}\n");
         return sb.toString();
     }
@@ -90,7 +90,7 @@ public class GraphVisualizer {
                 }
                 sb.append("</TR>\n");
                 sb.append("\t\t\t</TABLE>>\n\t\t");
-                
+
             } else {
                 // control nodes have box shape
                 // other nodes are ellipses, i.e. default shape
@@ -102,7 +102,7 @@ public class GraphVisualizer {
             }
             sb.append("];\n");
         }
-        
+
         // Force Region & Phis to line up
         for( Node n : all ) {
             if( n instanceof RegionNode region ) {
@@ -114,7 +114,7 @@ public class GraphVisualizer {
                 sb.append("}\n");
             }
         }
-        
+
         sb.append("\t}\n");     // End Node cluster
     }
 
@@ -179,7 +179,7 @@ public class GraphVisualizer {
             }
         }
     }
-    
+
     // Walk the scope edges
     private void scopeEdges( StringBuilder sb, ScopeNode scopenode ) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
@@ -202,7 +202,7 @@ public class GraphVisualizer {
             level++;
         }
     }
-    
+
     /**
      * Finds all nodes in the graph.
      */

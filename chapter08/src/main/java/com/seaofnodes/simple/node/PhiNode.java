@@ -7,7 +7,7 @@ import java.util.BitSet;
 public class PhiNode extends Node {
 
     final String _label;
-    
+
     public PhiNode(String label, Node... inputs) { super(inputs); _label = label; }
 
     @Override public String label() { return "Phi_"+_label; }
@@ -35,7 +35,7 @@ public class PhiNode extends Node {
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
-            return Type.BOTTOM;            
+            return Type.BOTTOM;
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             t = t.meet(in(i)._type);
@@ -53,7 +53,7 @@ public class PhiNode extends Node {
             return live;
 
         // Pull "down" a common data op.  One less op in the world.  One more
-        // Phi, but Phis do not make code.        
+        // Phi, but Phis do not make code.
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);

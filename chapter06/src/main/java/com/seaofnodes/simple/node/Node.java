@@ -46,7 +46,7 @@ public abstract class Node {
      */
     public Type _type;
 
-    
+
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM during
      * parsing where we do not have the whole program, and also peepholes
@@ -55,7 +55,7 @@ public abstract class Node {
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     int _idepth;
-    
+
     /**
      * A private Global Static mutable counter, for unique node id generation.
      * To make the compiler multithreaded, this field will have to move into a TLS.
@@ -84,9 +84,9 @@ public abstract class Node {
 
 
     // ------------------------------------------------------------------------
-    
+
     // Debugger Printing.
-    
+
     // {@code toString} is what you get in the debugger.  It has to print 1
     // line (because this is what a debugger typically displays by default) and
     // has to be robust with broken graph/nodes.
@@ -110,7 +110,7 @@ public abstract class Node {
     // Every Node implements this.
     abstract StringBuilder _print1(StringBuilder sb);
 
-    
+
     /**
      * Gets the ith input node
      * @param i Offset of the input node
@@ -127,19 +127,19 @@ public abstract class Node {
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
-  
+
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
      * the corresponding <em>use->def</em> edge.  This may make the original
      * <em>def</em> go dead.  This function is co-recursive with {@link #kill}.
      * <p>
-     
+
      * This method is the normal path for altering a Node, because it does the
      * proper default edge maintenance.  It also <em>immediately</em> kills
      * Nodes that lose their last use; at times care must be taken to avoid
      * killing Nodes that are being used without having an output Node.  This
      * definitely happens in the middle of recursive {@link #peephole} calls.
-     *     
+     *
      * @param idx which def to set
      * @param new_def the new definition
      * @return new_def for flow coding
@@ -160,7 +160,7 @@ public abstract class Node {
         // Return self for easy flow-coding
         return new_def;
     }
-  
+
     // Remove the numbered input, compressing the inputs in-place.  This
     // shuffles the order deterministically - which is suitable for Region and
     // Phi, but not for every Node.
@@ -209,7 +209,7 @@ public abstract class Node {
                 old_def.kill();        // Kill old def
         }
     }
-  
+
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>
      * to null.  This may recursively kill more Nodes and is basically dead
@@ -232,7 +232,7 @@ public abstract class Node {
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
     // ------------------------------------------------------------------------
     // Graph-based optimizations
-    
+
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -257,7 +257,7 @@ public abstract class Node {
     public final Node peephole( ) {
         // Compute initial or improved Type
         Type type = _type = compute();
-        
+
         if (_disablePeephole)
             return this;        // Peephole optimizations turned off
 
@@ -266,13 +266,13 @@ public abstract class Node {
             return deadCodeElim(new ConstantNode(type).peephole());
 
         // Future chapter: Global Value Numbering goes here
-        
+
         // Ask each node for a better replacement
         Node n = idealize();
         if( n != null )         // Something changed
             // Recursively optimize
             return deadCodeElim(n.peephole());
-        
+
         return this;            // No progress
     }
 
@@ -292,7 +292,7 @@ public abstract class Node {
         }
         return m;
     }
-  
+
     /**
      * This function needs to be
      * <a href="https://en.wikipedia.org/wiki/Monotonic_function">Monotonic</a>
@@ -361,7 +361,7 @@ public abstract class Node {
 
     // ------------------------------------------------------------------------
     // Peephole utilities
-    
+
     // Swap inputs without letting either input go dead during the swap.
     Node swap12() {
         Node tmp = in(1);
@@ -369,7 +369,7 @@ public abstract class Node {
         _inputs.set(2,tmp);
         return this;
     }
-    
+
     // does this node contain all constants?
     // Ignores in(0), as is usually control.
     boolean allCons() {

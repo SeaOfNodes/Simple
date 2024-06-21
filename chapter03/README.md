@@ -3,13 +3,13 @@
 In this chapter we extend the language grammar to allow variable declarations. This allows us to write:
 
 ```
-int a=1; 
-int b=2; 
-int c=0; 
-{ 
-  int b=3; 
-  c=a+b; 
-} 
+int a=1;
+int b=2;
+int c=0;
+{
+  int b=3;
+  c=a+b;
+}
 return c;
 ```
 
@@ -45,7 +45,7 @@ We maintain a stack of symbol tables.
 When a new scope is created, we push a new symbol table to the stack, when scope exits, the topmost symbol table is popped
 from the stack.
 
-Declaring a name adds it to the current symbol table. 
+Declaring a name adds it to the current symbol table.
 If a name is assigned to, then its mapping in the most recent symbol table is updated.
 If a name is accessed, its mapping is looked up in the symbol tables. The lookup goes up the stack of symbol tables.
 
@@ -53,7 +53,7 @@ If a name is accessed, its mapping is looked up in the symbol tables. The lookup
 
 We wrap the stack of symbol tables in a `ScopeNode`. When a name binding is added to a symbol table,
 we also make the newly added node an input in the `ScopeNode`. This means that the `ScopeNode` is a user of
-all nodes that define new names. 
+all nodes that define new names.
 
 From an implementation point of view, the symbol table maps names to offsets in the ScopeNode's inputs.
 
@@ -67,13 +67,13 @@ the box. We show the edge from each variable in the symbol table to the defining
 We show the output from following code.
 
 ```
-01      int a=1; 
-02      int b=2; 
-03      int c=0; 
-04      { 
-05        int b=3; 
-07        c=a+b; 
-08      } 
+01      int a=1;
+02      int b=2;
+03      int c=0;
+04      {
+05        int b=3;
+07        c=a+b;
+08      }
 09      return c;
 ```
 
@@ -83,12 +83,12 @@ The variables `a`, `b`, and `c` are registered in this table.
 * On line 5, a variable `b` is declared. `b` is registered in the symbol table at level 1. This then
 hides the variable with the same name on line 2.
 * On line 7, we update the variable `c`. Variable lookup will find it in the symbol table at level 0.
-The node graph is shown below (note that peephole opts are switched off here so that we can 
+The node graph is shown below (note that peephole opts are switched off here so that we can
 see the graph as its initially constructed).
 
 ![Graph1](./docs/03-graph1.svg)
 
-The diagram shows the ScopeNode and the symbol tables in the bottom cluster. 
+The diagram shows the ScopeNode and the symbol tables in the bottom cluster.
 Each table is annotated by its scope level, and shows the variables defined in that scope.
 
 * When we exit the nested scope on line 8, the symbol table at level 1 is popped.
@@ -104,10 +104,10 @@ Once we enable peephole optimizations, the parser is able to reduce all the expr
 constant. This is illustrated nicely below.
 
 ```
-01      int x0=1; 
-02      int y0=2; 
-03      int x1=3; 
-04      int y1=4; 
+01      int x0=1;
+02      int y0=2;
+03      int x1=3;
+04      int y1=4;
 05      return (x0-x1)*(x0-x1) + (y0-y1)*(y0-y1);
 ```
 

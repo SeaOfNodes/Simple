@@ -8,9 +8,9 @@ return 1;
 
 We implement the `return` statement.
 The `return` statement accepts an `expression` as an argument.
-The only `expression` type is an integer literal, as shown in the example above. 
+The only `expression` type is an integer literal, as shown in the example above.
 
-Here is the [complete language grammar](docs/01-grammar.md) for this chapter. 
+Here is the [complete language grammar](docs/01-grammar.md) for this chapter.
 
 To implement this simple language, we introduce a few key components and data structures.
 
@@ -25,7 +25,7 @@ If necessary the reader can consult a standard compiler text book.
 
 ## Architecture
 
-We construct the intermediate Sea of Nodes (SoN) representation directly as we parse the language. There is no Abstract Syntax Tree representation. The reason for this is to demonstrate a key benefit of the SoN IR: 
+We construct the intermediate Sea of Nodes (SoN) representation directly as we parse the language. There is no Abstract Syntax Tree representation. The reason for this is to demonstrate a key benefit of the SoN IR:
 a number of pessimistic peephole optimizations can be performed while parsing a language. This aspect is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
 
 ## Data Structures
@@ -43,7 +43,7 @@ representation follow.
 ### Intermediate Representation as a Graph of Nodes
 
 The intermediate representation is a graph of Node objects. The `Node` class is the base type for objects in the IR graph.
-The `Node` class provides common capabilities that are inherited by all subtypes. 
+The `Node` class provides common capabilities that are inherited by all subtypes.
 Each subtype implements semantics relevant to that subtype.
 
 Each `Node` represents an "instruction" as it may appear in traditional IRs.
@@ -109,8 +109,8 @@ The following control and data nodes appear in this chapter.
 | Return    | Control | Represents the termination of a function      | Predecessor control node, Data node value                        | Return value of the function                          |
 | Constant  | Data    | Represents constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
 
-Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instructions is determined by a scheduling 
-algorithm that depends only on dependencies between nodes (including control dependencies) that are explicit as edges in the graph. This enables a number of optimizations 
+Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instructions is determined by a scheduling
+algorithm that depends only on dependencies between nodes (including control dependencies) that are explicit as edges in the graph. This enables a number of optimizations
 at very little cost (nearly always small constant time) because all dependencies are always available.
 
 ### Unique Node ID
@@ -122,8 +122,8 @@ graph.  We discuss Node equality in [Chapter 9](../chapter09/README.md).
 
 ### Start Node
 
-The Start node represents the start of the function.  For now, we do not have any inputs to Start because our function does not 
-yet accept parameters.  When we add parameters the value of Start will be a tuple, and will require Projections to extract the values. 
+The Start node represents the start of the function.  For now, we do not have any inputs to Start because our function does not
+yet accept parameters.  When we add parameters the value of Start will be a tuple, and will require Projections to extract the values.
 We discuss this in detail in [Chapter 4](../chapter04/README.md).
 
 ### Constant Node
@@ -145,7 +145,7 @@ The Return node has two inputs.  The first input is a control node and the
 second is the data node that supplies the return value.
 
 In this presentation, Return functions as a Stop node, since multiple `return` statements are not possible.
-The Stop node will be introduced in [Chapter 5](../chapter05/README.md) when we implement `if` statements. 
+The Stop node will be introduced in [Chapter 5](../chapter05/README.md) when we implement `if` statements.
 
 The Return's output is the value from the data node.
 

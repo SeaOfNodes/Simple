@@ -6,7 +6,7 @@ public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Add"; }
-    
+
     @Override public String glabel() { return "+"; }
 
     @Override
@@ -15,7 +15,7 @@ public class AddNode extends Node {
         in(2)._print0(sb.append("+"));
         return sb.append(")");
     }
-  
+
 
     @Override
     public Type compute() {
@@ -32,5 +32,5 @@ public class AddNode extends Node {
         // TODO: add of 0
         return null;
     }
-        
+
 }

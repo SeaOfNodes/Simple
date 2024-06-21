@@ -99,7 +99,7 @@ public abstract class IterPeeps {
 
     // Visit ALL nodes and confirm the invariant:
     //   Either you are on the WORK worklist OR running `iter()` makes no progress.
-    
+
     // This invariant ensures that no progress is missed, i.e., when the
     // worklist is empty we have indeed done all that can be done.  To help
     // with debugging, the {@code assert} is broken out in a place where it is easy to

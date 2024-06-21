@@ -31,7 +31,7 @@ public class GraphVisualizer {
         sb.append("/*\n");
         sb.append(stop._src);
         sb.append("\n*/\n");
-        
+
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
         // different subgraph cluster.  THEN we can draw edges between the
@@ -51,7 +51,7 @@ public class GraphVisualizer {
 
         // Just the Nodes first, in a cluster no edges
         nodes(sb, all);
-        
+
         // Now the scopes, in a cluster no edges
         if( xScopes != null )
             for( ScopeNode xscope : xScopes )
@@ -66,7 +66,7 @@ public class GraphVisualizer {
             for( ScopeNode xscope : xScopes )
                 if( !xscope.isDead() )
                     scopeEdges( sb, xscope );
-        
+
         sb.append("}\n");
         return sb.toString();
     }
@@ -200,13 +200,13 @@ public class GraphVisualizer {
                         sb.append(" color=red");
                     // Backedges do not add a ranking constraint
                     if( i==2 && (n instanceof PhiNode || n instanceof LoopNode) )
-                        sb.append(" constraint=false");                        
+                        sb.append(" constraint=false");
                     sb.append("];\n");
                 }
             }
         }
     }
-    
+
     // Walk the scope edges
     private void scopeEdges( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
@@ -233,7 +233,7 @@ public class GraphVisualizer {
             level++;
         }
     }
-    
+
     /**
      * Finds all nodes in the graph.
      */

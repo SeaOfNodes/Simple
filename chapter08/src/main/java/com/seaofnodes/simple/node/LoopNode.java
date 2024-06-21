@@ -25,5 +25,5 @@ public class LoopNode extends RegionNode {
         return inProgress() ? null : super.idealize();
     }
 
-    @Override Node idom() { return entry(); }    
+    @Override Node idom() { return entry(); }
 }

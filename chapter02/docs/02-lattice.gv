@@ -3,7 +3,7 @@ digraph Lattice {
     node [shape=circle, style=filled, fillcolor=lightblue];
     Top [label="⊤"];
     Bottom [label="⊥"];
-    
+
     A [label="MIN_INT"];
     B [label="..." shape=none style=none];
     C [label="-1"];
