@@ -83,4 +83,14 @@ public class Chapter01Test {
         new Parser("return -100;").parse();
     }
 
+    @Test
+    public void testBad6() {
+        try {
+            new Parser("return100").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected return: return100",e.getMessage());
+        }
+    }
+
 }

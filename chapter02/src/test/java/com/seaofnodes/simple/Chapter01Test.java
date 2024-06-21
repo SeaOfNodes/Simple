@@ -76,4 +76,14 @@ public class Chapter01Test {
         assertEquals("return -100;", new Parser("return -100;").parse().print());
     }
 
+    @Test
+    public void testBad6() {
+        try {
+            new Parser("return100").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected return: return100",e.getMessage());
+        }
+    }
+
 }

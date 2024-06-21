@@ -34,8 +34,8 @@ public class Parser {
     String src() { return new String( _lexer._input ); }
 
     public ReturnNode parse() {
-        require("return");
-        return (ReturnNode) parseReturn();
+        if (matchx("return")) return (ReturnNode) parseReturn();
+        throw errorSyntax("return");
     }
 
     /**
@@ -133,7 +133,9 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) { return _lexer.match(syntax); }
+    private boolean match (String syntax) { return _lexer.match (syntax); }
+    // Match must be "exact", not be followed by more id letters
+    private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
 
     // Require an exact match
     private void require(String syntax) { require(null, syntax); }
@@ -222,6 +224,13 @@ public class Parser {
                     return false;
             _position += len;
             return true;
+        }
+
+        boolean matchx(String syntax) {
+            if( !match(syntax) ) return false;
+            if( !isIdLetter(peek()) ) return true;
+            _position -= syntax.length();
+            return false;
         }
 
         // Used for errors
