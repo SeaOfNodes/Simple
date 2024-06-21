@@ -40,7 +40,7 @@ public class Chapter04Test {
         ReturnNode ret = parser.parse();
         assertEquals("return (arg*2);", ret.print());
     }
-  
+
     @Test
     public void testChapter4Peephole3() {
         Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;");
@@ -54,7 +54,7 @@ public class Chapter04Test {
         ReturnNode ret = parser.parse();
         assertEquals("return arg;", ret.print());
     }
-  
+
     @Test
     public void testChapter4VarArg() {
         Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
@@ -114,7 +114,7 @@ public class Chapter04Test {
 
     @Test
     public void testChapter4Bug3() {
-        try { 
+        try {
             new Parser("inta=1; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -128,7 +128,7 @@ public class Chapter04Test {
         ReturnNode ret = parser.parse();
         assertEquals("return (-arg);", ret.print());
     }
-    
+
     @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
@@ -168,7 +168,7 @@ public class Chapter04Test {
 
     @Test
     public void testSelfAssign() {
-        try { 
+        try {
             new Parser("int a=a; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -236,7 +236,7 @@ public class Chapter04Test {
         Parser parser = new Parser("return 1;");
         ReturnNode ret = parser.parse();
         StartNode start = Parser.START;
-        
+
         assertTrue(ret.ctrl() instanceof ProjNode);
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
@@ -259,7 +259,7 @@ public class Chapter04Test {
 
     @Test
     public void testBad1() {
-        try { 
+        try {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -269,7 +269,7 @@ public class Chapter04Test {
 
     @Test
     public void testBad2() {
-        try { 
+        try {
             new Parser("return 0123;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -285,7 +285,7 @@ public class Chapter04Test {
 
     @Test
     public void testBad4() {
-        try { 
+        try {
             new Parser("return 100").parse();
             fail();
         } catch( RuntimeException e ) {

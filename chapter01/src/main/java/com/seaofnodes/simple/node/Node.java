@@ -52,7 +52,7 @@ public abstract class Node {
             if( n != null )
                 n._outputs.add( this );
     }
-    
+
     /**
      * Gets the ith input node
      * @param i Offset of the input node
@@ -67,7 +67,7 @@ public abstract class Node {
     public boolean isUnused() { return nOuts() == 0; }
 
     public boolean isCFG() { return false; }
-  
+
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

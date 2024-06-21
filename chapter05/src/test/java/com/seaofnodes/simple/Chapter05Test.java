@@ -26,7 +26,7 @@ return a;""");
         StopNode ret = parser.parse(true);
         assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
     }
-  
+
     @Test
     public void testChapter5Test() {
         Parser parser = new Parser(
@@ -41,20 +41,20 @@ return c;""", TypeInteger.BOT);
         StopNode ret = parser.parse(true);
         assertEquals("return Phi(Region16,4,3);", ret.toString());
     }
-    
+
     @Test
     public void testChapter5Return2() {
         Parser parser = new Parser(
 """
-if( arg==1 ) 
-    return 3; 
-else 
-    return 4; 
+if( arg==1 )
+    return 3;
+else
+    return 4;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("Stop[ return 3; return 4; ]", stop.toString());
     }
-    
+
     @Test
     public void testChapter5IfMergeB() {
         Parser parser = new Parser(
@@ -140,50 +140,50 @@ return a;""");
       StopNode stop = new Parser("return true;").parse();
       assertEquals("return 1;",stop.toString());
     }
-    
+
     @Test
     public void testChapter5HalfDef() {
-        try { 
+        try {
             new Parser("if( arg==1 ) int b=2; return b;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
         }
     }
-    
+
     @Test
     public void testChapter5HalfDef2() {
-        try { 
+        try {
             new Parser("if( arg==1 ) { int b=2; } else { int b=3; } return b;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'b'",e.getMessage());
         }
     }
-    
+
     @Test
     public void testChapter5BadNum() {
-        try { 
+        try {
             new Parser("return 1-;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage());
         }
     }
-      
+
     @Test
     public void testChapter5Keyword1() {
-        try { 
+        try {
             new Parser("int true=0; return true;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Expected an identifier, found 'true'",e.getMessage());
         }
     }
-      
+
     @Test
     public void testChapter5Keyword2() {
-        try { 
+        try {
             new Parser("int else=arg; if(else) else=2; else else=1; return else;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -193,14 +193,14 @@ return a;""");
 
     @Test
         public void testChapter5Keyword3() {
-        try { 
+        try {
             new Parser("int a=1; ififif(arg)inta=2;return a;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error, expected =: (",e.getMessage());
         }
     }
-    
+
     @Test
     public void testChapter4Peephole() {
         Parser parser = new Parser("return 1+arg+2; #showGraph;");
@@ -228,7 +228,7 @@ return a;""");
         StopNode ret = parser.parse();
         assertEquals("return (arg*2);", ret.print());
     }
-  
+
     @Test
     public void testChapter4Peephole3() {
         Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;");
@@ -242,7 +242,7 @@ return a;""");
         StopNode ret = parser.parse();
         assertEquals("return arg;", ret.print());
     }
-  
+
     @Test
     public void testChapter4VarArg() {
         Parser parser = new Parser("return arg; #showGraph;");
@@ -303,7 +303,7 @@ return a;""");
 
     @Test
     public void testChapter4Bug3() {
-        try { 
+        try {
             new Parser("inta=1; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -317,7 +317,7 @@ return a;""");
         StopNode ret = parser.parse();
         assertEquals("return (-arg);", ret.print());
     }
-    
+
     @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
@@ -357,7 +357,7 @@ return a;""");
 
     @Test
     public void testSelfAssign() {
-        try { 
+        try {
             new Parser("int a=a; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -426,7 +426,7 @@ return a;""");
         StopNode stop = parser.parse();
         StartNode start = Parser.START;
         ReturnNode ret = (ReturnNode)stop.in(0);
-        
+
         assertTrue(ret.ctrl() instanceof ProjNode);
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
@@ -449,7 +449,7 @@ return a;""");
 
     @Test
     public void testBad1() {
-        try { 
+        try {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -459,7 +459,7 @@ return a;""");
 
     @Test
     public void testBad2() {
-        try { 
+        try {
             new Parser("return 0123;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -475,7 +475,7 @@ return a;""");
 
     @Test
     public void testBad4() {
-        try { 
+        try {
             new Parser("return 100").parse();
             fail();
         } catch( RuntimeException e ) {

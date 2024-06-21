@@ -22,7 +22,7 @@ In general, we will rewrite the looping construct as follows:
 
 ```java
 loop_head:
-if( !(arg < 10) ) 
+if( !(arg < 10) )
     goto loop_exit;
 arg = arg + 1;
 goto loop_head;
@@ -39,7 +39,7 @@ From an SSA[^1] point of view, since `arg` flows back, it requires a `phi` node 
 //
 loop_head:
 arg2 = phi(arg1, arg3);
-if( !(arg2 < 10) ) 
+if( !(arg2 < 10) )
     goto loop_exit;
 arg3 = arg2 + 1;
 goto loop_head;
@@ -47,11 +47,11 @@ goto loop_head;
 loop_exit:
 ```
 
-Notice that the phi for `arg2` refers to `arg3`, which is not known at the time we parse the `while` loop predicate. This is the crux of the problem that we need 
+Notice that the phi for `arg2` refers to `arg3`, which is not known at the time we parse the `while` loop predicate. This is the crux of the problem that we need
 to solve in order to successfully construct the Sea of Nodes graph, which is always in SSA form.
 
 Recall from [Chapter 5](../chapter05/README.md) that when parsing `if` statements, we clone the symbol tables as we go past the `if` predicate.
-Later we merge the two sets of symbol tables at a `Region` - creating phis for all names that encountered a change in definition within the two 
+Later we merge the two sets of symbol tables at a `Region` - creating phis for all names that encountered a change in definition within the two
 branches of the `if` statement. In the case of the `if` statement, the phis are created at the merge point when we already know the definitions
 that are being merged.
 
@@ -69,10 +69,10 @@ created until we complete parsing the loop body. This is because our phis are no
 
 ## Detailed Steps
 
-1. We start by creating a new subclass of `Region`, the `Loop`. The `Loop` gets two control inputs, 
-   the first is the entry point, i.e. the current binding to `$ctrl`, and second (`null`) is a placeholder for the back edge that is 
+1. We start by creating a new subclass of `Region`, the `Loop`. The `Loop` gets two control inputs,
+   the first is the entry point, i.e. the current binding to `$ctrl`, and second (`null`) is a placeholder for the back edge that is
    set after loop is parsed. The absence of a back edge is used as an indicator to switch off peepholes of the region and
-   associated phis. 
+   associated phis.
 
     ```java
     ctrl(new LoopNode(ctrl(),null).peephole());
@@ -87,13 +87,13 @@ created until we complete parsing the loop body. This is because our phis are no
     // Make a new Scope for the body.
     _scope = _scope.dup(true);
     ```
-   
+
    Note that the `dup` call is given an argument `true`. This triggers creating phis. The code
    that creates the phis in the `dup()` method is shown below.
 
     ```java
     // boolean loop=true if this is a loop region
-    
+
     String[] names = reverseNames(); // Get the variable names
     dup.add_def(ctrl());      // Control input is just copied
     for( int i=1; i<nIns(); i++ ) {
@@ -108,7 +108,7 @@ created until we complete parsing the loop body. This is because our phis are no
        }
     }
     ```
-   
+
    Inside the `else` block both the duplicated scope and the original scope get the same phi node.
 
 3. Next we set up the `if` condition, very much like we do with regular ifs.
@@ -124,8 +124,8 @@ created until we complete parsing the loop body. This is because our phis are no
     Node ifF = new ProjNode(ifNode, 1, "False").peephole();
     ```
 
-4. We make another clone of the current scope. This will be the exit scope that will live after the loop ends, 
-   therefore `$ctrl` in the exit scope is set to the `False` projection. 
+4. We make another clone of the current scope. This will be the exit scope that will live after the loop ends,
+   therefore `$ctrl` in the exit scope is set to the `False` projection.
    The exit scope captures any side effects of the loop's predicate.
 
     ```java
@@ -143,7 +143,7 @@ created until we complete parsing the loop body. This is because our phis are no
     ```
 
 6. After the loop body is parsed, we go back and process all the phis we created earlier.
-   
+
     ```java
     // The true branch loops back, so whatever is current control gets
     // added to head loop as input
@@ -169,7 +169,7 @@ created until we complete parsing the loop body. This is because our phis are no
     ```
 
 7. Finally, both the original scope (head) we started with, and the duplicate created for the body are killed.
-   At exit the false control is the current control (step 4), and exit scope is set as the current scope. 
+   At exit the false control is the current control (step 4), and exit scope is set as the current scope.
 
    ```java
    // At exit the false control is the current control, and

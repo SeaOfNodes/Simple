@@ -28,7 +28,7 @@ The entire revised Lattice is shown below:
 ![Lattice](./docs/lattice.svg)
 
 
-## Peephole of `if` 
+## Peephole of `if`
 
 * Our general strategy is to continue parsing the entire `if` statement even if we know that one branch is dead.
 * This approach creates dead nodes which get cleaned up by dead code
@@ -44,7 +44,7 @@ The entire revised Lattice is shown below:
   important observation is that *we __can__ kill the `If` node after __both__
   the `Proj` nodes have been created*, because any subsequent control flow can
   only see the `Proj` nodes.
-* To ensure this, we add a dummy user to `If` before creating the first `Proj` and remove it immediately after, allowing the 
+* To ensure this, we add a dummy user to `If` before creating the first `Proj` and remove it immediately after, allowing the
   second `Proj` to trigger a dead code elimination of the `If`.
 * The live `Proj` gets replaced by the parent of `If`, whereas the dead `Proj` gets replaced by "~Ctrl".
 * The parsing then continues as normal.
@@ -52,7 +52,7 @@ The entire revised Lattice is shown below:
 * Again keeping with our strategy we merge as normal, including creating `Phi` nodes.
 * The `Region` may have have one of its inputs as "~Ctrl".  This will be seen
   by the `Phi` which then optimizes itself.  If the `Phi` has just one live
-  input, the `Phi` peephole replaces itself with the remaining input.  
+  input, the `Phi` peephole replaces itself with the remaining input.
 * Finally, at the end, when the `Region` node is peepholed, we see that it has only one live input and no Phi uses
   and can be replaced with its one live input.
 
@@ -154,28 +154,28 @@ outer `if`. In compiler parlance, we say that the outer `if` dominates the inner
 There is a generic way to determine this type of domination; it involves constructing a dominator
 tree. For details of how to do this, please refer to the paper `A Simple, Fast Dominance Algorithm`.[^1]
 
-However, constructing a dominator tree is an expensive operation; one that we would not like to 
+However, constructing a dominator tree is an expensive operation; one that we would not like to
 do in the middle of parsing. Fortunately, since we do not have loops yet, we do not
 have back edges in our control flow graph. Our control flow graph is essentially hierarchical, tree like.
 Thus, a simple form of dominator identification is possible.
 
 The main idea is that we can assign a `depth` to each control node, this represents the node's depth
 in the hierarchy. We can compute this depth incrementally as we need to. The nodes that are deeper in the hierarchy
-have a greater depth than the ones above. 
+have a greater depth than the ones above.
 
-Secondly we know that for our control nodes, except for `Region`s, there is only one incoming control edge, 
+Secondly we know that for our control nodes, except for `Region`s, there is only one incoming control edge,
 which means that most control nodes have a single immediate dominating control node. `Region` nodes are different
 as they can have one or more control edges; but, we know that for `if` statements, a `Region` node has exactly two
 control inputs, one from each branch of the `if`. To find the immediate dominator of a `Region` node in the
 limited scenario of an `if`, we can follow the immediate dominator of each branch until we find the common ancestor
 node that dominates both the branches.
 
-If this ancestor node is also an `if` and its predicate is the same as the current `if`, then we know that 
+If this ancestor node is also an `if` and its predicate is the same as the current `if`, then we know that
 the outcome of the present `if` is fully determined.
 
 The code that does this check is in the [`compute` method of the `if`](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/IfNode.java#L38-L45).
 
-The `idom` method in `Node` provides a default implementation of the depth based immediate dominator calculation. 
+The `idom` method in `Node` provides a default implementation of the depth based immediate dominator calculation.
 `Region`'s [override this](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/RegionNode.java#L57-L74) to implement the more complex search described above.
 
 It turns out that to simplify the example above, we need a [further peephole in our `Add` node](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/AddNode.java#L64-L67).

@@ -18,7 +18,7 @@ public class DivNode extends Node {
         in(2)._print0(sb.append("/"), visited);
         return sb.append(")");
     }
-  
+
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
@@ -34,6 +34,6 @@ public class DivNode extends Node {
 
     @Override
     public Node idealize() { return null; }
-  
+
     @Override Node copy(Node lhs, Node rhs) { return new DivNode(lhs,rhs); }
 }

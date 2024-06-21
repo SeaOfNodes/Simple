@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.type;
 
 public class TypeTuple extends Type {
-  
+
     public final Type[] _types;
 
     public TypeTuple(Type... _types) {

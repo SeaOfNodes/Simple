@@ -8,7 +8,7 @@ import java.util.BitSet;
 public class RegionNode extends Node {
 
     public RegionNode(Node... nodes) { super(nodes); }
-    
+
     @Override
     public String label() { return "Region"; }
 

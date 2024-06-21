@@ -150,7 +150,7 @@ while(v1+arg) {
 if(0) while(0) {
     int arg=arg;
     while(0) {}
-}                                   
+}
 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("Stop[ ]", stop.toString());
@@ -171,7 +171,7 @@ if(0) while(0) {
         assertEquals("return 3;", stop.toString());
     }
 
-    
+
     @Test
     public void testFuzz0() {
         Parser parser = new Parser("""
@@ -210,7 +210,7 @@ return -0+0+0;
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return 0;", stop.toString());
     }
-        
+
     @Test
     public void testFuzz3() {
         Parser parser = new Parser("int v0=0; while(0==69) while(v0) return 0;");

@@ -42,10 +42,10 @@ public class IfNode extends MultiNode {
         // Else true branch is reachable
         if (t instanceof TypeInteger ti && ti.isConstant())
             return ti==TypeInteger.ZERO ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
-        
+
         return TypeTuple.IF_BOTH;
     }
-    
+
     @Override
     public Node idealize() {
         // Hunt up the immediate dominator tree.  If we find an identical if

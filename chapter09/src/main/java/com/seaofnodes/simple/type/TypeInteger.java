@@ -28,7 +28,7 @@ public class TypeInteger extends Type {
 
     public static TypeInteger constant(long con) { return make(true, con); }
 
-    @Override 
+    @Override
     public StringBuilder _print(StringBuilder sb) {
         if( this==TOP ) return sb.append("IntTop");
         if( this==BOT ) return sb.append("IntBot");
@@ -63,7 +63,7 @@ public class TypeInteger extends Type {
         if( isConstant() ) return this; // Constants are a self-dual
         return _con==0 ? BOT : TOP;
     }
-    
+
     @Override
     int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
     @Override

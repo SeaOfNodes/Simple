@@ -13,7 +13,7 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
-  
+
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode
@@ -54,7 +54,7 @@ public class Parser {
             add("true");
         }};
 
-    
+
     /**
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
@@ -75,12 +75,12 @@ public class Parser {
 
     @Override
     public String toString() { return _lexer.toString(); }
-  
+
     String src() { return new String( _lexer._input ); }
 
     // Debugging utility to find a Node by index
     public static Node find(int nid) { return START.find(nid); }
-    
+
     private Node ctrl() { return _scope.ctrl(); }
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
@@ -101,7 +101,7 @@ public class Parser {
         return STOP;
     }
 
-    
+
     /**
      * Parses a block
      *
@@ -165,7 +165,7 @@ public class Parser {
         ctrl(ifT);              // set ctrl token to ifTrue projection
         parseStatement();       // Parse true-side
         ScopeNode tScope = _scope;
-        
+
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF);              // Ctrl token is now set to ifFalse projection
@@ -176,7 +176,7 @@ public class Parser {
 
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
-        
+
         // Merge results
         _scope = tScope;
         _xScopes.pop();       // Discard pushed from graph display
@@ -465,7 +465,7 @@ public class Parser {
             skipWhiteSpace();
             return peek()==ch;
         }
-        
+
         // Return an identifier or null
         String matchId() {
             skipWhiteSpace();
@@ -492,7 +492,7 @@ public class Parser {
             return TypeInteger.constant(Long.parseLong(snum));
         }
 
-        // First letter of an identifier 
+        // First letter of an identifier
         private boolean isIdStart(char ch) {
             return Character.isAlphabetic(ch) || ch == '_';
         }
@@ -508,7 +508,7 @@ public class Parser {
             return new String(_input, start, --_position - start);
         }
 
-        // 
+        //
         private boolean isPunctuation(char ch) {
             return "=;[]<>()+-/*".indexOf(ch) != -1;
         }

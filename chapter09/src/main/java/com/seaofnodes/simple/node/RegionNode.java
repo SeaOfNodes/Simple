@@ -11,7 +11,7 @@ import java.util.BitSet;
 public class RegionNode extends Node {
 
     public RegionNode(Node... nodes) { super(nodes); }
-    
+
     @Override
     public String label() { return "Region"; }
 
@@ -78,7 +78,7 @@ public class RegionNode extends Node {
                 return true;
         return false;
     }
-    
+
     // Immediate dominator of Region is a little more complicated.
     private Node _idom;         // Immediate dominator cache
     @Override Node idom() {

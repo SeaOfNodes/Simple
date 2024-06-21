@@ -20,15 +20,15 @@ The core ideas regarding `Memory` are:
 
 * The program starts and stops with a single `Memory` value that encapsulates
   the whole of available memory; `Start` produces memory and `Return` consumes
-  memory.  
+  memory.
 
 * Each `struct` and field carves up this memory into "alias classes", a unique
   class for each combination of struct and field.
 
 * Memory in different alias classes *never* aliases; memory in the same alias
   class *always* aliases.  This is sometimes called "equivalence class"
-  aliasing.  
-  
+  aliasing.
+
 * Equivalence class aliasing can be directly represented in the Sea of Nodes,
   as such we will not use any other side-structure for aliasing.  This also
   means with normal peepholes we can do alias-based optimizations such as
@@ -45,7 +45,7 @@ the aliased names.
 
 Data accesses to the same alias class (struct+field) are serialized as defined
 by the source program; data in other classes is allowed to be accessed in
-parallel.  
+parallel.
 
 Simple, like Java, is a strongly typed language.  Therefore, two variables that
 have incompatible types cannot possibly be names to the same location in
@@ -87,7 +87,7 @@ Then we can imagine assigning following alias class IDs
 So at this point we have sliced memory into 5 distinct alias classes.
 Note that the `x` and `y` in `Vec2D` do not alias `x` and `y` in `Vec3D`.
 
-In this chapter we do not have inheritance or sub-typing. But if we had subtyping and `Vec3D` 
+In this chapter we do not have inheritance or sub-typing. But if we had subtyping and `Vec3D`
 was a subtype of `Vec2D` then `x` and `y` would alias and would be given the same alias class.
 
 ## Extensions to Intermediate Representation
@@ -99,7 +99,7 @@ We add following new Node types to support memory operations:
 | New       | Mem  | Create ptr to new object         | Control, Struct type                                      | Ptr value                              |
 | Store     | Mem  | Stores a value in a struct field | Memory slice (aliased by struct+field), Ptr, Field, Value | Memory slice (aliased by struct+field) |
 | Load      | Mem  | Loads a value from a field       | Memory slice (aliased by struct+field), Ptr, Field        | Value loaded                           |
-| Cast      | Data | Upcasts a value                  | Control, Data, type                                       | Upcast value                           | 
+| Cast      | Data | Upcasts a value                  | Control, Data, type                                       | Upcast value                           |
 
 
 * New takes the current control as an input so that it is pinned correctly in
@@ -118,7 +118,7 @@ Additionally, the following Node types will be enhanced:
 
 ## Enhanced Type Lattice
 
-The Type Lattice for Simple has a major revision in this chapter. 
+The Type Lattice for Simple has a major revision in this chapter.
 
 ![Graph1](./docs/lattice.svg)
 
@@ -137,7 +137,7 @@ Within the Type Lattice, we now have the following type domains:
   * `?` suffix represents the union of a pointer to some type and `null`.
   * `null` pointer evaluates to False and non-null pointers evaluate to True, as in C.
 * Memory (new) - Represents memory and memory slices
-  * `MEM#TOP` - Nothing known about a slice 
+  * `MEM#TOP` - Nothing known about a slice
   * `#n` - refers to a memory slice
   * `MEM#BOT` - all of memory
 
@@ -158,10 +158,10 @@ We make use of following operations on the lattice.
     * Thus, dual of `Top` is `Bot`.
     * The dual of `*$TOP` is `*$BOT?`.
   * For structs, the dual is obtained by computing the dual of each struct member. Thus, dual of `*S1` is not `*S1?`.
-  
+
 * The `join` operation takes two types and computes the least upper bound type.
-  Similar to `meet` this can thought of as set intersection (ANDing) of its input types.  
-  Because our lattice structure is simple, we compute `join` with a well known identity: 
+  Similar to `meet` this can thought of as set intersection (ANDing) of its input types.
+  Because our lattice structure is simple, we compute `join` with a well known identity:
   `JOIN(x,y) === MEET(x.dual,y.dual).dual`
   * Example, join of `*S1` and `*S2` results in `*$TOP`.
   * Join of `1` and `2` results in `Int Top`.
@@ -170,7 +170,7 @@ We make use of following operations on the lattice.
 As we construct the Sea of Nodes graph, we ensure that values stay inside the
 domain they are created in - that is ptr fields will never contain ints
 (obviously)... nor even the generic `TOP` and `BOT`.  There are a couple of
-nuances worth highlighting.  
+nuances worth highlighting.
 
 * When Phis are created, the initial type of the Phi is based on the declared
   type of its first input.  This is a pessimistic type assignment because we do
@@ -231,22 +231,22 @@ To enable this behaviour, we make following enhancements.
 
 * We track the null-ness of a pointer in the Type system, and hence in every
   Node that ptr type flows through.
-  
+
 * We "wrap" the predicate of an `If` node with an up-cast when we see that the
   predicate is a ptr value.  The up-cast removes the null possibility on the
   true branch making it legal to use the pointer.
-  
+
 * The up-cast is done using a `Cast` op with the type `*void`.  This does a
   lattice JOIN of the original type and `*void`.  This JOIN operation preserves
   everything we already know about ptr, and also adds the new knowledge that
   the ptr is not-null.
- 
+
 * The up-cast is represented by the `CastNode` op, and if applicable, we
   replace all occurrences of the original predicate with the up-cast in the
   current scope.  The change is local to each branch of the `If`; occuring
   separately for the true and the false branches of the `If` (and the false
   branch inverts the predicate).
-  
+
 * The up-cast peepholes normally; if its input's type is a super type of the
   up-cast, then the `CastNode` can be removed. See `ScopeNode.upcast()` method,
   and `CastNode`.
@@ -254,7 +254,7 @@ To enable this behaviour, we make following enhancements.
 * When computing a type for Not, we produce an Integer type when its input is a
   ptr.  When the input is a `null` we convert to `1` and when is a not `null`
   ptr value, we convert to `0`.  See `NotNode.compute()`.
-  
+
 ## Memory Operations Example
 
 This is a simple example illustrating how loads and stores are ordered based on aliasing.

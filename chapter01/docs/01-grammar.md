@@ -22,5 +22,5 @@ primaryExpression
 INTEGER_LITERAL
     : [1-9][0-9]*
     | [0]
-    ;    
+    ;
 ```

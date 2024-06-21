@@ -6,16 +6,16 @@ package com.seaofnodes.simple.type;
 public class TypeInteger extends Type {
 
     public final static TypeInteger ZERO= new TypeInteger(0);
-  
+
     /**
      * The constant value observed for this type
      */
     private final long _con;
 
-    public TypeInteger(long con) { 
-		super(TINT);
-		_con = con; 
-	}
+    public TypeInteger(long con) {
+        super(TINT);
+        _con = con;
+    }
 
     public static TypeInteger constant(long con) { return new TypeInteger(con); }
 
@@ -24,7 +24,7 @@ public class TypeInteger extends Type {
       return _print(new StringBuilder()).toString();
     }
 
-    @Override 
+    @Override
     public StringBuilder _print(StringBuilder sb) { return sb.append(_con); }
 
     @Override

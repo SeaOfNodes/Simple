@@ -12,7 +12,7 @@ abstract public class BoolNode extends Node {
     }
 
     abstract String op();       // String opcode name
-    
+
     @Override
     public String label() { return getClass().getSimpleName(); }
 
@@ -40,7 +40,7 @@ abstract public class BoolNode extends Node {
 
     @Override
     public Node idealize() {
-        // Compare of same 
+        // Compare of same
         if( in(1)==in(2) )
             return new ConstantNode(TypeInteger.constant(doOp(3,3)?1:0));
 

@@ -71,5 +71,5 @@ public class RegionNode extends Node {
         if( lhs==null ) return null;
         _idepth = lhs._idepth+1;
         return (_idom=lhs);
-    } 
+    }
 }

@@ -14,7 +14,7 @@ In [chapter 7](../chapter07/README.md), we created `PhiNode`s for all variables
 in the loop head eagerly.  This approach creates some unnecessary Phis but the
 redundant Phis get cleaned up later.
 
-In this chapter we add support for creating the `PhiNode`s lazily. 
+In this chapter we add support for creating the `PhiNode`s lazily.
 
 The main complication with creating `PhiNode`s lazily is that when we create a
 Phi, it must be created in the innermost loop head scope where it would have
@@ -166,7 +166,7 @@ The implementation is a variation of above.
             return toScope;
         }
     ```
-  
+
 * The continue scope becomes the base scope for the subsequent `continue`
   statement, thus forming a stack of continue scopes/regions.
 * After the loop is done, if we find that a continue scope was created within
@@ -266,7 +266,7 @@ We talk about resolving nodes above, but what does that mean? A node will either
 
 With that, a simple non-looping program can be evaluated.
 
-Looping is almost functional with that, too, with only a couple of small extra details. Whenever control moves through a `LoopNode`, the evaluator checks that it hasn't run out of loop iterations. If it has, a timeout RuntimeException will be thrown. 
+Looping is almost functional with that, too, with only a couple of small extra details. Whenever control moves through a `LoopNode`, the evaluator checks that it hasn't run out of loop iterations. If it has, a timeout RuntimeException will be thrown.
 
 Finally, while calculating the value of `PhiNode`s in the loop region, we must be careful to compute all of their new values before we update any of their cached values. That's because as a loop iterates, we must ensure that all `PhiNode` values are consistently the value from the same point in time. Once all of the new values are calculated, we can update the cache for all of them at once. To illustrate this, consider the following code:
 
@@ -292,5 +292,3 @@ return arg;
 ```
 
 On the other hand, this engine is not designed to be particularly fast! Because not all expressions are cached, it's possible to construct programs like the preceeding one which have exponential runtime.
-
-

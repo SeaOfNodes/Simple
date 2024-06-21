@@ -19,5 +19,5 @@ public class ReturnNode extends Node {
     public Node expr() { return in(1); }
 
     @Override public boolean isCFG() { return true; }
-  
+
 }

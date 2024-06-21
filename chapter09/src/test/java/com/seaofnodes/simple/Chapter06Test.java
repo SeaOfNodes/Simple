@@ -292,5 +292,5 @@ return a+b+c;
         StopNode ret = parser.parse().iterate(true);
         assertEquals("return 5;", ret.toString());
     }
-    
+
 }

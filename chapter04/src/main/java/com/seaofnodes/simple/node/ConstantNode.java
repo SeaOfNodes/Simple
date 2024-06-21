@@ -21,10 +21,10 @@ public class ConstantNode extends Node {
         super(Parser.START);
         _con = type;
     }
-    
+
     @Override
     public String label() { return ""+_con; }
-  
+
     @Override
     public String uniqueName() { return "Con_" + _nid; }
 
@@ -32,7 +32,7 @@ public class ConstantNode extends Node {
     StringBuilder _print1(StringBuilder sb) {
         return _con._print(sb);
     }
-    
+
     @Override
     public Type compute() { return _con; }
 

@@ -145,10 +145,10 @@ return arg;
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return 0;", stop.toString());
     }
-    
+
     @Test
     public void testBreakOutsideLoop() {
-        try { 
+        try {
             new Parser("""
 if(arg <= 10) {
     break;
@@ -173,7 +173,7 @@ return arg;
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return arg;", stop.toString());
     }
-        
+
     @Test
     public void testRegress4() {
         Parser parser = new Parser("""
@@ -189,9 +189,9 @@ return a;
 """);
         StopNode stop = parser.parse().iterate(true);
         assertEquals("return Phi(Region28,Phi(Loop7,1,(Phi_a+1)),Add);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof RegionNode);                   
+        assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
-        
+
     @Test
     public void testRegress5() {
         Parser parser = new Parser("""

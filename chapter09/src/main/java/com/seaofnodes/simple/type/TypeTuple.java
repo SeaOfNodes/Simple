@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.type;
 
 public class TypeTuple extends Type {
-  
+
     public final Type[] _types;
 
     private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
@@ -23,7 +23,7 @@ public class TypeTuple extends Type {
             ts[i] = _types[i].dual();
         return make(ts);
     }
-    
+
     @Override
     public StringBuilder _print(StringBuilder sb) {
         sb.append("[");
@@ -45,7 +45,7 @@ public class TypeTuple extends Type {
         for( Type type : _types ) sum ^= type.hashCode();
         return sum;
     }
-    
+
     @Override
     boolean eq( Type t ) {
         TypeTuple tt = (TypeTuple)t; // Contract

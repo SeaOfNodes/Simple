@@ -7,7 +7,7 @@ public class MulNode extends Node {
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Mul"; }
-  
+
     @Override public String glabel() { return "*"; }
 
     @Override

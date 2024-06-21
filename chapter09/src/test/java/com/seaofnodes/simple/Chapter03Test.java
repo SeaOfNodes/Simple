@@ -9,7 +9,7 @@ import org.junit.Ignore;
 import static org.junit.Assert.*;
 
 public class Chapter03Test {
-    
+
     @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
@@ -49,7 +49,7 @@ public class Chapter03Test {
 
     @Test
     public void testSelfAssign() {
-        try { 
+        try {
             new Parser("int a=a; return a;").parse();
             fail();
         } catch( RuntimeException e ) {

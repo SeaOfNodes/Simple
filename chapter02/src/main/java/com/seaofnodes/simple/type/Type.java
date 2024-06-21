@@ -4,7 +4,7 @@ package com.seaofnodes.simple.type;
 /**
  * These types are part of a Monotone Analysis Framework,
  * @see <a href="https://www.cse.psu.edu/~gxt29/teaching/cse597s21/slides/08monotoneFramework.pdf">see for example this set of slides</a>.
- * <p> 
+ * <p>
  * The types form a lattice; @see <a href="https://en.wikipedia.org/wiki/Lattice_(order)">a symmetric complete bounded (ranked) lattice.</a>
  * <p>
  * This wild lattice theory will be needed later to allow us to easily beef up
@@ -15,7 +15,7 @@ package com.seaofnodes.simple.type;
  * actual implementation is darn near trivial and is generally really obvious
  * what we're doing with it.  Right now, it's just simple integer math to do
  * simple constant folding e.g. 1+2 == 3 stuff.
- */    
+ */
 
 public class Type {
 

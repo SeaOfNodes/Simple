@@ -43,7 +43,7 @@ public class IfNode extends MultiNode {
               // Repeated test, dominated on one side.  Test result is the same.
               ? (proj._idx==0 ? TypeTuple.IF_TRUE : TypeTuple.IF_FALSE)
               : null;           // Repeated test not dominated on one side
-        
+
         return TypeTuple.IF_BOTH;
     }
 

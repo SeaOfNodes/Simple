@@ -29,8 +29,8 @@ public class ScopeNode extends Node {
         _scopes = new Stack<>();
         _type = Type.BOTTOM;
     }
-    
-    
+
+
     @Override public String label() { return "Scope"; }
 
     @Override
@@ -64,7 +64,7 @@ public class ScopeNode extends Node {
                 names[syms.get(name)] = name;
         return names;
     }
-    
+
     @Override public Type compute() { return Type.BOTTOM; }
 
     @Override public Node idealize() { return null; }
@@ -191,7 +191,7 @@ public class ScopeNode extends Node {
         that.kill();            // Kill merged scope
         return r.unkeep().peephole();
     }
-    
+
     // Merge the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {

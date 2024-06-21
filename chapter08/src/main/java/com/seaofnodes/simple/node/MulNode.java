@@ -9,7 +9,7 @@ public class MulNode extends Node {
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Mul"; }
-  
+
     @Override public String glabel() { return "*"; }
 
     @Override
@@ -36,12 +36,12 @@ public class MulNode extends Node {
         Node rhs = in(2);
         Type t1 = lhs._type;
         Type t2 = rhs._type;
-        
+
         // Mul of 1.  We do not check for (1*x) because this will already
         // canonicalize to (x*1)
         if ( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==1 )
             return lhs;
-        
+
         // Move constants to RHS: con*arg becomes arg*con
         if ( t1.isConstant() && !t2.isConstant() )
             return swap12();

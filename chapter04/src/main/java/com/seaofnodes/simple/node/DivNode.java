@@ -16,7 +16,7 @@ public class DivNode extends Node {
         in(2)._print0(sb.append("/"));
         return sb.append(")");
     }
-  
+
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&

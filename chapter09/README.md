@@ -69,7 +69,7 @@ already had its `_type` lifted but not the other.  Depending on which of the
 two Nodes is kept, we might choose the Node with the "lower" `_type`.  This is
 "lower" in the Type lattice sense.  Both types must be correct, and a
 `compute()` call on both nodes must produce the same Type, which must be equal
-to the JOIN.  A fix is to compute a JOIN (not a MEET) over the two Nodes' types.  
+to the JOIN.  A fix is to compute a JOIN (not a MEET) over the two Nodes' types.
 
 
 ## Post-Parse Iterative Peepholes
@@ -153,7 +153,7 @@ Changes:
 * Some peepholes (see above) add dependencies if they fail a remote check, by calling
   `distant.addDep(this)`.  The `addDep` call creates `_deps` and
   filters for various kinds of duplicate adds.
-* The `IterPeeps` loop, when it finds a change, also moves all the 
+* The `IterPeeps` loop, when it finds a change, also moves all the
   dependents onto the worklist.
 
 
@@ -162,7 +162,7 @@ Changes:
 There are more issues we will want to deal with in a later Chapter:
 
 * Blindly running peepholes in any order has some drawbacks:
-  
+
   - Dead and dying stuff might get peepholes done... and then die.  Wasted work.
   - Dead infinite loops often lead to infinite peephole cycles... if only we
     would get around to working on the "base" of the dead loop it would fold
@@ -171,18 +171,18 @@ There are more issues we will want to deal with in a later Chapter:
     size the same but reduce other things (e.g. swapping a Mul-by-2 with a
     Shift), and we might end up with a few which try to grow the graph briefly
     before collapsing.
-    
+
 * All this means is there's some benefit to running peepholes that reduce the
   graph directly (e.g. Dead Code Eliminate), before running peeps that reduce
   other things, before running all other peeps.  This implies a sorted
   worklist, but the count of unique orders is really limited - a radix sort is
   all that is needed.  We'll have to break up the peepholes into some
-  categories like 
-  - "strictly reducing" vs 
-  - "same Nodes but swapping e.g. `Mul` for `Shift`, vs 
-  - getting more freedom (edge bypass), vs 
+  categories like
+  - "strictly reducing" vs
+  - "same Nodes but swapping e.g. `Mul` for `Shift`, vs
+  - getting more freedom (edge bypass), vs
   - "grow now because shrink later" (inlining lands in this camp).
-  
+
 * Also there's a benefit to not always grabbing from either end of the list -
   many peep patterns might go quadratic if approached from one end or another,
   because they modify something then push it back onto the list where it
@@ -194,7 +194,7 @@ There are more issues we will want to deal with in a later Chapter:
 * Why isn't `IterPeeps` just passing over all of the Nodes once or twice,
   instead of using a worklist with the `addDeps` mechanism?  We could even
   visit them in a defs-before-uses order (e.g. Reverse Post Order).
-  
+
   In the absense of loops exactly one such pass will find all local peepholes,
   and indeed the Parser already does this.  However, this will fail to find
   opportunities at loops and farther remote cases - and to get those peepholes
@@ -203,7 +203,7 @@ There are more issues we will want to deal with in a later Chapter:
   quadratic.
 
   The `addDeps` solution avoids this quadratic cost, in exchange for some more
-  costs in writing peepholes.  
+  costs in writing peepholes.
 
 
 # Examples

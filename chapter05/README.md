@@ -16,7 +16,7 @@ The following new nodes are introduced in this chapter:
 |-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
 | If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
 | Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
-| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 | 
+| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 |
 | Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
 
 ## Recap
@@ -27,7 +27,7 @@ Here is a recap of the nodes introduced in previous chapters:
 |-----------|----------------|---------|------------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | Multi     | Abstract class | 4       | A node that has a tuple result                 |                                                                               | A tuple                                                                    |
 | Start     | Control        | 1       | Start of function, now a MultiNode             |                                                                               | A tuple with a ctrl token and an `arg` data node                           |
-| Proj      | Data           | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     | 
+| Proj      | Data           | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     |
 | Bool      | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                                | Result is a comparison, represented as integer value where 1=true, 0=false |
 | Not       | Data           | 4       | Logical not                                    | One data node                                                                 | Result converts 0 to 1 and vice versa                                      |
 | Return    | Control        | 1       | End of function                                | Predecessor control node and a data node for the return value of the function | Return value of the function                                               |
@@ -77,7 +77,7 @@ However:
 > intermediate representation such as a CFG. We need a way to serialize the graph and get
 > back the control dependences. We do this with a simple global code motion algorithm.[^3]
 
-Thus, we do not associate a control edge on every data node in the graph. 
+Thus, we do not associate a control edge on every data node in the graph.
 
 We insert a `Region` node at a merge point where it takes control from each
 predecessor's control edge, and produces a merged control as output.  Data flows
@@ -105,7 +105,7 @@ This involves following:
   `else` statement we parse it.
 7. At this point we have two `ScopeNode`s; the original one, potentially updated
   by the `True` branch, and the duplicate one, potentially updated by the
-  `False` branch.  
+  `False` branch.
 8. We create a `Region` node to represent a merge point.
 9. We *merge* the two `ScopeNode`s. We create `Phi` nodes for any names whose
   bindings differ.  The `Phi` nodes take the `Region` node as the control input
@@ -117,7 +117,7 @@ Implementation is in [`parseIf` method in `Parser`](https://github.com/SeaOfNode
 
 ## Operations on ScopeNodes
 
-As explained above, we duplicate ScopeNodes and merge them at a later point. There are some 
+As explained above, we duplicate ScopeNodes and merge them at a later point. There are some
 subtleties in how this is implemented that is worth going over.
 
 ### Duplicating a ScopeNode
@@ -139,7 +139,7 @@ At the merge point we merge two ScopeNodes. The goals are:
 2) A new Region node is created representing the merged control flow. The phis have this region node as the first input.
 3) After the merge is completed, the duplicate is discarded, and its use of each of the nodes is also deleted.
 
-The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode. 
+The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode.
 Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
 
 For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L164-L173)
@@ -149,12 +149,12 @@ For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes
 We show the graph for the following code snippet:
 
 ```java
-int a = 1; 
-if (arg == 1) 
-	a = arg+2; 
+int a = 1;
+if (arg == 1)
+    a = arg+2;
 else
-	a = arg-3;
-return a; 
+    a = arg-3;
+return a;
 ```
 
 ### Before Merging
