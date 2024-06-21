@@ -1,4 +1,4 @@
-# Chapter 10
+# Chapter 10: Structs and Memory
 
 In this chapter:
 

@@ -1,4 +1,4 @@
-# Chapter 1
+# Chapter 1: Introduction
 
 In this chapter we aim to compile simple scripts such as:
 

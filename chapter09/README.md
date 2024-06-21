@@ -1,4 +1,4 @@
-# Chapter 9
+# Chapter 9: Global Value Numbering and Iterative Peepholes
 
 In this chapter:
 
