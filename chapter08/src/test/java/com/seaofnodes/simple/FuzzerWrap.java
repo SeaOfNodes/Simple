@@ -10,9 +10,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * To use the fuzzer run the <code>fuzzPeeps</code> methods.
  * This can be done from IntelliJ Gui or remove the `@Ignore` annotation and start the test case from the command line
- * via <code>mvn clean test -Dtest=com.seaofnodes.simple.Fuzzer08Test#fuzzPeeps</code>
+ * via <code>mvn clean test -Dtest=com.seaofnodes.simple.FuzzerWrap#fuzzPeeps</code>
  */
-public class Fuzzer08Test {
+public class FuzzerWrap {
 
     @Test
     @Ignore
