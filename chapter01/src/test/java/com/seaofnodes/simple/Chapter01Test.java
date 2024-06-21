@@ -44,7 +44,7 @@ public class Chapter01Test {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected return: ret",e.getMessage());
+            assertEquals("Syntax error, expected a statement: ret",e.getMessage());
         }
     }
 
@@ -82,4 +82,25 @@ public class Chapter01Test {
         exceptionRule.expectMessage("Syntax error, expected integer literal");
         new Parser("return -100;").parse();
     }
+
+    @Test
+    public void testBad6() {
+        try {
+            new Parser("return100").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected a statement: return100",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testBad7() {
+        try {
+            new Parser("return 1;}").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, unexpected }",e.getMessage());
+        }
+    }
+
 }

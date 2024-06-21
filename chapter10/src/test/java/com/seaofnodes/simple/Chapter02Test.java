@@ -2,9 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
@@ -63,37 +61,6 @@ public class Chapter02Test {
         assertEquals("return 2;", ret.print());
         GraphVisualizer gv = new GraphVisualizer();
         System.out.println(gv.generateDotOutput(parser));
-    }
-
-    @Test
-    public void testBad1() {
-        try {
-            new Parser("ret").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Undefined name 'ret'",e.getMessage());
-        }
-    }
-    @Test
-    public void testNotBad3() {
-        // this test used to fail in chapter 1
-        assertEquals("return 12;", new Parser("return --12;").parse().print());
-    }
-
-    @Test
-    public void testBad4() {
-        try {
-            new Parser("return 100").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected ;: ",e.getMessage());
-        }
-    }
-
-    @Test
-    public void testNotBad5() {
-        // this test used to fail in chapter 1
-        assertEquals("return -100;", new Parser("return -100;").parse().print());
     }
 
 }

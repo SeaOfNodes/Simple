@@ -34,8 +34,22 @@ public class Parser {
     String src() { return new String( _lexer._input ); }
 
     public ReturnNode parse() {
-        require("return");
-        return (ReturnNode) parseReturn();
+        var ret = (ReturnNode) parseStatement();
+        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        return ret;
+    }
+
+    /**
+     * Parses a statement
+     *
+     * <pre>
+     *     returnStatement
+     * </pre>
+     * @return a {@link Node} or {@code null}
+     */
+    private Node parseStatement() {
+        if (matchx("return")) return parseReturn();
+        throw errorSyntax("a statement");
     }
 
     /**
@@ -133,7 +147,9 @@ public class Parser {
     // Utilities for lexical analysis
 
     // Return true and skip if "syntax" is next in the stream.
-    private boolean match(String syntax) { return _lexer.match(syntax); }
+    private boolean match (String syntax) { return _lexer.match (syntax); }
+    // Match must be "exact", not be followed by more id letters
+    private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
 
     // Require an exact match
     private void require(String syntax) { require(null, syntax); }
@@ -224,10 +240,18 @@ public class Parser {
             return true;
         }
 
+        boolean matchx(String syntax) {
+            if( !match(syntax) ) return false;
+            if( !isIdLetter(peek()) ) return true;
+            _position -= syntax.length();
+            return false;
+        }
+
         // Used for errors
         String getAnyNextToken() {
             if (isEOF()) return "";
             if (isIdStart(peek())) return parseId();
+            if (isNumber(peek())) return parseNumberString();
             if (isPunctuation(peek())) return parsePunctuation();
             return String.valueOf(peek());
         }
@@ -236,12 +260,15 @@ public class Parser {
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
         private Type parseNumber() {
-            int start = _position;
-            while (isNumber(nextChar())) ;
-            String snum = new String(_input, start, --_position - start);
+            String snum = parseNumberString();
             if (snum.length() > 1 && snum.charAt(0) == '0')
                 throw error("Syntax error: integer values cannot start with '0'");
             return TypeInteger.constant(Long.parseLong(snum));
+        }
+        private String parseNumberString() {
+            int start = _position;
+            while (isNumber(nextChar())) ;
+            return new String(_input, start, --_position - start);
         }
 
         // First letter of an identifier

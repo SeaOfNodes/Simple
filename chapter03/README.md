@@ -1,4 +1,4 @@
-# Chapter 3
+# Chapter 3: Variable Declarations
 
 In this chapter we extend the language grammar to allow variable declarations. This allows us to write:
 

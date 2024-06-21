@@ -594,6 +594,7 @@ public class Parser {
         String getAnyNextToken() {
             if (isEOF()) return "";
             if (isIdStart(peek())) return parseId();
+            if (isNumber(peek())) return parseNumberString();
             if (isPunctuation(peek())) return parsePunctuation();
             return String.valueOf(peek());
         }
@@ -602,12 +603,15 @@ public class Parser {
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
         private Type parseNumber() {
-            int start = _position;
-            while (isNumber(nextChar())) ;
-            String snum = new String(_input, start, --_position - start);
+            String snum = parseNumberString();
             if (snum.length() > 1 && snum.charAt(0) == '0')
                 throw error("Syntax error: integer values cannot start with '0'");
             return TypeInteger.constant(Long.parseLong(snum));
+        }
+        private String parseNumberString() {
+            int start = _position;
+            while (isNumber(nextChar())) ;
+            return new String(_input, start, --_position - start);
         }
 
         // First letter of an identifier

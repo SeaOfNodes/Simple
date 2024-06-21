@@ -1,4 +1,4 @@
-# Chapter 2
+# Chapter 2: Arithmetic
 
 In this chapter we extend the language grammar to include arithmetic operations such as addition, subtraction,
 multiplication, division, and unary minus. This allows us to write statements such as:

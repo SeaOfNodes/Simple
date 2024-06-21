@@ -1,4 +1,4 @@
-# Chapter 7
+# Chapter 7: While Statement
 
 In this chapter we introduce the `while` statement.
 

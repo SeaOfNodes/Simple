@@ -1,4 +1,4 @@
-# Chapter 4
+# Chapter 4: External Argument and Comparisons
 
 In this chapter we extend the language grammar with following features:
 
