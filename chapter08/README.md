@@ -292,5 +292,3 @@ return arg;
 ```
 
 On the other hand, this engine is not designed to be particularly fast! Because not all expressions are cached, it's possible to construct programs like the preceeding one which have exponential runtime.
-
-

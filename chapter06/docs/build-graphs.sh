@@ -10,4 +10,3 @@ dot -Tsvg  06-graph4-nonconst.gv > 06-graph4-nonconst.svg
 dot -Tsvg  06-graph4-true.gv > 06-graph4-true.svg
 dot -Tsvg  06-graph4-arg2.gv > 06-graph4-arg2.svg
 dot -Tsvg  lattice.gv > lattice.svg
-
