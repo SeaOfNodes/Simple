@@ -13,9 +13,9 @@ public class TypeInteger extends Type {
     private final long _con;
 
     public TypeInteger(long con) {
-		super(TINT);
-		_con = con;
-	}
+        super(TINT);
+        _con = con;
+    }
 
     public static TypeInteger constant(long con) { return new TypeInteger(con); }
 

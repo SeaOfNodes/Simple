@@ -151,9 +151,9 @@ We show the graph for the following code snippet:
 ```java
 int a = 1;
 if (arg == 1)
-	a = arg+2;
+    a = arg+2;
 else
-	a = arg-3;
+    a = arg-3;
 return a;
 ```
 
