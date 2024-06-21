@@ -2,7 +2,9 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.*;
 
@@ -21,8 +23,8 @@ else {
 }
 #showGraph;
 return a;""");
-        StopNode ret = parser.parse().iterate(true);
-        assertEquals("return Phi(Region18,(arg+2),(arg-3));", ret.toString());
+        StopNode ret = parser.parse(true);
+        assertEquals("return Phi(Region17,(arg+2),(arg-3));", ret.toString());
     }
 
     @Test
@@ -36,7 +38,7 @@ if (arg == 1) {
     c = 4;
 }
 return c;""", TypeInteger.BOT);
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse(true);
         assertEquals("return Phi(Region16,4,3);", ret.toString());
     }
 
@@ -64,8 +66,8 @@ if( arg==1 )
 else
     b=a+1;
 return a+b;""");
-        StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((arg*2)+Phi(Region21,2,3));", ret.toString());
+        StopNode ret = parser.parse(true);
+        assertEquals("return ((arg*2)+Phi(Region20,2,3));", ret.toString());
     }
 
     @Test
@@ -79,8 +81,8 @@ if( arg==1 )
 else
     a=b+1;
 return a+b;""");
-        StopNode ret = parser.parse().iterate(true);
-        assertEquals("return ((Phi(Region32,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
+        StopNode ret = parser.parse(true);
+        assertEquals("return ((Phi(Region31,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
     }
 
     @Test
@@ -99,8 +101,8 @@ else
     a=5;
 return a;
 #showGraph;""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region36,Phi(Region22,2,3),Phi(Region34,4,5));", stop.toString());
+        StopNode stop = parser.parse();
+        assertEquals("return Phi(Region33,Phi(Region21,2,3),Phi(Region31,4,5));", stop.toString());
     }
 
     @Test
@@ -116,7 +118,7 @@ if( arg==0 )
 return arg+a+b;
 #showGraph;""", TypeInteger.BOT);
         StopNode stop = parser.parse();
-        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region28,2,0));", stop.toString());
+        assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region22,2,0));", stop.toString());
     }
 
     @Test
@@ -129,7 +131,7 @@ if( arg==1 )
     a=arg==3;
 }
 return a;""");
-        StopNode ret = parser.parse().iterate();
+        StopNode ret = parser.parse(true);
         assertEquals("return (arg==Phi(Region16,3,2));", ret.toString());
     }
 
@@ -158,17 +160,6 @@ return a;""");
             assertEquals("Undefined name 'b'",e.getMessage());
         }
     }
-
-    @Test
-    public void testRegress1() {
-        try {
-            new Parser("if(arg==2) int a=1; else int b=2; return a;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
-        }
-    }
-
 
     @Test
     public void testBadNum() {
@@ -206,7 +197,7 @@ return a;""");
             new Parser("int a=1; ififif(arg)inta=2;return a;").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Undefined name 'ififif'",e.getMessage());
+            assertEquals("Syntax error, expected =: (",e.getMessage());
         }
     }
 

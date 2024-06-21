@@ -2,14 +2,11 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
 public class Chapter07Test {
-
 
     @Test
     public void testExample() {
@@ -47,7 +44,6 @@ return a;
     @Test
     public void testWhileNested() {
         Parser parser = new Parser(
-
 """
 int sum = 0;
 int i = 0;
@@ -240,4 +236,5 @@ return a;
         assertEquals("return Phi(Loop8,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
+
 }

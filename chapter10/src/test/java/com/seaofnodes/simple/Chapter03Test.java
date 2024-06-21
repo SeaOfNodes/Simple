@@ -2,9 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
@@ -64,6 +62,16 @@ public class Chapter03Test {
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error, expected }: ",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testBad7() {
+        try {
+            new Parser("return 1;}").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, unexpected }",e.getMessage());
         }
     }
 

@@ -1,16 +1,12 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import org.junit.Rule;
+import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.*;
 
 public class Chapter01Test {
-
-    @Rule
-    public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
     public void testSimpleProgram() {
@@ -22,7 +18,7 @@ public class Chapter01Test {
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
             assertEquals(start,con.in(0));
-            assertEquals(1, con._value);
+            assertEquals(TypeInteger.constant(1), con._type);
         } else {
             fail();
         }
@@ -35,7 +31,7 @@ public class Chapter01Test {
         StartNode start = Parser.START;
         for( Node use : start._outputs )
             if( use instanceof ConstantNode con )
-                assertEquals(0,con._value);
+                assertEquals(TypeInteger.constant(0),con._type);
     }
 
     @Test
@@ -44,7 +40,7 @@ public class Chapter01Test {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected return: ret",e.getMessage());
+            assertEquals("Syntax error, expected =: ",e.getMessage());
         }
     }
 
@@ -59,10 +55,9 @@ public class Chapter01Test {
     }
 
     @Test
-    public void testBad3() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected integer literal");
-        new Parser("return --12;").parse();
+    public void testNotBad3() {
+        // this test used to fail in chapter 1
+        assertEquals("return 12;", new Parser("return --12;").parse().print());
     }
 
     @Test
@@ -75,12 +70,10 @@ public class Chapter01Test {
         }
     }
 
-    // Negative numbers require unary operator support that is not in scope
     @Test
-    public void testBad5() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected integer literal");
-        new Parser("return -100;").parse();
+    public void testNotBad5() {
+        // this test used to fail in chapter 1
+        assertEquals("return -100;", new Parser("return -100;").parse().print());
     }
 
 }

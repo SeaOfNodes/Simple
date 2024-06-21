@@ -37,7 +37,7 @@ if(arg){}else{
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse(true);
         assertEquals("return Phi(Region22,1,Phi(Loop11,1,(Phi_a+1)));", stop.toString());
     }
 
@@ -57,7 +57,7 @@ while(i < arg) {
 }
 return sum;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,0,Phi(Loop20,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
         System.out.println(IRPrinter.prettyPrint(stop,99));
     }
@@ -96,7 +96,7 @@ while(a < 10) {
 }
 return b;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,2,(Phi(Region26,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         System.out.println(IRPrinter.prettyPrint(stop,99));
@@ -132,7 +132,7 @@ while(a < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop7,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
@@ -161,7 +161,7 @@ int a = 1;
 while(arg) a = 2;
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
+        StopNode stop = parser.parse(false);
         assertEquals("return Phi(Loop7,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
         System.out.println(IRPrinter.prettyPrint(stop, 99));
@@ -196,7 +196,7 @@ while(a < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop7,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
@@ -232,7 +232,7 @@ while(a < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse(true);
         assertEquals("return Phi(Loop8,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
