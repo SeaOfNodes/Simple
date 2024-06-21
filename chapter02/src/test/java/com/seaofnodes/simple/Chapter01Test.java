@@ -40,7 +40,7 @@ public class Chapter01Test {
             new Parser("ret").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected return: ret",e.getMessage());
+            assertEquals("Syntax error, expected a statement: ret",e.getMessage());
         }
     }
 
@@ -82,7 +82,17 @@ public class Chapter01Test {
             new Parser("return100").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected return: return100",e.getMessage());
+            assertEquals("Syntax error, expected a statement: return100",e.getMessage());
+        }
+    }
+
+    @Test
+    public void testBad7() {
+        try {
+            new Parser("return 1;}").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, unexpected }",e.getMessage());
         }
     }
 

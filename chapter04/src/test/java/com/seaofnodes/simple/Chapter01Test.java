@@ -86,4 +86,14 @@ public class Chapter01Test {
         }
     }
 
+    @Test
+    public void testBad7() {
+        try {
+            new Parser("return 1;}").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, unexpected }",e.getMessage());
+        }
+    }
+
 }

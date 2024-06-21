@@ -34,8 +34,22 @@ public class Parser {
     String src() { return new String( _lexer._input ); }
 
     public ReturnNode parse() {
-        if (matchx("return")) return (ReturnNode) parseReturn();
-        throw errorSyntax("return");
+        var ret = (ReturnNode) parseStatement();
+        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        return ret;
+    }
+
+    /**
+     * Parses a statement
+     *
+     * <pre>
+     *     returnStatement
+     * </pre>
+     * @return a {@link Node} or {@code null}
+     */
+    private Node parseStatement() {
+        if (matchx("return")) return parseReturn();
+        throw errorSyntax("a statement");
     }
 
     /**
