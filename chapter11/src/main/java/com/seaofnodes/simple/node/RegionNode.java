@@ -89,12 +89,13 @@ public class RegionNode extends CFGNode {
         return _idepth=d;
     }
 
-    @Override CFGNode idom() {
-        if( nIns()==2 ) return cfg(1); // 1-input is that one input
-        if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
+    @Override public CFGNode idom() {
+        CFGNode lca = null;
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
         // Because this does not cache, it can be linear in the size of the program.
-        return idom(cfg(1),cfg(2));
+        for( int i=1; i<nIns(); i++ )
+            lca = cfg(i).idom(lca);
+        return lca;
     }
 
     @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
@@ -102,7 +103,7 @@ public class RegionNode extends CFGNode {
             cfg(i).walkUnreach(visit,unreach);
     }
 
-    @Override int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
+    @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
 
     // True if last input is null
     public final boolean inProgress() {

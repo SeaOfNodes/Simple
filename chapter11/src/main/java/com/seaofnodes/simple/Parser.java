@@ -28,6 +28,9 @@ public class Parser {
 
     public StopNode STOP;
 
+    // Debugger Printing.
+    public static boolean SCHEDULED; // True if debug printer can use schedule info
+
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
@@ -80,6 +83,7 @@ public class Parser {
         IterPeeps.reset();
         Type.reset();
         OBJS.clear();
+        SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;

@@ -62,7 +62,7 @@ public class StopNode extends CFGNode {
     }
     @Override public CFGNode idom() { return null; }
 
-    @Override int loopDepth() { return (_loopDepth=1); }
+    @Override public int loopDepth() { return (_loopDepth=1); }
 
     public Node addReturn(Node node) {
         return addDef(node);

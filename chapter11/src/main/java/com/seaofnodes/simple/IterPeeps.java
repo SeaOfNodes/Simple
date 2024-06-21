@@ -94,7 +94,7 @@ public abstract class IterPeeps {
 
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
-        CFGNode.buildCFG(stop);
+        GlobalCodeMotion.buildCFG(stop);
         return stop;
     }
 

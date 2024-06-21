@@ -67,7 +67,7 @@ public class IRPrinter {
     }
 
     public static String prettyPrint(Node node, int depth) {
-        return Node.SCHEDULED
+        return Parser.SCHEDULED
             ? prettyPrintScheduled( node, depth, false )
             : prettyPrint( node, depth, false );
     }

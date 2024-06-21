@@ -30,9 +30,9 @@ public class LoopNode extends RegionNode {
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-    @Override CFGNode idom() { return entry(); }
+    @Override public CFGNode idom() { return entry(); }
 
-    @Override int loopDepth() {
+    @Override public int loopDepth() {
         if( _loopDepth!=0 ) return _loopDepth; // Was already set
         _loopDepth = entry()._loopDepth+1;     // Entry depth plus one
         // One-time tag loop exits
@@ -54,7 +54,7 @@ public class LoopNode extends RegionNode {
 
     // If this is an unreachable loop, it may not have an exit.  If it does not
     // (i.e., infinite loop), force an exit to make it reachable.
-    void forceExit( StopNode stop ) {
+    public void forceExit( StopNode stop ) {
         // Walk the backedge, then immediate dominator tree util we hit this
         // Loop again.  If we ever hit a CProj from an If (as opposed to
         // directly on the If) we found our exit.

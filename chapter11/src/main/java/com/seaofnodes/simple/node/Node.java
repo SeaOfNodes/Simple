@@ -85,9 +85,6 @@ public abstract class Node implements OutNode {
 
     // ------------------------------------------------------------------------
 
-    // Debugger Printing.
-    public static boolean SCHEDULED; // True if debug printer can use schedule info
-
     // {@code toString} is what you get in the debugger.  It has to print 1
     // line (because this is what a debugger typically displays by default) and
     // has to be robust with broken graph/nodes.
@@ -195,7 +192,7 @@ public abstract class Node implements OutNode {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-    Node addDef(Node new_def) {
+    public Node addDef(Node new_def) {
         unlock();
         // Add use->def edge
         _inputs.add(new_def);
@@ -590,7 +587,6 @@ public abstract class Node implements OutNode {
         _disablePeephole=false;
         GVN.clear();
         ITER_CNT = ITER_NOP_CNT = 0;
-        SCHEDULED = false;
     }
 
 
