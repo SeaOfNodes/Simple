@@ -438,5 +438,59 @@ while(1)
         assertEquals("return 0;", stop.toString());
     }
 
+    @Test
+    public void testAntiDeps7() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v = new S;
+S t = new S;
+int i = v.f;
+while (arg) {
+    v.f = arg;
+    arg = arg-1;
+}
+return i;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return .f;", stop.toString());
+    }
 
+    @Test
+    public void testAntiDeps8() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v = new S;
+S t = new S;
+while(arg) {
+    arg=arg-1;
+    int f = v.f;
+    v.f = 2;
+    if (arg) arg = f;
+    else v.f = 3;
+}
+return arg;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return Phi(Loop13,arg,Phi(Region35,.f,0));", stop.toString());
+    }
+
+    @Test
+    public void testAntiDeps9() {
+        Parser parser = new Parser(
+"""
+struct S { int f; }
+S v = new S;
+S t = new S;
+if (arg) {
+    v.f=2;
+    int i=t.f;
+    v.f=i;
+}
+return v;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return new S;", stop.toString());
+    }
 }

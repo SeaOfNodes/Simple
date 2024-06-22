@@ -1,12 +1,8 @@
  package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 public abstract class GlobalCodeMotion {
 
@@ -15,7 +11,7 @@ public abstract class GlobalCodeMotion {
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( StopNode stop ) {
         fixLoops(stop);
-        schedEarly(stop);
+        schedEarly();
         Parser.SCHEDULED = true;
         schedLate(Parser.START);
     }
@@ -59,30 +55,59 @@ public abstract class GlobalCodeMotion {
     }
 
     // ------------------------------------------------------------------------
-    private static void schedEarly(StopNode stop) {
-        _schedEarly(stop, new BitSet());
+    private static void schedEarly() {
+        ArrayList<CFGNode> rpo = new ArrayList<>();
+        BitSet visit = new BitSet();
+        _rpo_cfg(Parser.START, visit, rpo);
+        // Reverse Post-Order on CFG
+        for( int j=rpo.size()-1; j>=0; j-- ) {
+            CFGNode cfg = rpo.get(j);
+            cfg.loopDepth();
+            for( Node n : cfg._inputs )
+                _schedEarly(n,visit);
+            // Strictly for dead infinite loops, we can have entire code blocks
+            // not reachable from below - so we reach down, from above, one
+            // step.  Since _schedEarly modifies the output arrays, the normal
+            // region._outputs ArrayList iterator throws CME.  The extra edges
+            // are always *added* after any Phis, so just walk the Phi prefix.
+            if( cfg instanceof RegionNode region ) {
+                int len = region.nOuts();
+                for( int i=0; i<len; i++ )
+                    if( region.out(i) instanceof PhiNode phi )
+                        _schedEarly(phi,visit);
+            }
+        }
     }
 
-    // Backwards post-order pass.  Schedule all inputs first, then take the max
-    // dom-depth scheduled input as this schedule.
+    // Post-Order of CFG
+    private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
+        if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
+            return;             // Been there, done that
+        visit.set(cfg._nid);
+        for( Node use : cfg._outputs )
+            _rpo_cfg(use,visit,rpo);
+        rpo.add(cfg);
+    }
+
     private static void _schedEarly(Node n, BitSet visit) {
-        if( visit.get(n._nid) ) return; // Been there, done that
+        if( n==null || visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
+        // Schedule not-pinned not-CFG inputs before self.  Since skipping
+        // Pinned, this never walks the backedge of Phis (and thus spins around
+        // a data-only loop, eventually attempting relying on some pre-visited-
+        // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
-            if( isForwardsEdge(n,def) )
+            if( def!=null && !def.isPinned() )
                 _schedEarly(def,visit);
-        // Post-Order
-        // If not-pinned (e.g. constants, projections) and not-CFG
+        // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
-            // Check all inputs' controls
+            // Schedule at deepest input
             CFGNode early = Parser.START; // Maximally early, lowest idepth
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
-            n.setDef(0,early);  // First place this can go
+            n.setDef(0,early);              // First place this can go
         }
-        if( n instanceof CFGNode cfg )
-            cfg.loopDepth();
     }
 
     // ------------------------------------------------------------------------
@@ -125,11 +150,13 @@ public abstract class GlobalCodeMotion {
         for( Node use : n._outputs )
             lca = use_block(n,use, late).idom(lca);
 
-        // Loads may need anti-dependencies
+        // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
             lca = find_anti_dep(lca,load,early,late);
 
-        // Walk up from the LCA to the early, looking for best.
+        // Walk up from the LCA to the early, looking for best place.  This is
+        // lowest execution frequency, approximated by least loop depth and
+        // deepest control flow.
         CFGNode best = lca;
         lca = lca.idom();       // Already found best for starting LCA
         for( ; lca != early.idom(); lca = lca.idom() )
@@ -195,14 +222,12 @@ public abstract class GlobalCodeMotion {
 
     //
     private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
-        //CFGNode defblk = (CFGNode)load.mem().in(0);
         // Walk store blocks "reach" from its scheduled location to its earliest
-        for( ; stblk != defblk; stblk = stblk.idom() ) {
+        for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( stblk._anti==load._nid ) {
-                CFGNode oldlca = lca;
                 lca = stblk.idom(lca); // Raise Loads LCA
-                if( oldlca != lca && st != null ) // And if something moved,
+                if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
             }
         }
