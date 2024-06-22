@@ -92,6 +92,7 @@ multiplicativeExpression
 
 unaryExpression
     : ('-') unaryExpression
+    | '!' unaryExpression
     | primaryExpression
     ;
 
