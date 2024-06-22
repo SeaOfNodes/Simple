@@ -229,6 +229,7 @@ public abstract class GlobalCodeMotion {
                 lca = stblk.idom(lca); // Raise Loads LCA
                 if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
+                return lca;            // Cap this stores' anti-dep to here
             }
         }
         return lca;
