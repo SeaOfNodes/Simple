@@ -513,9 +513,8 @@ public class Parser {
             return new String(_input, start, --_position - start);
         }
 
-        //
         private boolean isPunctuation(char ch) {
-            return "=;[]<>()+-/*".indexOf(ch) != -1;
+            return "=;[]<>(){}+-/*!".indexOf(ch) != -1;
         }
 
         private String parsePunctuation() {
