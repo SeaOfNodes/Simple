@@ -7,7 +7,7 @@ import java.util.BitSet;
 
 // "Never true" for infinite loop exits
 public class NeverNode extends IfNode {
-    public NeverNode(Node ctrl) { super(ctrl,null); }
+    public NeverNode(Node ctrl) { super(ctrl,Parser.ZERO); }
 
     @Override public String label() { return "Never"; }
 

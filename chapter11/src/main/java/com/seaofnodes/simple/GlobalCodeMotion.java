@@ -71,15 +71,14 @@ public abstract class GlobalCodeMotion {
         for( Node def : n._inputs )
             if( isForwardsEdge(n,def) )
                 _schedEarly(def,visit);
+        // Post-Order
         // If not-pinned (e.g. constants, projections) and not-CFG
-        if( !n.isCFG() && n.in(0)==null ) {
+        if( !n.isPinned() ) {
             // Check all inputs' controls
-            CFGNode early = (CFGNode)n.in(1).in(0);
-            for( int i=2; i<n.nIns(); i++ ) {
-                CFGNode cfg = ((CFGNode)n.in(i).in(0));
-                if( cfg.idepth() > early.idepth() )
-                    early = cfg; // Latest/deepest input
-            }
+            CFGNode early = Parser.START; // Maximally early, lowest idepth
+            for( int i=1; i<n.nIns(); i++ )
+                if( n.in(i).cfg0().idepth() > early.idepth() )
+                    early = n.in(i).cfg0(); // Latest/deepest input
             n.setDef(0,early);  // First place this can go
         }
         if( n instanceof CFGNode cfg )
@@ -120,30 +119,23 @@ public abstract class GlobalCodeMotion {
         // Need to schedule n
 
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode lca = null;
-        for( Node use : n._outputs ) {
-            if( use==null ) return; // Some constants are "keep" for entire program; pre-pinned to program start
-            CFGNode cfg = use_block(n,use, late);
-            lca = cfg.idom(lca);
-        }
-
         CFGNode early = (CFGNode)n.in(0);
+        assert early != null;
+        CFGNode lca = null;
+        for( Node use : n._outputs )
+            lca = use_block(n,use, late).idom(lca);
+
         // Loads may need anti-dependencies
         if( n instanceof LoadNode load )
             lca = find_anti_dep(lca,load,early,late);
 
         // Walk up from the LCA to the early, looking for best.
         CFGNode best = lca;
-        if( early==null ) {
-            if( !lca.blockHead() )
-                best = lca.cfg(0);
-        } else {
-            lca = lca.idom();       // Already found best for starting LCA
-            for( ; lca != early.idom(); lca = lca.idom() )
-                if( better(lca,best) )
-                    best = lca;
-            assert !(best instanceof IfNode);
-        }
+        lca = lca.idom();       // Already found best for starting LCA
+        for( ; lca != early.idom(); lca = lca.idom() )
+            if( better(lca,best) )
+                best = lca;
+        assert !(best instanceof IfNode);
         ns  [n._nid] = n;
         late[n._nid] = best;
     }
@@ -172,7 +164,7 @@ public abstract class GlobalCodeMotion {
     // Skip iteration if a backedge
     private static boolean isForwardsEdge(Node use, Node def) {
         return use != null && def != null &&
-            !(use.nIns()>2 && use.in(2)==def && (use instanceof LoopNode || use instanceof PhiNode));
+            !(use.nIns()>2 && use.in(2)==def && (use instanceof LoopNode || (use instanceof PhiNode phi && phi.region() instanceof LoopNode)));
     }
 
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
@@ -184,14 +176,14 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case StoreNode st:
-                lca = anti_dep(load,late[st._nid],lca,st);
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
                 // No anti-dep edges but may raise the LCA.
                 for( int i=1; i<phi.nIns(); i++ )
                     if( phi.in(i)==load.mem() )
-                        lca = anti_dep(load,phi.region().cfg(i),lca,null);
+                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
                 break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
@@ -202,8 +194,8 @@ public abstract class GlobalCodeMotion {
     }
 
     //
-    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode lca, Node st ) {
-        CFGNode defblk = (CFGNode)load.mem().in(0);
+    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
+        //CFGNode defblk = (CFGNode)load.mem().in(0);
         // Walk store blocks "reach" from its scheduled location to its earliest
         for( ; stblk != defblk; stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence

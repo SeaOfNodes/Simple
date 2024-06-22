@@ -66,15 +66,12 @@ public class LoopNode extends RegionNode {
         }
         // Found a no-exit loop.  Insert an exit
         NeverNode iff = new NeverNode(back());
+        for( Node use : _outputs )
+            if( use instanceof PhiNode phi )
+                iff.addDef(use);
         CProjNode t = new CProjNode(iff,0,"True" );
         CProjNode f = new CProjNode(iff,1,"False");
         setDef(2,f);
         stop.addDef(new ReturnNode(t,Parser.ZERO,null));
-        // All Phis are dead also
-        for( int i=0; i<nOuts(); i++ )
-            if( out(i) instanceof PhiNode phi ) {
-                phi.setDef(2,null);
-                i--;
-            }
     }
 }
