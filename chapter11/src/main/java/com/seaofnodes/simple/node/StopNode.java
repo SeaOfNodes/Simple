@@ -28,7 +28,6 @@ public class StopNode extends CFGNode {
         return sb.append("]");
     }
 
-    @Override public boolean isCFG() { return true; }
     @Override public boolean blockHead() { return true; }
 
     // If a single Return, return it.
