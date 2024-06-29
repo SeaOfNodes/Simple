@@ -201,6 +201,85 @@ The implementation is in the Loop node:
     }
 ```
 
+## Dominators
+
+In Simple, we compute Dominators incrementally. Our approach relies on the fact that we may delete parts of the graph during peepholes,
+but we never introduce new control structure via peepholes. This allows us to use a simple approach described below.
+
+The CFG node is the base class for all control nodes. It maintains a conservative approximation of dominator depth via `_idepth`. This field is a cached value representing
+the immediate dominator depth. Its initial value is `0`, which signifies that it has not yet been computed. On request, we compute this as shown below.
+
+```java
+class CFGNode {
+  public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+}
+class RegionNode extends CFGNode {
+  // Immediate dominator of Region is a little more complicated.
+  @Override public int idepth() {
+    if( _idepth!=0 ) return _idepth;
+    int d=0;
+    for( Node n : _inputs )
+      if( n!=null )
+        d = Math.max(d,((CFGNode)n).idepth()+1);
+    return _idepth=d;
+  }
+}
+class StartNode extends CFGNode {
+  @Override public int idepth() { return 0; }
+}
+class StopNode extends CFGNode {
+  @Override public int idepth() {
+    if( _idepth!=0 ) return _idepth;
+    int d=0;
+    for( Node n : _inputs )
+      if( n!=null )
+        d = Math.max(d,((CFGNode)n).idepth()+1);
+    return _idepth=d;
+  }
+}
+```
+If portions of the control flow graph are deleted, then there will be gaps in the `_idepth`, but it still correctly reflects the
+invariant that the value of `_idepth` increases as we go down the dominator tree.
+
+Alongside the dominator depth, which is cached on first compute, a method is provided to get the immediate Dominator node. This
+value is not cached as it is only valid at a point in time, and is invalidated as the graph changes.
+
+We show the code that computes this value:
+
+```java
+class CFGNode {
+  // Return the immediate dominator of this Node and compute dom tree depth.
+  public final CFGNode idom() { return cfg(0); }
+  // Return the LCA of two idoms
+  public CFGNode idom(CFGNode rhs) {
+    if( rhs==null ) return this;
+    CFGNode lhs = this;
+    while( lhs != rhs ) {
+      var comp = lhs.idepth() - rhs.idepth();
+      if( comp >= 0 ) lhs = lhs.idom();
+      if( comp <= 0 ) rhs = rhs.idom();
+    }
+    return lhs;
+  }
+}
+class RegionNode extends CFGNode {
+  @Override public CFGNode idom() {
+    CFGNode lca = null;
+    // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
+    // Because this does not cache, it can be linear in the size of the program.
+    for( int i=1; i<nIns(); i++ )
+      lca = cfg(i).idom(lca);
+    return lca;
+  }
+}
+class StartNode extends CFGNode {
+  @Override public CFGNode idom() { return null; }
+}
+class StopNode extends CFGNode {
+  @Override public CFGNode idom() { return null; }
+}
+```
+
 
 
 [^1]: Cliff Click. (1995).
