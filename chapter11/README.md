@@ -141,7 +141,7 @@ Here is the list of all control nodes:
 
 | Node   | Starts a BB                             | Ends a BB |
 |--------|-----------------------------------------|-----------|
-| Start  | Yes but only via the `$ctrl` projection | Yes       |
+| Start  | Yes but only via the `$ctrl` projection | No        |
 | CProj  | Yes if input control is an If node      | No        |
 | Region | Yes                                     | No        |
 | If     | No                                      | Yes       |
@@ -150,12 +150,56 @@ Here is the list of all control nodes:
 
 Changes to Node hierarchy in this chapter:
 
-* All control nodes above now extend a base class CCFGNode. This allows us to place common functionality of control flow nodes in the base class.
+* All control nodes above now extend a base class CFG Node. This allows us to place common functionality of control flow nodes in the base class.
 * The CProj node extends the regular Proj node and is used in following cases:
   * The `$ctrl` projection off Start
-  * The true and false projections off If.
+  * The True and False projections off If.
 * The Never node is a special sub class of If that is used to handle infinite loops as explained later.
 * The XCtrl node represents a dead control.
+
+## Handling Infinite Loops
+
+Here is an example of code that contains an infinite loop:
+
+```java
+while (1) {}
+return 0;
+```
+
+First lets look at the graph resulting from this:
+
+![Graph7](./docs/graph7.svg)
+
+Now, look at the modified graph after we insert an edge from the infinite loop to Stop node.
+
+![Graph8](./docs/graph8.svg)
+
+The implementation is in the Loop node:
+
+```java
+    // If this is an unreachable loop, it may not have an exit.  If it does not
+    // (i.e., infinite loop), force an exit to make it reachable.
+    public void forceExit( StopNode stop ) {
+        // Walk the backedge, then immediate dominator tree util we hit this
+        // Loop again.  If we ever hit a CProj from an If (as opposed to
+        // directly on the If) we found our exit.
+        CFGNode x = back();
+        while( x != this ) {
+            if( x instanceof CProjNode exit )
+                return;         // Found an exit, not an infinite loop
+            x = x.idom();
+        }
+        // Found a no-exit loop.  Insert an exit
+        NeverNode iff = new NeverNode(back());
+        for( Node use : _outputs )
+            if( use instanceof PhiNode phi )
+                iff.addDef(use);
+        CProjNode t = new CProjNode(iff,0,"True" );
+        CProjNode f = new CProjNode(iff,1,"False");
+        setDef(2,f);
+        stop.addDef(new ReturnNode(t,Parser.ZERO,null));
+    }
+```
 
 
 
