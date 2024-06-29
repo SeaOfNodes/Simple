@@ -492,4 +492,23 @@ return v;
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return new S;", stop.toString());
     }
+
+    @Test
+    public void testExample2() {
+        Parser parser = new Parser(
+                """
+struct S { int f; }
+S v = new S;
+int i = arg;
+while (arg > 0) {
+    int j = i/3;
+    if (arg == 5)
+        v.f = j;
+    arg = arg - 1;
+}
+return v;
+                """);
+        StopNode stop = parser.parse(false).iterate(true);
+        //assertEquals("return new S;", stop.toString());
+    }
 }

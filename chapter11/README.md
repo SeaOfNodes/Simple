@@ -81,7 +81,38 @@ The snip below shows the main changes in the graph:
 * The store `.f=` now has an anti-dependency on the load `.f`; this ensures that the store is scheduled after the load, as required by program semantics. We discuss anti-dependencies in detail later. 
 * Observe also that the store `.f=` is now bound to the True branch of the If node. 
 
+## Scheduling a Loop
 
+We show another example, this time involving a loop. 
+
+```java
+struct S { int f; }
+S v = new S;
+int i = arg;
+while (arg > 0) {
+    int j = i/3;
+    if (arg == 5)
+        v.f = j;
+    arg = arg - 1;
+}
+return v;
+```
+
+The SoN graph prior to scheduling looks like this:
+
+![Graph4](./docs/graph4.svg)
+
+Following early schedule generation, we get:
+
+![Graph5](./docs/graph5.svg)
+
+Note that the `arg === 5` comparison at this stage is not in the correct place.
+This is rectified after we complete late scheduling.
+
+![Graph6](./docs/graph6.svg)
+
+The final execution schedule shows that the expression `i/3` can be performed outside the loop because it only depends on the
+original value of `arg`, and hence is loop invariant.
 
 
 [^1]: Cliff Click. (1995).
