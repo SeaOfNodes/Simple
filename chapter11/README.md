@@ -305,6 +305,87 @@ class StopNode extends CFGNode {
 }
 ```
 
+## Early Schedule
+
+The GCM algorithm proper starts with the computation of the early schedule, during which do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the
+first control block where they are dominated by their inputs.
+
+A pre-condition of this is to ensure that infinite loops have been "fixed" as described earlier.
+
+The implementation of early schedule is shown below:
+
+```java
+    // ------------------------------------------------------------------------
+private static void schedEarly() {
+  ArrayList<CFGNode> rpo = new ArrayList<>();
+  BitSet visit = new BitSet();
+  _rpo_cfg(Parser.START, visit, rpo);
+  // Reverse Post-Order on CFG
+  for( int j=rpo.size()-1; j>=0; j-- ) {
+    CFGNode cfg = rpo.get(j);
+    cfg.loopDepth();
+    for( Node n : cfg._inputs )
+      _schedEarly(n,visit);
+    // Strictly for dead infinite loops, we can have entire code blocks
+    // not reachable from below - so we reach down, from above, one
+    // step.  Since _schedEarly modifies the output arrays, the normal
+    // region._outputs ArrayList iterator throws CME.  The extra edges
+    // are always *added* after any Phis, so just walk the Phi prefix.
+    if( cfg instanceof RegionNode region ) {
+      int len = region.nOuts();
+      for( int i=0; i<len; i++ )
+        if( region.out(i) instanceof PhiNode phi )
+          _schedEarly(phi,visit);
+    }
+  }
+}
+
+// Post-Order of CFG
+private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
+  if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
+    return;             // Been there, done that
+  visit.set(cfg._nid);
+  for( Node use : cfg._outputs )
+    _rpo_cfg(use,visit,rpo);
+  rpo.add(cfg);
+}
+
+private static void _schedEarly(Node n, BitSet visit) {
+  if( n==null || visit.get(n._nid) ) return; // Been there, done that
+  visit.set(n._nid);
+  // Schedule not-pinned not-CFG inputs before self.  Since skipping
+  // Pinned, this never walks the backedge of Phis (and thus spins around
+  // a data-only loop, eventually attempting relying on some pre-visited-
+  // not-post-visited data op with no scheduled control.
+  for( Node def : n._inputs )
+    if( def!=null && !def.isPinned() )
+      _schedEarly(def,visit);
+  // If not-pinned (e.g. constants, projections, phi) and not-CFG
+  if( !n.isPinned() ) {
+    // Schedule at deepest input
+    CFGNode early = Parser.START; // Maximally early, lowest idepth
+    for( int i=1; i<n.nIns(); i++ )
+      if( n.in(i).cfg0().idepth() > early.idepth() )
+        early = n.in(i).cfg0(); // Latest/deepest input
+    n.setDef(0,early);              // First place this can go
+  }
+}
+```
+
+* The early schedule populates the control input for data nodes - recall that this is null up to this point as data nodes are not attached to any control flow nodes until now.
+* Most of the code above is about walking the graph in the right order. The actual computation of the early schedule is in these lines:
+
+```java
+  // If not-pinned (e.g. constants, projections, phi) and not-CFG
+  if( !n.isPinned() ) {
+    // Schedule at deepest input
+    CFGNode early = Parser.START; // Maximally early, lowest idepth
+    for( int i=1; i<n.nIns(); i++ )
+      if( n.in(i).cfg0().idepth() > early.idepth() )
+        early = n.in(i).cfg0(); // Latest/deepest input
+    n.setDef(0,early);              // First place this can go
+  }
+```
 
 
 [^1]: Cliff Click. (1995).
