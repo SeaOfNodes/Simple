@@ -451,7 +451,6 @@ The code for computing the late schedule is shown below.
         assert !(best instanceof IfNode);
         ns  [n._nid] = n;
         late[n._nid] = best;
-        System.out.println("Setting late for node " + n._nid + "(" + n + ") to " + best._nid + "(" + best + ")");
     }
 
     // Block of use.  Normally from late[] schedule, except for Phis, which go
@@ -484,7 +483,7 @@ The code for computing the late schedule is shown below.
 ## Inserting Anti Dependencies
 
 To ensure that Loads and Stores to the same memory location are correctly ordered,
-we insert anti-dependencies when a Load's path up the dominator tree cross the path of a Store that is the user of the Load's memory input.
+we insert anti-dependencies when a Load's path up the dominator tree crosses the path of a Store that is the user of the Load's memory input.
 
 ```java
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
