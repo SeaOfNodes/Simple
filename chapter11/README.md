@@ -211,6 +211,7 @@ the immediate dominator depth. Its initial value is `0`, which signifies that it
 
 ```java
 class CFGNode {
+  public int _idepth;
   public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
 }
 class RegionNode extends CFGNode {
@@ -249,7 +250,7 @@ We show the code that computes this value:
 ```java
 class CFGNode {
   // Return the immediate dominator of this Node and compute dom tree depth.
-  public final CFGNode idom() { return cfg(0); }
+  public CFGNode idom() { return cfg(0); }
   // Return the LCA of two idoms
   public CFGNode idom(CFGNode rhs) {
     if( rhs==null ) return this;
@@ -277,6 +278,30 @@ class StartNode extends CFGNode {
 }
 class StopNode extends CFGNode {
   @Override public CFGNode idom() { return null; }
+}
+```
+
+## Loop Depth
+
+Simple's Sea of Nodes graph identifies loops explicitly via Loop nodes. Since the language provides a single way to create a loop, using the `while` statement,
+it is not necessary to implement a generic loop discovery process.
+
+We do however need to compute a loop depth. This is done similar to how we compute the dominator depth.
+
+```java
+class CFGNode {
+  // Loop nesting depth
+  public int _loopDepth;
+  public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(0).loopDepth()) : _loopDepth; }
+}
+class RegionNode extends CFGNode {
+  @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
+}
+class StartNode extends CFGNode {
+  @Override public int loopDepth() { return (_loopDepth=1); }
+}
+class StopNode extends CFGNode { 
+  @Override public int loopDepth() { return (_loopDepth=1); }
 }
 ```
 
