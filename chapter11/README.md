@@ -387,6 +387,153 @@ private static void _schedEarly(Node n, BitSet visit) {
   }
 ```
 
+## Late Schedule
+
+During this phase we do a downward DFS walk on the "outputs" of each Node starting from the top (Start), and move data nodes to a block between the first block in the early schedule,
+and the last control block where they dominate all their uses. The placement is subject to the condition that it is in the shallowest loop nest possible, and is as control dependent as possible.
+Additionally, the placement of Load instructions must ensure correct ordering between Loads and Stores of the same memory location.
+
+The code for computing the late schedule is shown below.
+
+```java
+    // ------------------------------------------------------------------------
+    private static void schedLate(StartNode start) {
+        CFGNode[] late = new CFGNode[Node.UID()];
+        Node[] ns = new Node[Node.UID()];
+        _schedLate(start,ns,late);
+        for( int i=0; i<late.length; i++ )
+            if( ns[i] != null )
+                ns[i].setDef(0,late[i]);
+    }
+
+    // Forwards post-order pass.  Schedule all outputs first, then draw a
+    // idom-tree line from the LCA of uses to the early schedule.  Schedule is
+    // legal anywhere on this line; pick the most control-dependent (largest
+    // idepth) in the shallowest loop nest.
+    private static void _schedLate(Node n, Node[] ns, CFGNode[] late) {
+        if( late[n._nid]!=null ) return; // Been there, done that
+        // These I know the late schedule of, and need to set early for loops
+        if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
+        if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
+
+        // Walk Stores before Loads, so we can get the anti-deps right
+        for( Node use : n._outputs )
+            if( isForwardsEdge(use,n) &&
+                use._type instanceof TypeMem )
+                _schedLate(use,ns,late);
+        // Walk everybody now
+        for( Node use : n._outputs )
+            if( isForwardsEdge(use,n) )
+                _schedLate(use,ns,late);
+        // Already implicitly scheduled
+        if( n.isPinned() ) return;
+        // Need to schedule n
+
+        // Walk uses, gathering the LCA (Least Common Ancestor) of uses
+        CFGNode early = (CFGNode)n.in(0);
+        assert early != null;
+        CFGNode lca = null;
+        for( Node use : n._outputs )
+            lca = use_block(n,use, late).idom(lca);
+
+        // Loads may need anti-dependencies, raising their LCA
+        if( n instanceof LoadNode load )
+            lca = find_anti_dep(lca,load,early,late);
+
+        // Walk up from the LCA to the early, looking for best place.  This is
+        // lowest execution frequency, approximated by least loop depth and
+        // deepest control flow.
+        CFGNode best = lca;
+        lca = lca.idom();       // Already found best for starting LCA
+        for( ; lca != early.idom(); lca = lca.idom() )
+            if( better(lca,best) )
+                best = lca;
+        assert !(best instanceof IfNode);
+        ns  [n._nid] = n;
+        late[n._nid] = best;
+        System.out.println("Setting late for node " + n._nid + "(" + n + ") to " + best._nid + "(" + best + ")");
+    }
+
+    // Block of use.  Normally from late[] schedule, except for Phis, which go
+    // to the matching Region input.
+    private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
+        if( !(use instanceof PhiNode phi) )
+            return late[use._nid];
+        CFGNode found=null;
+        for( int i=1; i<phi.nIns(); i++ )
+            if( phi.in(i)==n )
+                if( found==null ) found = phi.region().cfg(i);
+                else Utils.TODO(); // Can be more than once
+        assert found!=null;
+        return found;
+    }
+
+    // Least loop depth first, then largest idepth
+    private static boolean better( CFGNode lca, CFGNode best ) {
+        return lca._loopDepth < best._loopDepth ||
+                (lca.idepth() > best.idepth() || best instanceof IfNode);
+    }
+
+    // Skip iteration if a backedge
+    private static boolean isForwardsEdge(Node use, Node def) {
+        return use != null && def != null &&
+            !(use.nIns()>2 && use.in(2)==def && (use instanceof LoopNode || (use instanceof PhiNode phi && phi.region() instanceof LoopNode)));
+    }
+```
+
+## Inserting Anti Dependencies
+
+To ensure that Loads and Stores to the same memory location are correctly ordered,
+we insert anti-dependencies when a Load's path up the dominator tree cross the path of a Store that is the user of the Load's memory input.
+
+```java
+    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
+        // We could skip final-field loads here.
+        // Walk LCA->early, flagging Load's block location choices
+        for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
+            cfg._anti = load._nid;
+        // Walk load->mem uses, looking for Stores causing an anti-dep
+        for( Node mem : load.mem()._outputs ) {
+            switch( mem ) {
+            case StoreNode st:
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+                break;
+            case PhiNode phi:
+                // Repeat anti-dep for matching Phi inputs.
+                // No anti-dep edges but may raise the LCA.
+                for( int i=1; i<phi.nIns(); i++ )
+                    if( phi.in(i)==load.mem() )
+                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
+                break;
+            case LoadNode ld: break; // Loads do not cause anti-deps on other loads
+            case ReturnNode ret: break; // Load must already be ahead of Return
+            default: throw Utils.TODO();
+            }
+        }
+        return lca;
+    }
+    
+    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
+        // Walk store blocks "reach" from its scheduled location to its earliest
+        for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
+            // Store and Load overlap, need anti-dependence
+            if( stblk._anti==load._nid ) {
+                lca = stblk.idom(lca); // Raise Loads LCA
+                if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
+                    st.addDef(load);   // Add anti-dep as well
+                return lca;            // Cap this stores' anti-dep to here
+            }
+        }
+        return lca;
+    }
+```
+
+## Video Walk Through
+
+Please watch the following video for a detailed walk through of the implementation.
+
+* [Coffee Compiler Club - 21 June 2024](https://youtu.be/5Po0gxfE7LA?feature=shared).
+* [Coffee Compiler Club - 26 June 2024](https://www.youtube.com/watch?v=HnN2YzmFb-8&t=0s)
 
 [^1]: Cliff Click. (1995).
   Global Code Motion Global Value Numbering.
