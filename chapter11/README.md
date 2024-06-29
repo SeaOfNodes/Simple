@@ -114,6 +114,50 @@ This is rectified after we complete late scheduling.
 The final execution schedule shows that the expression `i/3` can be performed outside the loop because it only depends on the
 original value of `arg`, and hence is loop invariant.
 
+## Components of the Global Code Motion Algorithm
+
+We have already alluded to several components of the GCM algorithm in passing above. Here we list them out as well as others we did not mention:
+
+* The SoN graph has implicit basic blocks in the control flow nodes. For the GCM algo, we need to recognize these nodes more explicitly.
+* When a program has an infinite loop, it poses a problem for the algo, as nodes can be unreachable from the Stop node. To work around this issue, we need to discover
+  infinite loops and create a dummy edge connecting the loop to the Stop node.
+* Loops are already identified in the Simple SoN graph, so we do not need a loop discovery step. However, we need to compute the loop depth associated with each CFG node.
+* In [Chapter 6](../chapter06/README.md) we explained the concept of Dominators. Dominators are key to the GCM algo, and we extend our incremental dominator discovery algo to 
+  ensure that it meets the requirements of the algo (TODO did we enhance it in this chapter?).
+* We already mentioned the two phases of the algo - the Early Scheduling and the Late Scheduling.
+* In addition, we need to add anti-dependency edges between Loads and Stores in certain scenarios to enforce correct execution order.
+* There are a few changes to our Node hierarchy to help us implement the GCM algo more conveniently. These changes do not conceptually alter the Node hierarchy we inherited from the previous chapters. 
+
+## Identification of Basic Blocks in SoN graph
+
+The Sea of Nodes graph already captures the programs control flow graph. This information is implicit in the control nodes and edges from control nodes to other types of nodes.
+
+To recap, Control starts at the Start node, via a projection that is bound to the name `$ctrl`. As the control flows in the program, this name binding gets updated, and control is
+passed around, until it reaches the Stop node. 
+
+The Basic Block structure of the CFG can be easily constructed by recognizing that certain control nodes start a Basic Block, whereas certain others end a BB.
+
+Here is the list of all control nodes:
+
+| Node   | Starts a BB                             | Ends a BB |
+|--------|-----------------------------------------|-----------|
+| Start  | Yes but only via the `$ctrl` projection | Yes       |
+| CProj  | Yes if input control is an If node      | No        |
+| Region | Yes                                     | No        |
+| If     | No                                      | Yes       |
+| Return | No                                      | Yes       |
+| Stop   | Yes                                     | Yes       |
+
+Changes to Node hierarchy in this chapter:
+
+* All control nodes above now extend a base class CCFGNode. This allows us to place common functionality of control flow nodes in the base class.
+* The CProj node extends the regular Proj node and is used in following cases:
+  * The `$ctrl` projection off Start
+  * The true and false projections off If.
+* The Never node is a special sub class of If that is used to handle infinite loops as explained later.
+* The XCtrl node represents a dead control.
+
+
 
 [^1]: Cliff Click. (1995).
   Global Code Motion Global Value Numbering.
