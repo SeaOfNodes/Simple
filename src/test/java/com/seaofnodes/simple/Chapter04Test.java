@@ -55,8 +55,8 @@ public class Chapter04Test {
         Parser parser = new Parser("return arg; ");
         StopNode stop = parser.parse();
         ReturnNode ret = stop.ret();
-        assertTrue(ret.in(0) instanceof ProjNode);
-        assertTrue(ret.in(1) instanceof ProjNode);
+        assertTrue(ret.in(0) instanceof CProjNode);
+        assertTrue(ret.in(1) instanceof  ProjNode);
     }
 
     @Test
