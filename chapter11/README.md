@@ -123,7 +123,7 @@ We have already alluded to several components of the GCM algorithm in passing ab
   infinite loops and create a dummy edge connecting the loop to the Stop node.
 * Loops are already identified in the Simple SoN graph, so we do not need a loop discovery step. However, we need to compute the loop depth associated with each CFG node.
 * In [Chapter 6](../chapter06/README.md) we explained the concept of Dominators. Dominators are key to the GCM algo, and we extend our incremental dominator discovery algo to 
-  ensure that it meets the requirements of the algo (TODO did we enhance it in this chapter?).
+  ensure that it meets the requirements of the algo.
 * We already mentioned the two phases of the algo - the Early Scheduling and the Late Scheduling.
 * In addition, we need to add anti-dependency edges between Loads and Stores in certain scenarios to enforce correct execution order.
 * There are a few changes to our Node hierarchy to help us implement the GCM algo more conveniently. These changes do not conceptually alter the Node hierarchy we inherited from the previous chapters. 
@@ -484,6 +484,8 @@ The code for computing the late schedule is shown below.
 
 To ensure that Loads and Stores to the same memory location are correctly ordered,
 we insert anti-dependencies when a Load's path up the dominator tree crosses the path of a Store that is the user of the Load's memory input.
+We call these anti-dependencies because they do not represent Def-Use dependency that we normally capture in SoN, and are 
+purely there as scheduling constraints.
 
 ```java
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {

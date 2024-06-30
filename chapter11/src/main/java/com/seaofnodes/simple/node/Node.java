@@ -85,6 +85,8 @@ public abstract class Node implements OutNode {
 
     // ------------------------------------------------------------------------
 
+    // Debugger Printing.
+
     // {@code toString} is what you get in the debugger.  It has to print 1
     // line (because this is what a debugger typically displays by default) and
     // has to be robust with broken graph/nodes.
@@ -255,10 +257,11 @@ public abstract class Node implements OutNode {
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
     public <N extends Node> N unkeep() {
-        assert Utils.find(_outputs, null) != -1;
         delUse(null);
         return (N)this;
     }
+    // Test "keep" status
+    public boolean iskeep() { return Utils.find(_outputs,null) != -1; }
 
 
     // Replace self with nnn in the graph, making 'this' go dead
@@ -355,7 +358,7 @@ public abstract class Node implements OutNode {
     private Node deadCodeElim(Node m) {
         // If self is going dead and not being returned here (Nodes returned
         // from peephole commonly have no uses (yet)), then kill self.
-        if( m != this && isUnused() ) {
+        if( m != this && isUnused() && !isDead() ) {
             // Killing self - and since self recursively kills self's inputs we
             // might end up killing 'm', which we are returning as a live Node.
             // So we add a bogus extra null output edge to stop kill().

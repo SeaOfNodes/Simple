@@ -100,7 +100,7 @@ public class PhiNode extends Node {
             if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
-                if( region().idom() instanceof IfNode iff && iff.pred()==val ) {
+                if( region().idom() instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)region().in(nullx);
                     while( idom.in(0) != iff ) idom = idom.idom();

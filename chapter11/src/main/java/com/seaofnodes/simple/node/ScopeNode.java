@@ -237,7 +237,8 @@ public class ScopeNode extends Node {
                 IterPeeps.addAll(phi._outputs);
                 phi.moveDepsToWorklist();
                 if( in != phi ) {
-                    phi.subsume(in);
+                    if( !phi.iskeep() ) // Keeping phi around for parser elsewhere
+                        phi.subsume(in);
                     setDef(i,in); // Set the update back into Scope
                 }
             }

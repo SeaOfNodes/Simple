@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
@@ -11,32 +12,30 @@ import java.util.BitSet;
 public class StoreNode extends MemOpNode {
 
     /**
-     * @param field The struct field we are assigning to
+     * @param name The struct field we are assigning to
      * @param memSlice The memory alias node - this is updated after a Store
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(Field field, Node memSlice, Node memPtr, Node value) {
-        super(field, memSlice, memPtr, value);
+    public StoreNode(String name, int alias, Node memSlice, Node memPtr, Node value) {
+        super(name, alias, memSlice, memPtr, value);
     }
 
     @Override
     public String label() { return "Store"; }
     @Override
-    public String glabel() { return "."+_field._fname+" ="; }
+    public String glabel() { return "."+_name+" ="; }
     @Override
     public boolean isMem() { return true; }
     public Node val() { return in(3); }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append(".").append(_field._fname).append("=").append( val()).append(";");
+        return sb.append(".").append(_name).append("=").append( val()).append(";");
     }
 
     @Override
-    public Type compute() {
-        return TypeMem.make(_field._alias);
-    }
+    public Type compute() { return TypeMem.make(_alias); }
 
     @Override
     public Node idealize() {
@@ -49,7 +48,7 @@ public class StoreNode extends MemOpNode {
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
             st.checkNoUseBeyond(this) ) {
-            assert _field==st._field; // Equiv class aliasing is perfect
+            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
             setDef(1,st.mem());
             return this;
         }

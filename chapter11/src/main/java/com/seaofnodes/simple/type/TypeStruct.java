@@ -18,8 +18,6 @@ public class TypeStruct extends Type {
         super(Type.TSTRUCT);
         _name = name;
         _fields = fields;
-        for( Field f : _fields )
-            f._obj = this;
     }
 
     public static TypeStruct make(String name, Field[] fields) { return new TypeStruct(name, fields).intern(); }
@@ -30,11 +28,11 @@ public class TypeStruct extends Type {
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); }
 
-    public Field get(String fname) {
-        for( Field f : _fields )
-            if( f._fname.equals(fname) )
-                return f;
-        return null;
+    public int find(String fname) {
+        for( int i=0; i<_fields.length; i++ )
+            if( _fields[i]._fname.equals(fname) )
+                return i;
+        return -1;
     }
 
     @Override
@@ -110,11 +108,11 @@ public class TypeStruct extends Type {
 
     @Override
     public StringBuilder _print(StringBuilder sb) {
-        sb.append(_name).append(" {");
+        sb.append(_name).append(" {\n");
         for( Field f : _fields ) {
             sb.append("  ").append(f._fname).append(":");
             f._type._print(sb);
-            sb.append(";");
+            sb.append(";\n");
         }
         return sb.append("}");
     }
