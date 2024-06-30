@@ -1,14 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashSet;
 
-public class RegionNode extends Node {
+public class RegionNode extends CFGNode {
 
     public RegionNode(Node... nodes) { super(nodes); }
 
@@ -20,8 +21,8 @@ public class RegionNode extends Node {
         return sb.append(label()).append(_nid);
     }
 
-    @Override public boolean isCFG() { return true; }
     @Override public boolean isMultiHead() { return true; }
+    @Override public boolean blockHead() { return true; }
 
     @Override
     public Type compute() {
@@ -57,7 +58,7 @@ public class RegionNode extends Node {
                         IterPeeps.addAll(phi._outputs);
                     }
             }
-            return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
+            return isDead() ? Parser.XCTRL : delDef(path);
         }
         // If down to a single input, become that input
         if( nIns()==2 && !hasPhi() )
@@ -89,30 +90,30 @@ public class RegionNode extends Node {
     }
 
     // Immediate dominator of Region is a little more complicated.
-    @Override int idepth() {
+    @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;
         int d=0;
         for( Node n : _inputs )
             if( n!=null )
-                d = Math.max(d,n.idepth());
+                d = Math.max(d,((CFGNode)n).idepth()+1);
         return _idepth=d;
     }
 
-    @Override Node idom() {
-        if( nIns()==2 ) return in(1); // 1-input is that one input
-        if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
+    @Override public CFGNode idom() {
+        CFGNode lca = null;
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
         // Because this does not cache, it can be linear in the size of the program.
-        Node lhs = in(1);
-        Node rhs = in(2);
-        while( lhs != rhs ) {
-          if( lhs==null || rhs==null ) return null;
-          var comp = lhs.idepth() - rhs.idepth();
-          if( comp >= 0 ) lhs = lhs.idom();
-          if( comp <= 0 ) rhs = rhs.idom();
-        }
-        return lhs;
+        for( int i=1; i<nIns(); i++ )
+            lca = cfg(i).idom(lca);
+        return lca;
     }
+
+    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
+        for( int i=1; i<nIns(); i++ )
+            cfg(i).walkUnreach(visit,unreach);
+    }
+
+    @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
 
     // True if last input is null
     public final boolean inProgress() {
@@ -123,4 +124,6 @@ public class RegionNode extends Node {
     @Override boolean eq( Node n ) {
         return !inProgress();
     }
+
+    @Override public Node getBlockStart() { return this; }
 }
