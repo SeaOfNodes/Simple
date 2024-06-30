@@ -1,0 +1,113 @@
+digraph chapter11 {
+/*
+struct S { int f; }
+S v = new S;
+int i = arg;
+while (arg > 0) {
+    int j = i/3;
+    if (arg == 5)
+        v.f = j;
+    arg = arg - 1;
+}
+return v;
+
+*/
+	rankdir=BT;
+	concentrate="true";
+	compound="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD><TD PORT="p2">$2</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_4 [ label="#0" ];
+		new9 [ label="new S" ];
+		Store10 [ label=".f =" ];
+		Loop11 [ shape=box style=filled fillcolor=yellow label="Loop" ];
+		Phi_arg13 [ style=filled fillcolor=lightyellow label="&phi;_arg" ];
+		LT14 [ label="<" ];
+		If16 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Div21 [ label="//" ];
+		Con_22 [ label="#3" ];
+		EQ23 [ label="==" ];
+		Con_24 [ label="#5" ];
+		If25 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Phi_230 [ style=filled fillcolor=lightyellow label="&phi;_$2" ];
+		Store31 [ label=".f =" ];
+		Region32 [ shape=box style=filled fillcolor=yellow label="Region" ];
+		Phi_233 [ style=filled fillcolor=lightyellow label="&phi;_$2" ];
+		Sub35 [ label="-" ];
+		Con_36 [ label="#1" ];
+		Return37 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		{ rank=same; Loop11;Phi_230;Phi_arg13;}
+		{ rank=same; Region32;Phi_233;}
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return37[taillabel=0 color=red];
+	new9 -> Start2:p0[taillabel=0 color=green];
+	Store10 -> Start2:p0[taillabel=0 color=red];
+	Store10 -> Start2:p2[taillabel=1 color=blue];
+	Store10 -> new9[taillabel=2];
+	Store10 -> Con_4[taillabel=3];
+	Loop11 -> Start2:p0[taillabel=1 color=red];
+	Loop11 -> Region32[taillabel=2 color=red constraint=false];
+	Phi_arg13 -> Loop11 [style=dotted taillabel=0];
+	Phi_arg13 -> Start2:p1[taillabel=1];
+	Phi_arg13 -> Sub35[taillabel=2 constraint=false];
+	LT14 -> Loop11[taillabel=0 color=red];
+	LT14 -> Con_4[taillabel=1];
+	LT14 -> Phi_arg13[taillabel=2];
+	If16 -> Loop11[taillabel=0 color=red];
+	If16 -> LT14[taillabel=1];
+	Div21 -> Start2[taillabel=0 color=red];
+	Div21 -> Start2:p1[taillabel=1];
+	Div21 -> Con_22[taillabel=2];
+	EQ23 -> Loop11[taillabel=0 color=red];
+	EQ23 -> Phi_arg13[taillabel=1];
+	EQ23 -> Con_24[taillabel=2];
+	If25 -> If16:p0[taillabel=0 color=red];
+	If25 -> EQ23[taillabel=1];
+	Phi_230 -> Loop11 [style=dotted taillabel=0];
+	Phi_230 -> Store10[taillabel=1 color=blue];
+	Phi_230 -> Phi_233[taillabel=2 color=blue constraint=false];
+	Store31 -> Loop11[taillabel=0 color=red];
+	Store31 -> Phi_230[taillabel=1 color=blue];
+	Store31 -> new9[taillabel=2];
+	Store31 -> Div21[taillabel=3];
+	Region32 -> If25:p0[taillabel=1 color=red];
+	Region32 -> If25:p1[taillabel=2 color=red];
+	Phi_233 -> Region32 [style=dotted taillabel=0];
+	Phi_233 -> Store31[taillabel=1 color=blue];
+	Phi_233 -> Phi_230[taillabel=2 color=blue constraint=false];
+	Sub35 -> Loop11[taillabel=0 color=red];
+	Sub35 -> Phi_arg13[taillabel=1];
+	Sub35 -> Con_36[taillabel=2];
+	Return37 -> If16:p1[taillabel=0 color=red];
+	Return37 -> new9[taillabel=1];
+	Return37 -> Phi_230[taillabel=2 color=blue];
+}

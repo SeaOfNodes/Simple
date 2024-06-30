@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 
 import java.util.*;
@@ -27,7 +28,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(stop, scope);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter10 {\n");
+        sb.append("digraph chapter11 {\n");
         sb.append("/*\n");
         sb.append(stop._src);
         sb.append("\n*/\n");
@@ -79,7 +80,7 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for (Node n : all) {
-            if (n instanceof ProjNode || n instanceof ScopeNode)
+            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n==Parser.XCTRL)
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             if (_separateControlCluster && doCtrl && !n.isCFG()) continue;
             if (_separateControlCluster && !doCtrl && n.isCFG()) continue;
@@ -100,9 +101,16 @@ public class GraphVisualizer {
                             sb.append("\t\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">").append("\n");
                             sb.append("\t\t\t\t<TR>");
                         }
-                        sb.append("<TD PORT=\"p").append(proj._idx).append("\"");
-                        if (proj.isCFG()) sb.append(" BGCOLOR=\"yellow\"");
-                        sb.append(">").append(proj.glabel()).append("</TD>");
+                        sb.append("<TD PORT=\"p").append(proj._idx).append("\">").append(proj.glabel()).append("</TD>");
+                    }
+                    if (use instanceof CProjNode proj) {
+                        if (!doProjTable) {
+                            doProjTable = true;
+                            sb.append("<TD>").append("\n");
+                            sb.append("\t\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">").append("\n");
+                            sb.append("\t\t\t\t<TR>");
+                        }
+                        sb.append("<TD PORT=\"p").append(proj._idx).append("\" BGCOLOR=\"yellow\">").append(proj.glabel()).append("</TD>");
                     }
                 }
                 if (doProjTable) {
@@ -178,7 +186,7 @@ public class GraphVisualizer {
             // Do not display the Constant->Start edge;
             // ProjNodes handled by Multi;
             // ScopeNodes are done separately
-            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof ScopeNode )
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n==Parser.XCTRL )
                 continue;
             for( int i=0; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
@@ -191,8 +199,11 @@ public class GraphVisualizer {
                 } else if( def != null ) {
                     // Most edges land here use->def
                     sb.append('\t').append(n.uniqueName()).append(" -> ");
-                    if( def instanceof ProjNode proj ) {
+                    if( def instanceof CProjNode proj ) {
                         String mname = proj.ctrl().uniqueName();
+                        sb.append(mname).append(":p").append(proj._idx);
+                    } else if( def instanceof ProjNode proj ) {
+                        String mname = proj.in(0).uniqueName();
                         sb.append(mname).append(":p").append(proj._idx);
                     } else sb.append(def.uniqueName());
                     // Number edges, so we can see how they track
@@ -231,7 +242,7 @@ public class GraphVisualizer {
                   .append(scopeName).append(":")
                   .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
                   .append(" -> ");
-                if( def instanceof ProjNode proj ) {
+                if( def instanceof CProjNode proj ) {
                     String mname = proj.ctrl().uniqueName();
                     sb.append(mname).append(":p").append(proj._idx);
                 } else sb.append(def.uniqueName());
