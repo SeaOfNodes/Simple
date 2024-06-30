@@ -1,0 +1,81 @@
+digraph chapter11 {
+/*
+struct S { int f; }
+S v=new S;
+v.f = 2;
+int i=new S.f;
+i=v.f;
+if (arg) v.f=1;
+return i;
+
+*/
+	rankdir=BT;
+	concentrate="true";
+	compound="true";
+	subgraph cluster_Nodes {
+		Start2 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">Start</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">$ctrl</TD><TD PORT="p1">arg</TD><TD PORT="p2">$2</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Stop3 [ shape=box style=filled fillcolor=yellow label="Stop" ];
+		Con_4 [ label="#0" ];
+		new9 [ label="new S" ];
+		Con_11 [ label="#2" ];
+		Store12 [ label=".f =" ];
+		new13 [ label="new S" ];
+		Store14 [ label=".f =" ];
+		Load16 [ label=".f" ];
+		If17 [ shape=plaintext label=<
+			<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+			<TR><TD BGCOLOR="yellow">If</TD></TR>
+			<TR><TD>
+				<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+				<TR><TD PORT="p0" BGCOLOR="yellow">True</TD><TD PORT="p1" BGCOLOR="yellow">False</TD></TR>
+				</TABLE>
+			</TD></TR>
+			</TABLE>>
+		];
+		Con_21 [ label="#1" ];
+		Store22 [ label=".f =" ];
+		Region23 [ shape=box style=filled fillcolor=yellow label="Region" ];
+		Phi_224 [ style=filled fillcolor=lightyellow label="&phi;_$2" ];
+		Return25 [ shape=box style=filled fillcolor=yellow label="Return" ];
+		{ rank=same; Region23;Phi_224;}
+	}
+	edge [ fontname=Helvetica, fontsize=8 ];
+	Stop3 -> Return25[taillabel=0 color=red];
+	new9 -> Start2:p0[taillabel=0 color=green];
+	Store12 -> Start2:p0[taillabel=0 color=red];
+	Store12 -> Start2:p2[taillabel=1 color=blue];
+	Store12 -> new9[taillabel=2];
+	Store12 -> Con_11[taillabel=3];
+	new13 -> Start2:p0[taillabel=0 color=green];
+	Store14 -> Start2:p0[taillabel=0 color=red];
+	Store14 -> Store12[taillabel=1 color=blue];
+	Store14 -> new13[taillabel=2];
+	Store14 -> Con_4[taillabel=3];
+	Load16 -> Start2:p0[taillabel=0 color=red];
+	Load16 -> Store14[taillabel=1 color=blue];
+	Load16 -> new9[taillabel=2];
+	If17 -> Start2:p0[taillabel=0 color=red];
+	If17 -> Start2:p1[taillabel=1];
+	Store22 -> If17:p0[taillabel=0 color=red];
+	Store22 -> Store14[taillabel=1 color=blue];
+	Store22 -> new9[taillabel=2];
+	Store22 -> Con_21[taillabel=3];
+	Store22 -> Load16[taillabel=4];
+	Region23 -> If17:p0[taillabel=1 color=red];
+	Region23 -> If17:p1[taillabel=2 color=red];
+	Phi_224 -> Region23 [style=dotted taillabel=0];
+	Phi_224 -> Store22[taillabel=1 color=blue];
+	Phi_224 -> Store14[taillabel=2 color=blue constraint=false];
+	Return25 -> Region23[taillabel=0 color=red];
+	Return25 -> Load16[taillabel=1];
+	Return25 -> Phi_224[taillabel=2 color=blue];
+}
