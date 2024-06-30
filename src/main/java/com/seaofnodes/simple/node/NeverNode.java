@@ -1,0 +1,20 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.print.ExprPrinter;
+
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.Type;
+
+// "Never true" for infinite loop exits
+public class NeverNode extends IfNode {
+    public NeverNode(Node ctrl) { super(ctrl,Parser.ZERO); }
+
+    @Override public String label() { return "Never"; }
+
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p("Never"); }
+
+    @Override public Type compute() { return TypeInteger.BOT; }
+
+    @Override public Node idealize() { return null; }
+}
