@@ -1,14 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashSet;
 
-public class RegionNode extends Node {
+public class RegionNode extends CFGNode {
 
     public RegionNode(Node... nodes) { super(nodes); }
 
@@ -20,8 +21,8 @@ public class RegionNode extends Node {
         return sb.append(label()).append(_nid);
     }
 
-    @Override public boolean isCFG() { return true; }
     @Override public boolean isMultiHead() { return true; }
+    @Override public boolean blockHead() { return true; }
 
     @Override
     public Type compute() {
@@ -57,7 +58,7 @@ public class RegionNode extends Node {
                         IterPeeps.addAll(phi._outputs);
                     }
             }
-            return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
+            return isDead() ? Parser.XCTRL : delDef(path);
         }
         // If down to a single input, become that input
         if( nIns()==2 && !hasPhi() )
@@ -89,22 +90,29 @@ public class RegionNode extends Node {
     }
 
     // Immediate dominator of Region is a little more complicated.
-    @Override int idepth() {
+    @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;
         int depth=0;
         for( Node n : _inputs )
             if( n!=null )
-                depth = Math.max(depth,n.idepth()+1);
+                depth = Math.max(depth,((CFGNode)n).idepth()+1);
         return cacheIDepth(depth);
     }
 
-    @Override Node idom() {
-        Node lca = null;
+    @Override public CFGNode idom() {
+        CFGNode lca = null;
         // Recompute from predecessors: CFG edits can change the dominator.
         for( int i=1; i<nIns(); i++ )
-            lca = in(i).domLCA(lca);
+            lca = cfg(i).domLCA(lca);
         return lca;
     }
+
+    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
+        for( int i=1; i<nIns(); i++ )
+            cfg(i).walkUnreach(visit,unreach);
+    }
+
+    @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
 
     // True if last input is null
     public final boolean inProgress() {
@@ -115,4 +123,6 @@ public class RegionNode extends Node {
     @Override boolean eq( Node n ) {
         return !inProgress();
     }
+
+    @Override public Node getBlockStart() { return this; }
 }

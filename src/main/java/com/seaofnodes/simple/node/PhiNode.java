@@ -33,10 +33,9 @@ public class PhiNode extends Node {
         return sb;
     }
 
-    Node region() { return in(0); }
+    public CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMultiTail() { return true; }
-    @Override
-    public boolean isMem() { return _declaredType instanceof TypeMem; }
+    @Override public boolean isMem() { return _declaredType instanceof TypeMem; }
 
     @Override
     public Type compute() {
@@ -100,9 +99,9 @@ public class PhiNode extends Node {
                 Node val = in(3-nullx);
                 if( region().idom() instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
-                    Node idom = region().in(nullx);
+                    CFGNode idom = (CFGNode)region().in(nullx);
                     while( idom.in(0) != iff ) idom = idom.idom();
-                    if( idom instanceof ProjNode proj && proj._idx==1 )
+                    if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
                 }
             }

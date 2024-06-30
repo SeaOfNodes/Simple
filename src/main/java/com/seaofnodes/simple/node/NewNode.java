@@ -23,6 +23,7 @@ public class NewNode extends Node {
         return sb.append(_ptr._obj.str());
     }
 
+
     @Override
     public Type compute() { return _ptr; }
 

@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 import java.util.ArrayList;
 
-/** Chapter 10's view of the IR; browser, transport and layout are shared. */
+/** Chapter 11's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -30,7 +30,8 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     @Override protected GraphSnapshot.Node desc(Node n) {
-        Projection proj = n instanceof ProjNode p ? new Projection(ref(n.in(0)), p._idx) : null;
+        Projection proj = n instanceof ProjNode p ? new Projection(ref(n.in(0)), p._idx)
+            : n instanceof CProjNode p ? new Projection(ref(n.in(0)), p._idx) : null;
         String label = n.label();
         return new GraphSnapshot.Node(n._nid, label == null ? n.getClass().getSimpleName() : label,
                                       n._type == null ? null : n._type.toString(), kind(n), edges(n), proj);
@@ -47,9 +48,9 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     private Role role(Node n, int i) {
-        if( n instanceof ScopeNode || n instanceof ConstantNode ) return Role.ASSOC;
+        if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof XCtrlNode ) return Role.ASSOC;
         if( n instanceof PhiNode ) return i == 0 ? Role.ASSOC : isMem(n) ? Role.MEM : Role.DATA;
-        if( n instanceof ProjNode ) return n.isCFG() ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
+        if( n instanceof ProjNode || n instanceof CProjNode ) return n.isCFG() ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
         if( i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode) ) return Role.MEM;
