@@ -17,8 +17,8 @@ public class StoreNode extends MemOpNode {
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Node memSlice, Node memPtr, Node value) {
-        super(name, alias, memSlice, memPtr, value);
+    public StoreNode(String name, int alias, Node ctrl, Node memSlice, Node memPtr, Node value) {
+        super(name, alias, ctrl, memSlice, memPtr, value);
     }
 
     @Override
@@ -48,7 +48,7 @@ public class StoreNode extends MemOpNode {
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
             st.checkNoUseBeyond(this) ) {
-            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
+            assert _name.equals(st._name); // Equiv class aliasing is perfect
             setDef(1,st.mem());
             return this;
         }
