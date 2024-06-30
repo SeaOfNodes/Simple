@@ -47,7 +47,7 @@ public class Field extends Type {
 
     boolean eq(Type t) {
         Field f = (Field)t;
-        return Utils.eq(_fname,f._fname) && _type==f._type;
+        return _fname.equals(f._fname) && _type==f._type;
     }
 
 

@@ -23,7 +23,13 @@ public class Parser {
      */
     public static StartNode START;
 
+    public static ConstantNode ZERO;
+    public static XCtrlNode XCTRL;
+
     public StopNode STOP;
+
+    // Debugger Printing.
+    public static boolean SCHEDULED; // True if debug printer can use schedule info
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
@@ -77,11 +83,14 @@ public class Parser {
         Node.reset();
         IterPeeps.reset();
         OBJS.clear();
+        SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         STOP = new StopNode(source);
+        ZERO = new ConstantNode(TypeInteger.constant(0)).peephole().keep();
+        XCTRL= new XCtrlNode().peephole().keep();
     }
 
     public Parser(String source) {
@@ -105,9 +114,11 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
         parseBlock();
+        if( ctrl()._type==Type.CONTROL )
+            STOP.addReturn(new ReturnNode(ctrl(), new ConstantNode(TypeInteger.constant(0)).peephole(), _scope).peephole());
         _scope.pop();
         _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
@@ -236,8 +247,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -283,7 +294,7 @@ public class Parser {
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
+        ctrl(XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
         while( cur._scopes.size() > _breakScope._scopes.size() )
@@ -319,8 +330,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
@@ -366,7 +377,7 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        ctrl(XCTRL);            // Kill control
         return ret;
     }
 
@@ -568,7 +579,7 @@ public class Parser {
         if( _lexer.isNumber() ) return parseIntegerLiteral();
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
-        if( matchx("false") ) return new ConstantNode(TypeInteger.constant(0)).peephole();
+        if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
@@ -586,12 +597,11 @@ public class Parser {
     /**
      * Return a NewNode but also generate instructions to initialize it.
      */
-    private Node newStruct( TypeStruct obj ) {
+    private Node newStruct(TypeStruct obj) {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
-        Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
         int alias = START._aliasStarts.get(obj._name);
         for( Field field : obj._fields ) {
-            memAlias(alias, new StoreNode(field._fname, alias, memAlias(alias), n, initValue).peephole());
+            memAlias(alias, new StoreNode(field._fname, alias, ctrl(), memAlias(alias), n, ZERO).peephole());
             alias++;
         }
         return n.unkeep();
@@ -629,7 +639,7 @@ public class Parser {
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                memAlias(alias, new StoreNode(name, alias, memAlias(alias), expr, val).peephole());
+                memAlias(alias, new StoreNode(name, alias, ctrl(), memAlias(alias), expr, val).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }
@@ -740,7 +750,16 @@ public class Parser {
          * Return the next non-white-space character
          */
         private void skipWhiteSpace() {
-            while (isWhiteSpace()) _position++;
+            while( true ) {
+                if( isWhiteSpace() ) _position++;
+                // Skip // to end of line
+                else if( _position+2 < _input.length &&
+                         _input[_position  ] == '/' &&
+                         _input[_position+1] == '/') {
+                    _position += 2;
+                    while( !isEOF() && _input[_position] != '\n' ) _position++;
+                } else break;
+            }
         }
 
 
@@ -822,8 +841,9 @@ public class Parser {
             return new String(_input, start, --_position - start);
         }
 
+        //
         private boolean isPunctuation(char ch) {
-            return "=;[]<>(){}+-/*!".indexOf(ch) != -1;
+            return "=;[]<>()+-/*".indexOf(ch) != -1;
         }
 
         private String parsePunctuation() {
