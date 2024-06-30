@@ -22,10 +22,23 @@ public class TypeTest {
         Assert.assertNotEquals(s1, s1.dual());
         Assert.assertEquals(s1, s1.dual().glb());
 
-        assertEquals(TypeStruct.BOT, s1.meet(s2));
-        assertEquals(TypeMem.BOT, TypeMem.TOP.meet(TypeMem.BOT));
-        assertEquals(TypeMem.TOP, TypeMem.BOT.dual());
-        assertEquals(TypeMem.BOT, TypeMem.TOP.dual());
+        TypeMem m1 = TypeMem.make(1);
+        TypeMem m2 = TypeMem.make(2);
+        TypeMem m3 = TypeMem.make(3);
+        TypeMem m4 = TypeMem.make(4);
+
+        Assert.assertNotEquals(m1, m2);
+        Assert.assertNotEquals(m2, m3);
+        Assert.assertNotEquals(m3, m4);
+
+        Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
+        Assert.assertEquals(TypeMem   .BOT, m1.meet(m2));
+        Assert.assertEquals(TypeMem   .BOT, m2.meet(m3));
+        Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
+
+        Assert.assertEquals(TypeMem.BOT, m1.glb());
+        Assert.assertEquals(m1, m1.dual());
+        Assert.assertEquals(TypeMem.TOP, m1.glb().dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);

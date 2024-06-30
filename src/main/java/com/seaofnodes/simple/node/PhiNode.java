@@ -17,6 +17,10 @@ public class PhiNode extends Node {
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
+    public static PhiNode make(String label, Type type, Node... inputs) {
+        return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,type,inputs);
+    }
+
     @Override public String label() { return "Phi_"+_label; }
 
     @Override
@@ -95,7 +99,18 @@ public class PhiNode extends Node {
     private boolean same_op() {
         Node op = in(1);
         if( op.isCFG() || op instanceof ConstantNode || op instanceof PhiNode ||
-            op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode ) return false;
+            op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode || op instanceof MemMergeNode ) return false;
+        // A bulk Phi must split its aliases before factoring precise Stores.
+        if( this instanceof BulkMemPhiNode ) return false;
+        // Bulk splitting currently identifies parallel slices by Region/alias.
+        // Factoring can introduce another slice at a different memory point;
+        // wait until that Region's bulk partitioning has finished.
+        if( op instanceof MemOpNode )
+            for( Node use : region()._outputs )
+                if( use instanceof BulkMemPhiNode ) {
+                    use.addDepForwards(this);
+                    return false;
+                }
         Node busy = null;
         for( int i=1; i<nIns(); i++ ) {
             Node n = in(i);
@@ -135,7 +150,9 @@ public class PhiNode extends Node {
                     ins[i] = in(i).in(j);
                     t = t.meet(ins[i]._type);
                 }
-                PhiNode phi = new PhiNode(_label,t.glb(),ins);
+                PhiNode phi = j==1 && op instanceof MemOpNode mem
+                    ? new MemPhiNode(_label,mem._alias,ins)
+                    : PhiNode.make(_label,t.glb(),ins);
                 x = phi.peephole();
             }
             cp.addDef(x);

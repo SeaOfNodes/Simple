@@ -1,0 +1,19 @@
+digraph Memory {
+  // IR styles match graph/web/render.js; arrows are use -> definition.
+  graph [bgcolor="#fafbfc" fontname="Helvetica" nodesep=0.35 ranksep=0.55 splines=ortho];
+  node [fontname="Helvetica" fontsize=12 color="#758191" fontcolor="#152330" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  edge [fontname="Helvetica" fontsize=9 color="#536477" fontcolor="#364352" arrowsize=0.7 penwidth=1.5];
+
+  rankdir=RL;
+
+  P [label="MemPhi(x)" shape=hexagon style="filled" fillcolor="#f5e4fa"];
+  B [label="BulkMemPhi(All except x)" shape=hexagon style="filled" fillcolor="#f5e4fa"];
+  P -> Left [xlabel="slice x",color="#2867b2"]; P -> Right [xlabel="slice x",color="#2867b2"];
+  B -> Left [color="#2867b2"]; B -> Right [color="#2867b2"];
+  P -> Region [style=dashed,color="#9396a3"]; B -> Region [style=dashed,color="#9396a3"];
+  MemMerge -> P [xlabel="x",color="#2867b2"]; MemMerge -> B [xlabel="default",color="#2867b2"];
+  MemMerge [shape=octagon style="filled" fillcolor="#dcecff"];
+  Left [shape=octagon style="filled" fillcolor="#dcecff"];
+  Right [shape=octagon style="filled" fillcolor="#dcecff"];
+  Region [shape=trapezium style="filled" fillcolor="#fff1c4"];
+}
