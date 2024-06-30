@@ -1,11 +1,10 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.LoopNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.ProjNode;
-
+import com.seaofnodes.simple.node.*;
+import java.lang.StringBuilder;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 
 public class IRPrinter {
 
@@ -20,12 +19,12 @@ public class IRPrinter {
         }
         for( Node def : n._inputs )
             sb.append(def==null ? "____ " : "%4d ".formatted(def._nid));
-        for( int i = n._inputs.size(); i<3; i++ )
+        for( int i = n._inputs.size(); i<4; i++ )
             sb.append("     ");
         sb.append(" [[  ");
         for( Node use : n._outputs )
             sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
-        int lim = 5 - Math.max(n._inputs.size(),3);
+        int lim = 6 - Math.max(n._inputs.size(),4);
         for( int i = n._outputs.size(); i<lim; i++ )
             sb.append("     ");
         sb.append(" ]]  ");
@@ -68,7 +67,9 @@ public class IRPrinter {
     }
 
     public static String prettyPrint(Node node, int depth) {
-        return prettyPrint( node, depth, false );
+        return Parser.SCHEDULED
+            ? prettyPrintScheduled( node, depth, false )
+            : prettyPrint( node, depth, false );
     }
 
     // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
@@ -185,4 +186,81 @@ public class IRPrinter {
             return false;
         }
     }
+
+    // Bulk pretty printer, knowing scheduling information is available
+    public static String prettyPrintScheduled( Node node, int depth, boolean llvmFormat ) {
+        // Backwards DFS walk to depth.
+        HashMap<Node,Integer> ds = new HashMap<>();
+        _walk(ds,node,depth);
+        // Print by block with least idepth
+        StringBuilder sb = new StringBuilder();
+        ArrayList<Node> bns = new ArrayList<>();
+        while( !ds.isEmpty() ) {
+            CFGNode blk = null;
+            for( Node n : ds.keySet() ) {
+                CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : (CFGNode)n.in(0);
+                if( blk==null || cfg.idepth() < blk.idepth() )
+                    blk = cfg;
+            }
+            ds.remove(blk);
+
+            // Print block header
+            sb.append("%-13.13s".formatted(label(blk)+":"));
+            sb.append( "     ".repeat(4) ).append(" [[  ");
+            if( blk instanceof RegionNode || blk instanceof StopNode )
+                for( int i=(blk instanceof StopNode ? 0 : 1); i<blk.nIns(); i++ )
+                    label(sb,blk.cfg(i));
+            else if( !(blk instanceof StartNode) )
+                label(sb,blk.cfg(0));
+            sb.append(" ]]  \n");
+
+            // Collect block contents that are in the depth limit
+            bns.clear();
+            int xd = Integer.MAX_VALUE;
+            for( Node use : blk._outputs ) {
+                Integer i = ds.get(use);
+                if( i!=null && !(use instanceof CFGNode cfg && cfg.blockHead()) ) {
+                    bns.add(use);
+                    xd = Math.min(xd,i);
+                }
+            }
+            // Print Phis up front, if any
+            for( int i=0; i<bns.size(); i++ )
+                if( bns.get(i) instanceof PhiNode phi )
+                    printLine( phi, sb, llvmFormat,bns,i--,ds);
+
+            // Print block contents in depth order, bumping depth until whole block printed
+            for( ; !bns.isEmpty(); xd++ )
+                for( int i=0; i<bns.size(); i++ )
+                    if( ds.get(bns.get(i))==xd )
+                        printLine( bns.get(i), sb, llvmFormat, bns, i--, ds );
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    private static void _walk( HashMap<Node,Integer> ds, Node node, int d ) {
+        Integer nd = ds.get(node);
+        if( nd!=null && d <= nd ) return; // Been there, done that
+        ds.put(node,d);
+        if( d == 0 ) return;    // Depth cutoff
+        for( Node def : node._inputs )
+            if( def != null )
+                _walk(ds,def,d-1);
+    }
+
+    static String label( CFGNode blk ) {
+        if( blk instanceof StartNode ) return "START";
+        return (blk instanceof LoopNode ? "LOOP" : "L")+blk._nid;
+    }
+    static void label( StringBuilder sb, CFGNode blk ) {
+        if( !blk.blockHead() ) blk = blk.cfg(0);
+        sb.append( "%-9.9s ".formatted( label( blk ) ) );
+    }
+    static void printLine( Node n, StringBuilder sb, boolean llvmFormat, ArrayList<Node> bns, int i, HashMap<Node,Integer> ds ) {
+        printLine( n, sb, llvmFormat );
+        Utils.del(bns,i);
+        ds.remove(n);
+    }
+
 }
