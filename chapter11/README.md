@@ -225,6 +225,10 @@ class RegionNode extends CFGNode {
     return _idepth=d;
   }
 }
+class LoopNode extends RegionNode {
+  // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
+  @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+}
 class StartNode extends CFGNode {
   @Override public int idepth() { return 0; }
 }
@@ -273,6 +277,10 @@ class RegionNode extends CFGNode {
     return lca;
   }
 }
+class LoopNode extends RegionNode {
+  // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
+  @Override public CFGNode idom() { return entry(); }    
+}
 class StartNode extends CFGNode {
   @Override public CFGNode idom() { return null; }
 }
@@ -296,6 +304,27 @@ class CFGNode {
 }
 class RegionNode extends CFGNode {
   @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
+}
+class LoopNode extends RegionNode {
+  @Override public int loopDepth() {
+    if( _loopDepth!=0 ) return _loopDepth; // Was already set
+    _loopDepth = entry()._loopDepth+1;     // Entry depth plus one
+    // One-time tag loop exits
+    for( CFGNode idom = back(); idom!=this; idom = idom.idom() ) {
+      // Walk idom in loop, setting depth
+      idom._loopDepth = _loopDepth;
+      // Loop exit hits the CProj before the If, instead of jumping from
+      // Region directly to If.
+      if( idom instanceof CProjNode proj ) {
+        assert proj.in(0) instanceof IfNode; // Loop exit test
+        // Find the loop exit CProj, and set loop_depth
+        for( Node use : proj.in(0)._outputs )
+          if( use instanceof CProjNode proj2 && proj2 != idom )
+            proj2._loopDepth = _loopDepth-1;
+      }
+    }
+    return _loopDepth;
+  }
 }
 class StartNode extends CFGNode {
   @Override public int loopDepth() { return (_loopDepth=1); }
