@@ -36,6 +36,7 @@ public class RegionNode extends CFGNode {
     @Override
     public Node idealize() {
         if( inProgress() ) return null;
+        // Delete dead paths into a Region
         int path = findDeadInput();
         if( path != 0 &&
             // Do not delete the entry path of a loop (ok to remove the back
@@ -62,6 +63,15 @@ public class RegionNode extends CFGNode {
         // If down to a single input, become that input
         if( nIns()==2 && !hasPhi() )
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
+
+        // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
+        if( !hasPhi() &&       // No Phi users, just a control user
+            in(1) instanceof ProjNode p1 &&
+            in(2) instanceof ProjNode p2 &&
+            p1.in(0)==p2.in(0) &&
+            p1.in(0) instanceof IfNode iff )
+            return iff.ctrl();
+
         return null;
     }
 

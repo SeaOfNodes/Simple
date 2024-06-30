@@ -43,7 +43,8 @@ public class TypeTuple extends Type {
         for( Type t : _types )
             t._print(sb).append(",");
         sb.setLength(sb.length()-1);
-        return sb.append("]");
+        sb.append("]");
+        return sb;
     }
 
     @Override public String str() { return _print(new StringBuilder()).toString(); }
@@ -57,8 +58,7 @@ public class TypeTuple extends Type {
         for( Type t : _types )
             t.typeName(sb).append(",");
         sb.setLength(sb.length()-1);
-        sb.append("]");
-        return sb;
+        return sb.append("]");
     }
 
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});

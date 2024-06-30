@@ -1,13 +1,41 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.type.*;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter10Test {
 
+    @Test
+    public void testFuzzer() {
+        Parser parser = new Parser(
+"""
+int a = arg/3;
+int b = arg*5;
+int x = arg*7;
+int y = arg/11;
+int p; int g; int h;
+if( (arg/13)==0 ) {
+    p = x + y;
+    g = x;
+    h = y;
+} else {
+    p = a + b;
+    g = a;
+    h = b;
+}
+int r = g+h;
+return p-r;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 0;", stop.toString());
+    }
 
     @Test
     public void testStruct() {
@@ -167,7 +195,8 @@ while(arg) {
 return ret;
 """);
         try { parser.parse(true).iterate(true); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'v0'", e.getMessage()); }
+        catch( Exception e ) {
+            assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
 
     @Test
