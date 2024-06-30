@@ -2,6 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 
 
@@ -13,12 +15,12 @@ public class StoreNode extends MemOpNode {
 
     /**
      * @param name The struct field we are assigning to
-     * @param memSlice The whole-memory node - this is updated after a Store
+     * @param memSlice The memory alias node - this is updated after a Store
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(String name, Node memSlice, Node memPtr, Node value) {
-        super(name, memSlice, memPtr, value);
+    public StoreNode(String name, int alias, Node memSlice, Node memPtr, Node value) {
+        super(name, alias, memSlice, memPtr, value);
     }
 
     @Override
@@ -33,19 +35,25 @@ public class StoreNode extends MemOpNode {
     }
 
     @Override
-    public Type compute() { return TypeMem.BOT; }
+    public Type compute() { return TypeMem.make(_alias); }
 
     @Override
     public Node idealize() {
+        if( mem() instanceof MemMergeNode merge ) {
+            setDef(1,IterPeeps.add(merge.alias(_alias)));
+            return this;
+        }
+
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
-            ptr()==st.ptr() && _name.equals(st._name) &&  // Must check same object
+            ptr()==st.ptr() && _alias==st._alias &&  // Must check same object
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
             st.checkNoUseBeyond(this) ) {
+            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
             setDef(1,st.mem());
             return this;
         }
