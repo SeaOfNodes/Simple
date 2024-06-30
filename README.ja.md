@@ -47,7 +47,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第8章](docs/chapter08/README.ja.md)：ループ構造の続き。必要時の Phi の生成、`break` 文と `continue` 文。
 * [第9章](docs/chapter09/README.ja.md)：大域的値番号付け。不動点に達するまでのピープホール最適化の反復。ワークリスト。
 * [第10章](docs/chapter10/README.ja.md)：ユーザー定義の構造体、ポインタ、null 解析。SSA で表す単一のメモリ値。ロード、ストア、実行可能な評価器。
-* 第11章：同値類によるエイリアス解析。`MemMerge`、`MemPhi`、`BulkMemPhi` による必要時のメモリ分割。
+* [第11章](docs/chapter11/README.ja.md)：同値類によるエイリアス解析。`MemMerge`、`MemPhi`、`BulkMemPhi` による必要時のメモリ分割。
 * 第12章：参照フィールド、前方参照、再帰的な構造体。
 * 第13章：大域的コード移動とスケジューリング。
 * 第14章：数値型。浮動小数点数、狭い整数型、範囲、`f32` への丸め。

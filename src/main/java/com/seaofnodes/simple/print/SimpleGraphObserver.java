@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 import java.io.IOException;
 
-/** Chapter 10's compilation context; capture and event bookkeeping are shared. */
+/** Chapter 11's compilation context; capture and event bookkeeping are shared. */
 public class SimpleGraphObserver extends GraphCapture<Node> {
     private Parser _parser;
     private Node _ret;

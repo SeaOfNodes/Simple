@@ -2,7 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.Field;
 
 
 /**
@@ -16,11 +19,11 @@ public class LoadNode extends MemOpNode {
      * Load a value from a ptr.field.
      *
      * @param name  The field we are loading
-     * @param memSlice The whole-memory node - this is updated after a Store
+     * @param memSlice The memory alias node - this is updated after a Store
      * @param memPtr The ptr to the struct from where we load a field
      */
-    public LoadNode(String name, Type glb, Node memSlice, Node memPtr) {
-        super(name, memSlice, memPtr, null);
+    public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
+        super(name, alias, memSlice, memPtr, null);
         _declaredType = glb;
     }
 
@@ -28,15 +31,16 @@ public class LoadNode extends MemOpNode {
         return super.canDrop(other,dep) && _declaredType==((LoadNode)other)._declaredType && !clobbered(dep);
     }
 
-    // A Store directly clobbers this memory. A Phi might lead to a clobber
-    // through a cycle; conservatively stop rather than searching beyond it.
+    // Check only immediate memory users. Stores clobber memory; Phis and
+    // aggregates might lead to a clobber, so stop rather than search further.
     private boolean clobbered(Node dep) {
         Node mem = mem();
         mem.addDepForwards(dep);
         for( Node use : mem._outputs ) {
             if( use==null ) continue;
             use.addDepForwards(dep);
-            if( use instanceof StoreNode || use instanceof PhiNode ) return true;
+            if( use instanceof StoreNode || use instanceof PhiNode ||
+                use instanceof MemMergeNode ) return true;
         }
         return false;
     }
@@ -54,10 +58,16 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( mem() instanceof MemMergeNode merge ) {
+            setDef(1,IterPeeps.add(merge.alias(_alias)));
+            return this;
+        }
+
 
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
-            ptr() == st.ptr() && _name.equals(st._name) ) { // Must check same object
+            ptr() == st.ptr() && _alias==st._alias ) { // Must check same object
+            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
             return st.val();
         }
 
@@ -68,13 +78,13 @@ public class LoadNode extends MemOpNode {
         //   if( pred ) ptr.x = e0;         val = pred ? e0
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
-        if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 ) {
+        if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 ) {
             // Profit on RHS/Loop backedge
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                Node ld1 = new LoadNode(_name,_declaredType,memphi.in(1),ptr()).peephole();
-                Node ld2 = new LoadNode(_name,_declaredType,memphi.in(2),ptr()).peephole();
+                Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
+                Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
                 return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
             }
         }
@@ -85,6 +95,6 @@ public class LoadNode extends MemOpNode {
     // Profitable if we find a matching Store on this Phi arm.
     private boolean profit(PhiNode phi, int idx) {
         Node px = phi.in(idx);
-        return px!=null && px.addDep(this) instanceof StoreNode st1 && ptr()==st1.ptr() && _name.equals(st1._name);
+        return px!=null && px.addDep(this) instanceof StoreNode st1 && ptr()==st1.ptr() && _alias==st1._alias;
     }
 }

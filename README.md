@@ -55,7 +55,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 9](docs/chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
 * [Chapter 10](docs/chapter10/README.md): User defined structs, pointers and null
   analysis. One memory value in SSA. Loads, stores, and an executable evaluator.
-* Chapter 11: Equivalence class aliasing. Lazy memory
+* [Chapter 11](docs/chapter11/README.md): Equivalence class aliasing. Lazy memory
   partitioning with `MemMerge`, `MemPhi`, and `BulkMemPhi`.
 * Chapter 12: Reference fields, forward references and recursive structs.
 * Chapter 13: Global Code Motion - Scheduling.
