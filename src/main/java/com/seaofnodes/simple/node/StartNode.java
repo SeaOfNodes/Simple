@@ -5,6 +5,7 @@ import com.seaofnodes.simple.type.*;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 
 /**
  * The Start node represents the start of the function.
@@ -13,7 +14,7 @@ import java.util.HashMap;
  * In ch10 we also add mem aliases as structs get defined; each field in struct
  * adds a distinct alias to Start's tuple.
  */
-public class StartNode extends MultiNode {
+public class StartNode extends CFGNode implements MultiNode {
 
     // This field is NOT final, because the tuple expands as we add memory aliases
     TypeTuple _args;
@@ -63,8 +64,8 @@ public class StartNode extends MultiNode {
       return sb.append(label());
     }
 
-    @Override public boolean isCFG() { return true; }
     @Override public boolean isMultiHead() { return true; }
+    @Override public boolean blockHead() { return true; }
 
     @Override
     public TypeTuple compute() { return _args; }
@@ -73,6 +74,12 @@ public class StartNode extends MultiNode {
     public Node idealize() { return null; }
 
     // No immediate dominator, and idepth==0
-    @Override int idepth() { return 0; }
-    @Override Node idom() { return null; }
+    @Override public int idepth() { return 0; }
+    @Override public CFGNode idom() { return null; }
+
+    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) { }
+
+    @Override public int loopDepth() { return (_loopDepth=1); }
+
+    @Override public Node getBlockStart() { return this; }
 }
