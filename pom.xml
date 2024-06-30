@@ -29,6 +29,7 @@
         <module>chapter08</module>
         <module>chapter09</module>
         <module>chapter10</module>
+        <module>chapter11</module>
     </modules>
 
     <properties>

@@ -38,11 +38,10 @@ The simple language will be a small subset of C.
 * [Chapter 8](chapter08/README.md): Looping construct continued, lazy phi creation, `break` and `continue` statements.
 * [Chapter 9](chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
 * [Chapter 10](chapter10/README.md): User defined Struct types. Memory effects: general memory edges in SSA. Equivalence class aliasing. Null pointer analysis. Peephole optimization around load-after-store/store-after-store.
-* Chapter 11: Nested references in Structs. Float type.
-* Chapter 12: One dimensional static length array type. Array load/store. String type.
+* [Chapter 11](chapter11/README.md): Global Code Motion - Scheduling.
+* Chapter 12: Nested references in Structs. Float type. One dimensional static length array type. Array load/store.
 * Chapter 13: Functions and calls.
 * Chapter 14: Boolean operators `&&` and `||` including short circuit.
-* Chapter 15: Global Code Motion - unwind SoN to CFG. Scheduling.
 * Chapter 16: Code generation: perhaps to Java bytecodes.
 * Chapter 17: Code generation: to native X86 or ARM. Instruction selection, BURS. Register allocation.
 * Chapter 18: Exceptions
