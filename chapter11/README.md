@@ -482,10 +482,21 @@ The code for computing the late schedule is shown below.
 
 ## Inserting Anti Dependencies
 
-To ensure that Loads and Stores to the same memory location are correctly ordered,
-we insert anti-dependencies when a Load's path up the dominator tree crosses the path of a Store that is the user of the Load's memory input.
-We call these anti-dependencies because they do not represent Def-Use dependency that we normally capture in SoN, and are 
-purely there as scheduling constraints.
+To ensure that Loads and Stores to the same memory location are correctly ordered, we insert an edge from the Load to the Store as described below.
+We call these edges anti-dependencies because they do not represent the Def-Use dependency that we normally capture in SoN, and are purely present as scheduling constraints.
+
+We compute anti-dependencies DURING running schedule late. This is because we rely on the early-schedule, and the late-schedule of the Load's uses (before scheduling the Load).
+
+Looking backwards from the Load we follow the memory edge to the "memory definer" - a start-mem-projection, or a phi-mem, or a store.
+We look forwards from the mem-def to all its mem-def users. There is always at least one; there may be many. These completely (all of it) and exactly (no doubling up) cover the forward memory space, sort of like a network flow problem - but we limit our analysis to same-alias, 
+because for example, a start-mem-proj produces all aliases. This gives us a candidate set of mem-defs; some of these need the anti-dependency on the Load, but not all.
+
+Since we're in the middle of "schedule late", we have already computed all the late schedules of a Load's users, and we have the Loads "Least Common Ancestor" of uses, the LCA or late position.
+We inspect the set of mem-defs that might impact the Load, and either add an anti-dependency from Store to Load, or raise the Loads effective LCA.
+For Phi mem-defs, we look at the Phi inputs and place an effective use on that block; this will be used to raise the Load's LCA.
+For stores, we do the same - until/unless we find stores with the SAME block as the Load's LCA. Then we add the anti-dependency edge to force ordering within the same block.
+
+The implementation is shown below.
 
 ```java
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
