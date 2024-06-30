@@ -5,7 +5,7 @@ import com.seaofnodes.simple.IterPeeps;
 
 import java.util.BitSet;
 
-public class StopNode extends Node {
+public class StopNode extends CFGNode {
 
     public final String _src;
 
@@ -28,7 +28,7 @@ public class StopNode extends Node {
         return sb.append("]");
     }
 
-    @Override public boolean isCFG() { return true; }
+    @Override public boolean blockHead() { return true; }
 
     // If a single Return, return it.
     // Otherwise, null because ambiguous.
@@ -51,7 +51,17 @@ public class StopNode extends Node {
         return null;
     }
 
-    @Override public Node idom() { return null; }
+    @Override public int idepth() {
+        if( _idepth!=0 ) return _idepth;
+        int d=0;
+        for( Node n : _inputs )
+            if( n!=null )
+                d = Math.max(d,((CFGNode)n).idepth()+1);
+        return _idepth=d;
+    }
+    @Override public CFGNode idom() { return null; }
+
+    @Override public int loopDepth() { return (_loopDepth=1); }
 
     public Node addReturn(Node node) {
         return addDef(node);
@@ -64,4 +74,6 @@ public class StopNode extends Node {
         if( err != null ) throw new RuntimeException(err);
         return this;
     }
+
+    @Override public Node getBlockStart() { return this; }
 }
