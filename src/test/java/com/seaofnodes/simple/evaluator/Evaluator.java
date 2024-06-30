@@ -138,6 +138,7 @@ public class Evaluator {
             case CastNode     cast  -> val(cast.in(1));
             case LoadNode     load  -> load(load);
             case StoreNode    store -> store(store);
+            case MemMergeNode merge -> MEMORY;
             case NewNode      alloc -> alloc(alloc);
             case ProjNode     proj  -> ((Object[])val(proj.ctrl()))[proj._idx];
             default                 -> throw new AssertionError("Unexpected node " + node);

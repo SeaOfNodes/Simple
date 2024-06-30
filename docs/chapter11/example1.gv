@@ -1,0 +1,20 @@
+digraph Memory {
+  // IR styles match graph/web/render.js; arrows are use -> definition.
+  graph [bgcolor="#fafbfc" fontname="Helvetica" nodesep=0.35 ranksep=0.55 splines=ortho];
+  node [fontname="Helvetica" fontsize=12 color="#758191" fontcolor="#152330" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  edge [fontname="Helvetica" fontsize=9 color="#536477" fontcolor="#364352" arrowsize=0.7 penwidth=1.5];
+
+  rankdir=BT;
+
+  M [label="Initial memory" shape=octagon style="filled" fillcolor="#dcecff"];
+  X [label="Store x = 42" shape=octagon style="filled" fillcolor="#dcecff"];
+  Y [label="Loop: Store y" shape=octagon style="filled" fillcolor="#dcecff"];
+  L [label="Load x (42)" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  L -> X -> M [color="#2867b2"]; Y -> M [color="#2867b2"];
+  MemMerge -> X [color="#2867b2"]; MemMerge -> Y [color="#2867b2"];
+  Return -> MemMerge [color="#2867b2"]; Return -> L;
+  { rank=same; MemMerge -> L [style=invis]; }
+  Y -> X [style=invis]; // Layout only: keep the stores in code order.
+  Return [shape=box style="filled" fillcolor="#fff1c4"];
+  MemMerge [shape=octagon style="filled" fillcolor="#dcecff"];
+}

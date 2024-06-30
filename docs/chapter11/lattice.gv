@@ -1,0 +1,133 @@
+digraph Lattice {
+    rankdir=TB;
+    newrank=true;
+    // Preserve the same-rank ordering edges through cluster layout.
+    remincross=false;
+    nodesep=0.22;
+    ranksep=0.65;
+    node [shape=ellipse, style=filled, fontname="DejaVu Sans", fontsize=13];
+    edge [color="#555555", arrowsize=0.6];
+
+    // These arrows are lattice-order edges, not use/definition edges.
+    TOP [label="⊤", fillcolor=black, fontcolor=white];
+    BOT [label="⊥", fillcolor=black, fontcolor=white];
+
+    subgraph cluster_control {
+        label="Control"; fontname="Arial"; color="#cccccc";
+        node [fillcolor="#ffff00"];
+        XCTRL [label="⊤:ctrl"];
+        CTRL [label="⊥:ctrl"];
+        XCTRL -> CTRL;
+    }
+
+    subgraph cluster_integer {
+        label="Integer"; fontname="Arial"; color="#cccccc";
+        node [fillcolor="#add8e6"];
+        INT_TOP [label="⊤:int"];
+        INT_BOT [label="⊥:int"];
+        INT_NEG [label="… −2, −1"];
+        INT_ZERO [label="0"];
+        INT_POS [label="1, 2, …"];
+        {rank=same; INT_NEG; INT_ZERO; INT_POS;}
+        INT_NEG -> INT_ZERO -> INT_POS [style=invis];
+        INT_TOP -> {INT_NEG INT_ZERO INT_POS};
+        {INT_NEG INT_ZERO INT_POS} -> INT_BOT;
+    }
+
+    subgraph cluster_pointer {
+        label="Pointer = nullability × struct type";
+        fontname="Arial"; color="#cccccc";
+        node [fillcolor="#008000", fontcolor=white];
+        PTR_TOP [label="⊤:ptr\n[*⊤:struct]"];
+        PTR_BOT [label="⊥:ptr\n[*⊥:struct?]"];
+        PTR_NULL [label="null"];
+        PTR_ANY [label="*⊥:struct\n[ptr any struct]"];
+        PTR_PERSON [label="*Person"];
+        PTR_S1 [label="*s1"];
+        PTR_MORE [label="*s2, …"];
+        PTR_PERSON_NIL [label="*Person?"];
+        PTR_S1_NIL [label="*s1?"];
+        PTR_MORE_NIL [label="*s2?, …"];
+        {rank=same; PTR_PERSON; PTR_S1; PTR_MORE; PTR_NULL;}
+        {rank=same; PTR_ANY; PTR_PERSON_NIL; PTR_S1_NIL; PTR_MORE_NIL;}
+        PTR_PERSON -> PTR_S1 -> PTR_MORE -> PTR_NULL [style=invis];
+        PTR_ANY -> PTR_PERSON_NIL -> PTR_S1_NIL -> PTR_MORE_NIL [style=invis];
+        PTR_TOP -> {PTR_PERSON PTR_S1 PTR_MORE PTR_NULL};
+        {PTR_PERSON PTR_S1 PTR_MORE} -> PTR_ANY;
+        PTR_PERSON -> PTR_PERSON_NIL;
+        PTR_S1 -> PTR_S1_NIL;
+        PTR_MORE -> PTR_MORE_NIL;
+        PTR_NULL -> {PTR_PERSON_NIL PTR_S1_NIL PTR_MORE_NIL};
+        {PTR_ANY PTR_PERSON_NIL PTR_S1_NIL PTR_MORE_NIL} -> PTR_BOT;
+    }
+
+    subgraph cluster_struct {
+        label="Struct\nnamed collection of named scalar types";
+        fontname="Arial"; color="#cccccc";
+        node [fillcolor="#90ee90"];
+        STRUCT_TOP [label="⊤:struct\n[struct top]"];
+        STRUCT_BOT [label="⊥:struct\n[struct bottom]"];
+        STRUCT_PERSON [label="Person\nage: int", shape=box];
+        STRUCT_S1 [label="s1\nx: int", shape=box];
+        STRUCT_S2 [label="s2\nx: int, y: int", shape=box];
+        STRUCT_MORE [label="…", shape=box];
+        {rank=same; STRUCT_PERSON; STRUCT_S1; STRUCT_S2; STRUCT_MORE;}
+        STRUCT_PERSON -> STRUCT_S1 -> STRUCT_S2 -> STRUCT_MORE [style=invis];
+        STRUCT_TOP -> {STRUCT_PERSON STRUCT_S1 STRUCT_S2 STRUCT_MORE};
+        {STRUCT_PERSON STRUCT_S1 STRUCT_S2 STRUCT_MORE} -> STRUCT_BOT;
+    }
+
+    subgraph cluster_memory {
+        label="Memory\nprecise alias slices"; fontname="Arial"; color="#cccccc";
+        node [fillcolor="#00008b", fontcolor=white];
+        MEM_TOP [label="⊤:mem"];
+        MEM_BOT [label="⊥:mem"];
+        MEM_ALIAS2 [label="MEM#2"];
+        MEM_ALIAS3 [label="MEM#3"];
+        MEM_MORE [label="…"];
+        {rank=same; MEM_ALIAS2; MEM_ALIAS3; MEM_MORE;}
+        MEM_ALIAS2 -> MEM_ALIAS3 -> MEM_MORE [style=invis];
+        MEM_TOP -> {MEM_ALIAS2 MEM_ALIAS3 MEM_MORE};
+        {MEM_ALIAS2 MEM_ALIAS3 MEM_MORE} -> MEM_BOT;
+    }
+
+    subgraph cluster_tuple {
+        label="Tuple\ncollection of types";
+        fontname="Arial"; color="#cccccc";
+        node [fillcolor="#ffc0cb"];
+        TUPLE_TOP [label="⊤:tuple"];
+        TUPLE_BOT [label="⊥:tuple"];
+        // Each black element stands for a recursively nested type lattice.
+        TUPLE1 [shape=plain, label=<
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#ffc0cb">tuple</TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+            </TABLE>
+        >];
+        TUPLE2 [shape=plain, label=<
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#ffc0cb">tuple</TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+            </TABLE>
+        >];
+        TUPLEN [shape=plain, label=<
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#ffc0cb">tuple</TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">…</FONT></TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+            </TABLE>
+        >];
+        {rank=same; TUPLE1; TUPLE2; TUPLEN;}
+        TUPLE1 -> TUPLE2 -> TUPLEN [style=invis];
+        TUPLE_TOP -> {TUPLE1 TUPLE2 TUPLEN};
+        {TUPLE1 TUPLE2 TUPLEN} -> TUPLE_BOT;
+    }
+
+    TOP -> {XCTRL INT_TOP PTR_TOP STRUCT_TOP MEM_TOP TUPLE_TOP};
+    {CTRL INT_BOT PTR_BOT STRUCT_BOT MEM_BOT TUPLE_BOT} -> BOT;
+    {rank=same; XCTRL; INT_TOP; PTR_TOP; STRUCT_TOP; MEM_TOP; TUPLE_TOP;}
+    {rank=same; CTRL; INT_BOT; PTR_BOT; STRUCT_BOT; MEM_BOT; TUPLE_BOT;}
+    XCTRL -> INT_TOP -> PTR_TOP -> STRUCT_TOP -> MEM_TOP -> TUPLE_TOP [style=invis];
+}
