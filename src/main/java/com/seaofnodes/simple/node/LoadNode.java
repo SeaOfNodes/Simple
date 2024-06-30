@@ -21,7 +21,7 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(name, alias, memSlice, memPtr, null);
+        super(name, alias, null, memSlice, memPtr);
         _declaredType = glb;
     }
 
@@ -45,7 +45,7 @@ public class LoadNode extends MemOpNode {
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
             ptr() == st.ptr() ) { // Must check same object
-            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
+            assert _name.equals(st._name); // Equiv class aliasing is perfect
             return st.val();
         }
 

@@ -164,7 +164,7 @@ public class Scheduler {
      * @return true if the node is not XCtrl.
      */
     private static boolean isNotXCtrl(Node node) {
-        return !(node instanceof ConstantNode c && c.compute() == Type.XCONTROL);
+        return !(node instanceof ConstantNode c && c.compute() == Type.XCONTROL) && !(node instanceof XCtrlNode);
     }
 
     /**
@@ -322,6 +322,8 @@ public class Scheduler {
             for(int i=1; i<r.nIns(); i++) {
                 if (od(r.in(i)).map(d->d.block==null).orElse(false)) return false;
             }
+        } else if (node instanceof XCtrlNode) {
+            return false;
         } else {
             assert d(node.in(0)).block != null;
         }
@@ -397,7 +399,7 @@ public class Scheduler {
                 }
             }
             if (!(node instanceof ReturnNode))
-                for (Node n:node._outputs) if (n.isCFG() && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
+                for (Node n:node._outputs) if (n!=null && n.isCFG() && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
             var b = block;
             for(var in:data.node._inputs) od(in).ifPresent(d->update(d, b));
         }
@@ -443,7 +445,7 @@ public class Scheduler {
             node = data.node;
             assert node.isCFG();
             if (!(node instanceof ReturnNode)) {
-                for (var out : node._outputs) if (out.isCFG() && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
+                for (var out : node._outputs) if (out!=null && out.isCFG() && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
             }
             for (var in : node._inputs) if(in!=null && !in.isCFG() && isNotXCtrl(in)) markAlive(dataQueue, in, false);
         }
@@ -496,7 +498,7 @@ public class Scheduler {
      */
     private static Node findSingleCFGOut(Node node) {
         if (node instanceof StartNode) {
-            for(var n:node._outputs) if (n instanceof ProjNode p && p._idx==0) return p;
+            for(var n:node._outputs) if (n instanceof CProjNode p && p._idx==0) return p;
             return null;
         }
         assert node._outputs.stream().filter(Node::isCFG).limit(2).count()<=1;
@@ -563,7 +565,7 @@ public class Scheduler {
             switch(block.exit) {
                 case null: break;
                 case IfNode i:
-                    for(var out:i._outputs) if (out instanceof ProjNode p) block.next[p._idx] = blocks.get(p);
+                    for(var out:i._outputs) if (out instanceof CProjNode p) block.next[p._idx] = blocks.get(p);
                     break;
                 case RegionNode r:
                     block.next[0] = blocks.get(r);
