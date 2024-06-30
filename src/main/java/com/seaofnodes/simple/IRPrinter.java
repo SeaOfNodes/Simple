@@ -9,6 +9,7 @@ public final class IRPrinter extends IRAdapter<Node> {
         new com.seaofnodes.print.IRPrinter<>(new IRPrinter());
     @Override public String type(Node n) { return n._type==null ? "" : n._type.str(); }
     @Override public int inputColumns() { return 3; }
+    @Override public String inputMark(Node n, Node def) { return n instanceof MemMergeNode && def instanceof MemMergeNode ? "^" : " "; }
     @Override public Kind kind(Node n) {
         if( n instanceof StartNode ) return Kind.START;
         if( n instanceof StopNode ) return Kind.STOP;
