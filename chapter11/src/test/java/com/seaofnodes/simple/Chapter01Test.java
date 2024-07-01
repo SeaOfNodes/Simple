@@ -16,7 +16,7 @@ public class Chapter01Test {
         StopNode stop = parser.parse();
         StartNode start = Parser.START;
         ReturnNode ret = (ReturnNode)stop.in(0);
-        
+
         assertTrue(ret.ctrl() instanceof CProjNode);
         Node expr = ret.expr();
         if( expr instanceof ConstantNode con ) {
@@ -40,7 +40,7 @@ public class Chapter01Test {
 
     @Test
     public void testBad2() {
-        try { 
+        try {
             new Parser("return 0123;").parse();
             fail();
         } catch( RuntimeException e ) {

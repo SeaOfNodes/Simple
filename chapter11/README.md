@@ -2,9 +2,9 @@
 
 The original input source program defines a sequence in which things happen. As we parse the program into Sea of Nodes representation
 and perform various optimizations, this sequence is not fully maintained. The optimized Sea of Nodes graph is driven more
-by dependencies between nodes rather that the sequence of instructions in the original source program. 
+by dependencies between nodes rather that the sequence of instructions in the original source program.
 
-Our goal in this chapter is to look at how we can recover a schedule for executing instructions from an 
+Our goal in this chapter is to look at how we can recover a schedule for executing instructions from an
 optimized Sea of Nodes graph. This schedule needs to preserve the semantics of the original source program,
 but is otherwise allowed to reorder the execution of instructions.
 
@@ -20,19 +20,19 @@ Since this is a complex topic, we will present a high level summary first and th
 
 The Sea of Nodes graph has two virtual graphs within it.
 
-* There is a control flow graph, represented by certain node types, such as Start, If, Region, etc. 
+* There is a control flow graph, represented by certain node types, such as Start, If, Region, etc.
 * There is a data graph, primarily driven by Def-Use edges between nodes that produce or consume values or memory.
 
 From a scheduling point of view, the control flow graph is fixed, and immovable.
-However, the nodes that consume or produce data values/memory have some flexibility in terms of when they are executed. The goal of the 
+However, the nodes that consume or produce data values/memory have some flexibility in terms of when they are executed. The goal of the
 scheduling algorithm is to find the best placement of these nodes so that they are both optimum and correct.
 
 At its core, the scheduling algorithm works in two phases:
 
-* Schedule Early - in this phase, we do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the 
+* Schedule Early - in this phase, we do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the
   first control block where they are dominated by their inputs.
-* Schedule Late - in this phase we do a downward DFS walk on the "outputs" of each Node starting from the top (Start), and move data nodes to a block between the first block calculated above, 
-  and the last control block where they dominate all their uses. The placement is subject to the condition that it is in the shallowest loop nest possible, and is as control dependent as possible. 
+* Schedule Late - in this phase we do a downward DFS walk on the "outputs" of each Node starting from the top (Start), and move data nodes to a block between the first block calculated above,
+  and the last control block where they dominate all their uses. The placement is subject to the condition that it is in the shallowest loop nest possible, and is as control dependent as possible.
   Additionally, the placement of Load instructions must ensure correct ordering between Loads and Stores of the same memory location.
 
 ## Scheduling Walk Through
@@ -78,12 +78,12 @@ The snip below shows the main changes in the graph:
 
 ![Graph3-snip](./docs/graph3-snip.jpg)
 
-* The store `.f=` now has an anti-dependency on the load `.f`; this ensures that the store is scheduled after the load, as required by program semantics. We discuss anti-dependencies in detail later. 
-* Observe also that the store `.f=` is now bound to the True branch of the If node. 
+* The store `.f=` now has an anti-dependency on the load `.f`; this ensures that the store is scheduled after the load, as required by program semantics. We discuss anti-dependencies in detail later.
+* Observe also that the store `.f=` is now bound to the True branch of the If node.
 
 ## Scheduling a Loop
 
-We show another example, this time involving a loop. 
+We show another example, this time involving a loop.
 
 ```java
 struct S { int f; }
@@ -122,18 +122,18 @@ We have already alluded to several components of the GCM algorithm in passing ab
 * When a program has an infinite loop, it poses a problem for the algo, as nodes can be unreachable from the Stop node. To work around this issue, we need to discover
   infinite loops and create a dummy edge connecting the loop to the Stop node.
 * Loops are already identified in the Simple SoN graph, so we do not need a loop discovery step. However, we need to compute the loop depth associated with each CFG node.
-* In [Chapter 6](../chapter06/README.md) we explained the concept of Dominators. Dominators are key to the GCM algo, and we extend our incremental dominator discovery algo to 
+* In [Chapter 6](../chapter06/README.md) we explained the concept of Dominators. Dominators are key to the GCM algo, and we extend our incremental dominator discovery algo to
   ensure that it meets the requirements of the algo.
 * We already mentioned the two phases of the algo - the Early Scheduling and the Late Scheduling.
 * In addition, we need to add anti-dependency edges between Loads and Stores in certain scenarios to enforce correct execution order.
-* There are a few changes to our Node hierarchy to help us implement the GCM algo more conveniently. These changes do not conceptually alter the Node hierarchy we inherited from the previous chapters. 
+* There are a few changes to our Node hierarchy to help us implement the GCM algo more conveniently. These changes do not conceptually alter the Node hierarchy we inherited from the previous chapters.
 
 ## Identification of Basic Blocks in SoN graph
 
 The Sea of Nodes graph already captures the programs control flow graph. This information is implicit in the control nodes and edges from control nodes to other types of nodes.
 
 To recap, Control starts at the Start node, via a projection that is bound to the name `$ctrl`. As the control flows in the program, this name binding gets updated, and control is
-passed around, until it reaches the Stop node. 
+passed around, until it reaches the Stop node.
 
 The Basic Block structure of the CFG can be easily constructed by recognizing that certain control nodes start a Basic Block, whereas certain others end a BB.
 
@@ -279,7 +279,7 @@ class RegionNode extends CFGNode {
 }
 class LoopNode extends RegionNode {
   // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-  @Override public CFGNode idom() { return entry(); }    
+  @Override public CFGNode idom() { return entry(); }
 }
 class StartNode extends CFGNode {
   @Override public CFGNode idom() { return null; }
@@ -329,7 +329,7 @@ class LoopNode extends RegionNode {
 class StartNode extends CFGNode {
   @Override public int loopDepth() { return (_loopDepth=1); }
 }
-class StopNode extends CFGNode { 
+class StopNode extends CFGNode {
   @Override public int loopDepth() { return (_loopDepth=1); }
 }
 ```
@@ -517,7 +517,7 @@ We call these edges anti-dependencies because they do not represent the Def-Use 
 We compute anti-dependencies DURING running schedule late. This is because we rely on the early-schedule, and the late-schedule of the Load's uses (before scheduling the Load).
 
 Looking backwards from the Load we follow the memory edge to the "memory definer" - a start-mem-projection, or a phi-mem, or a store.
-We look forwards from the mem-def to all its mem-def users. There is always at least one; there may be many. These completely (all of it) and exactly (no doubling up) cover the forward memory space, sort of like a network flow problem - but we limit our analysis to same-alias, 
+We look forwards from the mem-def to all its mem-def users. There is always at least one; there may be many. These completely (all of it) and exactly (no doubling up) cover the forward memory space, sort of like a network flow problem - but we limit our analysis to same-alias,
 because for example, a start-mem-proj produces all aliases. This gives us a candidate set of mem-defs; some of these need the anti-dependency on the Load, but not all.
 
 Since we're in the middle of "schedule late", we have already computed all the late schedules of a Load's users, and we have the Loads "Least Common Ancestor" of uses, the LCA or late position.
@@ -553,7 +553,7 @@ The implementation is shown below.
         }
         return lca;
     }
-    
+
     private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
         // Walk store blocks "reach" from its scheduled location to its earliest
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {

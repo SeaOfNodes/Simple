@@ -134,16 +134,16 @@ public class Fuzzer {
         new ScriptGenerator(rand, sb, true).genProgram();
         try {
             var parser = new Parser(sb.toString());
-            
+
             var stop = parser.parse();
             int parse_peeps= Node.ITER_CNT;
             int parse_nops = Node.ITER_NOP_CNT;
             double parse_nop_ratio = (double)parse_nops/parse_peeps;
             int nids = Node.UID();
             if( nids <= max_nids ) return max_nids;
-            
+
             double parse_peeps_per_node = (double)parse_peeps/nids;
-            
+
             stop.iterate();
             int iter_peeps= Node.ITER_CNT;
             int iter_nops = Node.ITER_NOP_CNT;
@@ -174,7 +174,7 @@ public class Fuzzer {
         check(sb.toString(), valid, seed);
     }
 
-    
+
     /**
      * Check that no exceptions happened.
      * @return true if no exception happened
