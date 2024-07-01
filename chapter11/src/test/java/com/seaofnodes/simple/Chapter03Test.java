@@ -2,14 +2,12 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
 public class Chapter03Test {
-    
+
     @Test
     public void testVarDecl() {
         Parser parser = new Parser("int a=1; return a;");
@@ -49,7 +47,7 @@ public class Chapter03Test {
 
     @Test
     public void testSelfAssign() {
-        try { 
+        try {
             new Parser("int a=a; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -58,7 +56,7 @@ public class Chapter03Test {
     }
 
     @Test
-    public void testBad6() {
+    public void testBad1() {
         try {
             new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b;").parse();
             fail();

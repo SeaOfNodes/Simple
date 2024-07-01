@@ -2,14 +2,12 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import static org.junit.Assert.*;
 
 public class Chapter04Test {
-    
+
     @Test
     public void testPeephole() {
         Parser parser = new Parser("return 1+arg+2; #showGraph;");
@@ -37,7 +35,7 @@ public class Chapter04Test {
         StopNode ret = parser.parse();
         assertEquals("return (arg*2);", ret.print());
     }
-  
+
     @Test
     public void testPeephole3() {
         Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;");
@@ -51,7 +49,7 @@ public class Chapter04Test {
         StopNode ret = parser.parse();
         assertEquals("return arg;", ret.print());
     }
-  
+
     @Test
     public void testVarArg() {
         Parser parser = new Parser("return arg; #showGraph;");
@@ -112,7 +110,7 @@ public class Chapter04Test {
 
     @Test
     public void testBug3() {
-        try { 
+        try {
             new Parser("inta=1; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
@@ -126,5 +124,5 @@ public class Chapter04Test {
         StopNode ret = parser.parse();
         assertEquals("return (-arg);", ret.print());
     }
-    
+
 }

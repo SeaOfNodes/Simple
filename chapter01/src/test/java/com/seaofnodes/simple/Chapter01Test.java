@@ -1,16 +1,11 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.*;
 
 public class Chapter01Test {
-
-    @Rule
-    public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
     public void testSimpleProgram() {
@@ -60,9 +55,12 @@ public class Chapter01Test {
 
     @Test
     public void testBad3() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected integer literal");
-        new Parser("return --12;").parse();
+        try {
+            new Parser("return --12;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected integer literal",e.getMessage());
+        }
     }
 
     @Test
@@ -78,9 +76,12 @@ public class Chapter01Test {
     // Negative numbers require unary operator support that is not in scope
     @Test
     public void testBad5() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage("Syntax error, expected integer literal");
-        new Parser("return -100;").parse();
+        try {
+            new Parser("return -100;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Syntax error, expected integer literal",e.getMessage());
+        }
     }
 
     @Test

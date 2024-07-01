@@ -11,7 +11,7 @@ statement
     : returnStatement
     | structDeclaration
     | declStatement
-    | blockStatment 
+    | blockStatment
     | expressionStatement
     | ifStatement
     | whileStatement
@@ -26,7 +26,7 @@ field
 
 fields
     : field+
-    ;    
+    ;
 
 structDeclaration
     : 'struct' IDENTIFIER '{' fields '}'
@@ -39,10 +39,10 @@ whileStatement
 breakStatement
     : 'break' ';'
     ;
-    
+
 continueStatement
     : 'continue' ';'
-    ;    
+    ;
 
 ifStatement
     : 'if' '(' expression ')' statement ('else' statement)?
@@ -77,26 +77,27 @@ returnStatement
 expression
     : comparisonExpression
     ;
-    
+
 comparisonExpression
     : additiveExpression (('==' | '!='| '>'| '<'| '>='| '<=') additiveExpression)*
     ;
-    
+
 additiveExpression
-    : multiplicativeExpression (('+' | '-') multiplicativeExpression)*    
+    : multiplicativeExpression (('+' | '-') multiplicativeExpression)*
     ;
-    
+
 multiplicativeExpression
     : unaryExpression (('*' | '/') unaryExpression)*
     ;
 
 unaryExpression
     : ('-') unaryExpression
+    | '!' unaryExpression
     | primaryExpression
     ;
 
 newExpression
-    : 'new' IDENTIFIER 
+    : 'new' IDENTIFIER
     ;
 
 fieldExpression
@@ -118,11 +119,11 @@ INTEGER_LITERAL
     : [1-9][0-9]*
     | [0]
     ;
-    
+
 IDENTIFIER
     : NON_DIGIT (NON_DIGIT | DIGIT)*
     ;
-    
+
 NON_DIGIT: [a-zA-Z_];
 DEC_DIGIT: [0-9];
 ```
