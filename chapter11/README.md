@@ -1,4 +1,4 @@
-# Chapter 11
+# Chapter 11: Global Code Motion
 
 The original input source program defines a sequence in which things happen. As we parse the program into Sea of Nodes representation
 and perform various optimizations, this sequence is not fully maintained. The optimized Sea of Nodes graph is driven more
