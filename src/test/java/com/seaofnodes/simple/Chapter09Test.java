@@ -134,14 +134,14 @@ while(v1+arg) {
 }
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -153,7 +153,7 @@ if(0) while(0) {
 }
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
 
@@ -215,7 +215,7 @@ return -0+0+0;
     public void testFuzz3() {
         Parser parser = new Parser("int v0=0; while(0==69) while(v0) return 0;");
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -260,7 +260,7 @@ while(0==1) while(v0)
         v0=1+v0;
                                    """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
