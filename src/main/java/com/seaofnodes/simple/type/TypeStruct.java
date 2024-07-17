@@ -8,9 +8,12 @@ import java.util.ArrayList;
  */
 public class TypeStruct extends Type {
 
-    // For now in terms of the lattice
-    // a struct type just stays as is
-
+    // Immutable shallow references, resolved by name in Parser.TYPES when needed.
+    // A name-only struct has _fields == null, even after its definition is known.
+    // For LLI { LLI? next; int i; }, L0 is name-only and L1.next points to L0;
+    // TYPES["LLI"] holds L1. We deliberately stop recursive type expansion here,
+    // keeping interning and lattice operations finite and acyclic. Never patch
+    // L0 into L1: field access looks up the complete declaration by name instead.
     public final String _name;
     public final Field[] _fields;
 
@@ -20,13 +23,23 @@ public class TypeStruct extends Type {
         _fields = fields;
     }
 
+    // Forward-ref version
+    public static TypeStruct make(String name) { return new TypeStruct(name, null).intern(); }
+    // All fields directly listed
     public static TypeStruct make(String name, Field[] fields) { return new TypeStruct(name, fields).intern(); }
+    // Parser uses an ArrayList to gather the fields
     public static TypeStruct make(String name, ArrayList<Field> fields) { return make(name,fields.toArray(new Field[fields.size()])); }
 
     public static final TypeStruct TOP = make("$TOP",new Field [0]);
     public static final TypeStruct BOT = make("$BOT",new Field [0]);
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); }
+
+    // A pair of self-cyclic types
+    private static final TypeStruct S1F = make("S1");
+    private static final TypeStruct S2F = make("S2");
+    public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", TypeInteger.BOT), Field.make("s2",TypeMemPtr.make(S2F,false)) });
+    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeInteger.BOT), Field.make("s1",TypeMemPtr.make(S1F,false)) });
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); }
 
     public int find(String fname) {
         for( int i=0; i<_fields.length; i++ )
@@ -51,6 +64,8 @@ public class TypeStruct extends Type {
         // And the answer is: "don't ask".
         if( !_name.equals(that._name) )
             return BOT;         // It's a struct; that's about all we know
+        if( this._fields==null ) return this;
+        if( that._fields==null ) return that;
         // Now all fields should be the same, so just do field meets
         assert _fields.length == that._fields.length;
         Field[] flds = new Field[_fields.length];
@@ -63,6 +78,7 @@ public class TypeStruct extends Type {
     public TypeStruct dual() {
         if( this==TOP ) return BOT;
         if( this==BOT ) return TOP;
+        if( _fields == null ) return this;
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i].dual();
@@ -80,9 +96,10 @@ public class TypeStruct extends Type {
         return make(_name,flds);
     }
     private boolean _glb() {
-        for( Field f : _fields )
-            if( f.glb() != f )
-                return false;
+        if( _fields!=null )
+          for( Field f : _fields )
+              if( f.glb() != f )
+                 return false;
         return true;
     }
 
@@ -91,6 +108,7 @@ public class TypeStruct extends Type {
         TypeStruct ts = (TypeStruct)t; // Invariant
         if( !_name.equals(ts._name) )
             return false;
+        if( _fields == ts._fields ) return true;
         if( _fields.length!=ts._fields.length )
             return false;
         for( int i = 0; i < _fields.length; i++ )
@@ -102,7 +120,9 @@ public class TypeStruct extends Type {
     @Override
     int hash() {
         long hash = _name.hashCode();
-        for( Field f : _fields ) hash = Utils.rot(hash,13) ^ f.hashCode();
+        if( _fields != null )
+            for( Field f : _fields )
+                hash = Utils.rot(hash,13) ^ f.hashCode();
         return Utils.fold(hash);
     }
 
@@ -110,11 +130,12 @@ public class TypeStruct extends Type {
     public StringBuilder print(StringBuilder sb) {
         if( this==BOT ) return sb.append("StructBot");
         if( this==TOP ) return sb.append("StructTop");
-        sb.append(_name).append(" {\n");
+        sb.append(_name);
+        if( _fields == null ) return sb; // Forward reference struct, just print the name
+        sb.append(" {\n");
         for( Field f : _fields ) {
-            sb.append("  ").append(f._fname).append(":");
-            f._type.print(sb);
-            sb.append(";\n");
+            sb.append("  ").append(f._fname).append(" :");
+            f._type.print(sb).append(";\n");
         }
         return sb.append("}");
     }
