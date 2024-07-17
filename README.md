@@ -57,7 +57,7 @@ The Simple language is styled after a subset of C or Java.
   analysis. One memory value in SSA. Loads, stores, and an executable evaluator.
 * [Chapter 11](docs/chapter11/README.md): Equivalence class aliasing. Lazy memory
   partitioning with `MemMerge`, `MemPhi`, and `BulkMemPhi`.
-* Chapter 12: Reference fields, forward references and recursive structs.
+* [Chapter 12](docs/chapter12/README.md): Reference fields, forward references and recursive structs.
 * Chapter 13: Global Code Motion - Scheduling.
 * Chapter 14: Numeric types: floats, narrow integers, ranges and rounding to `f32`.
 * Chapter 15: One dimensional static length array type, with array loads and stores.
