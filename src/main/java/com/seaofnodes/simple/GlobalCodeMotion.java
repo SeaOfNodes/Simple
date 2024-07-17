@@ -10,7 +10,6 @@ public abstract class GlobalCodeMotion {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( StopNode stop ) {
-        fixLoops(stop);
         schedEarly();
         Parser.SCHEDULED = true;
         schedLate(Parser.START);
@@ -20,7 +19,7 @@ public abstract class GlobalCodeMotion {
     // Backwards walk on the CFG only, looking for unreachable code - which has
     // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
     // loop becomes reachable.  Also, set loop nesting depth
-    private static void fixLoops(StopNode stop) {
+    static void fixLoops(StopNode stop) {
         // Backwards walk from Stop, looking for unreachable code
         BitSet visit = new BitSet();
         HashSet<CFGNode> unreach = new HashSet<>();
@@ -120,7 +119,7 @@ public abstract class GlobalCodeMotion {
                 ns[i].setDef(0,late[i]);
     }
 
-    // Forwards post-order pass.  Schedule all outputs first, then draw an
+    // Forwards post-order pass.  Schedule all outputs first, then draw a
     // idom-tree line from the LCA of uses to the early schedule.  Schedule is
     // legal anywhere on this line; pick the most control-dependent (largest
     // idepth) in the shallowest loop nest.
@@ -148,13 +147,13 @@ public abstract class GlobalCodeMotion {
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            lca = use_block(n,use, late).idom(lca);
+            lca = use_block(n,use, late)._idom(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
             lca = find_anti_dep(lca,load,early,late);
 
-        // Walk up from the LCA to the early, looking for best place.  This is the
+        // Walk up from the LCA to the early, looking for best place.  This is
         // lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
         CFGNode best = lca;
@@ -214,6 +213,7 @@ public abstract class GlobalCodeMotion {
                 break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
+            case NeverNode never: break;
             default: throw Utils.TODO();
             }
         }
@@ -226,7 +226,7 @@ public abstract class GlobalCodeMotion {
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( stblk._anti==load._nid ) {
-                lca = stblk.idom(lca); // Raise Loads LCA
+                lca = stblk._idom(lca,null); // Raise Loads LCA
                 if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here

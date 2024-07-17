@@ -9,4 +9,12 @@ public interface MultiNode extends OutNode {
                 return prj;
         return null;
     }
+
+    // Find a projection by index
+    default CProjNode cproj( int idx ) {
+        for( Node out : outs() )
+            if( out instanceof CProjNode prj && prj._idx==idx )
+                return prj;
+        return null;
+    }
 }
