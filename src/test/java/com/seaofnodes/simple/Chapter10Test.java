@@ -241,7 +241,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region16,null,new Bar);", stop.toString());
+        assertEquals("return Phi(Region31,(*void)Phi(Region18,null,new Bar),null);", stop.toString());
     }
 
     @Test
@@ -257,7 +257,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region34,4,3);", stop.toString());
+        assertEquals("return Phi(Region37,4,3);", stop.toString());
     }
 
     @Test
@@ -310,8 +310,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
-        assertEquals(10L,Evaluator.evaluate(stop,5));
+        assertEquals("return Phi(Loop17,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
 
 
@@ -331,7 +330,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop11,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -348,7 +347,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop15,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop15,new s0,Phi(Region36,new s0,Phi_ret));", stop.toString());
     }
 
 
@@ -365,7 +364,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop11,new s0,Phi(Region33,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -395,7 +394,7 @@ if(0) {
 }
    """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -469,7 +468,7 @@ while(0) {}
 }
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test

@@ -36,9 +36,9 @@ public class TypeTest {
         Assert.assertEquals(TypeMem   .BOT, m2.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
-        Assert.assertEquals(TypeMem.BOT, m1.glb());
+        Assert.assertEquals(m1, m1.glb());
         Assert.assertEquals(m1, m1.dual());
-        Assert.assertEquals(TypeMem.TOP, m1.glb().dual());
+        Assert.assertEquals(m1, m1.glb().dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
