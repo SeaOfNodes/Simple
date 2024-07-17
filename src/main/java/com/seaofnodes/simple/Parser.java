@@ -56,6 +56,7 @@ public class Parser {
             add("continue");
             add("else");
             add("false");
+            add("flt");
             add("if");
             add("int");
             add("new");
@@ -76,13 +77,15 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
-    // Mapping from a Struct name to a Struct.
-    public static Map<String, TypeStruct> OBJS = new HashMap<>();
+    // Mapping from a type name to a Type.
+    public static HashMap<String, Type> TYPES = new HashMap<>();
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        OBJS.clear();
+        TYPES.clear();
+        TYPES.put("int",TypeInteger.BOT);
+        TYPES.put("flt",TypeFloat  .BOT);
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -157,7 +160,6 @@ public class Parser {
     private Node parseStatement() {
         if( false ) return null;
         else if (matchx("return")  ) return parseReturn();
-        else if (matchx("int")     ) return parseDecl(TypeInteger.BOT);
         else if (match ("{")       ) return require(parseBlock(),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
@@ -174,13 +176,14 @@ public class Parser {
     /**
      * Parse a struct field.
      * <pre>
-     *     int IDENTIFIER ;
+     *     type IDENTIFIER ;
      * </pre>
      */
     private Field parseField(String sname) {
-        if( matchx("int") )     // Currently only parsing "int" type fields
-            return require(Field.make(requireId().intern(),TypeInteger.BOT),";");
-        throw errorSyntax("A field type is expected, only type 'int' is supported at present");
+        Type t = type();
+        if( t==null )
+            throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
+        return require(Field.make(requireId().intern(),t),";");
     }
 
     /**
@@ -193,7 +196,7 @@ public class Parser {
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
-        if ( OBJS.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        if ( TYPES.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {
@@ -204,7 +207,7 @@ public class Parser {
         require("}");
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields);
-        OBJS.put(typeName, ts); // Insert the struct name in the collection of all struct names
+        TYPES.put(typeName, ts); // Insert the struct name in the collection of all struct names
         START.addMemProj(ts, _scope); // Insert memory edges
         return parseStatement();
     }
@@ -423,15 +426,17 @@ public class Parser {
             if( _scope.define(name,t,expr) == null )
                 throw error("Redefining name '" + name + "'");
         } else {
-            Node n = _scope.lookup(name);
-            t = _scope.lookupDeclaredType(name);
-            if( n==null )
+            if( _scope.lookup(name)==null )
                 throw error("Undefined name '" + name + "'");
-            _scope.update(name,expr);
+            t = _scope.lookupDeclaredType(name);
         }
+        // Auto-widen int to float
+        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
+            expr = new ToFloatNode(expr).peephole();
+        // Type is sane
         if( !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
-        return expr;
+        return _scope.update(name,expr);
     }
 
     // Parse a type-or-null
@@ -439,35 +444,13 @@ public class Parser {
         int old = _lexer._position;
         String tname = _lexer.matchId();
         if( tname==null ) return null;
-        if( tname.equals("int") ) return TypeInteger.BOT;
-        TypeStruct obj = OBJS.get(tname);
-        if( obj != null )
-            return TypeMemPtr.make(obj,match("?"));
-        // Not a type; unwind the parse
-        _lexer._position = old;
-        return null;
-    }
-
-    /**
-     * Parses a declStatement
-     *
-     * <pre>
-     *     type name = expression ';'
-     * </pre>
-     * @return an expression {@link Node}
-     */
-    private Node parseDecl(Type t) {
-        var name = requireId();
-        var expr = match(";")
-            // Assign a null value
-            ? new ConstantNode(t.makeInit()).peephole()
-            // Assign "= expr;"
-            : require(require("=").parseExpression(), ";");
-        if( !expr._type.isa(t) )
-            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
-        if( _scope.define(name,t,expr) == null )
-            throw error("Redefining name '" + name + "'");
-        return expr;
+        Type t = TYPES.get(tname);
+        if( t == null ) {
+            // Not a type; unwind the parse
+            _lexer._position = old;
+            return null;
+        }
+        return t instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t;
     }
 
 
@@ -504,7 +487,7 @@ public class Parser {
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             lhs.setDef(idx,parseAddition());
-            lhs = lhs.peephole();
+            lhs = lhs.widen().peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
@@ -527,7 +510,7 @@ public class Parser {
             else if( match("-") ) lhs = new SubNode(lhs,null);
             else break;
             lhs.setDef(2,parseMultiplication());
-            lhs = lhs.peephole();
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -541,14 +524,14 @@ public class Parser {
      * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
-        var lhs = parseUnary();
+        var lhs = parseUnary();  boolean mul;
         while( true ) {
             if( false ) ;
             else if( match("*") ) lhs = new MulNode(lhs,null);
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
             lhs.setDef(2,parseUnary());
-            lhs = lhs.peephole();
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -562,7 +545,7 @@ public class Parser {
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if (match("-")) return new MinusNode(parseUnary()).peephole();
+        if (match("-")) return new MinusNode(parseUnary()).widen().peephole();
         if (match("!")) return new   NotNode(parseUnary()).peephole();
         return parsePostfix(parsePrimary());
     }
@@ -576,15 +559,15 @@ public class Parser {
      * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
-        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
-            TypeStruct obj = OBJS.get(structName);
-            if( obj == null) throw errorSyntax("Unknown struct type '" + structName + "'");
+            Type t = TYPES.get(structName);
+            if( t == null || !(t instanceof TypeStruct obj) ) throw errorSyntax("Unknown struct type '" + structName + "'");
             return newStruct(obj);
         }
         String name = _lexer.matchId();
@@ -630,6 +613,7 @@ public class Parser {
             throw error("Expected struct reference but got " + expr._type.str());
 
         String name = requireId().intern();
+        if( expr._type == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
         int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
         if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
         int alias = START._aliasStarts.get(ptr._obj._name)+idx;
@@ -653,9 +637,10 @@ public class Parser {
      *
      * <pre>
      *     integerLiteral: [1-9][0-9]* | [0]
+     *     floatLiteral: [1-9][0-9]* | [0]
      * </pre>
      */
-    private ConstantNode parseIntegerLiteral() {
+    private ConstantNode parseLiteral() {
         return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
@@ -810,19 +795,37 @@ public class Parser {
             return String.valueOf(peek());
         }
 
-        boolean isNumber() {return isNumber(peek());}
+
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
+        // Return a constant Type, either TypeInteger or TypeFloat
         private Type parseNumber() {
-            String snum = parseNumberString();
-            if (snum.length() > 1 && snum.charAt(0) == '0')
-                throw error("Syntax error: integer values cannot start with '0'");
-            return TypeInteger.constant(Long.parseLong(snum));
+            int old = _position;
+            int len = isLongOrDouble();
+            if( len > 0 ) {
+                if( len > 1 && _input[old]=='0' )
+                    throw error("Syntax error: integer values cannot start with '0'");
+                return TypeInteger.constant(Long.parseLong(new String(_input,old,len)));
+            }
+            return TypeFloat.constant(Double.parseDouble(new String(_input,old,-len)));
         }
         private String parseNumberString() {
-            int start = _position;
-            while (isNumber(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            int old = _position;
+            int len = Math.abs(isLongOrDouble());
+            _position += len;
+            return new String(_input,old,len);
+        }
+
+        // Return +len that ends a long
+        // Return -len that ends a double
+        private int isLongOrDouble() {
+            int old = _position;
+            char c;
+            while( Character.isDigit(c=nextChar()) ) ;
+            if( !(c=='e' || c=='.') )
+                return --_position - old;
+            while( Character.isDigit(c=nextChar()) || c=='e' || c=='.' ) ;
+            return -(--_position - old);
         }
 
         // First letter of an identifier

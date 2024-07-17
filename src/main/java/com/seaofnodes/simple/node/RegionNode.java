@@ -99,12 +99,12 @@ public class RegionNode extends CFGNode {
         return _idepth=d;
     }
 
-    @Override public CFGNode idom() {
+    @Override public CFGNode idom(Node dep) {
         CFGNode lca = null;
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
         // Because this does not cache, it can be linear in the size of the program.
         for( int i=1; i<nIns(); i++ )
-            lca = cfg(i).idom(lca);
+            lca = cfg(i)._idom(lca,dep);
         return lca;
     }
 

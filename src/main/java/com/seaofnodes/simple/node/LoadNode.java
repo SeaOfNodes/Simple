@@ -61,9 +61,13 @@ public class LoadNode extends MemOpNode {
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
-                Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
-                return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
+                if( ptr() instanceof NewNode || !(ptr() instanceof CastNode) ) {
+                    if( !(ptr() instanceof NewNode) ) throw Utils.TODO(); // Validate
+
+                    Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
+                    Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
+                    return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
+                }
             }
         }
 
