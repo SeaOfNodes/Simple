@@ -20,6 +20,7 @@ public class Field extends Type {
         _fname = fname;
         _type  = type;
     }
+    // Make with existing alias
     public static Field make( String fname, Type type ) {
         return new Field(fname,type).intern();
     }
@@ -46,13 +47,13 @@ public class Field extends Type {
 
     boolean eq(Type t) {
         Field f = (Field)t;
-        return Utils.eq(_fname,f._fname) && _type==f._type;
+        return _fname.equals(f._fname) && _type==f._type;
     }
 
 
     @Override
     public StringBuilder print( StringBuilder sb ) {
-        return _type.print(sb.append(_fname).append(":"));
+        return _type.print(sb.append(_fname).append(" :"));
     }
 
     @Override public String str() { return _fname; }
