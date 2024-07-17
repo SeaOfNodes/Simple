@@ -52,16 +52,17 @@ public abstract class CFGNode extends Node {
     public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
 
     // Return the immediate dominator of this Node and compute dom tree depth.
-    public CFGNode idom() { return cfg(0); }
+    public CFGNode idom(Node dep) { return cfg(0); }
+    public final CFGNode idom() { return idom(null); }
 
     // Return the LCA of two idoms
-    public CFGNode idom(CFGNode rhs) {
+    public CFGNode _idom(CFGNode rhs, Node dep) {
         if( rhs==null ) return this;
         CFGNode lhs = this;
         while( lhs != rhs ) {
             var comp = lhs.idepth() - rhs.idepth();
-            if( comp >= 0 ) lhs = lhs.idom();
-            if( comp <= 0 ) rhs = rhs.idom();
+            if( comp >= 0 ) lhs = ((CFGNode)lhs.addDep(dep)).idom();
+            if( comp <= 0 ) rhs = ((CFGNode)rhs.addDep(dep)).idom();
         }
         return lhs;
     }
