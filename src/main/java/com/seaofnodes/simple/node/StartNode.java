@@ -75,7 +75,7 @@ public class StartNode extends CFGNode implements MultiNode {
 
     // No immediate dominator, and idepth==0
     @Override public int idepth() { return 0; }
-    @Override public CFGNode idom() { return null; }
+    @Override public CFGNode idom(Node dep) { return null; }
 
     @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) { }
 

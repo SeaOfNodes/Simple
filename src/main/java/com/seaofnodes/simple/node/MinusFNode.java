@@ -1,14 +1,14 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeFloat;
 
 import java.util.BitSet;
 
-public class MinusNode extends Node {
-    public MinusNode(Node in) { super(null, in); }
+public class MinusFNode extends Node {
+    public MinusFNode(Node in) { super(null, in); }
 
-    @Override public String label() { return "Minus"; }
+    @Override public String label() { return "MinusF"; }
 
     @Override public String glabel() { return "-"; }
 
@@ -20,18 +20,17 @@ public class MinusNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0)
-            return i0.isConstant() ? TypeInteger.constant(-i0.value()) : i0;
-        return TypeInteger.TOP.meet(in(1)._type);
+        if (in(1)._type instanceof TypeFloat i0)
+            return i0.isConstant() ? TypeFloat.constant(-i0.value()) : i0;
+        return TypeFloat.BOT;
     }
 
     @Override
     public Node idealize() {
         // -(-x) is x
-        if( in(1) instanceof MinusNode minus )
+        if( in(1) instanceof MinusFNode minus )
             return minus.in(1);
 
         return null;
     }
-    @Override Node copyF() { return new MinusFNode(null); }
 }
