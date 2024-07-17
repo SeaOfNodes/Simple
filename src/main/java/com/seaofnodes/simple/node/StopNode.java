@@ -61,7 +61,7 @@ public class StopNode extends CFGNode {
                 d = Math.max(d,((CFGNode)n).idepth()+1);
         return cacheIDepth(d);
     }
-    @Override public CFGNode idom() { return null; }
+    @Override public CFGNode idom(Node dep) { return null; }
 
     @Override public int loopDepth() { return (_loopDepth=1); }
 

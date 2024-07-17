@@ -11,7 +11,6 @@ public abstract class GlobalCodeMotion {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( StopNode stop ) {
-        fixLoops(stop);
         schedEarly();
         Parser.SCHEDULED = true;
         schedLate(stop);
@@ -21,7 +20,7 @@ public abstract class GlobalCodeMotion {
     // Backwards walk on the CFG only, looking for unreachable code - which has
     // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
     // loop becomes reachable.  Also, set loop nesting depth
-    private static void fixLoops(StopNode stop) {
+    static void fixLoops(StopNode stop) {
         // Backwards walk from Stop, looking for unreachable code
         BitSet visit = new BitSet();
         HashSet<CFGNode> unreach = new HashSet<>();
@@ -176,7 +175,7 @@ public abstract class GlobalCodeMotion {
         CFGNode lca = null;
         for( Node use : n._outputs )
             if( use != null )
-              lca = use_block(n,use, late).domLCA(lca);
+              lca = use_block(n,use, late).domLCA(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
@@ -203,7 +202,7 @@ public abstract class GlobalCodeMotion {
         CFGNode found=null;
         for( int i=1; i<phi.nIns(); i++ )
             if( phi.in(i)==n )
-                found = phi.region().cfg(i).domLCA(found); // Can be more than one matching input.
+                found = phi.region().cfg(i).domLCA(found,null); // Can be more than one matching input.
         assert found!=null;
         return found;
     }
@@ -237,6 +236,7 @@ public abstract class GlobalCodeMotion {
                 break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
+            case NeverNode never: break;
             default: throw Utils.TODO();
             }
         }
@@ -250,7 +250,7 @@ public abstract class GlobalCodeMotion {
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( anti[stblk._nid]==load._nid ) {
-                lca = stblk.domLCA(lca); // Raise Loads LCA
+                lca = stblk.domLCA(lca,null); // Raise Loads LCA
                 if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here

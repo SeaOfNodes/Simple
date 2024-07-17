@@ -99,11 +99,11 @@ public class RegionNode extends CFGNode {
         return cacheIDepth(depth);
     }
 
-    @Override public CFGNode idom() {
+    @Override public CFGNode idom(Node dep) {
         CFGNode lca = null;
         // Recompute from predecessors: CFG edits can change the dominator.
         for( int i=1; i<nIns(); i++ )
-            lca = cfg(i).domLCA(lca);
+            lca = cfg(i).domLCA(lca,dep);
         return lca;
     }
 

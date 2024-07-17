@@ -33,6 +33,7 @@ public class SubNode extends Node {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()-i1.value());
         }
+
         return TypeInteger.BOT;
     }
 
@@ -61,4 +62,5 @@ public class SubNode extends Node {
     }
 
     @Override Node copy(Node lhs, Node rhs) { return new SubNode(lhs,rhs); }
+    @Override Node copyF() { return new SubFNode(null,null); }
 }
