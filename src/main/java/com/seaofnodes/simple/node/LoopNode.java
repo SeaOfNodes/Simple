@@ -30,7 +30,7 @@ public class LoopNode extends RegionNode {
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-    @Override public CFGNode idom() { return entry(); }
+    @Override public CFGNode idom(Node dep) { return entry(); }
 
     @Override public int loopDepth() {
         if( _loopDepth!=0 ) return _loopDepth; // Was already set
@@ -60,8 +60,11 @@ public class LoopNode extends RegionNode {
         // directly on the If) we found our exit.
         CFGNode x = back();
         while( x != this ) {
-            if( x instanceof CProjNode exit )
-                return;         // Found an exit, not an infinite loop
+            if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
+                Node other = iff.cproj(1-exit._idx);
+                if( !(other.out(0) instanceof LoopNode loop) || loop.entry()==exit )
+                    return;         // Found an exit, not an infinite loop
+            }
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit

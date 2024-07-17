@@ -92,6 +92,8 @@ public abstract class IterPeeps {
                 n.kill();       // Just plain dead
         }
 
+        // Break infinite loops, forcing a Never-branch to exit
+        GlobalCodeMotion.fixLoops(stop);
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         GlobalCodeMotion.buildCFG(stop);
