@@ -21,8 +21,8 @@ public class NotNode extends Node {
     public Type compute() {
         Type t0 = in(1)._type;
         switch( t0 ) {
-        case TypeInteger i0:
-            return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
+        case TypeInteger i0:  return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
+        case TypeFloat   i0:  return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
         case TypeMemPtr p0:
             // top->top, bot->bot, null->1, *void->0, not-null ptr->0, ptr/nil->bot
             // If input in null then true
