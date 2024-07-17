@@ -27,4 +27,5 @@ public class MinusNode extends Node {
 
         return null;
     }
+    @Override Node copyF() { return new MinusFNode(null); }
 }

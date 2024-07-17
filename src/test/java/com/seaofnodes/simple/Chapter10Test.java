@@ -2,11 +2,15 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.StoreNode;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import java.util.BitSet;
 import org.junit.Test;
+
+import java.util.Arrays;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -321,7 +325,6 @@ while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
-
 }
 return ret;
 """);

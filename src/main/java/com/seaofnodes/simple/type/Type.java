@@ -33,11 +33,12 @@ public class Type {
     static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
     static final byte TSIMPLE = 4; // End of the Simple Types
     static final byte TINT    = 5; // All Integers; see TypeInteger
-    static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMEM    = 7; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TMEMPTR = 8; // Memory pointer type
-    static final byte TSTRUCT = 9; // Structs; tuples with named fields
-    static final byte TFLD    =10; // Fields into struct
+    static final byte TFLT    = 6; // All Integers; see TypeInteger
+    static final byte TTUPLE  = 7; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMEM    = 8; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TMEMPTR = 9; // Memory pointer type
+    static final byte TSTRUCT =10; // Structs; tuples with named fields
+    static final byte TFLD    =11; // Fields into struct
 
     public final byte _type;
 
