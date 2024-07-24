@@ -510,7 +510,7 @@ public class Parser {
             op.setDef(idx,parseAddition());
             Node fop = op.widen();
             lhs = fop.peephole();
-            op.kill();
+            if( op != fop ) op.kill();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
