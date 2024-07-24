@@ -4,6 +4,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
 import java.util.*;
+import java.io.ByteArrayInputStream;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate
@@ -158,6 +159,7 @@ public class Parser {
         if( false ) return null;
         else if (matchx("return")  ) return parseReturn();
         else if (matchx("int")     ) return parseDecl(TypeInteger.BOT);
+        else if (matchx("flt")     ) return parseDecl(TypeFloat  .BOT);
         else if (match ("{")       ) return require(parseBlock(),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
@@ -462,6 +464,8 @@ public class Parser {
             ? new ConstantNode(t.makeInit()).peephole()
             // Assign "= expr;"
             : require(require("=").parseExpression(), ";");
+        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
+            expr = new ToFloatNode(expr).peephole();
         if( !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         if( _scope.define(name,t,expr) == null )
@@ -490,20 +494,22 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
+        BoolNode op;
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
             if( false ) ;
-            else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
-            else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
-            else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
-            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
-            else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
-            else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
+            else if( match("==") ) { idx=2;  op = new BoolNode.EQ(lhs, null); }
+            else if( match("!=") ) { idx=2;  op = new BoolNode.EQ(lhs, null); negate=true; }
+            else if( match("<=") ) { idx=2;  op = new BoolNode.LE(lhs, null); }
+            else if( match("<" ) ) { idx=2;  op = new BoolNode.LT(lhs, null); }
+            else if( match(">=") ) { idx=1;  op = new BoolNode.LE(null, lhs); }
+            else if( match(">" ) ) { idx=1;  op = new BoolNode.LT(null, lhs); }
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseAddition());
-            lhs = lhs.peephole();
+            op.setDef(idx,parseAddition());
+            op = op.widen();
+            lhs = op.peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
@@ -519,13 +525,21 @@ public class Parser {
      * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
-        Node lhs = parseMultiplication();
+        Node lhs = parseMultiplication();  boolean add;
         while( true ) {
-            if( false ) ;
-            else if( match("+") ) lhs = new AddNode(lhs,null);
-            else if( match("-") ) lhs = new SubNode(lhs,null);
+            if( match("+") ) add=true;
+            else if( match("-") ) add=false;
             else break;
-            lhs.setDef(2,parseMultiplication());
+            lhs.keep();
+            var rhs = parseMultiplication();
+            lhs.unkeep();
+            if( lhs._type instanceof TypeFloat || rhs._type instanceof TypeFloat ) {
+                lhs = widen(lhs);
+                rhs = widen(rhs);
+                lhs = add ? new AddFNode(lhs,rhs) : new SubFNode(lhs,rhs);
+            } else {
+                lhs = add ? new AddNode (lhs,rhs) : new SubNode (lhs,rhs);
+            }
             lhs = lhs.peephole();
         }
         return lhs;
@@ -540,16 +554,29 @@ public class Parser {
      * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
-        var lhs = parseUnary();
+        var lhs = parseUnary();  boolean mul;
         while( true ) {
-            if( false ) ;
-            else if( match("*") ) lhs = new MulNode(lhs,null);
-            else if( match("/") ) lhs = new DivNode(lhs,null);
+            if( match("*") ) mul=true;
+            else if( match("/") ) mul=false;
             else break;
-            lhs.setDef(2,parseUnary());
+            lhs.keep();
+            var rhs = parseUnary();
+            lhs.unkeep();
+            if( lhs._type instanceof TypeFloat || rhs._type instanceof TypeFloat ) {
+                lhs = widen(lhs);
+                rhs = widen(rhs);
+                lhs = mul ? new MulFNode(lhs,rhs) : new DivFNode(lhs,rhs);
+            } else {
+                lhs = mul ? new MulNode (lhs,rhs) : new DivNode (lhs,rhs);
+            }
             lhs = lhs.peephole();
         }
         return lhs;
+    }
+
+    // int->float widen
+    public static Node widen(Node x) {
+        return x._type instanceof TypeFloat ? x : new ToFloatNode(x).peephole();
     }
 
     /**
@@ -575,7 +602,7 @@ public class Parser {
      * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
-        if( _lexer.isNumber() ) return parseIntegerLiteral();
+        if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
         if( matchx("false") ) return ZERO;
@@ -652,9 +679,10 @@ public class Parser {
      *
      * <pre>
      *     integerLiteral: [1-9][0-9]* | [0]
+     *     floatLiteral: [1-9][0-9]* | [0]
      * </pre>
      */
-    private ConstantNode parseIntegerLiteral() {
+    private ConstantNode parseLiteral() {
         return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
@@ -809,19 +837,36 @@ public class Parser {
             return String.valueOf(peek());
         }
 
-        boolean isNumber() {return isNumber(peek());}
+
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
         private Type parseNumber() {
-            String snum = parseNumberString();
-            if (snum.length() > 1 && snum.charAt(0) == '0')
-                throw error("Syntax error: integer values cannot start with '0'");
-            return TypeInteger.constant(Long.parseLong(snum));
+            int old = _position;
+            int len = isLongOrDouble();
+            if( len > 0 ) {
+                if( len > 1 && _input[old]=='0' )
+                    throw error("Syntax error: integer values cannot start with '0'");
+                return TypeInteger.constant(Long.parseLong(new String(_input,old,len)));
+            }
+            return TypeFloat.constant(Double.parseDouble(new String(_input,old,-len)));
         }
         private String parseNumberString() {
-            int start = _position;
-            while (isNumber(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            int old = _position;
+            int len = Math.abs(isLongOrDouble());
+            _position += len;
+            return new String(_input,old,len);
+        }
+
+        // Return +len that ends a long
+        // Return -len that ends a double
+        private int isLongOrDouble() {
+            int old = _position;
+            char c;
+            while( Character.isDigit(c=nextChar()) ) ;
+            if( !(c=='e' || c=='.') )
+                return --_position - old;
+            while( Character.isDigit(c=nextChar()) || c=='e' || c=='.' ) ;
+            return -(--_position - old);
         }
 
         // First letter of an identifier

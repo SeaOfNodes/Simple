@@ -8,16 +8,34 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class Chapter12Test {
-    // A placeholder test used to rapidly rotate through fuzzer produced issues
     @Test
-    public void testFuzzer() {
+    public void testFloat() {
         Parser parser = new Parser(
 """
-return 0;
+return 3.14;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return 0;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        assertEquals("return 3.14;", stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
+
+    @Test
+    public void testSquareRoot() {
+        Parser parser = new Parser(
+"""
+flt guess = arg;
+while( 1 ) {
+    flt next = (arg/guess + guess)/2;
+    if( next == guess ) break;
+    guess = next;
+}
+return guess;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Loop9,(flt)arg,(((ToFloat*Phi_guess)+Phi_guess)*2.0));", stop.toString());
+        assertEquals(3.0, Evaluator.evaluate(stop,  9));
+        assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
+    }
+
 
 }
