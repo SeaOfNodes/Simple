@@ -72,11 +72,13 @@ abstract public class BoolNode extends Node {
         return null;
     }
 
-    public BoolNode widen() {
-        if( !(in(1)._type instanceof TypeFloat || in(2)._type instanceof TypeFloat) ) return this;
+    public Node widen() {
+        if( !(in(1)._type instanceof TypeFloat || in(2)._type instanceof TypeFloat) ) return peephole();
         Node in1 = Parser.widen(in(1));
         Node in2 = Parser.widen(in(2));
-        return copyF(in1,in2);
+        Node b = copyF(in1,in2).peephole();
+        kill();
+        return b;
     }
 
     public static class EQ extends BoolNode { public EQ(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); } BoolNode copyF(Node lhs, Node rhs) { return new EQF(lhs,rhs); } }

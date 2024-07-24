@@ -4,7 +4,6 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
 import java.util.*;
-import java.io.ByteArrayInputStream;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate
@@ -508,9 +507,7 @@ public class Parser {
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             op.setDef(idx,parseAddition());
-            Node fop = op.widen();
-            lhs = fop.peephole();
-            if( op != fop ) op.kill();
+            lhs = op.widen();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
