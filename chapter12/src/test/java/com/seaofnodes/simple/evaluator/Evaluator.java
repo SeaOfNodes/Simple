@@ -2,10 +2,7 @@ package com.seaofnodes.simple.evaluator;
 
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Field;
-import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.type.TypeMemPtr;
-import com.seaofnodes.simple.type.TypeStruct;
+import com.seaofnodes.simple.type.*;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -80,6 +77,10 @@ public class Evaluator {
         long in2 = vall(div.in(2));
         return in2 == 0 ? 0 : vall(div.in(1)) / in2;
     }
+    private double div(DivFNode div) {
+        double in2 = vald(div.in(2));
+        return in2 == 0 ? 0 : vald(div.in(1)) / in2;
+    }
 
     private Object alloc(NewNode alloc) {
         var type = ((TypeMemPtr)alloc.compute())._obj;
@@ -115,10 +116,16 @@ public class Evaluator {
         if (v instanceof Number n) return n.longValue();
         throw new AssertionError("Not a long " + v);
     }
+    private double vald(Node node) {
+        var v = val(node);
+        if (v instanceof Number n) return n.doubleValue();
+        throw new AssertionError("Not a double " + v);
+    }
 
     private Object cons(ConstantNode cons) {
         var type = cons.compute();
         if (type instanceof TypeInteger i) return i.value();
+        if (type instanceof TypeFloat i) return i.value();
         assert type instanceof TypeMemPtr;
         return null;
     }
@@ -127,15 +134,23 @@ public class Evaluator {
         return switch (node) {
             case ConstantNode cons  -> cons(cons);
             case AddNode      add   -> vall(add.in(1)) + vall(add.in(2));
+            case AddFNode     add   -> vald(add.in(1)) + vald(add.in(2));
             case BoolNode.EQ  eq    -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L;
             case BoolNode.LE  le    -> vall(le.in(1)) <= vall(le.in(2)) ? 1L : 0L;
             case BoolNode.LT  lt    -> vall(lt.in(1)) <  vall(lt.in(2)) ? 1L : 0L;
+            case BoolNode.EQF eq    -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L;
+            case BoolNode.LEF le    -> vald(le.in(1)) <= vald(le.in(2)) ? 1L : 0L;
+            case BoolNode.LTF lt    -> vald(lt.in(1)) <  vald(lt.in(2)) ? 1L : 0L;
             case DivNode      div   -> div(div);
+            case DivFNode     div   -> div(div);
             case MinusNode    minus -> -vall(minus.in(1));
             case MulNode      mul   -> vall(mul.in(1)) * vall(mul.in(2));
+            case MulFNode     mul   -> vald(mul.in(1)) * vald(mul.in(2));
             case NotNode      not   -> isTrue(val(not.in(1))) ? 0L : 1L;
             case SubNode      sub   -> vall(sub.in(1)) - vall(sub.in(2));
+            case SubFNode     sub   -> vald(sub.in(1)) - vald(sub.in(2));
             case CastNode     cast  -> val(cast.in(1));
+            case ToFloatNode  cast  -> (double)vall(cast.in(1));
             case LoadNode     load  -> load(load);
             case StoreNode    store -> store(store);
             case NewNode      alloc -> alloc(alloc);
