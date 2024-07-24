@@ -32,12 +32,10 @@ public class AddFNode extends Node {
     @Override
     public Node idealize() {
         Node lhs = in(1);
-        Node rhs = in(2);
-        Type t1 = lhs._type;
-        Type t2 = rhs._type;
+        Type t2 = in(2)._type;
 
-        // Add of 1.  
-        if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==1 )
+        // Add of 1.
+        if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==0 )
             return lhs;
 
         return null;

@@ -508,8 +508,9 @@ public class Parser {
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             op.setDef(idx,parseAddition());
-            op = op.widen();
-            lhs = op.peephole();
+            Node fop = op.widen();
+            lhs = fop.peephole();
+            op.kill();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
@@ -840,6 +841,7 @@ public class Parser {
 
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
+        // Return a constant Type, either TypeInteger or TypeFloat
         private Type parseNumber() {
             int old = _position;
             int len = isLongOrDouble();

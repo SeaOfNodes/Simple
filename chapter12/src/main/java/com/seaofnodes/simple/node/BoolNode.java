@@ -54,11 +54,9 @@ abstract public class BoolNode extends Node {
         if( this instanceof EQ ) {
             if( !(in(2) instanceof ConstantNode) ) {
                 // con==noncon becomes noncon==con
-                if( in(1) instanceof ConstantNode )
-                    return new EQ(in(2),in(1));
+                if( in(1) instanceof ConstantNode || in(1)._nid > in(2)._nid )
                 // Equals sorts by NID otherwise: non.high == non.low becomes non.low == non.high
-                else if( in(1)._nid > in(2)._nid )
-                    return new EQ(in(2),in(1));
+                    return in(1)._type instanceof TypeFloat ? new EQF(in(2),in(1)) : new EQ(in(2),in(1));
             }
             // Equals X==0 becomes a !X
             if( (in(2)._type == TypeInteger.ZERO || in(2)._type == TypeMemPtr.NULLPTR) )

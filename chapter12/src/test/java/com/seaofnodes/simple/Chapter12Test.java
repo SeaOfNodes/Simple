@@ -37,5 +37,16 @@ return guess;
         assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
     }
 
+    @Test
+    public void testFPOps() {
+        Parser parser = new Parser(
+"""
+flt x = arg;
+return x+1==x;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return (((flt)arg+1.0)==ToFloat);", stop.toString());
+        assertEquals(0, Evaluator.evaluate(stop, 1));
+    }
 
 }
