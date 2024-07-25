@@ -90,6 +90,7 @@ public class ScriptGenerator {
     }
 
     private static final Type TYPE_INT = new Type("int");
+    private static final Type TYPE_FLT = new Type("flt");
 
 
     private static class Variable {
@@ -343,7 +344,9 @@ public class ScriptGenerator {
      * @return A random type
      */
     private Type getType() {
-        if (structs.isEmpty() || random.nextBoolean()) return TYPE_INT;
+        int t = random.nextInt(10);
+        if( t<5 || structs.isEmpty() ) return TYPE_INT;
+        if( t<7 ) return TYPE_FLT;
         var idx = random.nextInt(structs.size());
         TypeStruct struct = structs.get(idx);
         if (random.nextBoolean()) return struct.nullable;
@@ -415,7 +418,7 @@ public class ScriptGenerator {
         indentation += INDENTATION;
         for (int i=0; i<fields.length; i++) {
             var fieldName = getRandomName();
-            var type = generateInvalid() ? getType() : TYPE_INT;
+            var type = generateInvalid() ? getType() : (random.nextBoolean() ? TYPE_INT : TYPE_FLT);
             printIndentation().append(type.name).append(" ").append(fieldName).append(";\n");
             fields[i] = new TypeStruct.Field(fieldName.toString(), type);
         }
@@ -679,16 +682,16 @@ public class ScriptGenerator {
      */
     public void genExpression(Type type) {
         if (generateInvalid()) type = getType();
-        if (type != TYPE_INT) {
+        if (type != TYPE_INT && type != TYPE_FLT) {
             genUnary(type);
             return;
         }
         var num = randLog(MAX_BINARY_EXPRESSIONS_PER_EXPRESSION);
         while(num-->0) {
-            genUnary(TYPE_INT);
+            genUnary(type);
             sb.append(BINARY_OP[random.nextInt(BINARY_OP.length)]);
         }
-        genUnary(TYPE_INT);
+        genUnary(type);
     }
 
     /**
@@ -696,7 +699,7 @@ public class ScriptGenerator {
      */
     public void genUnary(Type type) {
         if (generateInvalid()) type = getType();
-        if (type != TYPE_INT) {
+        if (type != TYPE_INT && type != TYPE_FLT) {
             genSuffix(type);
             return;
         }
@@ -704,7 +707,7 @@ public class ScriptGenerator {
         while(num-->0) {
             sb.append(UNARY_OP[random.nextInt(UNARY_OP.length)]);
         }
-        genSuffix(TYPE_INT);
+        genSuffix(type);
     }
 
     /**
@@ -712,7 +715,7 @@ public class ScriptGenerator {
      */
     public void genSuffix(Type type) {
         if (generateInvalid()) type = getType();
-        if (type == TYPE_INT && random.nextBoolean()) {
+        if ((type == TYPE_INT || type  == TYPE_FLT) && random.nextBoolean()) {
             var t = getType();
             if (generateInvalid()) {
                 var field = getRandomName();
@@ -721,7 +724,7 @@ public class ScriptGenerator {
                 return;
             } else if (t instanceof TypeStruct s && s.fields.length > 0) {
                 var field = s.fields[random.nextInt(s.fields.length)];
-                if (field.type == TYPE_INT) {
+                if (field.type == TYPE_INT || field.type == TYPE_FLT) {
                     genPrimary(t);
                     sb.append(".").append(field.name);
                     return;
@@ -762,6 +765,8 @@ public class ScriptGenerator {
                 case 1 -> sb.append("false");
                 default -> sb.append(random.nextInt(1<<(rand-2)));
             }
+        } else if (type == TYPE_FLT) {
+            sb.append(random.nextFloat());
         } else if (type instanceof TypeNullable n) {
             if (random.nextBoolean()) {
                 sb.append("null");
