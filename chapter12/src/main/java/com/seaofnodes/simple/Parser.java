@@ -429,6 +429,8 @@ public class Parser {
                 throw error("Undefined name '" + name + "'");
             _scope.update(name,expr);
         }
+        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
+            expr = expr.widen();
         if( !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
@@ -564,7 +566,7 @@ public class Parser {
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if (match("-")) return new MinusNode(parseUnary()).peephole();
+        if (match("-")) return new MinusNode(parseUnary()).widen().peephole();
         if (match("!")) return new   NotNode(parseUnary()).peephole();
         return parsePostfix(parsePrimary());
     }
