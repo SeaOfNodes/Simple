@@ -5,6 +5,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFloat;
 
 import java.util.*;
 import java.util.function.Function;
@@ -545,6 +546,27 @@ public abstract class Node implements OutNode {
 
     /** Pinned in the schedule */
     public boolean isPinned() { return false; }
+
+    // Semantic change to the graph (so NOT a peephole), used by the Parser.
+    // If any input is a float, flip to a float-flavored opcode and widen any
+    // non-float input.
+    public final Node widen() {
+        if( !hasFloatInput() ) return this;
+        Node flt = copyF();
+        if( flt==null ) return this;
+        for( int i=1; i<nIns(); i++ )
+            flt.setDef(i, in(i)._type instanceof TypeFloat ? in(i) : new ToFloatNode(in(i)).peephole());
+        kill();
+        return flt;
+    }
+    private boolean hasFloatInput() {
+        for( int i=1; i<nIns(); i++ )
+            if( in(i)._type instanceof TypeFloat )
+                return true;
+        return false;
+    }
+    Node copyF() { return null; }
+
 
     // ------------------------------------------------------------------------
     // Peephole utilities

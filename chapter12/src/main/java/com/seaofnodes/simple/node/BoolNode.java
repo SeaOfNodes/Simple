@@ -72,18 +72,9 @@ abstract public class BoolNode extends Node {
         return null;
     }
 
-    public Node widen() {
-        if( !(in(1)._type instanceof TypeFloat || in(2)._type instanceof TypeFloat) ) return peephole();
-        Node in1 = Parser.widen(in(1));
-        Node in2 = Parser.widen(in(2));
-        Node b = copyF(in1,in2).peephole();
-        kill();
-        return b;
-    }
-
-    public static class EQ extends BoolNode { public EQ(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); } BoolNode copyF(Node lhs, Node rhs) { return new EQF(lhs,rhs); } }
-    public static class LT extends BoolNode { public LT(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LT(lhs,rhs); } BoolNode copyF(Node lhs, Node rhs) { return new LTF(lhs,rhs); }}
-    public static class LE extends BoolNode { public LE(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LE(lhs,rhs); } BoolNode copyF(Node lhs, Node rhs) { return new LEF(lhs,rhs); } }
+    public static class EQ extends BoolNode { public EQ(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); } BoolNode copyF() { return new EQF(null,null); } }
+    public static class LT extends BoolNode { public LT(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LT(lhs,rhs); } BoolNode copyF() { return new LTF(null,null); }}
+    public static class LE extends BoolNode { public LE(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LE(lhs,rhs); } BoolNode copyF() { return new LEF(null,null); } }
 
     public static class EQF extends BoolNode { public EQF(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(double lhs, double rhs) { return lhs == rhs; } }
     public static class LTF extends BoolNode { public LTF(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(double lhs, double rhs) { return lhs <  rhs; } }
