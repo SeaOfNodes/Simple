@@ -493,21 +493,20 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseAddition();
-        BoolNode op;
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
             if( false ) ;
-            else if( match("==") ) { idx=2;  op = new BoolNode.EQ(lhs, null); }
-            else if( match("!=") ) { idx=2;  op = new BoolNode.EQ(lhs, null); negate=true; }
-            else if( match("<=") ) { idx=2;  op = new BoolNode.LE(lhs, null); }
-            else if( match("<" ) ) { idx=2;  op = new BoolNode.LT(lhs, null); }
-            else if( match(">=") ) { idx=1;  op = new BoolNode.LE(null, lhs); }
-            else if( match(">" ) ) { idx=1;  op = new BoolNode.LT(null, lhs); }
+            else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
+            else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
+            else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
+            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
+            else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
+            else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
-            op.setDef(idx,parseAddition());
-            lhs = op.widen();
+            lhs.setDef(idx,parseAddition());
+            lhs = lhs.widen().peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
@@ -523,22 +522,14 @@ public class Parser {
      * @return an add expression {@link Node}, never {@code null}
      */
     private Node parseAddition() {
-        Node lhs = parseMultiplication();  boolean add;
+        Node lhs = parseMultiplication();
         while( true ) {
-            if( match("+") ) add=true;
-            else if( match("-") ) add=false;
+            if( false ) ;
+            else if( match("+") ) lhs = new AddNode(lhs,null);
+            else if( match("-") ) lhs = new SubNode(lhs,null);
             else break;
-            lhs.keep();
-            var rhs = parseMultiplication();
-            lhs.unkeep();
-            if( lhs._type instanceof TypeFloat || rhs._type instanceof TypeFloat ) {
-                lhs = widen(lhs);
-                rhs = widen(rhs);
-                lhs = add ? new AddFNode(lhs,rhs) : new SubFNode(lhs,rhs);
-            } else {
-                lhs = add ? new AddNode (lhs,rhs) : new SubNode (lhs,rhs);
-            }
-            lhs = lhs.peephole();
+            lhs.setDef(2,parseMultiplication());
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -554,27 +545,14 @@ public class Parser {
     private Node parseMultiplication() {
         var lhs = parseUnary();  boolean mul;
         while( true ) {
-            if( match("*") ) mul=true;
-            else if( match("/") ) mul=false;
+            if( false ) ;
+            else if( match("*") ) lhs = new MulNode(lhs,null);
+            else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
-            lhs.keep();
-            var rhs = parseUnary();
-            lhs.unkeep();
-            if( lhs._type instanceof TypeFloat || rhs._type instanceof TypeFloat ) {
-                lhs = widen(lhs);
-                rhs = widen(rhs);
-                lhs = mul ? new MulFNode(lhs,rhs) : new DivFNode(lhs,rhs);
-            } else {
-                lhs = mul ? new MulNode (lhs,rhs) : new DivNode (lhs,rhs);
-            }
-            lhs = lhs.peephole();
+            lhs.setDef(2,parseUnary());
+            lhs = lhs.widen().peephole();
         }
         return lhs;
-    }
-
-    // int->float widen
-    public static Node widen(Node x) {
-        return x._type instanceof TypeFloat ? x : new ToFloatNode(x).peephole();
     }
 
     /**

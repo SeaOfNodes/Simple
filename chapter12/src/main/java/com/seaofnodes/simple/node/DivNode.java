@@ -35,4 +35,5 @@ public class DivNode extends Node {
     public Node idealize() { return null; }
 
     @Override Node copy(Node lhs, Node rhs) { return new DivNode(lhs,rhs); }
+    @Override Node copyF() { return new DivFNode(null,null); }
 }

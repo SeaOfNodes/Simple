@@ -171,4 +171,5 @@ public class AddNode extends Node {
     }
 
     @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
+    @Override Node copyF() { return new AddFNode(null,null); }
 }
