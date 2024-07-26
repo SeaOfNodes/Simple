@@ -236,6 +236,7 @@ public abstract class Node implements OutNode {
      */
     public void kill( ) {
         unlock();
+        moveDepsToWorklist();
         assert isUnused();      // Has no uses, so it is dead
         _type=null;             // Flag as dead
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes

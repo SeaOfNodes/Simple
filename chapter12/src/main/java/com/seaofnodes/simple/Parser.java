@@ -178,9 +178,13 @@ public class Parser {
      * </pre>
      */
     private Field parseField(String sname) {
-        if( matchx("int") )     // Currently only parsing "int" type fields
-            return require(Field.make(requireId().intern(),TypeInteger.BOT),";");
-        throw errorSyntax("A field type is expected, only type 'int' is supported at present");
+        int x=0;
+        if( matchx("int") ) x=1;
+        else if( matchx("flt") ) x=2;
+        if( x>0 )
+            return require(Field.make(requireId().intern(),x==1 ? TypeInteger.BOT : TypeFloat.BOT),";");
+        String tok = _lexer.getAnyNextToken();
+        throw errorSyntax("Requires a field type, found '"+tok+"'");
     }
 
     /**
@@ -430,7 +434,7 @@ public class Parser {
             _scope.update(name,expr);
         }
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
-            expr = expr.widen();
+            expr = new ToFloatNode(expr).peephole();
         if( !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
@@ -634,6 +638,7 @@ public class Parser {
             throw error("Expected struct reference but got " + expr._type.str());
 
         String name = requireId().intern();
+        if( expr._type == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
         int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
         if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
         int alias = START._aliasStarts.get(ptr._obj._name)+idx;

@@ -37,12 +37,17 @@ abstract public class BoolNode extends Node {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
         }
-        return in(1)._type.meet(in(2)._type);
+        if( in(1)._type instanceof TypeFloat i0 &&
+            in(2)._type instanceof TypeFloat i1 ) {
+            if (i0.isConstant() && i1.isConstant())
+                return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
+        }
+        return TypeInteger.BOT;
     }
 
     boolean doOp(long   lhs, long   rhs) { throw Utils.TODO(); }
     boolean doOp(double lhs, double rhs) { throw Utils.TODO(); }
-    BoolNode copyF(Node lhs, Node rhs) { throw Utils.TODO(); }
+    Node copyF(Node lhs, Node rhs) { throw Utils.TODO(); }
 
     @Override
     public Node idealize() {
@@ -72,12 +77,12 @@ abstract public class BoolNode extends Node {
         return null;
     }
 
-    public static class EQ extends BoolNode { public EQ(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); } BoolNode copyF() { return new EQF(null,null); } }
-    public static class LT extends BoolNode { public LT(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LT(lhs,rhs); } BoolNode copyF() { return new LTF(null,null); }}
-    public static class LE extends BoolNode { public LE(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LE(lhs,rhs); } BoolNode copyF() { return new LEF(null,null); } }
+    public static class EQ extends BoolNode { public EQ(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "=="; } boolean doOp(long lhs, long rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); } Node copyF() { return new EQF(null,null); } }
+    public static class LT extends BoolNode { public LT(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<" ; } boolean doOp(long lhs, long rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LT(lhs,rhs); } Node copyF() { return new LTF(null,null); }}
+    public static class LE extends BoolNode { public LE(Node lhs, Node rhs) { super(lhs,rhs); } String op() { return "<="; } boolean doOp(long lhs, long rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LE(lhs,rhs); } Node copyF() { return new LEF(null,null); } }
 
-    public static class EQF extends EQ { public EQF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs == rhs; } }
-    public static class LTF extends LT { public LTF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <  rhs; } }
-    public static class LEF extends LE { public LEF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <= rhs; } }
+    public static class EQF extends EQ { public EQF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs == rhs; } Node copyF() { return null; } }
+    public static class LTF extends LT { public LTF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <  rhs; } Node copyF() { return null; } }
+    public static class LEF extends LE { public LEF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <= rhs; } Node copyF() { return null; } }
 
 }
