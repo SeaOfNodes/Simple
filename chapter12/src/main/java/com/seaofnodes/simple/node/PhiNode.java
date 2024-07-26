@@ -103,7 +103,7 @@ public class PhiNode extends Node {
                 if( region().idom(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)region().in(nullx);
-                    while( idom.in(0) != iff ) idom = idom.idom();
+                    while( idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
                 }
