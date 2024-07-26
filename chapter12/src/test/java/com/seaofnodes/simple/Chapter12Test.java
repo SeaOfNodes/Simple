@@ -13,11 +13,21 @@ public class Chapter12Test {
     public void testJig() {
         Parser parser = new Parser(
 """
-return 3.14;
+struct s0 {
+    int v0;
+}
+s0? fIflMOdp;
+while(1) {
+        if(fIflMOdp){
+            fIflMOdp.v0=-fIflMOdp.v0;
+            continue;
+        }
+        break;
+}
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
 
     @Test
