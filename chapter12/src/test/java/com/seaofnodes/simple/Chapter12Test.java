@@ -13,15 +13,10 @@ public class Chapter12Test {
     public void testJig() {
         Parser parser = new Parser(
 """
-flt x = 3.14;
-while( arg ) {
-    x = 1;
-    arg = arg-1;
-}
-return x;
+return 3.14;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return Phi(Loop9,3.14,1.0);", stop.toString());
+        assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
 

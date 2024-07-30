@@ -106,6 +106,7 @@ public class AddNode extends Node {
     static Node phiCon(Node op, boolean rotate) {
         Node lhs = op.in(1);
         Node rhs = op.in(2);
+        if( rhs._type==TypeInteger.TOP ) return null;
         // LHS is either a Phi of constants, or another op with Phi of constants
         PhiNode lphi = pcon(lhs,op);
         if( rotate && lphi==null && lhs.nIns() > 2 ) {
