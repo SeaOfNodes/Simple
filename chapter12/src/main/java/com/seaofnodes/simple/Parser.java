@@ -427,17 +427,17 @@ public class Parser {
             if( _scope.define(name,t,expr) == null )
                 throw error("Redefining name '" + name + "'");
         } else {
-            Node n = _scope.lookup(name);
-            t = _scope.lookupDeclaredType(name);
-            if( n==null )
+            if( _scope.lookup(name)==null )
                 throw error("Undefined name '" + name + "'");
-            _scope.update(name,expr);
+            t = _scope.lookupDeclaredType(name);
         }
+        // Auto-widen int to float
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
             expr = new ToFloatNode(expr).peephole();
+        // Type is sane
         if( !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
-        return expr;
+        return _scope.update(name,expr);
     }
 
     // Parse a type-or-null
