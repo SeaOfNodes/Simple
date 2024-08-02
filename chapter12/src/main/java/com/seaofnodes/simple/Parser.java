@@ -56,6 +56,7 @@ public class Parser {
             add("continue");
             add("else");
             add("false");
+            add("flt");
             add("if");
             add("int");
             add("new");
@@ -76,13 +77,15 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
-    // Mapping from a Struct name to a Struct.
-    public static Map<String, TypeStruct> OBJS = new HashMap<>();
+    // Mapping from a type name to a Type.
+    public static HashMap<String, Type> TYPES = new HashMap<>();
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        OBJS.clear();
+        TYPES.clear();
+        TYPES.put("int",TypeInteger.BOT);
+        TYPES.put("flt",TypeFloat  .BOT);
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -157,8 +160,6 @@ public class Parser {
     private Node parseStatement() {
         if( false ) return null;
         else if (matchx("return")  ) return parseReturn();
-        else if (matchx("int")     ) return parseDecl(TypeInteger.BOT);
-        else if (matchx("flt")     ) return parseDecl(TypeFloat  .BOT);
         else if (match ("{")       ) return require(parseBlock(),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
@@ -174,17 +175,14 @@ public class Parser {
     /**
      * Parse a struct field.
      * <pre>
-     *     int IDENTIFIER ;
+     *     type IDENTIFIER ;
      * </pre>
      */
     private Field parseField(String sname) {
-        int x=0;
-        if( matchx("int") ) x=1;
-        else if( matchx("flt") ) x=2;
-        if( x>0 )
-            return require(Field.make(requireId().intern(),x==1 ? TypeInteger.BOT : TypeFloat.BOT),";");
-        String tok = _lexer.getAnyNextToken();
-        throw errorSyntax("Requires a field type, found '"+tok+"'");
+        Type t = type();
+        if( t==null )
+            throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
+        return require(Field.make(requireId().intern(),t),";");
     }
 
     /**
@@ -197,7 +195,7 @@ public class Parser {
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
-        if ( OBJS.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        if ( TYPES.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {
@@ -208,7 +206,7 @@ public class Parser {
         require("}");
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields);
-        OBJS.put(typeName, ts); // Insert the struct name in the collection of all struct names
+        TYPES.put(typeName, ts); // Insert the struct name in the collection of all struct names
         START.addMemProj(ts, _scope); // Insert memory edges
         return parseStatement();
     }
@@ -445,37 +443,13 @@ public class Parser {
         int old = _lexer._position;
         String tname = _lexer.matchId();
         if( tname==null ) return null;
-        if( tname.equals("int") ) return TypeInteger.BOT;
-        TypeStruct obj = OBJS.get(tname);
-        if( obj != null )
-            return TypeMemPtr.make(obj,match("?"));
-        // Not a type; unwind the parse
-        _lexer._position = old;
-        return null;
-    }
-
-    /**
-     * Parses a declStatement
-     *
-     * <pre>
-     *     type name = expression ';'
-     * </pre>
-     * @return an expression {@link Node}
-     */
-    private Node parseDecl(Type t) {
-        var name = requireId();
-        var expr = match(";")
-            // Assign a null value
-            ? new ConstantNode(t.makeInit()).peephole()
-            // Assign "= expr;"
-            : require(require("=").parseExpression(), ";");
-        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
-            expr = new ToFloatNode(expr).peephole();
-        if( !expr._type.isa(t) )
-            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
-        if( _scope.define(name,t,expr) == null )
-            throw error("Redefining name '" + name + "'");
-        return expr;
+        Type t = TYPES.get(tname);
+        if( t == null ) {
+            // Not a type; unwind the parse
+            _lexer._position = old;
+            return null;
+        }
+        return t instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t;
     }
 
 
@@ -591,8 +565,8 @@ public class Parser {
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
-            TypeStruct obj = OBJS.get(structName);
-            if( obj == null) throw errorSyntax("Unknown struct type '" + structName + "'");
+            Type t = TYPES.get(structName);
+            if( t == null || !(t instanceof TypeStruct obj) ) throw errorSyntax("Unknown struct type '" + structName + "'");
             return newStruct(obj);
         }
         String name = _lexer.matchId();
