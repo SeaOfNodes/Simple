@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Utils;
-
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
 
 /**
@@ -24,6 +24,9 @@ import java.util.HashMap;
 public class Type {
     static final HashMap<Type,Type> INTERN = new HashMap<>();
 
+    static private int UNIQUE_CNT=1;
+
+    final int _uid;
     // ----------------------------------------------------------
     // Simple types are implemented fully here.  "Simple" means: the code and
     // type hierarchy are simple, not that the Type is conceptually simple.
@@ -44,7 +47,8 @@ public class Type {
 
     public boolean is_simple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl"};
-    protected Type(byte type) { _type = type; }
+    protected Type(byte type) { _type = type;
+        _uid = UNIQUE_CNT++; }
 
     public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
     public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
@@ -76,7 +80,7 @@ public class Type {
     /**
      * Display Type name in a format that's good for IR printer
      */
-    public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
+    public StringBuilder typeName( StringBuilder sb) { return print(sb); }
 
     public Type makeInit() { return null; }
 
@@ -99,7 +103,7 @@ public class Type {
         return nnn;
     }
 
-    private int _hash;          // Hash cache; not-zero when set.
+    int _hash;                  // Hash cache; not-zero when set.
     @Override
     public final int hashCode() {
         if( _hash!=0 ) return _hash;
@@ -115,14 +119,32 @@ public class Type {
         if( o==this ) return true;
         if( !(o instanceof Type t)) return false;
         if( _type != t._type ) return false;
-        return eq(t);
+        assert EQ_VISIT.isEmpty();
+        boolean rez = eq(t);
+        EQ_VISIT.clear();
+        return rez;
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
     boolean eq(Type t) { return true; }
 
 
     // ----------------------------------------------------------
+    static final HashMap<String,TypeStruct> VISIT = new HashMap<>();
+    static final BitSet EQ_VISIT = new BitSet();
     public final Type meet(Type t) {
+        assert VISIT.isEmpty();
+        assert EQ_VISIT.isEmpty();
+        int old = UNIQUE_CNT;
+        Type mt = _meet(t);
+        VISIT.clear();
+        Type t1 = mt.cyclic_intern();
+        //if( t1 != mt )
+        //    UNIQUE_CNT = old;
+        VISIT.clear();
+        EQ_VISIT.clear();
+        return t1;
+    }
+    final Type _meet(Type t) {
         // Shortcut for the self case
         if( t == this ) return this;
         // Same-type is always safe in the subclasses
@@ -136,7 +158,7 @@ public class Type {
     // Compute meet right now.  Overridden in subclasses.
     // Handle cases where 'this.is_simple()' and unequal to 't'.
     // Subclassed xmeet calls can assert that '!t.is_simple()'.
-    Type xmeet(Type t) {
+    Type xmeet( Type t ) {
         assert is_simple(); // Should be overridden in subclass
         // ANY meet anything is thing; thing meet ALL is ALL
         if( _type==TBOT || t._type==TTOP ) return this;
@@ -147,7 +169,24 @@ public class Type {
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
 
-    public Type dual() {
+    // For all my type-constructors that might go recursive (TypeStruct,
+    // TypeMemPtr, TypeArray) I need 2 passes to handle recursion.
+    public final Type dual() {
+        // Pass 1: build a complete structure, and record the possibly-cyclic points
+        assert VISIT.isEmpty();
+        assert EQ_VISIT.isEmpty();
+        int old = UNIQUE_CNT;
+        Type t0 = _dual();
+        // Pass 2: intern everybody
+        VISIT.clear();
+        Type t1 = t0.cyclic_intern();
+        //if( t1 != t0 )
+        //    UNIQUE_CNT = old;
+        VISIT.clear();
+        EQ_VISIT.clear();
+        return t1;
+    }
+    Type _dual( ) {
         return switch( _type ) {
         case TBOT -> TOP;
         case TTOP -> BOTTOM;
@@ -156,6 +195,11 @@ public class Type {
         default -> throw Utils.TODO(); // Should not reach here
         };
     }
+
+    Type cyclic_intern() {
+        return intern();
+    }
+
 
     // ----------------------------------------------------------
     // Our lattice is defined with a MEET and a DUAL.
@@ -177,11 +221,11 @@ public class Type {
     // Useful in the debugger, which calls toString everywhere.
     // This is a more verbose dev-friendly print.
     @Override
-    public final String toString() {
-        return _print(new StringBuilder()).toString();
-    }
+    public final String toString() { return print(new StringBuilder()).toString(); }
 
-    public StringBuilder _print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) { return _print(sb, new BitSet(),1); }
+
+    StringBuilder _print(StringBuilder sb, BitSet visit, int d) { return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }

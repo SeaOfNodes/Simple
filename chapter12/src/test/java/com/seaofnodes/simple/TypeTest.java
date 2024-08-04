@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.type.*;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.Ignore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -128,10 +129,13 @@ public class TypeTest {
     private static void check_symmetric( Type t0, Type t1 ) {
         if( t1==t0 ) return;
         Type mt = t0.meet(t1);
-        Type ta = mt.dual().meet(t1.dual());
-        Type tb = mt.dual().meet(t0.dual());
-        assertSame(ta,t1.dual());
-        assertSame(tb,t0.dual());
+        Type dm = mt.dual();
+        Type d0 = t0.dual();
+        Type d1 = t1.dual();
+        Type ta = dm.meet(d1);
+        Type tb = dm.meet(d0);
+        assertSame(ta,d1);
+        assertSame(tb,d0);
     }
 
     private static void assoc( Type t0, Type t1, Type t2 ) {
@@ -140,6 +144,34 @@ public class TypeTest {
         Type t01_2 = t01.meet(t2 );
         Type t0_12 = t0 .meet(t12);
         assertSame(t01_2,t0_12);
+    }
+
+    // Test cyclic types and meets
+    @Test
+    public void testCyclic0() {
+        Type d0 = TypeStruct.S1.dual();
+        Type d1 = d0.dual();
+        assertSame(TypeStruct.S1,d1);
+    }
+
+    // Test cyclic types and meets
+    @Test
+    @Ignore
+    public void testCyclic1() {
+        // A pair of self-cyclic types
+        TypeStruct S1 = new TypeStruct("S1", new Field[]{ Field.make("a", TypeInteger.BOT), null });
+        TypeStruct S2 = new TypeStruct("S2", new Field[]{ Field.make("b", TypeFloat  .BOT), null });
+        TypeMemPtr tmp1 = new TypeMemPtr(S1,false);
+        TypeMemPtr tmp2 = new TypeMemPtr(S2,false);
+        S1._fields[1] = new Field("s2",tmp2);
+        S2._fields[1] = new Field("s1",tmp1);
+        TypeStruct xs1 = S1.intern();
+        TypeStruct xs2 = S2.intern();
+        assertSame(xs2,((TypeMemPtr)xs1._fields[1]._type)._obj);
+        assertSame(xs1,((TypeMemPtr)xs2._fields[1]._type)._obj);
+
+        TypeStruct S1_3 = TypeStruct.make("S1", new Field[]{ Field.make("a", TypeInteger.constant(3L)), xs1._fields[1]});
+        assertSame(xs1,S1_3);
     }
 
 }

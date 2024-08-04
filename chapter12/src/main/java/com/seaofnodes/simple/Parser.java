@@ -178,7 +178,7 @@ public class Parser {
      *     type IDENTIFIER ;
      * </pre>
      */
-    private Field parseField(String sname) {
+    private Field parseField() {
         Type t = type();
         if( t==null )
             throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
@@ -196,17 +196,21 @@ public class Parser {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
         if ( TYPES.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        // Insert type name in the TYPES collection early, so structs can refer
+        // to themselves e.g. LinkedLists.
+        TypeStruct ts = new TypeStruct(typeName);
+        TYPES.put(typeName, ts); // Insert the struct name in the collection of all struct names
+
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {
-            Field field = parseField(typeName);
+            Field field = parseField();
             if (fields.contains(field)) throw errorSyntax("Field '" + field + "' already defined in struct '" + typeName + "'");
             fields.add(field);
         }
         require("}");
         // Build and install the TypeStruct
-        TypeStruct ts = TypeStruct.make(typeName, fields);
-        TYPES.put(typeName, ts); // Insert the struct name in the collection of all struct names
+        TYPES.put(typeName,ts.finish(fields));
         START.addMemProj(ts, _scope); // Insert memory edges
         return parseStatement();
     }

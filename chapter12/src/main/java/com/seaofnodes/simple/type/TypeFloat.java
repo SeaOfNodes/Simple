@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.type;
 
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Float Type
@@ -34,8 +36,7 @@ public class TypeFloat extends Type {
 
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
-    @Override
-    public StringBuilder _print(StringBuilder sb) {
+    @Override public StringBuilder _print(StringBuilder sb, BitSet visit, int d) {
         if( this==TOP ) return sb.append("FltTop");
         if( this==BOT ) return sb.append("FltBot");
         return sb.append(_con);
@@ -65,8 +66,7 @@ public class TypeFloat extends Type {
 
     public double value() { return _con; }
 
-    @Override
-    public Type xmeet(Type other) {
+    @Override public Type xmeet(Type other) {
         // Invariant from caller: 'this' != 'other' and same class (TypeFloat)
         TypeFloat i = (TypeFloat)other; // Contract
         // BOT wins
@@ -80,8 +80,7 @@ public class TypeFloat extends Type {
         return BOT;
     }
 
-    @Override
-    public Type dual() {
+    @Override TypeFloat _dual( ) {
         if( isConstant() ) return this; // Constants are a self-dual
         return _con==0 ? BOT : TOP;
     }

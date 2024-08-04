@@ -1,6 +1,9 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Represents a Pointer to memory.
@@ -21,29 +24,27 @@ public class TypeMemPtr extends Type {
     public final TypeStruct _obj; // null, a TypeStruct, or sentinel TypeStruct.MANY
     public final boolean _nil;
 
-    private TypeMemPtr(TypeStruct obj, boolean nil) {
+    public TypeMemPtr(TypeStruct obj, boolean nil) {
         super(TMEMPTR);
         _obj = obj;
         _nil = nil;
     }
     public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
-    public static TypeMemPtr make(TypeStruct obj) { return TypeMemPtr.make(obj, false); }
+    public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
 
     public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
-    public static TypeMemPtr TOP = BOT.dual();
+    public static TypeMemPtr TOP = (TypeMemPtr)BOT.dual();
     public static TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
-    public static TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
+    public static TypeMemPtr VOIDPTR = (TypeMemPtr)NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
     public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
     public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
 
-    @Override
-    Type xmeet(Type t) {
+    @Override Type xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
-        return TypeMemPtr.make((TypeStruct)_obj.meet(that._obj), _nil | that._nil);
+        return new TypeMemPtr((TypeStruct)_obj._meet(that._obj), _nil | that._nil);
     }
 
-    @Override
-    public TypeMemPtr dual() { return TypeMemPtr.make(_obj==null ? null : _obj.dual(), !_nil); }
+    @Override TypeMemPtr _dual( ) { return new TypeMemPtr(_obj==null ? null : _obj._dual(), !_nil); }
 
     @Override
     public Type glb() {
@@ -58,15 +59,14 @@ public class TypeMemPtr extends Type {
     @Override
     boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return _obj == ptr._obj  && _nil == ptr._nil;
+        return (_obj == ptr._obj || _obj.eq(ptr._obj))  && _nil == ptr._nil;
     }
 
     // [void,name,MANY]*[,?]
-    @Override
-    public StringBuilder _print(StringBuilder sb) {
+    @Override StringBuilder _print(StringBuilder sb, BitSet visit, int d) {
         if( this== NULLPTR) return sb.append("null");
         if( this== VOIDPTR) return sb.append("*void");
-        return _obj._print(sb.append("*")).append(_nil ? "?" : "");
+        return _obj._print(sb.append("*"),visit,d).append(_nil ? "?" : "");
     }
 
     @Override public String str() {

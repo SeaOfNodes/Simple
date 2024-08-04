@@ -1,6 +1,9 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
 
 public class TypeTuple extends Type {
 
@@ -9,24 +12,23 @@ public class TypeTuple extends Type {
     private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
     public static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
 
-    private static TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
+    private static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
     public static void gather(ArrayList<Type> ts) {  ts.add(TEST); }
 
-    @Override
-    Type xmeet(Type other) {
+    @Override Type xmeet(Type other) {
         TypeTuple tt = (TypeTuple)other;     // contract from xmeet
         assert _types.length == tt._types.length;
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
-            ts[i] = _types[i].meet(tt._types[i]);
-        return make(ts);
+            ts[i] = _types[i]._meet(tt._types[i]);
+        return new TypeTuple(ts);
     }
 
-    @Override public Type dual() {
+    @Override Type _dual( ) {
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
-            ts[i] = _types[i].dual();
-        return make(ts);
+            ts[i] = _types[i]._dual();
+        return new TypeTuple(ts);
     }
 
     @Override
@@ -37,17 +39,16 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override
-    public StringBuilder _print(StringBuilder sb) {
-        sb.append("[");
+    @Override StringBuilder _print(StringBuilder sb, BitSet visit, int d) {
+        sb.append("[ ");
         for( Type t : _types )
-            t._print(sb).append(",");
+            t._print(sb,visit,d).append(",");
         sb.setLength(sb.length()-1);
         sb.append("]");
         return sb;
     }
 
-    @Override public String str() { return _print(new StringBuilder()).toString(); }
+    @Override public String str() { return print(new StringBuilder()).toString(); }
 
     /**
      * Display Type name in a format that's good for IR printer

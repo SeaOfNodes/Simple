@@ -2,6 +2,8 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Represents a field in a struct. This is not a Type in the type system.
@@ -15,7 +17,7 @@ public class Field extends Type {
     // Type of the field
     public final Type _type;
 
-    private Field(String fname, Type type ) {
+    public Field(String fname, Type type ) {
         super(TFLD);
         _fname = fname;
         _type  = type;
@@ -31,11 +33,10 @@ public class Field extends Type {
     @Override Field xmeet( Type that ) {
         Field fld = (Field)that; // Invariant
         assert _fname.equals(fld._fname);
-        return make(_fname,_type.meet(fld._type));
+        return new Field(_fname,_type._meet(fld._type));
     }
 
-    @Override
-    public Field dual() { return make(_fname,_type.dual()); }
+    @Override Field _dual() { return new Field(_fname,_type._dual()); }
 
     @Override
     public Field glb() {
@@ -43,17 +44,20 @@ public class Field extends Type {
     }
 
     // Override in subclasses
-    int hash() { return _fname.hashCode() ^ _type.hashCode(); }
+    int hash() {
+        assert _type!=null;
+        return _fname.hashCode() ^ (_type instanceof TypeMemPtr ? 0 : _type.hashCode());
+    }
 
     boolean eq(Type t) {
+        assert _hash!=0 && t._hash!=0;
         Field f = (Field)t;
-        return _fname.equals(f._fname) && _type==f._type;
+        return _fname.equals(f._fname) && (_type==f._type || _type.eq(f._type));
     }
 
 
-    @Override
-    public StringBuilder _print( StringBuilder sb ) {
-        return _type._print(sb.append(_fname).append(":"));
+    @Override StringBuilder _print( StringBuilder sb, BitSet visit, int d ) {
+        return _type._print(sb.append(_fname).append(":"),visit,d);
     }
 
     @Override public String str() { return _fname; }

@@ -2,9 +2,8 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
+import org.junit.Ignore;
 import org.junit.Test;
-
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -14,6 +13,27 @@ public class Chapter12Test {
         Parser parser = new Parser(
 """
 return 3.14;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 3.14;", stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    @Ignore
+    public void testLinkedList0() {
+        Parser parser = new Parser(
+"""
+struct LLI { LLI? next; int i; }
+LLI? head = null;
+while( arg ) {
+    LLI x = new LLI;
+    x.next = head;
+    x.i = arg;
+    head = x;
+    arg = arg-1;
+}
+return head;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 3.14;", stop.toString());

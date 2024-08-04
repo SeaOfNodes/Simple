@@ -2,9 +2,9 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Utils;
 import java.lang.Long;
-import java.util.BitSet;
 import java.util.ArrayList;
-
+import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Represents a slice of memory corresponding to a set of aliases
@@ -26,14 +26,12 @@ public class TypeMem extends Type {
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(1)); ts.add(BOT); }
 
-    @Override
-    TypeMem xmeet(Type t) {
+    @Override TypeMem xmeet(Type t) {
         TypeMem that = (TypeMem) t; // Invariant: TypeMem and unequal
         return _alias==0 ? that : (that._alias==0 ? this : BOT);
     }
 
-    @Override
-    public Type dual() {
+    @Override Type _dual( ) {
         if( _alias== 0 ) return BOT;
         if( _alias==-1 ) return TOP;
         return this;
@@ -51,8 +49,7 @@ public class TypeMem extends Type {
         return _alias == that._alias;
     }
 
-    @Override
-    public StringBuilder _print(StringBuilder sb) {
+    @Override public StringBuilder _print(StringBuilder sb, BitSet visit, int d) {
         return sb.append("MEM#").append( switch(_alias) {
             case  0 -> "TOP";
             case -1 -> "BOT";
@@ -60,5 +57,5 @@ public class TypeMem extends Type {
             });
     }
 
-    @Override public String str() { return _print(new StringBuilder()).toString(); }
+    @Override public String str() { return print(new StringBuilder()).toString(); }
 }
