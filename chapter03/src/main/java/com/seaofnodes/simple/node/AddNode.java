@@ -29,7 +29,7 @@ public class AddNode extends Node {
 
     @Override
     public Node idealize () {
-        // TODO: add of 0
+        // TODO: add of 0, and many other peepholes added in Chaper04
         return null;
     }
 
