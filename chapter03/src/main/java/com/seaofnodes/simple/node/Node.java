@@ -82,7 +82,11 @@ public abstract class Node {
     // has to be robust with broken graph/nodes.
     @Override
     public final String toString() {
-        // TODO: This needs a lot of work
+        // TODO: The print evolves in later chapters.  For now, a simple
+        // recursive print does well.  Later with control flow and later still
+        // with loops, we need some serious algorithm work to get a decent
+        // print.  So you should consider the "print" to always be a work-in-
+        // progress as we march through the chapters.
         return print();
     }
 
