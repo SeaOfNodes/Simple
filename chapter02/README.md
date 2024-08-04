@@ -88,8 +88,9 @@ Type
 ```
 
 It turns out that the set of values associated with a Type at a specific Node
-can be conveniently represented as a "lattice". Our lattice has the following
-structure:
+can be conveniently represented as a "lattice"
+(https://en.wikipedia.org/wiki/Lattice_(order).  
+Our lattice has the following structure:
 
 ![Lattice](./docs/02-lattice.svg)
 
@@ -103,6 +104,19 @@ An invariant of peephole optimizations is that the type of a Node always moves d
 
 In later chapters we will explore extending this lattice, as it frequently
 forms the heart of core optimizations we want our compiler to do.
+
+We add a `_type` field to every Node, to store its current computed best
+`Type`.  We need a field to keep the optimizer runtime linear, and later when
+doing an optimistic version of constant propagation (called Sparse Conditional
+Constant Propagation)
+(https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation).
+
+We add a `_type` field even to `Start` and `Return`, and later to all control
+Nodes - because the Sea of Nodes does not distinguish between control and data.
+Both nodes are equally peepholed and optimized, and this will be covered
+starting in [Chapter 4](../chapter04/README.md) and [Chapter
+5](../chapter05/README.md).
+
 
 There are other important properties of the Lattice that we discuss in [Chapter
 4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
