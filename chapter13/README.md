@@ -1,8 +1,8 @@
-# Chapter 12: Floats, Arrays, Refs
-
-## Floats
+# Chapter 12: Floats, References and Arrays
 
 In this chapter we add a series of new types and some modest syntax.
+
+## Floats
 
 Floating point values start with the `flt` type and compute IEEE754 64-bit arithmetic.
 Integer expressions auto-widen to floats when involved in a float expression.
@@ -45,3 +45,22 @@ Within the Type Lattice, we now add the following domain:
   with a TOP, BOT and constants
 
 
+## References
+
+Structs can reference other structs; references can be mutually recursive.
+Any reference field can allow null or not, same as a normal variable.
+
+```java
+struct Person {
+  String name;       // No string type, yet
+  int age;
+  FamilyTree tree?;  // A family tree, or not
+}
+struct FamilyTree {
+  Person father?;
+  Person mother?;
+  Person []kids?;
+}
+```
+
+Normal field syntax works:  `person.tree.father = new Person;` or `person.tree.father.name = "Dad";`.

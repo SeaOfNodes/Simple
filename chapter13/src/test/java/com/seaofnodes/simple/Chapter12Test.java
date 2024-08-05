@@ -2,9 +2,8 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
+import org.junit.Ignore;
 import org.junit.Test;
-
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -61,4 +60,46 @@ return x+1==x;
         assertEquals(0L, Evaluator.evaluate(stop, 1));
     }
 
+
+    @Test
+    public void testLinkedList0() {
+        Parser parser = new Parser(
+"""
+struct LLI { LLI? next; int i; }
+LLI? head = null;
+while( arg ) {
+    LLI x = new LLI;
+    x.next = head;
+    x.i = arg;
+    head = x;
+    arg = arg-1;
+}
+return head.next.i;
+""");
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
+    }
+
+    @Test
+    public void testLinkedList1() {
+        Parser parser = new Parser(
+"""
+struct LLI { LLI? next; int i; }
+LLI? head = null;
+while( arg ) {
+    LLI x = new LLI;
+    x.next = head;
+    x.i = arg;
+    head = x;
+    arg = arg-1;
+}
+if( !head ) return 0;
+LLI? next = head.next;
+if( next==null ) return 1;
+return next.i;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
+        assertEquals(2L, Evaluator.evaluate(stop,  3));
+    }
 }
