@@ -56,7 +56,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 11](docs/chapter11/README.md): Equivalence class aliasing. Lazy memory
   partitioning with `MemMerge`, `MemPhi`, and `BulkMemPhi`.
 * [Chapter 12](docs/chapter12/README.md): Reference fields, forward references and recursive structs.
-* Chapter 13: Global Code Motion - Scheduling.
+* [Chapter 13](docs/chapter13/README.md): Global Code Motion - Scheduling.
 * Chapter 14: Numeric types: floats, narrow integers, ranges and rounding to `f32`.
 * Chapter 15: One dimensional static length array type, with array loads and stores.
 * Chapter 16: Constructors

@@ -29,8 +29,8 @@ public class FuzzerWrap {
             fuzzer.fuzzPeepsRegression(seed);
     }
 
-    @Test
     @Ignore
+    @Test
     public void fuzzPeepsLarge() {
         var fuzzer = new Fuzzer();
         for (int i=0; i<1000000; i++)
