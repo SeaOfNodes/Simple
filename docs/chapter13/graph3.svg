@@ -1,0 +1,128 @@
+<svg aria-label="Compiler graph" width="661" height="872" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 661 872" style="font-family: sans-serif;"><style>
+    html, body { height:100%; margin:0; font-family:sans-serif; }
+    .viewer { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+    .source { padding:8px; border-bottom:1px solid #ccc; }
+    #program { width:min(600px,80vw); vertical-align:middle; }
+    #status { margin-top:4px; }
+    #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
+    #elk { width:100%; height:100%; }
+    #graph svg { display:block; }
+    .tools { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
+    .hint { color:#616c78; }
+    .ctrl { color:#b63838; } .mem { color:#2867b2; } .data { color:#536477; }
+    .edge { fill:none; stroke-width:1.5; }
+    .edge.CTRL { stroke-width:2; }
+    .edge.ASSOC { stroke-dasharray:4 4; }
+    .edge.PARSER { stroke-dasharray:5 4; }
+    .parser rect { fill:#f6f0ff; stroke:#7956a5; stroke-width:1.5; stroke-dasharray:5 4; }
+    .edge.selected { stroke-width:3.5; }
+    .edge.bundle { stroke-width:4; }
+    .edge.bundle.selected { stroke-width:6; }
+    .edge-hit { fill:none; stroke:transparent; stroke-width:12; vector-effect:non-scaling-stroke; pointer-events:stroke; cursor:pointer; }
+    .edge-jump { fill:transparent; pointer-events:all; cursor:pointer; }
+    .node { cursor:pointer; }
+    .box { stroke:#758191; stroke-width:1; }
+    .node.held .box { stroke-dasharray:5 3; }
+    .node.near .box { stroke:#c18221; stroke-width:2; }
+    .node.focus .box { stroke:#9c4900; stroke-width:3; }
+    .node.selected .box { stroke:#1569b9; stroke-width:3; }
+    .node.folded .box { stroke-width:4; }
+    .node.folding .box { fill:#f4ccd7; }
+    .fold-tag { font-size:9px; font-weight:700; fill:#963751; }
+    .peep-area { fill:#fff3d9; fill-opacity:.8; stroke:#c18221; stroke-width:2; pointer-events:none; }
+    .node.peep-edit .box { stroke:#9c4900; stroke-width:3; }
+    .node.error .box { stroke:#b42318; stroke-width:4; }
+    #event.error { color:#b42318; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .peep-ghosts { pointer-events:none; }
+    .region-box { stroke:#9da9b8; stroke-width:1.5; }
+    .fold-btn { cursor:pointer; }
+    .fold-btn rect { fill:white; stroke:#596674; }
+    .fold-btn text { font-size:14px; fill:#152330; }
+    .fold-btn:focus rect { stroke:#1569b9; stroke-width:2; }
+    .shortcut { cursor:pointer; }
+    .shortcut path { fill:none; stroke-width:1.5; }
+    .shortcut rect { fill:#fff8ec; stroke:#b63838; stroke-dasharray:3 2; }
+    .shortcut text { font-size:11px; fill:#783030; }
+    .shortcut.selected rect, .shortcut:focus rect { stroke-width:2.5; }
+    .label { font-size:12px; fill:#152330; font-weight:600; }
+    .node-id { font-size:10px; fill:#596674; font-weight:400; }
+    .type { font-size:11px; fill:#455768; }
+    .port { stroke:#536477; stroke-width:1; }
+    .row { stroke:#b6afcf; stroke-width:1; }
+    .bind { font-size:12px; fill:#152330; }
+    .slot { font-size:10px; fill:#364352; paint-order:stroke; stroke:#fafbfc; stroke-width:3; }
+    #detail { position:absolute; top:8px; right:8px; margin:0; padding:12px; max-width:320px;
+      max-height:45%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;
+      background:#fffffff2; border:1px solid #bac5d0; border-radius:4px; font-size:12px; }
+    .controls { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px; padding:6px; }
+    .button { color:white; background:black; font-size:20px; min-width:30px; }
+    .button:disabled { background:grey; }
+    .count { font-size:20px; min-width:35px; text-align:center; }
+    #N { width:6ch; }
+    #scrub { width:clamp(120px,35vw,600px); }
+  </style><defs><marker id="arrow-CTRL" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#b63838"/></marker><marker id="arrow-DATA" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#536477"/></marker><marker id="arrow-MEM" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#2867b2"/></marker><marker id="arrow-ASSOC" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#9396a3"/></marker><marker id="arrow-PARSER" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,-4L8,0L0,4Z" fill="#7956a5"/></marker></defs><rect width="100%" height="100%" fill="rgb(250, 251, 252)"/><g><g class="regions" style="opacity: 1;"/><rect class="peep-area" rx="36" style="opacity: 0;"/><g class="edges"><path class="edge MEM" id="e1i1" d="M84,118 L84,642 Q84,650 92,650 L387,650 Q395,650 395,658 L395,688" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#1[1] → #6 · MEM</title></path><path class="edge MEM" id="e1i2" d="M425,640 L425,688" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#1[2] → #224 · MEM</title></path><path class="edge MEM" id="e12i1" d="M84,118 L84,140 Q84,148 92,148 L242,148 Q250,148 250,156 L250,166" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#12[1] → #6 · MEM</title></path><path class="edge DATA" id="e12i2" d="M274,118 L274,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#12[2] → #9 · DATA</title></path><path class="edge DATA" id="e12i3" d="M426,118 L426,123 Q426,128 421,128 L306,128 Q298,128 298,136 L298,166" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#12[3] → #11 · DATA</title></path><path class="edge MEM" id="e14i1" d="M262,222 L262,227 Q262,232 267,232 L382,232 Q390,232 390,240 L390,270" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#14[1] → #12 · MEM</title></path><path class="edge DATA" id="e14i2" d="M414,222 L414,270" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#14[2] → #13 · DATA</title></path><path class="edge DATA" id="e14i3" d="M566,222 L566,227 Q566,232 561,232 L446,232 Q438,232 438,240 L438,270" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#14[3] → #4 · DATA</title></path><path class="edge MEM" id="e16i1" d="M402,326 L402,340 Q402,346 408,346 L408,346 Q414,346 414,352 L414,374" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#16[1] → #14 · MEM</title></path><path class="edge DATA" id="e16i2" d="M274,118 L274,130 Q274,138 282,138 L628,138 Q636,138 636,146 L636,328 Q636,336 628,336 L452,336 Q444,336 444,344 L444,374" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#16[2] → #9 · DATA</title></path><path class="edge CTRL" id="e22i0" d="M133,430 L133,480" stroke="#b63838" marker-start="url(#arrow-CTRL)" style="opacity: 1;"><title>#22[0] → #8 · CTRL</title></path><path class="edge MEM" id="e22i1" d="M402,326 L402,338 Q402,346 394,346 L188,346 Q180,346 180,354 L180,432 Q180,440 172,440 L161,440 Q153,440 153,448 L153,480" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#22[1] → #14 · MEM</title></path><path class="edge DATA" id="e22i2" d="M274,118 L274,130 Q274,138 266,138 L199,138 Q191,138 191,146 L191,442 Q191,450 183,450 L181,450 Q173,450 173,458 L173,480" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#22[2] → #9 · DATA</title></path><path class="edge DATA" id="e22i3" d="M262,430 L262,452 Q262,460 254,460 L201,460 Q193,460 193,468 L193,480" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#22[3] → #21 · DATA</title></path><path class="edge DATA" id="e22i4" d="M414,430 L414,462 Q414,470 406,470 L218,470 Q213,470 213,475 L213,480" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#22[4] → #16 · DATA</title></path><path class="edge MEM" id="e25i1" d="M395,744 L395,749 Q395,754 400,754 L457,754 Q465,754 465,762 L465,792" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#25[1] → #1 · MEM</title></path><path class="edge DATA" id="e25i2" d="M414,430 L414,462 Q414,470 422,470 L487,470 Q495,470 495,478 L495,792" stroke="#536477" marker-start="url(#arrow-DATA)" style="opacity: 1;"><title>#25[2] → #16 · DATA</title></path><path class="edge MEM" id="e224i1" d="M173,536 L173,541 Q173,546 178,546 L397,546 Q405,546 405,554 L405,584" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#224[1] → #22 · MEM</title></path><path class="edge MEM" id="e224i2" d="M402,326 L402,338 Q402,346 410,346 L476,346 Q484,346 484,354 L484,432 Q484,440 476,440 L453,440 Q445,440 445,448 L445,584" stroke="#2867b2" marker-start="url(#arrow-MEM)" style="opacity: 1;"><title>#224[2] → #14 · MEM</title></path></g><g class="edge-hits"/><g class="parser" style="opacity: 1;"/><g class="nodes"><g class="node" id="n1" data-id="1" transform="translate(335,694)" style="opacity: 1;"><path class="box" d="M10,0H110L120,10V34L110,44H10L0,34V10Z" fill="#dcecff"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>MemMerge</tspan><tspan class="node-id">  #1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#1 MemMerge
+Type not computed
+
+[0] → —  CTRL
+[1] → #6  MEM
+[2] → #224  MEM</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n2" data-id="2" transform="translate(24,24)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Start</tspan><tspan class="node-id">  #2</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#2 Start
+Type not computed
+
+</title></g><g class="node" id="n4" data-id="4" transform="translate(506,172)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#0</tspan><tspan class="node-id">  #4</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#4 #0
+Type not computed
+
+</title></g><g class="node" id="n6" data-id="6" transform="translate(24,68)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#dcecff"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>$mem</tspan><tspan class="node-id">  #6/1</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#6 $mem
+Projection 1 of #2
+Type not computed
+
+[0] → #2  MEM</title></g><g class="node" id="n8" data-id="8" transform="translate(95,398)" style="opacity: 1;"><path class="box" d="M0,0H75V26H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="37.5" y="17"><tspan>True</tspan><tspan class="node-id">  #8/0</tspan></text><text class="type" text-anchor="middle" y="35" x="37.5"/><title>#8 True
+Projection 0 of #0
+Type not computed
+
+</title></g><g class="node" id="n9" data-id="9" transform="translate(214,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>new S</tspan><tspan class="node-id">  #9</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#9 new S
+Type not computed
+
+[0] → —  CTRL</title><circle class="port" cx="60" cy="-3" r="3" fill="white"/><text class="slot" x="60" y="-10" text-anchor="middle">0</text></g><g class="node" id="n11" data-id="11" transform="translate(366,68)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#2</tspan><tspan class="node-id">  #11</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#11 #2
+Type not computed
+
+</title></g><g class="node" id="n12" data-id="12" transform="translate(202,172)" style="opacity: 1;"><path class="box" d="M10,0H110L120,10V34L110,44H10L0,34V10Z" fill="#dcecff"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>.f =</tspan><tspan class="node-id">  #12</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#12 .f =
+Type not computed
+
+[0] → —  CTRL
+[1] → #6  MEM
+[2] → #9  DATA
+[3] → #11  DATA</title><circle class="port" cx="24" cy="-3" r="3" fill="white"/><circle class="port" cx="48" cy="-3" r="3" fill="#536477"/><circle class="port" cx="72" cy="-3" r="3" fill="#536477"/><circle class="port" cx="96" cy="-3" r="3" fill="#536477"/><text class="slot" x="24" y="-10" text-anchor="middle">0</text><text class="slot" x="48" y="-10" text-anchor="middle">1</text><text class="slot" x="72" y="-10" text-anchor="middle">2</text><text class="slot" x="96" y="-10" text-anchor="middle">3</text></g><g class="node" id="n13" data-id="13" transform="translate(354,172)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>new S</tspan><tspan class="node-id">  #13</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#13 new S
+Type not computed
+
+[0] → —  CTRL</title><circle class="port" cx="60" cy="-3" r="3" fill="white"/><text class="slot" x="60" y="-10" text-anchor="middle">0</text></g><g class="node" id="n14" data-id="14" transform="translate(342,276)" style="opacity: 1;"><path class="box" d="M10,0H110L120,10V34L110,44H10L0,34V10Z" fill="#dcecff"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>.f =</tspan><tspan class="node-id">  #14</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#14 .f =
+Type not computed
+
+[0] → —  CTRL
+[1] → #12  MEM
+[2] → #13  DATA
+[3] → #4  DATA</title><circle class="port" cx="24" cy="-3" r="3" fill="white"/><circle class="port" cx="48" cy="-3" r="3" fill="#536477"/><circle class="port" cx="72" cy="-3" r="3" fill="#536477"/><circle class="port" cx="96" cy="-3" r="3" fill="#536477"/><text class="slot" x="24" y="-10" text-anchor="middle">0</text><text class="slot" x="48" y="-10" text-anchor="middle">1</text><text class="slot" x="72" y="-10" text-anchor="middle">2</text><text class="slot" x="96" y="-10" text-anchor="middle">3</text></g><g class="node" id="n16" data-id="16" transform="translate(354,380)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>.f</tspan><tspan class="node-id">  #16</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#16 .f
+Type not computed
+
+[0] → —  CTRL
+[1] → #14  MEM
+[2] → #9  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n21" data-id="21" transform="translate(202,380)" style="opacity: 1;"><path class="box" d="M14,0H106Q120,0 120,14V30Q120,44 106,44H14Q0,44 0,30V14Q0,0 14,0Z" fill="#edf3f7"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>#1</tspan><tspan class="node-id">  #21</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#21 #1
+Type not computed
+
+</title></g><g class="node" id="n22" data-id="22" transform="translate(113,486)" style="opacity: 1;"><path class="box" d="M10,0H110L120,10V34L110,44H10L0,34V10Z" fill="#dcecff"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>.f =</tspan><tspan class="node-id">  #22</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#22 .f =
+Type not computed
+
+[0] → #8  CTRL
+[1] → #14  MEM
+[2] → #9  DATA
+[3] → #21  DATA
+[4] → #16  DATA</title><circle class="port" cx="20" cy="-3" r="3" fill="#536477"/><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><circle class="port" cx="100" cy="-3" r="3" fill="#536477"/><text class="slot" x="20" y="-10" text-anchor="middle">0</text><text class="slot" x="40" y="-10" text-anchor="middle">1</text><text class="slot" x="60" y="-10" text-anchor="middle">2</text><text class="slot" x="80" y="-10" text-anchor="middle">3</text><text class="slot" x="100" y="-10" text-anchor="middle">4</text></g><g class="node" id="n25" data-id="25" transform="translate(405,798)" style="opacity: 1;"><path class="box" d="M0,0H120V44H0Z" fill="#fff1c4"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>Return</tspan><tspan class="node-id">  #25</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#25 Return
+Type not computed
+
+[0] → —  CTRL
+[1] → #1  MEM
+[2] → #16  DATA</title><circle class="port" cx="30" cy="-3" r="3" fill="white"/><circle class="port" cx="60" cy="-3" r="3" fill="#536477"/><circle class="port" cx="90" cy="-3" r="3" fill="#536477"/><text class="slot" x="30" y="-10" text-anchor="middle">0</text><text class="slot" x="60" y="-10" text-anchor="middle">1</text><text class="slot" x="90" y="-10" text-anchor="middle">2</text></g><g class="node" id="n224" data-id="224" transform="translate(365,590)" style="opacity: 1;"><path class="box" d="M12,0H108L120,22L108,44H12L0,22Z" fill="#f5e4fa"/><text class="label" text-anchor="middle" x="60" y="18"><tspan>MemPhi_2</tspan><tspan class="node-id">  #224</tspan></text><text class="type" text-anchor="middle" y="35" x="60"/><title>#224 MemPhi_2
+Type not computed
+
+[0] → —  ASSOC
+[1] → #22  MEM
+[2] → #14  MEM</title><circle class="port" cx="0" cy="-3" r="3" fill="white"/><circle class="port" cx="40" cy="-3" r="3" fill="#536477"/><circle class="port" cx="80" cy="-3" r="3" fill="#536477"/><text class="slot" x="0" y="-10" text-anchor="middle">0</text><text class="slot" x="40" y="-10" text-anchor="middle">1</text><text class="slot" x="80" y="-10" text-anchor="middle">2</text></g></g><g class="region-heads" style="opacity: 1;"/><g class="shortcuts" style="opacity: 1;"/><g class="peep-ghosts" pointer-events="none"/></g></svg>
