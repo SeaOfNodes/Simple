@@ -29,7 +29,7 @@ while( arg ) {
 return head.next.i;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
     }
 
     @Test

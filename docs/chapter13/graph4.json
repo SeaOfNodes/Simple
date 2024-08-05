@@ -1,0 +1,24 @@
+{
+  "ver": 1,
+  "comp": "chapter13/docs/graph4.svg",
+  "step": 1,
+  "roots": [37],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "MemMerge", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 6, "role": "MEM", "label": null}, {"idx": 2, "def": 230, "role": "MEM", "label": null}], "proj": null},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 4, "label": "#0", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 6, "label": "$mem", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 2, "role": "MEM", "label": null}], "proj": {"par": 2, "idx": 1}},
+    {"id": 7, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": {"par": 2, "idx": 2}},
+    {"id": 9, "label": "new S", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 10, "label": ".f =", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 6, "role": "MEM", "label": null}, {"idx": 2, "def": 9, "role": "DATA", "label": null}, {"idx": 3, "def": 4, "role": "DATA", "label": null}], "proj": null},
+    {"id": 21, "label": "//", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 7, "role": "DATA", "label": null}, {"idx": 2, "def": 22, "role": "DATA", "label": null}], "proj": null},
+    {"id": 22, "label": "#3", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 31, "label": ".f =", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 230, "role": "MEM", "label": null}, {"idx": 2, "def": 9, "role": "DATA", "label": null}, {"idx": 3, "def": 21, "role": "DATA", "label": null}], "proj": null},
+    {"id": 37, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 1, "role": "MEM", "label": null}, {"idx": 2, "def": 9, "role": "DATA", "label": null}], "proj": null},
+    {"id": 230, "label": "MemPhi_2", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 10, "role": "MEM", "label": null}, {"idx": 2, "def": 233, "role": "MEM", "label": null}], "proj": null},
+    {"id": 233, "label": "MemPhi_2", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 31, "role": "MEM", "label": null}, {"idx": 2, "def": 230, "role": "MEM", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}
