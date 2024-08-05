@@ -31,11 +31,17 @@ public class Parser {
      */
     public static StartNode START;
 
+    public static ConstantNode ZERO;
+    public static XCtrlNode XCTRL;
+
     public StopNode STOP;
 
     // Field identities are independent of the memory graph and Start's tuple.
     private final HashMap<String,Integer> _aliases = new HashMap<>();
     private int _alias = 2;
+
+    // Debugger Printing.
+    public static boolean SCHEDULED; // True if debug printer can use schedule info
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
@@ -82,7 +88,7 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
-    // Authoritative declarations, indexed by type name.
+    // Mapping from a type name to a Type.
     public static HashMap<String, Type> TYPES = new HashMap<>();
 
     public Parser(String source, TypeInteger arg) {
@@ -91,11 +97,14 @@ public class Parser {
         IterPeeps.reset();
         TYPES.clear();
         TYPES.put("int",TypeInteger.BOT);
+        SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, TypeMem.BOT, arg });
         STOP = new StopNode(source);
+        ZERO = new ConstantNode(TypeInteger.constant(0)).peephole().keep();
+        XCTRL= new XCtrlNode().peephole().keep();
     }
 
     public Parser(String source) {
@@ -118,8 +127,8 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new ProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new ProjNode(START, 2, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
         _scope.define("$mem", TypeMem.BOT, new ProjNode(START, 1, "$mem").peephole());
         parseBlock();
         if( ctrl()._type==Type.CONTROL )
@@ -187,7 +196,7 @@ public class Parser {
     }
 
     /**
-     * Parse a complete struct declaration.
+     * Parse a struct declaration, and return the following statement.
      * Only allowed in top level scope.
      * Structs cannot be redefined.
      *
@@ -252,8 +261,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -299,7 +308,7 @@ public class Parser {
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill current scope
+        ctrl(XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
         while( cur._scopes.size() > _breakScope._scopes.size() )
@@ -335,8 +344,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new ProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new ProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
@@ -353,7 +362,7 @@ public class Parser {
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ifF.unkeep();           // fScope already owns the false control
-        _scope.upcast(ifF,pred,true); // Up-cast predicate, also without an else
+        _scope.upcast(ifF,pred,true); // Up-cast predicate
         if (matchx("else")) {
             parseStatement();
             fScope = _scope;
@@ -383,7 +392,7 @@ public class Parser {
     private Node parseReturn() {
         var expr = require(parseExpression(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
-        ctrl(new ConstantNode(Type.XCONTROL).peephole()); // Kill control
+        ctrl(XCTRL);            // Kill control
         return ret;
     }
 
@@ -436,7 +445,8 @@ public class Parser {
         return _scope.update(name,expr);
     }
 
-    // Parse a type-or-null
+    // Parse a "type id" and return "type" (and re-parse "id" in caller) or
+    // return null.
     private Type type() {
         int old = _lexer._position;
         String tname = _lexer.matchId();
@@ -456,6 +466,7 @@ public class Parser {
         }
         return t instanceof TypeStruct obj ? TypeMemPtr.make(obj,nullable) : t;
     }
+
 
     /**
      * Parse an expression of the form:
@@ -527,7 +538,7 @@ public class Parser {
      * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
-        var lhs = parseUnary();
+        var lhs = parseUnary();  boolean mul;
         while( true ) {
             if( false ) ;
             else if( match("*") ) lhs = new MulNode(lhs,null);
@@ -562,10 +573,10 @@ public class Parser {
      * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
-        if( _lexer.isNumber(_lexer.peek()) ) return parseIntegerLiteral();
+        if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
-        if( matchx("false") ) return new ConstantNode(TypeInteger.ZERO).peephole();
+        if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
             String structName = requireId();
@@ -600,7 +611,7 @@ public class Parser {
 
     private void store(String name, int alias, Type glb, Node ptr, Node val, boolean init) {
         Node prior = mem().keep();
-        Node st = new StoreNode(name,alias,glb,null,prior,ptr,val,init).peephole();
+        Node st = new StoreNode(name,alias,glb,ctrl(),prior,ptr,val,init).peephole();
         mem(new MemMergeNode(prior,alias,st).peephole());
         if( prior.unkeep().isUnused() ) prior.kill();
     }
@@ -649,7 +660,7 @@ public class Parser {
      *     integerLiteral: [1-9][0-9]* | [0]
      * </pre>
      */
-    private ConstantNode parseIntegerLiteral() {
+    private ConstantNode parseLiteral() {
         return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
@@ -744,7 +755,16 @@ public class Parser {
          * Return the next non-white-space character
          */
         private void skipWhiteSpace() {
-            while (isWhiteSpace()) _position++;
+            while( true ) {
+                if( isWhiteSpace() ) _position++;
+                // Skip // to end of line
+                else if( _position+2 < _input.length &&
+                         _input[_position  ] == '/' &&
+                         _input[_position+1] == '/') {
+                    _position += 2;
+                    while( !isEOF() && _input[_position] != '\n' ) _position++;
+                } else break;
+            }
         }
 
 
@@ -826,8 +846,9 @@ public class Parser {
             return new String(_input, start, --_position - start);
         }
 
+        //
         private boolean isPunctuation(char ch) {
-            return "=;[]<>(){}+-/*!".indexOf(ch) != -1;
+            return "=;[]<>()+-/*".indexOf(ch) != -1;
         }
 
         private String parsePunctuation() {
