@@ -137,7 +137,7 @@ public abstract class Node implements OutNode {
 
     public boolean isUnused() { return nOuts() == 0; }
 
-    public CFGNode cfg0() { return (CFGNode)in(0); }
+   public CFGNode cfg0() { return (CFGNode)in(0); }
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing

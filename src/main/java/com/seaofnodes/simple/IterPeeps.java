@@ -57,7 +57,7 @@ public abstract class IterPeeps {
     /**
      * Iterate peepholes to a fixed point
      */
-    public static StopNode iterate(StopNode stop, boolean show) {
+    public static StopNode iterate(StopNode stop) {
         assert progressOnList(stop);
         int cnt=0;
 
@@ -92,11 +92,6 @@ public abstract class IterPeeps {
                 n.kill();       // Just plain dead
         }
 
-        // Break infinite loops, forcing a Never-branch to exit
-        GlobalCodeMotion.fixLoops(stop);
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
-        GlobalCodeMotion.buildCFG(stop);
         return stop;
     }
 
