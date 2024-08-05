@@ -24,8 +24,8 @@ public class LoadNode extends MemOpNode {
         _declaredType = glb;
     }
 
-    @Override
-    public String label() { return "."+_name; }
+    @Override public String  label() { return     _name; }
+    @Override public String glabel() { return "."+_name; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
