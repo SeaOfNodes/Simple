@@ -11,14 +11,17 @@ import java.util.BitSet;
  */
 public class StoreNode extends MemOpNode {
 
+    private final boolean _init; // Initializing writes are allowed to write null
+
     /**
      * @param name The struct field we are assigning to
      * @param memSlice The memory alias node - this is updated after a Store
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Node memSlice, Node memPtr, Node value) {
-        super(name, alias, memSlice, memPtr, value);
+    public StoreNode(String name, int alias, Type glb, Node memSlice, Node memPtr, Node value, boolean init) {
+        super(name, alias, glb, memSlice, memPtr, value);
+        _init = init;
     }
 
     @Override public String  label() { return "ST"+_name; }
@@ -65,4 +68,11 @@ public class StoreNode extends MemOpNode {
         return false;
     }
 
+    @Override
+    String err() {
+        String err = super.err();
+        if( err != null ) return err;
+        Type ptr = val()._type;
+        return _init || ptr.isa(_declaredType) ? null : "Cannot store "+ptr+" into field "+_declaredType+" "+_name;
+    }
 }

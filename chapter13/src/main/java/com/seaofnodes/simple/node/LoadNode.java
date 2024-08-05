@@ -11,7 +11,6 @@ import java.util.BitSet;
  */
 public class LoadNode extends MemOpNode {
 
-    Type _declaredType;
     /**
      * Load a value from a ptr.field.
      *
@@ -20,8 +19,7 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(name, alias, memSlice, memPtr);
-        _declaredType = glb;
+        super(name, alias, glb, memSlice, memPtr);
     }
 
     @Override public String  label() { return     _name; }
