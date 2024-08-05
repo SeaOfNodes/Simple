@@ -37,12 +37,11 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override
-    public StringBuilder print(StringBuilder sb) {
-        sb.append("[");
+    @Override public StringBuilder print(StringBuilder sb) {
+        sb.append("[  ");
         for( Type t : _types )
-            t.print(sb).append(",");
-        sb.setLength(sb.length()-1);
+            t.print(sb).append(", ");
+        sb.setLength(sb.length()-2);
         sb.append("]");
         return sb;
     }
@@ -58,8 +57,7 @@ public class TypeTuple extends Type {
         for( Type t : _types )
             t.typeName(sb).append(",");
         sb.setLength(sb.length()-1);
-        sb.append("]");
-        return sb;
+        return sb.append("]");
     }
 
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});
