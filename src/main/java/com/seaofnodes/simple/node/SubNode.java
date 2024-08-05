@@ -37,6 +37,7 @@ public class SubNode extends Node {
 
     @Override
     public Node idealize() {
+
         // x - (-y) is x+y
         if( in(2) instanceof MinusNode minus )
             return new AddNode(in(1),minus.in(1));

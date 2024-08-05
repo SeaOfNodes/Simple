@@ -76,20 +76,22 @@ public class Type {
     /**
      * Display Type name in a format that's good for IR printer
      */
-    public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
+    public StringBuilder typeName( StringBuilder sb) { return print(sb); }
 
     public Type makeInit() { return null; }
 
     // ----------------------------------------------------------
 
-    // Notes on Type interning.
-    // At the moment it is not easy to reset the interned types
-    // because we hold static references to several types and these are scattered
-    // around. This means the INTERN cache will retain all types from
-    // every run of the Parser. For this to work correctly types must be
-    // rigorous about defining when they are the same. Also types need to be
-    // immutable once defined.
-    // The rationale for interning is performance.
+    // Notes on Type interning: At the moment it is not easy to reset the
+    // interned types because we hold static references to several types and
+    // these are scattered around.  This means the INTERN cache will retain all
+    // types from every run of the Parser.  For this to work correctly types
+    // must be rigorous about defining when they are the same.  Also types need
+    // to be immutable once defined.  The rationale for interning is
+    // *correctness* with cyclic type definitions.  Simple structural recursive
+    // checks go exponential with merely sharing, but with cycles they will
+    // stack overflow and crash.  Intering means we do not need to have sharing
+    // checks with every type compare, only during interning.
 
     // Factory method which interns "this"
     public  <T extends Type> T intern() {
@@ -178,10 +180,10 @@ public class Type {
     // This is a more verbose dev-friendly print.
     @Override
     public final String toString() {
-        return _print(new StringBuilder()).toString();
+        return print(new StringBuilder()).toString();
     }
 
-    public StringBuilder _print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }
