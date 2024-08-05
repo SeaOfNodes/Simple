@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
@@ -27,6 +28,7 @@ public class SubNode extends Node {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()-i1.value());
         }
+
         return TypeInteger.BOT;
     }
 

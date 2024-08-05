@@ -17,7 +17,7 @@ import java.util.function.Function;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node extends BaseNode<Node> implements Cloneable {
+public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable {
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -83,6 +83,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
      */
     public Node in(int i) { return _inputs.get(i); }
     public Node out(int i) { return _outputs.get(i); }
+    @Override public ArrayList<Node> outs() { return _outputs; }
 
     public int nIns() { return _inputs.size(); }
 
@@ -90,7 +91,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     public boolean isUnused() { return nOuts() == 0; }
 
-    public boolean isMem() { return false; }
+   public CFGNode cfg0() { return (CFGNode)in(0); }
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
@@ -117,11 +118,11 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         // the new_def might get killed if the old node kills it recursively.
         if( new_def != null )
             new_def.addUse(this);
+        // Set the new_def over the old (killed) edge
+        _inputs.set(idx,new_def);
         if( old_def != null &&  // If the old def exists, remove a def->use edge
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
-        // Set the new_def over the old (killed) edge
-        _inputs.set(idx,new_def);
         moveDepsToWorklist();
         // Return self for easy flow-coding
         return new_def;
@@ -149,7 +150,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-    Node addDef(Node new_def) {
+    public Node addDef(Node new_def) {
         unlock();
         // Add use->def edge
         _inputs.add(new_def);
@@ -269,8 +270,8 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         Type old = setType(compute());
 
         // Replace constant computations from non-constants with a constant node
-        if( !(this instanceof ConstantNode) && _type.isHighOrConst() )
-            return new ConstantNode(_type).peepholeOpt();
+        if( !(this instanceof ConstantNode) && !(this instanceof XCtrlNode) && _type.isHighOrConst() )
+            return (_type==Type.XCONTROL ? new XCtrlNode() : new ConstantNode(_type)).peepholeOpt();
 
         // Global Value Numbering
         if( _hash==0 ) {
@@ -485,6 +486,17 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
     int hash() { return 0; }
 
     // ------------------------------------------------------------------------
+    //
+
+    /** Is this Node control-flow-graph related */
+
+    /** Is this Node Memory related */
+    public boolean isMem() { return false; }
+
+    /** Return block start from a isCFG() */
+    public Node getBlockStart() { return null; }
+
+    // ------------------------------------------------------------------------
     // Peephole utilities
 
     // Swap inputs without letting either input go dead during the swap.
@@ -511,38 +523,6 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
             }
         return true;
     }
-
-    /**
-     * Immediate dominator tree depth, used to approximate a real IDOM depth
-     * during parsing where we do not have the whole program, and also
-     * peepholes change the CFG incrementally.
-     * <p>
-     * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
-     */
-    public char _idepth;         // IDOM depth approx; Zero is unset; non-zero is cached legit
-
-    // Find the lowest common ancestor in the current dominator tree.
-    Node domLCA(Node rhs) {
-        if( rhs==null ) return this;
-        Node lhs = this;
-        while( lhs != rhs ) {
-            if( lhs==null || rhs==null ) return null;
-            int comp = lhs.idepth() - rhs.idepth();
-            if( comp >= 0 ) lhs = lhs.idom();
-            if( comp <= 0 ) rhs = rhs.idom();
-        }
-        return lhs;
-    }
-
-    int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(idom().idepth()+1); }
-    // Zero depth means uncached. Check before narrowing so overflow cannot wrap.
-    final int cacheIDepth(int depth) {
-        assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
-        return _idepth = (char)depth;
-    }
-
-    // Return the immediate dominator of this Node.
-    Node idom() { return in(0); }
 
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.
