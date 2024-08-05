@@ -179,7 +179,7 @@ public class Parser {
      *     type IDENTIFIER ;
      * </pre>
      */
-    private Field parseField(String sname) {
+    private Field parseField() {
         Type t = type();
         if( t==null )
             throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
@@ -191,25 +191,26 @@ public class Parser {
      * Only allowed in top level scope.
      * Structs cannot be redefined.
      *
-     * @return The statement following the struct
+     * @return null
      */
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
-        if ( TYPES.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        Type t = TYPES.get(typeName);
+        if( t!=null && !(t instanceof TypeStruct ts && ts._fields==null) ) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {
-            Field field = parseField(typeName);
+            Field field = parseField();
             if (fields.contains(field)) throw errorSyntax("Field '" + field + "' already defined in struct '" + typeName + "'");
             fields.add(field);
         }
         require("}");
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields);
-        TYPES.put(typeName, ts); // Insert the struct name in the collection of all struct names
+        TYPES.put(typeName, ts);
         START.addMemProj(ts, _scope); // Insert memory edges
-        return parseStatement();
+        return null;
     }
 
     /**
@@ -350,8 +351,8 @@ public class Parser {
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
+        _scope.upcast(ifF,pred,true); // Up-cast predicate
         if (matchx("else")) {
-            _scope.upcast(ifF,pred,true); // Up-cast predicate
             parseStatement();
             fScope = _scope;
         }
@@ -433,24 +434,36 @@ public class Parser {
         // Auto-widen int to float
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
             expr = new ToFloatNode(expr).peephole();
+        // Auto-deepen forward ref types
+        Type e = expr._type;
+        if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
+            e = tmp.make_from((TypeStruct)TYPES.get(tmp._obj._name));
         // Type is sane
-        if( !expr._type.isa(t) )
-            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
+        if( !e.isa(t) )
+            throw error("Type " + e.str() + " is not of declared type " + t.str());
         return _scope.update(name,expr);
     }
 
-    // Parse a type-or-null
+    // Parse a "type id" and return "type" (and re-parse "id" in caller) or
+    // return null.
     private Type type() {
         int old = _lexer._position;
         String tname = _lexer.matchId();
         if( tname==null ) return null;
+        boolean nullable = match("?");
         Type t = TYPES.get(tname);
+        // Assume a forward-reference type
         if( t == null ) {
-            // Not a type; unwind the parse
-            _lexer._position = old;
-            return null;
+            int old2 = _lexer._position;
+            String id = _lexer.matchId();
+            if( id==null ) {
+                _lexer._position = old;
+                return null;
+            }
+            TYPES.put(tname,t = TypeStruct.make(tname));
+            _lexer._position = old2; // Reparse ID in caller
         }
-        return t instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t;
+        return t instanceof TypeStruct obj ? TypeMemPtr.make(obj,nullable) : t;
     }
 
 
@@ -567,7 +580,8 @@ public class Parser {
         if( matchx("new") ) {
             String structName = requireId();
             Type t = TYPES.get(structName);
-            if( t == null || !(t instanceof TypeStruct obj) ) throw errorSyntax("Unknown struct type '" + structName + "'");
+            if( !(t instanceof TypeStruct obj) || obj._fields==null )
+                throw error("Unknown struct type '" + structName + "'");
             return newStruct(obj);
         }
         String name = _lexer.matchId();
@@ -584,7 +598,7 @@ public class Parser {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
         int alias = START._aliasStarts.get(obj._name);
         for( Field field : obj._fields ) {
-            memAlias(alias, new StoreNode(field._fname, alias, ctrl(), memAlias(alias), n, ZERO).peephole());
+            memAlias(alias, new StoreNode(field._fname, alias, field._type, ctrl(), memAlias(alias), n, new ConstantNode(field._type.makeInit()).peephole(),true).peephole());
             alias++;
         }
         return n.unkeep();
@@ -614,7 +628,9 @@ public class Parser {
 
         String name = requireId().intern();
         if( expr._type == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
-        int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
+        if( ptr._obj == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        TypeStruct base = (TypeStruct)TYPES.get(ptr._obj._name);
+        int idx = base==null ? -1 : base.find(name);
         if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
         int alias = START._aliasStarts.get(ptr._obj._name)+idx;
 
@@ -623,13 +639,14 @@ public class Parser {
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                memAlias(alias, new StoreNode(name, alias, ctrl(), memAlias(alias), expr, val).peephole());
+                Type glb = base._fields[idx]._type;
+                memAlias(alias, new StoreNode(name, alias,glb, ctrl(), memAlias(alias), expr, val, false).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }
 
-        Type declaredType = ptr._obj._fields[idx]._type;
-        return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
+        Type declaredType = base._fields[idx]._type;
+        return parsePostfix(new LoadNode(name, alias, declaredType.glb(), memAlias(alias), expr).peephole());
     }
 
     /**
@@ -637,7 +654,7 @@ public class Parser {
      *
      * <pre>
      *     integerLiteral: [1-9][0-9]* | [0]
-     *     floatLiteral: [1-9][0-9]* | [0]
+     *     floatLiteral: [digits].[digits]?[e [digits]]?
      * </pre>
      */
     private ConstantNode parseLiteral() {
