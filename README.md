@@ -40,7 +40,7 @@ The Simple language will be styled after a subset of C or Java
 * [Chapter 10](docs/chapter10/README.md): User defined Struct types. Memory effects: general memory edges in SSA. Equivalence class aliasing. Null pointer analysis. Peephole optimization around load-after-store/store-after-store.
 * [Chapter 11](docs/chapter11/README.md): Global Code Motion - Scheduling.
 * [Chapter 12](docs/chapter12/README.md): Float type.
-* Chapter 13: Nested references in Structs.
+* [Chapter 13](docs/chapter13/README.md): Nested references in Structs.
 * Chapter 14: Narrow primitive types (e.g. bytes)
 * Chapter 15: One dimensional static length array type, with array loads and stores.
 * Chapter 16: Constructors
