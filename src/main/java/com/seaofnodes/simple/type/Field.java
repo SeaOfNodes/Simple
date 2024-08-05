@@ -52,8 +52,8 @@ public class Field extends Type {
 
 
     @Override
-    public StringBuilder _print( StringBuilder sb ) {
-        return _type._print(sb.append(_fname).append(":"));
+    public StringBuilder print( StringBuilder sb ) {
+        return _type.print(sb.append(_fname).append(" :"));
     }
 
     @Override public String str() { return _fname; }

@@ -15,14 +15,13 @@ public class TypeMem extends Type {
     //  0 means TOP, no slice.
     // -1 means BOT, all memory.
     //  N means slice#N.
-    private final int _alias;
+    public final int _alias;
 
     private TypeMem(int alias) { super(TMEM); _alias = alias; }
 
     public static TypeMem make(int alias) { return new TypeMem(alias).intern(); }
     public static final TypeMem TOP = make( 0);
     public static final TypeMem BOT = make(-1);
-
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(1)); ts.add(BOT); }
 
@@ -40,7 +39,7 @@ public class TypeMem extends Type {
     }
 
     @Override
-    public Type glb() { return TypeMem.BOT; }
+    public Type glb() { return make(_alias); }
 
     @Override
     int hash() { return 9876543 + _alias; }
@@ -52,7 +51,7 @@ public class TypeMem extends Type {
     }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         return sb.append("MEM#").append( switch(_alias) {
             case  0 -> "TOP";
             case -1 -> "BOT";
@@ -60,5 +59,5 @@ public class TypeMem extends Type {
             });
     }
 
-    @Override public String str() { return _print(new StringBuilder()).toString(); }
+    @Override public String str() { return toString(); }
 }
