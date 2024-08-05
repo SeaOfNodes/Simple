@@ -37,17 +37,16 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override
-    public StringBuilder _print(StringBuilder sb) {
-        sb.append("[");
+    @Override public StringBuilder print(StringBuilder sb) {
+        sb.append("[  ");
         for( Type t : _types )
-            t._print(sb).append(",");
-        sb.setLength(sb.length()-1);
+            t.print(sb).append(", ");
+        sb.setLength(sb.length()-2);
         sb.append("]");
         return sb;
     }
 
-    @Override public String str() { return _print(new StringBuilder()).toString(); }
+    @Override public String str() { return print(new StringBuilder()).toString(); }
 
     /**
      * Display Type name in a format that's good for IR printer
