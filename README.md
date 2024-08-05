@@ -39,10 +39,10 @@ The simple language will be a small subset of C.
 * [Chapter 9](chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
 * [Chapter 10](chapter10/README.md): User defined Struct types. Memory effects: general memory edges in SSA. Equivalence class aliasing. Null pointer analysis. Peephole optimization around load-after-store/store-after-store.
 * [Chapter 11](chapter11/README.md): Global Code Motion - Scheduling.
-* Chapter 12: Nested references in Structs. Float type. One dimensional static length array type. Array load/store.
-* Chapter 13: Functions and calls.
-* Chapter 14: Boolean operators `&&` and `||` including short circuit.
-* Chapter 16: Code generation: perhaps to Java bytecodes.
-* Chapter 17: Code generation: to native X86 or ARM. Instruction selection, BURS. Register allocation.
-* Chapter 18: Exceptions
-* Chapter 19: Garbage Collection.
+* [Chapter 12](chapter12/README.md): Float type.
+* [Chapter 13](chapter13/README.md): Nested references in Structs.
+* Chapter 14: One dimensional static length array type. Array load/store.
+* Chapter 15: Functions and calls.
+* Chapter 16: Exception control flow.
+* Chapter 17: Garbage Collection.
+* Chapter 18: Code gen to X86-64.

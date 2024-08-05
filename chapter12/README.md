@@ -1,8 +1,6 @@
-# Chapter 12: Floats, Arrays, Refs
+# Chapter 12: Floats
 
 ## Floats
-
-In this chapter we add a series of new types and some modest syntax.
 
 Floating point values start with the `flt` type and compute IEEE754 64-bit arithmetic.
 Integer expressions auto-widen to floats when involved in a float expression.
