@@ -324,7 +324,7 @@ while( prime <= arg ) {
 return primeCount;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("Stop[ return 0; return Phi(Loop19,1,Phi(Region81,Phi_primeCount,Phi(Region76,(Phi_primeCount+1),Phi_primeCount))); ]", stop.toString());
+        assertEquals("Stop[ return 0; return Phi(Loop20,1,Phi(Region87,Phi_primeCount,Phi(Region81,(Phi_primeCount+1),Phi_primeCount))); ]", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  1)); // No primes 1 or below
         assertEquals(1L, Evaluator.evaluate(stop,  2)); // 2
         assertEquals(2L, Evaluator.evaluate(stop,  3)); // 2, 3
@@ -366,7 +366,7 @@ if (arg) {
 return i;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return Phi(Region31,.f,0);", stop.toString());
+        assertEquals("return Phi(Region34,.f,0);", stop.toString());
     }
 
     @Test
@@ -472,7 +472,7 @@ while(arg) {
 return arg;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return Phi(Loop13,arg,Phi(Region35,.f,0));", stop.toString());
+        assertEquals("return Phi(Loop15,arg,Phi(Region37,.f,0));", stop.toString());
     }
 
     @Test

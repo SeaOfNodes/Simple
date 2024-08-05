@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.Field;
 
 import java.util.BitSet;
 
@@ -26,10 +25,7 @@ public class LoadNode extends MemOpNode {
     }
 
     @Override
-    public String label() { return "Load"; }
-
-    @Override
-    public String glabel() { return "."+_name; }
+    public String label() { return "."+_name; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }

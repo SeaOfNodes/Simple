@@ -30,7 +30,7 @@ if (arg)
 return (arg < a) < 3;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return ((arg<Phi(Region14,2,1))<3);", stop.toString());
+        assertEquals("return ((arg<Phi(Region16,2,1))<3);", stop.toString());
     }
 
     @Test
@@ -200,7 +200,7 @@ if( arg ) {
 return a+b;
 """);
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return Phi(Region26,4,1);", ret.toString());
+        assertEquals("return Phi(Region28,4,1);", ret.toString());
     }
 
 
@@ -251,7 +251,7 @@ if( arg ) {
 return a+b+c;
 """);
         StopNode ret = parser.parse().iterate(true);
-        assertEquals("return (Phi(Region38,Phi(Region25,2,3),0)+Phi(Region,3,1));", ret.toString());
+        assertEquals("return (Phi(Region40,Phi(Region25,2,3),0)+Phi(Region,3,1));", ret.toString());
     }
 
 

@@ -27,7 +27,8 @@ public class TypeMemPtr extends Type {
         _nil = nil;
     }
     public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
-    public static TypeMemPtr make(TypeStruct obj) { return TypeMemPtr.make(obj, false); }
+    public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
+    public TypeMemPtr make_from(TypeStruct obj) { return make(obj, _nil); }
 
     public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
     public static TypeMemPtr TOP = BOT.dual();
@@ -63,10 +64,10 @@ public class TypeMemPtr extends Type {
 
     // [void,name,MANY]*[,?]
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         if( this== NULLPTR) return sb.append("null");
         if( this== VOIDPTR) return sb.append("*void");
-        return _obj._print(sb.append("*")).append(_nil ? "?" : "");
+        return _obj.print(sb.append("*")).append(_nil ? "?" : "");
     }
 
     @Override public String str() {
