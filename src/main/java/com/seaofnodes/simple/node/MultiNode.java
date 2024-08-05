@@ -1,13 +1,19 @@
 package com.seaofnodes.simple.node;
 
-public abstract class MultiNode extends Node {
-
-    public MultiNode(Node... inputs) { super(inputs); }
+public interface MultiNode extends OutNode {
 
     // Find a projection by index
-    ProjNode proj( int idx ) {
-        for( Node out : _outputs )
+    default ProjNode proj( int idx ) {
+        for( Node out : outs() )
             if( out instanceof ProjNode prj && prj._idx==idx )
+                return prj;
+        return null;
+    }
+
+    // Find a projection by index
+    default CProjNode cproj( int idx ) {
+        for( Node out : outs() )
+            if( out instanceof CProjNode prj && prj._idx==idx )
                 return prj;
         return null;
     }
