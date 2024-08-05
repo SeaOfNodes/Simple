@@ -5,7 +5,6 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.Field;
 
 
 /**
@@ -14,7 +13,6 @@ import com.seaofnodes.simple.type.Field;
  */
 public class LoadNode extends MemOpNode {
 
-    Type _declaredType;
     /**
      * Load a value from a ptr.field.
      *
@@ -23,12 +21,11 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(name, alias, null, memSlice, memPtr);
-        _declaredType = glb;
+        super(name, alias, glb, null, memSlice, memPtr);
     }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
-        return super.canDrop(other,dep) && _declaredType==((LoadNode)other)._declaredType && !clobbered(dep);
+        return super.canDrop(other,dep) && !clobbered(dep);
     }
 
     // Check only immediate memory users. Stores clobber memory; Phis and
@@ -45,9 +42,7 @@ public class LoadNode extends MemOpNode {
         return false;
     }
 
-    @Override
-    public String label() { return "Load"; }
-
+    @Override public String  label() { return     _name; }
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(".").p(_name); }
 

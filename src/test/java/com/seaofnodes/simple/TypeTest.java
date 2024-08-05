@@ -2,8 +2,8 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.type.*;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
@@ -36,9 +36,9 @@ public class TypeTest {
         Assert.assertEquals(TypeMem   .BOT, m2.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
-        Assert.assertEquals(TypeMem.BOT, m1.glb());
-        Assert.assertEquals(m1, m1.dual());
-        Assert.assertEquals(TypeMem.TOP, m1.glb().dual());
+        Assert.assertEquals(m1, m1.glb());
+        Assert.assertEquals(TypeMem.make(1), m1.dual());
+        Assert.assertEquals(m1.dual(), m1.glb().dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
@@ -128,10 +128,13 @@ public class TypeTest {
     private static void check_symmetric( Type t0, Type t1 ) {
         if( t1==t0 ) return;
         Type mt = t0.meet(t1);
-        Type ta = mt.dual().meet(t1.dual());
-        Type tb = mt.dual().meet(t0.dual());
-        assertSame(ta,t1.dual());
-        assertSame(tb,t0.dual());
+        Type dm = mt.dual();
+        Type d0 = t0.dual();
+        Type d1 = t1.dual();
+        Type ta = dm.meet(d1);
+        Type tb = dm.meet(d0);
+        assertSame(ta,d1);
+        assertSame(tb,d0);
     }
 
     private static void assoc( Type t0, Type t1, Type t2 ) {
@@ -141,5 +144,14 @@ public class TypeTest {
         Type t0_12 = t0 .meet(t12);
         assertSame(t01_2,t0_12);
     }
+
+    // Test cyclic types and meets
+    @Test
+    public void testCyclic0() {
+        Type d0 = TypeStruct.S1.dual();
+        Type d1 = d0.dual();
+        assertSame(TypeStruct.S1,d1);
+    }
+
 
 }

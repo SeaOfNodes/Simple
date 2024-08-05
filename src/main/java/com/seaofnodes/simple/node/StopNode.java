@@ -6,6 +6,7 @@ import com.seaofnodes.simple.Parser;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.GlobalCodeMotion;
 
 
 public class StopNode extends CFGNode {
@@ -70,7 +71,7 @@ public class StopNode extends CFGNode {
         return addDef(node);
     }
 
-    public StopNode iterate() { return IterPeeps.iterate(this).typeCheck(); }
+    public StopNode iterate() { return IterPeeps.iterate(this).typeCheck().GCM(); }
     public StopNode typeCheck() {
         var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
         String err = walk(n -> {
@@ -80,6 +81,13 @@ public class StopNode extends CFGNode {
         });
         if( err != null ) throw new RuntimeException(err);
         if( obs != null ) obs.phase("TypeCheck");
+        return this;
+    }
+    StopNode GCM() {
+        // Break infinite loops, forcing a Never-branch to exit
+        GlobalCodeMotion.fixLoops(this);
+
+        GlobalCodeMotion.buildCFG(this);
         return this;
     }
 

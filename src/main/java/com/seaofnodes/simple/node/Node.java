@@ -92,7 +92,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
 
     public boolean isUnused() { return nOuts() == 0; }
 
-    public CFGNode cfg0() { return (CFGNode)in(0); }
+   public CFGNode cfg0() { return (CFGNode)in(0); }
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
