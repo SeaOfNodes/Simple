@@ -102,4 +102,23 @@ return next.i;
         assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
         assertEquals(2L, Evaluator.evaluate(stop,  3));
     }
+
+    @Test
+    public void testCoRecur() {
+        Parser parser = new Parser(
+"""
+struct int0 { int i; flt0? f; }
+struct flt0 { flt f; int0? i; }
+int0 i0 = new int0;
+i0.i = 17;
+flt0 f0 = new flt0;
+f0.f = 3.14;
+i0.f = f0;
+f0.i = i0;
+return f0.i.f.i.i;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 17;", stop.toString());
+    }
+
 }

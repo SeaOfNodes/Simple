@@ -195,7 +195,8 @@ public class Parser {
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
-        if ( TYPES.containsKey(typeName)) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        Type t = TYPES.get(typeName);
+        if( t!=null && !(t instanceof TypeStruct ts && ts._fields==null) ) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {

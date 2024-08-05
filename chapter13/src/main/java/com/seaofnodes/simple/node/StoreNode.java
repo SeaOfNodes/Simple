@@ -21,10 +21,10 @@ public class StoreNode extends MemOpNode {
         super(name, alias, memSlice, memPtr, value);
     }
 
-    @Override
-    public String label() { return "."+_name+"="; }
-    @Override
-    public boolean isMem() { return true; }
+    @Override public String  label() { return "ST"+_name; }
+    @Override public String glabel() { return "." +_name+"="; }
+    @Override public boolean isMem() { return true; }
+
     public Node val() { return in(3); }
 
     @Override
