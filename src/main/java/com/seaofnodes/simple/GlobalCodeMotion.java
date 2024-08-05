@@ -1,5 +1,6 @@
  package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
@@ -12,14 +13,14 @@ public abstract class GlobalCodeMotion {
     public static void buildCFG( StopNode stop ) {
         schedEarly();
         Parser.SCHEDULED = true;
-        schedLate(Parser.START);
+        schedLate( stop);
     }
 
     // ------------------------------------------------------------------------
     // Backwards walk on the CFG only, looking for unreachable code - which has
     // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
     // loop becomes reachable.  Also, set loop nesting depth
-    static void fixLoops(StopNode stop) {
+    public static void fixLoops(StopNode stop) {
         // Backwards walk from Stop, looking for unreachable code
         BitSet visit = new BitSet();
         HashSet<CFGNode> unreach = new HashSet<>();
@@ -54,6 +55,10 @@ public abstract class GlobalCodeMotion {
     }
 
     // ------------------------------------------------------------------------
+    // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
+    // (except at loops).  Since defs are visited first - and hoisted as early
+    // as possible, when we come to a use we place it just after its deepest
+    // input.
     private static void schedEarly() {
         ArrayList<CFGNode> rpo = new ArrayList<>();
         BitSet visit = new BitSet();
@@ -110,38 +115,60 @@ public abstract class GlobalCodeMotion {
     }
 
     // ------------------------------------------------------------------------
-    private static void schedLate(StartNode start) {
+    private static void schedLate( StopNode stop) {
         CFGNode[] late = new CFGNode[Node.UID()];
         Node[] ns = new Node[Node.UID()];
-        _schedLate(start,ns,late);
+        // Breadth-first scheduling
+        breadth(stop,ns,late);
+
+        // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )
             if( ns[i] != null )
                 ns[i].setDef(0,late[i]);
     }
 
-    // Forwards post-order pass.  Schedule all outputs first, then draw a
-    // idom-tree line from the LCA of uses to the early schedule.  Schedule is
-    // legal anywhere on this line; pick the most control-dependent (largest
-    // idepth) in the shallowest loop nest.
-    private static void _schedLate(Node n, Node[] ns, CFGNode[] late) {
-        if( late[n._nid]!=null ) return; // Been there, done that
-        // These I know the late schedule of, and need to set early for loops
-        if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
-        if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
+    private static void breadth(Node stop, Node[] ns, CFGNode[] late) {
+        // Things on the worklist have some (but perhaps not all) uses done.
+        WorkList<Node> work = new WorkList<>();
+        work.push(stop);
+        Node n;
+        outer:
+        while( (n = work.pop()) != null ) {
+            assert late[n._nid]==null; // No double visit
+            // These I know the late schedule of, and need to set early for loops
+            if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
+            else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
+            else if( n.isPinned() ) late[n._nid] = n.cfg0();
+            else {
 
-        // Walk Stores before Loads, so we can get the anti-deps right
-        for( Node use : n._outputs )
-            if( isForwardsEdge(use,n) &&
-                use._type instanceof TypeMem )
-                _schedLate(use,ns,late);
-        // Walk everybody now
-        for( Node use : n._outputs )
-            if( isForwardsEdge(use,n) )
-                _schedLate(use,ns,late);
-        // Already implicitly scheduled
-        if( n.isPinned() ) return;
-        // Need to schedule n
+                // All uses done?
+                for( Node use : n._outputs )
+                    if( late[use._nid]==null )
+                        continue outer; // Nope, await all uses done
 
+                // Loads need their memory inputs' uses also done
+                if( n instanceof LoadNode ld )
+                    for( Node memuse : ld.mem()._outputs )
+                        if( memuse._type instanceof TypeMem && late[memuse._nid]==null )
+                            continue outer;
+
+                // All uses done, schedule
+                _doSchedLate(n,ns,late);
+            }
+
+            // Walk all inputs and put on worklist, as their last-use might now be done
+            for( Node def : n._inputs )
+                if( def!=null && late[def._nid]==null ) {
+                    work.push(def);
+                    // if the def has a load use, maybe the load can fire
+                    for( Node ld : def._outputs )
+                        if( ld instanceof LoadNode && late[ld._nid]==null )
+                            work.push(ld);
+                }
+        }
+    }
+
+    private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
         CFGNode early = (CFGNode)n.in(0);
         assert early != null;
@@ -154,7 +181,7 @@ public abstract class GlobalCodeMotion {
             lca = find_anti_dep(lca,load,early,late);
 
         // Walk up from the LCA to the early, looking for best place.  This is
-        // lowest execution frequency, approximated by least loop depth and
+        // the lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
         CFGNode best = lca;
         lca = lca.idom();       // Already found best for starting LCA
@@ -187,12 +214,6 @@ public abstract class GlobalCodeMotion {
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
-    // Skip iteration if a backedge
-    private static boolean isForwardsEdge(Node use, Node def) {
-        return use != null && def != null &&
-            !(use.nIns()>2 && use.in(2)==def && (use instanceof LoopNode || (use instanceof PhiNode phi && phi.region() instanceof LoopNode)));
-    }
-
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
@@ -202,6 +223,7 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case StoreNode st:
+                assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
                 break;
             case PhiNode phi:
