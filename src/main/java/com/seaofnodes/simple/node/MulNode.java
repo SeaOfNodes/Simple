@@ -55,4 +55,9 @@ public class MulNode extends Node {
     }
     @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs); }
     @Override Node copyF() { return new MulFNode(null,null); }
+    @Override public String err() {
+        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(1)._type;
+        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(2)._type;
+        return null;
+    }
 }

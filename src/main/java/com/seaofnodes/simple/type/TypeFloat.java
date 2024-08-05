@@ -35,7 +35,7 @@ public class TypeFloat extends Type {
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         if( this==TOP ) return sb.append("FltTop");
         if( this==BOT ) return sb.append("FltBot");
         return sb.append(_con);
