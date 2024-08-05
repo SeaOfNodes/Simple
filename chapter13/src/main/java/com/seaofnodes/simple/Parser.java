@@ -596,7 +596,7 @@ public class Parser {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
         int alias = START._aliasStarts.get(obj._name);
         for( Field field : obj._fields ) {
-            memAlias(alias, new StoreNode(field._fname, alias, memAlias(alias), n, new ConstantNode(field._type.makeInit()).peephole()).peephole());
+            memAlias(alias, new StoreNode(field._fname, alias, field._type, memAlias(alias), n, new ConstantNode(field._type.makeInit()).peephole(),true).peephole());
             alias++;
         }
         return n.unkeep();
@@ -637,7 +637,8 @@ public class Parser {
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                memAlias(alias, new StoreNode(name, alias, memAlias(alias), expr, val).peephole());
+                Type glb = base._fields[idx]._type;
+                memAlias(alias, new StoreNode(name, alias,glb, memAlias(alias), expr, val, false).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }

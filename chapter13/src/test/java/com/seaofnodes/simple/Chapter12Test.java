@@ -121,4 +121,54 @@ return f0.i.f.i.i;
         assertEquals("return 17;", stop.toString());
     }
 
+    @Test
+    public void testNullRef0() {
+        Parser parser = new Parser(
+"""
+struct N { N next; int i; }
+N n = new N;
+return n.next;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return null;", stop.toString());
+    }
+
+    @Test
+    public void testNullRef1() {
+        Parser parser = new Parser(
+"""
+struct N { N next; int i; }
+N n = new N;
+n.next = new N;
+return n.next;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return new N;", stop.toString());
+    }
+
+    @Test
+    public void testNullRef2() {
+        Parser parser = new Parser(
+"""
+struct N { N next; int i; }
+N n = new N;
+n.next = null;
+return n.next;
+""");
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Cannot store null into field *N next",e.getMessage()); }
+    }
+
+    @Test
+    public void testNullRef3() {
+        Parser parser = new Parser(
+"""
+struct N { N next; int i; }
+N n = new N;
+n.i = 3.14;
+return n.i;
+""");
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Cannot store 3.14 into field IntBot i",e.getMessage()); }
+    }
 }
