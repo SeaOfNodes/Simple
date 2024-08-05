@@ -82,14 +82,16 @@ public class Type {
 
     // ----------------------------------------------------------
 
-    // Notes on Type interning.
-    // At the moment it is not easy to reset the interned types
-    // because we hold static references to several types and these are scattered
-    // around. This means the INTERN cache will retain all types from
-    // every run of the Parser. For this to work correctly types must be
-    // rigorous about defining when they are the same. Also types need to be
-    // immutable once defined.
-    // The rationale for interning is performance.
+    // Notes on Type interning: At the moment it is not easy to reset the
+    // interned types because we hold static references to several types and
+    // these are scattered around.  This means the INTERN cache will retain all
+    // types from every run of the Parser.  For this to work correctly types
+    // must be rigorous about defining when they are the same.  Also types need
+    // to be immutable once defined.  The rationale for interning is
+    // *correctness* with cyclic type definitions.  Simple structural recursive
+    // checks go exponential with merely sharing, but with cycles they will
+    // stack overflow and crash.  Intering means we do not need to have sharing
+    // checks with every type compare, only during interning.
 
     // Factory method which interns "this"
     public  <T extends Type> T intern() {

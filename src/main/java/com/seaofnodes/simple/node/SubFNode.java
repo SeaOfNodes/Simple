@@ -34,7 +34,7 @@ public class SubFNode extends Node {
         Node lhs = in(1);
         Type t2 = in(2)._type;
 
-        // Sub of 0.
+        // Sub of 1.
         if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==0 )
             return lhs;
 
