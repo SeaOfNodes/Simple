@@ -13,14 +13,14 @@ public abstract class GlobalCodeMotion {
     public static void buildCFG( StopNode stop ) {
         schedEarly();
         Parser.SCHEDULED = true;
-        schedLate(stop);
+        schedLate( stop);
     }
 
     // ------------------------------------------------------------------------
     // Backwards walk on the CFG only, looking for unreachable code - which has
     // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
     // loop becomes reachable.  Also, set loop nesting depth
-    static void fixLoops(StopNode stop) {
+    public static void fixLoops(StopNode stop) {
         // Backwards walk from Stop, looking for unreachable code
         BitSet visit = new BitSet();
         HashSet<CFGNode> unreach = new HashSet<>();
@@ -55,6 +55,10 @@ public abstract class GlobalCodeMotion {
     }
 
     // ------------------------------------------------------------------------
+    // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
+    // (except at loops).  Since defs are visited first - and hoisted as early
+    // as possible, when we come to a use we place it just after its deepest
+    // input.
     private static void schedEarly() {
         ArrayList<CFGNode> rpo = new ArrayList<>();
         BitSet visit = new BitSet();
@@ -118,7 +122,7 @@ public abstract class GlobalCodeMotion {
 
         // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )
-            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
+            if( ns[i] != null )
                 ns[i].setDef(0,late[i]);
     }
 
@@ -134,7 +138,7 @@ public abstract class GlobalCodeMotion {
             if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
             else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
             // These nodes have a fixed late placement at their original control.
-            else if( n instanceof ProjNode || n instanceof NewNode || n==Parser.ZERO ) late[n._nid] = n.cfg0();
+            else if( n instanceof ProjNode || n instanceof NewNode || n==Parser.ZERO || n instanceof CastNode ) late[n._nid] = n.cfg0();
             else {
 
                 // All uses done?
@@ -145,7 +149,7 @@ public abstract class GlobalCodeMotion {
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
-                        if( late[memuse._nid]==null && memuse._type instanceof TypeMem )
+                        if( memuse._type instanceof TypeMem && late[memuse._nid]==null )
                             continue outer;
 
                 // All uses done, schedule
@@ -170,12 +174,11 @@ public abstract class GlobalCodeMotion {
 
     private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late, int[] anti) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
+        CFGNode early = (CFGNode)n.in(0);
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            if( use != null )
-              lca = use_block(n,use, late).domLCA(lca,null);
+            lca = use_block(n,use, late).domLCA(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
@@ -225,6 +228,7 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case StoreNode st:
+                assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
             case PhiNode phi:

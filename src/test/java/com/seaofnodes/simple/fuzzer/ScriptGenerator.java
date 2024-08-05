@@ -3,9 +3,7 @@ package com.seaofnodes.simple.fuzzer;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.ScopeNode;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Random;
+import java.util.*;
 import java.util.function.Predicate;
 
 /**
@@ -70,11 +68,10 @@ public class ScriptGenerator {
 
     private static class TypeStruct extends Type {
         record Field (String name, Type type, TypeStruct struct) {}
-        final Field[] fields;
+        Field[] fields;
         final TypeNullable nullable = new TypeNullable(this);
-        TypeStruct(String name, Field[] fields) {
+        TypeStruct(String name) {
             super(name);
-            this.fields = fields;
         }
         boolean isa(Type other) { return this == other || other == nullable; }
     }
@@ -158,6 +155,10 @@ public class ScriptGenerator {
      * All defined structs.
      */
     private final ArrayList<TypeStruct> structs = new ArrayList<>();
+    /**
+     * All forward declared structs
+     */
+    private final ArrayList<TypeStruct> forwardStructs = new ArrayList<>();
     /**
      * Allow to declare structs.
      */
@@ -301,6 +302,7 @@ public class ScriptGenerator {
         for (var s:structs) {
             if (s.name.equals(name)) return s;
         }
+        for (var s:forwardStructs) if (s.name.equals(name)) return s;
         return null;
     }
 
@@ -333,12 +335,18 @@ public class ScriptGenerator {
         return v;
     }
 
+    private <T> T randFromList(List<T> list) {
+        return list.get(random.nextInt(list.size()));
+    }
+
     /**
      * Get a random structure name
      * @return A random structure name
      */
     private String getStructName() {
-        if (!structs.isEmpty() && generateInvalid()) return structs.get(random.nextInt(structs.size())).name;
+        if (!structs.isEmpty() && generateInvalid()) return randFromList(structs).name;
+        if (!forwardStructs.isEmpty() && generateInvalid()) return randFromList(forwardStructs).name;
+
         // Generate a new random struct name
         StringBuilder sb = getRandomName();
         var v = sb.toString();
@@ -357,14 +365,25 @@ public class ScriptGenerator {
      * Get a random type
      * @return A random type
      */
-    private Type getType() {
+    private Type getType(boolean allowForward) {
         int t = random.nextInt(10);
         if( t<5 || structs.isEmpty() ) return TYPE_INT;
         if( t<7 ) return TYPE_FLT;
-        var idx = random.nextInt(structs.size());
-        TypeStruct struct = structs.get(idx);
+        if (allowForward && random.nextInt(10)==0) {
+            int i=random.nextInt(forwardStructs.size()+1);
+            if (i>0) return forwardStructs.get(i-1).nullable;
+            var name = getStructName();
+            var struct = new TypeStruct(name);
+            forwardStructs.add(struct);
+            return struct.nullable;
+        }
+        TypeStruct struct = randFromList(structs);
         if (random.nextBoolean()) return struct.nullable;
         return struct;
+    }
+
+    private Type getType() {
+        return getType(false);
     }
 
     /**
@@ -426,19 +445,28 @@ public class ScriptGenerator {
      * @return 0
      */
     public int genStruct() {
-        var name = getStructName();
+        int idx = random.nextInt(forwardStructs.size()+10);
+        TypeStruct struct;
+        if (idx < 10) {
+            var name = getStructName();
+            struct = new TypeStruct(name);
+            forwardStructs.add(struct);
+        } else {
+            struct = forwardStructs.get(idx-10);
+        }
         var fields = new TypeStruct.Field[generateInvalid() ? 0 : random.nextInt(10)];
-        var struct = new TypeStruct(name, fields);
-        sb.append("struct ").append(name).append(" {\n");
+        sb.append("struct ").append(struct.name).append(" {\n");
         indentation += INDENTATION;
         for (int i=0; i<fields.length; i++) {
             var fieldName = getRandomName();
-            var type = getType();
+            var type = getType(true);
             printIndentation().append(type.name).append(" ").append(fieldName).append(";\n");
             fields[i] = new TypeStruct.Field(fieldName.toString(), type, struct);
         }
         indentation -= INDENTATION;
         printIndentation().append("}");
+        struct.fields = fields;
+        forwardStructs.remove(struct);
         structs.add(struct);
         return 0;
     }
@@ -804,7 +832,7 @@ public class ScriptGenerator {
         } else if (type == TYPE_FLT) {
             sb.append(random.nextFloat());
         } else if (type instanceof TypeNullable n) {
-            if (random.nextBoolean()) {
+            if ((n.base instanceof TypeStruct s && s.fields == null) || random.nextBoolean()) {
                 sb.append("null");
             } else {
                 sb.append("new ").append(generateInvalid() ? getRandomName() : n.base.name);

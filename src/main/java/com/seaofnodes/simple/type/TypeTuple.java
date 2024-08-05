@@ -37,12 +37,11 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override
-    public StringBuilder print(StringBuilder sb) {
-        sb.append("[");
+    @Override public StringBuilder print(StringBuilder sb) {
+        sb.append("[  ");
         for( Type t : _types )
-            t.print(sb).append(",");
-        sb.setLength(sb.length()-1);
+            t.print(sb).append(", ");
+        sb.setLength(sb.length()-2);
         sb.append("]");
         return sb;
     }
