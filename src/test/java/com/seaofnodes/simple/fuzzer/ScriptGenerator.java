@@ -2,8 +2,12 @@ package com.seaofnodes.simple.fuzzer;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.ScopeNode;
+import com.seaofnodes.simple.type.TypeInteger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
 import java.util.function.Predicate;
 
 /**
@@ -21,7 +25,7 @@ public class ScriptGenerator {
     private static final int MAX_BLOCK_DEPTH = 4;
     private static final int MAX_EXPRESSION_DEPTH = 10;
     private static final int MAX_SUFFIX_RECURSIVE_DEPTH = 10;
-
+ 
     /**
      * Number of spaces per indentation
      */
@@ -54,7 +58,7 @@ public class ScriptGenerator {
     /**
      * Binary operators.
      */
-    private static final String[] BINARY_OP = {"==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/"};
+    private static final String[] BINARY_OP = {"==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/", "&", ">>", ">>>", "<<"};
     /**
      * Unary operators.
      */
@@ -87,8 +91,33 @@ public class ScriptGenerator {
 
     }
 
-    private static final Type TYPE_INT = new Type("int");
+    private static final Type TYPE_FLT = new Type("flt");
 
+    private static class TypeInt extends Type {
+
+        TypeInt(String name) {
+            super(name);
+        }
+
+        @Override
+        boolean isa(Type other) {
+            return super.isa(other) || other == TYPE_FLT || other instanceof TypeInt;
+        }
+    }
+
+    private static final List<TypeInt> INTTYPES = new ArrayList<>();
+
+    static {
+        new Parser("", TypeInteger.BOT);
+        for(var e:Parser.TYPES.entrySet()) {
+            if (e.getValue() instanceof TypeInteger) {
+                INTTYPES.add(new TypeInt(e.getKey()));
+            }
+        }
+    }
+
+    private static final Type TYPE_INT = INTTYPES.stream().filter(t->t.name.equals("int")).findAny().get();
+    private static final Type TYPE_BOOL = INTTYPES.stream().filter(t->t.name.equals("bool")).findAny().get();
 
     private static class Variable {
         final String name;
@@ -347,13 +376,18 @@ public class ScriptGenerator {
         return v;
     }
 
+    public TypeInt getIntType() {
+        return randFromList(INTTYPES);
+    }
+
     /**
      * Get a random type
      * @return A random type
      */
     private Type getType(boolean allowForward) {
         int t = random.nextInt(10);
-        if( t<5 || structs.isEmpty() ) return TYPE_INT;
+        if( t<5 || structs.isEmpty() ) return getIntType();
+        if( t<7 ) return TYPE_FLT;
         if (allowForward && random.nextInt(10)==0) {
             int i=random.nextInt(forwardStructs.size()+1);
             if (i>0) return forwardStructs.get(i-1).nullable;
@@ -433,7 +467,7 @@ public class ScriptGenerator {
         int idx = random.nextInt(forwardStructs.size()+10);
         TypeStruct struct;
         if (idx < 10) {
-            var name = getStructName();
+        var name = getStructName();
             struct = new TypeStruct(name);
             forwardStructs.add(struct);
         } else {
@@ -546,7 +580,7 @@ public class ScriptGenerator {
      */
     public int genIf() {
         sb.append("if(");
-        genExpression(TYPE_INT, true);
+        genExpression(TYPE_BOOL, true);
         sb.append(") ");
         var stop = genStatementBlock();
         if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
@@ -592,7 +626,7 @@ public class ScriptGenerator {
      */
     public int genWhile() {
         sb.append("while(");
-        genExpression(TYPE_INT, true);
+        genExpression(TYPE_BOOL, true);
         sb.append(") ");
         loopDepth++;
         genStatementBlock();
@@ -710,7 +744,7 @@ public class ScriptGenerator {
      */
     public void genExpression(Type type, boolean change) {
         if (change && generateInvalid()) type = getType();
-        if (type != TYPE_INT) {
+        if (!(type instanceof TypeInt) && type != TYPE_FLT) {
             genUnary(type, false);
             return;
         }
@@ -727,7 +761,7 @@ public class ScriptGenerator {
      */
     public void genUnary(Type type, boolean change) {
         if (change && generateInvalid()) type = getType();
-        if (type != TYPE_INT) {
+        if (!(type instanceof TypeInt) && type != TYPE_FLT) {
             genSuffix(type, false);
             return;
         }
@@ -807,14 +841,15 @@ public class ScriptGenerator {
      */
     public void genConst(Type type) {
         if (generateInvalid()) type = getType();
-        if (type == TYPE_INT) {
+        if (type instanceof TypeInt || (type == TYPE_FLT && random.nextBoolean())) {
             var rand = random.nextInt(10);
             switch (rand) {
                 case 0 -> sb.append("true");
                 case 1 -> sb.append("false");
                 default -> sb.append(random.nextInt(1<<(rand-2)));
             }
-
+        } else if (type == TYPE_FLT) {
+            sb.append(random.nextFloat());
         } else if (type instanceof TypeNullable n) {
             if ((n.base instanceof TypeStruct s && s.fields == null) || random.nextBoolean()) {
                 sb.append("null");

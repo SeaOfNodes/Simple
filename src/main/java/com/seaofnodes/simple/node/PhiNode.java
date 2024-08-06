@@ -12,7 +12,7 @@ public class PhiNode extends Node {
     final String _label;
 
     // The Phi type we compute must stay within the domain of the Phi.
-    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
+    // Example Int stays Int, Ptr stays Ptr, Mem stays Mem.
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
