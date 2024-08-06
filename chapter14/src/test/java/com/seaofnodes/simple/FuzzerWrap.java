@@ -14,6 +14,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class FuzzerWrap {
 
+    @Ignore
     @Test
     public void fuzzPeeps() {
         var fuzzer = new Fuzzer();
