@@ -8,6 +8,7 @@ import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFloat;
 
 import java.util.*;
 import java.util.function.Function;
@@ -496,6 +497,26 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     /** Return block start from a isCFG() */
     public Node getBlockStart() { return null; }
 
+    // Semantic change to the graph (so NOT a peephole), used by the Parser.
+    // If any input is a float, flip to a float-flavored opcode and widen any
+    // non-float input.
+    public final Node widen() {
+        if( !hasFloatInput() ) return this;
+        Node flt = copyF();
+        if( flt==null ) return this;
+        for( int i=1; i<nIns(); i++ )
+            flt.setDef(i, in(i)._type instanceof TypeFloat ? in(i) : new ToFloatNode(in(i)).peephole());
+        kill();
+        return flt;
+    }
+    private boolean hasFloatInput() {
+        for( int i=1; i<nIns(); i++ )
+            if( in(i)._type instanceof TypeFloat )
+                return true;
+        return false;
+    }
+    Node copyF() { return null; }
+
     // ------------------------------------------------------------------------
     // Peephole utilities
 
@@ -572,7 +593,12 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         E x = pred.apply(this);
         if( x != null ) return x;
         for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
-        for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
+        // Unroll iterator to survive junk CME
+        for( int i=0; i<_outputs.size(); i++ ) {
+            Node use = _outputs.get(i);
+            if( use != null && (x = use._walk(pred)) != null )
+                return x;
+        }
         return null;
     }
 
