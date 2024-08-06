@@ -73,4 +73,8 @@ public class LoadNode extends MemOpNode {
         Node px = phi.in(idx);
         return px!=null && px.addDep(this) instanceof StoreNode st1 && ptr()==st1.ptr();
     }
+
+    Node copy(Node mem, Node ptr) {
+        return new LoadNode(_name,_alias,_declaredType,mem,ptr);
+    }
 }

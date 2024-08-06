@@ -59,5 +59,4 @@ return x+1==x;
         assertEquals("return ((flt)arg==(ToFloat+1.0));", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop, 1));
     }
-
 }
