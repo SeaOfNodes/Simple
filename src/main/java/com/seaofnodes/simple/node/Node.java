@@ -593,7 +593,12 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         E x = pred.apply(this);
         if( x != null ) return x;
         for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
-        for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
+        // Unroll iterator to survive junk CME
+        for( int i=0; i<_outputs.size(); i++ ) {
+            Node use = _outputs.get(i);
+            if( use != null && (x = use._walk(pred)) != null )
+                return x;
+        }
         return null;
     }
 
