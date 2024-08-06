@@ -26,18 +26,20 @@ public class SubNode extends Node {
         if( in(1)==in(2) )
             return TypeInteger.ZERO;
 
-        if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(i0.value()-i1.value());
+        Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1.isHigh() || t2.isHigh() )
+            return TypeInteger.TOP;
+        if( t1 instanceof TypeInteger i1 &&
+            t2 instanceof TypeInteger i2 ) {
+            if (i1.isConstant() && i2.isConstant())
+                return TypeInteger.constant(i1.value()-i2.value());
         }
 
-        return in(1)._type.meet(in(2)._type);
+        return TypeInteger.BOT;
     }
 
     @Override
     public Node idealize() {
-
         // x - (-y) is x+y
         if( in(2) instanceof MinusNode minus )
             return new AddNode(in(1),minus.in(1));
