@@ -21,14 +21,24 @@ public class AddNode extends Node {
 
     @Override
     public Type compute() {
-        if( in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1 ) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(i0.value()+i1.value());
+        Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1.isHigh() || t2.isHigh() ) return TypeInteger.TOP;
+        if( t1 instanceof TypeInteger i1 &&
+            t2 instanceof TypeInteger i2 ) {
+            if (i1.isConstant() && i2.isConstant())
+                return TypeInteger.constant(i1.value()+i2.value());
+            // Fold ranges like {0-1} + {2-3} into {2-4}.
+            if( !overflow(i1._min,i2._min) &&
+                !overflow(i1._max,i2._max) )
+                return TypeInteger.make(i1._min+i2._min,i1._max+i2._max);
         }
-        return in(1)._type.meet(in(2)._type);
+        return TypeInteger.BOT;
     }
 
+    private static boolean overflow( long x, long y ) {
+        if(    (x ^      y ) < 0 ) return false; // unequal signs, never overflow
+        return (x ^ (x + y)) < 0; // sum has unequal signs, so overflow
+    }
     @Override
     public Node idealize () {
         Node lhs = in(1);
@@ -37,7 +47,7 @@ public class AddNode extends Node {
 
         // Add of 0.  We do not check for (0+x) because this will already
         // canonicalize to (x+0)
-        if( t2 instanceof TypeInteger i && i.value()==0 )
+        if( t2 instanceof TypeInteger i && i.isConstant() && i.value()==0 )
             return lhs;
 
         // Add of same to a multiply by 2
@@ -100,7 +110,7 @@ public class AddNode extends Node {
         return null;
     }
 
-    // Rotation is only valid for associative ops, e.g. Add, Mul, And, Or.
+    // Rotation is only valid for associative ops, e.g. Add, Mul, And, Or, Xor.
     // Do we have ((phi cons)|(x + (phi cons)) + con|(phi cons)) ?
     // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
     static Node phiCon(Node op, boolean rotate) {

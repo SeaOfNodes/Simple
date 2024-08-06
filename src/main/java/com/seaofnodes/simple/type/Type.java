@@ -56,6 +56,7 @@ public class Type {
         ts.add(CONTROL);
         Field.gather(ts);
         TypeInteger.gather(ts);
+        TypeFloat.gather(ts);
         TypeMem.gather(ts);
         TypeMemPtr.gather(ts);
         TypeStruct.gather(ts);
@@ -67,6 +68,7 @@ public class Type {
     }
 
     // Is high or on the lattice centerline.
+    public boolean isHigh       () { return _type==TTOP || _type==TXCTRL; }
     public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
 
     // Strict constant values, things on the lattice centerline.

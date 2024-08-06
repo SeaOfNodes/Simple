@@ -55,6 +55,8 @@ public class TypeMemPtr extends Type {
     public Type glb() { return make(_obj.glb(),true); }
     @Override public TypeMemPtr makeInit() { return NULLPTR; }
 
+    @Override public boolean isHigh() { return this==TOP; }
+
     @Override
     int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }
 

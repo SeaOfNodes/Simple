@@ -150,6 +150,12 @@ public class Evaluator {
             case NotNode      not   -> isTrue(val(not.in(1))) ? 0L : 1L;
             case SubNode      sub   -> vall(sub.in(1)) - vall(sub.in(2));
             case SubFNode     sub   -> vald(sub.in(1)) - vald(sub.in(2));
+            case ShlNode      shl   -> vall(shl.in(1)) << vall(shl.in(2));
+            case ShrNode      shr   -> vall(shr.in(1)) >>> vall(shr.in(2));
+            case SarNode      sar   -> vall(sar.in(1)) >> vall(sar.in(2));
+            case AndNode      and   -> vall(and.in(1)) & vall(and.in(2));
+            case  OrNode      or    -> vall(or .in(1)) | vall(or .in(2));
+            case XorNode      xor   -> vall(xor.in(1)) ^ vall(xor.in(2));
             case CastNode     cast  -> val(cast.in(1));
             case ToFloatNode  cast  -> (double)vall(cast.in(1));
             case LoadNode     load  -> load(load);
