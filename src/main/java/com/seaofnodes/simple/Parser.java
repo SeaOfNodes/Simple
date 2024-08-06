@@ -64,10 +64,19 @@ public class Parser {
      * List of keywords disallowed as identifiers
      */
     private static final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("bool");
             add("break");
+            add("byte");
             add("continue");
             add("else");
+            add("f32");
+            add("f64");
             add("false");
+            add("flt");
+            add("i16");
+            add("i32");
+            add("i64");
+            add("i8");
             add("if");
             add("int");
             add("new");
@@ -75,6 +84,10 @@ public class Parser {
             add("return");
             add("struct");
             add("true");
+            add("u1");
+            add("u16");
+            add("u32");
+            add("u8");
             add("while");
         }};
 
@@ -96,7 +109,20 @@ public class Parser {
         Node.reset();
         IterPeeps.reset();
         TYPES.clear();
-        TYPES.put("int",TypeInteger.BOT);
+        TYPES.put("bool",TypeInteger.U1 );
+        TYPES.put("byte",TypeInteger.U8 );
+        TYPES.put("f32" ,TypeFloat  .B32);
+        TYPES.put("f64" ,TypeFloat  .BOT);
+        TYPES.put("flt" ,TypeFloat  .BOT);
+        TYPES.put("i16" ,TypeInteger.I16);
+        TYPES.put("i32" ,TypeInteger.I32);
+        TYPES.put("i64" ,TypeInteger.BOT);
+        TYPES.put("i8"  ,TypeInteger.I8 );
+        TYPES.put("int" ,TypeInteger.BOT);
+        TYPES.put("u1"  ,TypeInteger.U1 );
+        TYPES.put("u16" ,TypeInteger.U16);
+        TYPES.put("u32" ,TypeInteger.U32);
+        TYPES.put("u8"  ,TypeInteger.U8 );
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -200,7 +226,7 @@ public class Parser {
      * Only allowed in top level scope.
      * Structs cannot be redefined.
      *
-     * @return null
+     * @return The statement following the struct
      */
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
@@ -220,7 +246,7 @@ public class Parser {
         TYPES.put(typeName, ts); // Insert the struct name in the collection of all struct names
         _aliases.put(typeName,_alias);
         _alias += ts._fields.length;
-        return null;
+        return parseStatement();
     }
 
     /**
@@ -435,6 +461,11 @@ public class Parser {
                 throw error("Undefined name '" + name + "'");
             t = _scope.lookupDeclaredType(name);
         }
+        // Auto-widen int to float
+        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
+            expr = new ToFloatNode(expr).peephole();
+        // Auto-narrow wide ints to narrow ints
+        expr = zsMask(expr,t);
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
@@ -476,7 +507,29 @@ public class Parser {
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() { return parseComparison(); }
+    private Node parseExpression() { return parseBitwise(); }
+
+    /**
+     * Parse an bitwise expression
+     *
+     * <pre>
+     *     bitwise : compareExpr (('&' | '|' | '^') compareExpr)*
+     * </pre>
+     * @return a bitwise expression {@link Node}, never {@code null}
+     */
+    private Node parseBitwise() {
+        Node lhs = parseComparison();
+        while( true ) {
+            if( false ) ;
+            else if( match("&") ) lhs = new AndNode(lhs,null);
+            else if( match("|") ) lhs = new  OrNode(lhs,null);
+            else if( match("^") ) lhs = new XorNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseComparison());
+            lhs = lhs.peephole();
+        }
+        return lhs;
+    }
 
     /**
      * Parse an expression of the form:
@@ -487,7 +540,7 @@ public class Parser {
      * @return an comparator expression {@link Node}, never {@code null}
      */
     private Node parseComparison() {
-        var lhs = parseAddition();
+        var lhs = parseShift();
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
@@ -500,10 +553,32 @@ public class Parser {
             else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseAddition());
-            lhs = lhs.peephole();
+            lhs.setDef(idx,parseShift());
+            lhs = lhs.widen().peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
+        }
+        return lhs;
+    }
+
+    /**
+     * Parse an additive expression
+     *
+     * <pre>
+     *     shiftExpr : additiveExpr (('<<' | '>>' | '>>>') additiveExpr)*
+     * </pre>
+     * @return a shift expression {@link Node}, never {@code null}
+     */
+    private Node parseShift() {
+        Node lhs = parseAddition();
+        while( true ) {
+            if( false ) ;
+            else if( match("<<") ) lhs = new ShlNode(lhs,null);
+            else if( match(">>>")) lhs = new ShrNode(lhs,null);
+            else if( match(">>") ) lhs = new SarNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseAddition());
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -524,7 +599,7 @@ public class Parser {
             else if( match("-") ) lhs = new SubNode(lhs,null);
             else break;
             lhs.setDef(2,parseMultiplication());
-            lhs = lhs.peephole();
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -545,7 +620,7 @@ public class Parser {
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
             lhs.setDef(2,parseUnary());
-            lhs = lhs.peephole();
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -559,7 +634,7 @@ public class Parser {
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if (match("-")) return new MinusNode(parseUnary()).peephole();
+        if (match("-")) return new MinusNode(parseUnary()).widen().peephole();
         if (match("!")) return new   NotNode(parseUnary()).peephole();
         return parsePostfix(parsePrimary());
     }
@@ -644,6 +719,8 @@ public class Parser {
             else {
                 Node val = parseExpression();
                 Type glb = base._fields[idx]._type;
+                // Auto-truncate when storing to narrow fields
+                val = zsMask(val,glb);
                 store(name,alias,glb,expr,val,false);
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
@@ -653,11 +730,34 @@ public class Parser {
         return parsePostfix(new LoadNode(name, alias, declaredType.glb(), mem(), expr).peephole());
     }
 
+    // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
+    // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
+    private Node zsMask(Node val, Type t ) {
+        if( val._type instanceof TypeFloat && t instanceof TypeInteger )
+            val = new ToIntegerNode(val).peephole();
+        if( !(val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0)) ) {
+            if( !(val._type instanceof TypeFloat tval && t instanceof TypeFloat t0 && !tval.isa(t0)) )
+                return val;
+            // Float rounding
+            return new RoundF32Node(val).peephole();
+        }
+        if( t0._min==0 )        // Unsigned
+            return new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max)).peephole()).peephole();
+        // Signed extension
+        int shift = Long.numberOfLeadingZeros(t0._max)-1;
+        Node shf = new ConstantNode(TypeInteger.constant(shift)).peephole();
+        if( shf._type==TypeInteger.ZERO )
+            return val;
+        return new SarNode(new ShlNode(val,shf.keep()).peephole(),shf.unkeep()).peephole();
+    }
+
+
     /**
      * Parse integer literal
      *
      * <pre>
      *     integerLiteral: [1-9][0-9]* | [0]
+     *     floatLiteral: [digits].[digits]?[e [digits]]?
      * </pre>
      */
     private ConstantNode parseLiteral() {
@@ -815,19 +915,37 @@ public class Parser {
             return String.valueOf(peek());
         }
 
-        boolean isNumber() {return isNumber(peek());}
+
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
+        // Return a constant Type, either TypeInteger or TypeFloat
         private Type parseNumber() {
-            String snum = parseNumberString();
-            if (snum.length() > 1 && snum.charAt(0) == '0')
-                throw error("Syntax error: integer values cannot start with '0'");
-            return TypeInteger.constant(Long.parseLong(snum));
+            int old = _position;
+            int len = isLongOrDouble();
+            if( len > 0 ) {
+                if( len > 1 && _input[old]=='0' )
+                    throw error("Syntax error: integer values cannot start with '0'");
+                return TypeInteger.constant(Long.parseLong(new String(_input,old,len)));
+            }
+            return TypeFloat.constant(Double.parseDouble(new String(_input,old,-len)));
         }
         private String parseNumberString() {
-            int start = _position;
-            while (isNumber(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            int old = _position;
+            int len = Math.abs(isLongOrDouble());
+            _position += len;
+            return new String(_input,old,len);
+        }
+
+        // Return +len that ends a long
+        // Return -len that ends a double
+        private int isLongOrDouble() {
+            int old = _position;
+            char c;
+            while( Character.isDigit(c=nextChar()) ) ;
+            if( !(c=='e' || c=='.') )
+                return --_position - old;
+            while( Character.isDigit(c=nextChar()) || c=='e' || c=='.' ) ;
+            return -(--_position - old);
         }
 
         // First letter of an identifier

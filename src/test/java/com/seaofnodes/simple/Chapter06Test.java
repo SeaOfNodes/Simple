@@ -27,10 +27,10 @@ return 1;
 int a = 1;
 if (arg)
     a = 2;
-return (arg < a) < 3;
+return (arg < a) < 3; // Because (arg < a) is a bool/uint1/[0-1], its always less than 3
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return ((arg<Phi(Region17,2,1))<3);", stop.toString());
+        assertEquals("return 1;", stop.toString());
     }
 
     @Test
@@ -65,7 +65,7 @@ else
     b=5;
 return b;""", TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region40,42,5);", stop.toString());
+        assertEquals("return Phi(Region35,42,5);", stop.toString());
     }
 
     @Test

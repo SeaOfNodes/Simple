@@ -38,7 +38,7 @@ public class TypeStruct extends Type {
     private static final TypeStruct S1F = make("S1");
     private static final TypeStruct S2F = make("S2");
     public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", TypeInteger.BOT), Field.make("s2",TypeMemPtr.make(S2F,false)) });
-    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeInteger.BOT), Field.make("s1",TypeMemPtr.make(S1F,false)) });
+    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeFloat  .BOT), Field.make("s1",TypeMemPtr.make(S1F,false)) });
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); }
 
     public int find(String fname) {

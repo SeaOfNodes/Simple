@@ -33,11 +33,12 @@ public class Type {
     static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
     static final byte TSIMPLE = 4; // End of the Simple Types
     static final byte TINT    = 5; // All Integers; see TypeInteger
-    static final byte TTUPLE  = 6; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMEM    = 7; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TMEMPTR = 8; // Memory pointer type
-    static final byte TSTRUCT = 9; // Structs; tuples with named fields
-    static final byte TFLD    =10; // Fields into struct
+    static final byte TFLT    = 6; // All Integers; see TypeInteger
+    static final byte TTUPLE  = 7; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMEM    = 8; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TMEMPTR = 9; // Memory pointer type
+    static final byte TSTRUCT =10; // Structs; tuples with named fields
+    static final byte TFLD    =11; // Fields into struct
 
     public final byte _type;
 
@@ -55,6 +56,7 @@ public class Type {
         ts.add(CONTROL);
         Field.gather(ts);
         TypeInteger.gather(ts);
+        TypeFloat.gather(ts);
         TypeMem.gather(ts);
         TypeMemPtr.gather(ts);
         TypeStruct.gather(ts);
@@ -66,6 +68,7 @@ public class Type {
     }
 
     // Is high or on the lattice centerline.
+    public boolean isHigh       () { return _type==TTOP || _type==TXCTRL; }
     public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
 
     // Strict constant values, things on the lattice centerline.
@@ -81,14 +84,16 @@ public class Type {
 
     // ----------------------------------------------------------
 
-    // Notes on Type interning.
-    // At the moment it is not easy to reset the interned types
-    // because we hold static references to several types and these are scattered
-    // around. This means the INTERN cache will retain all types from
-    // every run of the Parser. For this to work correctly types must be
-    // rigorous about defining when they are the same. Also types need to be
-    // immutable once defined.
-    // The rationale for interning is performance.
+    // Notes on Type interning: At the moment it is not easy to reset the
+    // interned types because we hold static references to several types and
+    // these are scattered around.  This means the INTERN cache will retain all
+    // types from every run of the Parser.  For this to work correctly types
+    // must be rigorous about defining when they are the same.  Also types need
+    // to be immutable once defined.  The rationale for interning is
+    // *correctness* with cyclic type definitions.  Simple structural recursive
+    // checks go exponential with merely sharing, but with cycles they will
+    // stack overflow and crash.  Intering means we do not need to have sharing
+    // checks with every type compare, only during interning.
 
     // Factory method which interns "this"
     public  <T extends Type> T intern() {

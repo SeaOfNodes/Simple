@@ -1,0 +1,25 @@
+package com.seaofnodes.simple.node;
+
+
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFloat;
+import com.seaofnodes.simple.type.TypeInteger;
+
+
+public class ToFloatNode extends Node {
+    public ToFloatNode(Node lhs) { super(null, lhs); }
+
+    @Override public String label() { return "ToFloat"; }
+
+    @Override protected String format() { return "(flt)%1"; }
+
+    @Override
+    public Type compute() {
+        if (in(1)._type instanceof TypeInteger i0 && i0.isConstant() )
+            return TypeFloat.constant(i0.value());
+        return TypeFloat.BOT;
+    }
+
+    @Override public Node idealize() { return null; }
+    @Override Node copy(Node lhs, Node rhs) { return new ToFloatNode(lhs); }
+}
