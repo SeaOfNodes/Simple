@@ -52,11 +52,19 @@ public class Parser {
      * List of keywords disallowed as identifiers
      */
     private static final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("bool");
             add("break");
+            add("byte");
             add("continue");
             add("else");
+            add("f32");
+            add("f64");
             add("false");
             add("flt");
+            add("i16");
+            add("i32");
+            add("i64");
+            add("i8");
             add("if");
             add("int");
             add("new");
@@ -64,6 +72,10 @@ public class Parser {
             add("return");
             add("struct");
             add("true");
+            add("u1");
+            add("u16");
+            add("u32");
+            add("u8");
             add("while");
         }};
 
@@ -84,8 +96,20 @@ public class Parser {
         Node.reset();
         IterPeeps.reset();
         TYPES.clear();
-        TYPES.put("int",TypeInteger.BOT);
-        TYPES.put("flt",TypeFloat  .BOT);
+        TYPES.put("bool",TypeInteger.U1 );
+        TYPES.put("byte",TypeInteger.U8 );
+        TYPES.put("f32" ,TypeFloat  .B32);
+        TYPES.put("f64" ,TypeFloat  .BOT);
+        TYPES.put("flt" ,TypeFloat  .BOT);
+        TYPES.put("i16" ,TypeInteger.I16);
+        TYPES.put("i32" ,TypeInteger.I32);
+        TYPES.put("i64" ,TypeInteger.BOT);
+        TYPES.put("i8"  ,TypeInteger.I8 );
+        TYPES.put("int" ,TypeInteger.BOT);
+        TYPES.put("u1"  ,TypeInteger.U1 );
+        TYPES.put("u16" ,TypeInteger.U16);
+        TYPES.put("u32" ,TypeInteger.U32);
+        TYPES.put("u8"  ,TypeInteger.U8 );
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -191,7 +215,7 @@ public class Parser {
      * Only allowed in top level scope.
      * Structs cannot be redefined.
      *
-     * @return null
+     * @return The statement following the struct
      */
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
@@ -210,7 +234,7 @@ public class Parser {
         TypeStruct ts = TypeStruct.make(typeName, fields);
         TYPES.put(typeName, ts);
         START.addMemProj(ts, _scope); // Insert memory edges
-        return null;
+        return parseStatement();
     }
 
     /**
@@ -434,6 +458,8 @@ public class Parser {
         // Auto-widen int to float
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
             expr = new ToFloatNode(expr).peephole();
+        // Auto-narrow wide ints to narrow ints
+        expr = zsMask(expr,t);
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
@@ -475,7 +501,29 @@ public class Parser {
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() { return parseComparison(); }
+    private Node parseExpression() { return parseBitwise(); }
+
+    /**
+     * Parse an bitwise expression
+     *
+     * <pre>
+     *     bitwise : compareExpr (('&' | '|' | '^') compareExpr)*
+     * </pre>
+     * @return a bitwise expression {@link Node}, never {@code null}
+     */
+    private Node parseBitwise() {
+        Node lhs = parseComparison();
+        while( true ) {
+            if( false ) ;
+            else if( match("&") ) lhs = new AndNode(lhs,null);
+            else if( match("|") ) lhs = new  OrNode(lhs,null);
+            else if( match("^") ) lhs = new XorNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseComparison());
+            lhs = lhs.peephole();
+        }
+        return lhs;
+    }
 
     /**
      * Parse an expression of the form:
@@ -486,7 +534,7 @@ public class Parser {
      * @return an comparator expression {@link Node}, never {@code null}
      */
     private Node parseComparison() {
-        var lhs = parseAddition();
+        var lhs = parseShift();
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
@@ -499,10 +547,32 @@ public class Parser {
             else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseAddition());
+            lhs.setDef(idx,parseShift());
             lhs = lhs.widen().peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
+        }
+        return lhs;
+    }
+
+    /**
+     * Parse an additive expression
+     *
+     * <pre>
+     *     shiftExpr : additiveExpr (('<<' | '>>' | '>>>') additiveExpr)*
+     * </pre>
+     * @return a shift expression {@link Node}, never {@code null}
+     */
+    private Node parseShift() {
+        Node lhs = parseAddition();
+        while( true ) {
+            if( false ) ;
+            else if( match("<<") ) lhs = new ShlNode(lhs,null);
+            else if( match(">>>")) lhs = new ShrNode(lhs,null);
+            else if( match(">>") ) lhs = new SarNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseAddition());
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -640,6 +710,8 @@ public class Parser {
             else {
                 Node val = parseExpression();
                 Type glb = base._fields[idx]._type;
+                // Auto-truncate when storing to narrow fields
+                val = zsMask(val,glb);
                 memAlias(alias, new StoreNode(name, alias,glb, ctrl(), memAlias(alias), expr, val, false).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
@@ -648,6 +720,26 @@ public class Parser {
         Type declaredType = base._fields[idx]._type;
         return parsePostfix(new LoadNode(name, alias, declaredType.glb(), memAlias(alias), expr).peephole());
     }
+
+    // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
+    // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
+    private Node zsMask(Node val, Type t ) {
+        if( !(val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0)) ) {
+            if( !(val._type instanceof TypeFloat tval && t instanceof TypeFloat t0 && !tval.isa(t0)) )
+                return val;
+            // Float rounding
+            return new RoundF32Node(val).peephole();
+        }
+        if( t0._min==0 )        // Unsigned
+            return new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max)).peephole()).peephole();
+        // Signed extension
+        int shift = Long.numberOfLeadingZeros(t0._max)-1;
+        Node shf = new ConstantNode(TypeInteger.constant(shift)).peephole();
+        if( shf._type==TypeInteger.ZERO )
+            return val;
+        return new SarNode(new ShlNode(val,shf.keep()).peephole(),shf.unkeep()).peephole();
+    }
+
 
     /**
      * Parse integer literal
