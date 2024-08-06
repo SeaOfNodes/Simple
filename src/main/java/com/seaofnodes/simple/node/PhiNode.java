@@ -11,7 +11,7 @@ public class PhiNode extends Node {
     final String _label;
 
     // The Phi type we compute must stay within the domain of the Phi.
-    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
+    // Example Int stays Int, Ptr stays Ptr, Mem stays Mem.
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
@@ -81,9 +81,16 @@ public class PhiNode extends Node {
                 lhss[i] = in(i).in(1);
                 rhss[i] = in(i).in(2);
             }
-            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
-            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
-            return op.copy(phi_lhs,phi_rhs);
+            Node phi_lhs = new PhiNode(_label, in(1).in(1)._type.glb(),lhss).peephole();
+            Node phi_rhs = new PhiNode(_label, in(1).in(2)._type.glb(),rhss).peephole();
+            Node phi_op = op.copy(phi_lhs,phi_rhs);
+            phi_op.setType(phi_op.compute());
+            // If losing precision, don't do it
+            if( !phi_op._type.isa(_type) ) {
+                phi_op.kill();
+                return null;
+            }
+            return phi_op;
         }
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
@@ -114,9 +121,13 @@ public class PhiNode extends Node {
     }
 
     private boolean same_op() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1).getClass() != in(i).getClass() )
-                return false;
+        for( int i=2; i<nIns(); i++ ) {
+            if( in(1).getClass() != in(i).getClass() )   return false;
+            if( in(1).in(1)._type.glb() != in(i).in(1)._type.glb() ) return false;
+            if( in(1).in(2)._type.glb() != in(i).in(2)._type.glb() ) return false;
+        }
+        // Load merging needs an anti-dep check.
+        if( in(1) instanceof MemOpNode ) return false;
         return true;
     }
 

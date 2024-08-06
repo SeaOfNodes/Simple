@@ -68,7 +68,7 @@ if( (arg/13)==0 ) {
 int r = g+h;
 return p-r;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 0;", stop.toString());
     }
 
@@ -88,7 +88,7 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        StopNode stop = parser.parse().iterate();
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return 2;", stop.toString());
     }
 
@@ -142,7 +142,7 @@ while (arg) {
 }
 return bar.a;
 """);
-        StopNode stop = parser.parse().iterate();
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return Phi(Loop12,0,(Phi_a+2));", stop.toString());
     }
 
@@ -194,7 +194,7 @@ if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
 """);
-        StopNode stop = parser.parse().iterate();
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return Phi(Region31,(*void)Phi(Region19,null,new Bar),null);", stop.toString());
     }
 
@@ -210,7 +210,7 @@ if( !bar ) rez=4;
 else bar.a = 1;
 return rez;
 """);
-        StopNode stop = parser.parse().iterate();
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return Phi(Region37,4,3);", stop.toString());
     }
 

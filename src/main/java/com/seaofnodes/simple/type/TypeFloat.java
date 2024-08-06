@@ -7,44 +7,50 @@ import java.util.ArrayList;
  */
 public class TypeFloat extends Type {
 
-    public final static TypeFloat TOP = make(false, 0);
-    public final static TypeFloat BOT = make(false, 1);
-    public final static TypeFloat ZERO= make(true , 0);
+    public final static TypeFloat TOP = make((byte)-64, 0);
+    public final static TypeFloat T32 = make((byte)-32, 0);
+    public final static TypeFloat ZERO= make((byte)  0, 0);
+    public final static TypeFloat B32 = make((byte) 32, 0);
+    public final static TypeFloat BOT = make((byte) 64, 0);
 
-    public final boolean _is_con;
+    /** +/-64 for double; +/-32 for float, or 0 for constants */
+    public final byte _sz;
 
     /**
-     * The constant value or
-     * if not constant then 1=bottom, 0=top.
+     * The constant value or 0
      */
     public final double _con;
 
-    private TypeFloat(boolean is_con, double con) {
+    private TypeFloat(byte sz, double con) {
         super(TFLT);
-        _is_con = is_con;
+        _sz  = sz ;
         _con = con;
     }
-    public static TypeFloat make(boolean is_con, double con) {
-        return new TypeFloat(is_con,con).intern();
+    private static TypeFloat make(byte sz, double con) {
+        return new TypeFloat(sz,con).intern();
     }
 
-    public static TypeFloat constant(double con) { return make(true, con); }
+    public static TypeFloat constant(double con) { return make((byte)0, con); }
 
-    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); }
+    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); ts.add(B32); ts.add(constant(3.141592653589793)); }
 
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
     @Override
     public StringBuilder print(StringBuilder sb) {
         if( this==TOP ) return sb.append("FltTop");
+        if( this==T32 ) return sb.append("F32Top");
+        if( this==B32 ) return sb.append("F32Bot");
         if( this==BOT ) return sb.append("FltBot");
         return sb.append(_con);
     }
 
     @Override public String str() {
         if( this==TOP ) return "~flt";
+        if( this==T32 ) return "~f32";
+        if( this==B32 ) return  "f32";
         if( this==BOT ) return  "flt";
-        return ""+_con;
+        return ""+_con+(isF32() ? "f" : "");
     }
 
     /**
@@ -53,15 +59,16 @@ public class TypeFloat extends Type {
     @Override
     public StringBuilder typeName(StringBuilder sb) {
         if( this==TOP ) return sb.append("FltTop");
+        if( this==T32 ) return sb.append("F32Top");
+        if( this==B32 ) return sb.append("F32Bot");
         if( this==BOT ) return sb.append("FltBot");
-        return sb.append("Int");
+        return sb.append(isF32() ? "F32" : "Flt");
     }
 
-    @Override
-    public boolean isHighOrConst() { return _is_con || _con==0; }
-
-    @Override
-    public boolean isConstant() { return _is_con; }
+    boolean isF32() { return ((float)_con)==_con; }
+    @Override public boolean isHigh()        { return _sz< 0; }
+    @Override public boolean isHighOrConst() { return _sz<=0; }
+    @Override public boolean isConstant()    { return _sz==0; }
 
     public double value() { return _con; }
 
@@ -69,21 +76,27 @@ public class TypeFloat extends Type {
     public Type xmeet(Type other) {
         // Invariant from caller: 'this' != 'other' and same class (TypeFloat)
         TypeFloat i = (TypeFloat)other; // Contract
-        // BOT wins
-        if ( this==BOT ) return this;
-        if ( i   ==BOT ) return i   ;
-        // TOP loses
-        if ( i   ==TOP ) return this;
-        if ( this==TOP ) return i   ;
+        // Larger size in i1, smaller in i0
+        TypeFloat i0 = _sz < i._sz ? this : i;
+        TypeFloat i1 = _sz < i._sz ? i : this;
+
+        if( i1._sz== 64 ) return BOT;
+        if( i0._sz==-64 ) return i1;
+        if( i1._sz== 32 )
+            return i0._sz==0 && !i0.isF32() ? BOT : B32;
+        if( i1._sz!=  0 ) return i1;
+        // i1 is a constant
+        if( i0._sz==-32 )
+            return i1.isF32() ? i1 : BOT;
         // Since both are constants, and are never equals (contract) unequals
         // constants fall to bottom
-        return BOT;
+        return i0.isF32() && i1.isF32() ? B32 : BOT;
     }
 
     @Override
     public Type dual() {
-        if( isConstant() ) return this; // Constants are a self-dual
-        return _con==0 ? BOT : TOP;
+        if( _sz==0 ) return this; // Constants are a self-dual
+        return make((byte)-_sz,0);
     }
 
     @Override
@@ -92,10 +105,10 @@ public class TypeFloat extends Type {
     @Override public TypeFloat makeInit() { return ZERO; }
 
     @Override
-    int hash() { return (int)(Double.hashCode(_con) ^ (_is_con ? 0 : 0x4000)); }
+    int hash() { return (int)(Double.hashCode(_con) ^ _sz); }
     @Override
     public boolean eq( Type t ) {
         TypeFloat i = (TypeFloat)t; // Contract
-        return _con==i._con && _is_con==i._is_con;
+        return _con==i._con && _sz==i._sz;
     }
 }
