@@ -20,18 +20,17 @@ public class SubNode extends Node {
 
     @Override
     public Type compute() {
-        Type t1 = in(1)._type, t2 = in(2)._type;
-        if( t1==Type.TOP || t1==TypeInteger.TOP ||
-            t2==Type.TOP || t2==TypeInteger.TOP )
-            return TypeInteger.TOP;
         // Sub of same is 0
         if( in(1)==in(2) )
             return TypeInteger.ZERO;
 
-        if (t1 instanceof TypeInteger i0 &&
-            t2 instanceof TypeInteger i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(i0.value()-i1.value());
+        Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1.isHigh() || t2.isHigh() )
+            return TypeInteger.TOP;
+        if( t1 instanceof TypeInteger i1 &&
+            t2 instanceof TypeInteger i2 ) {
+            if (i1.isConstant() && i2.isConstant())
+                return TypeInteger.constant(i1.value()-i2.value());
         }
 
         return TypeInteger.BOT;
