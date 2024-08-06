@@ -12,6 +12,16 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 public class Chapter12Test {
+    @Test
+    public void testJig() {
+        Parser parser = new Parser(
+"""
+return 3.14;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 3.14;", stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+    }
 
     @Test
     public void testLinkedList0() {
@@ -59,22 +69,22 @@ return next.i;
     public void testCoRecur() {
         Parser parser = new Parser(
 """
-struct Left { int i; Right? f; }
-struct Right { int f; Left? i; }
-Left left = new Left;
-left.i = 17;
-Right right = new Right;
-right.f = 314;
-left.f = right;
-right.i = left;
-return right.i.f.i.i;
+struct int0 { int i; flt0? f; }
+struct flt0 { flt f; int0? i; }
+int0 i0 = new int0;
+i0.i = 17;
+flt0 f0 = new flt0;
+f0.f = 3.14;
+i0.f = f0;
+f0.i = i0;
+return f0.i.f.i.i;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 17;", stop.toString());
     }
 
     @Test
-    public void testNullReright() {
+    public void testNullRef0() {
         Parser parser = new Parser(
 """
 struct N { N next; int i; }
@@ -111,6 +121,18 @@ return n.next;
         catch( Exception e ) { assertEquals("Cannot store null into field *N next",e.getMessage()); }
     }
 
+    @Test
+    public void testNullRef3() {
+        Parser parser = new Parser(
+"""
+struct N { N next; int i; }
+N n = new N;
+n.i = 3.14;
+return n.i;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
+    }
 
     @Test
     public void testNullRef4() {
@@ -137,7 +159,7 @@ struct S{};
     }
 
     @Test
-    public void testForwardReright() {
+    public void testForwardRef0() {
         Parser parser = new Parser(
 """
 struct S1 { S2 s; }

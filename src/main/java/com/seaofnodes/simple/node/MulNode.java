@@ -15,13 +15,12 @@ public class MulNode extends Node {
     @Override
     public Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
-        if( t1==Type.TOP || t1==TypeInteger.TOP ||
-            t2==Type.TOP || t2==TypeInteger.TOP )
+        if( t1.isHigh() || t2.isHigh() )
             return TypeInteger.TOP;
-        if (t1 instanceof TypeInteger i0 &&
-            t2 instanceof TypeInteger i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeInteger.constant(i0.value()*i1.value());
+        if( t1 instanceof TypeInteger i1 &&
+            t2 instanceof TypeInteger i2 ) {
+            if (i1.isConstant() && i2.isConstant())
+                return TypeInteger.constant(i1.value()*i2.value());
         }
         return TypeInteger.BOT;
     }
@@ -51,6 +50,7 @@ public class MulNode extends Node {
         return null;
     }
     @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs); }
+    @Override Node copyF() { return new MulFNode(null,null); }
     @Override public String err() {
         if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(1)._type;
         if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(2)._type;
