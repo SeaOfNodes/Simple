@@ -93,10 +93,8 @@ public abstract class Node implements OutNode {
     @Override
     public final String toString() {  return print(); }
 
-    // This is a *deep* print.  This version will fail on cycles, which we will
-    // correct later when we can parse programs with loops.  We print with a
-    // tik-tok style; the common _print0 calls the per-Node _print1, which
-    // calls back to _print0;
+    // This is a *deep* print.  We print with a tik-tok style; the common
+    // _print0 calls the per-Node _print1, which calls back to _print0;
     public final String print() {
         return _print0(new StringBuilder(), new BitSet()).toString();
     }
@@ -633,7 +631,12 @@ public abstract class Node implements OutNode {
         E x = pred.apply(this);
         if( x != null ) return x;
         for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
-        for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
+        // Unroll iterator to survive junk CME
+        for( int i=0; i<_outputs.size(); i++ ) {
+            Node use = _outputs.get(i);
+            if( use != null && (x = use._walk(pred)) != null )
+                return x;
+        }
         return null;
     }
 
