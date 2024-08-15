@@ -7,8 +7,8 @@ int a=1;
 int b=2;
 int c=0;
 {
-  int b=3;
-  c=a+b;
+    int b=3;
+    c=a+b;
 }
 return c;
 ```
@@ -39,28 +39,47 @@ In this chapter we introduce:
 
 ## Symbol Tables
 
-To support variable declarations and lexical scopes, we introduce symbol tables in the parser.
-A symbol table maps names to nodes.
-We maintain a stack of symbol tables.
-When a new scope is created, we push a new symbol table to the stack, when scope exits, the topmost symbol table is popped
-from the stack.
+To support variable declarations and lexical scopes, we introduce symbol tables
+in the parser.  A symbol table maps names to nodes via a `HashMap<String,Integer>` 
+where the `String` is the variable name, and the `Integer` is an index into a
+`ArrayList<Node>`.
 
-Declaring a name adds it to the current symbol table.
-If a name is assigned to, then its mapping in the most recent symbol table is updated.
-If a name is accessed, its mapping is looked up in the symbol tables. The lookup goes up the stack of symbol tables.
+We maintain a *stack* of symbol tables, `Stack<HashMap<String,Integer>>`.
+When a new lexical scope is created we push a new symbol table to the stack;
+when scope exits the topmost symbol table is popped from the stack.
+
+Declaring a name adds it to the current symbol table.  If a name is assigned
+to, then its mapping in the most recent symbol table is updated.  If a name is
+accessed, its mapping is looked up in the symbol tables.  The lookup goes up
+the stack of symbol tables, in lexical order.
 
 ## ScopeNode
 
-We wrap the stack of symbol tables in a `ScopeNode`. When a name binding is added to a symbol table,
-we also make the newly added node an input in the `ScopeNode`. This means that the `ScopeNode` is a user of
-all nodes that define new names.
+We wrap the stack of symbol tables in a `ScopeNode`, and the symbol table's
+`Integer` is just an index in the `ScopeNode`.  When a name binding is added to
+a symbol table, we also make the newly added node an input in the `ScopeNode`.
+This means that the `ScopeNode` is a user of all nodes that define new names -
+crucial, because the normal peepholes will remove dead Nodes and every new Node
+is effectively dead at the instance of creation.
 
-From an implementation point of view, the symbol table maps names to offsets in the ScopeNode's inputs.
+When a scope is exited, we not only pop the symbol table representing the
+scope, but also remove the relevant input nodes.  If the variable's expression
+only exists for the Scope mapping (e.g., "just in case" the Parser parses code
+that uses the variable) this is when the expression dies:
+```
+  int a=1;
+  {
+      int b=a*a*a;
+  }  // When this scope closes & ends, b (and the cube of a) dies
+  return a;
+```
 
-When a scope is exited, we not only pop the symbol table representing the scope, but also remove the relevant input nodes.
 
-In the visualization, we show the ScopeNode in a separate box; the stack of symbol tables is shown inside
-the box. We show the edge from each variable in the symbol table to the defining Node in the graph.
+In the visualization, we show the ScopeNode in a separate box running
+underneath the main IR graph; the stack of symbol tables is shown inside the
+box.  We show the edge from each variable in the symbol table to the defining
+Node in the graph.
+
 
 ## Demonstration
 
@@ -71,15 +90,15 @@ We show the output from following code.
 02      int b=2;
 03      int c=0;
 04      {
-05        int b=3;
-07        c=a+b;
+05          int b=3;
+07          c=a+b;
 08      }
 09      return c;
 ```
 
-* When we start parsing above, we start with a symbol table (level 0).
+* When we start parsing above, we start with a symbol table (at level 0).
 The variables `a`, `b`, and `c` are registered in this table.
-* On line 4, we start a nested scope. At this point, a new symbol table is pushed (level 1).
+* On line 4, we start a nested scope. At this point, a new symbol table is pushed (at level 1).
 * On line 5, a variable `b` is declared. `b` is registered in the symbol table at level 1. This then
 hides the variable with the same name on line 2.
 * On line 7, we update the variable `c`. Variable lookup will find it in the symbol table at level 0.
@@ -115,4 +134,5 @@ The graph for above, is displayed below.
 
 ![Graph2](./docs/03-graph3.svg)
 
-The return node has the constant `8` as its data value!
+The return node has the constant `8` as its data value!  When the parsing ends
+and the scope at level 0 is removed, only the `return 8` remains.
