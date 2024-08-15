@@ -7,6 +7,7 @@ import java.util.*;
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
  * stack of scopes.
+ * @see <a href="../../../../../../../../chapter03/README.md">
  */
 public class ScopeNode extends Node {
 
