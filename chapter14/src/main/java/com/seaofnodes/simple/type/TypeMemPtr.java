@@ -53,6 +53,8 @@ public class TypeMemPtr extends Type {
     }
     @Override public TypeMemPtr makeInit() { return NULLPTR; }
 
+    @Override public boolean isHigh() { return this==TOP; }
+
     @Override
     int hash() { return (_obj==null ? 0xDEADBEEF : _obj.hashCode()) ^ (_nil ? 1024 : 0); }
 

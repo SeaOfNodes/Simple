@@ -57,11 +57,9 @@ public class TypeFloat extends Type {
         return sb.append("Int");
     }
 
-    @Override
-    public boolean isHighOrConst() { return _is_con || _con==0; }
-
-    @Override
-    public boolean isConstant() { return _is_con; }
+    @Override public boolean isHigh() { return this==TOP; }
+    @Override public boolean isHighOrConst() { return _is_con || _con==0; }
+    @Override public boolean isConstant() { return _is_con; }
 
     public double value() { return _con; }
 
