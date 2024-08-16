@@ -57,12 +57,12 @@ A ScopeNode encapsulates the stack of symbol tables that are used to implement l
 
 * The nodes referenced by the names in a lexical scope become inputs to the ScopeNode; this makes ScopeNode a user of these values, thus keeping them alive while a particular lexical scope is alive. 
   When the lexical scope ends, those inputs are removed. This is crucial because peepholes will remove dead Nodes and every new Node is effectively dead at the instance of creation without such a reference.
-* In [Chapter 5](../chapter05/README.md) when we implement branches, the ScopeNode gets duplicated at a branch point and then get merged when the branch joins. This allows 
-  the names to evolve in each branch independently, and at the merge point, names that have diverged, require a Phi node. 
+* In [Chapter 5](../chapter05/README.md) when we implement branches, the ScopeNode gets duplicated at a branch point and then gets merged when the branch joins. This allows 
+  the names to evolve in each branch independently. At the merge point names that have diverged require a Phi node. 
 * In [Chapter 7](../chapter07/README.md) additional logic is deployed for handling Phis from back edges.
 * The ScopeNode is used to track some other values such as the Control token starting from [Chapter 4](../chapter04/README.md), and Aliases starting from [Chapter 10](../chapter10/README.md). Special name bindings are used 
   for these, and each name is tracked across branches and then merged at merge points.
-* In Chapter 10 the ScopeNode is enhanced to also maintain the declared type for each name.
+* In [Chapter 10](../chapter10/README.md) the ScopeNode is enhanced to also maintain the declared type for each name.
 
 From an implementation standpoint, each symbol table is represented as a `HashMap<String,Integer>`, where the `String` is the variable name, and the `Integer` is an index into the inputs of the
 ScopeNode. To access the Node associated with a name, first the symbol table is consulted, and then the ScopeNode's inputs to find the required Node. 
