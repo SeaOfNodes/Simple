@@ -26,7 +26,7 @@ public class MulNode extends Node {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()*i1.value());
         }
-        return in(1)._type.meet(in(2)._type);
+        return TypeInteger.BOT;
     }
 
     @Override

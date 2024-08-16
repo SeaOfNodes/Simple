@@ -9,10 +9,12 @@ public class TypeInteger extends Type {
 
     public final static TypeInteger TOP = make(false, 0);
     public final static TypeInteger BOT = make(false, 1);
-    public final static TypeInteger BOOL= make(0,1);
     public final static TypeInteger ZERO= make(0,0);
+    public final static TypeInteger U1  = make(0,1);
+    public final static TypeInteger BOOL= U1;
     public final static TypeInteger FALSE=ZERO;
     public final static TypeInteger TRUE= make(1,1);
+    public final static TypeInteger U8  = make(0,255);
 
     /**
      * Describes an integer *range* - everything from min to max; both min and
@@ -32,7 +34,7 @@ public class TypeInteger extends Type {
 
     public static TypeInteger constant(long con) { return make(true, con); }
 
-    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); }
+    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); ts.add(U1); ts.add(U8); }
 
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
