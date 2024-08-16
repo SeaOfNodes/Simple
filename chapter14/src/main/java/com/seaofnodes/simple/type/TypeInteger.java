@@ -9,23 +9,25 @@ public class TypeInteger extends Type {
 
     public final static TypeInteger TOP = make(false, 0);
     public final static TypeInteger BOT = make(false, 1);
-    public final static TypeInteger ZERO= make(true , 0);
-
-    public final boolean _is_con;
+    public final static TypeInteger BOOL= make(0,1);
+    public final static TypeInteger ZERO= make(0,0);
+    public final static TypeInteger FALSE=ZERO;
+    public final static TypeInteger TRUE= make(1,1);
 
     /**
-     * The constant value or
-     * if not constant then 1=bottom, 0=top.
+     * Describes an integer *range* - everything from min to max; both min and
+     * max are inclusive.  If min==max, this is a constant.
+     *
+     * If min <= max, this is a  below center (towards bottom).
+     * If min >  max, this is an above center (towards top).
      */
-    public final long _con;
+    public final long _min, _max;
 
-    private TypeInteger(boolean is_con, long con) {
-        super(TINT);
-        _is_con = is_con;
-        _con = con;
-    }
+    private TypeInteger(long min, long max) { super(TINT); _min = min; _max = max; }
+    public static TypeInteger make(long lo, long hi) {  return new TypeInteger(lo,hi).intern();  }
     public static TypeInteger make(boolean is_con, long con) {
-        return new TypeInteger(is_con,con).intern();
+        return make(is_con ? con : (con==0 ? Integer.MAX_VALUE : Integer.MIN_VALUE),
+                    is_con ? con : (con==0 ? Integer.MIN_VALUE : Integer.MAX_VALUE));
     }
 
     public static TypeInteger constant(long con) { return make(true, con); }
@@ -38,13 +40,15 @@ public class TypeInteger extends Type {
     public StringBuilder print(StringBuilder sb) {
         if( this==TOP ) return sb.append("IntTop");
         if( this==BOT ) return sb.append("IntBot");
-        return sb.append(_con);
+        if( isConstant() ) return sb.append(_min);
+        return sb.append("[").append(_min).append("-").append(_max).append("]");
     }
 
     @Override public String str() {
         if( this==TOP ) return "~int";
         if( this==BOT ) return  "int";
-        return ""+_con;
+        if( isConstant() ) return ""+_min;
+        return "["+_min+"-"+_max+"]";
     }
 
     /**
@@ -57,45 +61,26 @@ public class TypeInteger extends Type {
         return sb.append("Int");
     }
 
-    @Override
-    public boolean isHighOrConst() { return _is_con || _con==0; }
+    @Override public boolean isHigh       () { return _min >  _max; }
+    @Override public boolean isHighOrConst() { return _min >= _max; }
+    @Override public boolean isConstant   () { return _min == _max; }
 
-    @Override
-    public boolean isConstant() { return _is_con; }
-
-    public long value() { return _con; }
+    public long value() { assert isConstant(); return _min; }
 
     @Override
     public Type xmeet(Type other) {
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
-        // BOT wins
-        if ( this==BOT ) return this;
-        if ( i   ==BOT ) return i   ;
-        // TOP loses
-        if ( i   ==TOP ) return this;
-        if ( this==TOP ) return i   ;
-        // Since both are constants, and are never equals (contract) unequals
-        // constants fall to bottom
-        return BOT;
+        return make(Math.min(_min,i._min), Math.max(_max,i._max));
     }
 
-    @Override
-    public Type dual() {
-        if( isConstant() ) return this; // Constants are a self-dual
-        return _con==0 ? BOT : TOP;
-    }
-
-    @Override
-    public Type glb() { return BOT; }
-
+    @Override public TypeInteger dual() { return make(_max,_min); }
+    @Override public Type glb() { return BOT; }
     @Override public TypeInteger makeInit() { return ZERO; }
-
-    @Override
-    int hash() { return (int)(_con ^ (_is_con ? 0 : 0x4000)); }
+    @Override int hash() { return (int)((_min ^ (_min>>32)) *(_max ^ (_max>>32))); }
     @Override
     public boolean eq( Type t ) {
         TypeInteger i = (TypeInteger)t; // Contract
-        return _con==i._con && _is_con==i._is_con;
+        return _min==i._min && _max==i._max;
     }
 }

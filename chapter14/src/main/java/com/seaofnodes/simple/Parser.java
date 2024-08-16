@@ -65,6 +65,7 @@ public class Parser {
             add("struct");
             add("true");
             add("while");
+            add("u8");
         }};
 
 
@@ -85,6 +86,7 @@ public class Parser {
         IterPeeps.reset();
         TYPES.clear();
         TYPES.put("int",TypeInteger.BOT);
+        //TYPES.put("u8" ,TypeInteger.U8 );
         TYPES.put("flt",TypeFloat  .BOT);
         SCHEDULED = false;
         _lexer = new Lexer(source);
