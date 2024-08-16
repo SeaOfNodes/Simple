@@ -292,7 +292,7 @@ else {
 }
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("Stop[ return 9; return 0; return 0; return 0; return 0; ]", stop.toString());
+        assertEquals("Stop[ return 9; return 0; return 0; return 0; ]", stop.toString());
     }
 
 
