@@ -40,11 +40,9 @@ In this chapter we introduce:
 ## Symbol Tables
 
 To support variable declarations and lexical scopes, we introduce symbol tables
-in the parser.  A symbol table maps names to nodes via a `HashMap<String,Integer>` 
-where the `String` is the variable name, and the `Integer` is an index into a
-`ArrayList<Node>`.
+in the parser. A symbol table maps names to nodes.
 
-We maintain a *stack* of symbol tables, `Stack<HashMap<String,Integer>>`.
+We maintain a *stack* of symbol tables.
 When a new lexical scope is created we push a new symbol table to the stack;
 when scope exits the topmost symbol table is popped from the stack.
 
@@ -55,15 +53,23 @@ the stack of symbol tables, in lexical order.
 
 ## ScopeNode
 
-We wrap the stack of symbol tables in a `ScopeNode`, and the symbol table's
-`Integer` is just an index in the `ScopeNode`.  When a name binding is added to
-a symbol table, we also make the newly added node an input in the `ScopeNode`.
-This means that the `ScopeNode` is a user of all nodes that define new names -
-crucial, because the normal peepholes will remove dead Nodes and every new Node
-is effectively dead at the instance of creation.
+A ScopeNode encapsulates the stack of symbol tables that are used to implement lexical scopes.
 
-When a scope is exited, we not only pop the symbol table representing the
-scope, but also remove the relevant input nodes.  If the variable's expression
+* The nodes referenced by the names in a lexical scope become inputs to the ScopeNode; this makes ScopeNode a user of these values, thus keeping them alive while a particular lexical scope is alive. 
+  When the lexical scope ends, those inputs are removed. This is crucial because peepholes will remove dead Nodes and every new Node is effectively dead at the instance of creation without such a reference.
+* In [Chapter 5](../chapter05/README.md) when we implement branches, the ScopeNode gets duplicated at a branch point and then get merged when the branch joins. This allows 
+  the names to evolve in each branch independently, and at the merge point, names that have diverged, require a Phi node. 
+* In [Chapter 7](../chapter07/README.md) additional logic is deployed for handling Phis from back edges.
+* The ScopeNode is used to track some other values such as the Control token starting from [Chapter 4](../chapter04/README.md), and Aliases starting from [Chapter 10](../chapter10/README.md). Special name bindings are used 
+  for these, and each name is tracked across branches and then merged at merge points.
+* In Chapter 10 the ScopeNode is enhanced to also maintain the declared type for each name.
+
+From an implementation standpoint, each symbol table is represented as a `HashMap<String,Integer>`, where the `String` is the variable name, and the `Integer` is an index into the inputs of the
+ScopeNode. To access the Node associated with a name, first the symbol table is consulted, and then the ScopeNode's inputs to find the required Node. 
+The stack of symbol tables is represented as `Stack<HashMap<String,Integer>>`.
+
+When a lexical scope is exited, we not only pop the symbol table representing the
+scope from the stack, but also remove the relevant input nodes.  If the variable's expression
 only exists for the Scope mapping (e.g., "just in case" the Parser parses code
 that uses the variable) this is when the expression dies:
 ```
@@ -80,6 +86,10 @@ underneath the main IR graph; the stack of symbol tables is shown inside the
 box.  We show the edge from each variable in the symbol table to the defining
 Node in the graph.
 
+The ScopeNode is neither a Data Node nor a Control Node; it really is a utility for maintaining symbol tables, name lookups, plays a crucial role in deciding where Phi nodes are required.
+Representing it as a Node allows us to leverage the Sea of Nodes def-use architecture to maintain liveness of values in scope.
+
+A ScopeNode has no outputs.
 
 ## Demonstration
 
