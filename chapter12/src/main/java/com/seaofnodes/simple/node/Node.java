@@ -127,8 +127,8 @@ public abstract class Node implements OutNode {
      * @param i Offset of the input node
      * @return Input node or null
      */
-    public Node in(int i) { return _inputs.get(i); }
-    public Node out(int i) { return _outputs.get(i); }
+    public Node in(int i) { return access(_inputs.get(i)); }
+    public Node out(int i) { return access(_outputs.get(i)); }
     @Override public ArrayList<Node> outs() { return _outputs; }
 
     public int nIns() { return _inputs.size(); }
@@ -281,6 +281,14 @@ public abstract class Node implements OutNode {
     // ------------------------------------------------------------------------
     // Graph-based optimizations
 
+    private static final HashSet<Node> accessed = new HashSet<>();
+    private static boolean trackAccessed = false;
+
+    public static <T extends Node> T access(T node) {
+        if (trackAccessed && node != null) accessed.add(node);
+        return node;
+    }
+
     /**
      * We allow disabling peephole opt so that we can observe the
      * full graph, vs the optimized graph.
@@ -296,8 +304,27 @@ public abstract class Node implements OutNode {
             _type = compute();
             return this;        // Peephole optimizations turned off
         }
-        Node n = peepholeOpt();
-        return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
+        if (trackAccessed) {
+            accessed.clear();
+        }
+        trackAccessed = true;
+        Node n;
+        try {
+            n = peepholeOpt();
+            if (n == null) {
+                assert trackAccessed;
+                trackAccessed = false;
+                accessed.removeAll(_inputs);
+                accessed.removeAll(_outputs);
+                accessed.remove(this);
+                for (var a : accessed) a.addDep(this);
+                return this;
+            }
+        } finally {
+            trackAccessed = false;
+            accessed.clear();
+        }
+        return deadCodeElim(n.peephole()); // Cannot return null for no-progress
     }
 
     /**
@@ -489,7 +516,7 @@ public abstract class Node implements OutNode {
     // which means the same Java class, plus same internal parts.
     @Override public final boolean equals( Object o ) {
         if( o==this ) return true;
-        if( o.getClass() != getClass() ) return false;
+        if( o==null || o.getClass() != getClass() ) return false;
         Node n = (Node)o;
         int len = _inputs.size();
         if( len != n._inputs.size() ) return false;
