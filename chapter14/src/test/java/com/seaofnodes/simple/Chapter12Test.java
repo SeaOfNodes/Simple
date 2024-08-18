@@ -169,6 +169,6 @@ n.i = 3.14;
 return n.i;
 """);
         try { parser.parse(true).iterate(true); fail(); }
-        catch( Exception e ) { assertEquals("Cannot store 3.14 into field IntBot i",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
     }
 }

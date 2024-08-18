@@ -54,7 +54,7 @@ public class TypeFloat extends Type {
     public StringBuilder typeName(StringBuilder sb) {
         if( this==TOP ) return sb.append("FltTop");
         if( this==BOT ) return sb.append("FltBot");
-        return sb.append("Int");
+        return sb.append("Flt");
     }
 
     @Override public boolean isHigh() { return this==TOP; }

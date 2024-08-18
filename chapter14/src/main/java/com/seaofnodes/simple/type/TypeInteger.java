@@ -15,6 +15,8 @@ public class TypeInteger extends Type {
     public final static TypeInteger FALSE=ZERO;
     public final static TypeInteger TRUE= make(1,1);
     public final static TypeInteger U8  = make(0,255);
+    public final static TypeInteger U16 = make(0,65535);
+    public final static TypeInteger U32 = make(0,(1L<<32)-1);
 
     /**
      * Describes an integer *range* - everything from min to max; both min and
@@ -39,16 +41,15 @@ public class TypeInteger extends Type {
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
     @Override
-    public StringBuilder print(StringBuilder sb) {
-        if( this==TOP ) return sb.append("IntTop");
-        if( this==BOT ) return sb.append("IntBot");
-        if( isConstant() ) return sb.append(_min);
-        return sb.append("[").append(_min).append("-").append(_max).append("]");
-    }
+    public StringBuilder print(StringBuilder sb) { return sb.append(str()); }
 
     @Override public String str() {
         if( this==TOP ) return "~int";
         if( this==BOT ) return  "int";
+        if( this==BOOL) return ("bool");
+        if( this==U8  ) return ("u8");
+        if( this==U16 ) return ("u16");
+        if( this==U32 ) return ("u32");
         if( isConstant() ) return ""+_min;
         return "["+_min+"-"+_max+"]";
     }
