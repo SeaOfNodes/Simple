@@ -17,6 +17,7 @@ public class TypeInteger extends Type {
     public final static TypeInteger U8  = make(0,255);
     public final static TypeInteger U16 = make(0,65535);
     public final static TypeInteger U32 = make(0,(1L<<32)-1);
+    public final static TypeInteger I8  = make(-128,127);
 
     /**
      * Describes an integer *range* - everything from min to max; both min and

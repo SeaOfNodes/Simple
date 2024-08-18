@@ -89,4 +89,30 @@ return f.b;
         assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
+
+    @Test
+    public void testSigned() {
+        Parser parser = new Parser(
+"""
+i8 b = 255;                     // Chopped
+return b;                       // Sign extend
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return -1;", stop.toString());
+        assertEquals(-1L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testMask() {
+        Parser parser = new Parser(
+"""
+u16 mask = (1<<16)-1;           // AND mask
+int c = 123456789 & mask;
+return c;                       //
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 52501;", stop.toString());
+        assertEquals(52501L, Evaluator.evaluate(stop,  0));
+    }
+
 }
