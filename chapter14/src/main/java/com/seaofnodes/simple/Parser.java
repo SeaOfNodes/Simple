@@ -52,7 +52,9 @@ public class Parser {
      * List of keywords disallowed as identifiers
      */
     private static final HashSet<String> KEYWORDS = new HashSet<>(){{
+            add("bool");
             add("break");
+            add("byte");
             add("continue");
             add("else");
             add("false");
@@ -64,8 +66,11 @@ public class Parser {
             add("return");
             add("struct");
             add("true");
-            add("while");
+            add("u1");
+            add("u16");
+            add("u32");
             add("u8");
+            add("while");
         }};
 
 
@@ -85,9 +90,14 @@ public class Parser {
         Node.reset();
         IterPeeps.reset();
         TYPES.clear();
-        TYPES.put("int",TypeInteger.BOT);
-        //TYPES.put("u8" ,TypeInteger.U8 );
-        TYPES.put("flt",TypeFloat  .BOT);
+        TYPES.put("bool",TypeInteger.U1 );
+        TYPES.put("byte",TypeInteger.U8 );
+        TYPES.put("flt" ,TypeFloat  .BOT);
+        TYPES.put("int" ,TypeInteger.BOT);
+        TYPES.put("u1"  ,TypeInteger.U1 );
+        TYPES.put("u8"  ,TypeInteger.U8 );
+        TYPES.put("u16" ,TypeInteger.U16);
+        TYPES.put("u32" ,TypeInteger.U32);
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -435,6 +445,9 @@ public class Parser {
         // Auto-widen int to float
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
             expr = new ToFloatNode(expr).peephole();
+        // Auto-narrow wide ints to narrow ints
+        if( expr._type instanceof TypeInteger e0 && t instanceof TypeInteger t0 && !e0.isa(t) )
+            expr = new AndNode(expr,new ConstantNode(TypeInteger.constant(t0._max-t0._min)).peephole()).peephole();
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
@@ -476,7 +489,27 @@ public class Parser {
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() { return parseComparison(); }
+    private Node parseExpression() { return parseBitwise(); }
+
+    /**
+     * Parse an bitwise expression
+     *
+     * <pre>
+     *     bitwise : compareExpr (('&' | '|' | '^') compareExpr)*
+     * </pre>
+     * @return a bitwise expression {@link Node}, never {@code null}
+     */
+    private Node parseBitwise() {
+        Node lhs = parseComparison();
+        while( true ) {
+            if( false ) ;
+            else if( match("&") ) lhs = new AndNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseComparison());
+            lhs = lhs.peephole();
+        }
+        return lhs;
+    }
 
     /**
      * Parse an expression of the form:
@@ -640,6 +673,9 @@ public class Parser {
             else {
                 Node val = parseExpression();
                 Type glb = base._fields[idx]._type;
+                // Auto-truncate when storing to narrow fields
+                if( !val._type.isa(glb) && glb instanceof TypeInteger t0)
+                    val = new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max-t0._min)).peephole()).peephole();
                 memAlias(alias, new StoreNode(name, alias,glb, memAlias(alias), expr, val, false).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }

@@ -42,11 +42,51 @@ return c;
 """
 u8 b = 123;
 b = b + 456;// Truncate
-return 67;
+return b;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 67;", stop.toString());
-        assertEquals(67, Evaluator.evaluate(stop,  0));
+        assertEquals(67L, Evaluator.evaluate(stop,  0));
     }
 
+    @Test
+    public void testU1() {
+        Parser parser = new Parser(
+"""
+bool b = 123;
+b = b + 456;// Truncate
+u1 c = b;   // No more truncate needed
+return c;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 1;", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testAnd() {
+        Parser parser = new Parser(
+"""
+int b = 123;
+b = b+456 & 31;                 // Precedence
+return b;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 3;", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testRefLoad() {
+        Parser parser = new Parser(
+"""
+struct Foo { u1 b; }
+Foo f = new Foo;
+f.b = 123;
+return f.b;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 1;", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop,  0));
+    }
 }
