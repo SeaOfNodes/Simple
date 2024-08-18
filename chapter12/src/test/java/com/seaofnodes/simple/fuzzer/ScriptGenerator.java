@@ -22,6 +22,7 @@ public class ScriptGenerator {
     private static final int MAX_NAME_LENGTH = 10;
     private static final int MAX_BLOCK_DEPTH = 4;
     private static final int MAX_EXPRESSION_DEPTH = 10;
+    private static final int MAX_SUFFIX_RECURSIVE_DEPTH = 10;
 
     /**
      * Number of spaces per indentation
@@ -68,7 +69,7 @@ public class ScriptGenerator {
     }
 
     private static class TypeStruct extends Type {
-        record Field (String name, Type type) {}
+        record Field (String name, Type type, TypeStruct struct) {}
         final Field[] fields;
         final TypeNullable nullable = new TypeNullable(this);
         TypeStruct(String name, Field[] fields) {
@@ -89,8 +90,21 @@ public class ScriptGenerator {
 
     }
 
-    private static final Type TYPE_INT = new Type("int");
     private static final Type TYPE_FLT = new Type("flt");
+
+    private static class TypeInt extends Type {
+
+        TypeInt() {
+            super("int");
+        }
+
+        @Override
+        boolean isa(Type other) {
+            return super.isa(other) || other == TYPE_FLT;
+        }
+    }
+
+    private static final Type TYPE_INT = new TypeInt();
 
 
     private static class Variable {
@@ -414,17 +428,18 @@ public class ScriptGenerator {
     public int genStruct() {
         var name = getStructName();
         var fields = new TypeStruct.Field[generateInvalid() ? 0 : random.nextInt(10)];
+        var struct = new TypeStruct(name, fields);
         sb.append("struct ").append(name).append(" {\n");
         indentation += INDENTATION;
         for (int i=0; i<fields.length; i++) {
             var fieldName = getRandomName();
-            var type = generateInvalid() ? getType() : (random.nextBoolean() ? TYPE_INT : TYPE_FLT);
+            var type = getType();
             printIndentation().append(type.name).append(" ").append(fieldName).append(";\n");
-            fields[i] = new TypeStruct.Field(fieldName.toString(), type);
+            fields[i] = new TypeStruct.Field(fieldName.toString(), type, struct);
         }
         indentation -= INDENTATION;
         printIndentation().append("}");
-        structs.add(new TypeStruct(name, fields));
+        structs.add(struct);
         return 0;
     }
 
@@ -518,7 +533,7 @@ public class ScriptGenerator {
      */
     public int genIf() {
         sb.append("if(");
-        genExpression(TYPE_INT);
+        genExpression(TYPE_INT, true);
         sb.append(") ");
         var stop = genStatementBlock();
         if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
@@ -564,7 +579,7 @@ public class ScriptGenerator {
      */
     public int genWhile() {
         sb.append("while(");
-        genExpression(TYPE_INT);
+        genExpression(TYPE_INT, true);
         sb.append(") ");
         loopDepth++;
         genStatementBlock();
@@ -590,17 +605,17 @@ public class ScriptGenerator {
         indentation += INDENTATION;
         String name = getVarName();
         printIndentation().append("int ").append(name).append("=");
-        genExpression(TYPE_INT);
+        genExpression(TYPE_INT, true);
         sb.append(";\n");
         addVariable(name, TYPE_INT);
         printIndentation().append("while(").append(name).append("<");
-        genExpression(TYPE_INT);
+        genExpression(TYPE_INT, true);
         sb.append(") {\n");
         indentation += INDENTATION;
         depth--;
         loopDepth++;
         printIndentation().append(name).append("=").append(name).append("+");
-        genExpression(TYPE_INT);
+        genExpression(TYPE_INT, true);
         sb.append(";\n");
         genStatements();
         loopDepth--;
@@ -624,7 +639,7 @@ public class ScriptGenerator {
         sb.append(generateInvalid() ? getRandomName() : type.name).append(" ").append(name);
         if (!(type instanceof TypeNullable) || random.nextBoolean()) {
             sb.append("=");
-            genExpression(type);
+            genExpression(type, true);
         }
         sb.append(";");
         addVariable(name, type);
@@ -659,7 +674,7 @@ public class ScriptGenerator {
             declared = field.type;
         }
         sb.append("=");
-        genExpression(declared);
+        genExpression(declared, true);
         sb.append(";");
         return 0;
     }
@@ -671,7 +686,7 @@ public class ScriptGenerator {
     public int genReturn() {
         var type = getType();
         sb.append("return ");
-        genExpression(type);
+        genExpression(type, true);
         sb.append(";");
         return FLAG_STOP;
     }
@@ -680,70 +695,91 @@ public class ScriptGenerator {
      * Generate a binary expression.
      * This method does not care about operator precedence.
      */
-    public void genExpression(Type type) {
-        if (generateInvalid()) type = getType();
+    public void genExpression(Type type, boolean change) {
+        if (change && generateInvalid()) type = getType();
         if (type != TYPE_INT && type != TYPE_FLT) {
-            genUnary(type);
+            genUnary(type, false);
             return;
         }
         var num = randLog(MAX_BINARY_EXPRESSIONS_PER_EXPRESSION);
         while(num-->0) {
-            genUnary(type);
+            genUnary(type, false);
             sb.append(BINARY_OP[random.nextInt(BINARY_OP.length)]);
         }
-        genUnary(type);
+        genUnary(type, false);
     }
 
     /**
      * Generate a unary expression.
      */
-    public void genUnary(Type type) {
-        if (generateInvalid()) type = getType();
+    public void genUnary(Type type, boolean change) {
+        if (change && generateInvalid()) type = getType();
         if (type != TYPE_INT && type != TYPE_FLT) {
-            genSuffix(type);
+            genSuffix(type, false);
             return;
         }
         var num = randLog(MAX_UNARY_EXPRESSIONS_PER_EXPRESSION);
         while(num-->0) {
             sb.append(UNARY_OP[random.nextInt(UNARY_OP.length)]);
         }
-        genSuffix(type);
+        genSuffix(type, false);
+    }
+
+    public TypeStruct.Field getField(Type type) {
+        int n=0;
+        for (var s: structs) {
+            for (var f: s.fields) {
+                if (f.type.isa(type)) n++;
+            }
+        }
+        if (n==0) return null;
+        n = random.nextInt(n);
+        for (var s: structs) {
+            for (var f: s.fields) {
+                if (f.type.isa(type)) if (n--==0) return f;
+            }
+        }
+        throw new AssertionError();
     }
 
     /**
      * Generate
      */
-    public void genSuffix(Type type) {
-        if (generateInvalid()) type = getType();
-        if ((type == TYPE_INT || type  == TYPE_FLT) && random.nextBoolean()) {
-            var t = getType();
+    public void genSuffix(Type type, boolean change) {
+        genSuffixRecursive(type, change, MAX_SUFFIX_RECURSIVE_DEPTH);
+    }
+
+    public void genSuffixRecursive(Type type, boolean change, int depth) {
+        if (change && generateInvalid()) type = getType();
+        if (depth > 0 && random.nextBoolean()) {
             if (generateInvalid()) {
                 var field = getRandomName();
-                genPrimary(t);
+                var t = getType();
+                genSuffixRecursive(t, true, depth-1);
                 sb.append(".").append(field);
                 return;
-            } else if (t instanceof TypeStruct s && s.fields.length > 0) {
-                var field = s.fields[random.nextInt(s.fields.length)];
-                if (field.type == TYPE_INT || field.type == TYPE_FLT) {
-                    genPrimary(t);
+            } else {
+                var field = getField(type);
+                if (field != null) {
+                    genSuffixRecursive(field.struct, true, depth-1);
                     sb.append(".").append(field.name);
                     return;
                 }
             }
         }
-        genPrimary(type);
+        genPrimary(type, false);
     }
 
     /**
      * Generate a primary expression.
      */
-    public void genPrimary(Type type) {
-        if (generateInvalid()) type = getType();
+    public void genPrimary(Type type, boolean change) {
+        if (change && generateInvalid()) type = getType();
         var rand = random.nextInt(10);
         if (rand == 0 && exprDepth != 0) {
             sb.append("(");
             exprDepth--;
-            genExpression(type);
+            genExpression(type, false);
             exprDepth++;
             sb.append(")");
         } else if (rand < 6) {
@@ -758,7 +794,7 @@ public class ScriptGenerator {
      */
     public void genConst(Type type) {
         if (generateInvalid()) type = getType();
-        if (type == TYPE_INT) {
+        if (type == TYPE_INT || (type == TYPE_FLT && random.nextBoolean())) {
             var rand = random.nextInt(10);
             switch (rand) {
                 case 0 -> sb.append("true");
