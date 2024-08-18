@@ -59,6 +59,7 @@ public class Parser {
             add("else");
             add("false");
             add("flt");
+            add("i8");
             add("if");
             add("int");
             add("new");
@@ -93,11 +94,12 @@ public class Parser {
         TYPES.put("bool",TypeInteger.U1 );
         TYPES.put("byte",TypeInteger.U8 );
         TYPES.put("flt" ,TypeFloat  .BOT);
+        TYPES.put("i8"  ,TypeInteger.I8 );
         TYPES.put("int" ,TypeInteger.BOT);
         TYPES.put("u1"  ,TypeInteger.U1 );
-        TYPES.put("u8"  ,TypeInteger.U8 );
         TYPES.put("u16" ,TypeInteger.U16);
         TYPES.put("u32" ,TypeInteger.U32);
+        TYPES.put("u8"  ,TypeInteger.U8 );
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -446,8 +448,7 @@ public class Parser {
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
             expr = new ToFloatNode(expr).peephole();
         // Auto-narrow wide ints to narrow ints
-        if( expr._type instanceof TypeInteger e0 && t instanceof TypeInteger t0 && !e0.isa(t) )
-            expr = new AndNode(expr,new ConstantNode(TypeInteger.constant(t0._max-t0._min)).peephole()).peephole();
+        expr = zsMask(expr,t);
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
@@ -520,7 +521,7 @@ public class Parser {
      * @return an comparator expression {@link Node}, never {@code null}
      */
     private Node parseComparison() {
-        var lhs = parseAddition();
+        var lhs = parseShift();
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
@@ -533,10 +534,32 @@ public class Parser {
             else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseAddition());
+            lhs.setDef(idx,parseShift());
             lhs = lhs.widen().peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
+        }
+        return lhs;
+    }
+
+    /**
+     * Parse an additive expression
+     *
+     * <pre>
+     *     shiftExpr : additiveExpr (('<<' | '>>' | '>>>') additiveExpr)*
+     * </pre>
+     * @return a shift expression {@link Node}, never {@code null}
+     */
+    private Node parseShift() {
+        Node lhs = parseAddition();
+        while( true ) {
+            if( false ) ;
+            else if( match("<<") ) lhs = new ShlNode(lhs,null);
+            else if( match(">>") ) lhs = new SarNode(lhs,null);
+            else if( match(">>>")) lhs = new ShrNode(lhs,null);
+            else break;
+            lhs.setDef(2,parseAddition());
+            lhs = lhs.widen().peephole();
         }
         return lhs;
     }
@@ -674,8 +697,7 @@ public class Parser {
                 Node val = parseExpression();
                 Type glb = base._fields[idx]._type;
                 // Auto-truncate when storing to narrow fields
-                if( !val._type.isa(glb) && glb instanceof TypeInteger t0)
-                    val = new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max-t0._min)).peephole()).peephole();
+                val = zsMask(val,glb);
                 memAlias(alias, new StoreNode(name, alias,glb, memAlias(alias), expr, val, false).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
@@ -684,6 +706,21 @@ public class Parser {
         Type declaredType = base._fields[idx]._type;
         return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
     }
+
+    // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
+    // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
+    private Node zsMask(Node val, Type t ) {
+        if( !(val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0)) )
+            return val;
+        if( t0._min==0 )
+            return new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max)).peephole()).peephole();
+        int shift = Long.numberOfLeadingZeros(t0._max)-1;
+        Node shf = new ConstantNode(TypeInteger.constant(shift)).peephole();
+        if( shf._type==TypeInteger.ZERO )
+            return val;
+        return new SarNode(new ShlNode(val,shf.keep()).peephole(),shf.unkeep()).peephole();
+    }
+
 
     /**
      * Parse integer literal
