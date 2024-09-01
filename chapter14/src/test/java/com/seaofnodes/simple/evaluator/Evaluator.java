@@ -153,6 +153,7 @@ public class Evaluator {
             case ShlNode      shl   -> vall(shl.in(1)) << vall(shl.in(2));
             case ShrNode      shr   -> vall(shr.in(1)) >>> vall(shr.in(2));
             case SarNode      sar   -> vall(sar.in(1)) >> vall(sar.in(2));
+            case AndNode      and   -> vall(and.in(1)) & vall(and.in(2));
             case CastNode     cast  -> val(cast.in(1));
             case ToFloatNode  cast  -> (double)vall(cast.in(1));
             case LoadNode     load  -> load(load);
