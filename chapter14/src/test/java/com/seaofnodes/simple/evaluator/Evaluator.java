@@ -135,7 +135,7 @@ public class Evaluator {
             case ConstantNode cons  -> cons(cons);
             case AddNode      add   -> vall(add.in(1)) + vall(add.in(2));
             case AddFNode     add   -> vald(add.in(1)) + vald(add.in(2));
-            case BoolNode.EQF eq    -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L;
+            case BoolNode.EQF eq    -> vald(eq.in(1)) == vald(eq.in(2)) ? 1L : 0L;
             case BoolNode.LEF le    -> vald(le.in(1)) <= vald(le.in(2)) ? 1L : 0L;
             case BoolNode.LTF lt    -> vald(lt.in(1)) <  vald(lt.in(2)) ? 1L : 0L;
             case BoolNode.EQ  eq    -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L;
@@ -150,6 +150,10 @@ public class Evaluator {
             case NotNode      not   -> isTrue(val(not.in(1))) ? 0L : 1L;
             case SubNode      sub   -> vall(sub.in(1)) - vall(sub.in(2));
             case SubFNode     sub   -> vald(sub.in(1)) - vald(sub.in(2));
+            case ShlNode      shl   -> vall(shl.in(1)) << vall(shl.in(2));
+            case ShrNode      shr   -> vall(shr.in(1)) >>> vall(shr.in(2));
+            case SarNode      sar   -> vall(sar.in(1)) >> vall(sar.in(2));
+            case AndNode      and   -> vall(and.in(1)) & vall(and.in(2));
             case CastNode     cast  -> val(cast.in(1));
             case ToFloatNode  cast  -> (double)vall(cast.in(1));
             case LoadNode     load  -> load(load);
