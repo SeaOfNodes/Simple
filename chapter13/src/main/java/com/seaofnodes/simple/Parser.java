@@ -167,6 +167,7 @@ public class Parser {
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
+        else if (matchx(";")       ) return null; // Empty statement
         // declarations of vars with struct type are handled in parseExpressionStatement due
         // to ambiguity
         else return parseExpressionStatement();
@@ -190,7 +191,7 @@ public class Parser {
      * Only allowed in top level scope.
      * Structs cannot be redefined.
      *
-     * @return The statement following the struct
+     * @return null
      */
     private Node parseStruct() {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
@@ -209,7 +210,7 @@ public class Parser {
         TypeStruct ts = TypeStruct.make(typeName, fields);
         TYPES.put(typeName, ts);
         START.addMemProj(ts, _scope); // Insert memory edges
-        return parseStatement();
+        return null;
     }
 
     /**
@@ -579,7 +580,8 @@ public class Parser {
         if( matchx("new") ) {
             String structName = requireId();
             Type t = TYPES.get(structName);
-            if( t == null || !(t instanceof TypeStruct obj) ) throw errorSyntax("Unknown struct type '" + structName + "'");
+            if( !(t instanceof TypeStruct obj) || obj._fields==null )
+                throw error("Unknown struct type '" + structName + "'");
             return newStruct(obj);
         }
         String name = _lexer.matchId();
