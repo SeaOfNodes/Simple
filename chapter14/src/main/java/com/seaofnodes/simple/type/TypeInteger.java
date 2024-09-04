@@ -14,10 +14,13 @@ public class TypeInteger extends Type {
     public final static TypeInteger BOOL= U1;
     public final static TypeInteger FALSE=ZERO;
     public final static TypeInteger TRUE= make(1,1);
+    public final static TypeInteger I8  = make(-128,127);
+    public final static TypeInteger I16 = make(-32768,32767);
+    public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1);
+
     public final static TypeInteger U8  = make(0,255);
     public final static TypeInteger U16 = make(0,65535);
     public final static TypeInteger U32 = make(0,(1L<<32)-1);
-    public final static TypeInteger I8  = make(-128,127);
 
     /**
      * Describes an integer *range* - everything from min to max; both min and
@@ -31,8 +34,8 @@ public class TypeInteger extends Type {
     private TypeInteger(long min, long max) { super(TINT); _min = min; _max = max; }
     public static TypeInteger make(long lo, long hi) {  return new TypeInteger(lo,hi).intern();  }
     public static TypeInteger make(boolean is_con, long con) {
-        return make(is_con ? con : (con==0 ? Integer.MAX_VALUE : Integer.MIN_VALUE),
-                    is_con ? con : (con==0 ? Integer.MIN_VALUE : Integer.MAX_VALUE));
+        return make(is_con ? con : (con==0 ? Long.MAX_VALUE : Long.MIN_VALUE),
+                    is_con ? con : (con==0 ? Long.MIN_VALUE : Long.MAX_VALUE));
     }
 
     public static TypeInteger constant(long con) { return make(true, con); }
@@ -48,6 +51,9 @@ public class TypeInteger extends Type {
         if( this==TOP ) return "~int";
         if( this==BOT ) return  "int";
         if( this==BOOL) return ("bool");
+        if( this==I8  ) return ("i8");
+        if( this==I16 ) return ("i16");
+        if( this==I32 ) return ("i32");
         if( this==U8  ) return ("u8");
         if( this==U16 ) return ("u16");
         if( this==U32 ) return ("u32");

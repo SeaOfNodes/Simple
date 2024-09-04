@@ -115,4 +115,30 @@ return c;                       //
         assertEquals(52501L, Evaluator.evaluate(stop,  0));
     }
 
+    @Test
+    public void testTypes() {
+        Parser parser = new Parser(
+"""
+i8  xi8  = 123456789;  if( xi8  !=        21 ) return -8;
+i16 xi16 = 123456789;  if( xi16 !=    -13035 ) return -16;
+i32 xi32 = 123456789;  if( xi32 != 123456789 ) return -32;
+i64 xi64 = 123456789;  if( xi64 != 123456789 ) return -64;
+int xint = 123456789;  if( xint != 123456789 ) return -64;
+
+u1  ui1  = 123456789;  if( ui1  !=         1 ) return 1;
+u8  ui8  = 123456789;  if( ui8  !=        21 ) return 8;
+u16 ui16 = 123456789;  if( ui16 !=     52501 ) return 16;
+u32 ui32 = 123456789;  if( ui32 != 123456789 ) return 32;
+
+flt fflt = 3.141592653589793;  if( fflt != 3.141592653589793 ) return 3;
+f64 ff64 = 3.141592653589793;  if( ff64 != 3.141592653589793 ) return 3;
+f32 ff32 = 3.141592653589793;  if( ff32 != 3.1415927410125732) return 5;
+
+return 0;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+    }
+
 }

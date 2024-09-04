@@ -57,8 +57,13 @@ public class Parser {
             add("byte");
             add("continue");
             add("else");
+            add("f32");
+            add("f64");
             add("false");
             add("flt");
+            add("i16");
+            add("i32");
+            add("i64");
             add("i8");
             add("if");
             add("int");
@@ -93,7 +98,12 @@ public class Parser {
         TYPES.clear();
         TYPES.put("bool",TypeInteger.U1 );
         TYPES.put("byte",TypeInteger.U8 );
+        TYPES.put("f32" ,TypeFloat  .B32);
+        TYPES.put("f64" ,TypeFloat  .BOT);
         TYPES.put("flt" ,TypeFloat  .BOT);
+        TYPES.put("i16" ,TypeInteger.I16);
+        TYPES.put("i32" ,TypeInteger.I32);
+        TYPES.put("i64" ,TypeInteger.BOT);
         TYPES.put("i8"  ,TypeInteger.I8 );
         TYPES.put("int" ,TypeInteger.BOT);
         TYPES.put("u1"  ,TypeInteger.U1 );
@@ -712,10 +722,15 @@ public class Parser {
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
     // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
     private Node zsMask(Node val, Type t ) {
-        if( !(val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0)) )
-            return val;
-        if( t0._min==0 )
+        if( !(val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0)) ) {
+            if( !(val._type instanceof TypeFloat tval && t instanceof TypeFloat t0 && !tval.isa(t0)) )
+                return val;
+            // Float rounding
+            return new RoundF32Node(val).peephole();
+        }
+        if( t0._min==0 )        // Unsigned
             return new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max)).peephole()).peephole();
+        // Signed extension
         int shift = Long.numberOfLeadingZeros(t0._max)-1;
         Node shf = new ConstantNode(TypeInteger.constant(shift)).peephole();
         if( shf._type==TypeInteger.ZERO )
