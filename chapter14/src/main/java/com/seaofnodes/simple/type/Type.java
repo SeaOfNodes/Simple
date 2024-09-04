@@ -56,6 +56,7 @@ public class Type {
         ts.add(CONTROL);
         Field.gather(ts);
         TypeInteger.gather(ts);
+        TypeFloat.gather(ts);
         TypeMem.gather(ts);
         TypeMemPtr.gather(ts);
         TypeStruct.gather(ts);
