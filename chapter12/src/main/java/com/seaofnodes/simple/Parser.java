@@ -167,6 +167,7 @@ public class Parser {
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
+        else if (matchx(";")       ) return null; // Empty statement
         // declarations of vars with struct type are handled in parseExpressionStatement due
         // to ambiguity
         else return parseExpressionStatement();

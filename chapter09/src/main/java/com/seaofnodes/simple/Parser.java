@@ -145,6 +145,7 @@ public class Parser {
         else if (matchx("break")) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("#showGraph")) return require(showGraph(),";");
+        else if (matchx(";")) return null; // Empty statement
         else return parseExpressionStatement();
     }
 

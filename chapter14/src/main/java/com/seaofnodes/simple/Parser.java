@@ -181,6 +181,7 @@ public class Parser {
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
+        else if (matchx(";")       ) return null; // Empty statement
         // declarations of vars with struct type are handled in parseExpressionStatement due
         // to ambiguity
         else return parseExpressionStatement();
@@ -637,7 +638,8 @@ public class Parser {
         if( matchx("new") ) {
             String structName = requireId();
             Type t = TYPES.get(structName);
-            if( t == null || !(t instanceof TypeStruct obj) ) throw errorSyntax("Unknown struct type '" + structName + "'");
+            if( !(t instanceof TypeStruct obj) || obj._fields==null )
+                throw error("Unknown struct type '" + structName + "'");
             return newStruct(obj);
         }
         String name = _lexer.matchId();
