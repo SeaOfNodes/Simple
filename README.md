@@ -41,8 +41,9 @@ The simple language will be a small subset of C.
 * [Chapter 11](chapter11/README.md): Global Code Motion - Scheduling.
 * [Chapter 12](chapter12/README.md): Float type.
 * [Chapter 13](chapter13/README.md): Nested references in Structs.
-* Chapter 14: One dimensional static length array type. Array load/store.
-* Chapter 15: Functions and calls.
-* Chapter 16: Exception control flow.
-* Chapter 17: Garbage Collection.
-* Chapter 18: Code gen to X86-64.
+* [Chapter 14](chapter14/README.md): Narrow primitive types (e.g. bytes)
+* Chapter 15: One dimensional static length array type. Array load/store.
+* Chapter 16: Functions and calls.
+* Chapter 17: Exception control flow.
+* Chapter 18: Garbage Collection.
+* Chapter 19: Code gen to X86-64.

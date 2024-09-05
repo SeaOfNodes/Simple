@@ -62,7 +62,9 @@ It is useful for the compiler to know at various points of the program whether
 a node's value is a constant. The compiler can use this knowledge to perform various
 optimizations such as:
 
-* Evaluate expressions at compile time and replace an expression with a constant.
+* Evaluate expressions at compile time and replace an expression with a
+  constant.  This idea can be extended in a number of ways and is called
+  [Partial Evaluation](https://en.wikipedia.org/wiki/Partial_evaluation).
 * The compiler may be able to identify regions of code that are dead and no
   longer needed, such as when a conditional branch always take one of the
   branches ([Chapter 6](../chapter06/README.md)).
@@ -71,16 +73,17 @@ optimizations such as:
 * Many additional optimizations are possible when the compiler learns more
   about the possible set of Node values.
 
-In order to achieve above, we annotate Nodes with Types.
+In order to achieve above, we need a way to talk about what kinds of values a Node can take
+on at runtime - we call these Types, and we annotate Nodes with Types.
 
 The Type annotation serves two purposes:
 
 * it defines the set of operations allowed on the Node
 * it defines the set of values the Node takes on
 
-The type itself is identified by the Java class sub-typing relationship; all
-types are subtypes of the class `Type`.  For now, we only have the following
-hierarchy of types:
+The Type itself is represented as a Java class; the Java classes are used as
+convenient to represent the Type's structure; all types are subtypes of the
+class `Type`.  For now, we only have the following hierarchy of types:
 
 ```
 Type
@@ -89,8 +92,8 @@ Type
 
 It turns out that the set of values associated with a Type at a specific Node
 can be conveniently represented as a "lattice"
-(https://en.wikipedia.org/wiki/Lattice_(order).  
-Our lattice has the following structure:
+https://en.wikipedia.org/wiki/Lattice_(order)
+.  Our lattice has the following structure:
 
 ![Lattice](./docs/02-lattice.svg)
 
@@ -100,7 +103,11 @@ Our lattice elements can be one of three types:
 * All elements in the middle are constants.
 * The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the Node's value is **not** a compile time constant.
 
-An invariant of peephole optimizations is that the type of a Node always moves down the lattice.
+An invariant of peephole optimizations is that the type of a Node always moves
+*up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst
+until they can prove better.  A later *optimistic* optimization will start all
+Nodes at *top* and move Types *down* the lattice as eager assumptions are
+proven wrong.
 
 In later chapters we will explore extending this lattice, as it frequently
 forms the heart of core optimizations we want our compiler to do.
