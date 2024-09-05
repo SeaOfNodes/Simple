@@ -21,10 +21,13 @@ public class AndNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
-            if (i0.isConstant() && i1.isConstant())
+        if( in(1)._type instanceof TypeInteger i0 &&
+            in(2)._type instanceof TypeInteger i1 ) {
+            if( i0.isConstant() && i1.isConstant() )
                 return TypeInteger.constant(i0.value()&i1.value());
+            // Sharpen allowed bits if either value is narrowed
+            long mask = i0.mask() & i1.mask();
+            return mask < 0 ? TypeInteger.BOT : TypeInteger.make(0,mask);
         }
         return TypeInteger.BOT;
     }

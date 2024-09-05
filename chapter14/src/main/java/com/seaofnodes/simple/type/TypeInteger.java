@@ -77,6 +77,25 @@ public class TypeInteger extends Type {
 
     public long value() { assert isConstant(); return _min; }
 
+    // AND-mask of forced zeros.  e.g. unsigned types will return their mask;
+    // u8 will return 0xFF.  But also a range of 16-18 (0x10-0x12) will return
+    // 0x13 - no value in the range {16,17,18} will allow bit 0x04 to be set.
+    public long mask() {
+        if( isHigh() ) return 0;
+        if( isConstant() ) return _min;
+        //if( _min<0 ) return -1L;
+        //if( _max==Long.MAX_VALUE ) return -1L;
+        // Those bit positions which differ min to max
+        long x = _min ^ _max;
+        // Highest '1' bit in the differ set.  Since the range is from min to
+        // max, all values below here are possible.
+        long ff1 = Long.highestOneBit(x);
+        // Make a all-1's mask from ff1, and set over the same bits (either min
+        // or max is ok).
+        long mask = _min | (ff1-1) | ff1;
+        return mask;
+    }
+
     @Override
     public Type xmeet(Type other) {
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)

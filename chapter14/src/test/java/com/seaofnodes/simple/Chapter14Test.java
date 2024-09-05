@@ -49,6 +49,19 @@ return b;
         assertEquals(67L, Evaluator.evaluate(stop,  0));
     }
 
+
+    @Test
+    public void testU8While() {
+        Parser parser = new Parser(
+"""
+u8 b = 123;
+while( b ) b = b + 456;// Truncate
+return b;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return Phi(Loop9,123,((Phi_b+456)&255));", stop.toString());
+    }
+
     @Test
     public void testU1() {
         Parser parser = new Parser(
