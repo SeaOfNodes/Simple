@@ -23,12 +23,21 @@ public class AddNode extends Node {
     public Type compute() {
         if( in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1 ) {
+            if( i0.isHigh() || i1.isHigh() ) return TypeInteger.TOP;
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()+i1.value());
+            // Fold ranges like {0-1} + {2-3} into {2-4}.
+            if( !overflow(i0._min,i1._min) &&
+                !overflow(i0._max,i1._max) )
+                return TypeInteger.make(i0._min+i1._min,i0._max+i1._max);
         }
         return TypeInteger.BOT;
     }
 
+    private static boolean overflow( long x, long y ) {
+        if( (x ^    y ) < 0 ) return false; // unequal signs, never overflow
+        return (x ^ (x + y)) < 0; // sum has unequal signs, so overflow
+    }
     @Override
     public Node idealize () {
         Node lhs = in(1);

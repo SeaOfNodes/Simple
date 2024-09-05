@@ -23,6 +23,7 @@ public class MulNode extends Node {
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1) {
+            if( i0.isHigh() || i1.isHigh() ) return TypeInteger.TOP;
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()*i1.value());
         }
