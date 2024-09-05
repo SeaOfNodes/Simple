@@ -20,8 +20,10 @@ public class MinusNode extends Node {
 
     @Override
     public Type compute() {
-        if( in(1)._type instanceof TypeInteger i0 )
+        if( in(1)._type instanceof TypeInteger i0 ) {
+            if( i0.isHigh() ) return TypeInteger.TOP;
             return i0==TypeInteger.BOT ? TypeInteger.BOT : TypeInteger.make(-i0._max,-i0._min);
+        }
         return TypeInteger.TOP.meet(in(1)._type);
     }
 
