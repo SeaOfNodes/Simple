@@ -13,16 +13,21 @@ import java.util.ArrayList;
  */
 public class TypeMemPtr extends Type {
     // A TypeMemPtr is pair (obj,nil)
-    // where obj is one of
-    //    (null,TypeStruct).
-    // where nil is one of
-    //    (true,false) meaning an explicit null is allowed or not
+    // where obj is a TypeStruct, possibly TypeStruct.BOT
+    // where nil is an explicit null is allowed or not
 
-    public final TypeStruct _obj; // null, a TypeStruct, or sentinel TypeStruct.MANY
+    // Examples:
+    // (Person,false) - a not-nil Person
+    // (Person,true ) - a Person or a nil
+    // (BOT   ,false) - a not-nil void* (unspecified struct)
+    // (TOP   ,true ) - a nil
+
+    public final TypeStruct _obj;
     public final boolean _nil;
 
     private TypeMemPtr(TypeStruct obj, boolean nil) {
         super(TMEMPTR);
+        assert obj!=null;
         _obj = obj;
         _nil = nil;
     }
@@ -44,17 +49,14 @@ public class TypeMemPtr extends Type {
     }
 
     @Override
-    public TypeMemPtr dual() { return TypeMemPtr.make(_obj==null ? null : _obj.dual(), !_nil); }
+    public TypeMemPtr dual() { return TypeMemPtr.make(_obj.dual(), !_nil); }
 
     @Override
-    public Type glb() {
-        if( _obj==null ) return BOT;
-        return make(_obj.glb(),true);
-    }
+    public Type glb() { return make(_obj.glb(),true); }
     @Override public TypeMemPtr makeInit() { return NULLPTR; }
 
     @Override
-    int hash() { return (_obj==null ? 0xDEADBEEF : _obj.hashCode()) ^ (_nil ? 1024 : 0); }
+    int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }
 
     @Override
     boolean eq(Type t) {
