@@ -53,15 +53,19 @@ Start node.
 
 In [Chapter 2](../chapter02/README.md) we introduced the Type System.
 
-We annotate Nodes with Types.
-
-The Type annotation serves two purposes:
+We have annotated Nodes with Types and the Type annotation serves two purposes:
 
 * It defines the set of operations allowed on the Node, and
 * it defines the set of values the Node takes on.
 
-The type itself is identified by the Java class sub-typing relationship; all
-types are subtypes of the class `Type`.
+We mentioned in [Chapter 2](../chapter02/README.md) that the set of values
+associated with a Type at a specific Node can be conveniently represented as a
+[lattice](https://en.wikipedia.org/wiki/Lattice_(order)).
+
+The type itself is identified by the Java class `Type` and subtypes.  The type
+implementation uses Java classes as convenient to deal with a Types' internal
+structure - but the Java classes have no relation to a Type's place in the
+lattice.
 
 In this chapter we extend the Type hierarchy as follows:
 
@@ -73,10 +77,7 @@ Type
 +-- TypeTuple               (New - represents multi-valued result)
 ```
 
-We mentioned in [Chapter 2](../chapter02/README.md) that the set of values associated with a Type at a specific Node
-can be conveniently represented as a "lattice".
-
-Our enhanced Lattice looks like this.
+Our enhanced Lattice looks like this:
 
 ![Lattice](./docs/lattice.svg)
 
