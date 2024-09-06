@@ -57,4 +57,9 @@ public class AndNode extends Node {
         return null;
     }
     @Override Node copy(Node lhs, Node rhs) { return new AndNode(lhs,rhs); }
+    @Override String err() {
+        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '&' " + in(1)._type;
+        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '&' " + in(2)._type;
+        return null;
+    }
 }
