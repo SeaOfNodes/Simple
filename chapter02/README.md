@@ -114,9 +114,8 @@ forms the heart of core optimizations we want our compiler to do.
 
 We add a `_type` field to every Node, to store its current computed best
 `Type`.  We need a field to keep the optimizer runtime linear, and later when
-doing an optimistic version of constant propagation (called Sparse Conditional
-Constant Propagation)
-(https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation).
+doing an optimistic version of constant propagation (called [Sparse Conditional
+Constant Propagation](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)).
 
 We add a `_type` field even to `Start` and `Return`, and later to all control
 Nodes - because the Sea of Nodes does not distinguish between control and data.
