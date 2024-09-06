@@ -25,6 +25,10 @@ public class SarNode extends Node {
             in(2)._type instanceof TypeInteger i1) {
             if( i0.isConstant() && i1.isConstant() )
                 return TypeInteger.constant(i0.value()>>i1.value());
+            if( i1.isConstant() ) {
+                int log = (int)i1.value();
+                return TypeInteger.make(-1L<<(63-log),(1L<<(63-log))-1);
+            }
         }
         return TypeInteger.BOT;
     }
@@ -49,4 +53,9 @@ public class SarNode extends Node {
         return null;
     }
     @Override Node copy(Node lhs, Node rhs) { return new SarNode(lhs,rhs); }
+    @Override String err() {
+        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '&' " + in(1)._type;
+        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '&' " + in(2)._type;
+        return null;
+    }
 }

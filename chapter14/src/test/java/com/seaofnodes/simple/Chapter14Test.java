@@ -116,6 +116,19 @@ return b;                       // Sign extend
     }
 
     @Test
+    public void testI8() {
+        Parser parser = new Parser(
+"""
+i8 b = arg;
+b = b + 1;// Truncate
+return b;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
     public void testMask() {
         Parser parser = new Parser(
 """
@@ -126,6 +139,18 @@ return c;                       //
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 52501;", stop.toString());
         assertEquals(52501L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testMaskFloat() {
+        Parser parser = new Parser(
+"""
+flt f = arg;
+arg = f & 0;
+return arg;
+""");
+        try { parser.parse(true).iterate(true); fail(); }
+        catch( Exception e ) { assertEquals("Cannot '&' FltBot",e.getMessage()); }
     }
 
     @Test
