@@ -33,18 +33,13 @@ public class ShlNode extends Node {
     public Node idealize() {
         Node lhs = in(1);
         Node rhs = in(2);
-        Type t1 = lhs._type;
         Type t2 = rhs._type;
 
         // Shl of 0.
         if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 )
             return lhs;
 
-        // Do we have ((x & (phi cons)) & con) ?
-        // Do we have ((x & (phi cons)) & (phi cons)) ?
-        // Push constant up through the phi: x & (phi con0&con0 con1&con1...)
-        Node phicon = AddNode.phiCon(this,true);
-        if( phicon!=null ) return phicon;
+        // TODO: x << 3 << (y ? 1 : 2) ==> x << (y ? 4 : 5)
 
         return null;
     }
