@@ -12,6 +12,10 @@ f = f+x;     // Auto-widen x to 2.0, result is 2.5
 f = f+true;  // Since bools are just synonyms for integers 0,1 they auto-widen also
 ```
 
+There is no corresponding way right now to round a `flt` back to an `int`:
+```java
+int x = 3.14; // error
+```
 
 Here is Newton's method to a square root:
 ```java

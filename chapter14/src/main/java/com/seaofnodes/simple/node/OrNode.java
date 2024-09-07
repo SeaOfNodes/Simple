@@ -5,17 +5,17 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.BitSet;
 
-public class AndNode extends Node {
-    public AndNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class OrNode extends Node {
+    public OrNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
-    @Override public String label() { return "And"; }
+    @Override public String label() { return "Or"; }
 
-    @Override public String glabel() { return "&"; }
+    @Override public String glabel() { return "|"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append("&"), visited);
+        in(2)._print0(sb.append("|"), visited);
         return sb.append(")");
     }
 
@@ -24,10 +24,7 @@ public class AndNode extends Node {
         if( in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1 ) {
             if( i0.isConstant() && i1.isConstant() )
-                return TypeInteger.constant(i0.value()&i1.value());
-            // Sharpen allowed bits if either value is narrowed
-            long mask = i0.mask() & i1.mask();
-            return mask < 0 ? TypeInteger.BOT : TypeInteger.make(0,mask);
+                return TypeInteger.constant(i0.value()|i1.value());
         }
         return TypeInteger.BOT;
     }
@@ -39,9 +36,9 @@ public class AndNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        // And of -1.  We do not check for (-1&x) because this will already
-        // canonicalize to (x&-1)
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==-1 )
+        // Or of 0.  We do not check for (0&x) because this will already
+        // canonicalize to (x&0)
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
             return lhs;
 
         // Move constants to RHS: con*arg becomes arg*con
@@ -56,10 +53,10 @@ public class AndNode extends Node {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new AndNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new OrNode(lhs,rhs); }
     @Override String err() {
-        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '&' " + in(1)._type;
-        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '&' " + in(2)._type;
+        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '|' " + in(1)._type;
+        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '|' " + in(2)._type;
         return null;
     }
 }
