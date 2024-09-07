@@ -36,8 +36,8 @@ public class OrNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        // Or of 0.  We do not check for (0&x) because this will already
-        // canonicalize to (x&0)
+        // Or of 0.  We do not check for (0|x) because this will already
+        // canonicalize to (x|0)
         if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
             return lhs;
 
@@ -45,9 +45,9 @@ public class OrNode extends Node {
         if ( t1.isConstant() && !t2.isConstant() )
             return swap12();
 
-        // Do we have ((x & (phi cons)) & con) ?
-        // Do we have ((x & (phi cons)) & (phi cons)) ?
-        // Push constant up through the phi: x & (phi con0&con0 con1&con1...)
+        // Do we have ((x | (phi cons)) | con) ?
+        // Do we have ((x | (phi cons)) | (phi cons)) ?
+        // Push constant up through the phi: x | (phi con0|con0 con1|con1...)
         Node phicon = AddNode.phiCon(this,true);
         if( phicon!=null ) return phicon;
 

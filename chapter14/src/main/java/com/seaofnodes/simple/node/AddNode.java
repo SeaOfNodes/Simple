@@ -111,7 +111,7 @@ public class AddNode extends Node {
         return null;
     }
 
-    // Rotation is only valid for associative ops, e.g. Add, Mul, And, Or.
+    // Rotation is only valid for associative ops, e.g. Add, Mul, And, Or, Xor.
     // Do we have ((phi cons)|(x + (phi cons)) + con|(phi cons)) ?
     // Push constant up through the phi: x + (phi con0+con0 con1+con1...)
     static Node phiCon(Node op, boolean rotate) {

@@ -46,15 +46,15 @@ rounded when assigned, and inflated to 64-bits when loaded.
 
 The complete list of primitive types is now:
 ```java
-int, i64; // 64-bits, matching modern hardware
-// u64 // NOT implemented, as it hints at some kind of >64 bit behavior
+int, i64  // 64-bits, matching modern hardware
+// u64    // NOT implemented, as it hints at some kind of >64 bit behavior
 i32, u32  // 32 bits, sign or zero extended on load
 i16, u16  // 16 bits, sign or zero extended on load
  i8,  u8  //  8 bits, sign or zero extended on load
  i1,  u1  //  1 bit , sign or zero extended on load
 bool      // Same as u1 
-flt, f64 .// IEEE 754 64-bit float, sometimes called a "double"
-f32      .// IEEE 754 32-bit float
+flt, f64  // IEEE 754 64-bit float, sometimes called a "double"
+f32       // IEEE 754 32-bit float
 ```
 
 
