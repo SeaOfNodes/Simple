@@ -142,6 +142,17 @@ return c;                       //
     }
 
     @Test
+    public void testOr() {
+        Parser parser = new Parser(
+"""
+return (arg | 123 ^ 456) >>> 1;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return (((arg|123)^456)>>>1);", stop.toString());
+        assertEquals(217L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
     public void testMaskFloat() {
         Parser parser = new Parser(
 """

@@ -516,6 +516,8 @@ public class Parser {
         while( true ) {
             if( false ) ;
             else if( match("&") ) lhs = new AndNode(lhs,null);
+            else if( match("|") ) lhs = new  OrNode(lhs,null);
+            else if( match("^") ) lhs = new XorNode(lhs,null);
             else break;
             lhs.setDef(2,parseComparison());
             lhs = lhs.peephole();
@@ -566,8 +568,8 @@ public class Parser {
         while( true ) {
             if( false ) ;
             else if( match("<<") ) lhs = new ShlNode(lhs,null);
-            else if( match(">>") ) lhs = new SarNode(lhs,null);
             else if( match(">>>")) lhs = new ShrNode(lhs,null);
+            else if( match(">>") ) lhs = new SarNode(lhs,null);
             else break;
             lhs.setDef(2,parseAddition());
             lhs = lhs.widen().peephole();
