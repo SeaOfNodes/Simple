@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.transpile.printers;
 
-import com.seaofnodes.simple.transpile.Arg;
 import com.seaofnodes.simple.transpile.JUnitParser;
 import com.seaofnodes.simple.transpile.TestClass;
 import com.seaofnodes.simple.transpile.TestMethod;
@@ -61,11 +60,17 @@ public class RustPrinter {
                 use crate::sea_of_nodes::types::Types;
                 """);
 
-        for (TestMethod test : tests) {
-            if (test.parseErrorMessage != null) {
-                out.println("use crate::sea_of_nodes::tests::test_error;");
-                break;
-            }
+        if (tests.stream().anyMatch(t -> t.parseErrorMessage != null)) {
+            out.println("use crate::sea_of_nodes::tests::test_error;");
+        }
+        if (tests.stream().anyMatch(t -> t.irPrinter && !t.irPrinterLLVM)) {
+            out.println("use crate::sea_of_nodes::ir_printer::pretty_print;");
+        }
+        if (tests.stream().anyMatch(t -> t.irPrinterLLVM)) {
+            out.println("use crate::sea_of_nodes::ir_printer::pretty_print_llvm;");
+        }
+        if (tests.stream().anyMatch(t -> !t.evaluations.isEmpty())) {
+            out.println("use crate::sea_of_nodes::graph_evaluator::evaluate;");
         }
 
         for (TestMethod test : tests) {
@@ -76,33 +81,75 @@ public class RustPrinter {
     private void printTest(TestMethod test, PrintStream out) {
         out.println();
         out.println("#[test]");
-        out.println("fn " + test.name + "() {");
+        out.println("fn " + snakeCase(test.name) + "() {");
         if (test.parseErrorMessage != null) {
-            out.println("test_error(" + test.parserInput + ", " + test.parseErrorMessage + ")");
+            out.println("test_error(" + string(test.parserInput) + ", " + string(test.parseErrorMessage) + ");");
         } else if (test.parserInput != null) {
             out.println("let arena = DroplessArena::new();");
             out.println("let types = Types::new(&arena);");
-            out.printf("let mut parser = Parser::new(%s%s, &types);\n", multiline(test.parserInput), switch (test.parserArg) {
-                case null -> "";
-                case Arg.IntBot ignored -> ", types.ty_int_bot";
-                case Arg.IntTop ignored -> ", types.ty_int_top";
-                case Arg.IntConstant c -> ", types.get_int(" + c.value() + ")";
-            });
+            if (test.parserArg == null) {
+                out.println("let mut parser = Parser::new(" + string(test.parserInput, true) + ", &types);");
+            } else {
+                out.printf("let mut parser = Parser::new_with_arg(%s, &types, %s);\n", string(test.parserInput, true), switch (test.parserArg) {
+                    case TestMethod.Arg.IntBot ignored -> "types.ty_int_bot";
+                    case TestMethod.Arg.IntTop ignored -> "types.ty_int_top";
+                    case TestMethod.Arg.IntConstant c -> "types.get_int(" + c.value() + ")";
+                });
+            }
+            if (test.disablePeephole) {
+                out.println("parser.nodes.disable_peephole = true;");
+            }
             out.println("let stop = parser.parse().unwrap();");
             if (test.showAfterParse) {
                 out.println("parser.show_graph();");
             }
-            if (test.assertStopEquals != null) {
-                out.printf("assert_eq!(parser.print(stop), %s);\n", test.assertStopEquals);
+            if (test.iterate) {
+                out.println("parser.iterate(stop);");
             }
+            if (test.showAfterIterate) {
+                out.println("parser.show_graph();");
+            }
+            if (test.irPrinter) {
+                out.println("println!(\"{}\", pretty_print" + (test.irPrinterLLVM ? "_llvm" : "") + "(&parser.nodes, stop, 99));");
+            }
+            if (test.assertStopEquals != null) {
+                out.println("assert_eq!(parser.print(stop), " + string(test.assertStopEquals) + ");");
+            }
+            if (test.assertStopRetCtrlIsProj) {
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Node::Proj(_)));");
+            }
+            if (test.assertStopRetCtrlIsCProj) {
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Node::CProj(_)));");
+            }
+            if (test.assertStopRetCtrlIsRegion) {
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Node::Region{..}));");
+            }
+            for (var evaluation : test.evaluations) {
+                out.println("assert_eq!(evaluate(&parser.nodes, stop, Some(" + evaluation.parameter() + "), None), " + evaluation.result() + ");");
+            }
+        } else {
+            out.println("todo!();");
         }
         out.println("}");
     }
 
-    private String multiline(String string) {
-        if (!string.contains("\\n")) {
-            return string;
+    private String string(String value) {
+        return string(value, false);
+    }
+
+    private String string(String value, boolean multiline) {
+        var escaped = value.replace("\\", "\\\\")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+                .replace("\"", "\\\"");
+        if (multiline && escaped.contains("\n")) {
+            return "\"\\\n" + escaped + "\"";
+        } else {
+            return "\"" + escaped.replace("\n", "\\n") + "\"";
         }
-        return string.replaceFirst("^\"", "\"\\\\\\\\n").replace("\\n", "\n");
+    }
+
+    private String snakeCase(String identifier) {
+        return identifier.replaceAll("[A-Z]+", "_$0").toLowerCase();
     }
 }
