@@ -45,32 +45,57 @@ class AstVisitor extends TreeScanner<Void, Void> {
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
         if (current != null) {
-            if (node.getMethodSelect().toString().endsWith(".parse")) {
-                current.showAfterParse = switch (node.getArguments().size()) {
+            var methodSelect = node.getMethodSelect().toString();
+            var args = node.getArguments();
+
+            if (methodSelect.endsWith(".parse")) {
+                current.showAfterParse = switch (args.size()) {
                     case 0 -> false;
-                    case 1 -> (Boolean) ((LiteralTree) node.getArguments().getFirst()).getValue();
+                    case 1 -> (Boolean) literal(args.getFirst());
                     default -> throw new RuntimeException("unexpected parse arguments" + node);
                 };
             }
-            if (node.getMethodSelect().toString().endsWith("assertEquals")) {
-                var args = node.getArguments();
+            if (methodSelect.endsWith(".iterate")) {
+                current.iterate = true;
+                current.showAfterIterate = switch (args.size()) {
+                    case 0 -> false;
+                    case 1 -> (Boolean) literal(args.getFirst());
+                    default -> throw new RuntimeException("unexpected parse arguments" + node);
+                };
+            }
+            if (methodSelect.endsWith("assertEquals")) {
                 if (inCatch) {
                     if (args.size() != 2)
                         throw new RuntimeException("Unexpected number of arguments " + node);
-                    if (args.get(0).toString().contains("e.getMessage()")) {
-                        current.parseErrorMessage = args.get(1).toString();
-                    } else if (args.get(1).toString().contains("e.getMessage()")) {
-                        current.parseErrorMessage = args.get(0).toString();
+                    if (args.get(1).toString().contains("e.getMessage()")) {
+                        current.parseErrorMessage = (String) literal(args.get(0));
                     }
                 } else {
                     if (args.size() != 2)
                         throw new RuntimeException("Unexpected number of arguments " + node);
-                    if (args.get(0).toString().contains("stop.toString()")) {
-                        current.assertStopEquals = args.get(1).toString();
-                    } else if (args.get(1).toString().contains("stop.toString()")) {
-                        current.assertStopEquals = args.get(0).toString();
+                    if (args.get(1).toString().endsWith(".toString()") || args.get(1).toString().endsWith(".print()")) {
+                        current.assertStopEquals = (String) literal(args.get(0));
+                    } else if (args.get(1).toString().contains("evaluate(")) {
+                        Number result = (Number) literal(args.get(0));
+                        var evalArgs = ((MethodInvocationTree) args.get(1)).getArguments();
+                        if (evalArgs.size() != 2 || !evalArgs.get(0).toString().equals("stop"))
+                            throw new RuntimeException("Unexpected eval arguments " + node);
+                        long parameter = Long.parseLong(literal(evalArgs.get(1)).toString());
+                        current.evaluations.add(new TestMethod.Evaluation(result, parameter));
                     }
                 }
+            }
+            if (methodSelect.endsWith("assertTrue")) {
+                var arg = args.getFirst().toString();
+                current.assertStopRetCtrlIsProj = arg.contains("stop.ret().ctrl() instanceof ProjNode");
+                current.assertStopRetCtrlIsCProj = arg.contains("stop.ret().ctrl() instanceof CProjNode");
+                current.assertStopRetCtrlIsRegion = arg.contains("stop.ret().ctrl() instanceof RegionNode");
+            }
+            if (methodSelect.endsWith("prettyPrint")) {
+                if (args.size() < 2 || args.size() > 3 || !args.get(0).toString().equals("stop") || !args.get(1).toString().equals("99"))
+                    throw new RuntimeException("unexpected prettyPrint args " + node);
+                current.irPrinter = true;
+                current.irPrinterLLVM = args.size() == 3 && (Boolean) literal(args.get(2));
             }
         }
         return super.visitMethodInvocation(node, unused); // otherwise we would miss the first part of new Parser("").parse()
@@ -84,10 +109,22 @@ class AstVisitor extends TreeScanner<Void, Void> {
                 switch (args.size()) {
                     case 1 -> {
                     }
-                    case 2 -> current.parserArg = Arg.parse(args.get(1).toString());
+                    case 2 -> current.parserArg = switch (args.get(1).toString()) {
+                        case "TypeInteger.BOT" -> new TestMethod.Arg.IntBot();
+                        case "TypeInteger.TOP" -> new TestMethod.Arg.IntTop();
+                        case String s -> {
+                            var parts = s.split("\\(|\\)");
+                            if (parts.length != 2 | !parts[0].equals("TypeInteger.constant"))
+                                throw new RuntimeException("Unexpected Argument " + s);
+                            yield new TestMethod.Arg.IntConstant(Long.parseLong(parts[1]));
+                        }
+                    };
                     default -> throw new RuntimeException("Parser constructor with unexpected arguments: " + node);
                 }
-                current.parserInput = args.get(0).toString();
+                current.parserInput = (String) literal(args.get(0));
+            } else if (node.getIdentifier().toString().equals("GraphVisualizer")) {
+                // only happens in Chapter02Tests
+                current.showAfterParse = true;
             }
         }
         return super.visitNewClass(node, unused);
@@ -99,5 +136,19 @@ class AstVisitor extends TreeScanner<Void, Void> {
         super.visitCatch(node, unused);
         inCatch = false;
         return null;
+    }
+
+    @Override
+    public Void visitAssignment(AssignmentTree node, Void unused) {
+        if (current != null && node.getVariable().toString().equals("Node._disablePeephole")) {
+            if ((Boolean) literal(node.getExpression())) {
+                current.disablePeephole = true;
+            }
+        }
+        return super.visitAssignment(node, unused);
+    }
+
+    private Object literal(ExpressionTree t) {
+        return ((LiteralTree) t).getValue();
     }
 }
