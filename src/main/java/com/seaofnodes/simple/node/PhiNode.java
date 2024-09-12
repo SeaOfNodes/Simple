@@ -11,12 +11,12 @@ public class PhiNode extends Node {
     final String _label;
 
     // The Phi type we compute must stay within the domain of the Phi.
-    // Example Int stays Int, Ptr stays Ptr, Mem stays Mem.
+    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
-    @Override public String label() { return "Phi_"+_label; }
+    @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
     @Override public String glabel() { return "&phi;_"+_label; }
 
@@ -73,7 +73,8 @@ public class PhiNode extends Node {
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);
-        if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
+        if( op.nIns()==3 && op.in(0)==null && same_op() ) {
+            assert !(op instanceof CFGNode);
             Node[] lhss = new Node[nIns()];
             Node[] rhss = new Node[nIns()];
             lhss[0] = rhss[0] = in(0); // Set Region
@@ -81,16 +82,9 @@ public class PhiNode extends Node {
                 lhss[i] = in(i).in(1);
                 rhss[i] = in(i).in(2);
             }
-            Node phi_lhs = new PhiNode(_label, in(1).in(1)._type.glb(),lhss).peephole();
-            Node phi_rhs = new PhiNode(_label, in(1).in(2)._type.glb(),rhss).peephole();
-            Node phi_op = op.copy(phi_lhs,phi_rhs);
-            phi_op.setType(phi_op.compute());
-            // If losing precision, don't do it
-            if( !phi_op._type.isa(_type) ) {
-                phi_op.kill();
-                return null;
-            }
-            return phi_op;
+            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
+            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
+            return op.copy(phi_lhs,phi_rhs);
         }
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
@@ -107,9 +101,9 @@ public class PhiNode extends Node {
             if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
-                if( region().idom(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
+                if( r.idom(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
-                    CFGNode idom = (CFGNode)region().in(nullx);
+                    CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
@@ -121,13 +115,9 @@ public class PhiNode extends Node {
     }
 
     private boolean same_op() {
-        for( int i=2; i<nIns(); i++ ) {
-            if( in(1).getClass() != in(i).getClass() )   return false;
-            if( in(1).in(1)._type.glb() != in(i).in(1)._type.glb() ) return false;
-            if( in(1).in(2)._type.glb() != in(i).in(2)._type.glb() ) return false;
-        }
-        // Load merging needs an anti-dep check.
-        if( in(1) instanceof MemOpNode ) return false;
+        for( int i=2; i<nIns(); i++ )
+            if( in(1).getClass() != in(i).getClass() )
+                return false;
         return true;
     }
 
