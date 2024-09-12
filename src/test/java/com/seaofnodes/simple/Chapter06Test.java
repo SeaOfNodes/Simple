@@ -65,7 +65,7 @@ else
     b=5;
 return b;""", TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region35,42,5);", stop.toString());
+        assertEquals("return Phi(Region40,42,5);", stop.toString());
     }
 
     @Test

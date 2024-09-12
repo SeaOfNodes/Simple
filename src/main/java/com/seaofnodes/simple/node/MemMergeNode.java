@@ -6,7 +6,9 @@ import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 
-/** All memory: a default slice and explicit overrides for individual aliases. */
+/** A default slice and explicit alias overrides. A null default means partial
+ *  memory: absent aliases are not covered, rather than having unknown contents.
+ */
 public class MemMergeNode extends Node {
     public MemMergeNode(Node bulk) { super(null,bulk); _type = TypeMem.BOT; }
     public MemMergeNode(Node bulk, int alias, Node precise) {
@@ -17,13 +19,35 @@ public class MemMergeNode extends Node {
     public Node alias(int alias) {
         Node n = alias < nIns() ? in(alias) : null;
         assert n!=null || !(in(1) instanceof BulkMemPhiNode bulk) || !bulk.isSplit(alias);
-        return n==null ? in(1) : n;
+        n = n==null ? in(1) : n;
+        assert n!=null : "Alias not covered: "+alias;
+        return n;
     }
 
     public void alias(int alias, Node mem) {
         assert alias > 1;
         while( nIns()<=alias ) addDef(null);
         setDef(alias,mem);
+    }
+
+    // Scalar contents of one alias. New's struct supplies the initialized type;
+    // join it with the incoming contents for all previously allocated objects.
+    // Phis use their cached types, so this query does not recurse around loops.
+    static Type contents(Node mem, int alias, Node dep) {
+        mem.addDep(dep);
+        if( mem instanceof MemMergeNode merge )
+            return contents(merge.alias(alias),alias,dep);
+        if( mem instanceof ProjNode proj && proj.in(0) instanceof NewNode nnn ) {
+            assert proj._idx==1 && nnn.field(alias)!=null;
+            nnn.addDep(dep);
+            return contents(nnn.mem(),alias,dep).meet(nnn.field(alias)._type.makeInit());
+        }
+        // There are no heap arguments in this chapter. Before the first New,
+        // the set of allocated objects (and hence stored values) is empty.
+        if( mem instanceof ProjNode proj && proj.in(0) instanceof StartNode ) return Type.TOP;
+        if( mem._type==Type.TOP || mem._type==TypeMem.TOP ) return Type.TOP;
+        if( mem._type instanceof TypeMem mt && mt._alias==alias ) return mt._t;
+        return Type.BOTTOM;
     }
 
     @Override public String label() { return "MemMerge"; }
@@ -42,10 +66,14 @@ public class MemMergeNode extends Node {
     @Override public Node idealize() {
         boolean progress=false, allDefault=true;
         for( int i=2; i<nIns(); i++ ) {
-            if( in(i)==in(1) ) { setDef(i,null); progress=true; }
+            if( in(i)!=null && in(i)==in(1) ) { setDef(i,null); progress=true; }
+            if( in(i) instanceof MemMergeNode mem ) {
+                setDef(i,IterPeeps.add(mem.alias(i)));
+                progress=true;
+            }
             if( in(i)!=null ) allDefault=false;
         }
-        if( allDefault ) return in(1);
+        if( allDefault && in(1)!=null ) return in(1);
 
         if( in(1) instanceof MemMergeNode mem ) {
             for( int i=2; i<mem.nIns(); i++ )

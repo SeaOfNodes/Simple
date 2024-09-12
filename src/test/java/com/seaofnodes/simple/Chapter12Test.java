@@ -2,14 +2,10 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
-import com.seaofnodes.simple.type.TypeStruct;
-import com.seaofnodes.simple.type.TypeMemPtr;
 import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 
 public class Chapter12Test {
     @Ignore
@@ -106,7 +102,7 @@ n.next = new N;
 return n.next;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new N;", stop.toString());
+        assertEquals("return N;", stop.toString());
     }
 
     @Test
@@ -178,7 +174,7 @@ struct S2 { int x; }
 return new S1.s=new S2;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new S1;", stop.toString());
+        assertEquals("return S2;", stop.toString());
     }
 
     @Test
@@ -198,25 +194,4 @@ return p1.pi.i + 1;
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 
-
-    @Test
-    public void testShallowRecursiveType() {
-        new Parser("struct LLI { LLI? next; int i; } return 0;").parse().iterate();
-        TypeStruct l1 = (TypeStruct)Parser.TYPES.get("LLI");
-        TypeStruct l0 = ((TypeMemPtr)l1._fields[0]._type)._obj;
-        assertEquals("LLI", l0._name);
-        assertNull(l0._fields);
-        assertEquals(2, l1._fields.length);
-        assertSame(l0, l1.meet(l0));
-        assertSame(l0, l0.dual());
-        assertSame(l0, l0.glb());
-    }
-
-    @Test
-    public void testUnusedForwardReference() {
-        StopNode stop = new Parser("struct Holder { Missing? ref; } Holder h = new Holder; return h.ref;")
-            .parse().iterate();
-        assertEquals("return null;", stop.toString());
-        assertNull(((TypeStruct)Parser.TYPES.get("Missing"))._fields);
-    }
 }

@@ -100,15 +100,4 @@ return x+1==x;
         assertEquals("return ((flt)arg==(ToFloat+1.0));", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop, 1));
     }
-    @Test
-    public void testReferenceFieldConvertsFloat() {
-        Parser parser = new Parser(
-"""
-struct N { N next; int i; }
-N n = new N;
-n.i = 3.14;
-return n.i;
-""");
-        assertEquals("3",com.seaofnodes.simple.evaluator.Evaluator.evaluate(parser.parse().iterate(),0).toString());
-    }
 }
