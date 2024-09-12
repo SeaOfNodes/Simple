@@ -23,9 +23,6 @@ public abstract class CFGNode extends Node {
 
     public CFGNode(Node... nodes) { super(nodes); }
 
-    @Override public boolean isCFG() { return true; }
-    @Override public boolean isPinned() { return true; }
-
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
     // Block head is Start, Region, CProj, but not e.g. If, Return, Stop
