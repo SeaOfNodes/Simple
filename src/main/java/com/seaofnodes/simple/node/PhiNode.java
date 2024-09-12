@@ -12,7 +12,7 @@ public class PhiNode extends Node {
     final String _label;
 
     // The Phi type we compute must stay within the domain of the Phi.
-    // Example Int stays Int, Ptr stays Ptr, Mem stays Mem.
+    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
@@ -21,7 +21,7 @@ public class PhiNode extends Node {
         return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,type,inputs);
     }
 
-    @Override public String label() { return "Phi_"+_label; }
+    @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
@@ -82,9 +82,9 @@ public class PhiNode extends Node {
             if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
-                if( region().idom(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
+                if( r.idom(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
-                    CFGNode idom = (CFGNode)region().in(nullx);
+                    CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
@@ -97,7 +97,7 @@ public class PhiNode extends Node {
 
     private boolean same_op() {
         Node op = in(1);
-        if( op.isCFG() || op instanceof ConstantNode || op instanceof PhiNode ||
+        if( op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
             op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode || op instanceof MemMergeNode ) return false;
         // A bulk Phi must split its aliases before factoring precise Stores.
         if( this instanceof BulkMemPhiNode ) return false;
