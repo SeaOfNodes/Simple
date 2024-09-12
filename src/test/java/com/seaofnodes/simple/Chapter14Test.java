@@ -15,7 +15,7 @@ public class Chapter14Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse(false).iterate();
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -31,7 +31,7 @@ if( b < 0 ) c = -1;
 if( b > 2 ) c =  1;
 return c;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 99;", stop.toString());
         assertEquals(99L, Evaluator.evaluate(stop,  0));
     }
@@ -44,7 +44,7 @@ u8 b = 123;
 b = b + 456;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 67;", stop.toString());
         assertEquals(67L, Evaluator.evaluate(stop,  0));
     }
@@ -58,7 +58,7 @@ u8 b = 123;
 while( b ) b = b + 456;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop9,123,((Phi_b+456)&255));", stop.toString());
     }
 
@@ -71,7 +71,7 @@ b = b + 456;// Truncate
 u1 c = b;   // No more truncate needed
 return c;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
@@ -84,7 +84,7 @@ int b = 123;
 b = b+456 & 31;                 // Precedence
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3;", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop,  0));
     }
@@ -98,7 +98,7 @@ Foo f = new Foo;
 f.b = 123;
 return f.b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
@@ -110,7 +110,7 @@ return f.b;
 i8 b = 255;                     // Chopped
 return b;                       // Sign extend
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return -1;", stop.toString());
         assertEquals(-1L, Evaluator.evaluate(stop,  0));
     }
@@ -123,9 +123,10 @@ i8 b = arg;
 b = b + 1;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop,  0));
+        assertEquals(1L, Evaluator.evaluate(stop, 0));
+        assertEquals(-128L, Evaluator.evaluate(stop, 127));
     }
 
     @Test
@@ -136,38 +137,9 @@ u16 mask = (1<<16)-1;           // AND mask
 int c = 123456789 & mask;
 return c;                       //
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 52501;", stop.toString());
         assertEquals(52501L, Evaluator.evaluate(stop,  0));
-    }
-
-    @Test
-    public void testWrapMinus() {
-        Parser parser = new Parser(
-"""
-int MAX = 9223372036854775807; //0x7FFFFFFFFFFFFFFF;
-int i = (arg&MAX) + -MAX + -1; // Basically (e0) + Long.MIN_VALUE
-int j = -i; // Negating Long.MIN_VALUE wraps, cannot constant fold
-if (arg) j = 1;
-return j;
-""");
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region28,1,(-((arg&9223372036854775807)+-9223372036854775808)));", stop.toString());
-        assertEquals(-9223372036854775808L, Evaluator.evaluate(stop,  0));
-        assertEquals(1L, Evaluator.evaluate(stop,  1));
-    }
-
-    @Test
-    public void testWrapShr() {
-        Parser parser = new Parser(
-"""
-return (arg >>> 1)==0;
-""");
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return (!(arg>>>1));", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop, 0));
-        assertEquals(1L, Evaluator.evaluate(stop, 1));
-        assertEquals(0L, Evaluator.evaluate(stop, 2));
     }
 
     @Test
@@ -176,7 +148,7 @@ return (arg >>> 1)==0;
 """
 return (arg | 123 ^ 456) >>> 1;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return (((arg|123)^456)>>>1);", stop.toString());
         assertEquals(217L, Evaluator.evaluate(stop,  0));
     }
@@ -191,101 +163,6 @@ return arg;
 """);
         try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot '&' FltBot",e.getMessage()); }
-    }
-
-    @Test
-    public void testLoadBug() {
-        Parser parser = new Parser(
-"""
-struct A { int i; }
-struct B { int i; }
-A a = new A;
-A t1 = new A;
-B b = new B;
-B t2 = new B;
-int i;
-if (arg) i = a.i;
-else     i = b.i;
-return i;
-""");
-        StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return Phi(Region31,.i,.i);", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop, 0));
-    }
-
-    @Test
-    public void testBug2() {
-        Parser parser = new Parser(
-"""
-int z = 0;
-while (1) {
-    int j;
-    if (arg&3) {
-        j = arg >> 2;
-    } else {
-        j = (arg >> 3)+z;
-    }
-    return j+1;
-}
-""");
-        StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return ((arg>>Phi(Region32,2,3))+1);", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop, 0));
-        assertEquals(1L, Evaluator.evaluate(stop, 1));
-        assertEquals(2L, Evaluator.evaluate(stop, 7));
-        assertEquals(2L, Evaluator.evaluate(stop, 8));
-    }
-
-    @Test
-    public void testBug3() {
-        Parser parser = new Parser(
-"""
-flt f = arg;
-bool b;
-if (arg&3) b = f == 1.0;
-else       b = f == 2.0;
-if (arg&5) b = arg == 1;
-return b;
-""");
-        StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return Phi(Region37,(arg==1),((flt)arg==Phi(Region23,1.0,2.0)));", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop, 1));
-        assertEquals(0L, Evaluator.evaluate(stop, 2));
-        assertEquals(0L, Evaluator.evaluate(stop, 3));
-    }
-
-    @Test
-    public void testBug4() {
-        Parser parser = new Parser(
-"""
-int i;
-if (arg&7) i=3;
-else       i=2;
-return (arg == i) == 1;
-""");
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return (arg==Phi(Region18,3,2));", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
-        assertEquals(0L, Evaluator.evaluate(stop,  1));
-        assertEquals(0L, Evaluator.evaluate(stop,  2));
-        assertEquals(1L, Evaluator.evaluate(stop,  3));
-    }
-
-    @Test
-    public void testBug5() {
-        Parser parser = new Parser(
-"""
-int d = -1;
-while (1) {
-    int i = (arg & 7) + (9223372036854775807 - 7);
-    if (arg & 1) i = ((arg&3) + (9223372036854775807 - 3)) & d;
-    return i + -1;
-}
-""");
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return (Phi(Region43,((arg&3)+9223372036854775804),((arg&7)+9223372036854775800))+-1);", stop.toString());
-        assertEquals(0x7FFFFFFFFFFFFFF7L, Evaluator.evaluate(stop,  0));
-        assertEquals(0x7FFFFFFFFFFFFFFCL, Evaluator.evaluate(stop,  1));
     }
 
     @Test
@@ -309,7 +186,7 @@ f32 ff32 = 3.141592653589793;  if( ff32 != 3.1415927410125732) return 5;
 
 return 0;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }

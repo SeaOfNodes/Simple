@@ -39,6 +39,7 @@ public class Type {
     static final byte TMEMPTR = 9; // Memory pointer type
     static final byte TSTRUCT =10; // Structs; tuples with named fields
     static final byte TFLD    =11; // Fields into struct
+    static final byte TARRAY  =12; // Array
 
     public final byte _type;
 
@@ -81,6 +82,7 @@ public class Type {
     public StringBuilder typeName( StringBuilder sb) { return print(sb); }
 
     public Type makeInit() { return null; }
+    public Type nonZero() { return glb(); }
 
     // ----------------------------------------------------------
 
@@ -176,6 +178,14 @@ public class Type {
      * Compute greatest lower bound in the lattice
      */
     public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
+
+    // ----------------------------------------------------------
+
+    // Size in bits to hold an instance of this type.
+    // Sizes are expected to be between 1 and 64 bits.
+    // Size 0 means this either takes no space (such as a known-zero field)
+    // or isn't a scalar to be stored in memory.
+    public int log_size() { throw Utils.TODO(); }
 
     // ----------------------------------------------------------
     // Useful in the debugger, which calls toString everywhere.
