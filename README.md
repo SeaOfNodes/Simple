@@ -58,7 +58,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 12](docs/chapter12/README.md): Float type.
 * [Chapter 13](docs/chapter13/README.md): Nested references in Structs.
 * [Chapter 14](docs/chapter14/README.md): Narrow primitive types (e.g. bytes)
-* Chapter 15: One dimensional static length array type, with array loads and stores.
+* [Chapter 15](docs/chapter15/README.md): One dimensional static length array type, with array loads and stores.
 * Chapter 16: Constructors
 * Chapter 17: Mutability & Syntax Sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
 * Chapter 18: Functions and calls.

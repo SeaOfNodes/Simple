@@ -22,7 +22,8 @@ public class AddNode extends Node {
     @Override
     public Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
-        if( t1.isHigh() || t2.isHigh() ) return TypeInteger.TOP;
+        if( t1.isHigh() || t2.isHigh() )
+            return TypeInteger.TOP;
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 ) {
             if (i1.isConstant() && i2.isConstant())
@@ -36,7 +37,7 @@ public class AddNode extends Node {
     }
 
     private static boolean overflow( long x, long y ) {
-        if(    (x ^      y ) < 0 ) return false; // unequal signs, never overflow
+        if( (x ^    y ) < 0 ) return false; // unequal signs, never overflow
         return (x ^ (x + y)) < 0; // sum has unequal signs, so overflow
     }
     @Override
