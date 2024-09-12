@@ -496,7 +496,7 @@ return v;
     @Test
     public void testExample2() {
         Parser parser = new Parser(
-                """
+                                   """
 struct S { int f; }
 S v = new S;
 int i = arg;
@@ -507,8 +507,25 @@ while (arg > 0) {
     arg = arg - 1;
 }
 return v;
-                """);
+""");
         StopNode stop = parser.parse(false).iterate(true);
         //assertEquals("return new S;", stop.toString());
+    }
+
+    @Test
+    public void testSplit() {
+        Parser parser = new Parser(
+                                   """
+struct S { int f; }
+S s = new S;
+if( arg==0 ) s.f = 1;
+else if (arg == 1) s.f = 1;
+return s.f;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Region35,1,Phi(Region33,1,0));", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop,  0));
+        assertEquals(1L, Evaluator.evaluate(stop,  1));
+        assertEquals(0L, Evaluator.evaluate(stop,  2));
     }
 }

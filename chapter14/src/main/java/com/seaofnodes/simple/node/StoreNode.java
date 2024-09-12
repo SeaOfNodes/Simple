@@ -19,12 +19,12 @@ public class StoreNode extends MemOpNode {
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Type glb, Node memSlice, Node memPtr, Node value, boolean init) {
-        super(name, alias, glb, memSlice, memPtr, value);
+    public StoreNode(String name, int alias, Type glb, Node ctrl, Node memSlice, Node memPtr, Node value, boolean init) {
+        super(name, alias, glb, ctrl, memSlice, memPtr, value);
         _init = init;
     }
 
-    @Override public String  label() { return "ST"+_name; }
+    @Override public String  label() { return "." +_name+"="; }
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
 

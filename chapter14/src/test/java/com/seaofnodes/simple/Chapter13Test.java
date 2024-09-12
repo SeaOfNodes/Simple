@@ -35,7 +35,7 @@ while( arg ) {
 return head.next.i;
 """);
         try { parser.parse(true).iterate(true); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
     }
 
     @Test

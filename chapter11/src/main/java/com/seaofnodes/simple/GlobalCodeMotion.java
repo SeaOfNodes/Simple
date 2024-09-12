@@ -120,7 +120,7 @@ public abstract class GlobalCodeMotion {
                 ns[i].setDef(0,late[i]);
     }
 
-    // Forwards post-order pass.  Schedule all outputs first, then draw a
+    // Forwards post-order pass.  Schedule all outputs first, then draw an
     // idom-tree line from the LCA of uses to the early schedule.  Schedule is
     // legal anywhere on this line; pick the most control-dependent (largest
     // idepth) in the shallowest loop nest.
@@ -154,7 +154,7 @@ public abstract class GlobalCodeMotion {
         if( n instanceof LoadNode load )
             lca = find_anti_dep(lca,load,early,late);
 
-        // Walk up from the LCA to the early, looking for best place.  This is
+        // Walk up from the LCA to the early, looking for best place.  This is the
         // lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
         CFGNode best = lca;
