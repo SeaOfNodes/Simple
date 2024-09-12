@@ -70,6 +70,11 @@ public class TypeFloat extends Type {
     @Override public boolean isHighOrConst() { return _sz<=0; }
     @Override public boolean isConstant()    { return _sz==0; }
 
+    @Override public int log_size() {
+        int sz = _sz==0 ? (isF32() ? 32 : 64) : Math.abs(_sz);
+        return _sz==32 ? 2 : 3;
+    }
+
     public double value() { return _con; }
 
     @Override
@@ -111,4 +116,5 @@ public class TypeFloat extends Type {
         TypeFloat i = (TypeFloat)t; // Contract
         return _con==i._con && _sz==i._sz;
     }
+
 }
