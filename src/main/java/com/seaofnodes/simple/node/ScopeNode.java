@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.type.TypeMemPtr;
-
+import com.seaofnodes.simple.type.*;
 import java.util.*;
 
 /**
@@ -21,23 +20,21 @@ public class ScopeNode extends Node {
     public static final String ARG0 = "arg";
 
     /**
-     * Names for every input edge
+     * Map variable names to Scope input edge
      */
-    public final Stack<HashMap<String, Integer>> _scopes;
+    public final Stack<HashMap<String, Integer>> _idxs;
 
     /**
-     * Tracks declared types for every name
+     * Map variable names to declared Type
      */
-    public Stack<HashMap<String, Type>> _types;
-
+    final Stack<HashMap<String, Type>> _decls;
 
     // A new ScopeNode
     public ScopeNode() {
-        _scopes = new Stack<>();
-        _types  = new Stack<>();
+        _idxs = new Stack<>();
+        _decls= new Stack<>();
         _type = Type.BOTTOM;
     }
-
 
     @Override public String label() { return "Scope"; }
 
@@ -58,6 +55,20 @@ public class ScopeNode extends Node {
         return sb.append("]");
     }
 
+    public Node ctrl() { return in(0); }
+
+    /**
+     * The ctrl of a ScopeNode is always bound to the currently active
+     * control node in the graph, via a special name '$ctrl' that is not
+     * a valid identifier in the language grammar and hence cannot be
+     * referenced in Simple code.
+     *
+     * @param n The node to be bound to '$ctrl'
+     *
+     * @return Node that was bound
+     */
+    public Node ctrl(Node n) { return setDef(0,n); }
+
     /**
      * Recover the names for all variable bindings.
      * The result is an array of names that is aligned with the
@@ -67,7 +78,7 @@ public class ScopeNode extends Node {
      */
     public String[] reverseNames() {
         String[] names = new String[nIns()];
-        for( HashMap<String,Integer> syms : _scopes )
+        for( HashMap<String,Integer> syms : _idxs )
             for( String name : syms.keySet() )
                 names[syms.get(name)] = name;
         return names;
@@ -77,33 +88,34 @@ public class ScopeNode extends Node {
 
     @Override public Node idealize() { return null; }
 
-    public void push() { _scopes.push(new HashMap<>());  _types.push(new HashMap<>()); }
-    public void pop() { popN(_scopes.pop().size()); _types.pop(); }
+    public void push() { _idxs.push(new HashMap<>());  _decls.push(new HashMap<>()); }
+    public void pop() { popN(_idxs.pop().size()); _decls.pop(); }
 
     /**
-     * Create a new name in the current scope
+     * Create a new variable name in the current scope
      */
     public Node define( String name, Type declaredType, Node n ) {
-        HashMap<String,Integer> syms = _scopes.lastElement();
-        _types.lastElement().put(name,declaredType);
+        HashMap<String,Integer> syms = _idxs.lastElement();
+        _decls.lastElement().put(name,declaredType);
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
         return addDef(n);
     }
+
     /**
      * Lookup a name in all scopes starting from most deeply nested.
      *
      * @param name Name to be looked up
      * @see #update(String, Node, int)
      */
-    public Node lookup( String name ) { return update(name,null,_scopes.size()-1);  }
+    public Node lookup( String name ) { return update(name,null,_idxs.size()-1);  }
     /**
      * If the name is present in any scope, then redefine else null
      *
      * @param name Name being redefined
      * @param n    The node to bind to the name
      */
-    public Node update( String name, Node n ) { return update(name,n,_scopes.size()-1); }
+    public Node update( String name, Node n ) { return update(name,n,_idxs.size()-1); }
     /**
      * Both recursive lookup and update.
      * <p>
@@ -117,7 +129,7 @@ public class ScopeNode extends Node {
      */
     private Node update( String name, Node n, int nestingLevel ) {
         if( nestingLevel<0 ) return null;  // Missed in all scopes, not found
-        var syms = _scopes.get(nestingLevel); // Get the symbol table for nesting level
+        var syms = _idxs.get(nestingLevel); // Get the symbol table for nesting level
         var idx = syms.get(name);
         if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
         Node old = in(idx);
@@ -135,28 +147,14 @@ public class ScopeNode extends Node {
         return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
     }
 
-    // Return declared type
+    // Return declared type for a variable
     public Type lookupDeclaredType( String name ) {
-        for( int i=_types.size(); i>0; i-- ) {
-            Type t = _types.get(i-1).get(name);
+        for( int i=_decls.size(); i>0; i-- ) {
+            Type t = _decls.get(i-1).get(name);
             if( t != null ) return t;
         }
         return null;
     }
-
-    public Node ctrl() { return in(0); }
-
-    /**
-     * The ctrl of a ScopeNode is always bound to the currently active
-     * control node in the graph, via a special name '$ctrl' that is not
-     * a valid identifier in the language grammar and hence cannot be
-     * referenced in Simple code.
-     *
-     * @param n The node to be bound to '$ctrl'
-     *
-     * @return Node that was bound
-     */
-    public Node ctrl(Node n) { return setDef(0,n); }
 
     /**
      * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
@@ -165,7 +163,7 @@ public class ScopeNode extends Node {
      * also the program Nodes).
      * <p>
      * If the {@code loop} flag is set, the edges are filled in as the original
-     * Scope, as a indication of Lazy Phis at loop heads.  The goal here is to
+     * Scope, as an indication of Lazy Phis at loop heads.  The goal here is to
      * not make Phis at loop heads for variables which are never touched in the
      * loop body.
      * <p>
@@ -178,10 +176,10 @@ public class ScopeNode extends Node {
         // 1) duplicate the name bindings of the ScopeNode across all stack levels
         // 2) Make the new ScopeNode a user of all the nodes bound
         // 3) Ensure that the order of defs is the same to allow easy merging
-        for( HashMap<String,Integer> syms : _scopes )
-            dup._scopes.push(new HashMap<>(syms));
-        for( HashMap<String,Type> ts : _types )
-            dup._types.push(ts); // Types don't change, just keep stacks aligned
+        for( HashMap<String,Integer> syms : _idxs )
+            dup._idxs.push(new HashMap<>(syms));
+        for( HashMap<String,Type> ts : _decls )
+            dup._decls.push(ts); // Types don't change, just keep stacks aligned
 
         dup.addDef(ctrl());     // Control input is just copied
         for( int i=1; i<nIns(); i++ )

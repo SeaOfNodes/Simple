@@ -13,32 +13,32 @@ public class TypeTest {
     @Test
     public void testTypeAdHoc() {
         TypeStruct s1 = TypeStruct.make("s1", new Field[]{
-                Field.make("a", TypeInteger.BOT),
-                Field.make("b", TypeInteger.BOT) });
+                Field.make("a",-1, TypeInteger.BOT),
+                Field.make("b",-2, TypeInteger.BOT) });
         TypeStruct s2 = TypeStruct.make("s2", new Field[]{
-                Field.make("a", TypeInteger.BOT),
-                Field.make("b", TypeInteger.BOT) });
+                Field.make("a",-3, TypeInteger.BOT),
+                Field.make("b",-4, TypeInteger.BOT) });
         Assert.assertEquals(s1, s1.glb());
         Assert.assertNotEquals(s1, s1.dual());
         Assert.assertEquals(s1, s1.dual().glb());
 
-        TypeMem m1 = TypeMem.make(1);
-        TypeMem m2 = TypeMem.make(2);
-        TypeMem m3 = TypeMem.make(3);
-        TypeMem m4 = TypeMem.make(4);
+        TypeMem m1 = TypeMem.make(1,TypeInteger.ZERO);
+        TypeMem m2 = TypeMem.make(2,TypeInteger.U16);
+        TypeMem m3 = TypeMem.make(3,TypeFloat.BOT);
+        TypeMem m4 = TypeMem.make(4,TypeInteger.BOT);
 
         Assert.assertNotEquals(m1, m2);
         Assert.assertNotEquals(m2, m3);
         Assert.assertNotEquals(m3, m4);
 
         Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
-        Assert.assertEquals(TypeMem   .BOT, m1.meet(m2));
+        Assert.assertEquals(TypeMem.make(-1,TypeInteger.U16), m1.meet(m2));
         Assert.assertEquals(TypeMem   .BOT, m2.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
-        Assert.assertEquals(m1, m1.glb());
-        Assert.assertEquals(TypeMem.make(1), m1.dual());
-        Assert.assertEquals(m1.dual(), m1.glb().dual());
+        Assert.assertEquals(TypeMem.make(1,TypeInteger.BOT), m1.glb());
+        Assert.assertEquals(TypeMem.make(1,TypeInteger.ZERO), m1.dual());
+        Assert.assertEquals(m4.dual(), m4.glb().dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
@@ -58,12 +58,12 @@ public class TypeTest {
 
         Assert.assertEquals(ptr1, ptr1.dual().dual());
         Assert.assertEquals(ptr1.glb(), ptr1.dual().glb());
-        Assert.assertEquals(TypeMemPtr.BOT, ptr1.meet(ptr2nil));
+        Assert.assertEquals(TypeMemPtr.make(TypeStruct.BOT,true), ptr1.meet(ptr2nil));
         Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULLPTR));
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
-        TypeMemPtr BOT = TypeMemPtr.BOT;
-        TypeMemPtr PTR = TypeMemPtr.VOIDPTR;
+        TypeMemPtr BOT = TypeMemPtr.make(TypeStruct.BOT,true );
+        TypeMemPtr PTR = TypeMemPtr.make(TypeStruct.BOT,false);
         TypeMemPtr NULL = TypeMemPtr.NULLPTR;
         Type PTR_meet_NULL = NULL.meet(PTR);
         Assert.assertEquals(BOT, PTR_meet_NULL);
