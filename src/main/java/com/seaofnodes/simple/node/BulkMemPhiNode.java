@@ -87,7 +87,7 @@ public class BulkMemPhiNode extends PhiNode {
 
     // True if the MemMerge has no precise slice still covered by this Phi.
     private boolean canPeek(MemMergeNode mmm) {
-        return missingAlias(mmm,false)==0;
+        return mmm.in(1)!=null && missingAlias(mmm)==0;
     }
 
     // Return an alias required by an input but still covered by this Phi, or 0.
@@ -95,7 +95,7 @@ public class BulkMemPhiNode extends PhiNode {
         return switch(n) {
         case ProjNode proj -> 0;
         case ConstantNode con -> 0;
-        case MemMergeNode mmm -> missingAlias(mmm,false);
+        case MemMergeNode mmm -> missingAlias(mmm);
         case MemOpNode mem -> unsplit(mem._alias);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         default -> throw new AssertionError("Unexpected memory input "+n);
@@ -111,7 +111,7 @@ public class BulkMemPhiNode extends PhiNode {
         use.addDepForwards(this);
         return switch(use) {
         case ScopeNode scope -> 0;
-        case MemMergeNode mmm -> missingAlias(mmm,true);
+        case MemMergeNode mmm -> missingAlias(mmm);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         case MemOpNode mem -> unsplit(mem._alias);
         case MemPhiNode phi -> unsplit(phi._alias);
@@ -139,14 +139,14 @@ public class BulkMemPhiNode extends PhiNode {
         return 0;
     }
 
-    // First precise MemMerge slice still covered by this Phi.  When inspecting
-    // a user, ignore slots which point back to this Phi.
-    private int missingAlias(MemMergeNode mmm, boolean user) {
+    // Every explicit slot requests that alias, including a partial allocation
+    // input whose slot still points to this bulk Phi.
+    private int missingAlias(MemMergeNode mmm) {
         for( int alias=2; alias<mmm.nIns(); alias++ )
             if( mmm.in(alias)!=null &&
                 mmm.alias(alias)!=mmm.in(1) &&
                 !_aliases.get(alias) )
-                { assert (!user || mmm.in(alias)!=this); return alias; }
+                return alias;
         return 0;
     }
 
@@ -198,7 +198,7 @@ public class BulkMemPhiNode extends PhiNode {
         mphi = new MemPhiNode("$"+alias,alias);
         mphi.addDef(region());
         // Due to cycles, must set before calling peephole
-        mphi.setType(TypeMem.make(alias));
+        mphi.setType(TypeMem.make(alias,Type.BOTTOM));
         for( int i=1; i<nIns(); i++ )
             mphi.addDef(IterPeeps.add(preciseInput(in(i),alias)));
         return IterPeeps.add(mphi);
