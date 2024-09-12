@@ -12,6 +12,8 @@ public class TypeStruct extends Type {
     // names and types.  Briefly during parsing its allowed to have a
     // forward-ref to a Struct; in this case the _fields array is null.
     // Its illegal to attempt to load a field from a forward-ref struct.
+    // Example: "int rez = new S.x; struct S { int x; } return rez;" // Error, S not defined
+    // Rewrite: "struct S { int x; } int rez = new S.x; return rez;" // Ok, no forward ref
     //
     // During the normal optimization run, struct types "bottom out" at further
     // struct references, so we don't have to handle e.g.  cyclic types.  The

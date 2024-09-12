@@ -39,6 +39,7 @@ public class Type {
     static final byte TMEMPTR = 9; // Memory pointer type
     static final byte TSTRUCT =10; // Structs; tuples with named fields
     static final byte TFLD    =11; // Fields into struct
+    static final byte TARRAY  =12; // Array
 
     public final byte _type;
 
