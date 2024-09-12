@@ -21,11 +21,12 @@ public class ProjNode extends Node {
         _label = label;
     }
 
-    @Override
-    public String label() { return _label; }
+    @Override public String label() { return _label; }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(_label); }
+
+    @Override public CFGNode cfg0() { return in(0).cfg0(); }
 
     @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }

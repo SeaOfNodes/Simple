@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
 /**
@@ -75,6 +76,14 @@ public class TypeInteger extends Type {
     @Override public boolean isHighOrConst() { return _min >= _max; }
     @Override public boolean isConstant   () { return _min == _max; }
 
+    @Override public int log_size() {
+        if( this==I8  || this==U8 || this==BOOL ) return 0; // 1<<0 == 1 bytes
+        if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
+        if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
+        if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
+        throw Utils.TODO();
+    }
+
     public long value() { assert isConstant(); return _min; }
 
     // AND-mask of forced zeros.  e.g. unsigned types will return their mask;
@@ -104,8 +113,14 @@ public class TypeInteger extends Type {
     }
 
     @Override public TypeInteger dual() { return make(_max,_min); }
-    @Override public Type glb() { return BOT; }
+    @Override public TypeInteger glb() { return BOT; }
     @Override public TypeInteger makeInit() { return ZERO; }
+    @Override public TypeInteger nonZero() {
+        if( isHigh() ) return this;
+        if( _min==0 ) return make(1,_max); // specifically good on BOOL
+        if( _max==0 ) return make(_min,-1);
+        return this;
+    }
     @Override int hash() { return (int)((_min ^ (_min>>32)) *(_max ^ (_max>>32))); }
     @Override
     public boolean eq( Type t ) {

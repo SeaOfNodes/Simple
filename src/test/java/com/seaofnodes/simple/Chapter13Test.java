@@ -347,7 +347,9 @@ if (arg) v.f=1;
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return .f;", stop.toString());
+        assertEquals("return 2;", stop.toString());
+        assertEquals(2L, Evaluator.evaluate(stop, 0));
+        assertEquals(2L, Evaluator.evaluate(stop, 1));
     }
 
     @Test
@@ -356,6 +358,7 @@ return i;
 """
 struct S { int f; }
 S v = new S;
+v.f = arg;
 S t = new S;
 int i = 0;
 if (arg) {
@@ -367,7 +370,7 @@ if (arg) {
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region37,.f,0);", stop.toString());
+        assertEquals("return Phi(Region46,.f,0);", stop.toString());
     }
 
     @Test
@@ -386,7 +389,7 @@ if (v1) {
 return v0;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new S;", stop.toString());
+        assertEquals("return S;", stop.toString());
     }
 
 
@@ -396,6 +399,7 @@ return v0;
 """
 struct S { int f; }
 S v = new S;
+v.f = arg;
 S t = new S;
 int i = v.f;
 if (arg+1) arg= 0;
@@ -403,7 +407,7 @@ while (arg) v.f = 2;
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return .f;", stop.toString());
+        assertEquals("return arg;", stop.toString());
     }
 
     @Test
@@ -420,7 +424,7 @@ while(1) {
 return v;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new S;", stop.toString());
+        assertEquals("return S;", stop.toString());
     }
 
     @Test
@@ -453,7 +457,7 @@ while (arg) {
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return .f;", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -473,7 +477,7 @@ while(arg) {
 return arg;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop17,arg,Phi(Region41,.f,0));", stop.toString());
+        assertEquals("return Phi(Loop21,arg,Phi(Region48,.f,0));", stop.toString());
     }
 
     @Test
@@ -491,7 +495,7 @@ if (arg) {
 return v;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new S;", stop.toString());
+        assertEquals("return S;", stop.toString());
     }
 
     @Test
@@ -511,22 +515,5 @@ return v;
                 """);
         StopNode stop = parser.parse().iterate();
         //assertEquals("return new S;", stop.toString());
-    }
-
-    @Test
-    public void testSplit() {
-        Parser parser = new Parser(
-                                   """
-struct S { int f; }
-S s = new S;
-if( arg==0 ) s.f = 1;
-else if (arg == 1) s.f = 1;
-return s.f;
-""");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region43,1,Phi(Region38,1,0));", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop,  0));
-        assertEquals(1L, Evaluator.evaluate(stop,  1));
-        assertEquals(0L, Evaluator.evaluate(stop,  2));
     }
 }

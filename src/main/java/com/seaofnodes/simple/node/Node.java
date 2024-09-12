@@ -92,7 +92,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
 
     public boolean isUnused() { return nOuts() == 0; }
 
-   public CFGNode cfg0() { return (CFGNode)in(0); }
+    public CFGNode cfg0() { return (CFGNode)in(0); }
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
@@ -136,11 +136,10 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     Node delDef(int idx) {
         unlock();
         Node old_def = in(idx);
-        if( old_def != null &&  // If the old def exists, remove a def->use edge
-            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+        Utils.del(_inputs, idx);
+        if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         old_def.moveDepsToWorklist();
-        Utils.del(_inputs, idx);
         return this;
     }
 
@@ -489,8 +488,6 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     // ------------------------------------------------------------------------
     //
 
-    /** Is this Node control-flow-graph related */
-
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
 
@@ -593,12 +590,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         E x = pred.apply(this);
         if( x != null ) return x;
         for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
-        // Unroll iterator to survive junk CME
-        for( int i=0; i<_outputs.size(); i++ ) {
-            Node use = _outputs.get(i);
-            if( use != null && (x = use._walk(pred)) != null )
-                return x;
-        }
+        for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
         return null;
     }
 

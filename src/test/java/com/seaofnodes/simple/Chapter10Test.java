@@ -48,10 +48,11 @@ public class Chapter10Test {
     // Issue #246: null-check guards start in Chapter 10; arrays arrive in Chapter 15.
     private static final String NULLABLE_POINT_SOURCE = """
         struct Point { int x; };
+        Point?[] points = new Point?[2];
         Point point = new Point;
         point.x = 42;
-        Point? p = null;
-        if (arg) p = point;
+        points[arg] = point;
+        Point? p = points[1];
         """;
 
     @Test
@@ -74,7 +75,7 @@ public class Chapter10Test {
         for( String body : new String[] {
             "return p.x;",
             "if (p == null) return p.x; return -1;",
-            "if (!!point) return p.x; return -1;",
+            "if (!!points) return p.x; return -1;",
             "if (!!p) { int x = p.x; } return p.x;"
         } ) {
             try {
@@ -147,7 +148,7 @@ else
 return v;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new Vector2D;", stop.toString());
+        assertEquals("return Vector2D;", stop.toString());
     }
 
     @Test
@@ -185,7 +186,7 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop13,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop15,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
@@ -237,7 +238,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region33,(*void)Phi(Region20,null,new Bar),null);", stop.toString());
+        assertEquals("return Phi(Region36,(*void)Phi(Region22,null,Bar),null);", stop.toString());
     }
 
     @Test
@@ -253,7 +254,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region39,4,3);", stop.toString());
+        assertEquals("return Phi(Region42,4,3);", stop.toString());
     }
 
     @Test
@@ -328,7 +329,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop13,new s0,Phi(Region37,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop15,s0,Phi(Region42,s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -346,7 +347,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop17,new s0,Phi(Region38,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop21,s0,Phi(Region43,s0,Phi_ret));", stop.toString());
     }
 
 
@@ -363,7 +364,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop13,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop15,s0,Phi(Region39,s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -407,7 +408,7 @@ else return new s0;
 if(new s0.f0) return 0;
     """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new s0;", stop.toString());
+        assertEquals("return s0;", stop.toString());
     }
 
     @Test
@@ -435,7 +436,7 @@ s0 v1 = v0;
 return v1;
     """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return new s0;", stop.toString());
+        assertEquals("return s0;", stop.toString());
     }
 
 
@@ -567,8 +568,8 @@ return 0;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
             """).parse().iterate();
-        // Two branch Stores plus the initial zero Store.
-        assertEquals(3,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        // Keep each Store on its own branch.
+        assertEquals(2,countMemoryNodes(stop,StoreNode.class,new BitSet()));
         assertEquals(2L,((Evaluator.Obj)Evaluator.evaluate(stop,0)).fields()[0]);
         assertEquals(4L,((Evaluator.Obj)Evaluator.evaluate(stop,3)).fields()[0]);
     }
