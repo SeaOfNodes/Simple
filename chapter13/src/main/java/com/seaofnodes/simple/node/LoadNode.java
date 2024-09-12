@@ -19,7 +19,7 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(name, alias, glb, memSlice, memPtr);
+        super(name, alias, glb, null, memSlice, memPtr);
     }
 
     @Override public String  label() { return     _name; }

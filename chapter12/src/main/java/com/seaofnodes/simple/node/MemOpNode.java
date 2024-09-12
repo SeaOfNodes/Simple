@@ -12,14 +12,10 @@ public abstract class MemOpNode extends Node {
     public final String _name;
     public final int _alias;
 
-    public MemOpNode(String name, int alias, Node memSlice, Node memPtr) {
-        super(null, memSlice, memPtr);
+    public MemOpNode(String name, int alias, Node... nodes) {
+        super(nodes);
         _name  = name;
         _alias = alias;
-    }
-    public MemOpNode(String name, int alias, Node memSlice, Node memPtr, Node value) {
-        this(name, alias, memSlice, memPtr);
-        addDef(value);
     }
 
     public Node mem() { return in(1); }
