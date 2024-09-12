@@ -17,7 +17,8 @@ public class ReturnNode extends CFGNode {
 
     public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
         super(ctrl, data);
-        // We lookup memory slices by the naming convention that they start with $
+        // Add memory slices to Return, so all memory updates are live-on-exit.
+        // We look up memory slices by the naming convention that they start with $.
         // We could also use implicit knowledge that all memory projects are at offset >= 2
         if( scope != null ) {
             String[] names = scope.reverseNames();

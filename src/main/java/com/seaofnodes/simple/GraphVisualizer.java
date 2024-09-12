@@ -82,8 +82,8 @@ public class GraphVisualizer {
         for (Node n : all) {
             if (n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n==Parser.XCTRL)
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
-            if (_separateControlCluster && doCtrl && !n.isCFG()) continue;
-            if (_separateControlCluster && !doCtrl && n.isCFG()) continue;
+            if( _separateControlCluster &&  doCtrl && !(n instanceof CFGNode) ) continue;
+            if( _separateControlCluster && !doCtrl &&  (n instanceof CFGNode) ) continue;
             sb.append("\t\t").append(n.uniqueName()).append(" [ ");
             String lab = n.glabel();
             if (n instanceof MultiNode) {
@@ -93,6 +93,7 @@ public class GraphVisualizer {
                 sb.append("\t\t\t<TR><TD BGCOLOR=\"yellow\">").append(lab).append("</TD></TR>\n");
                 sb.append("\t\t\t<TR>");
                 boolean doProjTable = false;
+                n._outputs.sort((x,y) -> x instanceof ProjNode xp && y instanceof ProjNode yp ? (xp._idx - yp._idx) : (x._nid - y._nid));
                 for (Node use : n._outputs) {
                     if (use instanceof ProjNode proj) {
                         if (!doProjTable) {
@@ -124,7 +125,7 @@ public class GraphVisualizer {
             } else {
                 // control nodes have box shape
                 // other nodes are ellipses, i.e. default shape
-                if (n.isCFG()) sb.append("shape=box style=filled fillcolor=yellow ");
+                if( n instanceof CFGNode ) sb.append("shape=box style=filled fillcolor=yellow ");
                 else if (n instanceof PhiNode) sb.append("style=filled fillcolor=lightyellow ");
                 sb.append("label=\"").append(lab).append("\" ");
             }
@@ -154,14 +155,14 @@ public class GraphVisualizer {
     private void scope( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tnode [shape=plaintext];\n");
         int level=1;
-        for( int idx = scope._scopes.size()-1; idx>=0; idx-- ) {
-            var syms = scope._scopes.get(idx);
+        for( int idx = scope._idxs.size()-1; idx>=0; idx-- ) {
+            var syms = scope._idxs.get(idx);
             String scopeName = makeScopeName(scope, level);
             sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
-            int scopeLevel = scope._scopes.size()-level;
+            int scopeLevel = scope._idxs.size()-level;
             sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(scopeLevel).append("</TD>");
             for(String name: syms.keySet())
                 sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
@@ -212,7 +213,7 @@ public class GraphVisualizer {
                     if ( n instanceof NewNode )
                         sb.append(" color=green");
                     // control edges are colored red
-                    else if( def.isCFG() )
+                    else if( def instanceof CFGNode )
                         sb.append(" color=red");
                     else if( def.isMem() )
                         sb.append(" color=blue");
@@ -229,8 +230,8 @@ public class GraphVisualizer {
     private void scopeEdges( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=1;
-        for( int i = scope._scopes.size()-1; i>=0; i-- ) {
-            var syms = scope._scopes.get(i);
+        for( int i = scope._idxs.size()-1; i>=0; i-- ) {
+            var syms = scope._idxs.get(i);
             String scopeName = makeScopeName(scope, level);
             for( String name : syms.keySet() ) {
                 int idx = syms.get(name);
