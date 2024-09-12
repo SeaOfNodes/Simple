@@ -119,6 +119,11 @@ unaryExpression
     | primaryExpression
     ;
 
+arrayExpression
+    : XXX '[' expression ']'
+    | primaryExpression
+    ;
+
 newExpression
     : 'new' IDENTIFIER
     ;
