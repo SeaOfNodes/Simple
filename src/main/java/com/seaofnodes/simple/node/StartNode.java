@@ -4,7 +4,6 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.HashMap;
 import java.util.HashSet;
 
 /**
@@ -19,16 +18,10 @@ public class StartNode extends CFGNode implements MultiNode {
     // This field is NOT final, because the tuple expands as we add memory aliases
     TypeTuple _args;
 
-    // The alias number of the first field in the struct.
-    //
-    public final HashMap<String,Integer> _aliasStarts;
-
-
     public StartNode(Type[] args) {
         super();
         _args = TypeTuple.make(args);
         _type = _args;
-        _aliasStarts = new HashMap<>();
     }
 
     /**
@@ -36,28 +29,29 @@ public class StartNode extends CFGNode implements MultiNode {
      * as the key.
      */
     public void addMemProj( TypeStruct ts, ScopeNode scope) {
-        int len = _args._types.length;
-        _aliasStarts.put(ts._name,len);
-
-        // resize the tuple's type array to include all fields of the struct
-        int max = len + ts._fields.length;
-        Type[] args = Arrays.copyOf(_args._types, max);
-
-        // The new members of the tuple get a mem type with an alias
-        for( int alias = len; alias < max; alias++ )
-            args[alias] = TypeMem.make(alias);
-        _type = _args = TypeTuple.make(args);
-        // For each of the fields we now add a mem projection.  Note that the
-        // alias matches the slot of the field in the tuple
-        for( int alias = len; alias < max; alias++ ) {
-            String name = Parser.memName(alias);
-            Node n = new ProjNode(this, alias, name).peephole();
-            scope.define(name, args[alias], n);
+        if( ts._fields.length==0 ) return;
+        // Expand args type for more memory projections
+        Type[] args = _args._types;
+        int max = args.length;
+        for( Field f : ts._fields )
+            max = Math.max(max,f._alias);
+        args = Arrays.copyOf(args, max+1);
+        // For each of the fields we now add a mem projection.
+        for( Field f : ts._fields ) {
+            TypeMem tm_decl = TypeMem.make(f._alias,f._type.glb());
+            args[f._alias] = tm_decl.dual();
+            String name = Parser.memName(f._alias);
+            Node n = new ProjNode(this, f._alias, name); // No 'compute' until ScopeNode gets typed
+            n._type = args[f._alias];
+            scope.define(name, tm_decl, n);
         }
+        for (int i = 0; i < args.length; i++)
+            if (args[i] == null)
+                args[i] = Type.TOP; // We parsed a nested struct/array. Avoid nulls until a caller replaces this alias.
+        _type = _args = TypeTuple.make(args);
     }
 
-    @Override
-    public String label() { return "Start"; }
+    @Override public String label() { return "Start"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -66,6 +60,7 @@ public class StartNode extends CFGNode implements MultiNode {
 
     @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
+    @Override public CFGNode cfg0() { return this; }
 
     @Override
     public TypeTuple compute() { return _args; }

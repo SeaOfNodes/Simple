@@ -34,9 +34,6 @@ abstract public class BoolNode extends Node {
         Type t2 = in(2)._type;
         if( t1.isHigh() || t2.isHigh() )
             return BOOL.dual();
-        // Compare of same
-        if( in(1)==in(2) )
-            return doOp(ZERO,ZERO);
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 )
             return doOp(i1,i2);
@@ -52,6 +49,10 @@ abstract public class BoolNode extends Node {
 
     @Override
     public Node idealize() {
+        // Compare of same
+        if( in(1)==in(2) )
+            return new ConstantNode(doOp(ZERO,ZERO));
+
         // Equals pushes constant to the right; 5==X becomes X==5.
         if( this instanceof EQ ) {
             if( !(in(2) instanceof ConstantNode) ) {
@@ -63,10 +64,13 @@ abstract public class BoolNode extends Node {
             // Equals X==0 becomes a !X
             if( (in(2)._type == ZERO || in(2)._type == TypeMemPtr.NULLPTR) )
                 return new NotNode(in(1));
-            // Equals bool == 1 becomes bool
-            if( in(2)._type == TRUE && in(1)._type == BOOL )
-                return in(1);
         }
+
+        // Do we have ((phi cons) cmp con) ?
+        // Do we have ((phi cons) cmp (phi cons)) ?
+        // Push the compare up through the phi: (phi con0 cmp con, con1 cmp con...)
+        Node phicon = AddNode.phiCon(this,this instanceof EQ);
+        if( phicon!=null ) return phicon;
 
         return null;
     }
@@ -105,8 +109,8 @@ abstract public class BoolNode extends Node {
         Node copyF() { return new LEF(null,null); }
     }
 
-    public static class EQF extends EQ { public EQF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs == rhs; } Node copy(Node lhs, Node rhs) { return new EQF(lhs,rhs); } }
-    public static class LTF extends LT { public LTF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <  rhs; } Node copy(Node lhs, Node rhs) { return new LTF(lhs,rhs); } }
-    public static class LEF extends LE { public LEF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <= rhs; } Node copy(Node lhs, Node rhs) { return new LEF(lhs,rhs); } }
+    public static class EQF extends EQ { public EQF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs == rhs; } }
+    public static class LTF extends LT { public LTF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <  rhs; } }
+    public static class LEF extends LE { public LEF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <= rhs; } }
 
 }

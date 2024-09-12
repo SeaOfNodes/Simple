@@ -36,7 +36,6 @@ public class ConstantNode extends Node {
     }
 
     @Override public boolean isMultiTail() { return true; }
-    // The special forever-zero is pinned, all others can sink
 
     @Override
     public Type compute() { return _con; }

@@ -93,11 +93,12 @@ public abstract class GlobalCodeMotion {
 
     private static void _schedEarly(Node n, BitSet visit) {
         if( n==null || visit.get(n._nid) ) return; // Been there, done that
+        assert !(n instanceof CFGNode);
         visit.set(n._nid);
         // Schedule inputs first, except Phis: following their backedges would
         // enter a data cycle before its control has been scheduled.
         for( Node def : n._inputs )
-            if( def!=null && !(def instanceof PhiNode) )
+            if( def!=null )
                 _schedEarly(def,visit);
         // An existing edge 0 already supplies control (or a Phi/Proj binding).
         if( n.in(0)==null ) {
@@ -122,7 +123,7 @@ public abstract class GlobalCodeMotion {
 
         // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )
-            if( ns[i] != null )
+            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
                 ns[i].setDef(0,late[i]);
     }
 
@@ -137,8 +138,7 @@ public abstract class GlobalCodeMotion {
             // These I know the late schedule of, and need to set early for loops
             if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
             else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
-            // These nodes have a fixed late placement at their original control.
-            else if( n instanceof ProjNode || n instanceof NewNode || n==Parser.ZERO || n instanceof CastNode ) late[n._nid] = n.cfg0();
+            else if( n instanceof ProjNode && n.in(0) instanceof CFGNode cfg ) late[n._nid] = cfg;
             else {
 
                 // All uses done?
@@ -149,7 +149,11 @@ public abstract class GlobalCodeMotion {
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
-                        if( memuse._type instanceof TypeMem && late[memuse._nid]==null )
+                        if( late[memuse._nid]==null &&
+                            // Load-use directly defines memory
+                            (memuse._type instanceof TypeMem ||
+                             // Load-use indirectly defines memory
+                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
                             continue outer;
 
                 // All uses done, schedule
@@ -174,11 +178,12 @@ public abstract class GlobalCodeMotion {
 
     private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late, int[] anti) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode early = (CFGNode)n.in(0);
+        CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            lca = use_block(n,use, late).domLCA(lca,null);
+            if( use != null )
+              lca = use_block(n,use, late).domLCA(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
@@ -228,6 +233,10 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case StoreNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
+                break;
+            case NewNode st:
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;

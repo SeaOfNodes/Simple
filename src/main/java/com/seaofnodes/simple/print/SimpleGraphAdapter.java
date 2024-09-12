@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 import java.util.ArrayList;
 
-/** Chapter 14's view of the IR; browser, transport and layout are shared. */
+/** Chapter 15's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -44,13 +44,14 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
         if( n instanceof LoopNode ) return Kind.LOOP;
         if( n instanceof RegionNode ) return Kind.REGION;
         if( n instanceof PhiNode ) return Kind.PHI;
-        return n.isCFG() ? Kind.CTRL : isMem(n) ? Kind.MEM : Kind.DATA;
+        return n instanceof CFGNode ? Kind.CTRL : isMem(n) ? Kind.MEM : Kind.DATA;
     }
 
     private Role role(Node n, int i) {
         if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof XCtrlNode ) return Role.ASSOC;
         if( n instanceof PhiNode ) return i == 0 ? Role.ASSOC : isMem(n) ? Role.MEM : Role.DATA;
-        if( n instanceof ProjNode || n instanceof CProjNode ) return n.isCFG() ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
+        if( n instanceof ProjNode || n instanceof CProjNode )
+            return n instanceof CFGNode ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
         if( i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode) ) return Role.MEM;
