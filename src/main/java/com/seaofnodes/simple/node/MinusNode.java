@@ -22,9 +22,7 @@ public class MinusNode extends Node {
     public Type compute() {
         if( in(1)._type instanceof TypeInteger i0 ) {
             if( i0.isHigh() ) return TypeInteger.TOP;
-            // Catch overflow wrapping on `-Long.MIN_VALUE`
-            if( i0 == TypeInteger.BOT || i0._min == Long.MIN_VALUE ) return TypeInteger.BOT;
-            return TypeInteger.make(-i0._max,-i0._min);
+            return i0==TypeInteger.BOT ? TypeInteger.BOT : TypeInteger.make(-i0._max,-i0._min);
         }
         return TypeInteger.TOP.meet(in(1)._type);
     }

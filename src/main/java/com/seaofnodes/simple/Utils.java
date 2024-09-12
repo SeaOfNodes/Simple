@@ -13,14 +13,9 @@ public class Utils {
      *  @param i element to be removed
      *  @return element removed
      */
-    public static <E> E del(ArrayList<E> array, int i) {
-        if ( i >= 0 && i < array.size() ) {
-            E tmp = array.get(i);
-            E last = array.removeLast();
-            if (i < array.size()) array.set(i, last);
-            return tmp;
-        }
-        return null;
+    public static <E> void del(ArrayList<E> array, int i) {
+        E last = array.removeLast();
+        if (i < array.size()) array.set(i, last);
     }
 
     /**

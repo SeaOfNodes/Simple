@@ -37,7 +37,7 @@ public class DivNode extends Node {
     @Override
     public Node idealize() {
         // Div of 1.
-        if( in(2)._type.isConstant() && in(2)._type instanceof TypeInteger i && i.value()==1 )
+        if( in(2)._type == TypeInteger.TRUE )
             return in(1);
         return null;
     }
