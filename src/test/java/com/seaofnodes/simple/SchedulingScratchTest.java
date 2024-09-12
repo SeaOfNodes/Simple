@@ -8,14 +8,13 @@ import static org.junit.Assert.assertEquals;
 public class SchedulingScratchTest {
     @Test public void testScratchAcrossCompilations() {
         String src = """
-            struct Box { int x; };
-            Box b = new Box;
-            b.x = arg;
+            int[] xs = new int[2];
+            xs[0] = arg;
             int sum = 0;
             int i = 0;
             while( i<5 ) {
-                int old = b.x;
-                b.x = i;
+                int old = xs[arg&1];
+                xs[0] = i;
                 sum = sum + old;
                 i = i + 1;
             }
@@ -25,7 +24,7 @@ public class SchedulingScratchTest {
         for( int round=0; round<3; round++ ) {
             StopNode stop = new Parser(src).parse().iterate();
             assertEquals(6L,Evaluator.evaluate(stop,0));
-            assertEquals(7L,Evaluator.evaluate(stop,1));
+            assertEquals(0L,Evaluator.evaluate(stop,1));
             assertEquals(8L,Evaluator.evaluate(stop,2));
         }
     }
