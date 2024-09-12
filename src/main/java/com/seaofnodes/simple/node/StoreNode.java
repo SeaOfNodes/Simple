@@ -14,21 +14,24 @@ public class StoreNode extends MemOpNode {
     private final boolean _init; // Initializing writes are allowed to write null
 
     /**
-     * @param name The struct field we are assigning to
-     * @param memSlice The memory alias node - this is updated after a Store
-     * @param memPtr The ptr to the struct where we will store a value
+     * @param name  The struct field we are assigning to
+     * @param mem   The memory alias node - this is updated after a Store
+     * @param ptr   The ptr to the struct base where we will store a value
+     * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Type glb, Node ctrl, Node memSlice, Node memPtr, Node value, boolean init) {
-        super(name, alias, glb, ctrl, memSlice, memPtr, value);
+    public StoreNode(String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
+        super(name, alias, glb, mem, ptr, off, value);
         _init = init;
     }
 
-    @Override public String  label() { return "." +_name+"="; }
+    // GraphVis DOT code and debugger labels
+    @Override public String  label() { return "st_"+mlabel(); }
+    // GraphVis node-internal labels
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
 
-    public Node val() { return in(3); }
+    public Node val() { return in(4); }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -36,7 +39,14 @@ public class StoreNode extends MemOpNode {
     }
 
     @Override
-    public Type compute() { return TypeMem.make(_alias); }
+    public Type compute() {
+        Type val = val()._type;
+        TypeMem mem = (TypeMem)mem()._type; // Invariant
+        Type t = mem._alias==_alias
+            ? val.meet(mem._t)  // Meet into existing memory
+            : Type.BOTTOM;
+        return TypeMem.make(_alias,t);
+    }
 
     @Override
     public Node idealize() {
@@ -45,6 +55,7 @@ public class StoreNode extends MemOpNode {
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
             ptr()==st.ptr() &&  // Must check same object
+            off()==st.off() &&  // And same offset
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
@@ -72,7 +83,7 @@ public class StoreNode extends MemOpNode {
     String err() {
         String err = super.err();
         if( err != null ) return err;
-        Type ptr = val()._type;
-        return _init || ptr.isa(_declaredType) ? null : "Cannot store "+ptr+" into field "+_declaredType+" "+_name;
+        Type t = val()._type;
+        return _init || t.isa(_declaredType) ? null : "Cannot store "+t+" into field "+_declaredType+" "+_name;
     }
 }
