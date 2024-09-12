@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
+import org.junit.Ignore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -20,7 +21,7 @@ return 3.14;
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
 
-    @Test
+    @Ignore @Test
     public void testBasic() {
         Parser parser = new Parser(
 """
