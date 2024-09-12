@@ -93,11 +93,12 @@ public abstract class GlobalCodeMotion {
 
     private static void _schedEarly(Node n, BitSet visit) {
         if( n==null || visit.get(n._nid) ) return; // Been there, done that
+        assert !(n instanceof CFGNode);
         visit.set(n._nid);
         // Schedule inputs first, except Phis: following their backedges would
         // enter a data cycle before its control has been scheduled.
         for( Node def : n._inputs )
-            if( def!=null && !(def instanceof PhiNode) )
+            if( def!=null )
                 _schedEarly(def,visit);
         // An existing edge 0 already supplies control (or a Phi/Proj binding).
         if( n.in(0)==null ) {
@@ -122,7 +123,7 @@ public abstract class GlobalCodeMotion {
 
         // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )
-            if( ns[i] != null )
+            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
                 ns[i].setDef(0,late[i]);
     }
 
@@ -137,8 +138,7 @@ public abstract class GlobalCodeMotion {
             // These I know the late schedule of, and need to set early for loops
             if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
             else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
-            // These nodes have a fixed late placement at their original control.
-            else if( n instanceof ProjNode || n instanceof NewNode || n==Parser.ZERO || n instanceof CastNode ) late[n._nid] = n.cfg0();
+            else if( n instanceof ProjNode && n.in(0) instanceof CFGNode cfg ) late[n._nid] = cfg;
             else {
 
                 // All uses done?
@@ -148,8 +148,8 @@ public abstract class GlobalCodeMotion {
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
-                    for( Node memuse : ld.mem()._outputs )
-                        if( antiUse(ld,memuse) && late[memuse._nid]==null )
+                    for( Node memuse : ld.antiDeps() )
+                        if( late[memuse._nid]==null )
                             continue outer;
 
                 // All uses done, schedule
@@ -161,9 +161,7 @@ public abstract class GlobalCodeMotion {
             for( Node def : n._inputs ) {
                 if( def==null ) continue;
                 if( late[def._nid]==null ) work.push(def);
-                for( Node out : def._outputs )
-                    if( out instanceof LoadNode ld && late[ld._nid]==null )
-                        work.push(ld);
+                wakeLoads(def,late,work,new BitSet());
             }
             if( n instanceof LoopNode loop )
                 for( Node phi : loop._outputs )
@@ -174,11 +172,12 @@ public abstract class GlobalCodeMotion {
 
     private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late, int[] anti) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode early = (CFGNode)n.in(0);
+        CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            lca = use_block(n,use, late).domLCA(lca,null);
+            if( use != null )
+              lca = use_block(n,use, late).domLCA(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
@@ -219,15 +218,15 @@ public abstract class GlobalCodeMotion {
             best instanceof IfNode;
     }
 
-    // Only a store or memory Phi covering this alias can constrain a load.
-    // MemMerge packages slices without overwriting them.
-    private static boolean antiUse(LoadNode load, Node use) {
-        return switch( use ) {
-        case StoreNode st -> st._alias==load._alias;
-        case MemPhiNode phi -> phi._alias==load._alias;
-        case BulkMemPhiNode phi -> !phi.isSplit(load._alias);
-        default -> false;
-        };
+    // An allocation may consume a load's memory through a partial aggregate.
+    private static void wakeLoads(Node def, CFGNode[] late, WorkList<Node> work, BitSet visit) {
+        if( visit.get(def._nid) ) return;
+        visit.set(def._nid);
+        for( Node out : def._outputs )
+            if( out instanceof LoadNode ld && late[ld._nid]==null ) work.push(ld);
+        if( def instanceof MemMergeNode )
+            for( int i=1; i<def.nIns(); i++ )
+                if( def.in(i)!=null ) wakeLoads(def.in(i),late,work,visit);
     }
 
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late, int[] anti) {
@@ -236,10 +235,13 @@ public abstract class GlobalCodeMotion {
         for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
-        for( Node mem : load.mem()._outputs ) {
-            if( !antiUse(load,mem) ) continue;
+        for( Node mem : load.antiDeps() ) {
             switch( mem ) {
             case StoreNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
+                break;
+            case NewNode st:
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;

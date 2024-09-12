@@ -16,8 +16,7 @@ public class StartNode extends CFGNode implements MultiNode {
         _type = _args = TypeTuple.make(args);
     }
 
-    @Override
-    public String label() { return "Start"; }
+    @Override public String label() { return "Start"; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.p(label());
@@ -25,6 +24,7 @@ public class StartNode extends CFGNode implements MultiNode {
 
     @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
+    @Override public CFGNode cfg0() { return this; }
 
     @Override
     public TypeTuple compute() { return _args; }
