@@ -25,15 +25,14 @@ public class SubNode extends Node {
                 return TypeInteger.constant(i0.value()-i1.value());
             return i0.meet(i1);
         }
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return TypeInteger.ZERO;
         return Type.BOTTOM;
     }
 
     @Override
     public Node idealize() {
-        // Sub of same is 0
-        if( in(1)==in(2) )
-            return new ConstantNode(TypeInteger.constant(0));
-
         return null;
     }
 

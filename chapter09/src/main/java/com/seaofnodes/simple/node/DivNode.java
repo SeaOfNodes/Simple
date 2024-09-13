@@ -32,7 +32,12 @@ public class DivNode extends Node {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        // Div of 1.
+        if( in(2)._type.isConstant() && in(2)._type instanceof TypeInteger i && i.value()==1 )
+            return in(1);
+        return null;
+    }
 
     @Override Node copy(Node lhs, Node rhs) { return new DivNode(lhs,rhs); }
 }
