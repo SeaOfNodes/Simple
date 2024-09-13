@@ -19,6 +19,10 @@ public class SubNode extends Node {
 
     @Override
     public Type compute() {
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return TypeInteger.ZERO;
+
         if (in(1)._type instanceof TypeInteger i0 &&
             in(2)._type instanceof TypeInteger i1) {
             if (i0.isConstant() && i1.isConstant())
@@ -30,10 +34,6 @@ public class SubNode extends Node {
 
     @Override
     public Node idealize() {
-        // Sub of same is 0
-        if( in(1)==in(2) )
-            return new ConstantNode(TypeInteger.constant(0));
-
         return null;
     }
 
