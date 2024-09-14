@@ -127,8 +127,9 @@ Each table is annotated by its scope level, and shows the variables defined in t
 
 As we see, only 1 symbol table is present at this point.
 
-We can also have scopes at the same level during the execution of the program
-but only one will be alive at a time as the symbol table only capable of holding one symbol table for one scope level.
+We can also have multiple scopes at the same level during the execution of the program, 
+but only one will be active at a time because the symbol table can only hold one symbol table 
+for each scope level.
 
 For example:
 ```
