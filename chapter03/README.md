@@ -127,6 +127,40 @@ Each table is annotated by its scope level, and shows the variables defined in t
 
 As we see, only 1 symbol table is present at this point.
 
+We can also have scopes at the same level during the execution of the program
+but only one will be alive at a time as the symbol table only capable of holding one symbol table for one scope level.
+
+For example:
+```
+01   int a=1; 
+02   int b=2; 
+03   int c=0; 
+04   { 
+05      int b=3; 
+06      c=a+b; 
+08   } 
+09   {
+10       int e = 3; 
+11       c = a+e;  
+13    } 
+14    return c; 
+```
+Here both scopes starting from `(04-08)` and `(09-13)` are at the same level:
+```java
+public final Stack<HashMap<String, Integer>> _scopes;
+```
+The `_scopes` stack holds nested scopes, with index 0 representing the highest (global) 
+scope and deeper indices representing more nested scopes. 
+Popping returns the current scope and moves to the outer one. 
+There is a direct one-to-one mapping between each index and its corresponding scope.
+
+The first nested scope(04-08)
+![Graph4](./docs/03-graph4.svg)
+
+The second nested scope(09-13)
+![Graph5](./docs/03-graph5.svg)
+
+ - In both cases the index which represents the deepness of the scope is 1.
 ## Enabling peephole optimizations
 
 Once we enable peephole optimizations, the parser is able to reduce all the expressions down to a
