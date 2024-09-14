@@ -137,13 +137,13 @@ For example:
 02   int b=2; 
 03   int c=0; 
 04   { 
-05      int b=3; 
-06      c=a+b; 
+05       int b=5; 
+06       c=a+b; 
 08   } 
 09   {
-10       int e = 3; 
+10       int e=6; 
 11       c = a+e;  
-13    } 
+13   } 
 14    return c; 
 ```
 Here both scopes starting from `(04-08)` and `(09-13)` are at the same level:
