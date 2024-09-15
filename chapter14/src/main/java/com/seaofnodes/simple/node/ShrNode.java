@@ -21,10 +21,17 @@ public class ShrNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
-            if( i0.isConstant() && i1.isConstant() )
-                return TypeInteger.constant(i0.value()>>>i1.value());
+        if (in(1)._type instanceof TypeInteger i1 &&
+            in(2)._type instanceof TypeInteger i2) {
+            if( i1.isConstant() && i2.isConstant() )
+                return TypeInteger.constant(i1.value()>>>i2.value());
+            if( i1.isHigh() || i2.isHigh() )
+                return TypeInteger.TOP;
+            // Zero shifting a negative makes a larger positive
+            // so get the endpoints correct.
+            long s1 = i1._min>>>i2._min;
+            long s2 = i1._max>>>i2._min;
+            return TypeInteger.make(Math.min(s1,s2),Math.max(s1,s2));
         }
         return TypeInteger.BOT;
     }

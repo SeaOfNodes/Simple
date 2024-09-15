@@ -201,6 +201,29 @@ return i;
     }
 
     @Test
+    public void testBug2() {
+        Parser parser = new Parser(
+"""
+int z = 0;
+while (1) {
+    int j;
+    if (arg&3) {
+        j = arg >> 2;
+    } else {
+        j = (arg >> 3)+z;
+    }
+    return j+1;
+}
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return ((arg>>Phi(Region32,2,3))+1);", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop, 0));
+        assertEquals(1L, Evaluator.evaluate(stop, 1));
+        assertEquals(2L, Evaluator.evaluate(stop, 7));
+        assertEquals(2L, Evaluator.evaluate(stop, 8));
+    }
+
+    @Test
     public void testTypes() {
         Parser parser = new Parser(
 """
