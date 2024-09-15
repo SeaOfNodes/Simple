@@ -81,8 +81,8 @@ public class PhiNode extends Node {
                 lhss[i] = in(i).in(1);
                 rhss[i] = in(i).in(2);
             }
-            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
-            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
+            Node phi_lhs = new PhiNode(_label, in(1).in(1)._type.glb(),lhss).peephole();
+            Node phi_rhs = new PhiNode(_label, in(1).in(2)._type.glb(),rhss).peephole();
             return op.copy(phi_lhs,phi_rhs);
         }
 
@@ -114,9 +114,12 @@ public class PhiNode extends Node {
     }
 
     private boolean same_op() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1).getClass() != in(i).getClass() || in(1) instanceof MemOpNode )
-                return false;
+        for( int i=2; i<nIns(); i++ ) {
+            if( in(1).getClass() != in(i).getClass() )   return false;
+            if( in(1).in(1)._type.glb() != in(i).in(1)._type.glb() ) return false;
+            if( in(1).in(2)._type.glb() != in(i).in(2)._type.glb() ) return false;
+        }
+        assert  !(in(1) instanceof MemOpNode);
         return true;
     }
 

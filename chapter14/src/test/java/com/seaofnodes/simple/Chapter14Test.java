@@ -224,6 +224,23 @@ while (1) {
     }
 
     @Test
+    public void testBug3() {
+        Parser parser = new Parser(
+"""
+flt f = arg;
+bool b;
+if (arg&3) b = f == 1.0;
+else       b = f == 2.0;
+if (arg&5) b = arg == 1;
+return b;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return Phi(Region37,(arg==1),((flt)arg==Phi(Region23,1.0,2.0)));", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop, 1));
+        assertEquals(0L, Evaluator.evaluate(stop, 2));
+        assertEquals(0L, Evaluator.evaluate(stop, 3));
+    }
+    @Test
     public void testTypes() {
         Parser parser = new Parser(
 """
