@@ -21,14 +21,14 @@ public class SarNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
-            if( i0.isConstant() && i1.isConstant() )
-                return TypeInteger.constant(i0.value()>>i1.value());
-            if( i1.isConstant() ) {
-                int log = (int)i1.value();
-                return TypeInteger.make(-1L<<(63-log),(1L<<(63-log))-1);
-            }
+        if( in(1)._type.isHigh() || in(2)._type.isHigh() )  return TypeInteger.TOP;
+        if (in(1)._type instanceof TypeInteger i1 &&
+            in(2)._type instanceof TypeInteger i2) {
+            if( i1.isConstant() && i2.isConstant() )
+                return TypeInteger.constant(i1.value()>>i2.value());
+            if( i2._min < 0 || i2._max >= 64 )
+                return TypeInteger.BOT;
+            return TypeInteger.make(i1._min>>i2._min,i1._max>>i2._min);
         }
         return TypeInteger.BOT;
     }
