@@ -154,7 +154,7 @@ return j;
         StopNode stop = parser.parse(false).iterate(true);
         assertEquals("return Phi(Region28,1,(-((arg&9223372036854775807)+-9223372036854775808)));", stop.toString());
         assertEquals(-9223372036854775808L, Evaluator.evaluate(stop,  0));
-        assertEquals(1, Evaluator.evaluate(stop,  1));
+        assertEquals(1L, Evaluator.evaluate(stop,  1));
     }
 
     @Test
