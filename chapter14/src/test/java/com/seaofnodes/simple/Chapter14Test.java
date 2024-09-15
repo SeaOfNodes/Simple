@@ -158,6 +158,19 @@ return j;
     }
 
     @Test
+    public void testWrapShr() {
+        Parser parser = new Parser(
+"""
+return (arg >>> 1)==0;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return (!(arg>>>1));", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop, 0));
+        assertEquals(1L, Evaluator.evaluate(stop, 1));
+        assertEquals(0L, Evaluator.evaluate(stop, 2));
+    }
+
+    @Test
     public void testOr() {
         Parser parser = new Parser(
 """

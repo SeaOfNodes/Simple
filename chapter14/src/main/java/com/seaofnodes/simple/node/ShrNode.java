@@ -33,7 +33,8 @@ public class ShrNode extends Node {
             // so get the endpoints correct.
             long s1 = i1._min>>>i2._min;
             long s2 = i1._max>>>i2._min;
-            return TypeInteger.make(Math.min(s1,s2),Math.max(s1,s2));
+            boolean wrap = i1._min < 0 && i2._max >=0;
+            return TypeInteger.make(wrap ? 0 : Math.min(s1,s2),Math.max(s1,s2));
         }
         return TypeInteger.BOT;
     }
