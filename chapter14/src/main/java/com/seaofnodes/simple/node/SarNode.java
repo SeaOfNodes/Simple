@@ -27,6 +27,8 @@ public class SarNode extends Node {
                 return TypeInteger.constant(i1.value()>>i2.value());
             if( i1.isHigh() || i2.isHigh() )
                 return TypeInteger.TOP;
+            if( i2._min < 0 || i2._max >= 64 )
+                return TypeInteger.BOT;
             return TypeInteger.make(i1._min>>i2._min,i1._max>>i2._min);
         }
         return TypeInteger.BOT;

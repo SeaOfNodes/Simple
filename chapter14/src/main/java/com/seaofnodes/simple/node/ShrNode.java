@@ -27,6 +27,8 @@ public class ShrNode extends Node {
                 return TypeInteger.constant(i1.value()>>>i2.value());
             if( i1.isHigh() || i2.isHigh() )
                 return TypeInteger.TOP;
+            if( i2._min < 0 || i2._max >= 64 )
+                return TypeInteger.BOT;
             // Zero shifting a negative makes a larger positive
             // so get the endpoints correct.
             long s1 = i1._min>>>i2._min;
