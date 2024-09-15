@@ -240,6 +240,24 @@ return b;
         assertEquals(0L, Evaluator.evaluate(stop, 2));
         assertEquals(0L, Evaluator.evaluate(stop, 3));
     }
+
+    @Test
+    public void testBug4() {
+        Parser parser = new Parser(
+"""
+int i;
+if (arg&7) i=3;
+else       i=2;
+return (arg == i) == 1;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return (arg==Phi(Region18,3,2));", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        assertEquals(0L, Evaluator.evaluate(stop,  1));
+        assertEquals(0L, Evaluator.evaluate(stop,  2));
+        assertEquals(1L, Evaluator.evaluate(stop,  3));
+    }
+
     @Test
     public void testTypes() {
         Parser parser = new Parser(

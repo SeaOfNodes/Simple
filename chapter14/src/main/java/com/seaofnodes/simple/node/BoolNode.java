@@ -37,6 +37,9 @@ abstract public class BoolNode extends Node {
         Type t2 = in(2)._type;
         if( t1.isHigh() || t2.isHigh() )
             return BOOL.dual();
+        // Compare of same
+        if( in(1)==in(2) )
+            return doOp(ZERO,ZERO);
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 )
             return doOp(i1,i2);
@@ -53,10 +56,6 @@ abstract public class BoolNode extends Node {
 
     @Override
     public Node idealize() {
-        // Compare of same
-        if( in(1)==in(2) )
-            return new ConstantNode(doOp(ZERO,ZERO));
-
         // Equals pushes constant to the right; 5==X becomes X==5.
         if( this instanceof EQ ) {
             if( !(in(2) instanceof ConstantNode) ) {
@@ -68,13 +67,10 @@ abstract public class BoolNode extends Node {
             // Equals X==0 becomes a !X
             if( (in(2)._type == ZERO || in(2)._type == TypeMemPtr.NULLPTR) )
                 return new NotNode(in(1));
+            // Equals bool == 1 becomes bool
+            if( in(2)._type == TRUE && in(1)._type == BOOL )
+                return in(1);
         }
-
-        // Do we have ((x * (phi cons)) * con) ?
-        // Do we have ((x * (phi cons)) * (phi cons)) ?
-        // Push constant up through the phi: x * (phi con0*con0 con1*con1...)
-        Node phicon = AddNode.phiCon(this,this instanceof EQ);
-        if( phicon!=null ) return phicon;
 
         return null;
     }
