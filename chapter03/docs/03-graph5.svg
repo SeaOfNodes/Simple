@@ -55,7 +55,7 @@
 <g id="node4" class="node">
 <title>Con_9</title>
 <ellipse fill="none" stroke="#000000" cx="259" cy="-114" rx="27" ry="18"/>
-<text text-anchor="middle" x="259" y="-109.8" font-family="Times,serif" font-size="14.00" fill="#000000">#3</text>
+<text text-anchor="middle" x="259" y="-109.8" font-family="Times,serif" font-size="14.00" fill="#000000">#6</text>
 </g>
 <!-- Con_9&#45;&gt;Start2 -->
 <g id="edge3" class="edge">
@@ -68,7 +68,7 @@
 <g id="node5" class="node">
 <title>Con_11</title>
 <ellipse fill="none" stroke="#000000" cx="187" cy="-114" rx="27" ry="18"/>
-<text text-anchor="middle" x="187" y="-109.8" font-family="Times,serif" font-size="14.00" fill="#000000">#4</text>
+<text text-anchor="middle" x="187" y="-109.8" font-family="Times,serif" font-size="14.00" fill="#000000">#7</text>
 </g>
 <!-- Con_11&#45;&gt;Start2 -->
 <g id="edge4" class="edge">
