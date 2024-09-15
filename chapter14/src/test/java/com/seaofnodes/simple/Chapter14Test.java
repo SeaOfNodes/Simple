@@ -272,6 +272,23 @@ return (arg == i) == 1;
     }
 
     @Test
+    public void testBug5() {
+        Parser parser = new Parser(
+"""
+int d = -1;
+while (1) {
+    int i = (arg & 7) + (9223372036854775807 - 7);
+    if (arg & 1) i = ((arg&3) + (9223372036854775807 - 3)) & d;
+    return i + -1;
+}
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return (Phi(Region43,((arg&3)+9223372036854775804),((arg&7)+9223372036854775800))+-1);", stop.toString());
+        assertEquals(0x7FFFFFFFFFFFFFF7L, Evaluator.evaluate(stop,  0));
+        assertEquals(0x7FFFFFFFFFFFFFFCL, Evaluator.evaluate(stop,  1));
+    }
+
+    @Test
     public void testTypes() {
         Parser parser = new Parser(
 """

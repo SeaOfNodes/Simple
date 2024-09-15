@@ -83,7 +83,14 @@ public class PhiNode extends Node {
             }
             Node phi_lhs = new PhiNode(_label, in(1).in(1)._type.glb(),lhss).peephole();
             Node phi_rhs = new PhiNode(_label, in(1).in(2)._type.glb(),rhss).peephole();
-            return op.copy(phi_lhs,phi_rhs);
+            Node phi_op = op.copy(phi_lhs,phi_rhs);
+            phi_op.setType(phi_op.compute());
+            // If losing precision, don't do it
+            if( !phi_op._type.isa(_type) ) {
+                phi_op.kill();
+                return null;
+            }
+            return phi_op;
         }
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.

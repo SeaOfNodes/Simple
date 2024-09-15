@@ -21,12 +21,11 @@ public class SarNode extends Node {
 
     @Override
     public Type compute() {
+        if( in(1)._type.isHigh() || in(2)._type.isHigh() )  return TypeInteger.TOP;
         if (in(1)._type instanceof TypeInteger i1 &&
             in(2)._type instanceof TypeInteger i2) {
             if( i1.isConstant() && i2.isConstant() )
                 return TypeInteger.constant(i1.value()>>i2.value());
-            if( i1.isHigh() || i2.isHigh() )
-                return TypeInteger.TOP;
             if( i2._min < 0 || i2._max >= 64 )
                 return TypeInteger.BOT;
             return TypeInteger.make(i1._min>>i2._min,i1._max>>i2._min);
