@@ -181,6 +181,26 @@ return arg;
     }
 
     @Test
+    public void testLoadBug() {
+        Parser parser = new Parser(
+"""
+struct A { int i; }
+struct B { int i; }
+A a = new A;
+A t1 = new A;
+B b = new B;
+B t2 = new B;
+int i;
+if (arg) i = a.i;
+else     i = b.i;
+return i;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return Phi(Region31,.i,.i);", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop, 0));
+    }
+
+    @Test
     public void testTypes() {
         Parser parser = new Parser(
 """
