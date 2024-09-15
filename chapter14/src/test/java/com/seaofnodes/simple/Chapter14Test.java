@@ -15,7 +15,7 @@ public class Chapter14Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse(false).iterate(true);
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -139,6 +139,22 @@ return c;                       //
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 52501;", stop.toString());
         assertEquals(52501L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testWrapMinus() {
+        Parser parser = new Parser(
+"""
+int MAX = 9223372036854775807; //0x7FFFFFFFFFFFFFFF;
+int i = (arg&MAX) + -MAX + -1; // Basically (e0) + Long.MIN_VALUE
+int j = -i; // Negating Long.MIN_VALUE wraps, cannot constant fold
+if (arg) j = 1;
+return j;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return Phi(Region28,1,(-((arg&9223372036854775807)+-9223372036854775808)));", stop.toString());
+        assertEquals(-9223372036854775808L, Evaluator.evaluate(stop,  0));
+        assertEquals(1, Evaluator.evaluate(stop,  1));
     }
 
     @Test
