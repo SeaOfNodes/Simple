@@ -119,6 +119,8 @@ public class PhiNode extends Node {
             if( in(1).in(1)._type.glb() != in(i).in(1)._type.glb() ) return false;
             if( in(1).in(2)._type.glb() != in(i).in(2)._type.glb() ) return false;
         }
+        // Load merging needs an anti-dep check.
+        if( in(1) instanceof MemOpNode ) return false;
         return true;
     }
 

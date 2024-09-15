@@ -214,24 +214,6 @@ return i;
     }
 
     @Test
-    public void testLoadFolds() {
-        Parser parser = new Parser(
-"""
-struct S { int i; }
-S s1 = new S;
-S s2 = new S;
-S t = new S;
-int i;
-if (arg&5) i = s1.i;
-else       i = s2.i;
-return i;
-""");
-        StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return .i;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
-    }
-
-    @Test
     public void testBug2() {
         Parser parser = new Parser(
 """
