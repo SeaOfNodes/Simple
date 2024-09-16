@@ -40,17 +40,14 @@ public class ProjNode extends Node {
 
     @Override
     public Node idealize() {
-        if( ctrl()._type instanceof TypeTuple tt ) {
-            if( tt._types[_idx]==Type.XCONTROL )
-                return new ConstantNode(Type.XCONTROL).peephole(); // We are dead
-            if( ctrl() instanceof IfNode && tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
-                return ctrl().in(0);               // We become our input control
+        if ( ctrl() instanceof IfNode iff ) {
+            if ( iff._type instanceof TypeTuple tt && tt._types[1 - _idx] == Type.XCONTROL )
+                return iff.in(0); // We become our input control
+
+            // Flip a negating if-test, to remove the not
+            if( iff.pred().addDep(this) instanceof NotNode not )
+                return new ProjNode((MultiNode)new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
         }
-
-        // Flip a negating if-test, to remove the not
-        if( ctrl() instanceof IfNode iff && iff.pred().addDep(this) instanceof NotNode not )
-            return new ProjNode((MultiNode)new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
-
         return null;
     }
 
