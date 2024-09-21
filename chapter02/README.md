@@ -127,7 +127,6 @@ starting in [Chapter 4](../chapter04/README.md) and [Chapter
 There are other important properties of the Lattice that we discuss in [Chapter
 4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
 
-
 ## Nodes Pre Peephole Optimization
 
 The following visual shows how the graph looks like pre-peephole optimization:
@@ -142,3 +141,113 @@ The following visual shows how the graph looks like pre-peephole optimization:
 ## Post-peephole
 
 ![Example Visual](./docs/02-post-peephole-ex1.svg)
+
+## Demonstration
+To demonstrate how the optimisation works, let's consider the following code:
+```
+return 1+2;
+```
+This is parsed as: 
+```java
+        var lhs = parseMultiplication();
+        if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
+```
+When the peephole is called on the AddNode node it first calls the compute function:
+```java
+    public final Node peephole( ) {
+        // Compute initial or improved Type
+        Type type = _type = compute();
+```
+```java
+    public Type compute() {
+        if( in(1)._type instanceof TypeInteger i0 &&
+            in(2)._type instanceof TypeInteger i1 ) {
+            if (i0.isConstant() && i1.isConstant())
+                return TypeInteger.constant(i0.value()+i1.value());
+        }
+        return Type.BOTTOM;
+    }
+```
+In our case both of the operands(`1`, `2`) are constants, and instance of 
+`TypeInteger`.
+Since `compute` returns a type, and we know that both of our operands are constants, we can do
+constant propagation/folding where we compute the result of the expression so that instead of having `1+2` we can 
+have `3`.
+
+The 'TypeInteger' interface inherits from type but also has a field that stores the value observed for that type.
+```java
+    private final long _con
+```
+
+AddNode has the layout:
+
+![Example Visual](./docs/02-demonstration-pre-peephole.svg)
+
+Since, we already know the value of both of the operands, we can just add them together and replace the
+old node with a constant node that just holds the result of the expression.
+
+To do this - we have to recognize this happens when the type computed for the node is already a constant, but the node
+is still not an instance of constant node.
+
+This can be captured by:
+```java
+// Replace constant computations from non-constants with a constant node
+if (!(this instanceof ConstantNode) && type.isConstant()) {
+}
+```
+Note how we return a constant type when doing constant folding
+```java
+return TypeInteger.constant(i0.value()+i1.value());
+```
+We can create a constant node in the following way: 
+```java
+return new ConstantNode(type).peephole();
+```
+This recursively calls the peephole algorithm. 
+Now, we end up with this:
+
+![Example Visual](./docs/02-demonstration-pre-peephole-nokill.svg)
+
+Notice, how we added the constant node holding a constant value of `3`.
+The remaining add node is unused and can be killed.
+
+We can call the kill function before this way:
+```java
+// Replace constant computations from non-constants with a constant node
+if (!(this instanceof ConstantNode) && type.isConstant()) {
+     kill();             // Kill `this` because replacing with a Constant
+     return new ConstantNode(type).peephole();
+```
+This is responsible for deleting the dangling add node.
+
+```java
+public void kill( ) {
+  assert isUnused();      // Has no uses, so it is dead
+  for( int i=0; i<nIns(); i++ )
+        setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
+
+  _inputs.clear();
+  _type=null;             // Flag as dead
+  assert isDead();        // Really dead now
+}
+```
+
+`isUnused` - This makes sure the current node has no outputs.
+Ideally, in our case there would be one output as the return statement is 
+using the add expression.
+However, the optimisation happens before even creating the return node, which means that at this point
+there are no users of the add node.
+
+We can now freely go ahead and delete the node. 
+
+```java
+for(int i=0; i<nIns(); i++ )
+    setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
+
+_inputs.clear();
+_type=null;        
+```
+
+We finally end up with this:
+
+![Example Visual](./docs/02-demonstration-peephole.svg)
