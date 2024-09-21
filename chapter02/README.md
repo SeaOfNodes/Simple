@@ -225,9 +225,10 @@ public void kill( ) {
   assert isUnused();      // Has no uses, so it is dead
   for( int i=0; i<nIns(); i++ )
         setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
-        _inputs.clear();
-        _type=null;             // Flag as dead
-        assert isDead();        // Really dead now
+
+  _inputs.clear();
+  _type=null;             // Flag as dead
+  assert isDead();        // Really dead now
     }
 ```
 
@@ -242,8 +243,9 @@ We can now freely go ahead and delete the node.
 ```java
 for(int i=0; i<nIns(); i++ )
     setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
-    _inputs.clear();
-    _type=null;        
+
+_inputs.clear();
+_type=null;        
 ```
 
 We finally end up with this:
