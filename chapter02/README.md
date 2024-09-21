@@ -193,7 +193,7 @@ This can be captured by:
 ```java
 // Replace constant computations from non-constants with a constant node
 if (!(this instanceof ConstantNode) && type.isConstant()) {
-        }
+}
 ```
 Note how we return a constant type when doing constant folding
 ```java
@@ -229,7 +229,7 @@ public void kill( ) {
   _inputs.clear();
   _type=null;             // Flag as dead
   assert isDead();        // Really dead now
-    }
+}
 ```
 
 `isUnused` - This makes sure the current node has no outputs.
