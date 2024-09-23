@@ -30,15 +30,15 @@ public class SubNode extends Node {
             if (i1.isConstant() && i2.isConstant())
                 return TypeInteger.constant(i1.value()-i2.value());
         }
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return TypeInteger.ZERO;
+
         return TypeInteger.BOT;
     }
 
     @Override
     public Node idealize() {
-        // Sub of same is 0
-        if( in(1)==in(2) )
-            return Parser.ZERO;
-
         // x - (-y) is x+y
         if( in(2) instanceof MinusNode minus )
             return new AddNode(in(1),minus.in(1));
