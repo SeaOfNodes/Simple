@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
 /**
@@ -74,6 +75,14 @@ public class TypeInteger extends Type {
     @Override public boolean isHigh       () { return _min >  _max; }
     @Override public boolean isHighOrConst() { return _min >= _max; }
     @Override public boolean isConstant   () { return _min == _max; }
+
+    @Override public int log_size() {
+        if( this==I8  || this==U8 || this==BOOL ) return 0; // 1<<0 == 1 bytes
+        if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
+        if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
+        if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
+        throw Utils.TODO();
+    }
 
     public long value() { assert isConstant(); return _min; }
 

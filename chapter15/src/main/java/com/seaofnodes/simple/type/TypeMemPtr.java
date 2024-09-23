@@ -6,8 +6,8 @@ import java.util.ArrayList;
  * Represents a Pointer to memory.
  *
  * Null is generic pointer to non-existent memory.
- * *void is a non-Null pointer to all possible structs.
- * Pointers can be to specific struct types, or a union with Null.
+ * *void is a non-Null pointer to all possible refs, both structs and arrays.
+ * Pointers can be to specific struct and array types, or a union with Null.
  * The distinguished *$BOT ptr represents union of *void and Null.
  * The distinguished *$TOP ptr represents the dual of *$BOT.
  */
@@ -33,12 +33,16 @@ public class TypeMemPtr extends Type {
     }
     public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
     public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
-    public TypeMemPtr make_from(TypeStruct obj) { return make(obj, _nil); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return make(obj, _nil); }
 
+    // An abstract pointer, pointing to either a Struct or an Array.
+    // Can also be null or not.
     public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
     public static TypeMemPtr TOP = BOT.dual();
+    // An abstract null (can be Struct or Array) or not-null C void*
     public static TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
     public static TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
+
     public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
     public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
 
@@ -52,10 +56,12 @@ public class TypeMemPtr extends Type {
     public TypeMemPtr dual() { return TypeMemPtr.make(_obj.dual(), !_nil); }
 
     @Override
-    public Type glb() { return make(_obj.glb(),true); }
+    public TypeMemPtr glb() { return make(_obj.glb(),true); }
     @Override public TypeMemPtr makeInit() { return NULLPTR; }
 
     @Override public boolean isHigh() { return this==TOP; }
+
+    @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
 
     @Override
     int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }
