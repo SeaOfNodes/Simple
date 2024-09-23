@@ -43,11 +43,123 @@ Each projection node contains an index of the field to extract from its input no
 Projection nodes allow us to maintain labeled use-def edges as simple Node references.
 
 In the visuals, projection nodes are shown as rectangular boxes inside the node to which they are attached.
+### Visualisation
 
 ![ProjNode](./docs/projnode.png)
 
 In the visual above, the projection nodes have been tagged by the names associated with the outputs of the
-Start node.
+Start node. Both MultiNode and Control nodes are yellow.
+
+`$ctrl` and `arg` are outputs(users) of StartNode(`START`):
+Since the projection nodes: `$ctrl`, `arg` are using `START` as their input.
+*Notice*: START is passed in as the control node(0th input) for the ProjNode.
+
+```java 
+    public ProjNode(MultiNode ctrl, int idx, String label) {
+    super(ctrl);
+```
+
+```java
+_scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+_scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+```
+These projection nodes are going to extract the types for `CTRL` and `ARG0` from the `START` MultiNode.
+The MultiNode holds the types as a TypeTuple:
+
+```java
+public StartNode(Type[] args) {
+    super();
+    _args = new TypeTuple(args);
+```
+
+Extracting the types:
+```java
+ return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
+```
+### Demonstration
+#### arg is provided:
+The arg from external environment can be provided in the following way:
+```java
+Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
+```
+The graph:
+
+![ProjNode](./docs/04-arg1.svg)
+ - The `arg` projection node is not included in the cluster(where `$ctrl` and `Start` are displayed)(0).
+ - `$ctrl` and `arg` are both defined in the outmost symbol table.
+ - Notice the extra symbol table created at index: 1(1).
+ - Notice how the dashed blue line is not drawn for `ctrl` and is not pointing to the `$ctrl node` in the cluster(2).
+
+`(0): ` Arg is a constant and gets stored in a constant node.
+When `peephole` called, and compute is executed, the type returned is the type at the provided index in the TypeTuple.
+It turns out - this returned type will be a `constant` TypeInteger with a `ProjNode`. 
+This can be replaced with a ConstantNode with the type passed in for `arg`.
+
+```java
+public final Node peephole( ) {
+      Type type = _type = compute(); 
+        /*
+             _type = {TypeInteger@1527} "2"
+            _is_con = true
+            _con = 2
+            _type = 4
+         */
+
+      if (_disablePeephole)
+          return this;        
+      
+      // ProjNode is not a constant unlike its type.
+      if (!(this instanceof ConstantNode) && type.isConstant())
+          // Create Constant(2)
+          return deadCodeElim(new ConstantNode(type).peephole());
+      
+      Node n = idealize(); // just null
+      if( n != null )
+          return deadCodeElim(n.peephole()); // won't get called
+
+      return this;  // won't get called       
+```
+
+`(1): ` We always create a symbol table when start parsing so that global symbols can be inserted.
+We had to create explicitly a symbol table containing `CTRL` and `ARG` at index 0. The symbol table for global symbols is at index 1(nested and currently empty).
+
+`(2): ` The control node is always set to null because there is no control after return.
+It is manually set to null here:
+```
+ctrl(null);             // Kill control
+```
+
+Which will call `setDef` to kill the node. If it does not exist we can't draw a line pointing to it.
+
+#### arg is not provided:
+Arg is not provided in this case:
+```java 
+      Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
+```
+The graph:
+
+![ArgNode](./docs/04-arg2.svg)
+ - The `arg` projection node is included in the cluster.(0)
+
+`(0):` If the `arg` projection node is not explicitly defined, then we declare it this way:
+```java 
+public Parser(String source) {
+    this(source, TypeInteger.BOT);
+}
+```
+`TypeInteger.BOT:`
+```java
+public final static TypeInteger BOT = new TypeInteger(false, 1); 
+```
+``` 
+arg = {TypeInteger@1417} "IntBot"
+_type = 4
+_con = 1
+_is_con = false
+```
+We clearly see this is not a constant, so it can't get optimised out and will remain in the ProjNode cluster.
+
+#### ctrl is not null: Next chapter(ch5)
 
 ## Changes to Type System
 
@@ -162,6 +274,15 @@ Here is a (partial) list of peepholes introduced in this Chapter:
 | (con1 + (arg + con2)) | (arg + (con1 + con2)) | Move constants to right, to encourage folding  |
 | ((arg1 + con) + arg2) | ((arg1 + arg2) + con) | Move constants to right, to encourage folding  |
 | (arg + arg)           | (arg * 2)             | Sum-of-products form                           |
+| (arg - arg)           | 0                     | Sub of same is 0
+| (con / 1)             | con                   | Division by one
+| (con == con)          | 1                     | Compare of same
+| (con != con)          | 0                     | Compare of same
+| (con < con)           | 0                     | Compare of same
+| (con > con)           | 0                     | Compare of same
+| (con <= con)          | 1                     | Compare of same
+| (con >= con)          | 1                     | Compare of same
+
 
 ## Code Walkthrough
 
