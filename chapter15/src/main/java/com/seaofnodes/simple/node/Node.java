@@ -135,7 +135,7 @@ public abstract class Node implements OutNode {
 
     public boolean isUnused() { return nOuts() == 0; }
 
-   public CFGNode cfg0() { return (CFGNode)in(0); }
+    public CFGNode cfg0() { return (CFGNode)in(0); }
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing
@@ -533,16 +533,13 @@ public abstract class Node implements OutNode {
     // ------------------------------------------------------------------------
     //
 
-    /** Is this Node control-flow-graph related */
-    public boolean isCFG() { return false; }
-
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
 
     /** Return block start from a isCFG() */
     public Node getBlockStart() { return null; }
 
-    /** Pinned in the schedule */
+    /** Pinned in the schedule; these are data nodes whose input#0 is not allowed to change */
     public boolean isPinned() { return false; }
 
     // Semantic change to the graph (so NOT a peephole), used by the Parser.
