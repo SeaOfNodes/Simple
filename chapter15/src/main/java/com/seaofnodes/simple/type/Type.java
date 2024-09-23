@@ -179,6 +179,14 @@ public class Type {
     public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
 
     // ----------------------------------------------------------
+
+    // Size in bits to hold an instance of this type.
+    // Sizes are expected to be between 1 and 64 bits.
+    // Size 0 means this either takes no space (such as a known-zero field)
+    // or isn't a scalar to be stored in memory.
+    public int log_size() { throw Utils.TODO(); }
+
+    // ----------------------------------------------------------
     // Useful in the debugger, which calls toString everywhere.
     // This is a more verbose dev-friendly print.
     @Override
