@@ -13,21 +13,21 @@ public abstract class MemOpNode extends Node {
     public final int _alias;
     public final Type _declaredType;
 
-
-    public MemOpNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(null, memSlice, memPtr);
+    public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
+        super(null, mem, ptr, off);
         _name  = name;
         _alias = alias;
         _declaredType = glb;
 
     }
-    public MemOpNode(String name, int alias, Type glb, Node memSlice, Node memPtr, Node value) {
-        this(name, alias, glb, memSlice, memPtr);
+    public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value) {
+        this(name, alias, glb, mem, ptr, off);
         addDef(value);
     }
 
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
+    public Node off() { return in(3); }
 
     @Override
     boolean eq(Node n) {
@@ -41,8 +41,11 @@ public abstract class MemOpNode extends Node {
     @Override
     String err() {
         Type ptr = ptr()._type;
-        return (ptr==Type.BOTTOM || (ptr instanceof TypeMemPtr tmp && tmp._nil) )
-            ? "Might be null accessing '" + _name + "'"
-            : null;
+        // Already an error, but better error messages come from elsewhere
+        if( ptr == Type.BOTTOM ) return null;
+        // Better be a not-nil TMP
+        if( ptr instanceof TypeMemPtr tmp && !tmp._nil )
+            return null;
+        return "Might be null accessing '" + _name + "'";
     }
 }

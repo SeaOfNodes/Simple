@@ -23,8 +23,11 @@ public class Parser {
      */
     public static StartNode START;
 
-    public static ConstantNode ZERO;
-    public static XCtrlNode XCTRL;
+    public static ConstantNode ZERO; // Very common node, cached here
+    public static XCtrlNode XCTRL;   // Very common node, cached here
+
+    // Next available memory alias number
+    static int ALIAS;
 
     public StopNode STOP;
 
@@ -116,8 +119,9 @@ public class Parser {
         _continueScope = _breakScope = null;
         START = new StartNode(new Type[]{ Type.CONTROL, arg });
         STOP = new StopNode(source);
-        ZERO = new ConstantNode(TypeInteger.constant(0)).peephole().keep();
+        ZERO = con(0).keep();
         XCTRL= new XCtrlNode().peephole().keep();
+        ALIAS = 2; // alias 0 for the control, 1 for memory
     }
 
     public Parser(String source) {
@@ -143,9 +147,12 @@ public class Parser {
         _scope.push();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
+
+        // Parse whole program
         parseBlock();
+
         if( ctrl()._type==Type.CONTROL )
-            STOP.addReturn(new ReturnNode(ctrl(), new ConstantNode(TypeInteger.constant(0)).peephole(), _scope).peephole());
+            STOP.addReturn(new ReturnNode(ctrl(), ZERO, _scope).peephole());
         _scope.pop();
         _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
@@ -207,7 +214,7 @@ public class Parser {
         Type t = type();
         if( t==null )
             throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
-        return require(Field.make(requireId().intern(),t),";");
+        return require(Field.make(requireId().intern(),ALIAS++,t),";");
     }
 
     /**
@@ -222,6 +229,7 @@ public class Parser {
         String typeName = requireId();
         Type t = TYPES.get(typeName);
         if( t!=null && !(t instanceof TypeStruct ts && ts._fields==null) ) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        // Parse a collection of fields
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
         while (!peek('}') && !_lexer.isEOF()) {
@@ -231,7 +239,7 @@ public class Parser {
         }
         require("}");
         // Build and install the TypeStruct
-        TypeStruct ts = TypeStruct.make(typeName, fields);
+        TypeStruct ts = TypeStruct.make(typeName, fields.toArray(new Field[fields.size()]));
         TYPES.put(typeName, ts);
         START.addMemProj(ts, _scope); // Insert memory edges
         return parseStatement();
@@ -325,7 +333,7 @@ public class Parser {
         ctrl(XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
-        while( cur._scopes.size() > _breakScope._scopes.size() )
+        while( cur._idxs.size() > _breakScope._idxs.size() )
             cur.pop();
         // If this is a continue then first time the target is null
         // So we just use the pruned current scope as the base for the
@@ -333,7 +341,7 @@ public class Parser {
         if (toScope == null)
             return cur;
         // toScope is either the break scope, or a scope that was created here
-        assert toScope._scopes.size() <= _breakScope._scopes.size();
+        assert toScope._idxs.size() <= _breakScope._idxs.size();
         toScope.ctrl(toScope.mergeScopes(cur));
         return toScope;
     }
@@ -463,33 +471,42 @@ public class Parser {
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
-            e = tmp.make_from((TypeStruct)TYPES.get(tmp._obj._name));
+            e = tmp.makeFrom((TypeStruct)TYPES.get(tmp._obj._name));
         // Type is sane
         if( !e.isa(t) )
             throw error("Type " + e.str() + " is not of declared type " + t.str());
         return _scope.update(name,expr);
     }
 
-    // Parse a "type id" and return "type" (and re-parse "id" in caller) or
-    // return null.
+    // Parse and return a type or null.  Valid types always are followed by an
+    // 'id' which the caller must parse.  This lets us distinguish forward ref
+    // types (which ARE valid here) from local vars in an (optional) forward
+    // ref type position.
     private Type type() {
-        int old = _lexer._position;
+        int old1 = _lexer._position;
         String tname = _lexer.matchId();
         if( tname==null ) return null;
-        boolean nullable = match("?");
-        Type t = TYPES.get(tname);
-        // Assume a forward-reference type
-        if( t == null ) {
-            int old2 = _lexer._position;
-            String id = _lexer.matchId();
-            if( id==null ) {
-                _lexer._position = old;
-                return null;
-            }
-            TYPES.put(tname,t = TypeStruct.make(tname));
-            _lexer._position = old2; // Reparse ID in caller
+        // Convert the type name to a type.
+        Type t0 = TYPES.get(tname);
+        Type t1 = t0==null ? TypeStruct.BOT : t0; // Null: assume a forward ref type
+        //while( match("[]") )
+        //    t1 = TypeArray.make(t1);
+        Type t2 = t1 instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t1;
+
+        // Check no forward ref
+        if( t0 != null ) return t2;
+        // Check valid forward ref, after parsing all the type extra bits.
+        // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
+        int old2 = _lexer._position;
+        String id = _lexer.matchId();
+        _lexer._position = old2; // Reset lexer to reparse
+        if( id==null ) {
+            _lexer._position = old1; // Reset lexer to reparse
+            return null;        // Not a type
         }
-        return t instanceof TypeStruct obj ? TypeMemPtr.make(obj,nullable) : t;
+        // Yes a forward ref, so declare it
+        TYPES.put(tname, t0 = TypeStruct.make(tname));
+        return ((TypeMemPtr)t2).makeFrom((TypeStruct)t0);
     }
 
 
@@ -644,15 +661,21 @@ public class Parser {
     private Node parsePrimary() {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( match("(") ) return require(parseExpression(), ")");
-        if( matchx("true" ) ) return new ConstantNode(TypeInteger.constant(1)).peephole();
+        if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
-            String structName = requireId();
-            Type t = TYPES.get(structName);
-            if( !(t instanceof TypeStruct obj) || obj._fields==null )
-                throw error("Unknown struct type '" + structName + "'");
-            return newStruct(obj);
+            String typeName = _lexer.matchId();
+            if( typeName==null ) throw error("Expected a type");
+            Type t = TYPES.get(typeName);
+            //if( match("[") )
+            //    return require(newArray(t),"]");
+            if( t instanceof TypeStruct obj ) {
+                if( obj._fields==null )
+                    throw error("Unknown struct type '" + typeName + "'");
+                return newStruct(obj);
+            }
+            throw error("Cannot allocate a "+t);
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
@@ -662,19 +685,28 @@ public class Parser {
     }
 
     /**
-     * Return a NewNode but also generate instructions to initialize it.
+     * Return a NewNode with pre-zeroed memory
      */
     private Node newStruct(TypeStruct obj) {
-        Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
-        int alias = START._aliasStarts.get(obj._name);
-        for( Field field : obj._fields ) {
-            memAlias(alias, new StoreNode(field._fname, alias, field._type, memAlias(alias), n, new ConstantNode(field._type.makeInit()).peephole(),true).peephole());
-            alias++;
-        }
-        return n.unkeep();
+        Field[] fs = obj._fields;
+        Node[] ns = new Node[2+fs.length];
+        ns[0] = ctrl();
+        ns[1] = con(obj.offsets()[fs.length]);
+        for( int i = 0; i < fs.length; i++ )
+            ns[i+2] = memAlias(fs[i]._alias);
+        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
+        for( int i = 0; i < fs.length; i++ )
+            memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
+        return new ProjNode(nnn,1,obj._name).peephole();
     }
 
-    // We set up memory aliases by inserting special vars in the scope these
+    private Node newArray(Type t) {
+        Node len = parseExpression();
+        //TypeArray tary = TypeArray.make(t,TypeInteger.BOT);
+        //return new NewArrayNode(tary,ctrl(),len).peephole();
+        throw Utils.TODO();
+    }
+     // We set up memory aliases by inserting special vars in the scope these
     // variables are prefixed by $ so they cannot be referenced in Simple code.
     // Using vars has the benefit that all the existing machinery of scoping
     // and phis work as expected
@@ -688,38 +720,47 @@ public class Parser {
      *
      * <pre>
      *     expr ('.' IDENTIFIER)* [ = expr ]
+     *     expr ('[' expr ']')* = [ = expr ]
      * </pre>
      */
     private Node parsePostfix(Node expr) {
-        if( !match(".") ) return expr;
+        String name = "[]";
+        if( match(".") )  name = requireId().intern();
+        else if( !match("[") ) return expr; // No postfix
 
+        // Sanity check expr for being a reference
         if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error("Expected struct reference but got " + expr._type.str());
-
-        String name = requireId().intern();
-        if( expr._type == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
+            throw error("Expected reference but got " + expr._type.str());
+        if( ptr == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
         if( ptr._obj == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        // Sanity check field name for existing
         TypeStruct base = (TypeStruct)TYPES.get(ptr._obj._name);
-        int idx = base==null ? -1 : base.find(name);
+        if( base == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        int idx = base.find(name);
         if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-        int alias = START._aliasStarts.get(ptr._obj._name)+idx;
+
+        // Get field type and layout offset
+        Field f = base._fields[idx];
+        Node off = con(base.offsets()[idx]);
+        if( name.equals("[]") )
+            throw Utils.TODO(); // Array index math
 
         if( match("=") ) {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                Type glb = base._fields[idx]._type;
                 // Auto-truncate when storing to narrow fields
-                val = zsMask(val,glb);
-                memAlias(alias, new StoreNode(name, alias,glb, memAlias(alias), expr, val, false).peephole());
-                return expr;        // "obj.a = expr" returns the expression while updating memory
+                val = zsMask(val,f._type);
+                memAlias(f._alias, new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false).peephole());
+                return val;        // "obj.a = expr" returns the expression while updating memory
             }
         }
 
-        Type declaredType = base._fields[idx]._type;
-        return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
+        Node load = new LoadNode(name, f._alias, f._type, memAlias(f._alias), expr, off).peephole();
+        return parsePostfix(load);
     }
+
 
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
     // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
@@ -731,10 +772,10 @@ public class Parser {
             return new RoundF32Node(val).peephole();
         }
         if( t0._min==0 )        // Unsigned
-            return new AndNode(val,new ConstantNode(TypeInteger.constant(t0._max)).peephole()).peephole();
+            return new AndNode(val,con(t0._max)).peephole();
         // Signed extension
         int shift = Long.numberOfLeadingZeros(t0._max)-1;
-        Node shf = new ConstantNode(TypeInteger.constant(shift)).peephole();
+        Node shf = con(shift);
         if( shf._type==TypeInteger.ZERO )
             return val;
         return new SarNode(new ShlNode(val,shf.keep()).peephole(),shf.unkeep()).peephole();
@@ -751,6 +792,10 @@ public class Parser {
      */
     private ConstantNode parseLiteral() {
         return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
+    }
+
+    private Node con( long con ) {
+        return new ConstantNode(TypeInteger.constant(con)).peephole();
     }
 
     //////////////////////////////////

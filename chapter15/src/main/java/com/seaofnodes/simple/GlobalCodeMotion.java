@@ -95,18 +95,20 @@ public abstract class GlobalCodeMotion {
 
     private static void _schedEarly(Node n, BitSet visit) {
         if( n==null || visit.get(n._nid) ) return; // Been there, done that
+        assert !(n instanceof CFGNode);
         visit.set(n._nid);
         // Schedule not-pinned not-CFG inputs before self.  Since skipping
         // Pinned, this never walks the backedge of Phis (and thus spins around
         // a data-only loop, eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
-            if( def!=null && !def.isPinned() )
+            if( def!=null )
                 _schedEarly(def,visit);
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
             // Schedule at deepest input
             CFGNode early = Parser.START; // Maximally early, lowest idepth
+            if( n.in(0) instanceof CFGNode cfg ) early = cfg;
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
@@ -123,7 +125,7 @@ public abstract class GlobalCodeMotion {
 
         // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )
-            if( ns[i] != null )
+            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
                 ns[i].setDef(0,late[i]);
     }
 
@@ -138,18 +140,22 @@ public abstract class GlobalCodeMotion {
             // These I know the late schedule of, and need to set early for loops
             if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
             else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
-            else if( n.isPinned() ) late[n._nid] = n.cfg0();
+            else if( n instanceof ProjNode && n.in(0) instanceof CFGNode cfg ) late[n._nid] = cfg;
             else {
 
                 // All uses done?
                 for( Node use : n._outputs )
-                    if( late[use._nid]==null )
+                    if( use!=null && late[use._nid]==null )
                         continue outer; // Nope, await all uses done
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
-                        if( memuse._type instanceof TypeMem && late[memuse._nid]==null )
+                        if( late[memuse._nid]==null &&
+                            // Load-use directly defines memory
+                            (memuse._type instanceof TypeMem ||
+                             // Load-use indirectly defines memory
+                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
                             continue outer;
 
                 // All uses done, schedule
@@ -170,11 +176,12 @@ public abstract class GlobalCodeMotion {
 
     private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode early = (CFGNode)n.in(0);
+        CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            lca = use_block(n,use, late)._idom(lca,null);
+            if( use != null )
+              lca = use_block(n,use, late)._idom(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
@@ -223,6 +230,10 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case StoreNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+                break;
+            case NewNode st:
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
                 break;

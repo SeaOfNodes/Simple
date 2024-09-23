@@ -347,6 +347,8 @@ return i;
 """);
         StopNode stop = parser.parse(false).iterate(true);
         assertEquals("return .f;", stop.toString());
+        assertEquals(2L, Evaluator.evaluate(stop, 0));
+        assertEquals(2L, Evaluator.evaluate(stop, 1));
     }
 
     @Test
@@ -355,6 +357,7 @@ return i;
 """
 struct S { int f; }
 S v = new S;
+v.f = arg;
 S t = new S;
 int i = 0;
 if (arg) {
@@ -366,7 +369,7 @@ if (arg) {
 return i;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return Phi(Region34,.f,0);", stop.toString());
+        assertEquals("return Phi(Region40,.f,0);", stop.toString());
     }
 
     @Test
@@ -385,7 +388,7 @@ if (v1) {
 return v0;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return new S;", stop.toString());
+        assertEquals("return S;", stop.toString());
     }
 
 
@@ -395,6 +398,7 @@ return v0;
 """
 struct S { int f; }
 S v = new S;
+v.f = arg;
 S t = new S;
 int i = v.f;
 if (arg+1) arg= 0;
@@ -419,7 +423,7 @@ while(1) {
 return v;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return new S;", stop.toString());
+        assertEquals("return S;", stop.toString());
     }
 
     @Test
@@ -452,7 +456,7 @@ while (arg) {
 return i;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return .f;", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -472,7 +476,7 @@ while(arg) {
 return arg;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return Phi(Loop15,arg,Phi(Region37,.f,0));", stop.toString());
+        assertEquals("return Phi(Loop17,arg,Phi(Region42,.f,0));", stop.toString());
     }
 
     @Test
@@ -490,7 +494,7 @@ if (arg) {
 return v;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return new S;", stop.toString());
+        assertEquals("return S;", stop.toString());
     }
 
     @Test

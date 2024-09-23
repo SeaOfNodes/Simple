@@ -26,7 +26,7 @@ public class Evaluator {
         }
     }
 
-    private static int getFieldIndex(TypeStruct struct, MemOpNode memop) {
+    private static int getFieldIndex(TypeStruct struct, MemOpNode memop, long off) {
         int idx = struct.find(memop._name);
         if( idx >= 0 ) return idx;
         throw new AssertionError("Field "+memop._name+" not found in struct " + struct._name);
@@ -83,20 +83,25 @@ public class Evaluator {
     }
 
     private Object alloc(NewNode alloc) {
-        var type = ((TypeMemPtr)alloc.compute())._obj;
-        return new Obj(type, new Object[type._fields.length]);
+        TypeTuple tt = alloc.compute();
+        TypeStruct type = ((TypeMemPtr)tt._types[1])._obj;
+        Object[] mems = new Object[type._fields.length+2];
+        mems[1] = new Obj(type,new Object[type._fields.length]);
+        return mems;
     }
 
     private Object load(LoadNode load) {
-        var from = (Obj)val(load.in(2));
-        var idx = getFieldIndex(from.struct, load);
+        var from = (Obj)val(load.ptr());
+        var off = val(load.off());
+        var idx = getFieldIndex(from.struct, load, (Long)off);
         return from.fields[idx];
     }
 
     private Object store(StoreNode store) {
-        var to = (Obj)val(store.in(2));
-        var val = val(store.in(3));
-        var idx = getFieldIndex(to.struct, store);
+        var to = (Obj)val(store.ptr());
+        var off = val(store.off());
+        var val = val(store.val());
+        var idx = getFieldIndex(to.struct, store, (Long)off);
         to.fields[idx] = val;
         return null;
     }

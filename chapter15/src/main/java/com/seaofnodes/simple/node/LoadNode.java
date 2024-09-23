@@ -1,8 +1,10 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
-
+import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeStruct;
 import java.util.BitSet;
 
 /**
@@ -15,11 +17,12 @@ public class LoadNode extends MemOpNode {
      * Load a value from a ptr.field.
      *
      * @param name  The field we are loading
-     * @param memSlice The memory alias node - this is updated after a Store
-     * @param memPtr The ptr to the struct from where we load a field
+     * @param mem   The memory alias node - this is updated after a Store
+     * @param ptr   The ptr to the struct base from where we load a field
+     * @param off   The offset inside the struct base
      */
-    public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(name, alias, glb, memSlice, memPtr);
+    public LoadNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
+        super(name, alias, glb, mem, ptr, off);
     }
 
     @Override public String  label() { return     _name; }
@@ -30,6 +33,12 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
+        if( mem()._type instanceof TypeMem mem &&
+            // No constant folding if ptr might null-check
+            _declaredType != mem._t && err()==null ) {
+            assert mem._alias == _alias;
+            return  _declaredType.join(mem._t);
+        }
         return _declaredType;
     }
 
@@ -43,6 +52,11 @@ public class LoadNode extends MemOpNode {
             return st.val();
         }
 
+        // Simple Load-after-New on same address.
+        if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
+            ptr() == nnn.proj(1) )  // Must check same object
+            return new ConstantNode(_declaredType.makeInit());
+
         // Push a Load up through a Phi, as long as it collapses on at least
         // one arm.  If at a Loop, the backedge MUST collapse - else we risk
         // spinning the same transform around the loop indefinitely.
@@ -55,13 +69,9 @@ public class LoadNode extends MemOpNode {
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                if( ptr() instanceof NewNode || !(ptr() instanceof CastNode) ) {
-                    if( !(ptr() instanceof NewNode) ) throw Utils.TODO(); // Validate
-
-                    Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
-                    Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
-                    return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
-                }
+                Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr(), off()).peephole();
+                Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr(), off()).peephole();
+                return new PhiNode(_name,_declaredType,memphi.region(),ld1,ld2);
             }
         }
 
@@ -71,6 +81,9 @@ public class LoadNode extends MemOpNode {
     // Profitable if we find a matching Store on this Phi arm.
     private boolean profit(PhiNode phi, int idx) {
         Node px = phi.in(idx);
-        return px!=null && px.addDep(this) instanceof StoreNode st1 && ptr()==st1.ptr();
+        if( px==null ) return false;
+        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) { px.addDep(this); return true; }
+        if( px instanceof StoreNode st1 && ptr()==st1.ptr() )           { px.addDep(this); return true; }
+        return false;
     }
 }
