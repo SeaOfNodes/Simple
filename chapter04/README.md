@@ -276,12 +276,12 @@ Here is a (partial) list of peepholes introduced in this Chapter:
 | (arg + arg)           | (arg * 2)             | Sum-of-products form                           |
 | (arg - arg)           | 0                     | Sub of same is 0
 | (con / 1)             | con                   | Division by one
-| (con == con)          | 1                     | Compare of same
-| (con != con)          | 0                     | Compare of same
-| (con < con)           | 0                     | Compare of same
-| (con > con)           | 0                     | Compare of same
-| (con <= con)          | 1                     | Compare of same
-| (con >= con)          | 1                     | Compare of same
+| (arg == arg)          | 1                     | Compare of same
+| (arg != arg)          | 0                     | Compare of same
+| (arg < arg)           | 0                     | Compare of same
+| (arg > arg)           | 0                     | Compare of same
+| (arg <= arg)          | 1                     | Compare of same
+| (arg >= arg)          | 1                     | Compare of same
 
 
 ## Code Walkthrough
