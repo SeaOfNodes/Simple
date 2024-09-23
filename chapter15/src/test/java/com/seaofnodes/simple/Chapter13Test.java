@@ -35,7 +35,7 @@ while( arg ) {
 return head.next.i;
 """);
         try { parser.parse(true).iterate(true); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
     }
 
     @Test
@@ -101,7 +101,7 @@ n.next = new N;
 return n.next;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return new N;", stop.toString());
+        assertEquals("return N;", stop.toString());
     }
 
     @Test
@@ -161,6 +161,6 @@ struct S2 { int x; }
 return new S1.s=new S2;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return new S1;", stop.toString());
+        assertEquals("return S2;", stop.toString());
     }
 }

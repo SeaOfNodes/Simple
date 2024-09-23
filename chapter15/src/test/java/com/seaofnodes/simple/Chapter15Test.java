@@ -33,4 +33,14 @@ return is[1];
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
 
+    @Test
+    public void testBad0() {
+        Parser parser = new Parser(
+"""
+return new flt;
+""");
+        try { parser.parse(false).iterate(false); fail(); }
+        catch( Exception e ) { assertEquals("Cannot allocate a FltBot",e.getMessage()); }
+    }
+
 }

@@ -25,7 +25,7 @@ public class ScriptGenerator {
     private static final int MAX_BLOCK_DEPTH = 4;
     private static final int MAX_EXPRESSION_DEPTH = 10;
     private static final int MAX_SUFFIX_RECURSIVE_DEPTH = 10;
- 
+
     /**
      * Number of spaces per indentation
      */
@@ -109,7 +109,7 @@ public class ScriptGenerator {
 
     static {
         new Parser("", TypeInteger.BOT);
-        for(var e:Parser.TYPES.entrySet()) {
+        for(var e : Parser.TYPES.entrySet() ) {
             if (e.getValue() instanceof TypeInteger) {
                 INTTYPES.add(new TypeInt(e.getKey()));
             }
