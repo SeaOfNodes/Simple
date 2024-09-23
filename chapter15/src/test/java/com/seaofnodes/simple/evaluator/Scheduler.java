@@ -204,7 +204,7 @@ public class Scheduler {
      * @return true if node is placed during the control flow graph build.
      */
     private static boolean isPinnedNode(NodeData data) {
-        return data.node.isCFG() || data.node instanceof PhiNode;
+        return data.node instanceof CFGNode || data.node instanceof PhiNode;
     }
 
     /**
@@ -359,7 +359,7 @@ public class Scheduler {
         while (!queue.isEmpty()) {
             var data = queue.pop();
             var node = data.node;
-            assert node.isCFG();
+            assert node instanceof CFGNode;
             BasicBlock block;
             switch (node) {
                 case StartNode s:
@@ -399,7 +399,7 @@ public class Scheduler {
                 }
             }
             if (!(node instanceof ReturnNode))
-                for (Node n:node._outputs) if (n!=null && n.isCFG() && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
+                for (Node n:node._outputs) if (n!=null && n instanceof CFGNode && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
             var b = block;
             for(var in:data.node._inputs) od(in).ifPresent(d->update(d, b));
         }
@@ -421,7 +421,7 @@ public class Scheduler {
             if (nd.users>0) nd.users++;
             return;
         }
-        assert node.isCFG() == cfg;
+        assert node instanceof CFGNode == cfg;
         assert isNotXCtrl(node);
         nd = new NodeData(node);
         if (cfg) nd.users=0;
@@ -443,24 +443,24 @@ public class Scheduler {
         while (!cfgQueue.isEmpty()) {
             var data = cfgQueue.pop();
             node = data.node;
-            assert node.isCFG();
+            assert node instanceof CFGNode;
             if (!(node instanceof ReturnNode)) {
-                for (var out : node._outputs) if (out!=null && out.isCFG() && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
+                for (var out : node._outputs) if (out!=null && out instanceof CFGNode && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
             }
-            for (var in : node._inputs) if(in!=null && !in.isCFG() && isNotXCtrl(in)) markAlive(dataQueue, in, false);
+            for (var in : node._inputs) if(in!=null && !(in instanceof CFGNode) && isNotXCtrl(in)) markAlive(dataQueue, in, false);
         }
         // Mark all other nodes.
         while (!dataQueue.isEmpty()) {
             var data = dataQueue.pop();
             node = data.node;
-            assert !node.isCFG();
+            assert !(node instanceof CFGNode);
             if (node instanceof PhiNode phi) {
                 var r = phi.in(0);
                 for (int i=1; i<phi.nIns(); i++) {
                     if (od(r.in(i)).isPresent()) markAlive(dataQueue, phi.in(i), false);
                 }
             } else {
-                for (var in : node._inputs) if (in != null && !in.isCFG()) markAlive(dataQueue, in, false);
+                for (var in : node._inputs) if (in != null && !(in instanceof CFGNode)) markAlive(dataQueue, in, false);
             }
             if (node instanceof StoreNode) mem.push(data);
         }
@@ -501,8 +501,8 @@ public class Scheduler {
             for(var n:node._outputs) if (n instanceof CProjNode p && p._idx==0) return p;
             return null;
         }
-        assert node._outputs.stream().filter(Node::isCFG).limit(2).count()<=1;
-        for(var n:node._outputs) if(n.isCFG()) return n;
+        assert node._outputs.stream().filter(x -> x instanceof CFGNode).limit(2).count()<=1;
+        for(var n:node._outputs) if(n instanceof CFGNode) return n;
         return null;
     }
 
@@ -546,7 +546,7 @@ public class Scheduler {
                 }
                 if (last instanceof ReturnNode) break;
                 if (last instanceof IfNode if_) {
-                    for(var out:if_._outputs) if (out.isCFG() && blocks.get(out) == null) queue.push(d(out));
+                    for(var out:if_._outputs) if (out instanceof CFGNode && blocks.get(out) == null) queue.push(d(out));
                     break;
                 }
                 data = d(last);

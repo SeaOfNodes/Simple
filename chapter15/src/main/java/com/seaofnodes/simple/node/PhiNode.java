@@ -73,7 +73,8 @@ public class PhiNode extends Node {
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);
-        if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
+        if( op.nIns()==3 && op.in(0)==null && same_op() ) {
+            assert !(op instanceof CFGNode);
             Node[] lhss = new Node[nIns()];
             Node[] rhss = new Node[nIns()];
             lhss[0] = rhss[0] = in(0); // Set Region
