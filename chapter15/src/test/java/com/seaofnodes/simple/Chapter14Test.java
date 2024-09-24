@@ -125,7 +125,8 @@ return b;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop,  0));
+        assertEquals(1L, Evaluator.evaluate(stop, 0));
+        assertEquals(-128L, Evaluator.evaluate(stop, 127));
     }
 
     @Test

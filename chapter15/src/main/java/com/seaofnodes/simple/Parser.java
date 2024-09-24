@@ -813,7 +813,7 @@ public class Parser {
         return (ConstantNode) new ConstantNode(_lexer.parseNumber()).peephole();
     }
 
-    private Node con( long con ) {
+    public static Node con( long con ) {
         return new ConstantNode(TypeInteger.constant(con)).peephole();
     }
 
