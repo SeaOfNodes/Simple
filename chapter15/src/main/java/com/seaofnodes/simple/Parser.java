@@ -489,8 +489,13 @@ public class Parser {
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
         Type t1 = t0==null ? TypeStruct.BOT : t0; // Null: assume a forward ref type
-        //while( match("[]") )
-        //    t1 = TypeArray.make(t1);
+        while( match("[]") ) {
+            Type t2 = TYPES.get("[]"+tname);
+            if( t2==null ) {
+                TYPES.put("[]"+tname,t1 = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t1,ALIAS++));
+                START.addMemProj((TypeStruct)t1, _scope); // Insert memory edges
+            }
+        }
         Type t2 = t1 instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t1;
 
         // Check no forward ref
@@ -668,12 +673,12 @@ public class Parser {
             String typeName = _lexer.matchId();
             if( typeName==null ) throw error("Expected a type");
             Type t = TYPES.get(typeName);
-            //if( match("[") )
-            //    return require(newArray(t),"]");
+            if( match("[") )
+                return require(newArray(t),"]");
             if( t instanceof TypeStruct obj ) {
                 if( obj._fields==null )
                     throw error("Unknown struct type '" + typeName + "'");
-                return newStruct(obj);
+                return newStruct(obj,con(obj.offset(obj._fields.length)));
             }
             throw error("Cannot allocate a "+t);
         }
@@ -687,11 +692,11 @@ public class Parser {
     /**
      * Return a NewNode with pre-zeroed memory
      */
-    private Node newStruct(TypeStruct obj) {
+    private Node newStruct(TypeStruct obj, Node size) {
         Field[] fs = obj._fields;
         Node[] ns = new Node[2+fs.length];
         ns[0] = ctrl();
-        ns[1] = con(obj.offsets()[fs.length]);
+        ns[1] = size;
         for( int i = 0; i < fs.length; i++ )
             ns[i+2] = memAlias(fs[i]._alias);
         Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
@@ -701,10 +706,15 @@ public class Parser {
     }
 
     private Node newArray(Type t) {
-        Node len = parseExpression();
-        //TypeArray tary = TypeArray.make(t,TypeInteger.BOT);
-        //return new NewArrayNode(tary,ctrl(),len).peephole();
-        throw Utils.TODO();
+        Node len = parseExpression().keep();
+        TypeStruct ary = (TypeStruct)TYPES.get("[]"+t.str());
+        int base = ary.aryBase ();
+        int scale= ary.aryScale();
+        Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
+        Node ptr = newStruct(ary,size);
+        int alias = ary._fields[0]._alias; // Length alias
+        memAlias(alias,new StoreNode("#",alias,TypeInteger.BOT,memAlias(alias),ptr,con( ary.offset(0) ), len.unkeep(), true ).peephole());
+        return ptr;
     }
      // We set up memory aliases by inserting special vars in the scope these
     // variables are prefixed by $ so they cannot be referenced in Simple code.
@@ -720,13 +730,16 @@ public class Parser {
      *
      * <pre>
      *     expr ('.' IDENTIFIER)* [ = expr ]
+     *     expr #
      *     expr ('[' expr ']')* = [ = expr ]
      * </pre>
      */
     private Node parsePostfix(Node expr) {
-        String name = "[]";
-        if( match(".") )  name = requireId().intern();
-        else if( !match("[") ) return expr; // No postfix
+        String name = null;
+        if( match(".") )      name = requireId().intern();
+        else if( match("#") ) name = "#";
+        else if( match("[") ) name = "[]";
+        else return expr;       // No postfix
 
         // Sanity check expr for being a reference
         if( !(expr._type instanceof TypeMemPtr ptr) )
@@ -736,14 +749,20 @@ public class Parser {
         // Sanity check field name for existing
         TypeStruct base = (TypeStruct)TYPES.get(ptr._obj._name);
         if( base == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-        int idx = base.find(name);
-        if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        int fidx = base.find(name);
+        if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
         // Get field type and layout offset
-        Field f = base._fields[idx];
-        Node off = con(base.offsets()[idx]);
-        if( name.equals("[]") )
-            throw Utils.TODO(); // Array index math
+        Field f = base._fields[fidx];
+        Node off;
+        if( name.equals("[]") ) {
+            // Array index math
+            Node idx = require(parseExpression(),"]");
+            off = new AddNode(con(base.aryBase()),new ShlNode(idx,con(base.aryScale())).peephole()).peephole();
+        } else {
+            // Hardwired field offset
+            off = con(base.offset(fidx));
+        }
 
         if( match("=") ) {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment

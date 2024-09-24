@@ -85,8 +85,21 @@ public class Evaluator {
     private Object alloc(NewNode alloc) {
         TypeTuple tt = alloc.compute();
         TypeStruct type = ((TypeMemPtr)tt._types[1])._obj;
+        Object[] body=null;
+        if( type.isAry() ) {
+            long sz = (Long)val(alloc.in(1));
+            int base  = alloc._ptr._obj.aryBase();
+            int scale = alloc._ptr._obj.aryScale();
+            long n = (sz-base)>>scale;
+            body = new Object[(int)n+1]; // Array body
+            body[0] = n;                 // Array length
+        } else {
+            body = new Object[type._fields.length];
+        }
         Object[] mems = new Object[type._fields.length+2];
-        mems[1] = new Obj(type,new Object[type._fields.length]);
+        // mems[0] is control
+        mems[1] = new Obj(type,body); // the ref
+        // mems[2+...] are memory aliases
         return mems;
     }
 
@@ -94,7 +107,17 @@ public class Evaluator {
         var from = (Obj)val(load.ptr());
         var off = val(load.off());
         var idx = getFieldIndex(from.struct, load, (Long)off);
-        return from.fields[idx];
+        if( idx==1 && from.struct.isAry() ) {
+            long len = (Long)from.fields[0];
+            int base  = from.struct.aryBase();
+            int scale = from.struct.aryScale();
+            long i = ((Long)off - base)>>scale;
+            if( i < 0 || i >= len )
+                throw new RuntimeException("Array index out of bounds " + off + " <= " + len);
+            return from.fields[(int)i+1];
+
+        } else
+            return from.fields[idx];
     }
 
     private Object store(StoreNode store) {
@@ -102,7 +125,17 @@ public class Evaluator {
         var off = val(store.off());
         var val = val(store.val());
         var idx = getFieldIndex(to.struct, store, (Long)off);
-        to.fields[idx] = val;
+        if( idx==1 && to.struct.isAry() ) {
+            long len = (Long)to.fields[0];
+            int base  = to.struct.aryBase();
+            int scale = to.struct.aryScale();
+            long i = ((Long)off - base)>>scale;
+            if( i < 0 || i >= len )
+                throw new RuntimeException("Array index out of bounds " + off + " <= " + len);
+            to.fields[(int)i+1] = val;
+
+        } else
+            to.fields[idx] = val;
         return null;
     }
 

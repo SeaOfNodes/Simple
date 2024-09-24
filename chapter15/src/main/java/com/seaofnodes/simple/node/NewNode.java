@@ -11,7 +11,7 @@ import java.util.BitSet;
  */
 public class NewNode extends Node implements MultiNode {
 
-    TypeMemPtr _ptr;
+    public TypeMemPtr _ptr;
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);

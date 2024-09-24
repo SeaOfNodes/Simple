@@ -47,7 +47,7 @@ public class LoadNode extends MemOpNode {
 
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
-            ptr() == st.ptr() ) { // Must check same object
+            ptr() == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             return st.val();
         }
@@ -64,7 +64,8 @@ public class LoadNode extends MemOpNode {
         //   if( pred ) ptr.x = e0;         val = pred ? e0
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
-        if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 ) {
+        if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+            off() instanceof ConstantNode ) {
             // Profit on RHS/Loop backedge
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
@@ -83,7 +84,7 @@ public class LoadNode extends MemOpNode {
         Node px = phi.in(idx);
         if( px==null ) return false;
         if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) { px.addDep(this); return true; }
-        if( px instanceof StoreNode st1 && ptr()==st1.ptr() )           { px.addDep(this); return true; }
+        if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) { px.addDep(this); return true; }
         return false;
     }
 }

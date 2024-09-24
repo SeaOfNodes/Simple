@@ -24,26 +24,37 @@ public class TypeStruct extends Type {
     public final String _name;
     public final Field[] _fields;
 
-    TypeStruct(byte t, String name, Field[] fields) {
-        super(t);
+    TypeStruct(String name, Field[] fields) {
+        super(TSTRUCT);
         _name = name;
         _fields = fields;
     }
 
     // All fields directly listed
-    public static TypeStruct make(String name, Field[] fields) { return new TypeStruct(TSTRUCT, name, fields).intern(); }
+    public static TypeStruct make(String name, Field... fields) { return new TypeStruct(name, fields).intern(); }
     public static final TypeStruct TOP = make("$TOP",new Field[0]);
     public static final TypeStruct BOT = make("$BOT",new Field[0]);
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
     // Forward-ref version
-    public static TypeStruct make(String name) { return make(name, null); }
+    public static TypeStruct make(String name) { return make(name, (Field[])null); }
+
+    // Array
+    public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
+        String name = "[]" + body.str();
+        return make("[]" + body.str(),
+                    Field.make("#" , lenAlias,len ),
+                    Field.make("[]",bodyAlias,body));
+    }
 
     // A pair of self-cyclic types
     private static final TypeStruct S1F = make("S1");
     private static final TypeStruct S2F = make("S2");
     public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", -1, TypeInteger.BOT), Field.make("s2",-2,TypeMemPtr.make(S2F,false)) });
     private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", -3, TypeFloat  .BOT), Field.make("s1",-4,TypeMemPtr.make(S1F,false)) });
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); }
+
+    private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeFloat.BOT,-2);
+
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); }
 
     public int find(String fname) {
         for( int i=0; i<_fields.length; i++ )
@@ -150,11 +161,26 @@ public class TypeStruct extends Type {
     @Override public String str() { return _name; }
 
 
+    public boolean isAry() { return _fields.length==2 && _fields[1]._fname.equals("[]"); }
+
+    public int aryBase() {
+        assert isAry();
+        if( _offs==null ) _offs = offsets();
+        return _offs[1];
+    }
+    public int aryScale() {
+        assert isAry();
+        return _fields[1]._type.log_size();
+    }
+
+
     // Field offsets as packed byte offsets
     private int[] _offs;  // Lazily computed and not part of the type semantics
-    public int[] offsets() {    // Field byte offsets
-        if( _offs != null ) return _offs;
-
+    public int offset(int idx) {
+        if( _offs==null ) _offs = offsets();
+        return _offs[idx];
+    }
+    private int[] offsets() {    // Field byte offsets
         // Compute a layout for a collection of fields
         assert _fields != null; // No forward refs
         // Compute a layout
@@ -166,7 +192,7 @@ public class TypeStruct extends Type {
         int[] offs = new int[4];
         for( int i=3; i>=0; i-- ) {
             offs[i] = off;
-            off += cnts[i]<<(i+3);
+            off += cnts[i]<<i;
         }
         // Assign offsets to all fields.
         // Really a hidden radix sort.
@@ -174,10 +200,10 @@ public class TypeStruct extends Type {
         for( Field f : _fields ) {
             int log = f._type.log_size();
             _offs[idx++] = offs[log]; // Field offset
-            offs[log] += 1<<(log+3); // Next field offset at same alignment
-            cnts[log]--;             // Count down, should be all zero at end
+            offs[log] += 1<<log;      // Next field offset at same alignment
+            cnts[log]--;              // Count down, should be all zero at end
         }
-        _offs[_fields.length] = (off+63)& ~63; // Round out to max alignment
+        _offs[_fields.length] = (off+7)& ~7; // Round out to max alignment
         return _offs;
     }
 

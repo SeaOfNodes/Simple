@@ -155,7 +155,10 @@ public class Scheduler {
      * @return true if all placed inputs are before this node.
      */
     private boolean isValid(NodeData data) {
-        return data.node._inputs.stream().map(i->i==null?null:d(i)).map(d->d==null||d.users>0?null:d.block).allMatch(d->d==null||dom(d, data.block)==d);
+        return data.node._inputs.stream()
+                .map(i->i==null?null:d(i))
+                .map(d->d==null||d.users>0?null:d.block)
+                .allMatch(d->d==null||dom(d, data.block)==d);
     }
 
     /**
@@ -399,7 +402,9 @@ public class Scheduler {
                 }
             }
             if (!(node instanceof ReturnNode))
-                for (Node n:node._outputs) if (n!=null && n instanceof CFGNode && isCFGNodeReady(n) && d(n).block == null) queue.push(d(n));
+                for (Node n : node._outputs)
+                    if(n instanceof CFGNode && isCFGNodeReady(n) && d(n).block == null)
+                        queue.push(d(n));
             var b = block;
             for(var in:data.node._inputs) od(in).ifPresent(d->update(d, b));
         }
