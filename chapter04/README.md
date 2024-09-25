@@ -85,15 +85,11 @@ Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
 The graph:
 
 ![ProjNode](./docs/04-arg1.svg)
- - The `arg` projection node is not included in the cluster(where `$ctrl` and `Start` are displayed)(0).
- - `$ctrl` and `arg` are both defined in the outmost symbol table.
- - Notice the extra symbol table created at index: 1(1).
- - Notice how the dashed blue line is not drawn for `ctrl` and is not pointing to the `$ctrl node` in the cluster(2).
+ - The `arg` projection node is not included in the cluster(where `$ctrl` and `Start` are displayed).[^2]
+ - `$ctrl` and `arg` are both defined in the outermost symbol table, at lexical depth 0.
+ - There is an empty global-scope symbol table created at depth 1; in the future global variables will be defined here.
+ - There is no line for the scope `$ctrl`, because control is dead after the return. [^3]
 
-`(0): ` Arg is a constant and gets stored in a constant node.
-When `peephole` called, and compute is executed, the type returned is the type at the provided index in the TypeTuple.
-It turns out - this returned type will be a `constant` TypeInteger with a `ProjNode`. 
-This can be replaced with a ConstantNode with the type passed in for `arg`.
 
 ```java
 public final Node peephole( ) {
@@ -120,19 +116,16 @@ public final Node peephole( ) {
       return this;  // won't get called       
 ```
 
-`(1): ` We always create a symbol table when start parsing so that global symbols can be inserted.
-We had to create explicitly a symbol table containing `CTRL` and `ARG` at index 0. The symbol table for global symbols is at index 1(nested and currently empty).
 
-`(2): ` The control node is always set to null because there is no control after return.
-It is manually set to null here:
 ```
 ctrl(null);             // Kill control
 ```
 
 Which will call `setDef` to kill the node. If it does not exist we can't draw a line pointing to it.
 
-#### arg is not provided:
-Arg is not provided in this case:
+#### Initial Argument Value
+An argument is always provided, and defaults to `TypeInteger.BOT`. Individual tests can (and do) pass in other integer values.
+
 ```java 
       Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
 ```
@@ -159,7 +152,10 @@ _is_con = false
 ```
 We clearly see this is not a constant, so it can't get optimised out and will remain in the ProjNode cluster.
 
-#### ctrl is not null: Next chapter(ch5)
+#### When Is Control Not-Null?
+
+In later chapters, `$ctrl`  will point to other control nodes, such as
+`If` and `Region` (and `Loop`), but for now with now other control flow it always gets set to null after a `Return`.
 
 ## Changes to Type System
 
@@ -373,3 +369,9 @@ By adding a bogus user we prevent it being mistaken for dead and being killed.
 
 [^1]: Click, C. (1995).
    Combining Analyses, Combining Optimizations, 131.
+
+[^2]: Arg is a constant valued, and is computed via a constant node. Arg is originally defined by ProjNode; when peephole is called, the computed type is a constant TypeInteger. 
+The ProjNode is replaced with a ConstantNode with the constant type.
+
+[^3]: The control node is always set to null because there is no control after return.
+It is manually set to null here:
