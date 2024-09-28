@@ -144,10 +144,75 @@ Although only the innermost occurrence of a name can have its binding changed, w
 
 For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L164-L173)
 
+## Demonstration
+Consider the following code snippet:
+```java 
+int b = 0;
+int c = 0;
+if (arg == 1) {
+    b = 2;
+    c = 1;
+}
+else {
+    b = 1;
+}
+return b;
+```
+The value of `b` depends on which path the control flow took.
+To resolve this, a Φ (Phi) function is inserted.
+``` 
+b = Phi(2, 1); 
+c = Phi(1, 0); // dead
+```
+`c` has no uses, after merging the scopes together it can be removed. 
+Before, we go ahead and parse down the if statement we duplicate the scope:
+```java
+ScopeNode fScope = _scope.dup();
+// Scope[$ctrl:$ctrl, arg:arg][b:0, c:0]
+```
+We then will proceed and parse down the first branch of the if statement:
+```java
+// Parse the true side
+ctrl(ifT);    // set ctrl token to ifTrue projection
+parseStatement();  // Parse true-side
+ScopeNode tScope = _scope;
+
+// Scope[$ctrl:True, arg:arg][b:2, c:1]
+```
+Notice, this branch modified and set a new value for both symbols currently existing in the symbol table.
+Now, we set the scope back to where we started(without the modifications that `ifT` made)
+```java
+_scope = fScope; 
+```
+We then will proceed and parse down the second branch of the if statement:
+```java
+if (matchx("else")) {
+    parseStatement();
+    fScope = _scope;
+    
+    // Scope[$ctrl:False, arg:arg][b:1, c:0]
+                    }
+
+```
+This branch only modified the value of `b`.
+When merging these 2 scopes together, we know for sure that none of the branches introduced new symbols, this means that the 
+order of the name bindings stayed the same. 
+Excluding the first control node, we loop through and compare the nodes corresponding to the same name binding to see if the nodes are different,
+if so we create a phi node representing this conflict:
+```java
+if( in(i) != that.in(i) ) // No need for redundant Phis
+    // in(i); 2
+    // that.in(in); 1
+    setDef(i, new PhiNode(ns[i], r, in(i), 
+    that.in(i)).peephole());
+```
+`b` takes on different values depending on scope. (see above)
+A Phi node is created with both values. 
+
+![Graph8](./docs/05-graph9.svg)
+
 ## Example
-
 We show the graph for the following code snippet:
-
 ```java
 int a = 1;
 if (arg == 1)
@@ -204,11 +269,12 @@ Pre-peephole we have:
 Post-peephole:
 
 ![Graph5](./docs/05-graph5.svg)
-
+The common operator was pulled out and the Phi node only got applied to the operands. 
+Notice how only the second operand of the `==` changes, the first one stays the same(`arg`). 
 The implementation is in [`PhiNode.idealize()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/PhiNode.java#L31-L71)
 
-## More examples
 
+## More examples
 ```java
 int c = 3;
 int b = 2;
@@ -250,6 +316,8 @@ return a;
 ![Graph8](./docs/05-graph8.svg)
 
 
+## `Stop` Nodes
+Currently, they only have one input in the form of a `ReturnNode`. They mark the termination.
 
 
 [^1]: Click, C. (1995).
