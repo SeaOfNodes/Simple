@@ -164,7 +164,9 @@ To resolve this, a Φ (Phi) function is inserted.
 b = Phi(2, 1); 
 c = Phi(1, 0); // dead
 ```
-`c` has no uses, after merging the scopes together it can be removed. 
+`c` will die when the scope where `c` is defined dies. This does not happen when merging but after the `return`. 
+The reason why `b` stays alive is because `return` is using it as one of its inputs.
+
 Before, we go ahead and parse down the if statement we duplicate the scope:
 ```java
 ScopeNode fScope = _scope.dup();
