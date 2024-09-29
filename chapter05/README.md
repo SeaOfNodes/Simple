@@ -8,17 +8,6 @@ In this chapter we extend the language grammar with the following features:
 
 Here is the [complete language grammar](docs/05-grammar.md) for this chapter.
 
-## New Nodes
-
-The following new nodes are introduced in this chapter:
-
-| Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
-|-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
-| If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
-| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
-| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 |
-| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
-
 ## Recap
 
 Here is a recap of the nodes introduced in previous chapters:
@@ -39,13 +28,24 @@ Here is a recap of the nodes introduced in previous chapters:
 | Minus     | Data           | 2       | Negate a value                                 | One data node which value is negated                                          | Result of the negation                                                     |
 | Scope     | Symbol Table   | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
 
-## `If` Nodes
+## New Nodes
+
+The following new nodes are introduced in this chapter:
+
+| Node Name | Type    | Chapter | Description                                        | Inputs                                         | Value                                              |
+|-----------|---------|---------|----------------------------------------------------|------------------------------------------------|----------------------------------------------------|
+| If        | Control | 5       | A branching test, sub type of `MultiNode`          | A control node and a data predicate node       | A tuple of two values: one for true, one for false |
+| Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
+| Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 |
+| Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
+
+#### `IfNode`
 
 `If` node takes in both control and data (predicate expression) and routes the
 control token to one of the two control flows, represented by true and false
 `Proj` nodes.
 
-## `Phi` Nodes
+#### `PhiNode`
 
 A `Phi` reads in both data and control, and outputs a data value.  The control
 input to the `Phi` points to a `Region` node.  The data inputs to the `Phi` are
@@ -54,34 +54,37 @@ one for each of the control inputs to that `Region`.  The result computed by a
 control input to the `Region` can be active at a time, and the `Phi` passes
 through the data value from the matching input.[^1]
 
-## `Region` Nodes
+#### `RegionNode`
 
-> Every instruction has a control input from a basic block. If the control input is an edge
-> in our abstract graph, then the basic block must be a node in the abstract graph. So we
-> define a REGION instruction to replace a basic block. A REGION instruction takes
-> control from each predecessor block as input and produces a merged control as an output.[^2]
+In this Sea of Nodes, there is an embedded Control Flow Graph - and like a
+normal CFG there are merge points where two basic blocks flow into one.  The
+`Region` node takes control from each predecessor control (block) as input and
+produces a merged control as an output.[^2]  
 
-However:
+Both `Return` and `If` take control in slot 0.  `PhiNode`s need their
+corresponding `RegionNode` to know when to merge data values, so again slot 0
+is set, and data values show up in slots 1 and onward.  `RegionNode`s keep
+their control inputs in sync with `PhiNode`s, so again their control inputs show up
+in slots 1 and onward.
 
-> We can remove the control dependence for any given Node simply by replacing the
-> pointer value with the special value NULL. This operation only makes sense for Nodes
-> that represent data computations. PHI, IF, JUMP and STOP Nodes all require the control
-> input for semantic correctness. REGION Nodes require several control inputs (one per
-> CFG input to the basic block they represent). Almost all other Nodes can live without a
-> control dependence. A data computation without a control dependence does not exactly
-> reside in any particular basic block. Its correct behavior depends solely on the remaining
-> data dependences. It, and the Nodes that depend on it or on which it depends, exists in a
-> “sea” of Nodes, with little control structure.
+#### We do not associate a control edge on every data node in the graph
 
-> The “sea” of Nodes is useful for optimization, but does not represent any traditional
-> intermediate representation such as a CFG. We need a way to serialize the graph and get
-> back the control dependences. We do this with a simple global code motion algorithm.[^3]
+If we want to track the basic block a normal instruction is in, we will set the
+control input (always slot 0) to some control-producing Node.  Typically we do
+not need to (nor want to) track this - so control is `null` for most data ops.
+The correctness of such a data op is solely determined by the remaining data
+dependencies.  It, and the Nodes that depend on it or on which it depends,
+exists in a “sea” of Nodes, with little control structure.
 
-Thus, we do not associate a control edge on every data node in the graph.
+The “sea” of Nodes is useful for optimization, but does not represent any
+traditional intermediate representation such as a CFG.  We need a way to
+serialize the graph and get back the control dependences. We do this with a
+simple global code motion algorithm.[^3]
 
-We insert a `Region` node at a merge point where it takes control from each
-predecessor's control edge, and produces a merged control as output.  Data flows
-via `Phi` nodes at these merge points.
+#### `Stop` Nodes
+`StopNode`s only have `ReturnNode` inputs. They mark the program termination.
+
+
 
 ## Parsing an `if` Statement
 
@@ -144,76 +147,9 @@ Although only the innermost occurrence of a name can have its binding changed, w
 
 For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L164-L173)
 
-## Demonstration
-Consider the following code snippet:
-```java 
-int b = 0;
-int c = 0;
-if (arg == 1) {
-    b = 2;
-    c = 1;
-}
-else {
-    b = 1;
-}
-return b;
-```
-The value of `b` depends on which path the control flow took.
-To resolve this, a Φ (Phi) function is inserted.
-``` 
-b = Phi(2, 1); 
-c = Phi(1, 0); // dead
-```
-`c` will die when the scope where `c` is defined dies. This does not happen when merging but after the `return`. 
-The reason why `b` stays alive is because `return` is using it as one of its inputs.
 
-Before, we go ahead and parse down the if statement we duplicate the scope:
-```java
-ScopeNode fScope = _scope.dup();
-// Scope[$ctrl:$ctrl, arg:arg][b:0, c:0]
-```
-We then will proceed and parse down the first branch of the if statement:
-```java
-// Parse the true side
-ctrl(ifT);    // set ctrl token to ifTrue projection
-parseStatement();  // Parse true-side
-ScopeNode tScope = _scope;
+## Example #1
 
-// Scope[$ctrl:True, arg:arg][b:2, c:1]
-```
-Notice, this branch modified and set a new value for both symbols currently existing in the symbol table.
-Now, we set the scope back to where we started(without the modifications that `ifT` made)
-```java
-_scope = fScope; 
-```
-We then will proceed and parse down the second branch of the if statement:
-```java
-if (matchx("else")) {
-    parseStatement();
-    fScope = _scope;
-    
-    // Scope[$ctrl:False, arg:arg][b:1, c:0]
-                    }
-
-```
-This branch only modified the value of `b`.
-When merging these 2 scopes together, we know for sure that none of the branches introduced new symbols, this means that the 
-order of the name bindings stayed the same. 
-Excluding the first control node, we loop through and compare the nodes corresponding to the same name binding to see if the nodes are different,
-if so we create a phi node representing this conflict:
-```java
-if( in(i) != that.in(i) ) // No need for redundant Phis
-    // in(i); 2
-    // that.in(in); 1
-    setDef(i, new PhiNode(ns[i], r, in(i), 
-    that.in(i)).peephole());
-```
-`b` takes on different values depending on scope. (see above)
-A Phi node is created with both values. 
-
-![Graph8](./docs/05-graph9.svg)
-
-## Example
 We show the graph for the following code snippet:
 ```java
 int a = 1;
@@ -251,7 +187,88 @@ Here is the graph after the `return` statement was parsed and processed.
 
 ![Graph3](./docs/05-graph3.svg)
 
-## More Peepholes
+
+
+## Example #2
+
+Consider the following code snippet:
+```java 
+int b = 0;
+int c = 0;
+if (arg == 1) {
+    b = 2;
+    c = 1;
+}
+else {
+    b = 1;
+}
+return b;
+```
+
+The value of `b` depends on which path the control flow took.
+To resolve this, a Φ (Phi) function is inserted.
+
+``` 
+b = Phi(Region,2, 1); // values vary
+c = Phi(Region,1, 0); // valuse vary, but dead
+```
+
+The `Phi` for `c` will die when the scope where `c` is defined dies.  This does
+not happen when merging but after the `return`.  `return` is using `b` so `b`
+stays alive.
+
+Before, we go ahead and parse down the if statement we duplicate the scope:
+```java
+ScopeNode fScope = _scope.dup();
+/* Scope[$ctrl:$ctrl, arg:arg][b:0, c:0]*/
+```
+
+We then will proceed and parse down the first branch of the if statement:
+```java
+// Parse the true side
+ctrl(ifT);    // set ctrl token to ifTrue projection
+parseStatement();  // Parse true-side
+ScopeNode tScope = _scope;
+
+/* Scope[$ctrl:True, arg:arg][b:2, c:1]*/
+```
+
+Notice, this branch modified and set a new value for both symbols currently existing in the symbol table.
+Now, we set the scope back to where we started (without the modifications that `ifT` made)
+
+```java
+_scope = fScope; 
+```
+
+We then will proceed and parse down the second branch of the if statement:
+```java
+if (matchx("else")) {
+    parseStatement();
+    fScope = _scope;
+    
+    /* Scope[$ctrl:False, arg:arg][b:1, c:0]*/
+}
+```
+
+This branch modified the values of `b` and `c`.  Since the branch arms are also
+lexical scopes, they cannot introduce new symbols in the current (outer) scope.
+This means that the order of the name bindings stayed the same.  Excluding the
+first control node, we loop through and compare the nodes corresponding to the
+same name binding to see if the nodes are different, if so we create a phi node
+representing this conflict:
+
+```java
+    /*      in(i); 2 */
+    /* that.in(i); 1 */
+    if( in(i) != that.in(i) ) // No need for redundant Phis
+        setDef(i, new PhiNode(ns[i], r, in(i), that.in(i)).peephole());
+```
+
+![Graph8](./docs/05-graph9.svg)
+
+
+
+## Example #3
 
 Phi's implement a peephole illustrated in the example:
 
@@ -271,9 +288,11 @@ Pre-peephole we have:
 Post-peephole:
 
 ![Graph5](./docs/05-graph5.svg)
-The common operator was pulled out and the Phi node only got applied to the operands. 
-Notice how only the second operand of the `==` changes, the first one stays the same(`arg`). 
-The implementation is in [`PhiNode.idealize()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/PhiNode.java#L31-L71)
+
+The common operator was pulled out and the Phi node only got applied to the
+operands.  Notice how only the second operand of the `==` changes, the first
+one stays the same (`arg`).  The implementation is in
+[`PhiNode.idealize()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/PhiNode.java#L31-L71)
 
 
 ## More examples
@@ -317,9 +336,6 @@ return a;
 
 ![Graph8](./docs/05-graph8.svg)
 
-
-## `Stop` Nodes
-Currently, they only have one input in the form of a `ReturnNode`. They mark the termination.
 
 
 [^1]: Click, C. (1995).
