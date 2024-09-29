@@ -43,19 +43,19 @@ Each projection node contains an index of the field to extract from its input no
 Projection nodes allow us to maintain labeled use-def edges as simple Node references.
 
 In the visuals, projection nodes are shown as rectangular boxes inside the node to which they are attached.
+
 ### Visualisation
 
 ![ProjNode](./docs/projnode.png)
 
-In the visual above, the projection nodes have been tagged by the names associated with the outputs of the
-Start node. Both MultiNode and Control nodes are yellow.
-
-`$ctrl` and `arg` are outputs(users) of StartNode(`START`):
-Since the projection nodes: `$ctrl`, `arg` are using `START` as their input.
-*Notice*: START is passed in as the control node(0th input) for the ProjNode.
+In the visual above, the projection nodes have been tagged by the names
+associated with the outputs of the Start node. Both MultiNode that contain
+Control and Control nodes are yellow.  `$ctrl` and `arg` are outputs(users) of
+StartNode(`START`) and have their MultiNode as their only input in slot 0.  The
+`label` has no semantics and is used during debug printing.
 
 ```java 
-    public ProjNode(MultiNode ctrl, int idx, String label) {
+public ProjNode(MultiNode ctrl, int idx, String label) {
     super(ctrl);
 ```
 
@@ -63,6 +63,7 @@ Since the projection nodes: `$ctrl`, `arg` are using `START` as their input.
 _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
 _scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
 ```
+
 These projection nodes are going to extract the types for `CTRL` and `ARG0` from the `START` MultiNode.
 The MultiNode holds the types as a TypeTuple:
 
@@ -72,90 +73,93 @@ public StartNode(Type[] args) {
     _args = new TypeTuple(args);
 ```
 
-Extracting the types:
+Extracting the types is based on the `_idx`:
 ```java
- return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
+return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
 ```
-### Demonstration
-#### arg is provided:
-The arg from external environment can be provided in the following way:
+
+### Initial values
+
+An argument is always provided, and defaults to `TypeInteger.BOT`.  Individual
+tests can (and do) pass in other integer values by calling `new Parser` with
+an argument:
+
 ```java
 Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
 ```
+
 The graph:
 
 ![ProjNode](./docs/04-arg1.svg)
- - The `arg` projection node is not included in the cluster(where `$ctrl` and `Start` are displayed).[^2]
- - `$ctrl` and `arg` are both defined in the outermost symbol table, at lexical depth 0.
- - There is an empty global-scope symbol table created at depth 1; in the future global variables will be defined here.
- - There is no line for the scope `$ctrl`, because control is dead after the return. [^3]
 
+- `$ctrl` and `arg` are both defined in the outermost symbol table, at lexical depth 0.
+- There is an empty global-scope symbol table created at depth 1; in the future
+  global variables will be defined here.
+- There is no line for the scope `$ctrl` because control is dead after the
+  return.  It is manually set to null, which calls `setDef` to kill the node
+  (and killed nodes are not part of the program and not visualized).
 
+```
+    ctrl(null);             // Kill control
+```
+
+- The `arg` projection node is not included in the cluster because arg is a
+  constant.  The `arg` was originally defined by a ProjNode; but when peephole
+  is called the computed type is a constant, and the ProjNode gets replaced
+  with a ConstantNode:
+    
 ```java
 public final Node peephole( ) {
-      Type type = _type = compute(); 
-        /*
-             _type = {TypeInteger@1527} "2"
-            _is_con = true
-            _con = 2
-            _type = 4
-         */
+    Type type = _type = compute(); 
+    /*   type = {TypeInteger@1527} "2"  */
 
-      if (_disablePeephole)
-          return this;        
-      
-      // ProjNode is not a constant unlike its type.
-      if (!(this instanceof ConstantNode) && type.isConstant())
-          // Create Constant(2)
-          return deadCodeElim(new ConstantNode(type).peephole());
-      
-      Node n = idealize(); // just null
-      if( n != null )
-          return deadCodeElim(n.peephole()); // won't get called
-
-      return this;  // won't get called       
+    if (_disablePeephole)
+        return this;
+    
+    // ProjNode is not a constant unlike its type.
+    if (!(this instanceof ConstantNode) && type.isConstant())
+        /* Create Constant(2) */
+        return deadCodeElim(new ConstantNode(type).peephole());
+    
+    /* won't get called */
+    ...
 ```
 
-
-```
-ctrl(null);             // Kill control
-```
-
-Which will call `setDef` to kill the node. If it does not exist we can't draw a line pointing to it.
-
-#### Initial Argument Value
-An argument is always provided, and defaults to `TypeInteger.BOT`. Individual tests can (and do) pass in other integer values.
+If you don't pass an argument you get `TypeInteger.BOT`
 
 ```java 
-      Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
-```
-The graph:
-
-![ArgNode](./docs/04-arg2.svg)
- - The `arg` projection node is included in the cluster.(0)
-
-`(0):` If the `arg` projection node is not explicitly defined, then we declare it this way:
-```java 
+    Parser parser = new Parser("return arg; #showGraph;");
+    ...
+    
 public Parser(String source) {
     this(source, TypeInteger.BOT);
 }
+    
 ```
-`TypeInteger.BOT:`
+
+We clearly see this is not a constant:
+
 ```java
 public final static TypeInteger BOT = new TypeInteger(false, 1); 
+   /* _is_con = false */
 ```
-``` 
-arg = {TypeInteger@1417} "IntBot"
-_type = 4
-_con = 1
-_is_con = false
-```
-We clearly see this is not a constant, so it can't get optimised out and will remain in the ProjNode cluster.
+
+So the `arg` projection node remains in the cluster:
+
+![ArgNode](./docs/04-arg2.svg)
+
 
 #### When Is Control Not-Null?
 
 In later chapters, `$ctrl`  will point to other control nodes, such as
-`If` and `Region` (and `Loop`), but for now with now other control flow it always gets set to null after a `Return`.
+`If` and `Region` (and `Loop`), but for now with no other control flow it always gets set to null after a `Return`.
+
+#### Note Regarding Visualizations
+
+From this chapter onwards we omit the edges from Constants to Start node, mainly to reduce
+clutter and help draw reader's attention to the more important aspects of the graph.
+
+
 
 ## Changes to Type System
 
@@ -230,15 +234,12 @@ The control token moves virtually from node to node as execution proceeds.  The
 initial control token is in Start, it then moves via the Proj node to Return.
 In later chapters we will see how the token moves across branches.
 
-## Note Regarding Visualizations
-
-From this chapter onwards we omit the edges from Constants to Start node, mainly to reduce
-clutter and help draw reader's attention to the more important aspects of the graph.
 
 ## More Peephole Optimizations
 
-Now that we have non-constant integer values, we do additional optimizations, rearranging algebraic
-expressions to enable constant folding. For example:
+Now that we have non-constant integer values, we can do additional
+optimizations, rearranging algebraic expressions to enable constant
+folding. For example:
 
 ```
 return 1 + arg + 2;
@@ -248,18 +249,20 @@ We would expect the compiler to output `arg+3` here, but as it stands what we ge
 
 ![Graph1](./docs/04-pre-peephole.svg)
 
-We need to perform some algebraic simplifications to enable better outcome. For example,  we need to rearrange the
-expression as follows:
+We need to perform some algebraic simplifications to enable better outcome. For
+example, we need to rearrange the expression as follows:
 
 ```
 arg + (1 + 2)
 ```
 
-This then enables constant folding and the final outcome is shown below.
+This then enables constant folding and the final outcome is shown below.  By
+canonicalizing expressions we fold common addressing math constants, remove
+algebraic identities and generally simplify the code.
 
 ![Graph1](./docs/04-post-peephole.svg)
 
-Here is a (partial) list of peepholes introduced in this Chapter:
+Here is a list of peepholes introduced in this Chapter, more will be introduced in later chapters:
 
 | Before                | After                 | Description                                    |
 |-----------------------|-----------------------|------------------------------------------------|
@@ -280,7 +283,7 @@ Here is a (partial) list of peepholes introduced in this Chapter:
 | (arg >= arg)          | 1                     | Compare of same
 
 
-## Code Walkthrough
+## Peephole Walkthrough
 
 The peephole optimizations introduced in this chapter are local. They are triggered during parsing
 as new nodes are created, before the newly created node has any uses.
@@ -334,12 +337,18 @@ public final Node peephole( ) {
 
 The peephole method does following:
 
-* Compute a Type for the node
-* If the Type is a Constant, replace with a ConstantNode, recursively invoking peephole on the new node
-* Otherwise, ask the Node for a better replacement via a call to `idealize()`.  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2))` becomes
-  `(x+(1+2))`.  By canonicalizing expressions we fold common addressing math constants, remove algebraic identities and generally simplify the code.
-  * Each Node subtype is responsible for deciding what the `idealize()` step should do. If there is a better replacement then the node returns a non `null` value.
-  * If we see a non `null` value, something changed, so we invoke `peephole()` again and then also run dead code elimination.
+- Compute a Type for the node.
+- If the Type is a Constant and the node is not a ConstantNode, replace with a
+  ConstantNode, recursively invoking peephole on the new constant.
+- Otherwise, ask the Node for a better replacement via a call to `idealize()`.
+  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2))`
+  becomes `(x+(1+2))`.
+- - Each Node subtype is responsible for deciding what the `idealize()` step
+  should do. If there is a better replacement then the node returns a non
+  `null` value.
+- - If we see a non `null` value, something changed, so we invoke `peephole()`
+  again and then also run dead code elimination on the (now dead and replaced)
+  `this` node.
 
 `peephole()` calls `deadCodeElim()` which is shown below.
 
@@ -362,16 +371,10 @@ private Node deadCodeElim(Node m) {
 }
 ```
 
-Note the temporary add of a bogus user to the Node `m`.
-The reason this is done is that we know `m` is the new replacement and is alive,
-but since it is not yet part of the graph up the tree, it has no users yet.
-By adding a bogus user we prevent it being mistaken for dead and being killed.
+Note the temporary add of a bogus user to the Node `m`.  The reason this is
+done is that we know `m` is the new replacement and is alive, but since it is
+not yet hooked into the graph, it has no users yet.  By adding a bogus user we
+prevent it being mistaken for dead and being killed.
 
 [^1]: Click, C. (1995).
    Combining Analyses, Combining Optimizations, 131.
-
-[^2]: Arg is a constant valued, and is computed via a constant node. Arg is originally defined by ProjNode; when peephole is called, the computed type is a constant TypeInteger. 
-The ProjNode is replaced with a ConstantNode with the constant type.
-
-[^3]: The control node is always set to null because there is no control after return.
-It is manually set to null here:
