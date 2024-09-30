@@ -34,6 +34,19 @@ return is[1];
     }
 
     @Test
+    public void testBasic2() {
+        Parser parser = new Parser(
+"""
+int[] is = new int[2];
+int[] is2 = new int[2];
+return is[1];
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
     public void testRollingSum() {
         Parser parser = new Parser(
 """
@@ -67,4 +80,13 @@ return new flt;
         catch( Exception e ) { assertEquals("Cannot allocate a FltBot",e.getMessage()); }
     }
 
+    @Test
+    public void testBad1() {
+        Parser parser = new Parser(
+"""
+int is = new int[2];
+""");
+        try { parser.parse(false).iterate(false); fail(); }
+        catch( Exception e ) { assertEquals("Type *[]int is not of declared type int",e.getMessage()); }
+    }
 }
