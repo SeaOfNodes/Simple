@@ -489,13 +489,17 @@ public class Parser {
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
         Type t1 = t0==null ? TypeStruct.BOT : t0; // Null: assume a forward ref type
+        // Nest arrays as needed
         while( match("[]") ) {
             Type t2 = TYPES.get("[]"+tname);
             if( t2==null ) {
                 TYPES.put("[]"+tname,t1 = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t1,ALIAS++));
                 START.addMemProj((TypeStruct)t1, _scope); // Insert memory edges
+            } else {
+                t1 = t2;
             }
         }
+        // Handle trailing '?' for nullable
         Type t2 = t1 instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t1;
 
         // Check no forward ref
@@ -708,6 +712,10 @@ public class Parser {
     private Node newArray(Type t) {
         Node len = parseExpression().keep();
         TypeStruct ary = (TypeStruct)TYPES.get("[]"+t.str());
+        if( ary == null ) {
+            TYPES.put("[]"+t.str(), ary = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++));
+            START.addMemProj(ary, _scope); // Insert memory edges
+        }
         int base = ary.aryBase ();
         int scale= ary.aryScale();
         Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
