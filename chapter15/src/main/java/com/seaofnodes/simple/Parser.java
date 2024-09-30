@@ -726,7 +726,8 @@ public class Parser {
         memAlias(alias,new StoreNode("#",alias,TypeInteger.BOT,memAlias(alias),ptr,con( ary.offset(0) ), len.unkeep(), true ).peephole());
         return ptr;
     }
-     // We set up memory aliases by inserting special vars in the scope these
+
+    // We set up memory aliases by inserting special vars in the scope these
     // variables are prefixed by $ so they cannot be referenced in Simple code.
     // Using vars has the benefit that all the existing machinery of scoping
     // and phis work as expected

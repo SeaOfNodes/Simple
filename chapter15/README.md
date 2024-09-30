@@ -7,7 +7,8 @@ will do a struct field *layout* in this chapter.
 
 Arrays are created with the standard `new int[len]` syntax, and can be any base
 type and any integer expression length.  Arrays are read and written in the usual
-stype: `Person p = persons[idx];` and `persons[idx] = new Person;`
+style: `Person p = persons[idx];` and `persons[idx] = new Person;`. The length
+is accessed with post-fix `#`; e.g. `persons#`.
 
 Like Java, arrays are always safety checked, and failing a runtime check
 will panic the Evaluator.
@@ -78,12 +79,12 @@ Loads and Stores now take an `off` instead of a field name, and the field
 name is included for debugging only.  
 
 ```java
-    public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(null, mem, ptr, off);
-        _name  = name;
-        _alias = alias;
-        _declaredType = glb;
-    }
+public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
+    super(null, mem, ptr, off);
+    _name  = name;
+    _alias = alias;
+    _declaredType = glb;
+}
 ```
 
 For arrays, the `off` is computed via the normal array math sequence:
@@ -94,17 +95,17 @@ The base and index are computed for arrays from the element type, and used
 by the parser to build the offset.  For structs, the layout is used.
 
 ```java
-        // Get field type and layout offset from base type and field index fidx
-        Field f = base._fields[fidx];  // Field from field index
-        Node off;
-        if( name.equals("[]") ) {      // If field is an array body
-            // Array index math
-            Node idx = require(parseExpression(),"]");
-            off = new AddNode(con(base.aryBase()),new ShlNode(idx,con(base.aryScale())).peephole()).peephole();
-        } else {                       // Else normal struct field
-            // Hardwired field offset
-            off = con(base.offset(fidx));
-        }
+// Get field type and layout offset from base type and field index fidx
+Field f = base._fields[fidx];  // Field from field index
+Node off;
+if( name.equals("[]") ) {      // If field is an array body
+    // Array index math
+    Node idx = require(parseExpression(),"]");
+    off = new AddNode(con(base.aryBase()),new ShlNode(idx,con(base.aryScale())).peephole()).peephole();
+} else {                       // Else normal struct field
+    // Hardwired field offset
+    off = con(base.offset(fidx));
+}
 ```
 
 
@@ -118,21 +119,20 @@ mod 8.  This means the actual field offset and the field declaration order are
 *unrelated*: large fields pack low, and smaller fields pack next.
 
 ```java
-  struct s {
-    int8 b;        // log_size=0
-    uint16 char;   // log_size=1
-    Person p;      // log_size=2
-    flt pi;        // log_size=3
-  }
-  // Layout will be:
-  struct s {
-    flt pi;        // offset= 0, log_size=3
-    Person p;      // offset= 8, log_size=2
-    uint16 char;   // offset=12, log_size=1
-    int8 b;        // offset=13, log_size=0
-    void pad;      // offset=14, size = 2
-  }                // size  =16
-  
+struct s {
+  int8 b;        // log_size=0
+  uint16 char;   // log_size=1
+  Person p;      // log_size=2
+  flt pi;        // log_size=3
+}
+// Layout will be:
+struct s {
+  flt pi;        // offset= 0, log_size=3
+  Person p;      // offset= 8, log_size=2
+  uint16 char;   // offset=12, log_size=1
+  int8 b;        // offset=13, log_size=0
+  void pad;      // offset=14, size = 2
+}                // size  =16
 ```
 
 Field size is mostly obvious except perhaps for `TypeInteger`.  Floats are
@@ -154,7 +154,7 @@ will be a range `[0-3]` which could be represented in just 2 bits ... but this i
 
 ## Some Simple Address Math Peeps
 
-Shift-left by 0 is an identity: `(x<<0)` becomes `x`
+Shift-left by 0 is an identity: `(x<<0)` becomes `x`.
 
 Shift-left with a constant add distributes, to allow more constant folding:
 `(x + c) << i` becomes `(x << i) + (c << i)`.
@@ -187,8 +187,8 @@ Here we really see the lack of a `i++` operator and a `for` loop.  You can
 imagine another syntax:
 
 ```java
-    for( int i=0; i < ary#; i++ )
-        ary[i] = i;
+for( int i=0; i < ary#; i++ )
+    ary[i] = i;
 ```
 
 that would be entirely syntatic-sugar over the existing parser, but would
