@@ -53,6 +53,7 @@ public class StoreNode extends MemOpNode {
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
             ptr()==st.ptr() &&  // Must check same object
+            off()==st.off() &&  // And same offset
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.

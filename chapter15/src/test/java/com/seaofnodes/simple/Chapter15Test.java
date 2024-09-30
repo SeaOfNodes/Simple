@@ -47,6 +47,20 @@ return is[1];
     }
 
     @Test
+    public void testBasic3() {
+        Parser parser = new Parser(
+"""
+int[] a = new int[2];
+a[0] = 1;
+a[1] = 2;
+return a[0];
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return .[];", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
     public void testRollingSum() {
         Parser parser = new Parser(
 """
