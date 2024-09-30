@@ -18,7 +18,6 @@ public abstract class MemOpNode extends Node {
         _name  = name;
         _alias = alias;
         _declaredType = glb;
-
     }
     public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value) {
         this(name, alias, glb, mem, ptr, off);
