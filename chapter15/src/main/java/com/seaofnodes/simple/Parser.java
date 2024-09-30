@@ -762,14 +762,14 @@ public class Parser {
         int fidx = base.find(name);
         if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
-        // Get field type and layout offset
-        Field f = base._fields[fidx];
+        // Get field type and layout offset from base type and field index fidx
+        Field f = base._fields[fidx];  // Field from field index
         Node off;
-        if( name.equals("[]") ) {
+        if( name.equals("[]") ) {      // If field is an array body
             // Array index math
             Node idx = require(parseExpression(),"]");
             off = new AddNode(con(base.aryBase()),new ShlNode(idx,con(base.aryScale())).peephole()).peephole();
-        } else {
+        } else {                       // Else normal struct field
             // Hardwired field offset
             off = con(base.offset(fidx));
         }
