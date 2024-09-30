@@ -89,4 +89,32 @@ int is = new int[2];
         try { parser.parse(false).iterate(false); fail(); }
         catch( Exception e ) { assertEquals("Type *[]int is not of declared type int",e.getMessage()); }
     }
+
+    @Test
+    public void testBad2() {
+        Parser parser = new Parser(
+"""
+int[] is = new int[3.14];
+return is[1];
+""");
+        try { parser.parse(false).iterate(false); fail(); }
+        catch( Exception e ) { assertEquals("Cannot allocate an array with length 3.14",e.getMessage()); }
+    }
+
+    @Test
+    public void testBad3() {
+        Parser parser = new Parser(
+"""
+int[] is = new int[arg];
+return is[1];
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  4));
+        try { Evaluator.evaluate(stop,0); }
+        catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
+        try { Evaluator.evaluate(stop,-1); }
+        catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
+    }
+
 }
