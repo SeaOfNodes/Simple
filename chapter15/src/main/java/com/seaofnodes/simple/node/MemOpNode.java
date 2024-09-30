@@ -24,6 +24,9 @@ public abstract class MemOpNode extends Node {
         addDef(value);
     }
 
+    //
+    String mlabel() { return _name.equals("[]") ? "ary" : (_name.equals("#") ? "len" : _name); }
+
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
     public Node off() { return in(3); }
