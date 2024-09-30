@@ -91,6 +91,8 @@ public class Evaluator {
             int base  = alloc._ptr._obj.aryBase();
             int scale = alloc._ptr._obj.aryScale();
             long n = (sz-base)>>scale;
+            if( n < 0 )
+                throw new NegativeArraySizeException(""+n);
             body = new Object[(int)n+1]; // Array body
             body[0] = n;                 // Array length
         } else {
@@ -113,7 +115,7 @@ public class Evaluator {
             int scale = from.struct.aryScale();
             long i = ((Long)off - base)>>scale;
             if( i < 0 || i >= len )
-                throw new RuntimeException("Array index out of bounds " + off + " <= " + len);
+                throw new ArrayIndexOutOfBoundsException("Array index out of bounds " + off + " <= " + len);
             return from.fields[(int)i+1];
 
         } else

@@ -711,6 +711,8 @@ public class Parser {
 
     private Node newArray(Type t) {
         Node len = parseExpression().keep();
+        if( !(len._type instanceof TypeInteger) )
+            throw error("Cannot allocate an array with length "+len._type);
         TypeStruct ary = (TypeStruct)TYPES.get("[]"+t.str());
         if( ary == null ) {
             TYPES.put("[]"+t.str(), ary = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++));
