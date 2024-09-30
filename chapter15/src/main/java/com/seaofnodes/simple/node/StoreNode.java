@@ -25,7 +25,9 @@ public class StoreNode extends MemOpNode {
         _init = init;
     }
 
-    @Override public String  label() { return "." +_name+"="; }
+    // GraphVis DOT code and debugger labels
+    @Override public String  label() { return "st_"+mlabel(); }
+    // GraphVis node-internal labels
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
 

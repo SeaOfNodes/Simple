@@ -25,8 +25,10 @@ public class LoadNode extends MemOpNode {
         super(name, alias, glb, mem, ptr, off);
     }
 
-    @Override public String  label() { return     _name; }
-    @Override public String glabel() { return "."+_name; }
+    // GraphVis DOT code and debugger labels
+    @Override public String  label() { return "st_"+mlabel(); }
+    // GraphVis node-internal labels
+    @Override public String glabel() { return _name.equals("[]=") ? "[]=" : "." +_name+"="; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }

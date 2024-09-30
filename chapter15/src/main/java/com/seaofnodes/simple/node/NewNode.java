@@ -26,7 +26,9 @@ public class NewNode extends Node implements MultiNode {
         _ptr = ptr;
     }
 
-    @Override public String label() { return "new_" + _ptr._obj.str(); }
+    @Override public String label() {
+        return "new_" + (_ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str());
+    }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
