@@ -25,7 +25,7 @@ will panic the Evaluator.
 
 The Parser changes to support arrays are fairly minimal.  The main change is
 when parsing a `type()` we look for array syntax: `int[]` is now a valid type.
-Any amount of arrays are allowed, and the base type can be any type so
+Any dimension of arrays are allowed, and the base type can be any type so
 e.g. `Person[][]?` is a two-dimensional array of `Person`s which might be null.
 
 Arrays are always created with zero/null bodies, so implicitly always allow
@@ -35,7 +35,7 @@ We make a new array with much the same syntax as making a new object: `new
 int[99][99]`.  The length is required and is any integer expression, so
 e.g. `int[arg]` is an integer array of length `arg`.
 
-Arrays implicit have two fields: the length and the body.  The length is a
+Arrays implicitly have two fields: the length and the body.  The length is a
 read-only field set when the array is allocated; it is referenced with the
 post-fix `#` operator; e.g. `ary#`.  Example to sum an array:
 
@@ -61,7 +61,7 @@ optimized - but Simple the compiler is not targeting complex vectorization.
 
 Arrays have a unique type, which is actually just a `TypeStruct` with fields
 named `#` and `[]`.  Since these are not available as field names from within
-the Parser, users can write their own structs which get confused as arrays.
+the Parser, users cannot write their own structs which get confused as arrays.
 
 These `TypeStruct` arrays otherwise behave exactly as a `TypeStruct`.
 
@@ -130,7 +130,8 @@ mod 8.  This means the actual field offset and the field declaration order are
     Person p;      // offset= 8, log_size=2
     uint16 char;   // offset=12, log_size=1
     int8 b;        // offset=13, log_size=0
-  }                // size  =16  
+    void pad;      // offset=14, size = 2
+  }                // size  =16
   
 ```
 
@@ -148,7 +149,7 @@ Here `x` will have offset 0 and size 2 bytes, and `S` will be padded to size 8.
    `S s = new S; s.x = 3;`
 
 The same `x` field now holds either a 0 or a 3, so the `TypeInteger` for `x`
-will be a range `[0-3]`... but this is not used to compute the field size.
+will be a range `[0-3]` which could be represented in just 2 bits ... but this is not used to compute the field size.
 
 
 ## Some Simple Address Math Peeps
@@ -166,7 +167,9 @@ This means the IR for:
   
   `x[i+1]` becomes `16/*base*/ + ((i+1) << 3/*scale*)` becomes
   `Load(mem,x,Add(Shl(i,3),24))`
-  
+
+Notice the `idx+1` folds the `+1` into the base math.
+
   
 ## Discussion
 
