@@ -14,12 +14,12 @@ Like Java, arrays are always safety checked, and failing a runtime check
 will panic the Evaluator.
 
 - Indexing out of bounds:
-- - `ary[-1]`
-- - `ary[ary#]`
+- `ary[-1]`
+- `ary[ary#]`
 - Creating an array with a bad length:
-- - `new int[-1];    // Negative length`
-- - `new int[1<<63]; // Too large`
-- - `new int[3.14];  // Not an integer`
+- `new int[-1];    // Negative length`
+- `new int[1<<63]; // Too large`
+- `new int[3.14];  // Not an integer`
  
 
 ## Parser
@@ -33,8 +33,10 @@ Arrays are always created with zero/null bodies, so implicitly always allow
 `null` values.
 
 We make a new array with much the same syntax as making a new object: `new
-int[99][99]`.  The length is required and is any integer expression, so
-e.g. `int[arg]` is an integer array of length `arg`.
+int[99]`.  The length is required and is any integer expression, so
+e.g. `int[arg]` is an integer array of length `arg`.  Multi-dimensional arrays
+only make the outer dimension; the elements themselves are all null and typed
+as the next lower dimension array.
 
 Arrays implicitly have two fields: the length and the body.  The length is a
 read-only field set when the array is allocated; it is referenced with the
