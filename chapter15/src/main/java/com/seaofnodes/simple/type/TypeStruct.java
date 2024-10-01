@@ -40,9 +40,8 @@ public class TypeStruct extends Type {
 
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
-        Type t = body;
-        if( t instanceof TypeMemPtr tmp ) { assert tmp._nil; t = tmp._obj; }
-        return make(t.str() + "[]",
+        assert !(body instanceof TypeMemPtr tmp && !tmp._nil);
+        return make(body.str() + "[]",
                     Field.make("#" , lenAlias,len ),
                     Field.make("[]",bodyAlias,body));
     }

@@ -230,7 +230,8 @@ public class Parser {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
         Type t = TYPES.get(typeName);
-        if( t!=null && !(t instanceof TypeStruct ts && ts._fields==null) ) throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+        if( t!=null && !(t instanceof TypeMemPtr tmp && tmp._obj._fields==null) )
+            throw errorSyntax("struct '" + typeName + "' cannot be redefined");
         // Parse a collection of fields
         ArrayList<Field> fields = new ArrayList<>();
         require("{");
@@ -242,7 +243,7 @@ public class Parser {
         require("}");
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields.toArray(new Field[fields.size()]));
-        TYPES.put(typeName, ts);
+        TYPES.put(typeName, TypeMemPtr.make(ts));
         START.addMemProj(ts, _scope); // Insert memory edges
         return parseStatement();
     }
@@ -473,7 +474,7 @@ public class Parser {
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
-            e = tmp.makeFrom((TypeStruct)TYPES.get(tmp._obj._name));
+            e = TYPES.get(tmp._obj._name);
         // Type is sane
         if( !e.isa(t) )
             throw error("Type " + e.str() + " is not of declared type " + t.str());
@@ -490,15 +491,26 @@ public class Parser {
         if( tname==null ) return null;
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
-        Type t1 = t0 == null ? TypeStruct.make(tname) : t0; // Null: assume a forward ref type
-        // Nest arrays as needed
-        while( match("[]") )
-            t1 = typeAry(t1);
-        // Handle trailing '?' for nullable
-        Type t2 = t1 instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t1;
+        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.make(tname)) : t0; // Null: assume a forward ref type
+        // Nest arrays and '?' as needed
+        while( true ) {
+            assert !(t1 instanceof TypeStruct);
+            if( match("?") ) {
+                if( !(t1 instanceof TypeMemPtr tmp) )
+                    throw error("Type "+t0+" cannot be null");
+                if( tmp._nil ) throw error("Type "+t1+" already allows null");
+                t1 = TypeMemPtr.make(tmp._obj,true);
+                continue;
+            }
+            if( match("[]") ) {
+                t1 = typeAry(t1);
+                continue;
+            }
+            break;
+        }
 
         // Check no forward ref
-        if( t0 != null ) return t2;
+        if( t0 != null ) return t1;
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = _lexer._position;
@@ -510,22 +522,22 @@ public class Parser {
         }
         // Yes a forward ref, so declare it
         TYPES.put(tname,t1);
-        return t2;
+        return t1;
     }
 
     // Make an array type of t
-    private TypeStruct typeAry( Type t ) {
-        assert !(t instanceof TypeMemPtr); // Arrays of references, not inlined structs
+    private TypeMemPtr typeAry( Type t ) {
+        if( t instanceof TypeMemPtr tmp && !tmp._nil )
+            throw error("Arrays of reference types must always be nullable");
         String tname = t.str()+"[]";
         Type ta = TYPES.get(tname);
-        if( ta != null ) return (TypeStruct)ta;
-        // Need make an array type.  If the base type is a struct, wrap it.
-        if( t instanceof TypeStruct obj )
-            t = TypeMemPtr.make(obj,true);
+        if( ta != null ) return (TypeMemPtr)ta;
+        // Need make an array type.
         TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++);
-        TYPES.put(tname,ts);
+        TypeMemPtr tary = TypeMemPtr.make(ts);
+        TYPES.put(tname,tary);
         START.addMemProj(ts, _scope); // Insert memory alias edges
-        return ts;
+        return tary;
     }
 
 
@@ -684,24 +696,25 @@ public class Parser {
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return new ConstantNode(TypeMemPtr.NULLPTR).peephole();
         if( matchx("new") ) {
-            String typeName = _lexer.matchId();
-            if( typeName==null ) throw error("Expected a type");
-            Type t = TYPES.get(typeName);
-            if( t instanceof TypeStruct obj && obj._fields==null )
-                throw error("Unknown struct type '" + typeName + "'");
-            if( t!=null && match("[") ) {
+            Type t = type();
+            if( t==null ) throw error("Expected a type");
+            if( match("[") ) {
                 Node len = parseExpression().keep();
                 if( !(len._type instanceof TypeInteger) )
                     throw error("Cannot allocate an array with length "+len._type);
                 require("]");
-                TypeStruct ary = typeAry(t);
-                while( match("[]") )
-                    ary = typeAry(ary);
-                return newArray(ary,len);
-            } else if( t instanceof TypeStruct obj ) {
+                TypeMemPtr tmp = typeAry(t);
+                return newArray(tmp._obj,len);
+            }
+            if( t instanceof TypeMemPtr tmp ) {
+                TypeStruct obj = tmp._obj;
+                if( obj._fields==null )
+                    throw error("Unknown struct type '" + obj._name + "'");
+                if( obj.isAry() )
+                    throw Utils.TODO(); // Missing array length
                 return newStruct(obj,con(obj.offset(obj._fields.length)));
             }
-            throw error("Cannot allocate a "+typeName);
+            throw error("Cannot allocate a "+t.str());
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
@@ -767,8 +780,9 @@ public class Parser {
         if( ptr == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
         if( ptr._obj == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
         // Sanity check field name for existing
-        TypeStruct base = (TypeStruct)TYPES.get(ptr._obj._name);
-        if( base == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
+        if( tmp == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        TypeStruct base = tmp._obj;
         int fidx = base.find(name);
         if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
