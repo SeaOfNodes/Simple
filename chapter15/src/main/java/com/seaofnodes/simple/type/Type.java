@@ -82,6 +82,7 @@ public class Type {
     public StringBuilder typeName( StringBuilder sb) { return print(sb); }
 
     public Type makeInit() { return null; }
+    public Type nonZero() { return glb(); }
 
     // ----------------------------------------------------------
 
