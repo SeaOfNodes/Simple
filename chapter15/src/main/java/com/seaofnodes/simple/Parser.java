@@ -92,7 +92,9 @@ public class Parser {
     ScopeNode _continueScope;
     ScopeNode _breakScope;
 
-    // Mapping from a type name to a Type.
+    // Mapping from a type name to a Type.  The string name matches
+    // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
+    // have C-style '*ptr' references.
     public static HashMap<String, Type> TYPES = new HashMap<>();
 
     public Parser(String source, TypeInteger arg) {
@@ -488,17 +490,10 @@ public class Parser {
         if( tname==null ) return null;
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
-        Type t1 = t0==null ? TypeStruct.BOT : t0; // Null: assume a forward ref type
+        Type t1 = t0 == null ? TypeStruct.make(tname) : t0; // Null: assume a forward ref type
         // Nest arrays as needed
-        while( match("[]") ) {
-            Type t2 = TYPES.get("[]"+tname);
-            if( t2==null ) {
-                TYPES.put("[]"+tname,t1 = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t1,ALIAS++));
-                START.addMemProj((TypeStruct)t1, _scope); // Insert memory edges
-            } else {
-                t1 = t2;
-            }
-        }
+        while( match("[]") )
+            t1 = typeAry(t1);
         // Handle trailing '?' for nullable
         Type t2 = t1 instanceof TypeStruct obj ? TypeMemPtr.make(obj,match("?")) : t1;
 
@@ -514,8 +509,23 @@ public class Parser {
             return null;        // Not a type
         }
         // Yes a forward ref, so declare it
-        TYPES.put(tname, t0 = TypeStruct.make(tname));
-        return ((TypeMemPtr)t2).makeFrom((TypeStruct)t0);
+        TYPES.put(tname,t1);
+        return t2;
+    }
+
+    // Make an array type of t
+    private TypeStruct typeAry( Type t ) {
+        assert !(t instanceof TypeMemPtr); // Arrays of references, not inlined structs
+        String tname = t.str()+"[]";
+        Type ta = TYPES.get(tname);
+        if( ta != null ) return (TypeStruct)ta;
+        // Need make an array type.  If the base type is a struct, wrap it.
+        if( t instanceof TypeStruct obj )
+            t = TypeMemPtr.make(obj,true);
+        TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++);
+        TYPES.put(tname,ts);
+        START.addMemProj(ts, _scope); // Insert memory alias edges
+        return ts;
     }
 
 
@@ -677,14 +687,21 @@ public class Parser {
             String typeName = _lexer.matchId();
             if( typeName==null ) throw error("Expected a type");
             Type t = TYPES.get(typeName);
-            if( match("[") )
-                return require(newArray(t),"]");
-            if( t instanceof TypeStruct obj ) {
-                if( obj._fields==null )
-                    throw error("Unknown struct type '" + typeName + "'");
+            if( t instanceof TypeStruct obj && obj._fields==null )
+                throw error("Unknown struct type '" + typeName + "'");
+            if( t!=null && match("[") ) {
+                Node len = parseExpression().keep();
+                if( !(len._type instanceof TypeInteger) )
+                    throw error("Cannot allocate an array with length "+len._type);
+                require("]");
+                TypeStruct ary = typeAry(t);
+                while( match("[]") )
+                    ary = typeAry(ary);
+                return newArray(ary,len);
+            } else if( t instanceof TypeStruct obj ) {
                 return newStruct(obj,con(obj.offset(obj._fields.length)));
             }
-            throw error("Cannot allocate a "+t);
+            throw error("Cannot allocate a "+typeName);
         }
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
@@ -709,15 +726,7 @@ public class Parser {
         return new ProjNode(nnn,1,obj._name).peephole();
     }
 
-    private Node newArray(Type t) {
-        Node len = parseExpression().keep();
-        if( !(len._type instanceof TypeInteger) )
-            throw error("Cannot allocate an array with length "+len._type);
-        TypeStruct ary = (TypeStruct)TYPES.get("[]"+t.str());
-        if( ary == null ) {
-            TYPES.put("[]"+t.str(), ary = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++));
-            START.addMemProj(ary, _scope); // Insert memory edges
-        }
+    private Node newArray(TypeStruct ary, Node len) {
         int base = ary.aryBase ();
         int scale= ary.aryScale();
         Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
