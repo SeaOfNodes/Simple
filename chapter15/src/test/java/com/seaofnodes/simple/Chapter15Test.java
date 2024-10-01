@@ -22,7 +22,7 @@ return 3.14;
     }
 
     @Test
-    public void testBasic() {
+    public void testBasic1() {
         Parser parser = new Parser(
 """
 int[] is = new int[2];
@@ -65,12 +65,67 @@ return a[0];
         Parser parser = new Parser(
 """
 struct A { int i; }
-A[] a = new A[2];
+A?[] a = new A?[2];
 return a;
 """);
         StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return A[];", stop.toString());
-        assertEquals("Obj<A[]> {\n  #=2\n  []=null\n}", Evaluator.evaluate(stop, 0).toString());
+        assertEquals("return *A?[];", stop.toString());
+        assertEquals("Obj<*A?[]> {\n  #=2\n  []=null\n}", Evaluator.evaluate(stop, 0).toString());
+    }
+
+    @Test
+    public void testBasic5() {
+        Parser parser = new Parser(
+"""
+struct S { int x; flt y; }
+// A new S
+S s = new S; s.x=99; s.y = 3.14;
+
+// Double-d array of Ss.  Fill in one row.
+S?[]?[] iss = new S?[]?[2];
+iss[0] = new S?[7];
+iss[0][2] = s;
+
+// Now pull out the filled-in value, with null checks
+flt rez;
+S?[]? is = iss[arg];
+if( !is ) rez = 1.2;
+else {
+    S? i = is[2];
+    if( !i ) rez = 2.3;
+    else rez = i.y;
+}
+return rez;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return Phi(Region118,1.2,Phi(Region115,2.3,.y));", stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(stop, 0));
+    }
+
+    @Ignore
+    @Test
+    public void testBasic6() {
+        Parser parser = new Parser(
+"""
+struct S { int x; flt y; }
+// A new S
+S s = new S; s.x=99; s.y = 3.14;
+
+// Double-d array of Ss.  Fill in one row.
+S?[]?[] iss = new S?[]?[2];
+iss[0] = new S?[7];
+iss[0][2] = s;
+
+// Now pull out the filled-in value, with null checks
+flt rez = 1.2;
+if( iss[arg] )
+    if( iss[arg][2] )
+        rez = iss[arg][2].y;
+return rez;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return Phi(Region122,Phi(Region118,.y,1.2),1.2);", stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(stop, 0));
     }
 
     @Test
@@ -78,15 +133,15 @@ return a;
         Parser parser = new Parser(
 """
 // Can we define a forward-reference array?
-struct Tree { Tree[] _kids; }
+struct Tree { Tree?[] _kids; }
 Tree root = new Tree;
-root._kids = new Tree[2];
+root._kids = new Tree?[2];
 root._kids[0] = new Tree;
 return root;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return Tree;", stop.toString());
-        assertEquals("Obj<Tree> {\n  _kids=Obj<Tree[]> {\n  #=2\n  []=Obj<Tree> {\n  _kids=null\n}\n}\n}", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("Obj<Tree> {\n  _kids=Obj<*Tree?[]> {\n  #=2\n  []=Obj<Tree> {\n  _kids=null\n}\n}\n}", Evaluator.evaluate(stop,  0).toString());
     }
 
 

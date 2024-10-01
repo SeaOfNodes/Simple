@@ -72,8 +72,64 @@ public class RegionNode extends CFGNode {
             p1.in(0) instanceof IfNode iff )
             return iff.ctrl();
 
+
+
+        // Look for direct uses of a guarded expression, and replace with the guard result.
+        if( !(idom() instanceof StartNode) && // Dead or dying
+            !(this instanceof LoopNode) ) {
+            VISIT.clear();
+            boolean progress = false;
+            outer:
+            for( int i=1; i<nIns(); i++ ) {
+                CFGNode idom = cfg(i);
+                while( !(idom instanceof CProjNode cproj) ) {
+                    idom = idom.idom();
+                    if( idom==null || idom.idepth() < idom().idepth() )
+                        continue outer;
+                }
+                if( cproj.cfg0() instanceof IfNode iff && cproj.compute()==Type.CONTROL ) {
+                    VISIT.set(iff.pred()._nid);
+                    for( Node out : _outputs )
+                        if( out instanceof PhiNode phi )
+                            progress |= walk(iff,cproj,phi.in(i));
+                }
+            }
+            if( progress )
+                return this;
+        }
+
         return null;
     }
+
+    // A walk that can be cutoff early
+    private static final BitSet VISIT = new BitSet();
+    private static boolean walk( IfNode iff, CProjNode cproj, Node n ) {
+        if( VISIT.get(n._nid) ) return false;
+        VISIT.set(n._nid);
+        if( n instanceof CFGNode ) return false;
+        if( n.in(0)!=null && n.cfg0().idepth() < iff.idepth() )
+            return false;
+        boolean progress = false;
+        Node pred = iff.pred();
+        for( int i=1; i<n.nIns(); i++ ) {
+            // Using a tested value
+            if( n.in(i) == pred && !(n instanceof CastNode) ) {
+                // Checking pred for T/F
+                Type t = pred._type;
+                Type tcast = cproj._idx==0 ? t.nonZero() : t.makeInit();
+                if( t!=tcast ) { // Progress to cast
+                    Node cast = new CastNode( tcast, cproj, pred ).peephole();
+                    n.setDef( i, cast );
+                    IterPeeps.add(n);
+                    progress = true;
+                }
+            }
+            if( n.in(i)!=null )
+                progress |= walk(iff,cproj,n.in(i));
+        }
+        return progress;
+    }
+
 
     private int findDeadInput() {
         for( int i=1; i<nIns(); i++ )

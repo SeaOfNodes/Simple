@@ -58,6 +58,7 @@ public class TypeMemPtr extends Type {
     @Override
     public TypeMemPtr glb() { return make(_obj.glb(),true); }
     @Override public TypeMemPtr makeInit() { return NULLPTR; }
+    @Override public Type nonZero() { return VOIDPTR; }
 
     @Override public boolean isHigh() { return this==TOP; }
 
