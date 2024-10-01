@@ -26,7 +26,7 @@ public class LoadNode extends MemOpNode {
     }
 
     // GraphVis DOT code and debugger labels
-    @Override public String  label() { return "st_"+mlabel(); }
+    @Override public String  label() { return "ld_"+mlabel(); }
     // GraphVis node-internal labels
     @Override public String glabel() { return _name.equals("[]=") ? "[]=" : "." +_name+"="; }
 
