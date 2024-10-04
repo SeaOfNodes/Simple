@@ -66,12 +66,11 @@ public class RegionNode extends CFGNode {
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
         if( !hasPhi() &&       // No Phi users, just a control user
-            in(1) instanceof ProjNode p1 &&
-            in(2) instanceof ProjNode p2 &&
+            in(1) instanceof CProjNode p1 &&
+            in(2) instanceof CProjNode p2 &&
             p1.in(0)==p2.in(0) &&
             p1.in(0) instanceof IfNode iff )
             return iff.ctrl();
-
 
 
         // Look for direct uses of a guarded expression, and replace with the guard result.
