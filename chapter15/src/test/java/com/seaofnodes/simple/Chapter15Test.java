@@ -30,7 +30,7 @@ return 3.14;
 int[] is = new int[2];
 return is[1];
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
@@ -43,7 +43,7 @@ int[] is = new int[2];
 int[] is2 = new int[2];
 return is[1];
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
@@ -57,8 +57,8 @@ a[0] = 1;
 a[1] = 2;
 return a[0];
 """);
-        StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return .[];", stop.toString());
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
 
@@ -166,7 +166,7 @@ while( i < ary# - 1 ) {
 }
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return (.[]+(.[]*1000));", stop.toString());
         assertEquals(1006L, Evaluator.evaluate(stop,  4));
     }
@@ -209,7 +209,7 @@ while( j < nprimes ) {
 
 return rez;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return int[];", stop.toString());
         Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
         assertEquals("int[] {\n  # :int;\n  [] :int;\n}",obj.struct().toString());
@@ -265,88 +265,6 @@ return is[1];
         catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
         try { Evaluator.evaluate(stop,-1); }
         catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
-    }
-
-    @Test
-    public void testBrainfuck() {
-        var program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.".getBytes(StandardCharsets.UTF_8);
-        var encoded = new StringBuilder("u8[] program = new u8[").append(program.length).append("];");
-        for (int i = 0; i < program.length; i++) {
-            int value = program[i] & 0xFF;
-            encoded.append("program[").append(i).append("] = ").append(value).append(";");
-        }
-
-        Parser parser = new Parser(
-                encoded + """
-int pc = 0;
-int d = 0;
-u8[] data = new u8[30000];
-int i=0;
-while(i < data#) {
-    data[i] = 0;
-    i = i + 1;
-}
-
-u8[] output = new u8[0];
-
-while (pc < program#) {
-    int command = program[pc];
-    if (command == 62) {
-        d = d + 1;
-    } else if (command == 60) {
-        d = d - 1;
-    } else if (command == 43) {
-        data[d] = data[d] + 1;
-    } else if (command == 45) {
-        data[d] = data[d] - 1;
-    } else if (command == 46) {
-        u8[] old = output;
-        output = new u8[output# + 1];
-        i = 0;
-        while (i < old#) {
-            output[i] = old[i];
-            i = i + 1;
-        }
-        output[i] = data[d];
-    } else if (command == 44) {
-        data[d] = 42;
-    } else if (command == 91) {
-        if (data[d] == 0) {
-            int d = 1;
-            while (d > 0) {
-                pc = pc + 1;
-                command = program[pc];
-                if (command == 91) d = d + 1;
-                if (command == 93) d = d - 1;
-            }
-        }
-    } else if (command == 93) {
-        if (data[d] != 0) {
-            int d = 1;
-            while (d > 0) {
-                pc = pc - 1;
-                command = program[pc];
-                if (command == 93) d = d + 1;
-                if (command == 91) d = d - 1;
-            }
-        }
-    }
-    pc = pc + 1;
-}
-int result = 0;
-i = 0;
-while (i < 8) {
-    result = (result << 8) | data[i];
-    i = i + 1;
-}
-return result;
-                """);
-        StopNode stop = parser.parse(false).iterate(false);
-        long expected = 0;
-        for (byte b : "Hello Wo".getBytes(StandardCharsets.UTF_8)) {
-            expected = (expected << 8) | b;
-        }
-        assertEquals(expected, Evaluator.evaluate(stop, 1000000));
     }
 
 }

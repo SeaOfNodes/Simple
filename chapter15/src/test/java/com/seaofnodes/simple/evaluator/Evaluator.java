@@ -115,7 +115,7 @@ public class Evaluator {
             int scale = from.struct.aryScale();
             long i = ((Long)off - base)>>scale;
             if( i < 0 || i >= len )
-                throw new ArrayIndexOutOfBoundsException("Array index out of bounds " + off + " <= " + len);
+                throw new ArrayIndexOutOfBoundsException("Array index out of bounds " + i + " < " + len);
             return from.fields[(int)i+1];
 
         } else

@@ -685,7 +685,7 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral | Identifier | true | false | null | new Identifier | '(' expression ')'
+     *     primaryExpr : integerLiteral | Identifier | true | false | null | new Type | '(' expression ')'
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */

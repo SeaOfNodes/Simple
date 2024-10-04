@@ -346,7 +346,7 @@ if (arg) v.f=1;
 return i;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return .f;", stop.toString());
+        assertEquals("return 2;", stop.toString());
         assertEquals(2L, Evaluator.evaluate(stop, 0));
         assertEquals(2L, Evaluator.evaluate(stop, 1));
     }
@@ -406,7 +406,7 @@ while (arg) v.f = 2;
 return i;
 """);
         StopNode stop = parser.parse(false).iterate(true);
-        assertEquals("return .f;", stop.toString());
+        assertEquals("return arg;", stop.toString());
     }
 
     @Test

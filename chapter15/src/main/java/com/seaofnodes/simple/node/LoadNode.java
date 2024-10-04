@@ -25,10 +25,10 @@ public class LoadNode extends MemOpNode {
         super(name, alias, glb, mem, ptr, off);
     }
 
-    // GraphVis DOT code and debugger labels
+    // GraphVis DOT code (must be valid Java identifiers) and debugger labels
     @Override public String  label() { return "ld_"+mlabel(); }
     // GraphVis node-internal labels
-    @Override public String glabel() { return _name.equals("[]=") ? "[]=" : "." +_name+"="; }
+    @Override public String glabel() { return "." +_name; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
@@ -46,18 +46,52 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        Node ptr = ptr();
 
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
-            ptr() == st.ptr() && off() == st.off() ) { // Must check same object
+            ptr == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             return st.val();
         }
 
         // Simple Load-after-New on same address.
         if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
-            ptr() == nnn.proj(1) )  // Must check same object
+            ptr == nnn.proj(1) )  // Must check same object
             return new ConstantNode(_declaredType.makeInit());
+
+        // Load-after-Store on same address, but bypassing provably unrelated
+        // stores.  This is a more complex superset of the above two peeps.
+        // "Provably unrelated" is really weak.
+        Node mem = mem();
+        outer:
+        while( true ) {
+            switch( mem ) {
+            case StoreNode st:
+                if( ptr == st.ptr() && off() == st.off() )
+                    return st.val(); // Proved equal
+                // Can we prove unequal?  Offsets do not overlap?
+                if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
+                    !neverAlias(ptr,st.ptr()) )                   // And might alias
+                    break outer; // Cannot tell, stop trying
+                // Pointers cannot overlap
+                mem = st.mem(); // Proved never equal
+                break;
+            case PhiNode phi:
+                break outer;    // Assume related
+            case ProjNode mproj:
+                if( mproj.in(0) instanceof NewNode nnn1 ) {
+                    if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
+                        return new ConstantNode(_declaredType.makeInit()); // Load from a New
+                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
+                        break outer; // Cannot tell, ptr not related to New
+                    mem = nnn1.in(_alias);// Bypass unrelated New
+                    break;
+                } else throw Utils.TODO();
+            default:
+                throw Utils.TODO();
+            }
+        }
 
         // Push a Load up through a Phi, as long as it collapses on at least
         // one arm.  If at a Loop, the backedge MUST collapse - else we risk
@@ -72,14 +106,25 @@ public class LoadNode extends MemOpNode {
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr(), off()).peephole();
-                Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr(), off()).peephole();
+                Node ld1 = ld(1);
+                Node ld2 = ld(2);
                 return new PhiNode(_name,_declaredType,memphi.region(),ld1,ld2);
             }
         }
 
         return null;
     }
+    private Node ld( int idx ) {
+        Node mem = mem(), ptr = ptr();
+        return new LoadNode(_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+    }
+    private static boolean neverAlias( Node ptr1, Node ptr2 ) {
+        return ptr1.in(0) != ptr2.in(0) &&
+            // Unrelated allocations
+            ptr1 instanceof ProjNode && ptr1.in(0) instanceof NewNode &&
+            ptr2 instanceof ProjNode && ptr2.in(0) instanceof NewNode;
+    }
+
 
     // Profitable if we find a matching Store on this Phi arm.
     private boolean profit(PhiNode phi, int idx) {
