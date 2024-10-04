@@ -24,6 +24,22 @@ return 3.14;
     }
 
     @Test
+    public void testCyclic() {
+        Parser parser = new Parser(
+""" 
+struct C {
+    C? l;
+}
+C c = new C;
+c.l = c;
+return c;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return C;", stop.toString());
+        assertEquals("Obj<C>@1{l=obj@1}", Evaluator.evaluate(stop,  0).toString());
+    }
+
+    @Test
     public void testSafetyCheck() {
         Parser parser = new Parser(
 """
@@ -39,7 +55,7 @@ return output;
 """);
         StopNode stop = parser.parse(false).iterate(true);
         assertEquals("return u8[];", stop.toString());
-        assertEquals("Obj<u8[]> {\n  #=1\n  []=1\n}", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("\u0001", Evaluator.evaluate(stop,  0).toString());
     }
 
     @Test
@@ -91,7 +107,7 @@ return a;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return *A?[];", stop.toString());
-        assertEquals("Obj<*A?[]> {\n  #=2\n  []=null\n}", Evaluator.evaluate(stop, 0).toString());
+        assertEquals("Obj<*A?[]>{#=2,[]=[null,null]}", Evaluator.evaluate(stop, 0).toString());
     }
 
     @Test
@@ -162,7 +178,7 @@ return root;
 """);
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return Tree;", stop.toString());
-        assertEquals("Obj<Tree> {\n  _kids=Obj<*Tree?[]> {\n  #=2\n  []=Obj<Tree> {\n  _kids=null\n}\n}\n}", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("Obj<Tree>{_kids=Obj<*Tree?[]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
     }
 
 
