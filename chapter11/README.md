@@ -106,7 +106,7 @@ Following early schedule generation, we get:
 
 ![Graph5](./docs/graph5.svg)
 
-Note that the `arg === 5` comparison at this stage is not in the correct place.
+Note that the `arg == 5` comparison at this stage is not in the correct place.
 This is rectified after we complete late scheduling.
 
 ![Graph6](./docs/graph6.svg)
