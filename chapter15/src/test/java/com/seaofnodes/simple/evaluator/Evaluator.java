@@ -6,23 +6,115 @@ import com.seaofnodes.simple.type.*;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Objects;
+import java.util.*;
 
 public class Evaluator {
 
     private static final Object MEMORY = new Object();
 
     public record Obj(TypeStruct struct, Object[] fields) {
+        private void init(IdentityHashMap<Obj, Integer> objs) {
+            var oid = objs.get(this);
+            if (oid != null) {
+                if (oid != 0) objs.put(this, 0);
+                return;
+            }
+            objs.put(this, -1);
+            for (var obj : fields) {
+                if (obj instanceof Obj o) o.init(objs);
+            }
+        }
+        private static int p(StringBuilder sb, IdentityHashMap<Obj, Integer> objs, int id, String indentation, String step, String sep, Object obj) {
+            if (obj instanceof Obj o) return o.p(sb, objs, id, indentation, step, sep);
+            sb.append(obj);
+            return id;
+        }
+        private int p(StringBuilder sb, IdentityHashMap<Obj, Integer> objs, int id, String indentation, String step, String sep) {
+            var cid = objs.get(this);
+            assert cid != null;
+            if (cid > 0) {
+                sb.append("obj@").append(cid);
+                return id;
+            }
+            if (struct._name.equals("u8[]")) {
+                sb.append('"');
+                for (int i=struct._fields.length-1; i<fields.length; i++) {
+                    var v = fields[i];
+                    if (v == null) v = 0;
+                    assert v instanceof Number;
+                    var n = ((Number)v).byteValue() & 0xFF;
+                    if (n >= 0x20 && n < 0x80) {
+                        if (n == 0x22 || n == 0x5C) sb.append("\\");
+                        sb.append((char)n);
+                    } else {
+                        sb.append("\\x").append("0123456789abcdef".charAt(n >> 4)).append("0123456789abcdef".charAt(n & 0xF));
+                    }
+                }
+                sb.append('"');
+                return id;
+            }
+            sb.append("Obj<").append(struct._name).append(">");
+            if (cid == 0) {
+                cid = id++;
+                objs.put(this, cid);
+                sb.append("@").append(cid);
+            }
+            sb.append("{");
+            if (struct._fields.length == 0) {
+                assert !struct.isAry();
+                sb.append("}");
+                return id;
+            }
+            String nextIndent = indentation + step;
+            int e = struct._fields.length - 1;
+            for(int i=0; i<e; i++) {
+                sb.append(nextIndent).append(struct._fields[i]._fname).append("=");
+                id = p(sb, objs, id, nextIndent, step, sep, fields[i]);
+                sb.append(sep);
+            }
+            sb.append(nextIndent).append(struct._fields[e]._fname).append("=");
+            if (struct.isAry()) {
+                sb.append("[");
+                if (fields.length > e) {
+                    String innerIndent = nextIndent + step;
+                    sb.append(innerIndent);
+                    id = p(sb, objs, id, nextIndent, step, sep, fields[e]);
+                    for (int i = e+1; i < fields.length; i++) {
+                        sb.append(sep).append(innerIndent);
+                        id = p(sb, objs, id, nextIndent, step, sep, fields[i]);
+                    }
+                    sb.append(nextIndent);
+                }
+                sb.append("]");
+            } else {
+                id = p(sb, objs, id, nextIndent, step, sep, fields[e]);
+            }
+            sb.append(indentation).append("}");
+            return id;
+        }
+        private StringBuilder p(StringBuilder sb, String indentation, String step, String sep) {
+            var objs = new IdentityHashMap<Obj, Integer>();
+            init(objs);
+            p(sb, objs, 1, indentation, step, sep);
+            return sb;
+        }
         @Override
         public String toString() {
-            var sb = new StringBuilder();
-            sb.append("Obj<").append(struct._name).append("> {");
-            for(int i=0; i<struct._fields.length; i++) {
-                sb.append("\n  ").append(struct._fields[i]._fname).append("=").append(fields[i]);
+            if (struct._name.equals("u8[]")) {
+                var sb = new StringBuilder();
+                for (int i=struct._fields.length-1; i<fields.length; i++) {
+                    var v = fields[i];
+                    if (v == null) v = 0;
+                    assert v instanceof Number;
+                    var n = ((Number)v).byteValue() & 0xFF;
+                    sb.append((char)n);
+                }
+                return sb.toString();
             }
-            return sb.append("\n}").toString();
+            return p(new StringBuilder(), "", "", ",").toString();
+        }
+        public String pretty() {
+            return p(new StringBuilder(), "\n", "  ", "").toString();
         }
     }
 
@@ -82,19 +174,32 @@ public class Evaluator {
         return in2 == 0 ? 0 : vald(div.in(1)) / in2;
     }
 
+    private static long offToIdx(long off, TypeStruct t) {
+        off -= t.aryBase();
+        int scale = t.aryScale();
+        long mask = (1L << scale)-1;
+        assert (off & mask) == 0;
+        return off>>scale;
+    }
+
     private Object alloc(NewNode alloc) {
-        TypeTuple tt = alloc.compute();
-        TypeStruct type = ((TypeMemPtr)tt._types[1])._obj;
+        TypeStruct type = alloc._ptr._obj;
         Object[] body=null;
         if( type.isAry() ) {
             long sz = (Long)val(alloc.in(1));
-            int base  = alloc._ptr._obj.aryBase();
-            int scale = alloc._ptr._obj.aryScale();
-            long n = (sz-base)>>scale;
+            long n = offToIdx(sz, type);
             if( n < 0 )
                 throw new NegativeArraySizeException(""+n);
             body = new Object[(int)n+1]; // Array body
             body[0] = n;                 // Array length
+            var c = type._fields[type._fields.length-1]._type;
+            if (c instanceof TypeInteger) {
+                for (int i=0; i<n; i++) body[i+type._fields.length-1] = 0L;
+            } else if (c instanceof TypeFloat) {
+                for (int i = 0; i < n; i++) body[i+type._fields.length-1] = 0D;
+            } else {
+                assert c instanceof TypeMemPtr;
+            }
         } else {
             body = new Object[type._fields.length];
         }
@@ -107,16 +212,14 @@ public class Evaluator {
 
     private Object load(LoadNode load) {
         var from = (Obj)val(load.ptr());
-        var off = val(load.off());
+        var off = vall(load.off());
         var idx = getFieldIndex(from.struct, load, (Long)off);
-        if( idx==1 && from.struct.isAry() ) {
+        if( idx==from.struct._fields.length-1 && from.struct.isAry() ) {
             long len = (Long)from.fields[0];
-            int base  = from.struct.aryBase();
-            int scale = from.struct.aryScale();
-            long i = ((Long)off - base)>>scale;
+            long i = offToIdx(off, from.struct);
             if( i < 0 || i >= len )
                 throw new ArrayIndexOutOfBoundsException("Array index out of bounds " + i + " < " + len);
-            return from.fields[(int)i+1];
+            return from.fields[(int)i+from.struct._fields.length-1];
 
         } else
             return from.fields[idx];
@@ -124,18 +227,15 @@ public class Evaluator {
 
     private Object store(StoreNode store) {
         var to = (Obj)val(store.ptr());
-        var off = val(store.off());
+        var off = vall(store.off());
         var val = val(store.val());
         var idx = getFieldIndex(to.struct, store, (Long)off);
-        if( idx==1 && to.struct.isAry() ) {
+        if( idx==to.struct._fields.length-1 && to.struct.isAry() ) {
             long len = (Long)to.fields[0];
-            int base  = to.struct.aryBase();
-            int scale = to.struct.aryScale();
-            long i = ((Long)off - base)>>scale;
+            long i = offToIdx(off, to.struct);
             if( i < 0 || i >= len )
                 throw new RuntimeException("Array index out of bounds " + off + " <= " + len);
-            to.fields[(int)i+1] = val;
-
+            to.fields[(int)i+to.struct._fields.length-1] = val;
         } else
             to.fields[idx] = val;
         return null;
