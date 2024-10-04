@@ -27,12 +27,6 @@ public class BrainFuckTest {
 int pc = 0;
 int d = 0;
 u8[] data = new u8[100];
-int i=0;
-while(i < data#) {
-    data[i] = 0;
-    i = i + 1;
-}
-
 u8[] output = new u8[0];
 
 while (pc < program#) {
@@ -48,7 +42,7 @@ while (pc < program#) {
     } else if (command == 46) {
         u8[] old = output;
         output = new u8[output# + 1];
-        i = 0;
+        int i = 0;
         while (i < old#) {
             output[i] = old[i];
             i = i + 1;
@@ -79,19 +73,9 @@ while (pc < program#) {
     }
     pc = pc + 1;
 }
-int result = 0;
-i = 0;
-while (i < 8) {
-    result = (result << 8) | output[i];
-    i = i + 1;
-}
-return result;
+return output;
                 """);
         StopNode stop = parser.parse(false).iterate(false);
-        long expected = 0;
-        for (byte b : "Hello Wo".getBytes(StandardCharsets.UTF_8)) {
-            expected = (expected << 8) | b;
-        }
-        assertEquals(expected, Evaluator.evaluate(stop, 0, 10000));
+        assertEquals("Hello World!\n", Evaluator.evaluate(stop, 0, 10000).toString());
     }
 }
