@@ -45,6 +45,9 @@ public class StartNode extends CFGNode implements MultiNode {
             n._type = args[f._alias];
             scope.define(name, tm_decl, n);
         }
+        for (int i = 0; i < args.length; i++)
+            if (args[i] == null)
+                args[i] = Type.TOP; // We parsed a nested struct/array. Avoid nulls until a caller replaces this alias.
         _type = _args = TypeTuple.make(args);
     }
 
