@@ -352,6 +352,49 @@ The peephole method does following:
 
 `peephole()` calls `deadCodeElim()` which is shown below.
 
+## Dead Code Elimination(DCE)
+Dead Code Elimination 
+There are two kinds of dead code eliminations present in this chapter.
+  - Delete unused nodes when popping the scope.
+  - Delete old nodes after finding a better replacement(after idealize call).
+
+Both of the methods mentioned above delete the nodes recursively.
+
+  ### Delete unused nodes when popping the scope
+  A node is unused if it has no outputs(users).
+  
+  Consider the following example:
+  ``` 
+  int a = 12; // the only output it has is the scope itself
+  return 1;
+  ```
+  We clearly see `a` is unused. 
+  This gives us the following graph(without DCE):
+  
+  ![Graph2](docs/04-dce1.svg)
+  
+  To remove `a` we introduce the following technique when popping the scope.
+  
+  ```java
+  var ret = (ReturnNode) parseBlock();
+  _scope.pop();
+  ```
+  As of now the end of the program is hard-wired to return, after finishing parsing we pop the scope.
+  The state of the scope before popping it:
+  ```
+  _scope = {ScopeNode@1422} "Scope[$ctrl:null, arg:arg][a:12]"
+  1 = {ProjNode@1528} "arg"
+  2 = {ConstantNode@1529} "12"
+  _inputs = {ArrayList@1523}  size = 3
+  ```
+  The output(s) of `a`
+  ```
+  _outputs = {ArrayList@1544}  size = 1
+  0 = {ScopeNode@1422} "Scope[$ctrl:null, arg:arg][a:12]"
+  ```
+  Notice how the only output of `a`is `the scope itself`. When `a` is introduced we add it to the `scope`'s inputs as
+  as the scope to the outputs of `a`.
+
 ```java
 // m is the new Node, self is the old.
 // Return 'm', which may have zero uses but is alive nonetheless.
