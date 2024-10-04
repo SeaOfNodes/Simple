@@ -38,10 +38,10 @@ public class NewNode extends Node implements MultiNode {
 
     @Override
     public TypeTuple compute() {
-        Type[] ts = new Type[nIns()];
+        Field[] fs = _ptr._obj._fields;
+        Type[] ts = new Type[fs.length+2];
         ts[0] = Type.CONTROL;
         ts[1] = _ptr;
-        Field[] fs = _ptr._obj._fields;
         for( int i=0; i<fs.length; i++ )
             ts[i+2] = TypeMem.make(fs[i]._alias,fs[i]._type.makeInit()).meet( in(i+2)._type );
         return TypeTuple.make(ts);

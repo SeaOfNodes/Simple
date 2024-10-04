@@ -805,13 +805,22 @@ public class Parser {
                 Node val = parseExpression();
                 // Auto-truncate when storing to narrow fields
                 val = zsMask(val,f._type);
-                memAlias(f._alias, new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false).peephole());
+                Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
+                // Arrays include control, as a proxy for a safety range check.
+                // Structs dont need this; they only need a NPE check which is
+                // done via the type system.
+                if( base.isAry() )  st.setDef(0,ctrl());
+                memAlias(f._alias, st.peephole());
                 return val;        // "obj.a = expr" returns the expression while updating memory
             }
         }
 
-        Node load = new LoadNode(name, f._alias, f._type, memAlias(f._alias), expr, off).peephole();
-        return parsePostfix(load);
+        Node load = new LoadNode(name, f._alias, f._type, memAlias(f._alias), expr, off);
+        // Arrays include control, as a proxy for a safety range check
+        // Structs dont need this; they only need a NPE check which is
+        // done via the type system.
+        if( base.isAry() ) load.setDef(0,ctrl());
+        return parsePostfix(load.peephole());
     }
 
 
