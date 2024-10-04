@@ -82,7 +82,7 @@ while (pc < program#) {
 int result = 0;
 i = 0;
 while (i < 8) {
-    result = (result << 8) | data[i];
+    result = (result << 8) | output[i];
     i = i + 1;
 }
 return result;
