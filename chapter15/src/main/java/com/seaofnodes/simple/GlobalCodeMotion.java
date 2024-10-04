@@ -69,17 +69,6 @@ public abstract class GlobalCodeMotion {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
                 _schedEarly(n,visit);
-            // Strictly for dead infinite loops, we can have entire code blocks
-            // not reachable from below - so we reach down, from above, one
-            // step.  Since _schedEarly modifies the output arrays, the normal
-            // region._outputs ArrayList iterator throws CME.  The extra edges
-            // are always *added* after any Phis, so just walk the Phi prefix.
-            if( cfg instanceof RegionNode region ) {
-                int len = region.nOuts();
-                for( int i=0; i<len; i++ )
-                    if( region.out(i) instanceof PhiNode phi )
-                        _schedEarly(phi,visit);
-            }
         }
     }
 

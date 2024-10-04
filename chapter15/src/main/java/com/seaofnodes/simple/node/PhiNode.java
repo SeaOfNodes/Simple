@@ -16,7 +16,7 @@ public class PhiNode extends Node {
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
-    @Override public String label() { return "Phi_"+_label; }
+    @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
     @Override public String glabel() { return "&phi;_"+_label; }
 
