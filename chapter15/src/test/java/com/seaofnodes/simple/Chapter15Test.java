@@ -181,6 +181,19 @@ return root;
         assertEquals("Obj<Tree>{_kids=Obj<*Tree?[]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
     }
 
+    @Test
+    public void testNestedStructAddMemProj() {
+        Parser parser = new Parser(
+"""
+struct S {
+    int a;
+    int[] b;
+}
+return 0;
+""");
+        StopNode stop = parser.parse(false);
+        assertEquals("return 0;", stop.toString());
+    }
 
     @Test
     public void testRollingSum() {
