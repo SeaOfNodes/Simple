@@ -24,6 +24,25 @@ return 3.14;
     }
 
     @Test
+    public void testSafetyCheck() {
+        Parser parser = new Parser(
+"""
+u8[] old = new u8[0];
+u8[] output = new u8[1];
+int i = 0;
+while (i < old#) {
+    output[i] = old[i];
+    i = i + 1;
+}
+output[i] = 1;
+return output;
+""");
+        StopNode stop = parser.parse(false).iterate(true);
+        assertEquals("return u8[];", stop.toString());
+        assertEquals("Obj<u8[]> {\n  #=1\n  []=1\n}", Evaluator.evaluate(stop,  0).toString());
+    }
+
+    @Test
     public void testBasic1() {
         Parser parser = new Parser(
 """

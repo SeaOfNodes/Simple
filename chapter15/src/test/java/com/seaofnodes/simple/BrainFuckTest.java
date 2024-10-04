@@ -26,7 +26,7 @@ public class BrainFuckTest {
                 encoded + """
 int pc = 0;
 int d = 0;
-u8[] data = new u8[10000];
+u8[] data = new u8[100];
 int i=0;
 while(i < data#) {
     data[i] = 0;
@@ -92,6 +92,6 @@ return result;
         for (byte b : "Hello Wo".getBytes(StandardCharsets.UTF_8)) {
             expected = (expected << 8) | b;
         }
-        assertEquals(expected, Evaluator.evaluate(stop, 0, 100000));
+        assertEquals(expected, Evaluator.evaluate(stop, 0, 10000));
     }
 }
