@@ -418,7 +418,7 @@ void popN(int n) {
 First, we start off by looping through the inputs of the scope(*remember*: scope is just a node like any other, the symbols of the scope are the inputs).
 If the node returned by `removeLast` is not null, and if the only user of `old_def` is the current Node then we can delete it.
 
-`old_def.delUse(this)` - delete *this* from 'old_def's output.
+`old_def.delUse(this)` - delete *this* from `old_def`'s outputs.
 ```java
 protected boolean delUse( Node use ) {
   Utils.del(_outputs, Utils.find(_outputs, use));
@@ -443,7 +443,7 @@ drop the `Start` node from the inputs of `ConstantNode`:
 ``` 
 Node old_def = _inputs.removeLast();
 ```
-we also get rid of `ConstantNode`(`this`) from the outputs of `Start`:
+we can also get rid of `ConstantNode`(`this`) from the outputs of `Start`:
 ``` 
 old_def.delUse(this) 
 ```
@@ -459,6 +459,7 @@ return (2+1)+3;
 ```
 Without DCE after the `idealize` call we would end up with:
 ![Graph3](docs/04-dce3.svg)
+
 After identifying a more optimal replacement value (6) for the expression (2 + 1) + 3, 
 we created a constant node to store this value. 
 However, we did not remove the original expression, 
