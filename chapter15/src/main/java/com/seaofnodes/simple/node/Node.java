@@ -179,11 +179,10 @@ public abstract class Node implements OutNode {
     Node delDef(int idx) {
         unlock();
         Node old_def = in(idx);
-        if( old_def != null &&  // If the old def exists, remove a def->use edge
-            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
+        Utils.del(_inputs, idx);
+        if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         old_def.moveDepsToWorklist();
-        Utils.del(_inputs, idx);
         return this;
     }
 
