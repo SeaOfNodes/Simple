@@ -365,7 +365,7 @@ regardless of whether `peephole` is called or not.
   ### Delete unused nodes when popping the scope
   A node is unused if it has no outputs(users).
   
-  Consider the following example:
+  ### Example 1:
   ``` 
   int a = 12; // the only output it has is the scope itself
   return 1;
@@ -447,6 +447,20 @@ we can also get rid of `ConstantNode`(`this`) from the outputs of `Start`:
 ``` 
 old_def.delUse(this) 
 ```
+### Example 2:
+```
+int a = 12; 
+int b = a + 1; 
+return 1; 
+```
+- Call `popN` on current scope. 
+- Realize that `b = a + 1;` has no uses - so we can kill it.
+- In the kill function we can call `popN` but this time with the inputs of `b = a + 1;`(start killing them recursively)
+- We start the killing process from the back and examine "1" first. This has no output other than the `AddNode`. Since `this = AddNode` calling `delUse` will mark "1" as dead.
+- We now can kill "1" and call the `popN` function with one input(the control node).
+- Now we examine "a" which has 2 uses at this point, the scope and `AddNode`. Since `this = AddNode` we will remove `AddNode` from its outputs, it will still have the scope as a user - so we can't delete it just yet. 
+- We move onto`a = 12`, since "a" has only one user left(the scope) and `this = scope` it can get killed easily.
+- Same as before, we go through the inputs of "a" and will delete them from the outputs of the control node.
 
 *A constant node pointing to "Start"(ignored by the graph visualizer) but still maintains a connection:*
 
