@@ -176,8 +176,8 @@ public class IRPrinter {
             _bs.set(n._nid);
         }
         void del(int idx) {
-            Node n = Utils.del(_bfs, idx);
-            _bs.clear(n._nid);
+            _bs.clear(_bfs.get(idx)._nid);
+            Utils.del(_bfs, idx);
         }
         boolean any_visited( Node n ) {
             for( Node def : n._inputs )
