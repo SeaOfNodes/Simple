@@ -352,15 +352,20 @@ The peephole method does following:
 
 `peephole()` calls `deadCodeElim()` which is shown below.
 
+
 ## Dead Code Elimination(DCE)
 
-We call DCE every time we lose a use of a Node; when replacing via peeps and exciting scopes.
-DCE recursively deletes Nodes:
-
-- `delUse` deletes a Node use; if the use count goes to zero recursively.
-- `kill` deletes all inputs on self, while calling `delUse` to remove the matching use.
+We call `kill` every time a Node makes the 1-user-to-0-users transition during
+graph editing.  This commonly happens when replacing via peeps and exiting
+scopes.  This recursive `kill` amounts to Dead Code Elimination in many other
+compilers; here we call it in a very fine-grained way.  Many Nodes will be
+created by the parser, only to be killed before the very next lexeme is parsed.
 
 For more information please read the [appendix section](appendix/dce.md#appendix) on dead code elimination.
+
+The suggestively called `deadCodeElim` function is a thin wrapper over `kill`
+used by `peepholeOpt` to avoid prematurely killing a Node which only briefly
+makes the 1->0 users transition.
 
 ```java
 // m is the new Node, self is the old.
