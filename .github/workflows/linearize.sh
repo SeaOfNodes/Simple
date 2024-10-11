@@ -4,7 +4,7 @@ set -eEuo pipefail
 sort_authors() {
   # Unify author aliases.
   sed -e 's/^dibyendumajumdar <mobile@majumdar\.org\.uk>$/Dibyendu Majumdar <mobile@majumdar.org.uk>/g' \
-       -e 's/^Dibyendu Majumdar <dibyendumajumdar@users\.noreply\.github\.com>$/Dibyendu Majumdar <mobile@majumdar.org.uk>/g' |
+      -e 's/^Dibyendu Majumdar <dibyendumajumdar@users\.noreply\.github\.com>$/Dibyendu Majumdar <mobile@majumdar.org.uk>/g' |
   # Rank by number of commits.
   sort | uniq -c | sort -nr | sed -E 's/^ *[0-9]+ //'
 }
@@ -81,7 +81,7 @@ while read -r chapter; do
     sed -Ei 's,\[Chapter ([0-9]+)\]\(chapter0?\1/README\.md\),Chapter \1,' README.md
     # Change to a JAR and delete the modules, for a single-project structure.
     sed -i -e 's,<packaging>pom</packaging>,<packaging>jar</packaging>,' \
-            -e '/<modules>/,/^$/d' pom.xml
+           -e '/<modules>/,/^$/d' pom.xml
   fi
   git mv chapter_docs "docs/$chapter"
   # Restore the link to this chapter.
