@@ -48,7 +48,7 @@ return v0;
 """);
         StopNode stop = parser.parse(false).iterate(true);
         var eval = new Evaluator(stop);
-        assertObj(eval.evaluate(0, 10), "S", new Object[1]);
+        assertObj(eval.evaluate(0, 10), "S", 0L);
         assertObj(eval.evaluate(1, 10), "S", 1L);
     }
 
