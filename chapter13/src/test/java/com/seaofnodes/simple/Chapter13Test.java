@@ -163,4 +163,22 @@ return new S1.s=new S2;
         StopNode stop = parser.parse().iterate(false);
         assertEquals("return new S1;", stop.toString());
     }
+
+    @Test
+    public void testcheckNull() {
+        Parser parser = new Parser(
+"""
+struct I {int i;}
+struct P {I pi;}
+P p1 = new P;
+P p2 = new P;
+p2.pi = new I;
+p2.pi.i = 2;
+if (arg) p1 = new P;
+return p1.pi.i + 1;
+""");
+        try { parser.parse(false).iterate();  fail(); }
+        catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
+    }
+
 }
