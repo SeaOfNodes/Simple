@@ -150,10 +150,10 @@ public class TypeStruct extends Type {
     public StringBuilder print(StringBuilder sb) {
         sb.append(_name);
         if( _fields == null ) return sb; // Forward reference struct, just print the name
-        sb.append(" {\n");
+        sb.append(" {");
         for( Field f : _fields ) {
             sb.append("  ").append(f._fname).append(" :");
-            f._type.print(sb).append(";\n");
+            f._type.print(sb).append(";");
         }
         return sb.append("}");
     }

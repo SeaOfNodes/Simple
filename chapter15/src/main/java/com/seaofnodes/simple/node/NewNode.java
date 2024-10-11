@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -35,6 +36,16 @@ public class NewNode extends Node implements MultiNode {
         sb.append("new ");
         return sb.append(_ptr._obj.str());
     }
+
+    // Find the input slice for this alias
+    int aliasIdx(int alias) {
+        // Memory slices in input #2 and onward
+        for( int i=2; i<nIns(); i++ )
+            if( ((TypeMem)in(i)._type)._alias == alias )
+                return i;
+        throw Utils.TODO("Should not reach here");
+    }
+
 
     @Override
     public TypeTuple compute() {

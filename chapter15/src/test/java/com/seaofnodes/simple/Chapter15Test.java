@@ -2,10 +2,8 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
-import org.junit.Test;
 import org.junit.Ignore;
-
-import java.nio.charset.StandardCharsets;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -26,7 +24,7 @@ return 3.14;
     @Test
     public void testCyclic() {
         Parser parser = new Parser(
-""" 
+"""
 struct C {
     C? l;
 }
@@ -260,7 +258,7 @@ return rez;
         StopNode stop = parser.parse(false).iterate(false);
         assertEquals("return int[];", stop.toString());
         Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
-        assertEquals("int[] {\n  # :int;\n  [] :int;\n}",obj.struct().toString());
+        assertEquals("int[] {  # :int;  [] :int;}",obj.struct().toString());
         long nprimes = (Long)obj.fields()[0];
         long[] primes = new long[]{2,3,5,7,11,13,17,19};
         for( int i=0; i<nprimes; i++ )

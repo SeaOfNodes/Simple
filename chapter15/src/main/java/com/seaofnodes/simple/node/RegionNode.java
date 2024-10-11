@@ -4,6 +4,7 @@ import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeTuple;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -69,7 +70,7 @@ public class RegionNode extends CFGNode {
             in(1) instanceof CProjNode p1 &&
             in(2) instanceof CProjNode p2 &&
             p1.in(0)==p2.in(0) &&
-            p1.in(0) instanceof IfNode iff )
+            p1.in(0) instanceof IfNode iff && iff._type == TypeTuple.IF_BOTH )
             return iff.ctrl();
 
 

@@ -85,7 +85,8 @@ public class LoadNode extends MemOpNode {
                         return new ConstantNode(_declaredType.makeInit()); // Load from a New
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
-                    mem = nnn1.in(_alias);// Bypass unrelated New
+                    // Bypass the New
+                    mem = nnn1.in(nnn1.aliasIdx(_alias));
                     break;
                 } else throw Utils.TODO();
             default:
