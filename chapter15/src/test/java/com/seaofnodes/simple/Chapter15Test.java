@@ -267,6 +267,23 @@ return rez;
             assertEquals(primes[i],(long)(Long)obj.fields()[i+1]);
     }
 
+    @Test
+    public void testNewNodeInit() {
+        Parser parser = new Parser(
+"""
+struct S {int i; flt f;}
+S s1 = new S;
+S s2 = new S;
+s2.i = 3;
+s2.f = 2.0;
+if (arg) s1 = new S;
+return s1.i + s1.f;
+""");
+        StopNode stop = parser.parse(false).iterate(false);
+        assertEquals("return ((flt).i+.f);", stop.toString());
+        assertEquals(0.0, Evaluator.evaluate(stop,  0));
+    }
+
 
     @Test
     public void testBad0() {

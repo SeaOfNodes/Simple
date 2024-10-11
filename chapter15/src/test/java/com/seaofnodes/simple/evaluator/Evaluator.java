@@ -185,13 +185,13 @@ public class Evaluator {
     private Object alloc(NewNode alloc) {
         TypeStruct type = alloc._ptr._obj;
         Object[] body=null;
+        int num;
         if( type.isAry() ) {
             long sz = (Long)val(alloc.in(1));
             long n = offToIdx(sz, type);
             if( n < 0 )
                 throw new NegativeArraySizeException(""+n);
             body = new Object[(int)n+1]; // Array body
-            body[0] = n;                 // Array length
             var c = type._fields[type._fields.length-1]._type;
             if (c instanceof TypeInteger) {
                 for (int i=0; i<n; i++) body[i+type._fields.length-1] = 0L;
@@ -200,8 +200,20 @@ public class Evaluator {
             } else {
                 assert c instanceof TypeMemPtr;
             }
+            num = type._fields.length-1;
         } else {
             body = new Object[type._fields.length];
+            num = type._fields.length;
+        }
+        for (int i=0; i<num; i++) {
+            var c = type._fields[i]._type;
+            if (c instanceof TypeInteger) {
+                body[i] = 0L;
+            } else if (c instanceof TypeFloat) {
+                body[i] = 0D;
+            } else {
+                assert c instanceof TypeMemPtr;
+            }
         }
         Object[] mems = new Object[type._fields.length+2];
         // mems[0] is control
@@ -215,7 +227,7 @@ public class Evaluator {
         var off = vall(load.off());
         var idx = getFieldIndex(from.struct, load, (Long)off);
         if( idx==from.struct._fields.length-1 && from.struct.isAry() ) {
-            long len = (Long)from.fields[0];
+            long len = from.fields.length - from.struct._fields.length + 1;
             long i = offToIdx(off, from.struct);
             if( i < 0 || i >= len )
                 throw new ArrayIndexOutOfBoundsException("Array index out of bounds " + i + " < " + len);
@@ -231,7 +243,7 @@ public class Evaluator {
         var val = val(store.val());
         var idx = getFieldIndex(to.struct, store, (Long)off);
         if( idx==to.struct._fields.length-1 && to.struct.isAry() ) {
-            long len = (Long)to.fields[0];
+            long len = to.fields.length - to.struct._fields.length + 1;
             long i = offToIdx(off, to.struct);
             if( i < 0 || i >= len )
                 throw new RuntimeException("Array index out of bounds " + off + " <= " + len);
