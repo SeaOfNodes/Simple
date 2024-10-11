@@ -718,7 +718,7 @@ public class Parser {
         }
 
         Type declaredType = base._fields[idx]._type;
-        return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
+        return parsePostfix(new LoadNode(name, alias, declaredType.glb(), memAlias(alias), expr).peephole());
     }
 
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
