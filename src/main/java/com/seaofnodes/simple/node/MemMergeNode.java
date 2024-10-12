@@ -30,7 +30,7 @@ public class MemMergeNode extends Node {
         setDef(alias,mem);
     }
 
-    // Scalar contents of one alias. New's struct supplies the initialized type;
+    // Scalar contents of one alias. New's field inputs supply the initialized type;
     // join it with the incoming contents for all previously allocated objects.
     // Phis use their cached types, so this query does not recurse around loops.
     static Type contents(Node mem, int alias, Node dep) {
@@ -40,7 +40,8 @@ public class MemMergeNode extends Node {
         if( mem instanceof ProjNode proj && proj.in(0) instanceof NewNode nnn ) {
             assert proj._idx==1 && nnn.field(alias)!=null;
             nnn.addDep(dep);
-            return contents(nnn.mem(),alias,dep).meet(nnn.field(alias)._type.makeInit());
+            Node init = nnn.in(nnn.findAlias(alias)).addDep(dep);
+            return contents(nnn.mem(),alias,dep).meet(init._type);
         }
         // There are no heap arguments in this chapter. Before the first New,
         // the set of allocated objects (and hence stored values) is empty.

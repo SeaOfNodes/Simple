@@ -3,14 +3,13 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
- * stack of scopes.
+ * stack of variable records.
  */
 public class ScopeNode extends Node {
 
@@ -20,43 +19,68 @@ public class ScopeNode extends Node {
      */
     public static final String CTRL = "$ctrl";
     public static final String ARG0 = "arg";
+    public static final String MEM0 = "$mem";
 
-    /**
-     * Map variable names to Scope input edge
+    /** The tracked fields are now complex enough to deserve an array-of-structs layout
      */
-    public final Stack<HashMap<String, Integer>> _idxs;
-
-    /**
-     * Map variable names to declared Type
-     */
-    final Stack<HashMap<String, Type>> _decls;
-
-    // A new ScopeNode
-    public ScopeNode() {
-        _idxs = new Stack<>();
-        _decls= new Stack<>();
-        _type = Type.BOTTOM;
+    public static class Var {
+        public final int _idx;
+        public final String _name;
+        public final Type _type;
+        public final boolean _final;
+        public Var(int idx, String name, Type type, boolean xfinal) {
+            _idx = idx;
+            _name = name;
+            _type = type;
+            _final = xfinal;
+        }
     }
 
+    public Node in(Var v) { return in(v._idx); }
+
+    @Override public Type compute() { return Type.BOTTOM; }
+    @Override public Node idealize() { return null; }
+
+    // All active/live variables in all nested scopes, all run together
+    public final Ary<Var> _vars;
+
+    // Size of each nested lexical scope
+    public final Ary<Integer> _lexSize;
+
+
+    // A new ScopeNode
+    public ScopeNode() { _type = Type.BOTTOM; _vars = new Ary<>(Var.class); _lexSize = new Ary<>(Integer.class); }
+
     @Override public String label() { return "Scope"; }
+
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         p.p("Scope[ ");
-        String[] names = reverseNames();
-        for( int j=0; j<nIns(); j++ ) {
-            p.p(names[j]).p(":");
-            Node n = in(j);
+        int j=1;
+        for( int i=0; i<nIns(); i++ ) {
+            if( j < _lexSize._len && i == _lexSize.at(j) ) { p.p("| "); j++; }
+            Var v = _vars.get(i);
+            p.p(v._type);
+            p.p(" ");
+            if( v._final ) p.p("!");
+            p.p(v._name);
+            p.p("=");
+            Node n = in(i);
             while( n instanceof ScopeNode loop ) {
                 p.p("Lazy_");
-                n = loop.in(j);
+                n = loop.in(i);
             }
-            p.n(n).p(" ");
+            p.n(n);
+            p.p(", ");
         }
-        return p.unchar(' ').p("]");
+        return p.unchar(", ").p("]");
     }
 
+
     public Node ctrl() { return in(0); }
+    public Node mem() { return in(lookup(MEM0)); }
+    public void mem(Node n) { update(MEM0,n); }
 
     /**
      * The ctrl of a ScopeNode is always bound to the currently active
@@ -70,91 +94,79 @@ public class ScopeNode extends Node {
      */
     public Node ctrl(Node n) { return setDef(0,n); }
 
-    /**
-     * Recover the names for all variable bindings.
-     * The result is an array of names that is aligned with the
-     * inputs to the Node.
-     *
-     * This is an expensive operation.
-     */
-    public String[] reverseNames() {
-        String[] names = new String[nIns()];
-        for( HashMap<String,Integer> syms : _idxs )
-            for( String name : syms.keySet() )
-                names[syms.get(name)] = name;
-        return names;
+    public void push() {
+        _lexSize.push(_vars.size());
+    }
+    public void pop() {
+        int n = _lexSize.pop();
+        popUntil(n);
+        _vars.setLen(n);
     }
 
-    @Override public Type compute() { return Type.BOTTOM; }
-
-    @Override public Node idealize() { return null; }
-
-    public void push() { _idxs.push(new HashMap<>());  _decls.push(new HashMap<>()); }
-    public void pop() { popN(_idxs.pop().size()); _decls.pop(); }
+    // Find name in reverse, return an index into _vars or -1.  Linear scan
+    // instead of hashtable, but probably doesn't matter until the scan
+    // typically hits many dozens of variables.
+    int find( String name ) {
+        for( int i=_vars.size()-1; i>=0; i-- )
+            if( _vars.get(i)._name.equals(name) )
+                return i;
+        return -1;
+    }
 
     /**
      * Create a new variable name in the current scope
      */
-    public Node define( String name, Type declaredType, Node n ) {
-        HashMap<String,Integer> syms = _idxs.lastElement();
-        _decls.lastElement().put(name,declaredType);
-        if( syms.put(name,nIns()) != null )
-            return null;        // Double define
-        return addDef(n);
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init ) {
+        assert name.charAt(0)!='$' || _lexSize.size()==1; // Later scopes do not define memory
+        if( _lexSize._len > 1 )
+            for( int i=_vars.size()-1; i>=_lexSize.last(); i-- )
+                if( _vars.get(i)._name.equals(name) )
+                    return false;   // Double define
+        _vars.add(new Var(nIns(),name,declaredType,xfinal));
+        addDef(init);
+        return true;
     }
 
     /**
      * Lookup a name in all scopes starting from most deeply nested.
      *
      * @param name Name to be looked up
-     * @see #update(String, Node, int)
+     * @return null if not found, or the implementing Node
      */
-    public Node lookup( String name ) { return update(name,null,_idxs.size()-1);  }
+    public Var lookup( String name ) {
+        int idx = find(name);
+        // -1 is missed in all scopes, not found
+        return idx == -1 ? null : _update(_vars.at(idx),null);
+    }
+
     /**
      * If the name is present in any scope, then redefine else null
      *
      * @param name Name being redefined
      * @param n    The node to bind to the name
      */
-    public Node update( String name, Node n ) { return update(name,n,_idxs.size()-1); }
-    /**
-     * Both recursive lookup and update.
-     * <p>
-     * A shared implementation allows us to create lazy phis both during
-     * lookups and updates; the lazy phi creation is part of chapter 8.
-     *
-     * @param name  Name whose binding is being updated or looked up
-     * @param n     If null, do a lookup, else update binding
-     * @param nestingLevel The starting nesting level
-     * @return node being looked up, or the one that was updated
-     */
-    private Node update( String name, Node n, int nestingLevel ) {
-        if( nestingLevel<0 ) return null;  // Missed in all scopes, not found
-        var syms = _idxs.get(nestingLevel); // Get the symbol table for nesting level
-        var idx = syms.get(name);
-        if( idx == null ) return update(name,n,nestingLevel-1); // Not found in this scope, recursively look in parent scope
-        Node old = in(idx);
+    public void update( String name, Node n ) {
+        int idx = find(name);
+        assert idx>=0;
+        _update(_vars.at(idx),n);
+    }
+
+    Var _update( ScopeNode.Var v, Node st ) {
+        Node old = in(v._idx);
         if( old instanceof ScopeNode loop ) {
             // Lazy Phi!
-            old = loop.in(idx) instanceof PhiNode phi && loop.ctrl()==phi.region()
+            Node def = loop.in(v._idx);
+            old = def instanceof PhiNode phi && loop.ctrl()==phi.region()
                 // Loop already has a real Phi, use it
-                ? loop.in(idx)
+                ? def
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(idx,PhiNode.make(name, lookupDeclaredType(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
-            setDef(idx,old);
+                : loop.setDef(v._idx,PhiNode.make(v._name, v._type instanceof TypeMemPtr ? v._type : v._type.glb(), loop.ctrl(), loop.in(loop._update(v,null)._idx),null).peephole());
+            setDef(v._idx,old);
         }
-        return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
-    }
-
-    // Return declared type for a variable
-    public Type lookupDeclaredType( String name ) {
-        for( int i=_decls.size(); i>0; i-- ) {
-            Type t = _decls.get(i-1).get(name);
-            if( t != null ) return t;
-        }
-        return null;
+        if( st!=null ) setDef(v._idx,st); // Set new value
+        return v;
     }
 
     /**
@@ -177,15 +189,12 @@ public class ScopeNode extends Node {
         // 1) duplicate the name bindings of the ScopeNode across all stack levels
         // 2) Make the new ScopeNode a user of all the nodes bound
         // 3) Ensure that the order of defs is the same to allow easy merging
-        for( HashMap<String,Integer> syms : _idxs )
-            dup._idxs.push(new HashMap<>(syms));
-        for( HashMap<String,Type> ts : _decls )
-            dup._decls.push(ts); // Types don't change, just keep stacks aligned
-
+        dup._vars.addAll(_vars);
+        dup._lexSize.addAll(_lexSize);
         dup.addDef(ctrl());     // Control input is just copied
+
+        // Memory is one binding, with the same lazy loop Phi as scalar names.
         for( int i=1; i<nIns(); i++ )
-            // For lazy phis on loops we use a sentinel
-            // that will trigger phi creation on update
             dup.addDef(loop ? this : in(i));
         return dup;
     }
@@ -200,35 +209,53 @@ public class ScopeNode extends Node {
      */
     public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
-        String[] ns = reverseNames();
-        // Note that we skip i==0, which is bound to '$ctrl'
-        for (int i = 1; i < nIns(); i++)
-            if( in(i) != that.in(i) ) // No need for redundant Phis
-                // If we are in lazy phi mode we need to a lookup
-                // by name as it will trigger a phi creation
-                setDef(i, PhiNode.make(ns[i], this.lookupDeclaredType(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
+        _merge(that,r);
         that.kill();            // Kill merged scope
         IterPeeps.add(r);
         return r.unkeep().peephole();
     }
 
-    // Merge the backedge scope into this loop head scope
+    private void _merge(ScopeNode that, RegionNode r) {
+        for( int i = 1; i < nIns(); i++)
+            if( in(i) != that.in(i) ) { // No need for redundant Phis
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will trigger a phi creation
+                Var v = _vars.at(i);
+                Node lhs = this.in(this._update(v,null));
+                Node rhs = that.in(that._update(v,null));
+                setDef(i, PhiNode.make(v._name, v._type, r, lhs, rhs).peephole());
+            }
+    }
+
+    // peephole the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {
         Node ctrl = ctrl();
         assert ctrl instanceof LoopNode loop && loop.inProgress();
         ctrl.setDef(2,back.ctrl());
-        for( int i=1; i<nIns(); i++ ) {
-            if( back.in(i) != this ) {
-                PhiNode phi = (PhiNode)in(i);
-                assert phi.region()==ctrl && phi.in(2)==null;
-                phi.setDef(2,back.in(i));
-            }
-            if( exit.in(i) == this ) // Replace a lazy-phi on the exit path also
-                exit.setDef(i,in(i));
-        }
+
+        _endLoop(this,back,exit);
         back.kill();            // Loop backedge is dead
         // Now one-time do a useless-phi removal
+        _useless();
+    }
+
+    // Fill in the backedge of any inserted Phis
+    void _endLoop( ScopeNode scope, Node back, Node exit ) {
+        for( int i=1; i<nIns(); i++ ) {
+            if( back.in(i) != scope ) {
+                PhiNode phi = (PhiNode)in(i);
+                assert phi.region()==scope.ctrl() && phi.in(2)==null;
+                phi.setDef(2,back.in(i)); // Fill backedge
+            }
+            if( exit.in(i) == scope ) // Replace a lazy-phi on the exit path also
+                exit.setDef(i,in(i));
+        }
+    }
+
+
+    // Now one-time do a useless-phi removal
+    void _useless( ) {
         for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi ) {
                 // Do an eager useless-phi removal
@@ -242,9 +269,7 @@ public class ScopeNode extends Node {
                 }
             }
         }
-
     }
-
 
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
@@ -265,7 +290,7 @@ public class ScopeNode extends Node {
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
 
         // Direct use of a value as predicate.  This is a zero/null test.
-        if( Utils.find(_inputs, pred) != -1 ) {
+        if( _inputs.find(pred) != -1 ) {
             if( !(pred._type instanceof TypeMemPtr tmp) )
                 // Must be an `int`, since int and ptr are the only two value types
                 // being tested. No representation for a generic not-null int, so no upcast.
@@ -278,7 +303,7 @@ public class ScopeNode extends Node {
 
         if( pred instanceof NotNode not ) {
             // Direct use of a !value as predicate.  This is a zero/null test.
-            if( Utils.find(_inputs, not.in(1)) != -1 ) {
+            if( _inputs.find(not.in(1)) != -1 ) {
                 Type tinit = not.in(1)._type.makeInit();
                 if( not.in(1)._type.isa(tinit) ) return null; // Already zero/null, no reason to upcast
                 return replace(not.in(1), new ConstantNode(tinit).peephole());
