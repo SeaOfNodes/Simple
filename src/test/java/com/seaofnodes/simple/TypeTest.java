@@ -13,11 +13,11 @@ public class TypeTest {
     @Test
     public void testTypeAdHoc() {
         TypeStruct s1 = TypeStruct.make("s1", new Field[]{
-                Field.make("a",-1, TypeInteger.BOT),
-                Field.make("b",-2, TypeInteger.BOT) });
+                Field.make("a", TypeInteger.BOT,-1, false),
+                Field.make("b", TypeInteger.BOT,-2, false) });
         TypeStruct s2 = TypeStruct.make("s2", new Field[]{
-                Field.make("a",-3, TypeInteger.BOT),
-                Field.make("b",-4, TypeInteger.BOT) });
+                Field.make("a", TypeInteger.BOT,-3, false),
+                Field.make("b", TypeInteger.BOT,-4, false) });
         Assert.assertEquals(s1, s1.glb());
         Assert.assertNotEquals(s1, s1.dual());
         Assert.assertEquals(s1, s1.dual().glb());

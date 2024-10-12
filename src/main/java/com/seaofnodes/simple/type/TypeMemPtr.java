@@ -61,6 +61,8 @@ public class TypeMemPtr extends Type {
     @Override public Type nonZero() { return VOIDPTR; }
 
     @Override public boolean isHigh() { return this==TOP; }
+    @Override public boolean isConstant() { return this==NULLPTR; }
+    @Override public boolean isHighOrConst() { return this==TOP || this==NULLPTR; }
 
     @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
 

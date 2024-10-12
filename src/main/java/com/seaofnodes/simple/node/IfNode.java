@@ -41,8 +41,8 @@ public class IfNode extends CFGNode implements MultiNode {
             return TypeTuple.IF_NEITHER;
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
-        if (t instanceof TypeInteger ti && ti.isConstant())
-            return ti==TypeInteger.ZERO ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
+        if( t.isConstant() )
+            return t.makeInit()==t ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
 
         return TypeTuple.IF_BOTH;
     }

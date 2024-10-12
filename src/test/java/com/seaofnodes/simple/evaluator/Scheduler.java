@@ -560,7 +560,7 @@ public class Scheduler {
             blocks.put(first, switch(last) {
                 case null -> new Block(arr, null, -1, new Block[0]);
                 case IfNode i -> new Block(arr, i, -1, new Block[2]);
-                case RegionNode r -> new Block(arr, r, Utils.find(r._inputs, prev), new Block[1]);
+                case RegionNode r -> new Block(arr, r, r._inputs.find(prev), new Block[1]);
                 case ReturnNode r -> new Block(arr, r, -1, new Block[0]);
                 default -> throw new AssertionError("Unexpected block exit node");
             });
