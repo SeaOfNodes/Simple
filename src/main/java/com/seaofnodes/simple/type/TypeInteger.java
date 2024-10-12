@@ -117,7 +117,7 @@ public class TypeInteger extends Type {
     @Override public TypeInteger makeInit() { return ZERO; }
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
-        if( _min==0 ) return make(1,_max); // specifically good on BOOL
+        if( _min==0 ) return make(1,Math.max(_max,1)); // specifically good on BOOL
         if( _max==0 ) return make(_min,-1);
         return this;
     }
