@@ -26,6 +26,8 @@ public class MulNode extends Node {
             return TypeInteger.TOP;
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 ) {
+            if( i1==TypeInteger.ZERO || i2==TypeInteger.ZERO)
+                return TypeInteger.ZERO;
             if (i1.isConstant() && i2.isConstant())
                 return TypeInteger.constant(i1.value()*i2.value());
         }
