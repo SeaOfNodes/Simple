@@ -69,6 +69,10 @@ public abstract class GlobalCodeMotion {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
                 _schedEarly(n,visit);
+            if( cfg instanceof RegionNode )
+                for( Node phi : cfg._outputs )
+                    if( phi instanceof PhiNode )
+                        _schedEarly(phi,visit);
         }
     }
 
@@ -91,7 +95,7 @@ public abstract class GlobalCodeMotion {
         // a data-only loop, eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
-            if( def!=null )
+            if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,visit);
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
@@ -235,6 +239,7 @@ public abstract class GlobalCodeMotion {
                 break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
+            case ScopeMinNode ret: break; // Mem uses now on ScopeMin
             case NeverNode never: break;
             default: throw Utils.TODO();
             }
@@ -249,7 +254,7 @@ public abstract class GlobalCodeMotion {
             // Store and Load overlap, need anti-dependence
             if( stblk._anti==load._nid ) {
                 lca = stblk._idom(lca,null); // Raise Loads LCA
-                if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
+                if( lca == stblk && st != null && st._inputs.find(load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here
             }

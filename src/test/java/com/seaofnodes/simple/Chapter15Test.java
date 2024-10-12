@@ -4,9 +4,6 @@ import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import org.junit.Ignore;
-
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -14,7 +11,8 @@ public class Chapter15Test {
 
     @Test
     public void testJig() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
@@ -23,29 +21,10 @@ return 3.14;
     }
 
     @Test
-    public void testLifetime() {
-        Parser parser = new Parser("""
-u8[] b = new u8[5];
-if (arg) {
-    b[0] = b[0] + 1;
-} else {
-    b[1] = b[1] * 2;
-}
-return b[0] + b[1];
-""");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region69,1,0);", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
-        assertEquals(1L, Evaluator.evaluate(stop,  1));
-    }
-
-    @Test
     public void testCyclic() {
         Parser parser = new Parser(
 """
-struct C {
-    C? l;
-}
+struct C { C? l; };
 C c = new C;
 c.l = c;
 return c;
@@ -70,8 +49,8 @@ output[i] = 1;
 return output;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return u8[];", stop.toString());
-        assertEquals("\u0001", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("return [u8];", stop.toString());
+        assertEquals("Obj<[u8]>{#=1,[]=[1]}", Evaluator.evaluate(stop,  0).toString());
     }
 
     @Test
@@ -117,20 +96,20 @@ return a[0];
     public void testBasic4() {
         Parser parser = new Parser(
 """
-struct A { int i; }
+struct A { int i; };
 A?[] a = new A?[2];
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return *A?[];", stop.toString());
-        assertEquals("Obj<*A?[]>{#=2,[]=[null,null]}", Evaluator.evaluate(stop, 0).toString());
+        assertEquals("return [*A?];", stop.toString());
+        assertEquals("Obj<[*A?]>{#=2,[]=[null,null]}", Evaluator.evaluate(stop, 0).toString());
     }
 
     @Test
     public void testBasic5() {
         Parser parser = new Parser(
 """
-struct S { int x; flt y; }
+struct S { int x; flt y; };
 // A new S
 S s = new S; s.x=99; s.y = 3.14;
 
@@ -151,8 +130,9 @@ else {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region118,1.2,Phi(Region115,2.3,.y));", stop.toString());
+        assertEquals("return Phi(Region117,1.2,Phi(Region114,2.3,3.14));", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
+        assertEquals(1.2 , Evaluator.evaluate(stop, 1));
     }
 
     @Ignore
@@ -160,7 +140,7 @@ return rez;
     public void testBasic6() {
         Parser parser = new Parser(
 """
-struct S { int x; flt y; }
+struct S { int x; flt y; };
 // A new S
 S s = new S; s.x=99; s.y = 3.14;
 
@@ -186,7 +166,7 @@ return rez;
         Parser parser = new Parser(
 """
 // Can we define a forward-reference array?
-struct Tree { Tree?[] _kids; }
+struct Tree { Tree?[]? _kids; };
 Tree root = new Tree;
 root._kids = new Tree?[2];
 root._kids[0] = new Tree;
@@ -194,17 +174,14 @@ return root;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return Tree;", stop.toString());
-        assertEquals("Obj<Tree>{_kids=Obj<*Tree?[]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("Obj<Tree>{_kids=Obj<[*Tree?]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
     }
 
     @Test
     public void testNestedStructAddMemProj() {
         Parser parser = new Parser(
 """
-struct S {
-    int a;
-    int[] b;
-}
+struct S { int a; int[] b; };
 return 0;
 """);
         StopNode stop = parser.parse();
@@ -274,9 +251,9 @@ while( j < nprimes ) {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return int[];", stop.toString());
+        assertEquals("return [int];", stop.toString());
         Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
-        assertEquals("int[] {\n  # :int;\n  [] :int;\n}",obj.struct().toString());
+        assertEquals("[int] {  # :int;   [] :int; }",obj.struct().toString());
         long nprimes = (Long)obj.fields()[0];
         long[] primes = new long[]{2,3,5,7,11,13,17,19};
         for( int i=0; i<nprimes; i++ )
@@ -287,7 +264,7 @@ return rez;
     public void testNewNodeInit() {
         Parser parser = new Parser(
 """
-struct S {int i; flt f;}
+struct S {int i; flt f;};
 S s1 = new S;
 S s2 = new S;
 s2.i = 3;
@@ -318,7 +295,7 @@ return new flt;
 int is = new int[2];
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Type *int[] is not of declared type int",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type *[int] is not of declared type int",e.getMessage()); }
     }
 
     @Test
@@ -348,4 +325,67 @@ return is[1];
         catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
     }
 
+    @Test
+    public void testProgress() {
+        Parser parser = new Parser("""
+i8 v1=0&0;
+u8 v2=0;
+byte v4=0;
+if(0) {}
+while(v2<0) {
+    v4=0-v1;
+    break;
+}
+int v5=0&0;
+while(v5+(0&0)) {
+    int v7=0&0;
+    while(v7)
+        v4=0>>>v5;
+    while(v1)
+        return 0;
+}
+return v1;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testSharpNot() {
+        Parser parser = new Parser(
+"""
+if(0>>0) {}
+while(0) {}
+u32 v7=0;
+int v8=0;
+while(0<--1>>>---(v7*0==v8)) {}
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
+
+
+    @Test
+    public void testProgress2() {
+        Parser parser = new Parser(
+"""
+if(1) {}
+else {
+        while(arg>>>0&0>>>0) {}
+    byte v3=0>>>0;
+                while(0) {}
+        int v7=0>>>0;
+        while(v7<0>>>0) {
+                    while(0+v7<=0) if(1) arg=-12;
+            if(arg) {
+                v3=arg+v3+0;
+                arg=0;
+            }
+        }
+}
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
 }

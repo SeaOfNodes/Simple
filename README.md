@@ -43,7 +43,7 @@ The Simple language will be styled after a subset of C or Java
 * [Chapter 13](docs/chapter13/README.md): Nested references in Structs.
 * [Chapter 14](docs/chapter14/README.md): Narrow primitive types (e.g. bytes)
 * [Chapter 15](docs/chapter15/README.md): One dimensional static length array type, with array loads and stores.
-* Chapter 16: Constructors
+* [Chapter 16](docs/chapter16/README.md): Constructors
 * Chapter 17: Functions and calls.
 * Chapter 18: Exception control flow.
 * Chapter 19: Garbage Collection.

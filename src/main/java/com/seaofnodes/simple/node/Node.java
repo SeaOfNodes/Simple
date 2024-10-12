@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
-
 import java.util.*;
 import java.util.function.Function;
 
@@ -28,9 +28,9 @@ public abstract class Node implements OutNode {
      * <p>
      * Generally fixed length, ordered, nulls allowed, no unused trailing space.
      * Ordering is required because e.g. "a/b" is different from "b/a".
-     * The first input (offset 0) is often a {@link #isCFG} node.
+     * The first input (offset 0) is often a {@link CFGNode} node.
      */
-    public final ArrayList<Node> _inputs;
+    public final Ary<Node> _inputs;
 
     /**
      * Outputs reference Nodes that are not null and have this Node as an
@@ -41,7 +41,7 @@ public abstract class Node implements OutNode {
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
      */
-    public final ArrayList<Node> _outputs;
+    public final Ary<Node> _outputs;
 
 
     /**
@@ -61,9 +61,9 @@ public abstract class Node implements OutNode {
 
     protected Node(Node... inputs) {
         _nid = UNIQUE_ID++; // allocate unique dense ID
-        _inputs = new ArrayList<>();
+        _inputs = new Ary<>(Node.class);
         Collections.addAll(_inputs,inputs);
-        _outputs = new ArrayList<>();
+        _outputs = new Ary<>(Node.class);
         for( Node n : _inputs )
             if( n != null )
                 n.addUse( this );
@@ -127,7 +127,7 @@ public abstract class Node implements OutNode {
      */
     public Node in(int i) { return _inputs.get(i); }
     public Node out(int i) { return _outputs.get(i); }
-    @Override public ArrayList<Node> outs() { return _outputs; }
+    @Override public Ary<Node> outs() { return _outputs; }
 
     public int nIns() { return _inputs.size(); }
 
@@ -168,7 +168,7 @@ public abstract class Node implements OutNode {
             old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         moveDepsToWorklist();
-        // Return self for easy flow-coding
+        // Return new_def for easy flow-coding
         return new_def;
     }
 
@@ -179,12 +179,19 @@ public abstract class Node implements OutNode {
     Node delDef(int idx) {
         unlock();
         Node old_def = in(idx);
-        Utils.del(_inputs, idx);
+        _inputs.del(idx);
         if( old_def.delUse(this) ) // If we removed the last use, the old def is now dead
             old_def.kill();     // Kill old def
         old_def.moveDepsToWorklist();
         return this;
     }
+
+    // Insert the numbered input, sliding other inputs to the right
+    Node insertDef(int idx, Node new_def) {
+        _inputs.add(idx,null);
+        return setDef(idx,new_def);
+    }
+
 
     /**
      * Add a new def to an existing Node.  Keep the edges correct by
@@ -210,16 +217,16 @@ public abstract class Node implements OutNode {
     // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
-        Utils.del(_outputs, Utils.find(_outputs, use));
+        _outputs.del(_outputs.find(use));
         return _outputs.isEmpty();
     }
 
-    // Shortcut for "popping" n nodes.  A "pop" is basically a
+    // Shortcut for "popping" until n nodes.  A "pop" is basically a
     // setDef(last,null) followed by lowering the nIns() count.
-    void popN(int n) {
+    void popUntil(int n) {
         unlock();
-        for( int i=0; i<n; i++ ) {
-            Node old_def = _inputs.removeLast();
+        while( nIns() > n ) {
+            Node old_def = _inputs.pop();
             if( old_def != null &&     // If it exists and
                 old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                 old_def.kill();        // Kill old def
@@ -259,7 +266,7 @@ public abstract class Node implements OutNode {
         return (N)this;
     }
     // Test "keep" status
-    public boolean iskeep() { return Utils.find(_outputs,null) != -1; }
+    public boolean iskeep() { return _outputs.find(null) != -1; }
 
 
     // Replace self with nnn in the graph, making 'this' go dead
@@ -268,7 +275,7 @@ public abstract class Node implements OutNode {
         while( nOuts() > 0 ) {
             Node n = _outputs.removeLast();
             n.unlock();
-            int idx = Utils.find(n._inputs, this);
+            int idx = n._inputs.find(this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
         }
@@ -294,7 +301,7 @@ public abstract class Node implements OutNode {
             return this;        // Peephole optimizations turned off
         }
         Node n = peepholeOpt();
-        return n==null ? this : deadCodeElim(n.peephole().keep()).unkeep(); // Cannot return null for no-progress
+        return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
     }
 
     /**
@@ -451,7 +458,7 @@ public abstract class Node implements OutNode {
     // on a node some distance away, and if that node ever changes we should
     // retry the peephole.  Track a set of Nodes dependent on `this`, and
     // revisit them if `this` changes.
-    ArrayList<Node> _deps;
+    Ary<Node> _deps;
 
     /**
      * Add a node to the list of dependencies.  Only add it if its not an input
@@ -462,10 +469,10 @@ public abstract class Node implements OutNode {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( IterPeeps.midAssert() ) return this;
-        if( _deps==null ) _deps = new ArrayList<>();
-        if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
-        if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( Utils.find(_outputs,dep)!= -1 ) return this;
+        if( _deps==null ) _deps = new Ary<>(Node.class);
+        if( _deps   .find(dep) != -1 ) return this; // Already on list
+        if( _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
+        if( _outputs.find(dep) != -1 ) return this;
         _deps.add(dep);
         return this;
     }
