@@ -2,9 +2,9 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.ArrayList;
 
@@ -74,8 +74,8 @@ public class LoadNode extends MemOpNode {
 
         // Simple Load-after-New on same address.
         if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
-            ptr == nnn.proj(0) )  // Must check same object
-            return new ConstantNode(_declaredType.makeInit());
+            ptr == nnn.proj(0) ) // Must check same object
+            return nnn.in(nnn.findAlias(_alias)); // Load from New init
 
         // Load-after-Store on same address, but bypassing provably unrelated
         // stores.  This is a more complex superset of the above two peeps.
@@ -98,12 +98,12 @@ public class LoadNode extends MemOpNode {
                 // Pointers cannot overlap
                 mem = st.mem(); // Proved never equal
                 break;
-            case PhiNode phi:
-                break outer;    // Assume related
+            case PhiNode phi:      break outer;  // Assume related
+            case ConstantNode top: break outer;  // Assume shortly dead
             case ProjNode mproj:
                 if( mproj.in(0) instanceof NewNode nnn1 ) {
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return new ConstantNode(_declaredType.makeInit()); // Load from a New
+                        return nnn1.in(nnn1.findAlias(_alias)); // Load from New init
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.mem();// Bypass unrelated New
@@ -147,7 +147,6 @@ public class LoadNode extends MemOpNode {
             ptr1 instanceof ProjNode && ptr1.in(0) instanceof NewNode &&
             ptr2 instanceof ProjNode && ptr2.in(0) instanceof NewNode;
     }
-
 
     // Profitable if we find a matching Store on this Phi arm.
     private boolean profit(PhiNode phi, int idx) {

@@ -100,7 +100,7 @@ public class Evaluator {
         }
         @Override
         public String toString() {
-            if (struct._name.equals("u8[]")) {
+            if (struct._name.equals("[u8]")) {
                 var sb = new StringBuilder();
                 for (int i=struct._fields.length-1; i<fields.length; i++) {
                     var v = fields[i];
@@ -192,28 +192,20 @@ public class Evaluator {
             if( n < 0 )
                 throw new NegativeArraySizeException(""+n);
             body = new Object[(int)n+1]; // Array body
-            var c = type._fields[type._fields.length-1]._type;
-            if (c instanceof TypeInteger) {
-                for (int i=0; i<n; i++) body[i+type._fields.length-1] = 0L;
-            } else if (c instanceof TypeFloat) {
-                for (int i = 0; i < n; i++) body[i+type._fields.length-1] = 0D;
+            var elem = type._fields[1]._type;
+            if (elem instanceof TypeInteger) {
+                for (int i=0; i<n; i++) body[i+1] = 0L;
+            } else if (elem instanceof TypeFloat) {
+                for (int i = 0; i < n; i++) body[i+1] = 0D;
             } else {
-                assert c instanceof TypeMemPtr;
+                assert elem instanceof TypeMemPtr;
             }
-            num = type._fields.length-1;
+            // Length value
+            body[0] = vall(alloc.in(3));
         } else {
-            body = new Object[type._fields.length];
-            num = type._fields.length;
-        }
-        for (int i=0; i<num; i++) {
-            var c = type._fields[i]._type;
-            if (c instanceof TypeInteger) {
-                body[i] = 0L;
-            } else if (c instanceof TypeFloat) {
-                body[i] = 0D;
-            } else {
-                assert c instanceof TypeMemPtr;
-            }
+            body = new Object[num = type._fields.length];
+            for (int i=0; i<num; i++)
+                body[i] = val(alloc.in(3+i));
         }
         return new Object[]{new Obj(type,body),MEMORY};
     }
