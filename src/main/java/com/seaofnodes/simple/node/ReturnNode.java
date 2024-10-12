@@ -10,7 +10,7 @@ public class ReturnNode extends CFGNode {
 
     public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
         // A synthetic never-taken loop exit has no source scope.
-        super(ctrl, scope == null ? null : scope.lookup("$mem"), data);
+        super(ctrl, scope == null ? null : scope.mem(), data);
     }
 
     public Node ctrl() { return in(0); }

@@ -1,10 +1,9 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.fuzzer.Fuzzer;
-import org.junit.Test;
+import java.util.Random;
 import org.junit.Ignore;
-
-
+import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -38,6 +37,15 @@ public class FuzzerWrap {
         assertTrue(fuzzer.noExceptions());
     }
 
+
+    @Test @Ignore
+    public void fuzzPeepsRandom() {
+        Random R = new Random(System.currentTimeMillis());
+        var fuzzer = new Fuzzer();
+        for (int i=0; i<100; i++)
+            fuzzer.fuzzPeeps(R.nextLong());
+        assertTrue(fuzzer.noExceptions());
+    }
 
     @Test
     @Ignore
