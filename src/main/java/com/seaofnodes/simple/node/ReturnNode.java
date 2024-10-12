@@ -16,17 +16,11 @@ import java.util.BitSet;
 public class ReturnNode extends CFGNode {
 
     public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
-        super(ctrl, data);
         // Add memory slices to Return, so all memory updates are live-on-exit.
-        // We look up memory slices by the naming convention that they start with $.
-        // We could also use implicit knowledge that all memory projects are at offset >= 2
-        if( scope != null ) {
-            String[] names = scope.reverseNames();
-            for (String name: names) {
-                if (!name.equals("$ctrl") && name.startsWith("$"))
-                    addDef(scope.lookup(name));
-            }
-        }
+        super(ctrl, data);
+        if( scope!=null )
+            for( int i=2; i<scope.mem().nIns(); i++ )
+                addDef(scope.mem().in(i));
     }
 
     public Node ctrl() { return in(0); }
