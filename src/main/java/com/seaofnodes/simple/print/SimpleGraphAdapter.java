@@ -6,11 +6,12 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 
-/** Chapter 15's view of the IR; browser, transport and layout are shared. */
+/** Chapter 16's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
-    @Override protected String[] edgeNames(Node n) {
-        return n instanceof ScopeNode scope && n.nIns()!=0 ? scope.reverseNames() : null;
+    @Override protected String edgeName(Node n, int i) {
+        return n instanceof ScopeNode scope && i < scope._vars.size()
+                ? scope._vars.get(i)._name : null;
     }
     @Override protected int projectionIndex(Node n) { return n instanceof ProjNode p ? p._idx : n instanceof CProjNode p ? p._idx : -1; }
 
