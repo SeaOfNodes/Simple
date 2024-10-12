@@ -109,7 +109,7 @@ public class ScriptGenerator {
 
     static {
         new Parser("", TypeInteger.BOT);
-        for( var e : Parser.TYPES.entrySet() ) {
+        for( var e : Parser.defaultTypes().entrySet() ) {
             if( e.getValue() instanceof TypeInteger ) {
                 INTTYPES.add(new TypeInt(e.getKey()));
             }

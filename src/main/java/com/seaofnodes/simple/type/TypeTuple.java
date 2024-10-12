@@ -7,15 +7,17 @@ public class TypeTuple extends Type {
     public final Type[] _types;
 
     private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
-    public static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
+    public  static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
 
-    private static TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
-    public static void gather(ArrayList<Type> ts) {  ts.add(TEST); }
+    private static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
+    public  static final TypeTuple START = make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
+    public  static void gather(ArrayList<Type> ts) {  ts.add(TEST); ts.add(START); }
 
     @Override
     Type xmeet(Type other) {
         TypeTuple tt = (TypeTuple)other;     // contract from xmeet
-        assert _types.length == tt._types.length;
+        if( _types.length != tt._types.length )
+            return BOTTOM;
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
             ts[i] = _types[i].meet(tt._types[i]);

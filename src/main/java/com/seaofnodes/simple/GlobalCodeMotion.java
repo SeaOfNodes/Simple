@@ -66,7 +66,7 @@ public abstract class GlobalCodeMotion {
         // Reverse Post-Order on CFG
         for( int j=rpo.size()-1; j>=0; j-- ) {
             CFGNode cfg = rpo.get(j);
-            cfg.loopDepth();
+            cfg.loopDepth();    // Pre-compute loop depth
             for( Node n : cfg._inputs )
                 _schedEarly(n,visit);
             // In dead infinite loops, entire code blocks may be unreachable
@@ -98,7 +98,7 @@ public abstract class GlobalCodeMotion {
         // Schedule inputs first, except Phis: following their backedges would
         // enter a data cycle before its control has been scheduled.
         for( Node def : n._inputs )
-            if( def!=null )
+            if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,visit);
         // An existing edge 0 already supplies control (or a Phi/Proj binding).
         if( n.in(0)==null ) {
@@ -143,13 +143,14 @@ public abstract class GlobalCodeMotion {
 
                 // All uses done?
                 for( Node use : n._outputs )
-                    if( use!=null && late[use._nid]==null )
+                    if( use!=null && late[use._nid]==null && !(use instanceof PhiNode) )
                         continue outer; // Nope, await all uses done
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
-                        if( late[memuse._nid]==null &&
+                        if( !(memuse instanceof PhiNode) &&
+                            late[memuse._nid]==null &&
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use indirectly defines memory
@@ -249,6 +250,7 @@ public abstract class GlobalCodeMotion {
                 break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
+            case ScopeMinNode ret: break; // Mem uses now on ScopeMin
             case NeverNode never: break;
             default: throw Utils.TODO();
             }
@@ -260,11 +262,11 @@ public abstract class GlobalCodeMotion {
     private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
         // Preserve the full store range for the earlier evaluator scheduler.
         // It places nodes independently of GCM and may hoist this store.
-        for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
+        for( ; stblk != defblk; stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
-            if( anti[stblk._nid]==load._nid ) {
+            if( !(stblk instanceof IfNode) && anti[stblk._nid]==load._nid ) {
                 lca = stblk.domLCA(lca,null); // Raise Loads LCA
-                if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
+                if( lca == stblk && st != null && st._inputs.find(load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here
             }

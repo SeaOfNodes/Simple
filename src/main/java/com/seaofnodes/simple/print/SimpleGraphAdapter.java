@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 import java.util.ArrayList;
 
-/** Chapter 15's view of the IR; browser, transport and layout are shared. */
+/** Chapter 16's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -21,9 +21,9 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
     private ArrayList<Edge> edges(Node n) {
         var edges = new ArrayList<Edge>();
-        String[] names = n instanceof ScopeNode scope && n.nIns() != 0 ? scope.reverseNames() : null;
         for( int i = 0; i < n.nIns(); i++ ) {
-            String name = names == null || i >= names.length ? null : names[i];
+            String name = n instanceof ScopeNode scope && i < scope._vars.size()
+                ? scope._vars.get(i)._name : null;
             edges.add(new Edge(i, ref(n.in(i)), role(n, i), name));
         }
         return edges;
