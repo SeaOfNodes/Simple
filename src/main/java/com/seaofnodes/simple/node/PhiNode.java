@@ -43,7 +43,7 @@ public class PhiNode extends Node {
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL ? Type.TOP : _type;
+            return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type

@@ -55,27 +55,52 @@ public class StoreNode extends MemOpNode {
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
             ptr()==st.ptr() &&  // Must check same object
-            off()==st.off() &&  // And same offset
+            off()==st.off() &&  // And same offset (could be "same alias" but this handles arrays to same index)
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
-            st.checkNoUseBeyond(this) ) {
+            checkOnlyUse(st) ) {
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             setDef(1,st.mem());
             return this;
         }
 
+        // Simple store-after-new on same address.  Should pick up the
+        // an init-store being stomped by a first user store.
+        if( mem() instanceof ProjNode st  && st .in(0) instanceof NewNode nnn &&
+            ptr() instanceof ProjNode ptr && ptr.in(0) == nnn &&
+            ptr()._type instanceof TypeMemPtr tmp && // No bother if weird dead pointers
+            // Cannot fold a store of a single element over the array body initializer value
+            !(tmp._obj.isAry() && tmp._obj._fields[1]._alias==_alias) &&
+            // Very sad strong cutout: val has to be legal to hoist to a New
+            // input, which means it cannot depend on the New.  Many many
+            // things are legal here but difficult to check without doing a
+            // full dominator check.  Example failure:
+            // "struct C { C? c; }; C self = new C { c=self; }"
+            val()._type.isHighOrConst() &&
+            // Must have exactly one use of "this" or you get weird
+            // non-serializable memory effects in the worse case.
+            checkOnlyUse(st) &&
+            // Folding away a broken store
+            err()==null ) {
+            nnn.setDef(nnn.findAlias(_alias),val());
+            // Must retype the NewNode
+            nnn  ._type = nnn.  compute();
+            mem()._type = mem().compute();
+            return st;
+        }
+
         return null;
     }
 
-    // Check that `this` has no uses beyond `that`
-    private boolean checkNoUseBeyond(Node that) {
-        if( nOuts()==1 ) return true;
+    // Check that "mem" has no uses except "this"
+    private boolean checkOnlyUse(Node mem) {
+        if( mem.nOuts()==1 ) return true;
         // Add deps on the other uses (can be e.g. ScopeNode mid-parse) so that
         // when the other uses go away we can retry.
-        for( Node use : _outputs )
-            if( use != that )
-                use.addDep(that);
+        for( Node use : mem._outputs )
+            if( use != this )
+                use.addDep(this);
         return false;
     }
 
