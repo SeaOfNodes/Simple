@@ -14,7 +14,7 @@ public class Chapter13Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -34,7 +34,7 @@ while( arg ) {
 }
 return head.next.i;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
     }
 
@@ -56,7 +56,7 @@ LLI? next = head.next;
 if( next==null ) return 1;
 return next.i;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
         assertEquals(2L, Evaluator.evaluate(stop,  3));
     }
@@ -75,7 +75,7 @@ i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 17;", stop.toString());
     }
 
@@ -87,7 +87,7 @@ struct N { N next; int i; }
 N n = new N;
 return n.next;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return null;", stop.toString());
     }
 
@@ -100,7 +100,7 @@ N n = new N;
 n.next = new N;
 return n.next;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return N;", stop.toString());
     }
 
@@ -113,7 +113,7 @@ N n = new N;
 n.next = null;
 return n.next;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot store null into field *N next",e.getMessage()); }
     }
 
@@ -126,7 +126,7 @@ N n = new N;
 n.i = 3.14;
 return n.i;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
     }
 
@@ -136,7 +136,7 @@ return n.i;
 """
 struct S{};
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
@@ -148,7 +148,7 @@ struct S{};
 struct S1 { S2 s; }
 return new S2;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
@@ -160,7 +160,7 @@ struct S1 { S2? s; }
 struct S2 { int x; }
 return new S1.s=new S2;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return S2;", stop.toString());
     }
 }

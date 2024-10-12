@@ -18,7 +18,7 @@ public class Chapter15Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -26,7 +26,7 @@ return 3.14;
     @Test
     public void testCyclic() {
         Parser parser = new Parser(
-""" 
+"""
 struct C {
     C? l;
 }
@@ -34,7 +34,7 @@ C c = new C;
 c.l = c;
 return c;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return C;", stop.toString());
         assertEquals("Obj<C>@1{l=obj@1}", Evaluator.evaluate(stop,  0).toString());
     }
@@ -53,7 +53,7 @@ while (i < old#) {
 output[i] = 1;
 return output;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return u8[];", stop.toString());
         assertEquals("\u0001", Evaluator.evaluate(stop,  0).toString());
     }
@@ -65,7 +65,7 @@ return output;
 int[] is = new int[2];
 return is[1];
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
@@ -78,7 +78,7 @@ int[] is = new int[2];
 int[] is2 = new int[2];
 return is[1];
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
@@ -92,7 +92,7 @@ a[0] = 1;
 a[1] = 2;
 return a[0];
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
@@ -105,7 +105,7 @@ struct A { int i; }
 A?[] a = new A?[2];
 return a;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return *A?[];", stop.toString());
         assertEquals("Obj<*A?[]>{#=2,[]=[null,null]}", Evaluator.evaluate(stop, 0).toString());
     }
@@ -134,7 +134,7 @@ else {
 }
 return rez;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region118,1.2,Phi(Region115,2.3,.y));", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
     }
@@ -160,7 +160,7 @@ if( iss[arg] )
         rez = iss[arg][2].y;
 return rez;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region122,Phi(Region118,.y,1.2),1.2);", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
     }
@@ -176,7 +176,7 @@ root._kids = new Tree?[2];
 root._kids[0] = new Tree;
 return root;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Tree;", stop.toString());
         assertEquals("Obj<Tree>{_kids=Obj<*Tree?[]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
     }
@@ -191,7 +191,7 @@ struct S {
 }
 return 0;
 """);
-        StopNode stop = parser.parse(false);
+        StopNode stop = parser.parse();
         assertEquals("return 0;", stop.toString());
     }
 
@@ -214,7 +214,7 @@ while( i < ary# - 1 ) {
 }
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return (.[]+(.[]*1000));", stop.toString());
         assertEquals(1006L, Evaluator.evaluate(stop,  4));
     }
@@ -257,7 +257,7 @@ while( j < nprimes ) {
 
 return rez;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return int[];", stop.toString());
         Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
         assertEquals("int[] {\n  # :int;\n  [] :int;\n}",obj.struct().toString());
@@ -279,7 +279,7 @@ s2.f = 2.0;
 if (arg) s1 = new S;
 return s1.i + s1.f;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return ((flt).i+.f);", stop.toString());
         assertEquals(0.0, Evaluator.evaluate(stop,  0));
     }
@@ -291,7 +291,7 @@ return s1.i + s1.f;
 """
 return new flt;
 """);
-        try { parser.parse(false).iterate(false); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot allocate a flt",e.getMessage()); }
     }
 
@@ -301,7 +301,7 @@ return new flt;
 """
 int is = new int[2];
 """);
-        try { parser.parse(false).iterate(false); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Type *int[] is not of declared type int",e.getMessage()); }
     }
 
@@ -312,7 +312,7 @@ int is = new int[2];
 int[] is = new int[3.14];
 return is[1];
 """);
-        try { parser.parse(false).iterate(false); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot allocate an array with length 3.14",e.getMessage()); }
     }
 
@@ -323,7 +323,7 @@ return is[1];
 int[] is = new int[arg];
 return is[1];
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  4));
         try { Evaluator.evaluate(stop,0); }

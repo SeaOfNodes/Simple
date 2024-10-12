@@ -15,7 +15,7 @@ public class Chapter06Test {
 if( true ) return 2;
 return 1;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 2;", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
@@ -44,7 +44,7 @@ else
   a=3;
 return a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 2;", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }
@@ -64,7 +64,7 @@ if( a==2 )
 else
     b=5;
 return b;""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region37,42,5);", stop.toString());
     }
 
@@ -83,7 +83,7 @@ if( arg==2 )
 else
     b=5;
 return b;""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region30,2,5);", stop.toString());
     }
 
@@ -102,7 +102,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-#showGraph;""", TypeInteger.constant(2));
+""", TypeInteger.constant(2));
         StopNode stop = parser.parse();
         assertEquals("return 5;", stop.toString());
     }
@@ -123,7 +123,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1));
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3;", stop.toString());
     }
 
@@ -143,7 +143,7 @@ else
     a=5;
 return a;
 """, TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region41,3,Phi(Region39,4,5));", stop.toString());
     }
 
@@ -163,7 +163,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1));
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3;", stop.toString());
     }
 
@@ -183,7 +183,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(3));
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 4;", stop.toString());
     }
 
@@ -199,7 +199,7 @@ if( arg ) {
 }
 return a+b;
 """);
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return Phi(Region24,4,1);", ret.toString());
     }
 
@@ -216,7 +216,7 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(1));
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return 4;", ret.toString());
     }
 
@@ -232,7 +232,7 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(0));
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return 1;", ret.toString());
     }
 
@@ -250,7 +250,7 @@ if( arg ) {
 }
 return a+b+c;
 """);
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return (Phi(Region36,Phi(Region23,2,3),0)+Phi(Region,3,1));", ret.toString());
     }
 
@@ -269,7 +269,7 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(1));
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return 6;", ret.toString());
     }
 
@@ -287,7 +287,7 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(2));
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return 5;", ret.toString());
     }
 

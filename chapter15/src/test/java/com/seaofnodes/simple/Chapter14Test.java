@@ -15,7 +15,7 @@ public class Chapter14Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -31,7 +31,7 @@ if( b < 0 ) c = -1;
 if( b > 2 ) c =  1;
 return c;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 99;", stop.toString());
         assertEquals(99L, Evaluator.evaluate(stop,  0));
     }
@@ -44,7 +44,7 @@ u8 b = 123;
 b = b + 456;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 67;", stop.toString());
         assertEquals(67L, Evaluator.evaluate(stop,  0));
     }
@@ -58,7 +58,7 @@ u8 b = 123;
 while( b ) b = b + 456;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop9,123,((Phi_b+456)&255));", stop.toString());
     }
 
@@ -71,7 +71,7 @@ b = b + 456;// Truncate
 u1 c = b;   // No more truncate needed
 return c;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
@@ -84,7 +84,7 @@ int b = 123;
 b = b+456 & 31;                 // Precedence
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3;", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop,  0));
     }
@@ -98,7 +98,7 @@ Foo f = new Foo;
 f.b = 123;
 return f.b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 1;", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
@@ -110,7 +110,7 @@ return f.b;
 i8 b = 255;                     // Chopped
 return b;                       // Sign extend
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return -1;", stop.toString());
         assertEquals(-1L, Evaluator.evaluate(stop,  0));
     }
@@ -123,7 +123,7 @@ i8 b = arg;
 b = b + 1;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop, 0));
         assertEquals(-128L, Evaluator.evaluate(stop, 127));
@@ -137,7 +137,7 @@ u16 mask = (1<<16)-1;           // AND mask
 int c = 123456789 & mask;
 return c;                       //
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 52501;", stop.toString());
         assertEquals(52501L, Evaluator.evaluate(stop,  0));
     }
@@ -148,7 +148,7 @@ return c;                       //
 """
 return (arg | 123 ^ 456) >>> 1;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return (((arg|123)^456)>>>1);", stop.toString());
         assertEquals(217L, Evaluator.evaluate(stop,  0));
     }
@@ -161,7 +161,7 @@ flt f = arg;
 arg = f & 0;
 return arg;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot '&' FltBot",e.getMessage()); }
     }
 
@@ -186,7 +186,7 @@ f32 ff32 = 3.141592653589793;  if( ff32 != 3.1415927410125732) return 5;
 
 return 0;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
