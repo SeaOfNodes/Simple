@@ -52,7 +52,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第13章](docs/chapter13/README.ja.md)：大域的コード移動とスケジューリング。
 * [第14章](docs/chapter14/README.ja.md)：数値型。浮動小数点数、狭い整数型、範囲、`f32` への丸め。
 * [第15章](docs/chapter15/README.ja.md)：静的な長さを持つ一次元配列型。配列のロードとストア。
-* 第16章：コンストラクタ。
+* [第16章](docs/chapter16/README.ja.md)：コンストラクタ。
 * 第17a章：束縛の可変性、参照の権限、深い読み取り専用ビュー。
 * 第17b章：糖衣構文。`var`、`val`、`x+=y`、`for(init; test; next) body`。
 * 第18章：関数と呼び出し。

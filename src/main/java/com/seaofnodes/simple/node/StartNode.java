@@ -5,16 +5,14 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.HashSet;
+import static com.seaofnodes.simple.Utils.TODO;
 
 /** Start supplies control, whole memory, and the argument, in that order. */
 public class StartNode extends CFGNode implements MultiNode {
 
-    private final TypeTuple _args;
+    final Type _arg;
 
-    public StartNode(Type[] args) {
-        super();
-        _type = _args = TypeTuple.make(args);
-    }
+    public StartNode(Type arg) { super(); _arg = arg; _type = compute(); }
 
     @Override public String label() { return "Start"; }
 
@@ -26,11 +24,11 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public boolean blockHead() { return true; }
     @Override public CFGNode cfg0() { return this; }
 
-    @Override
-    public TypeTuple compute() { return _args; }
+    @Override public TypeTuple compute() {
+        return TypeTuple.make(Type.CONTROL,TypeMem.BOT,_arg);
+    }
 
-    @Override
-    public Node idealize() { return null; }
+    @Override public Node idealize() { return null; }
 
     // No immediate dominator, and idepth==0
     @Override public int idepth() { return 0; }

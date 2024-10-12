@@ -1,10 +1,7 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StopNode;
-import com.seaofnodes.simple.node.LoadNode;
-import com.seaofnodes.simple.node.StoreNode;
 import com.seaofnodes.simple.evaluator.Evaluator;
+import com.seaofnodes.simple.node.*;
 import java.util.BitSet;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -49,9 +46,7 @@ public class Chapter10Test {
     private static final String NULLABLE_POINT_SOURCE = """
         struct Point { int x; };
         Point?[] points = new Point?[2];
-        Point point = new Point;
-        point.x = 42;
-        points[arg] = point;
+        points[arg] = new Point { x = 42; };
         Point? p = points[1];
         """;
 
@@ -121,10 +116,10 @@ return p-r;
 struct Bar {
     int a;
     int b;
-}
+};
 struct Foo {
     int x;
-}
+};
 Foo? foo = null;
 Bar bar = new Bar;
 bar.a = 1;
@@ -138,7 +133,7 @@ return bar.a;
     @Test
     public void testExample() {
         Parser parser = new Parser("""
-struct Vector2D { int x; int y; }
+struct Vector2D { int x; int y; };
 Vector2D v = new Vector2D;
 v.x = 1;
 if (arg)
@@ -156,7 +151,7 @@ return v;
         Parser parser = new Parser("""
 struct s0 {
     int v0;
-}
+};
 s0? v1=null;
 int v3=v1.zAicm;
 """);
@@ -167,7 +162,7 @@ int v3=v1.zAicm;
     @Test
     public void testBug2() {
         Parser parser = new Parser("""
-struct s0 { int v0; }
+struct s0 { int v0; };
 arg=0+new s0.0;
 """);
         try { parser.parse(); fail(); }
@@ -177,7 +172,7 @@ arg=0+new s0.0;
     @Test
     public void testLoop() {
         Parser parser = new Parser("""
-struct Bar { int a; }
+struct Bar { int a; };
 Bar bar = new Bar;
 while (arg) {
     bar.a = bar.a + 2;
@@ -186,13 +181,13 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop15,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop17,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
     public void testIf() {
         Parser parser = new Parser("""
-struct Bar { int a; }
+struct Bar { int a; };
 Bar bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
@@ -205,7 +200,7 @@ return bar.a;
     @Test
     public void testIf2() {
         Parser parser = new Parser("""
-struct Bar { int a; }
+struct Bar { int a; };
 Bar? bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
@@ -218,7 +213,7 @@ return bar.a;
     @Test
     public void testIf3() {
         Parser parser = new Parser("""
-struct Bar { int a; }
+struct Bar { int a; };
 Bar bar = null;
 if (arg) bar = null;
 bar.a = 1;
@@ -231,21 +226,21 @@ return bar.a;
     @Test
     public void testIfOrNull() {
         Parser parser = new Parser("""
-struct Bar { int a; }
+struct Bar { int a; };
 Bar? bar = new Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region36,(*void)Phi(Region22,null,Bar),null);", stop.toString());
+        assertEquals("return Phi(Region38,(*void)Phi(Region24,null,Bar),null);", stop.toString());
     }
 
     @Test
     public void testIfOrNull2() {
         Parser parser = new Parser(
 """
-struct Bar { int a; }
+struct Bar { int a; };
 Bar? bar = new Bar;
 if (arg) bar = null;
 int rez = 3;
@@ -254,13 +249,13 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region42,4,3);", stop.toString());
+        assertEquals("return Phi(Region44,4,3);", stop.toString());
     }
 
     @Test
     public void testWhileWithNullInside() {
         Parser parser = new Parser("""
-struct s0 {int v0;}
+struct s0 {int v0;};
 s0? v0 = new s0;
 int ret = 0;
 while(arg) {
@@ -280,7 +275,7 @@ return ret;
         Parser parser = new Parser("""
 struct s0 {
     int v0;
-}
+};
 s0? v1=new s0;
 s0? v1;
 v1=new s0;
@@ -297,7 +292,7 @@ v1=new s0;
 struct Iter {
     int x;
     int len;
-}
+};
 Iter i = new Iter;
 i.len = arg;
 int sum=0;
@@ -308,16 +303,14 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop19,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+        assertEquals("return Phi(Loop22,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
-
-
 
 
     @Test
     public void test1() {
         Parser parser = new Parser("""
-struct s0 {int v0;}
+struct s0 {int v0;};
 s0 ret = new s0;
 while(arg) {
     s0 v0 = new s0;
@@ -329,13 +322,13 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop15,s0,Phi(Region42,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop17,s0,Phi(Region44,s0,Phi_ret));", stop.toString());
     }
 
     @Test
     public void test2() {
         Parser parser = new Parser("""
-struct s0 {int v0;}
+struct s0 {int v0;};
 s0 ret = new s0;
 s0 v0 = new s0;
 while(arg) {
@@ -347,14 +340,14 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop21,s0,Phi(Region43,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop23,s0,Phi(Region45,s0,Phi_ret));", stop.toString());
     }
 
 
     @Test
     public void test3() {
         Parser parser = new Parser("""
-struct s0 {int v0;}
+struct s0 {int v0;};
 s0 ret = new s0;
 while(arg < 10) {
     s0 v0 = new s0;
@@ -364,21 +357,19 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop15,s0,Phi(Region39,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop17,s0,Phi(Region41,s0,Phi_ret));", stop.toString());
     }
 
     @Test
     public void testBug3() {
         Parser parser = new Parser("""
-struct s0 {
-    int f0;
-}
-if(0>=0) return new s0;
+struct s0 { int f0; };
 return new s0;
 int v0=null.f0;
 """);
-        try { parser.parse(); fail(); }
-        catch( Exception e ) { assertEquals("Accessing unknown field 'f0' from 'null'", e.getMessage()); }
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return s0;", stop.toString());
+        assertEquals("Obj<s0>{f0=0}", Evaluator.evaluate(stop, 0).toString());
     }
 
     @Test
@@ -402,7 +393,7 @@ if(0) {
         Parser parser = new Parser("""
 struct s0 {
     int f0;
-}
+};
 if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
@@ -429,7 +420,7 @@ return 0;
     @Test
     public void testBug7() {
         Parser parser = new Parser("""
-struct s0 {  int f0; }
+struct s0 {  int f0; };
 s0 v0 = new s0;
 while(v0.f0) {}
 s0 v1 = v0;
@@ -484,7 +475,7 @@ return 0;
 
     @Test public void testReadBeforeStores() {
         var stop = new Parser("""
-            struct S { int x; int y; }
+            struct S { int x; int y; };
             S a = new S; S b = new S;
             a.x = 11; b.x = 22;
             S p = a; if (arg) p = b;
@@ -498,7 +489,7 @@ return 0;
     }
 
     static final String NESTED_MEMORY = """
-            struct S { int x; int y; int z; }
+            struct S { int x; int y; int z; };
             S s = new S;
             s.x = 5; s.y = 7; s.z = 11;
             while (arg > 0) {
@@ -529,7 +520,7 @@ return 0;
 
     @Test public void testMemoryAtEarlyReturns() {
         var stop = new Parser("""
-            struct S { int x; int y; int z; }
+            struct S { int x; int y; int z; };
             S s = new S;
             s.x = 3; s.y = 5; s.z = 7;
             if (arg) { s.x = 11; s.z = 13; return s; }
@@ -545,7 +536,7 @@ return 0;
 
     @Test public void testKeepLoadsAtMerge() {
         StopNode stop = new Parser("""
-            struct S { int x; }
+            struct S { int x; };
             S a = new S; S b = new S;
             a.x = arg; b.x = arg+1;
             S p = a; S q = b;
@@ -563,7 +554,7 @@ return 0;
 
     @Test public void testKeepBranchStores() {
         StopNode stop = new Parser("""
-            struct S { int x; }
+            struct S { int x; };
             S s = new S;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
@@ -576,7 +567,7 @@ return 0;
 
     @Test public void testKeepReadsBeforeWrites() {
         StopNode stop = new Parser("""
-            struct S { int x; int y; }
+            struct S { int x; int y; };
             S a = new S; S b = new S;
             a.x=arg; b.x=arg+1;
             S p=a; S q=b;
