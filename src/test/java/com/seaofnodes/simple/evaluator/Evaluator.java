@@ -100,7 +100,7 @@ public class Evaluator {
         }
         @Override
         public String toString() {
-            if (struct._name.equals("u8[]")) {
+            if (struct._name.equals("[u8]")) {
                 var sb = new StringBuilder();
                 for (int i=struct._fields.length-1; i<fields.length; i++) {
                     var v = fields[i];
@@ -192,28 +192,20 @@ public class Evaluator {
             if( n < 0 )
                 throw new NegativeArraySizeException(""+n);
             body = new Object[(int)n+1]; // Array body
-            var c = type._fields[type._fields.length-1]._type;
-            if (c instanceof TypeInteger) {
-                for (int i=0; i<n; i++) body[i+type._fields.length-1] = 0L;
-            } else if (c instanceof TypeFloat) {
-                for (int i = 0; i < n; i++) body[i+type._fields.length-1] = 0D;
+            var elem = type._fields[1]._type;
+            if (elem instanceof TypeInteger) {
+                for (int i=0; i<n; i++) body[i+1] = 0L;
+            } else if (elem instanceof TypeFloat) {
+                for (int i = 0; i < n; i++) body[i+1] = 0D;
             } else {
-                assert c instanceof TypeMemPtr;
+                assert elem instanceof TypeMemPtr;
             }
-            num = type._fields.length-1;
+            // Length value
+            body[0] = vall(alloc.in(2+2));
         } else {
-            body = new Object[type._fields.length];
-            num = type._fields.length;
-        }
-        for (int i=0; i<num; i++) {
-            var c = type._fields[i]._type;
-            if (c instanceof TypeInteger) {
-                body[i] = 0L;
-            } else if (c instanceof TypeFloat) {
-                body[i] = 0D;
-            } else {
-                assert c instanceof TypeMemPtr;
-            }
+            body = new Object[num = type._fields.length];
+            for (int i=0; i<num; i++)
+                body[i] = val(alloc.in(2+i+num));
         }
         Object[] mems = new Object[type._fields.length+2];
         // mems[0] is control
@@ -315,6 +307,7 @@ public class Evaluator {
             case NewNode      alloc -> alloc(alloc);
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
+            case ScopeMinNode mem   -> null;
             default                 -> throw new AssertionError("Unexpected node " + node);
         };
     }
@@ -325,8 +318,8 @@ public class Evaluator {
     public Object evaluate(long parameter, int loops) {
         if (start == null) return Status.TIMEOUT;
         var s = new Object[start.compute()._types.length];
-        s[1] = parameter;
-        for(int i=2;i<s.length;i++) s[i] = MEMORY;
+        s[1] = MEMORY;
+        s[2] = parameter;
         values[start._nid] = s;
         int i=0;
         Scheduler.Block block = this.startBlock;

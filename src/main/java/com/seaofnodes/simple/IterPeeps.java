@@ -50,7 +50,7 @@ public abstract class IterPeeps {
         return (N)WORK.push(n);
     }
 
-    public static void addAll( ArrayList<Node> ary ) {
+    public static void addAll( Ary<Node> ary ) {
         WORK.addAll(ary);
     }
 
@@ -170,7 +170,7 @@ public abstract class IterPeeps {
             return x;
         }
 
-        public void addAll( ArrayList<E> ary ) {
+        public void addAll( Ary<E> ary ) {
             for( E n : ary )
                 push(n);
         }
