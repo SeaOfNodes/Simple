@@ -1,4 +1,4 @@
-# Grammar for Chapter 14
+# Grammar for Chapter 15
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -20,7 +20,7 @@ statement
     | metaStatement
     ;
 
-type
+PRIMTYPE
     : 'int'
     | 'i8'
     | 'i16'
@@ -34,9 +34,10 @@ type
     | 'f64'
     | 'bool'
     ;
-    
+
 field
-    : type IDENTIFIER ';'
+    : PRIMTYPE IDENTIFIER ';'
+    | structName IDENTIFIER ('?')? ';'
     ;
 
 fields
@@ -81,7 +82,7 @@ structName
     ;
 
 declStatement
-    : type IDENTIFIER '=' expression ';'
+    : PRIMTYPE IDENTIFIER '=' expression ';'
     | structName IDENTIFIER ('?')? '=' expression ';'
     ;
 
@@ -110,7 +111,7 @@ additiveExpression
     ;
 
 multiplicativeExpression
-    : unaryExpression (('*' | '|') unaryExpression)*
+    : unaryExpression (('*' | '/') unaryExpression)*
     ;
 
 unaryExpression
@@ -119,17 +120,13 @@ unaryExpression
     | primaryExpression
     ;
 
-arrayExpression
-    : XXX '[' expression ']'
-    | primaryExpression
-    ;
-
 newExpression
-    : 'new' IDENTIFIER
+    : 'new' IDENTIFIER ('[' expression ']')?
     ;
 
 fieldExpression
     : primaryExpresson '.' IDENTIFIER
+    | primaryExpresson '[' expression ']'
     ;
 
 primaryExpression
