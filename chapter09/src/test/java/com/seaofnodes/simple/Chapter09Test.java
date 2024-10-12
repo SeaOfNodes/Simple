@@ -25,7 +25,7 @@ while(v0) {
 }
 return 0;
                 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
     }
 
     @Test
@@ -41,7 +41,7 @@ else {
 }
 return x;
                 """);
-        StopNode stop = parser.parse(true);
+        StopNode stop = parser.parse();
         assertEquals("Stop[ return (arg*2); return (Mul+1); ]", stop.toString());
         Assert.assertEquals(2, GraphEvaluator.evaluate(stop, 1));
         Assert.assertEquals(23, GraphEvaluator.evaluate(stop, 11));
@@ -53,7 +53,7 @@ return x;
                 """
 return arg*arg-arg*arg;
                 """);
-        StopNode stop = parser.parse(true);
+        StopNode stop = parser.parse();
         assertEquals("return 0;", stop.toString());
         Assert.assertEquals(0, GraphEvaluator.evaluate(stop, 1));
     }
@@ -68,7 +68,7 @@ while (arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse(true).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop7,arg,(Phi_arg+2));", stop.toString());
         Assert.assertEquals(11, GraphEvaluator.evaluate(stop, 1));
     }
@@ -85,7 +85,7 @@ while (arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse(true).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop8,arg,(Phi_arg+4));", stop.toString());
         Assert.assertEquals(13, GraphEvaluator.evaluate(stop, 1));
     }
@@ -114,7 +114,7 @@ while (arg) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop14,arg,(Phi_arg+1));", stop.toString());
     }
 
@@ -132,14 +132,14 @@ while(v1+arg) {
     v1=v2;
 }
                 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
     @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -151,7 +151,7 @@ if(0) while(0) {
     while(0) {}
 }
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -159,14 +159,14 @@ if(0) while(0) {
     @Test
     public void testPrecedence() {
         Parser parser = new Parser("return 3-1+2;");
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 4;", stop.toString());
     }
 
     @Test
     public void testSwap2() {
         Parser parser = new Parser("return 1+(1+1);");
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3;", stop.toString());
     }
 
@@ -184,7 +184,7 @@ while(arg) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop9,0,(-(Phi_a+3)));", stop.toString());
     }
 
@@ -198,7 +198,7 @@ arg=0;
 int v0=0!=0<-0;
 return -0+0+0;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -206,14 +206,14 @@ return -0+0+0;
     @Test
     public void testFuzz2() {
         Parser parser = new Parser("return 0+-0;");
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }
 
     @Test
     public void testFuzz3() {
         Parser parser = new Parser("int v0=0; while(0==69) while(v0) return 0;");
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -225,7 +225,7 @@ while(1) {
     if(1<0) while(arg==-0) arg=arg-arg;
 }
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -247,7 +247,7 @@ while(1) {
 }
 return 0!=0;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -258,7 +258,7 @@ int v0=0;
 while(0==1) while(v0)
         v0=1+v0;
                                    """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
@@ -274,14 +274,14 @@ while(1)
         v1=1;
 return v1+v0;
                                    """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ ]", stop.toString());
     }
 
     @Test
     public void testFuzz8() {
-        Parser parser = new Parser("while(arg) arg = arg - 1; #showGraph; return arg;");
-        StopNode stop = parser.parse().iterate(true);
+        Parser parser = new Parser("while(arg) arg = arg - 1;  return arg;");
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop6,arg,(Phi_arg-1));", stop.toString());
     }
 

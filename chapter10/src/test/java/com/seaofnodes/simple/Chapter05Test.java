@@ -17,11 +17,11 @@ if (arg == 1)
     a = arg+2;
 else {
     a = arg-3;
-    #showGraph;
+
 }
-#showGraph;
+
 return a;""");
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return Phi(Region18,(arg+2),(arg-3));", ret.toString());
     }
 
@@ -36,7 +36,7 @@ if (arg == 1) {
     c = 4;
 }
 return c;""", TypeInteger.BOT);
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return Phi(Region16,4,3);", ret.toString());
     }
 
@@ -48,7 +48,7 @@ if( arg==1 )
     return 3;
 else
     return 4;
-#showGraph;""", TypeInteger.BOT);
+""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("Stop[ return 3; return 4; ]", stop.toString());
     }
@@ -64,7 +64,7 @@ if( arg==1 )
 else
     b=a+1;
 return a+b;""");
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return ((arg*2)+Phi(Region21,2,3));", ret.toString());
     }
 
@@ -79,7 +79,7 @@ if( arg==1 )
 else
     a=b+1;
 return a+b;""");
-        StopNode ret = parser.parse().iterate(true);
+        StopNode ret = parser.parse().iterate();
         assertEquals("return ((Phi(Region32,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
     }
 
@@ -98,7 +98,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-#showGraph;""", TypeInteger.BOT);
+""", TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region36,Phi(Region22,2,3),Phi(Region34,4,5));", stop.toString());
     }
@@ -114,7 +114,7 @@ if( arg )
 if( arg==0 )
     b=2;
 return arg+a+b;
-#showGraph;""", TypeInteger.BOT);
+""", TypeInteger.BOT);
         StopNode stop = parser.parse();
         assertEquals("return ((arg+Phi(Region13,1,0))+Phi(Region28,2,0));", stop.toString());
     }
