@@ -43,7 +43,7 @@ while( 1 ) {
 return guess;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop9,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0));", stop.toString());
+        assertEquals("return Phi(Loop11,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0));", stop.toString());
         assertEquals(3.0, Evaluator.evaluate(stop,  9));
         assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
     }

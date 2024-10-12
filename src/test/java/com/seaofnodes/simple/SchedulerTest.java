@@ -41,7 +41,7 @@ return i;
         Parser parser = new Parser("""
 struct S {
     int f;
-}
+};
 S v0=new S;
 if(arg) v0.f=1;
 return v0;
@@ -57,7 +57,7 @@ return v0;
         Parser parser = new Parser("""
 struct S {
     int f;
-}
+};
 S v=new S;
 v.f = 2;
 int i=new S.f;
