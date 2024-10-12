@@ -59,7 +59,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 13](docs/chapter13/README.md): Global Code Motion - Scheduling.
 * [Chapter 14](docs/chapter14/README.md): Numeric types: floats, narrow integers, ranges and rounding to `f32`.
 * [Chapter 15](docs/chapter15/README.md): One dimensional static length array type, with array loads and stores.
-* Chapter 16: Constructors
+* [Chapter 16](docs/chapter16/README.md): Constructors
 * Chapter 17a: Binding mutability, reference permissions, and deep read-only views.
 * Chapter 17b: Syntax sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
 * Chapter 18: Functions and calls.
