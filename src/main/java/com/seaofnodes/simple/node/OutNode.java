@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import java.util.ArrayList;
+import com.seaofnodes.simple.Ary;
 
 public interface OutNode {
-    ArrayList<Node> outs();
+    Ary<Node> outs();
 }
