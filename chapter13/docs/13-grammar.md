@@ -73,7 +73,7 @@ structName
 
 declStatement
     : PRIMTYPE IDENTIFIER '=' expression ';'
-    | structName IDENTIFIER ('?')? '=' expression ';'
+    | structName ('?')? IDENTIFIER '=' expression ';'
     ;
 
 returnStatement

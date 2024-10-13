@@ -1,23 +1,50 @@
-# Grammar for Chapter 15
+# Grammar for Chapter 14
 
 ```antlrv4
 grammar SimpleLanguage;
 
-program
-    : statement+ EOF
-    ;
+program : block EOF ;
+
+block : statement+ ;
+
 
 statement
-    : returnStatement
-    | structDeclaration
-    | declStatement
-    | blockStatment
-    | expressionStatement
+    : '{' block '}'
+    | returnStatement
     | ifStatement
     | whileStatement
     | breakStatement
-    | continueStatment
+    | continueStatement
     | metaStatement
+    | structDeclaration
+    | expressionStatement
+    ;
+
+
+returnStatement : 'return' expression ';' ;
+
+ifStatement : 'if' '(' expression ')' statement ('else' statement)? ;
+
+whileStatement : 'while' '(' expression ')' statement ;
+
+breakStatement : 'break' ';' ;
+
+continueStatement : 'continue' ';' ;
+
+metaStatement : '#showGraph' ';' ;
+
+structDeclaration : 'struct' IDENTIFIER '{' fields '}'  ;
+
+fields : field+ ;
+
+field : type IDENTIFIER ';'  ;
+
+
+expressionStatement
+    : type IDENTIFIER ';'
+    | type IDENTIFIER '=' expression ';'
+    |      IDENTIFIER '=' expression ';'
+    |                     expression
     ;
 
 PRIMTYPE
@@ -35,64 +62,18 @@ PRIMTYPE
     | 'bool'
     ;
 
-field
-    : PRIMTYPE IDENTIFIER ';'
-    | structName IDENTIFIER ('?')? ';'
+type
+    : PRIMTYPE
+    | typeName '?'?
+    | typeName nestedArray+
     ;
 
-fields
-    : field+
-    ;
+nestedArray : '?'?  '[]'* ;
 
-structDeclaration
-    : 'struct' IDENTIFIER '{' fields '}'
-    ;
+typeName : IDENTIFIER ;
 
-whileStatement
-    : 'while' '(' expression ')' statement
-    ;
 
-breakStatement
-    : 'break' ';'
-    ;
-
-continueStatement
-    : 'continue' ';'
-    ;
-
-ifStatement
-    : 'if' '(' expression ')' statement ('else' statement)?
-    ;
-
-metaStatement
-    : '#showGraph' ';'
-    ;
-
-expressionStatement
-    : IDENTIFIER '=' expression ';'
-    | fieldExpression '=' expression ';'
-    ;
-
-blockStatement
-    : '{' statement+ '}'
-    ;
-
-structName
-    : IDENTIFIER
-    ;
-
-declStatement
-    : PRIMTYPE IDENTIFIER '=' expression ';'
-    | structName IDENTIFIER ('?')? '=' expression ';'
-    ;
-
-returnStatement
-    : 'return' expression ';'
-    ;
-
-expression
-    : bitWiseExpression
-    ;
+expression : bitWiseExpression ;
 
 bitWiseExpression
     : comparisonExpression ( '&' | '|' | '^' ) comparisonExpression)*
@@ -117,38 +98,34 @@ multiplicativeExpression
 unaryExpression
     : ('-') unaryExpression
     | '!' unaryExpression
-    | primaryExpression
-    ;
-
-newExpression
-    : 'new' IDENTIFIER ('[' expression ']')?
-    ;
-
-fieldExpression
-    : primaryExpresson '.' IDENTIFIER
-    | primaryExpresson '[' expression ']'
+    | primaryExpression postFix*
     ;
 
 primaryExpression
-    : IDENTIFIER
-    | INTEGER_LITERAL
+    : INTEGER_LITERAL
+    | '(' expression ')'
     | 'true'
     | 'false'
     | 'null'
     | newExpression
-    | '(' expression ')'
-    | fieldExpression
+    | IDENTIFIER
+    ;
+
+newExpression : 'new' IDENTIFIER [ '[' expression ']' ] ;
+
+postFix
+    : '.' IDENTIFIER     [ '=' expression ]
+    | '[' expression ']' [ '=' expression ]
+    | '#'
     ;
 
 INTEGER_LITERAL
-    : [1-9][0-9]*
+    : [1-9]DIGIT*
     | [0]
     ;
 
-IDENTIFIER
-    : NON_DIGIT (NON_DIGIT | DIGIT)*
-    ;
+IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)*  ;
 
 NON_DIGIT: [a-zA-Z_];
-DEC_DIGIT: [0-9];
+DIGIT: [0-9];
 ```
