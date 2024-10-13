@@ -294,7 +294,7 @@ public abstract class Node implements OutNode {
             return this;        // Peephole optimizations turned off
         }
         Node n = peepholeOpt();
-        return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
+        return n==null ? this : deadCodeElim(n.peephole().keep()).unkeep(); // Cannot return null for no-progress
     }
 
     /**

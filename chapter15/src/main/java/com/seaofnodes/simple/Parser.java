@@ -785,6 +785,7 @@ public class Parser {
         TypeStruct base = tmp._obj;
         int fidx = base.find(name);
         if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        expr.keep();
 
         // Get field type and layout offset from base type and field index fidx
         Field f = base._fields[fidx];  // Field from field index
@@ -792,7 +793,8 @@ public class Parser {
         if( name.equals("[]") ) {      // If field is an array body
             // Array index math
             Node idx = require(parseExpression(),"]");
-            off = new AddNode(con(base.aryBase()),new ShlNode(idx,con(base.aryScale())).peephole()).peephole();
+            Node shl = new ShlNode(idx,con(base.aryScale())).peephole();
+            off = new AddNode(con(base.aryBase()),shl).peephole();
         } else {                       // Else normal struct field
             // Hardwired field offset
             off = con(base.offset(fidx));
@@ -802,20 +804,21 @@ public class Parser {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
             if( peek('=') ) _lexer._position--;
             else {
+                off.keep();
                 Node val = parseExpression();
                 // Auto-truncate when storing to narrow fields
-                val = zsMask(val,f._type);
-                Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
+                val = zsMask(val,f._type).keep();
+                Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr.unkeep(), off.unkeep(), val, false);
                 // Arrays include control, as a proxy for a safety range check.
                 // Structs don't need this; they only need a NPE check which is
                 // done via the type system.
                 if( base.isAry() )  st.setDef(0,ctrl());
                 memAlias(f._alias, st.peephole());
-                return val;        // "obj.a = expr" returns the expression while updating memory
+                return val.unkeep(); // "obj.a = expr" returns the expression while updating memory
             }
         }
 
-        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr, off);
+        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr.unkeep(), off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
