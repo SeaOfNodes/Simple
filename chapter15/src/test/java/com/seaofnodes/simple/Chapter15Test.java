@@ -14,13 +14,29 @@ public class Chapter15Test {
 
     @Test
     public void testJig() {
-        Parser parser = new Parser(
-"""
+        Parser parser = new Parser("""
 return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testLifetime() {
+        Parser parser = new Parser("""
+u8[] b = new u8[5];
+if (arg) {
+    b[0] = b[0] + 1;
+} else {
+    b[1] = b[1] * 2;
+}
+return b[0] + b[1];
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Region69,1,0);", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        assertEquals(1L, Evaluator.evaluate(stop,  1));
     }
 
     @Test
