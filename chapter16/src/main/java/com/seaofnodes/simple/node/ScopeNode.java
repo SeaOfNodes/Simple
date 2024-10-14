@@ -55,7 +55,8 @@ public class ScopeNode extends Node {
                 sb.append("Lazy_");
                 n = loop.in(j);
             }
-            n._print0(sb, visited).append(" ");
+            if( n==null ) sb.append("___");
+            else n._print0(sb, visited).append(" ");
         }
         sb.setLength(sb.length()-1);
         return sb.append("]");
@@ -104,13 +105,14 @@ public class ScopeNode extends Node {
     /**
      * Create a new variable name in the current scope
      */
-    public Node define( String name, Type declaredType, Node n, boolean xfinal ) {
+    public boolean define( String name, Type declaredType, Node n, boolean xfinal ) {
         HashMap<String,Integer> syms = _idxs.lastElement();
         _decls.lastElement().put(name,declaredType);
         if( syms.put(name,nIns()) != null )
-            return null;        // Double define
+            return false;                 // Double define
         if( xfinal ) _finals.set(nIns()); // track finals
-        return addDef(n);
+        addDef(n);
+        return true;
     }
 
     /**

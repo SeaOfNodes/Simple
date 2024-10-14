@@ -202,19 +202,10 @@ public class Evaluator {
             }
             num = type._fields.length-1;
         } else {
-            body = new Object[type._fields.length];
-            num = type._fields.length;
+            body = new Object[num = type._fields.length];
         }
-        for (int i=0; i<num; i++) {
-            var c = type._fields[i]._type;
-            if (c instanceof TypeInteger) {
-                body[i] = 0L;
-            } else if (c instanceof TypeFloat) {
-                body[i] = 0D;
-            } else {
-                assert c instanceof TypeMemPtr;
-            }
-        }
+        for (int i=0; i<num; i++)
+            body[i] = alloc.in(2+i+num)._type;
         Object[] mems = new Object[type._fields.length+2];
         // mems[0] is control
         mems[1] = new Obj(type,body); // the ref
