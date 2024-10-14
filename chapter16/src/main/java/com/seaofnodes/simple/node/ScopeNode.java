@@ -8,7 +8,7 @@ import java.util.*;
 
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
- * stack of scopes.
+ * stack of hashmaps.
  */
 public class ScopeNode extends Node {
 
@@ -24,15 +24,21 @@ public class ScopeNode extends Node {
      */
     public final Stack<HashMap<String, Integer>> _idxs;
 
+    /*
+     * Map input edge to Final bit
+     */
+    public final BitSet _finals;
+
     /**
      * Map variable names to declared Type
      */
-    final Stack<HashMap<String, Type>> _decls;
+    public final Stack<HashMap<String, Type>> _decls;
 
     // A new ScopeNode
     public ScopeNode() {
         _idxs = new Stack<>();
         _decls= new Stack<>();
+        _finals = new BitSet();
         _type = Type.BOTTOM;
     }
 
@@ -89,16 +95,21 @@ public class ScopeNode extends Node {
     @Override public Node idealize() { return null; }
 
     public void push() { _idxs.push(new HashMap<>());  _decls.push(new HashMap<>()); }
-    public void pop() { popN(_idxs.pop().size()); _decls.pop(); }
+    public void pop() {
+        popN(_idxs.pop().size());
+        _finals.clear(nIns());
+        _decls.pop();
+    }
 
     /**
      * Create a new variable name in the current scope
      */
-    public Node define( String name, Type declaredType, Node n ) {
+    public Node define( String name, Type declaredType, Node n, boolean xfinal ) {
         HashMap<String,Integer> syms = _idxs.lastElement();
         _decls.lastElement().put(name,declaredType);
         if( syms.put(name,nIns()) != null )
             return null;        // Double define
+        if( xfinal ) _finals.set(nIns()); // track finals
         return addDef(n);
     }
 
@@ -154,6 +165,15 @@ public class ScopeNode extends Node {
             if( t != null ) return t;
         }
         return null;
+    }
+
+    // Return declared type for a variable
+    public boolean lookupFinal( String name ) {
+        for( int i=_idxs.size(); i>0; i-- ) {
+            Integer t = _idxs.get(i-1).get(name);
+            if( t != null ) return _finals.get(t);
+        }
+        throw Utils.TODO();     // Should not reach here
     }
 
     /**

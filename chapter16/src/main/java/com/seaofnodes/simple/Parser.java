@@ -147,8 +147,8 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole(), false);
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole(), false);
 
         // Parse whole program
         parseBlock();
@@ -212,12 +212,13 @@ public class Parser {
      *     type IDENTIFIER ;
      * </pre>
      */
-    private Field parseField() {
-        Type t = type();
-        if( t==null )
-            throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
-        return require(Field.make(requireId().intern(),ALIAS++,t),";");
-    }
+    //private Field parseField() {
+    //    Type t = type();
+    //    if( t==null )
+    //        throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
+    //    boolean xfinal = match("!");
+    //    return require(Field.make(requireId().intern(),t,ALIAS++,xfinal),";");
+    //}
 
     /**
      * Parse a struct declaration, and return the following statement.
@@ -232,20 +233,35 @@ public class Parser {
         Type t = TYPES.get(typeName);
         if( t!=null && !(t instanceof TypeMemPtr tmp && tmp._obj._fields==null) )
             throw errorSyntax("struct '" + typeName + "' cannot be redefined");
-        // Parse a collection of fields
-        ArrayList<Field> fields = new ArrayList<>();
+        // A Block scope parse, and inspect the scope afterwards for fields.
+        _scope.push();
         require("{");
-        while (!peek('}') && !_lexer.isEOF()) {
-            Field field = parseField();
-            if (fields.contains(field)) throw errorSyntax("Field '" + field + "' already defined in struct '" + typeName + "'");
-            fields.add(field);
-        }
+        while (!peek('}') && !_lexer.isEOF())
+            parseStatement();
         require("}");
+        // Grab the declarations and build fields
+        HashMap<String,Type> decls = _scope._decls.lastElement();
+        HashMap<String,Integer> idxs = _scope._idxs.lastElement();
+        BitSet finals = _scope._finals;
+
+        Field[] fs = new Field[decls.size()];  int i=0;
+        for( String fname : decls.keySet() ) {
+            int idx = idxs.get(fname);
+            boolean isFinal = finals.get(idx);
+            Type decl = decls.get(fname);
+            fs[i++] = Field.make(fname,decl,ALIAS++,isFinal);
+            if( isFinal ) throw Utils.TODO(); // Track write-once
+            if( _scope.in(idx)._type != decl.makeInit() ) throw Utils.TODO(); // Track non-zero init
+        }
+        // Done with scope
+        _scope.pop();
+
         // Build and install the TypeStruct
-        TypeStruct ts = TypeStruct.make(typeName, fields.toArray(new Field[fields.size()]));
+        TypeStruct ts = TypeStruct.make(typeName, fs);
         TYPES.put(typeName, TypeMemPtr.make(ts));
         START.addMemProj(ts, _scope); // Insert memory edges
-        return parseStatement();
+        require(";");
+        return null;
     }
 
     /**
@@ -429,43 +445,33 @@ public class Parser {
         return null;
     }
 
-    /**
-     * Parses an expression statement or a declaration statement where type is a struct
-     *
-     * <pre>
-     *      name;         // Error
-     * type name;         // Define name with default initial value
-     * type name = expr;  // Define name with given   initial value
-     *      name = expr;  // Reassign existing
-     *             expr   // Something else
-     * </pre>
-     * @return an expression {@link Node}, never {@code null}
+    /** Parse: name [=expr]
      */
-    private Node parseExpressionStatement() {
+    private Node parseAsgn(Type t, boolean xfinal) {
+        boolean isDecl = t!=null; // Having a type is a declaration, missing one is updating a prior name
         int old = _lexer._position;
-        Type t = type();
         String name = requireId();
         Node expr;
-        if( match(";") ) {      // Assign a default value
-            // No type and no expr is an error
+        if( match(";") || peek(',') ) {
+            // Bare "name" is not allowed
             if( t==null ) throw errorSyntax("expression");
             expr = new ConstantNode(t.makeInit()).peephole();
-        } else if( match("=") ) { // Assign "= expr;"
-            expr = require(parseExpression(), ";");
-        } else {                // Neither, so just a normal expression parse
+        } else if( !match("=") ) {     // Something else
             _lexer._position = old;
-            return require(parseExpression(),";");
-        }
+            return null;
+        } else
+            expr = parseExpression();
 
         // Defining a new variable vs updating an old one
-        if( t != null ) {
-            if( _scope.define(name,t,expr) == null )
-                throw error("Redefining name '" + name + "'");
-        } else {
+        if( !isDecl ) { // Assigning over an existing name
+            // Lookup
             if( _scope.lookup(name)==null )
                 throw error("Undefined name '" + name + "'");
+            if( _scope.lookupFinal(name) )
+                throw error("Cannot reassign final '"+name+"'");
             t = _scope.lookupDeclaredType(name);
         }
+
         // Auto-widen int to float
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
             expr = new ToFloatNode(expr).peephole();
@@ -478,7 +484,50 @@ public class Parser {
         // Type is sane
         if( !e.isa(t) )
             throw error("Type " + e.str() + " is not of declared type " + t.str());
-        return _scope.update(name,expr);
+
+
+        if( isDecl ) {
+            if( _scope.define(name,t,expr,xfinal) == null )
+                throw error("Redefining name '" + name + "'");
+        } else
+            _scope.update(name,expr);
+        return expr;
+    }
+
+    /** Parse final: [!]asgn
+     */
+    private Node parseFinal(Type t) {
+        boolean xfinal = t!=null && match("!");
+        return parseAsgn(t,xfinal);
+    }
+
+    /**
+     * Parses an expression statement or a declaration statement where type is a struct
+     *
+     * <pre>
+     * type decl [, decl]*;  // Define many names with the same type
+     * asgn;                 // Assign or load a variable
+     * expr;                 // Something else
+     * name;                 // Bare name is an error
+
+     * </pre>
+     * @return an expression {@link Node}, never {@code null}
+     */
+    private Node parseExpressionStatement() {
+        Node n;
+        Type t = type();
+        if( t != null ) {
+            // now parse final [, final]*
+            n = parseFinal(t);
+            while( match(",") )
+                n = parseFinal(t);
+
+            // Parse "asgn;" which is just "name = expr;"
+        } else if( ( n = parseAsgn(null,false)) == null ) {
+            // Something else
+            n = parseExpression();
+        }
+        return require(n,";");
     }
 
     // Parse and return a type or null.  Valid types always are followed by an
