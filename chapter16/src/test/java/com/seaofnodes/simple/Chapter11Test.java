@@ -337,7 +337,7 @@ return primeCount;
     public void testAntiDeps1() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v=new S;
 v.f = 2;
 int i=new S.f;
@@ -355,7 +355,7 @@ return i;
     public void testAntiDeps2() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v = new S;
 v.f = arg;
 S t = new S;
@@ -369,14 +369,14 @@ if (arg) {
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region40,.f,0);", stop.toString());
+        assertEquals("return Phi(Region41,.f,0);", stop.toString());
     }
 
     @Test
     public void testAntiDeps3() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v0 = new S;
 S? v1;
 if (arg) v1 = new S;
@@ -396,7 +396,7 @@ return v0;
     public void testAntiDeps4() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v = new S;
 v.f = arg;
 S t = new S;
@@ -413,7 +413,7 @@ return i;
     public void testAntiDeps5() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v = new S;
 while(1) {
     while(arg+1) { arg=arg-1; }
@@ -430,7 +430,7 @@ return v;
     public void testAntiDeps6() {
         Parser parser = new Parser(
 """
-struct s { int v; }
+struct s { int v; };
 s ptr=new s;
 while( -arg )
   ptr = new s;
@@ -445,7 +445,7 @@ while(1)
     public void testAntiDeps7() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v = new S;
 S t = new S;
 int i = v.f;
@@ -463,7 +463,7 @@ return i;
     public void testAntiDeps8() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v = new S;
 S t = new S;
 while(arg) {
@@ -476,14 +476,14 @@ while(arg) {
 return arg;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop17,arg,Phi(Region42,.f,0));", stop.toString());
+        assertEquals("return Phi(Loop18,arg,Phi(Region43,.f,0));", stop.toString());
     }
 
     @Test
     public void testAntiDeps9() {
         Parser parser = new Parser(
 """
-struct S { int f; }
+struct S { int f; };
 S v = new S;
 S t = new S;
 if (arg) {
@@ -500,8 +500,8 @@ return v;
     @Test
     public void testExample2() {
         Parser parser = new Parser(
-                """
-struct S { int f; }
+"""
+struct S { int f; };
 S v = new S;
 int i = arg;
 while (arg > 0) {

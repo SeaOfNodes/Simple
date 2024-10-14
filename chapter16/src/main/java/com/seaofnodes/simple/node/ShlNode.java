@@ -22,7 +22,9 @@ public class ShlNode extends Node {
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
+            in(2)._type instanceof TypeInteger i1 ) {
+            if( i0 == TypeInteger.ZERO )
+                return TypeInteger.ZERO;
             if( i0.isConstant() && i1.isConstant() )
                 return TypeInteger.constant(i0.value()<<i1.value());
         }

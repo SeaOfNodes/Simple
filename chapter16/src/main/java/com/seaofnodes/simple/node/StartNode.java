@@ -43,7 +43,7 @@ public class StartNode extends CFGNode implements MultiNode {
             String name = Parser.memName(f._alias);
             Node n = new ProjNode(this, f._alias, name); // No 'compute' until ScopeNode gets typed
             n._type = args[f._alias];
-            scope.define(name, tm_decl, n);
+            scope.define(name, tm_decl, n, false);
         }
         for (int i = 0; i < args.length; i++)
             if (args[i] == null)

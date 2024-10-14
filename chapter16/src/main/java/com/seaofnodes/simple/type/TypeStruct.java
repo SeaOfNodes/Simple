@@ -42,15 +42,15 @@ public class TypeStruct extends Type {
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
         assert !(body instanceof TypeMemPtr tmp && !tmp._nil);
         return make(body.str() + "[]",
-                    Field.make("#" , lenAlias,len ),
-                    Field.make("[]",bodyAlias,body));
+                    Field.make("#" ,len , lenAlias,true),
+                    Field.make("[]",body,bodyAlias,true));
     }
 
     // A pair of self-cyclic types
     private static final TypeStruct S1F = make("S1");
     private static final TypeStruct S2F = make("S2");
-    public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", -1, TypeInteger.BOT), Field.make("s2",-2,TypeMemPtr.make(S2F,false)) });
-    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", -3, TypeFloat  .BOT), Field.make("s1",-4,TypeMemPtr.make(S1F,false)) });
+    public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make(S2F,false),-2, false) });
+    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeFloat  .BOT, -3, false), Field.make("s1",TypeMemPtr.make(S1F,false),-4, false) });
 
     private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeFloat.BOT,-2);
 
