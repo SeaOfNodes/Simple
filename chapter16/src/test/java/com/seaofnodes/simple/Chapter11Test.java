@@ -369,7 +369,7 @@ if (arg) {
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region41,.f,0);", stop.toString());
+        assertEquals("return Phi(Region42,.f,0);", stop.toString());
     }
 
     @Test
@@ -476,7 +476,7 @@ while(arg) {
 return arg;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop18,arg,Phi(Region43,.f,0));", stop.toString());
+        assertEquals("return Phi(Loop19,arg,Phi(Region44,.f,0));", stop.toString());
     }
 
     @Test

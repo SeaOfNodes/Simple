@@ -5,6 +5,7 @@ import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import org.junit.Ignore;
 
+import java.awt.*;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
@@ -83,17 +84,53 @@ return y;
         assertEquals(9L, Evaluator.evaluate(stop, 1));
     }
 
+    @Test
+    public void testConstruct0() {
+        Parser parser = new Parser("""
+struct X { int x=3; };
+X z = new X;
+return z.x;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 3;", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testConstruct1() {
+        Parser parser = new Parser("""
+struct X { int !x; };
+X z = new X { x=3; };
+return z.x;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 3;", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testConstruct2() {
+        Parser parser = new Parser("""
+struct X { int x=3; };
+X z = new X { x = 4; };
+return z.x;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 4;", stop.toString());
+        assertEquals(4L, Evaluator.evaluate(stop,  0));
+    }
+
 
     @Test
     public void testStructFinal() {
         Parser parser = new Parser("""
-struct Point { int !x, !y; }
-Point p = new Point { x=3; y=4; }
+struct Point { int !x, !y; };
+Point p = new Point { x=3; y=4; };
 return p;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return P;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        assertEquals("return Point;", stop.toString());
+        assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(stop,  0).toString());
     }
 
 }

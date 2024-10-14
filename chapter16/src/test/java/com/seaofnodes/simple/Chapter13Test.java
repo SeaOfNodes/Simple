@@ -95,33 +95,33 @@ return n.next;
     public void testNullRef1() {
         Parser parser = new Parser(
 """
-struct N { N next; int i; };
-N n = new N;
-n.next = new N;
+struct M { int m; };
+struct N { M next; int i; };
+N n = new N { next = new M; };
 return n.next;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return N;", stop.toString());
+        assertEquals("return M;", stop.toString());
     }
 
     @Test
     public void testNullRef2() {
         Parser parser = new Parser(
 """
-struct N { N next; int i; };
-N n = new N;
-n.next = null;
+struct M { int m; };
+struct N { M next; int i; };
+N n = new N { next = null; }
 return n.next;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot store null into field *N next",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
     }
 
     @Test
     public void testNullRef3() {
         Parser parser = new Parser(
 """
-struct N { N next; int i; };
+struct N { N? next; int i; };
 N n = new N;
 n.i = 3.14;
 return n.i;
@@ -169,7 +169,7 @@ return new S1.s=new S2;
         Parser parser = new Parser(
 """
 struct I {int i;};
-struct P {I pi;};
+struct P { I? pi; };
 P p1 = new P;
 P p2 = new P;
 p2.pi = new I;

@@ -7,7 +7,7 @@ import java.util.*;
 
 /**
  * The Parser converts a Simple source program to the Sea of Nodes intermediate
- * representation directly in one pass. There is no intermediate Abstract
+ * representation directly in one pass.  There is no intermediate Abstract
  * Syntax Tree structure.
  * <p>
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
@@ -97,6 +97,10 @@ public class Parser {
     // have C-style '*ptr' references.
     public static HashMap<String, Type> TYPES = new HashMap<>();
 
+    // Mapping from a type name to the constructor for a Type.
+    public static HashMap<String, StructNode> INITS = new HashMap<>();
+
+
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
@@ -115,6 +119,7 @@ public class Parser {
         TYPES.put("u16" ,TypeInteger.U16);
         TYPES.put("u32" ,TypeInteger.U32);
         TYPES.put("u8"  ,TypeInteger.U8 );
+        INITS.clear();
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -205,65 +210,6 @@ public class Parser {
         // to ambiguity
         else return parseExpressionStatement();
     }
-
-    /**
-     * Parse a struct field.
-     * <pre>
-     *     type IDENTIFIER ;
-     * </pre>
-     */
-    //private Field parseField() {
-    //    Type t = type();
-    //    if( t==null )
-    //        throw errorSyntax("Requires a field type, found '"+_lexer.getAnyNextToken()+"'");
-    //    boolean xfinal = match("!");
-    //    return require(Field.make(requireId().intern(),t,ALIAS++,xfinal),";");
-    //}
-
-    /**
-     * Parse a struct declaration, and return the following statement.
-     * Only allowed in top level scope.
-     * Structs cannot be redefined.
-     *
-     * @return The statement following the struct
-     */
-    private Node parseStruct() {
-        if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
-        String typeName = requireId();
-        Type t = TYPES.get(typeName);
-        if( t!=null && !(t instanceof TypeMemPtr tmp && tmp._obj._fields==null) )
-            throw errorSyntax("struct '" + typeName + "' cannot be redefined");
-        // A Block scope parse, and inspect the scope afterwards for fields.
-        _scope.push();
-        require("{");
-        while (!peek('}') && !_lexer.isEOF())
-            parseStatement();
-        require("}");
-        // Grab the declarations and build fields
-        HashMap<String,Type> decls = _scope._decls.lastElement();
-        HashMap<String,Integer> idxs = _scope._idxs.lastElement();
-        BitSet finals = _scope._finals;
-
-        Field[] fs = new Field[decls.size()];  int i=0;
-        for( String fname : decls.keySet() ) {
-            int idx = idxs.get(fname);
-            boolean isFinal = finals.get(idx);
-            Type decl = decls.get(fname);
-            fs[i++] = Field.make(fname,decl,ALIAS++,isFinal);
-            if( isFinal ) throw Utils.TODO(); // Track write-once
-            if( _scope.in(idx)._type != decl.makeInit() ) throw Utils.TODO(); // Track non-zero init
-        }
-        // Done with scope
-        _scope.pop();
-
-        // Build and install the TypeStruct
-        TypeStruct ts = TypeStruct.make(typeName, fs);
-        TYPES.put(typeName, TypeMemPtr.make(ts));
-        START.addMemProj(ts, _scope); // Insert memory edges
-        require(";");
-        return null;
-    }
-
     /**
      * Parses a while statement
      *
@@ -452,10 +398,17 @@ public class Parser {
         int old = _lexer._position;
         String name = requireId();
         Node expr;
-        if( match(";") || peek(',') ) {
+        if( peek(';') || peek(',') ) {
             // Bare "name" is not allowed
             if( t==null ) throw errorSyntax("expression");
-            expr = new ConstantNode(t.makeInit()).peephole();
+            // Does this declaration need an initializer and not getting one?
+            Type init = xfinal || t instanceof TypeMemPtr tmp && !tmp._nil
+                // Must be initialized in the "new" constructor
+                ? Type.TOP
+                // Else takes the default
+                : t.makeInit();
+            expr = new ConstantNode(init).peephole();
+
         } else if( !match("=") ) {     // Something else
             _lexer._position = old;
             return null;
@@ -465,9 +418,13 @@ public class Parser {
         // Defining a new variable vs updating an old one
         if( !isDecl ) { // Assigning over an existing name
             // Lookup
-            if( _scope.lookup(name)==null )
+            Node def = _scope.lookup(name);
+            if( def==null )
                 throw error("Undefined name '" + name + "'");
-            if( _scope.lookupFinal(name) )
+            // TOP fields are for late-initialized fields; these have never
+            // been written to, and this must be the final write.  Other writes
+            // need to check the final bit.
+            if( def._type!=Type.TOP && _scope.lookupFinal(name) )
                 throw error("Cannot reassign final '"+name+"'");
             t = _scope.lookupDeclaredType(name);
         }
@@ -485,9 +442,8 @@ public class Parser {
         if( !e.isa(t) )
             throw error("Type " + e.str() + " is not of declared type " + t.str());
 
-
         if( isDecl ) {
-            if( _scope.define(name,t,expr,xfinal) == null )
+            if( !_scope.define(name,t,expr,xfinal) )
                 throw error("Redefining name '" + name + "'");
         } else
             _scope.update(name,expr);
@@ -529,6 +485,60 @@ public class Parser {
         }
         return require(n,";");
     }
+
+
+    /**
+     * Parse a struct declaration, and return the following statement.
+     * Only allowed in top level scope.
+     * Structs cannot be redefined.
+     *
+     * @return The statement following the struct
+     */
+    private Node parseStruct() {
+        if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
+        String typeName = requireId();
+        Type t = TYPES.get(typeName);
+        if( t!=null && !(t instanceof TypeMemPtr tmp && tmp._obj._fields==null) )
+            throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+
+        // A Block scope parse, and inspect the scope afterwards for fields.
+        _scope.push();
+        require("{");
+        while (!peek('}') && !_lexer.isEOF())
+            parseStatement();
+
+        // Grab the declarations and build fields and a Struct
+        HashMap<String,Type> decls = _scope._decls.lastElement();
+        HashMap<String,Integer> idxs = _scope._idxs.lastElement();
+        BitSet finals = _scope._finals;
+
+        StructNode s = new StructNode().keep();
+        Field[] fs = new Field[decls.size()];  int i=0;
+        for( String fname : decls.keySet() ) {
+            int idx = idxs.get(fname);
+            boolean isFinal = finals.get(idx);
+            Type decl = decls.get(fname);
+            fs[i++] = Field.make(fname,decl,ALIAS++,isFinal);
+            s.addDef(_scope.in(idx));
+        }
+        // Done with struct/block scope
+        require("}");
+        _scope.pop();
+
+        // Build and install the TypeStruct
+        TypeStruct ts = TypeStruct.make(typeName, fs);
+        TYPES.put(typeName, TypeMemPtr.make(ts));
+        require(";");
+        // Save initial constructor
+        s._ts = ts;
+        INITS.put(typeName,(StructNode)s.peephole());
+
+        // Insert memory edges
+        START.addMemProj(ts, _scope);
+
+        return null;
+    }
+
 
     // Parse and return a type or null.  Valid types always are followed by an
     // 'id' which the caller must parse.  This lets us distinguish forward ref
@@ -756,12 +766,32 @@ public class Parser {
                 return newArray(tmp._obj,len);
             }
             if( t instanceof TypeMemPtr tmp ) {
-                TypeStruct obj = tmp._obj;
-                if( obj._fields==null )
-                    throw error("Unknown struct type '" + obj._name + "'");
-                if( obj.isAry() )
-                    throw Utils.TODO(); // Missing array length
-                return newStruct(obj,con(obj.offset(obj._fields.length)));
+                StructNode s = INITS.get(tmp._obj._name);
+                if( s==null ) throw error("Unknown struct type '" + tmp._obj._name + "'");
+                Field[] fs = s._ts._fields;
+                // if the object is fully initialized, we can skip a block here.
+                // Check for constructor block:
+                boolean hasConstructor = match("{");
+                Node init=s;  int idx=0;
+                if( hasConstructor ) {
+                    init = _scope;
+                    idx = _scope.nIns();
+                    // Push a scope, and pre-assign all struct fields.
+                    _scope.push();
+                    for( int i=0; i<fs.length; i++ )
+                        _scope.define(fs[i]._fname, fs[i]._type, s.in(i), fs[i]._final);
+                    // Parse the constructor body
+                    parseBlock();
+                    require("}");
+                }
+                // Check that all fields are initialized
+                for( int i=idx; i<init.nIns(); i++ )
+                    if( init.in(i)._type == Type.TOP )
+                        throw error("'"+tmp._obj._name+"' is not fully initialized, field '" + fs[i-idx]._fname + "' needs to be set in a constructor");
+                Node ptr = newStruct(tmp._obj, init, idx );
+                if( hasConstructor )
+                    _scope.pop();
+                return ptr;
             }
             throw error("Cannot allocate a "+t.str());
         }
@@ -773,17 +803,27 @@ public class Parser {
     }
 
     /**
-     * Return a NewNode with pre-zeroed memory
+     * Return a NewNode initialized memory.
+     * @param obj is the declared type, with GLB fields
+     * @param init is a collection of initialized fields
      */
-    private Node newStruct(TypeStruct obj, Node size) {
+    private Node newStruct( TypeStruct obj, Node init, int idx ) {
         Field[] fs = obj._fields;
-        Node[] ns = new Node[2+fs.length];
-        ns[0] = ctrl();
-        ns[1] = size;
-        for( int i = 0; i < fs.length; i++ )
-            ns[i+2] = memAlias(fs[i]._alias);
+        if( fs==null )
+            throw error("Unknown struct type '" + obj._name + "'");
+        int len = fs.length;
+        Node[] ns = new Node[2+len+len];
+        ns[0] = ctrl();         // Control in slot 0
+        // Total allocated length in bytes
+        ns[1] = con(obj.offset(len));
+        // Memory aliases for every field
+        for( int i = 0; i < len; i++ )
+            ns[2    +i] = memAlias(fs[i]._alias);
+        // Initial values for every field
+        for( int i = 0; i < len; i++ )
+            ns[2+len+i] = init.in(i+idx);
         Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
-        for( int i = 0; i < fs.length; i++ )
+        for( int i = 0; i < len; i++ )
             memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
         return new ProjNode(nnn,1,obj._name).peephole();
     }
@@ -792,10 +832,11 @@ public class Parser {
         int base = ary.aryBase ();
         int scale= ary.aryScale();
         Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
-        Node ptr = newStruct(ary,size);
-        int alias = ary._fields[0]._alias; // Length alias
-        memAlias(alias,new StoreNode("#",alias,TypeInteger.BOT,memAlias(alias),ptr,con( ary.offset(0) ), len.unkeep(), true ).peephole());
-        return ptr;
+        //Node ptr = newStruct(ary,size);
+        //int alias = ary._fields[0]._alias; // Length alias
+        //memAlias(alias,new StoreNode("#",alias,TypeInteger.BOT,memAlias(alias),ptr,con( ary.offset(0) ), len.unkeep(), true ).peephole());
+        //return ptr;
+        throw Utils.TODO();
     }
 
     // We set up memory aliases by inserting special vars in the scope these

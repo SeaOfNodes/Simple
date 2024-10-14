@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.Utils;
 import java.util.BitSet;
 
 /**
@@ -11,19 +12,23 @@ import java.util.BitSet;
  */
 public class NewNode extends Node implements MultiNode {
 
-    public TypeMemPtr _ptr;
+    public final TypeMemPtr _ptr;
+    public final int _len;
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
+        _ptr = ptr;
+        _len = ptr._obj._fields.length;
         // Control in slot 0
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
         // Malloc-length in slot 1
         assert nodes[1]._type instanceof TypeInteger;
-        // Memory slices in remaining slots
-        for( int i=2; i<nodes.length; i++ )
-            assert nodes[i]._type instanceof TypeMem;
-
-        _ptr = ptr;
+        for( int i=0; i<_len; i++ ) {
+            // Memory slices for all fields.
+            assert nodes[2+     i]._type instanceof TypeMem;
+            // Value  slices for all fields.
+            assert nodes[2+_len+i]._type instanceof Type;
+        }
     }
 
     @Override public String label() {
@@ -36,14 +41,26 @@ public class NewNode extends Node implements MultiNode {
         return sb.append(_ptr._obj.str());
     }
 
+    // Find matching alias input
+    Node findAlias(int alias) {
+        for( int i=0; i<_len; i++ )
+            if( ((TypeMem)in(2+i)._type)._alias == alias )
+                return in(2+i+_len);
+        throw Utils.TODO();     // Must find
+    }
+
+
     @Override
     public TypeTuple compute() {
         Field[] fs = _ptr._obj._fields;
         Type[] ts = new Type[fs.length+2];
         ts[0] = Type.CONTROL;
         ts[1] = _ptr;
-        for( int i=0; i<fs.length; i++ )
-            ts[i+2] = TypeMem.make(fs[i]._alias,fs[i]._type.makeInit()).meet( in(i+2)._type );
+        for( int i=0; i<fs.length; i++ ) {
+            TypeMem mem = (TypeMem)in(i+2)._type;
+            Type tfld = in(2+_len+i)._type.meet(mem._t);
+            ts[i+2] = TypeMem.make(fs[i]._alias,tfld);
+        }
         return TypeTuple.make(ts);
     }
 

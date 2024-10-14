@@ -30,6 +30,9 @@ public class Field extends Type {
     public static Field make( String fname, Type type, int alias, boolean xfinal ) {
         return new Field(fname,type,alias,xfinal).intern();
     }
+    public Field makeFrom( Type type ) {
+        return new Field(_fname,type,_alias,_final).intern();
+    }
 
     public static final Field TEST = make("test",TypeInteger.ZERO,-2,false);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); }

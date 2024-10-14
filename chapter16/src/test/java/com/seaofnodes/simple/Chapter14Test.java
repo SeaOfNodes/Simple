@@ -93,7 +93,7 @@ return b;
     public void testRefLoad() {
         Parser parser = new Parser(
 """
-struct Foo { u1 b; }
+struct Foo { u1 b; };
 Foo f = new Foo;
 f.b = 123;
 return f.b;
