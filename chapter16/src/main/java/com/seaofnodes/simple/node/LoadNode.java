@@ -38,7 +38,6 @@ public class LoadNode extends MemOpNode {
         if( mem()._type instanceof TypeMem mem &&
             // No constant folding if ptr might null-check
             _declaredType != mem._t && err()==null ) {
-            assert mem._alias == _alias;
             return  _declaredType.join(mem._t);
         }
         return _declaredType;

@@ -32,7 +32,10 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override public String label() {
-        return "new_" + (_ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str());
+        return "new_"+glabel();
+    }
+    @Override public String glabel() {
+        return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str();
     }
 
     @Override
@@ -43,10 +46,7 @@ public class NewNode extends Node implements MultiNode {
 
     // Find matching alias input
     Node findAlias(int alias) {
-        for( int i=0; i<_len; i++ )
-            if( ((TypeMem)in(2+i)._type)._alias == alias )
-                return in(2+i+_len);
-        throw Utils.TODO();     // Must find
+        return in(2+_ptr._obj.findAlias(alias)+_len);
     }
 
 

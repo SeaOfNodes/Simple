@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -35,7 +34,7 @@ while( arg ) {
 return head.next.i;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
     }
 
     @Test

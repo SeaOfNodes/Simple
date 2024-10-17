@@ -4,9 +4,6 @@ import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import org.junit.Ignore;
-
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -27,9 +24,7 @@ return 3.14;
     public void testCyclic() {
         Parser parser = new Parser(
 """
-struct C {
-    C? l;
-}
+struct C { C? l; };
 C c = new C;
 c.l = c;
 return c;
@@ -54,8 +49,8 @@ output[i] = 1;
 return output;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return u8[];", stop.toString());
-        assertEquals("\u0001", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("return [u8];", stop.toString());
+        assertEquals("Obj<[u8]>{#=1,[]=[1]}", Evaluator.evaluate(stop,  0).toString());
     }
 
     @Test
@@ -101,20 +96,20 @@ return a[0];
     public void testBasic4() {
         Parser parser = new Parser(
 """
-struct A { int i; }
+struct A { int i; };
 A?[] a = new A?[2];
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return *A?[];", stop.toString());
-        assertEquals("Obj<*A?[]>{#=2,[]=[null,null]}", Evaluator.evaluate(stop, 0).toString());
+        assertEquals("return [*A?];", stop.toString());
+        assertEquals("Obj<[*A?]>{#=2,[]=[null,null]}", Evaluator.evaluate(stop, 0).toString());
     }
 
     @Test
     public void testBasic5() {
         Parser parser = new Parser(
 """
-struct S { int x; flt y; }
+struct S { int x; flt y; };
 // A new S
 S s = new S; s.x=99; s.y = 3.14;
 
@@ -135,7 +130,7 @@ else {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region118,1.2,Phi(Region115,2.3,.y));", stop.toString());
+        assertEquals("return Phi(Region117,1.2,Phi(Region114,2.3,.y));", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
     }
 
@@ -144,7 +139,7 @@ return rez;
     public void testBasic6() {
         Parser parser = new Parser(
 """
-struct S { int x; flt y; }
+struct S { int x; flt y; };
 // A new S
 S s = new S; s.x=99; s.y = 3.14;
 
@@ -170,7 +165,7 @@ return rez;
         Parser parser = new Parser(
 """
 // Can we define a forward-reference array?
-struct Tree { Tree?[] _kids; }
+struct Tree { Tree?[]? _kids; };
 Tree root = new Tree;
 root._kids = new Tree?[2];
 root._kids[0] = new Tree;
@@ -178,17 +173,14 @@ return root;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return Tree;", stop.toString());
-        assertEquals("Obj<Tree>{_kids=Obj<*Tree?[]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("Obj<Tree>{_kids=Obj<[*Tree?]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(stop,  0).toString());
     }
 
     @Test
     public void testNestedStructAddMemProj() {
         Parser parser = new Parser(
 """
-struct S {
-    int a;
-    int[] b;
-}
+struct S { int a; int[] b; };
 return 0;
 """);
         StopNode stop = parser.parse();
@@ -258,9 +250,9 @@ while( j < nprimes ) {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return int[];", stop.toString());
+        assertEquals("return [int];", stop.toString());
         Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
-        assertEquals("int[] {\n  # :int;\n  [] :int;\n}",obj.struct().toString());
+        assertEquals("[int] {  # :int;   [] :int; }",obj.struct().toString());
         long nprimes = (Long)obj.fields()[0];
         long[] primes = new long[]{2,3,5,7,11,13,17,19};
         for( int i=0; i<nprimes; i++ )
@@ -271,7 +263,7 @@ return rez;
     public void testNewNodeInit() {
         Parser parser = new Parser(
 """
-struct S {int i; flt f;}
+struct S {int i; flt f;};
 S s1 = new S;
 S s2 = new S;
 s2.i = 3;
@@ -302,7 +294,7 @@ return new flt;
 int is = new int[2];
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Type *int[] is not of declared type int",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type *[int] is not of declared type int",e.getMessage()); }
     }
 
     @Test

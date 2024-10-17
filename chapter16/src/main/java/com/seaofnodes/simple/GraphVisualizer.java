@@ -5,6 +5,8 @@ import com.seaofnodes.simple.node.*;
 
 import java.util.*;
 
+import static com.seaofnodes.simple.Utils.TODO;
+
 /**
  * Simple visualizer that outputs GraphViz dot format.
  * The dot output must be saved to a file and run manually via dot to generate the SVG output.
@@ -155,25 +157,26 @@ public class GraphVisualizer {
     private void scope( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tnode [shape=plaintext];\n");
         int level=1;
-        for( int idx = scope._idxs.size()-1; idx>=0; idx-- ) {
-            var syms = scope._idxs.get(idx);
-            String scopeName = makeScopeName(scope, level);
-            sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
-            sb.append("\t\t").append(scopeName).append(" [label=<\n");
-            sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
-            // Add the scope level
-            int scopeLevel = scope._idxs.size()-level;
-            sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(scopeLevel).append("</TD>");
-            for(String name: syms.keySet())
-                sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
-            sb.append("</TR>\n");
-            sb.append("\t\t\t</TABLE>>];\n");
-            level++;
-        }
-        // Scope clusters nest, so the graphics shows the nested scopes, so
-        // they are not closed as they are printed; so they just keep nesting.
-        // We close them all at once here.
-        sb.append( "\t}\n".repeat( level-1 ) ); // End all Scope clusters
+        //for( int idx = scope._idxs.size()-1; idx>=0; idx-- ) {
+        //    var syms = scope._idxs.get(idx);
+        //    String scopeName = makeScopeName(scope, level);
+        //    sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
+        //    sb.append("\t\t").append(scopeName).append(" [label=<\n");
+        //    sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
+        //    // Add the scope level
+        //    int scopeLevel = scope._idxs.size()-level;
+        //    sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(scopeLevel).append("</TD>");
+        //    for(String name: syms.keySet())
+        //        sb.append("<TD PORT=\"").append(makePortName(scopeName, name)).append("\">").append(name).append("</TD>");
+        //    sb.append("</TR>\n");
+        //    sb.append("\t\t\t</TABLE>>];\n");
+        //    level++;
+        //}
+        //// Scope clusters nest, so the graphics shows the nested scopes, so
+        //// they are not closed as they are printed; so they just keep nesting.
+        //// We close them all at once here.
+        //sb.append( "\t}\n".repeat( level-1 ) ); // End all Scope clusters
+        throw TODO();
     }
 
     private String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
@@ -230,27 +233,28 @@ public class GraphVisualizer {
     private void scopeEdges( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tedge [style=dashed color=cornflowerblue];\n");
         int level=1;
-        for( int i = scope._idxs.size()-1; i>=0; i-- ) {
-            var syms = scope._idxs.get(i);
-            String scopeName = makeScopeName(scope, level);
-            for( String name : syms.keySet() ) {
-                int idx = syms.get(name);
-                Node def = scope.in(idx);
-                while( def instanceof ScopeNode lazy )
-                    def = lazy.in(idx);
-                if( def==null ) continue;
-                sb.append("\t")
-                  .append(scopeName).append(":")
-                  .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
-                  .append(" -> ");
-                if( def instanceof CProjNode proj ) {
-                    String mname = proj.ctrl().uniqueName();
-                    sb.append(mname).append(":p").append(proj._idx);
-                } else sb.append(def.uniqueName());
-                sb.append(";\n");
-            }
-            level++;
-        }
+        //for( int i = scope._idxs.size()-1; i>=0; i-- ) {
+        //    var syms = scope._idxs.get(i);
+        //    String scopeName = makeScopeName(scope, level);
+        //    for( String name : syms.keySet() ) {
+        //        int idx = syms.get(name);
+        //        Node def = scope.in(idx);
+        //        while( def instanceof ScopeNode lazy )
+        //            def = lazy.in(idx);
+        //        if( def==null ) continue;
+        //        sb.append("\t")
+        //          .append(scopeName).append(":")
+        //          .append('"').append(makePortName(scopeName, name)).append('"') // wrap port name with quotes because $ctrl is not valid unquoted
+        //          .append(" -> ");
+        //        if( def instanceof CProjNode proj ) {
+        //            String mname = proj.ctrl().uniqueName();
+        //            sb.append(mname).append(":p").append(proj._idx);
+        //        } else sb.append(def.uniqueName());
+        //        sb.append(";\n");
+        //    }
+        //    level++;
+        //}
+        throw TODO();
     }
 
     /**
