@@ -235,6 +235,7 @@ public abstract class GlobalCodeMotion {
                 break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
+            case ScopeMinNode ret: break; // Mem uses now on ScopeMin
             case NeverNode never: break;
             default: throw Utils.TODO();
             }
@@ -249,7 +250,7 @@ public abstract class GlobalCodeMotion {
             // Store and Load overlap, need anti-dependence
             if( stblk._anti==load._nid ) {
                 lca = stblk._idom(lca,null); // Raise Loads LCA
-                if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
+                if( lca == stblk && st != null && st._inputs.find(load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here
             }

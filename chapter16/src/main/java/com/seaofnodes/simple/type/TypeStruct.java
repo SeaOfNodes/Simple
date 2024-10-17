@@ -41,7 +41,7 @@ public class TypeStruct extends Type {
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
         assert !(body instanceof TypeMemPtr tmp && !tmp._nil);
-        return make(body.str() + "[]",
+        return make("[" + body.str() + "]",
                     Field.make("#" ,len , lenAlias,true),
                     Field.make("[]",body,bodyAlias,true));
     }
@@ -56,12 +56,22 @@ public class TypeStruct extends Type {
 
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); }
 
+    // Find field index by name
     public int find(String fname) {
         for( int i=0; i<_fields.length; i++ )
             if( _fields[i]._fname.equals(fname) )
                 return i;
         return -1;
     }
+
+    // Find field index by alias
+    public int findAlias( int alias ) {
+        for( int i=0; i<_fields.length; i++ )
+            if( _fields[i]._alias==alias )
+                return i;
+        return -1;
+    }
+
 
     @Override
     Type xmeet(Type t) {
@@ -150,10 +160,10 @@ public class TypeStruct extends Type {
     public StringBuilder print(StringBuilder sb) {
         sb.append(_name);
         if( _fields == null ) return sb; // Forward reference struct, just print the name
-        sb.append(" {\n");
+        sb.append(" {");
         for( Field f : _fields ) {
             sb.append("  ").append(f._fname).append(" :");
-            f._type.print(sb).append(";\n");
+            f._type.print(sb).append("; ");
         }
         return sb.append("}");
     }

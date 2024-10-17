@@ -79,7 +79,7 @@ if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region18,9,3);", stop.toString());
+        assertEquals("return Phi(Region21,9,3);", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop, 0));
         assertEquals(9L, Evaluator.evaluate(stop, 1));
     }
@@ -132,5 +132,30 @@ return p;
         assertEquals("return Point;", stop.toString());
         assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(stop,  0).toString());
     }
+
+    // Same as the Chapter13 test with the same name, but using the new
+    // constructor syntax
+    @Test
+    public void testLinkedList1() {
+        Parser parser = new Parser(
+"""
+struct LLI { LLI? next; int i; };
+LLI? head = null;
+while( arg ) {
+    head = new LLI { next=head; i=arg; };
+    arg = arg-1;
+}
+if( !head ) return 0;
+LLI? next = head.next;
+if( !next ) return 1;
+return next.i;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        assertEquals(1L, Evaluator.evaluate(stop,  1));
+        assertEquals(2L, Evaluator.evaluate(stop,  3));
+    }
+
 
 }

@@ -5,6 +5,7 @@ import com.seaofnodes.simple.type.*;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
+import static com.seaofnodes.simple.Utils.TODO;
 
 /**
  * The Start node represents the start of the function.
@@ -15,41 +16,9 @@ import java.util.HashSet;
  */
 public class StartNode extends CFGNode implements MultiNode {
 
-    // This field is NOT final, because the tuple expands as we add memory aliases
-    TypeTuple _args;
+    final Type _arg;
 
-    public StartNode(Type[] args) {
-        super();
-        _args = TypeTuple.make(args);
-        _type = _args;
-    }
-
-    /**
-     * Creates a projection for each of the struct's fields, using the field alias
-     * as the key.
-     */
-    public void addMemProj( TypeStruct ts, ScopeNode scope) {
-        if( ts._fields.length==0 ) return;
-        // Expand args type for more memory projections
-        Type[] args = _args._types;
-        int max = args.length;
-        for( Field f : ts._fields )
-            max = Math.max(max,f._alias);
-        args = Arrays.copyOf(args, max+1);
-        // For each of the fields we now add a mem projection.
-        for( Field f : ts._fields ) {
-            TypeMem tm_decl = TypeMem.make(f._alias,f._type.glb());
-            args[f._alias] = tm_decl.dual();
-            String name = Parser.memName(f._alias);
-            Node n = new ProjNode(this, f._alias, name); // No 'compute' until ScopeNode gets typed
-            n._type = args[f._alias];
-            scope.define(name, tm_decl, n, false);
-        }
-        for (int i = 0; i < args.length; i++)
-            if (args[i] == null)
-                args[i] = Type.TOP; // We parsed a nested struct/array. Avoid nulls until a caller replaces this alias.
-        _type = _args = TypeTuple.make(args);
-    }
+    public StartNode(Type arg) { super(); _arg = arg; _type = compute(); }
 
     @Override public String label() { return "Start"; }
 
@@ -62,11 +31,11 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public boolean blockHead() { return true; }
     @Override public CFGNode cfg0() { return this; }
 
-    @Override
-    public TypeTuple compute() { return _args; }
+    @Override public TypeTuple compute() {
+        return TypeTuple.make(Type.CONTROL,TypeMem.TOP,_arg);
+    }
 
-    @Override
-    public Node idealize() { return null; }
+    @Override public Node idealize() { return null; }
 
     // No immediate dominator, and idepth==0
     @Override public int idepth() { return 0; }

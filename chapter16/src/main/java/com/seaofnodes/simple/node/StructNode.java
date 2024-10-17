@@ -33,9 +33,22 @@ public class StructNode extends Node {
         return null;
     }
 
-    // Sample field not initialized
+    // If this is a mem struct, then alias inputs are made lazily.
+    // If missing, use Start.Mem instead.
+    Node alias( int alias ) {
+        return in( alias >= nIns() || in(alias)==null ? 1 : alias );
+    }
+
+    Node alias( int alias, Node st ) {
+        while( alias >= nIns() )
+            addDef(null);
+        return setDef(alias,st);
+    }
+
+
     @Override
     public TypeStruct compute() {
+        if( _ts==null ) return TypeStruct.BOT;
         Field[] fs = new Field[_ts._fields.length];
         for( int i=0; i<fs.length; i++ )
             fs[i] = _ts._fields[i].makeFrom(in(i)==null ? Type.TOP : in(i)._type);
@@ -49,5 +62,5 @@ public class StructNode extends Node {
     boolean eq(Node n) { return _ts == ((StructNode)n)._ts; }
 
     @Override
-    int hash() { return _ts.hashCode(); }
+    int hash() { return _ts==null ? 0 : _ts.hashCode(); }
 }
