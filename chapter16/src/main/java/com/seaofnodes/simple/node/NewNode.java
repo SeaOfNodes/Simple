@@ -45,8 +45,8 @@ public class NewNode extends Node implements MultiNode {
     }
 
     // Find matching alias input
-    Node findAlias(int alias) {
-        return in(2+_ptr._obj.findAlias(alias)+_len);
+    int findAlias(int alias) {
+        return 2+_ptr._obj.findAlias(alias)+_len;
     }
 
 
