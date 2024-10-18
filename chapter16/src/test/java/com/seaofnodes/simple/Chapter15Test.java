@@ -130,8 +130,9 @@ else {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region117,1.2,Phi(Region114,2.3,.y));", stop.toString());
+        assertEquals("return Phi(Region117,1.2,Phi(Region114,2.3,3.14));", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
+        assertEquals(1.2 , Evaluator.evaluate(stop, 1));
     }
 
     @Ignore
