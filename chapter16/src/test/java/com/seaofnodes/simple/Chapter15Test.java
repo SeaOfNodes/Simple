@@ -366,4 +366,26 @@ while(0<--1>>>---(v7*0==v8)) {}
     }
 
 
+    @Test
+    public void testProgress2() {
+        Parser parser = new Parser(
+"""
+if(1) {}
+else {
+        while(arg>>>0&0>>>0) {}
+    byte v3=0>>>0;
+                while(0) {}
+        int v7=0>>>0;
+        while(v7<0>>>0) {
+                    while(0+v7<=0) if(1) arg=-12;
+            if(arg) {
+                v3=arg+v3+0;
+                arg=0;
+            }
+        }
+}
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
 }

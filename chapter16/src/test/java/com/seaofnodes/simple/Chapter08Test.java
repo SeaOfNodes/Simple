@@ -22,7 +22,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region45,Phi(Region32,Phi(Loop10,arg,(Phi_arg+1)),Add),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
         Assert.assertEquals(5L, Evaluator.evaluate(stop, 1));
