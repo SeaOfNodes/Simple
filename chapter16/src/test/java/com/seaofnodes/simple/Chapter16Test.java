@@ -3,37 +3,22 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
-import org.junit.Ignore;
-
-import java.awt.*;
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-
-/**
-   struct S {
-     int x;     // default init of 0
-     S? x;      // default init of null
-     int !x;    // final   init required in constructor
-     S x;       //         init required in constructor
-     int !x=17; // final   init done now, not in constructor
-     S  x = ...;//         init done now, not in constructor
-   };
-
- */
 
 public class Chapter16Test {
 
     @Test
     public void testJig() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
+
 
     @Test
     public void testMulti0() {
@@ -157,5 +142,35 @@ return next.i;
         assertEquals(2L, Evaluator.evaluate(stop,  3));
     }
 
+    @Test
+    public void testLinkedList2() {
+        Parser parser = new Parser(
+"""
+struct LLI { LLI? next; int i; };
+LLI? head = null;
+while( arg ) {
+    head = new LLI {
+        next=head;
+        // Any old code in the constructor
+        int tmp=arg;
+        while( arg > 10 ) {
+            tmp = tmp + arg;
+            arg = arg - 1;
+        }
+        i=tmp;
+    };
+    arg = arg-1;
+}
+if( !head ) return 0;
+LLI? next = head.next;
+if( !next ) return 1;
+return next.i;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        assertEquals(1L, Evaluator.evaluate(stop,  1));
+        assertEquals(2L, Evaluator.evaluate(stop, 11));
+    }
 
 }

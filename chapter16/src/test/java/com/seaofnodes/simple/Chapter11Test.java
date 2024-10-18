@@ -515,4 +515,22 @@ return v;
         StopNode stop = parser.parse().iterate();
         //assertEquals("return new S;", stop.toString());
     }
+
+    @Test
+    public void testScheduleUse() {
+        Parser parser = new Parser(
+"""
+int v0=0;
+while(0>=0) {
+    u1 v1=0;
+    v1=v0;
+    if(v1*0)
+        v0=-v1;
+}
+return 0;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
+
 }

@@ -91,7 +91,7 @@ public abstract class GlobalCodeMotion {
         // a data-only loop, eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
-            if( def!=null )
+            if( def!=null && !def.isPinned() )
                 _schedEarly(def,visit);
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
@@ -103,6 +103,10 @@ public abstract class GlobalCodeMotion {
                     early = n.in(i).cfg0(); // Latest/deepest input
             n.setDef(0,early);              // First place this can go
         }
+        // Also the pinned inputs we skipped earlier
+        for( Node def : n._inputs )
+            if( def!=null && def.isPinned() )
+                _schedEarly(def,visit);
     }
 
     // ------------------------------------------------------------------------
