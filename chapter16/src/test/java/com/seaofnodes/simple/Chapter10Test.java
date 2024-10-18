@@ -102,7 +102,7 @@ while (arg) {
 }
 return bar.a;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop16,0,(Phi_a+2));", stop.toString());
     }
 

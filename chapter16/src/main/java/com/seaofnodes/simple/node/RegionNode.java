@@ -102,7 +102,7 @@ public class RegionNode extends CFGNode {
 
     // A walk that can be cutoff early
     private static final BitSet VISIT = new BitSet();
-    private static boolean walk( IfNode iff, CProjNode cproj, Node n ) {
+    private boolean walk( IfNode iff, CProjNode cproj, Node n ) {
         if( VISIT.get(n._nid) ) return false;
         VISIT.set(n._nid);
         if( n instanceof CFGNode ) return false;
@@ -110,7 +110,7 @@ public class RegionNode extends CFGNode {
             return false;
         boolean progress = false;
         Node pred = iff.pred();
-        if( pred._type.isConstant() ) return false; // This will collapse the IF already
+        if( pred._type.isHighOrConst() ) return false; // This will collapse the IF already
         for( int i=1; i<n.nIns(); i++ ) {
             // Using a tested value
             if( n.in(i) == pred && !(n instanceof CastNode) ) {
@@ -122,7 +122,7 @@ public class RegionNode extends CFGNode {
                     n.setDef( i, cast );
                     IterPeeps.add(n);
                     progress = true;
-                }
+                } else pred.addDep( this );
             }
             if( n.in(i)!=null )
                 progress |= walk(iff,cproj,n.in(i));

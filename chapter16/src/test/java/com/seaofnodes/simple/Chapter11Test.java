@@ -292,7 +292,7 @@ else {
 }
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 9; return 0; return 0; return 0; ]", stop.toString());
+        assertEquals("Stop[ return 9; return 0; return 0; ]", stop.toString());
     }
 
 
@@ -437,7 +437,7 @@ while( -arg )
 while(1)
   arg = arg+ptr.v;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ return 0; return 0; ]", stop.toString());
     }
 
@@ -528,6 +528,23 @@ while(0>=0) {
         v0=-v1;
 }
 return 0;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
+
+    @Test
+    public void testLoopCarriedDep() {
+        Parser parser = new Parser(
+"""
+u32 v0=0;
+{
+    int v1=0;
+    while(v1) {
+        v1=1>>>v0!=0;
+        v0=v1/0;
+    }
+}
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
