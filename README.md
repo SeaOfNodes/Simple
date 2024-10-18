@@ -20,11 +20,11 @@ and so the backend will probably start with levering C or Java.
 The following is a rough plan, subject to change.
 
 Each chapter will be self-sufficient and complete; in the sense that each chapter will fully implement
-a subset of the simple language, and include everything that was created in the previous chapter.
+a subset of the Simple language, and include everything that was created in the previous chapter.
 Each chapter will also include a detailed commentary on relevant aspects of the
 Sea Of Nodes intermediate representation.
 
-The simple language will be a small subset of C.
+The Simple language will be styled after a subset of C or Java
 
 * [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * [Chapter 2](chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
@@ -42,8 +42,9 @@ The simple language will be a small subset of C.
 * [Chapter 12](chapter12/README.md): Float type.
 * [Chapter 13](chapter13/README.md): Nested references in Structs.
 * [Chapter 14](chapter14/README.md): Narrow primitive types (e.g. bytes)
-* Chapter 15: One dimensional static length array type. Array load/store.
-* Chapter 16: Functions and calls.
-* Chapter 17: Exception control flow.
-* Chapter 18: Garbage Collection.
-* Chapter 19: Code gen to X86-64.
+* [Chapter 15](chapter15/README.md): One dimensional static length array type, with array loads and stores.
+* [Chapter 16](chapter16/README.md): Constructors
+* Chapter 17: Functions and calls.
+* Chapter 18: Exception control flow.
+* Chapter 19: Garbage Collection.
+* Chapter 20: Code gen to X86-64.
