@@ -110,6 +110,7 @@ public class RegionNode extends CFGNode {
             return false;
         boolean progress = false;
         Node pred = iff.pred();
+        if( pred._type.isConstant() ) return false; // This will collapse the IF already
         for( int i=1; i<n.nIns(); i++ ) {
             // Using a tested value
             if( n.in(i) == pred && !(n instanceof CastNode) ) {

@@ -524,7 +524,7 @@ public class Parser {
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
         TYPES.put(typeName, TypeMemPtr.make(ts));
-        INITS.put(typeName,(StructNode)s.peephole().keep());
+        INITS.put(typeName,s.peephole().keep());
         // Done with struct/block scope
         require("}");
         require(";");
@@ -786,7 +786,6 @@ public class Parser {
         boolean hasConstructor = match("{");
         Ary<Node> init=s._inputs;  int idx=0;
         if( hasConstructor ) {
-            init = _scope._inputs;
             idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
             _scope.push();
@@ -795,6 +794,7 @@ public class Parser {
             // Parse the constructor body
             parseBlock();
             require("}");
+            init = _scope._inputs;
         }
         // Check that all fields are initialized
         for( int i=idx; i<init.size(); i++ )

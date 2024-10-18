@@ -325,4 +325,45 @@ return is[1];
         catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
     }
 
+    @Test
+    public void testProgress() {
+        Parser parser = new Parser("""
+i8 v1=0&0;
+u8 v2=0;
+byte v4=0;
+if(0) {}
+while(v2<0) {
+    v4=0-v1;
+    break;
+}
+int v5=0&0;
+while(v5+(0&0)) {
+    int v7=0&0;
+    while(v7)
+        v4=0>>>v5;
+    while(v1)
+        return 0;
+}
+return v1;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testSharpNot() {
+        Parser parser = new Parser(
+"""
+if(0>>0) {}
+while(0) {}
+u32 v7=0;
+int v8=0;
+while(0<--1>>>---(v7*0==v8)) {}
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
+
+
 }
