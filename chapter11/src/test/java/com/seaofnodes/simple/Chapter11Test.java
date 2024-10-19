@@ -528,4 +528,38 @@ return s.f;
         assertEquals(1L, Evaluator.evaluate(stop,  1));
         assertEquals(0L, Evaluator.evaluate(stop,  2));
     }
+
+    @Test
+    public void testScheduleUse() {
+        Parser parser = new Parser(
+"""
+int v0=0;
+while(0>=0) {
+    int v1=0;
+    v1=v0;
+    if(v1*0)
+        v0=-v1;
+}
+return 0;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
+
+    @Test
+    public void testLoopCarriedDep() {
+        Parser parser = new Parser(
+"""
+int v0=0;
+{
+    int v1=0;
+    while(v1) {
+        v1=1+(v0!=0);
+        v0=v1/0;
+    }
+}
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+    }
 }

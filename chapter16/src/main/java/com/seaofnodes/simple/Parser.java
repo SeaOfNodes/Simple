@@ -96,31 +96,15 @@ public class Parser {
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
     // have C-style '*ptr' references.
-    public static HashMap<String, Type> TYPES = new HashMap<>();
+    public final HashMap<String, Type> TYPES;
 
     // Mapping from a type name to the constructor for a Type.
-    public static HashMap<String, StructNode> INITS = new HashMap<>();
+    public final HashMap<String, StructNode> INITS;
 
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        TYPES.clear();
-        TYPES.put("bool",TypeInteger.U1 );
-        TYPES.put("byte",TypeInteger.U8 );
-        TYPES.put("f32" ,TypeFloat  .B32);
-        TYPES.put("f64" ,TypeFloat  .BOT);
-        TYPES.put("flt" ,TypeFloat  .BOT);
-        TYPES.put("i16" ,TypeInteger.I16);
-        TYPES.put("i32" ,TypeInteger.I32);
-        TYPES.put("i64" ,TypeInteger.BOT);
-        TYPES.put("i8"  ,TypeInteger.I8 );
-        TYPES.put("int" ,TypeInteger.BOT);
-        TYPES.put("u1"  ,TypeInteger.U1 );
-        TYPES.put("u16" ,TypeInteger.U16);
-        TYPES.put("u32" ,TypeInteger.U32);
-        TYPES.put("u8"  ,TypeInteger.U8 );
-        INITS.clear();
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -130,6 +114,8 @@ public class Parser {
         ZERO = con(0).keep();
         XCTRL= new XCtrlNode().peephole().keep();
         ALIAS = 2; // alias 0 for the control, 1 for memory
+        TYPES = defaultTypes();
+        INITS = new HashMap<>();
     }
 
     public Parser(String source) {
@@ -138,6 +124,25 @@ public class Parser {
 
     @Override
     public String toString() { return _lexer.toString(); }
+
+    public static HashMap<String, Type> defaultTypes() {
+        return new HashMap<>() {{
+            put("bool",TypeInteger.U1 );
+            put("byte",TypeInteger.U8 );
+            put("f32" ,TypeFloat  .B32);
+            put("f64" ,TypeFloat  .BOT);
+            put("flt" ,TypeFloat  .BOT);
+            put("i16" ,TypeInteger.I16);
+            put("i32" ,TypeInteger.I32);
+            put("i64" ,TypeInteger.BOT);
+            put("i8"  ,TypeInteger.I8 );
+            put("int" ,TypeInteger.BOT);
+            put("u1"  ,TypeInteger.U1 );
+            put("u16" ,TypeInteger.U16);
+            put("u32" ,TypeInteger.U32);
+            put("u8"  ,TypeInteger.U8 );
+        }};
+    }
 
     // Debugging utility to find a Node by index
     public static Node find(int nid) { return START.find(nid); }
@@ -295,6 +300,8 @@ public class Parser {
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
+        _xScopes.pop();
+        _xScopes.push(exit);
         return _scope = exit;
     }
 
@@ -589,7 +596,6 @@ public class Parser {
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
-        //START.addMemProj(ts, _scope); // Insert memory alias edges
         return tary;
     }
 
@@ -839,10 +845,7 @@ public class Parser {
         int scale= ary.aryScale();
         Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
         ALTMP.clear();  ALTMP.add(len); ALTMP.add(con(ary._fields[1]._type.makeInit()));
-        Node ptr = newStruct(ary,size,0,ALTMP);
-        //int alias = ary._fields[0]._alias; // Length alias
-        //memAlias(alias,new StoreNode("#",alias,TypeInteger.BOT,memAlias(alias),ptr,con( ary.offset(0) ), len.unkeep(), true ).peephole());
-        return ptr;
+        return newStruct(ary,size,0,ALTMP);
     }
 
     // We set up memory aliases by inserting special vars in the scope these

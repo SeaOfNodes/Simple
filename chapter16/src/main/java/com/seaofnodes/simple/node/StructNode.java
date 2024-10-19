@@ -25,27 +25,6 @@ public class StructNode extends Node {
         return sb.append("}");
     }
 
-    // All fields fully initialized, or a sample not-initialized field
-    public String uninitField() {
-        for( int i=0; i<nIns(); i++ )
-            if( in(i)==null )
-                return _ts._fields[i]._fname;
-        return null;
-    }
-
-    // If this is a mem struct, then alias inputs are made lazily.
-    // If missing, use Start.Mem instead.
-    Node alias( int alias ) {
-        return in( alias >= nIns() || in(alias)==null ? 1 : alias );
-    }
-
-    Node alias( int alias, Node st ) {
-        while( alias >= nIns() )
-            addDef(null);
-        return setDef(alias,st);
-    }
-
-
     @Override
     public TypeStruct compute() {
         if( _ts==null ) return TypeStruct.BOT;
