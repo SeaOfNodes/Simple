@@ -173,4 +173,24 @@ return next.i;
         assertEquals(2L, Evaluator.evaluate(stop, 11));
     }
 
+    @Test
+    public void testSquare() {
+        Parser parser = new Parser(
+"""
+struct Square {
+    flt !side = arg;
+    flt diag = arg*arg/2;
+    while( 1 ) {
+        flt next = (side/diag + diag)/2;
+        if( next == diag ) break;
+        diag = next;
+    }
+};
+return new Square;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Square;", stop.toString());
+        assertEquals("Obj<Square>{side=3.0,diag=1.7320508075688772}", Evaluator.evaluate(stop,  3).toString());
+        assertEquals("Obj<Square>{side=4.0,diag=2.0}", Evaluator.evaluate(stop, 4).toString());
+    }
 }
