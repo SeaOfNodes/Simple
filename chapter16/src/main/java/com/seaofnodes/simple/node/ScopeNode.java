@@ -268,7 +268,6 @@ public class ScopeNode extends ScopeMinNode {
     // This Scope looks for direct variable uses, or certain simple
     // combinations, and replaces the variable with the upcast variant.
     public Node upcast( Node ctrl, Node pred, boolean invert ) {
-        if( ctrl._type==Type.XCONTROL ) return null;
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
