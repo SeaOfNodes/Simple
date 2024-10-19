@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -285,15 +286,13 @@ return ret;
     @Test
     public void testBug3() {
         Parser parser = new Parser("""
-struct s0 {
-    int f0;
-};
-if(0>=0) return new s0;
+struct s0 { int f0; };
 return new s0;
 int v0=null.f0;
 """);
-        try { parser.parse(); fail(); }
-        catch( Exception e ) { assertEquals("Accessing unknown field 'f0' from 'null'", e.getMessage()); }
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return s0;", stop.toString());
+        assertEquals("Obj<s0>{f0=0}", Evaluator.evaluate(stop, 0).toString());
     }
 
     @Test

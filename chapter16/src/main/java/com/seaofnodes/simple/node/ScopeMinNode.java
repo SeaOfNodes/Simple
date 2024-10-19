@@ -13,7 +13,7 @@ public class ScopeMinNode extends Node {
 
     /** The tracked fields are now complex enough to deserve a array-of-structs layout
      */
-    public class Var {
+    public static class Var {
         public final int _idx;
         public final String _name;
         public final Type _type;
