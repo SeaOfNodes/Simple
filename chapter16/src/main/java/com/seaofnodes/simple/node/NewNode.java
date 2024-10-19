@@ -27,7 +27,7 @@ public class NewNode extends Node implements MultiNode {
             // Memory slices for all fields.
             assert nodes[2+     i]._type instanceof TypeMem;
             // Value  slices for all fields.
-            assert nodes[2+_len+i]._type instanceof Type;
+            assert nodes[2 + _len + i]._type != null;
         }
     }
 

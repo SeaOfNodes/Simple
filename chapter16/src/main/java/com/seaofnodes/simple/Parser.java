@@ -873,8 +873,14 @@ public class Parser {
         // Sanity check expr for being a reference
         if( !(expr._type instanceof TypeMemPtr ptr) )
             throw error("Expected reference but got " + expr._type.str());
-        if( ptr == TypeMemPtr.TOP ) throw error("Accessing field '" + name + "' from null");
-        if( ptr._obj == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+
+        // Happens when parsing known dead code, which often has other typing
+        // issues.  Since the code is dead, possibly due to inlining, lets not
+        // spoil the user experience with error messages.
+        if( ctrl()._type==Type.XCONTROL )
+            // Exit out via parsing the trailing expression
+            return matchOpx('=','=') ? parseExpression() : parsePostfix(con(Type.TOP));
+
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
         if( tmp == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
@@ -884,31 +890,25 @@ public class Parser {
 
         // Get field type and layout offset from base type and field index fidx
         Field f = base._fields[fidx];  // Field from field index
-        Node off;
-        if( name.equals("[]") ) {      // If field is an array body
-            // Array index math
-            Node idx = require(parseExpression(),"]");
-            off = new AddNode(con(base.aryBase()),new ShlNode(idx,con(base.aryScale())).peephole()).peephole();
-        } else {                       // Else normal struct field
-            // Hardwired field offset
-            off = con(base.offset(fidx));
-        }
 
-        if( match("=") ) {
-            // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
-            if( peek('=') ) _lexer._position--;
-            else {
-                Node val = parseExpression();
-                // Auto-truncate when storing to narrow fields
-                val = zsMask(val,f._type);
-                Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
-                // Arrays include control, as a proxy for a safety range check.
-                // Structs don't need this; they only need a NPE check which is
-                // done via the type system.
-                if( base.isAry() )  st.setDef(0,ctrl());
-                memAlias(f._alias, st.peephole());
-                return val;        // "obj.a = expr" returns the expression while updating memory
-            }
+        Node off = name.equals("[]")       // If field is an array body
+            // Array index math
+            ? new AddNode(con(base.aryBase()),new ShlNode(require(parseExpression(),"]"),con(base.aryScale())).peephole()).peephole()
+            // Struct field offsets are hardwired
+            : con(base.offset(fidx));
+
+        // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
+        if( matchOpx('=','=') ) {
+            Node val = parseExpression();
+            // Auto-truncate when storing to narrow fields
+            val = zsMask(val,f._type);
+            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
+            // Arrays include control, as a proxy for a safety range check.
+            // Structs don't need this; they only need a NPE check which is
+            // done via the type system.
+            if( base.isAry() )  st.setDef(0,ctrl());
+            memAlias(f._alias, st.peephole());
+            return val;        // "obj.a = expr" returns the expression while updating memory
         }
 
         Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr, off);
@@ -959,6 +959,7 @@ public class Parser {
     private boolean match (String syntax) { return _lexer.match (syntax); }
     // Match must be "exact", not be followed by more id letters
     private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
+    private boolean matchOpx(char c0, char c1) { return _lexer.matchOpx(c0,c1);  }
     // Return true and do NOT skip if 'ch' is next
     private boolean peek(char ch) { return _lexer.peek(ch); }
     private boolean peekIsId() { return _lexer.peekIsId(); }
@@ -1077,6 +1078,13 @@ public class Parser {
             if( !isIdLetter(peek()) ) return true;
             _position -= syntax.length();
             return false;
+        }
+        boolean matchOpx(char c0, char c1) {
+            skipWhiteSpace();
+            if( _position+1 >= _input.length || _input[_position]!=c0 || _input[_position+1]==c1 )
+                return false;
+            _position++;
+            return true;
         }
 
         private boolean peek(char ch) {

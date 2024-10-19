@@ -74,8 +74,8 @@ public class LoadNode extends MemOpNode {
                 // Pointers cannot overlap
                 mem = st.mem(); // Proved never equal
                 break;
-            case PhiNode phi:
-                break outer;    // Assume related
+            case PhiNode phi:      break outer;  // Assume related
+            case ConstantNode top: break outer;  // Assume shortly dead
             case ProjNode mproj:
                 if( mproj.in(0) instanceof NewNode nnn1 ) {
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
