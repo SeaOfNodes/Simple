@@ -32,14 +32,14 @@ struct Point { int x=1; int y=1; }; // Point x and y will start as 1, not 0
 return new Point { x=3; }.x;        // Returns a 3
 ```
 
-Not-null and final fields must be initialized before first use and before the
+Not-null and final fields *must* be initialized before first use and before the
 end of the allocation.  They can be initialized in either the declaration or
 allocation.  They do not start with the default value, although the
 initialization can be to the default.
 
 ```
 struct Person { u8[] name; }
-return new Person; // ERROR: not-null field name not initalized
+return new Person; // ERROR: not-null field 'name' not initalized
 ```
 
 
@@ -51,7 +51,7 @@ declaration or the allocation.  Any amount of code is legal, including
 
 ```
 struct Square {
-    flt !side = arg;
+    flt side = arg;
     flt diag = arg*arg/2;
     // Newtons approximation to the square root, done in a constructor
     while( 1 ) {
@@ -81,7 +81,7 @@ Final fields are declared with a `!` before the name:
 
 ```
 int !x = 17; // Final field x
-x = 3; // ERROR: cannot re-assign a final field
+x = 3;       // ERROR: cannot re-assign a final field
 ```
 
 ```
@@ -95,7 +95,7 @@ return new Point { x=arg; y=z; z=x; } // ERROR: final field z used before initia
 ```
 
 ```
-struct Point { int x; int y; int z; }
+struct Point { int x; int y; int z; } // Fields not-final, default to 0
 return new Point { x=arg; y=z; z=x; } // Ok: x=arg, y=0, z=arg
 ```
 
