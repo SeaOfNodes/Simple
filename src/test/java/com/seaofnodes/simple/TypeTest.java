@@ -20,7 +20,7 @@ public class TypeTest {
                 Field.make("b", TypeInteger.BOT,-4, false) });
         Assert.assertEquals(s1, s1.glb());
         Assert.assertNotEquals(s1, s1.dual());
-        Assert.assertEquals(s1, s1.dual().glb());
+        Assert.assertEquals(s1.makeRO(), s1.dual().glb());
 
         TypeMem m1 = TypeMem.make(1,TypeInteger.ZERO);
         TypeMem m2 = TypeMem.make(2,TypeInteger.U16);
@@ -57,7 +57,7 @@ public class TypeTest {
         Assert.assertEquals(ptr1nil, ptr1.glb());
 
         Assert.assertEquals(ptr1, ptr1.dual().dual());
-        Assert.assertEquals(ptr1.glb(), ptr1.dual().glb());
+        Assert.assertEquals(ptr1.glb().makeRO(), ptr1.dual().glb());
         Assert.assertEquals(TypeMemPtr.make(TypeStruct.BOT,true), ptr1.meet(ptr2nil));
         Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULLPTR));
 
@@ -79,7 +79,7 @@ public class TypeTest {
 
     // Test theoretical properties.
     // This is a symmetric complete bounded (ranked) lattice.
-    // Also the meet is commutative and associative.
+    // Also, the meet is commutative and associative.
     // The lattice has a dual (symmetric), and join is ~(~x meet ~y).
     // See https://en.wikipedia.org/wiki/Lattice_(order).
     @Test

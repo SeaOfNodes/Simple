@@ -59,7 +59,7 @@ while( b ) b = b + 456;// Truncate
 return b;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,123,((Phi_b+456)&255));", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -94,7 +94,7 @@ return b;
         Parser parser = new Parser(
 """
 struct Foo { u1 b; };
-Foo f = new Foo;
+Foo !f = new Foo;
 f.b = 123;
 return f.b;
 """);
@@ -175,7 +175,7 @@ while(v1) break;
 return v1;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return (Phi(Loop18,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", stop.toString());
+        assertEquals("return (Phi(Loop,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
 

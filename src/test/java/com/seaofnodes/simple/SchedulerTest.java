@@ -24,7 +24,7 @@ public class SchedulerTest {
 struct S {
     int f;
 }
-S v=new S;
+S !v=new S;
 v.f = 2;
 int i=v.f;
 if (arg) v.f=1;
@@ -42,7 +42,7 @@ return i;
 struct S {
     int f;
 };
-S v0=new S;
+S !v0=new S;
 if(arg) v0.f=1;
 return v0;
 """);
@@ -58,7 +58,7 @@ return v0;
 struct S {
     int f;
 };
-S v=new S;
+S !v=new S;
 v.f = 2;
 int i=new S.f;
 i=v.f;

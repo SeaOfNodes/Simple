@@ -36,21 +36,29 @@ public class TypeStruct extends Type {
     public static final TypeStruct BOT = make("$BOT",new Field[0]);
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
     // Forward-ref version
-    public static TypeStruct make(String name) { return make(name, (Field[])null); }
+    public static TypeStruct makeFRef(String name) { return make(name, (Field[])null); }
+    // Make a read-only version
+    @Override public TypeStruct makeRO() {
+        if( isFinal() ) return this;
+        Field[] flds = new Field[_fields.length];
+        for( int i=0; i<flds.length; i++ )
+            flds[i] = _fields[i].makeRO();
+        return make(_name,flds);
+    }
 
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
         assert !(body instanceof TypeMemPtr tmp && !tmp._nil);
         return make("[" + body.str() + "]",
-                    Field.make("#" ,len , lenAlias,true),
-                    Field.make("[]",body,bodyAlias,true));
+                    Field.make("#" ,len , lenAlias,true ),
+                    Field.make("[]",body,bodyAlias,false));
     }
 
     // A pair of self-cyclic types
-    private static final TypeStruct S1F = make("S1");
-    private static final TypeStruct S2F = make("S2");
-    public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make(S2F,false),-2, false) });
-    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeFloat  .BOT, -3, false), Field.make("s1",TypeMemPtr.make(S1F,false),-4, false) });
+    private static final TypeStruct S1F = makeFRef("S1");
+    private static final TypeStruct S2F = makeFRef("S2");
+    public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make(S2F,false),-2, false) );
+    private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .BOT, -3, false), Field.make("s1",TypeMemPtr.make(S1F,false),-4, false) );
 
     private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeFloat.BOT,-2);
 
@@ -62,6 +70,10 @@ public class TypeStruct extends Type {
             if( _fields[i]._fname.equals(fname) )
                 return i;
         return -1;
+    }
+    public Field field(String fname) {
+        int idx = find(fname);
+        return idx== -1 ? null : _fields[idx];
     }
 
     // Find field index by alias
@@ -89,8 +101,8 @@ public class TypeStruct extends Type {
         // And the answer is: "don't ask".
         if( !_name.equals(that._name) )
             return BOT;         // It's a struct; that's about all we know
-        if( this._fields==null ) return this;
-        if( that._fields==null ) return that;
+        if( this._fields==null ) return that;
+        if( that._fields==null ) return this;
         if( _fields.length != that._fields.length ) return BOT;
         // Just do field meets
         Field[] flds = new Field[_fields.length];
@@ -115,8 +127,7 @@ public class TypeStruct extends Type {
     }
 
     // Keeps the same struct, but lower-bounds all fields.
-    @Override
-    public TypeStruct glb() {
+    @Override public TypeStruct glb() {
         if( _glb() ) return this;
         // Need to glb each field
         Field[] flds = new Field[_fields.length];
@@ -129,6 +140,33 @@ public class TypeStruct extends Type {
           for( Field f : _fields )
               if( f.glb() != f )
                  return false;
+        return true;
+    }
+    @Override public TypeStruct lub() {
+        if( _lub() ) return this;
+        // Need to glb each field
+        Field[] flds = new Field[_fields.length];
+        for( int i=0; i<_fields.length; i++ )
+            flds[i] = _fields[i].lub();
+        return make(_name,flds);
+    }
+    private boolean _lub() {
+        if( _fields!=null )
+          for( Field f : _fields )
+              if( f.lub() != f )
+                 return false;
+        return true;
+    }
+
+
+    // Is forward-reference
+    @Override public boolean isFRef() { return _fields==null; }
+    // All fields are final
+    @Override public boolean isFinal() {
+        if( _fields==null ) return true;
+        for( Field fld : _fields )
+            if( !fld.isFinal() )
+                return false;
         return true;
     }
 
@@ -161,10 +199,8 @@ public class TypeStruct extends Type {
         sb.append(_name);
         if( _fields == null ) return sb; // Forward reference struct, just print the name
         sb.append(" {");
-        for( Field f : _fields ) {
-            sb.append("  ").append(f._fname).append(" :");
-            f._type.print(sb).append("; ");
-        }
+        for( Field f : _fields )
+            f._type.print(sb).append(f._final ? " " : " !").append(f._fname).append("; ");
         return sb.append("}");
     }
 

@@ -43,28 +43,28 @@ return x+y;
         assertEquals(5L, Evaluator.evaluate(stop,  0));
     }
 
-    @Test
-    public void testFinal0() {
-        Parser parser = new Parser(
-"""
-int !x=2;
-x=3;
-return x;
-""");
-        try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
-    }
+//    @Test
+//    public void testFinal0() {
+//        Parser parser = new Parser(
+//"""
+//int !x=2;
+//x=3;
+//return x;
+//""");
+//        try { parser.parse().iterate(); fail(); }
+//        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+//    }
 
     @Test
     public void testFinal1() {
         Parser parser = new Parser(
 """
-int !x=2, y=3;
+int x=2, y=3;
 if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region21,9,3);", stop.toString());
+        assertEquals("return Phi(Region,9,3);", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop, 0));
         assertEquals(9L, Evaluator.evaluate(stop, 1));
     }
@@ -107,15 +107,76 @@ return z.x;
 
 
     @Test
-    public void testStructFinal() {
+    public void testStructFinal0() {
         Parser parser = new Parser("""
 struct Point { int !x, !y; };
 Point p = new Point { x=3; y=4; };
 return p;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Point;", stop.toString());
+        assertEquals("return (const)Point;", stop.toString());
         assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(stop,  0).toString());
+    }
+
+    @Test
+    public void testStructFinal1() {
+        Parser parser = new Parser("""
+struct Point { int x=3, y=4; };
+Point p = new Point { x=5; y=6; };
+p.x++;
+return p;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+    }
+
+    @Test
+    public void testStructFinal2() {
+        Parser parser = new Parser("""
+struct Point { int x=3, y=4; };
+Point p = new Point;
+p.x++;
+return p;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+    }
+
+    @Test
+    public void testStructFinal3() {
+        Parser parser = new Parser("""
+struct Point { var x; var y; };
+Point p = new Point;
+p.x++;
+return p;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+    }
+
+    @Test
+    public void testStructFinal4() {
+        Parser parser = new Parser("""
+struct Point { val x=3; val y=4; };
+Point p = new Point;
+p.x++;
+return p;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+    }
+
+    @Test
+    public void testStructFinal5() {
+        Parser parser = new Parser("""
+struct Point { var x=3; var y=4; };
+Point !p = new Point;
+p.x++;
+return p;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Point;", stop.toString());
+        assertEquals("Obj<Point>{x=4,y=4}", Evaluator.evaluate(stop,  0).toString());
     }
 
     // Same as the Chapter13 test with the same name, but using the new
@@ -125,7 +186,7 @@ return p;
         Parser parser = new Parser(
 """
 struct LLI { LLI? next; int i; };
-LLI? head = null;
+LLI? !head = null;
 while( arg ) {
     head = new LLI { next=head; i=arg; };
     arg = arg-1;
@@ -147,12 +208,12 @@ return next.i;
         Parser parser = new Parser(
 """
 struct LLI { LLI? next; int i; };
-LLI? head = null;
+LLI? !head = null;
 while( arg ) {
     head = new LLI {
         next=head;
         // Any old code in the constructor
-        int tmp=arg;
+        int !tmp=arg;
         while( arg > 10 ) {
             tmp = tmp + arg;
             arg = arg - 1;
@@ -182,7 +243,7 @@ struct Square {
     // Newtons approximation to the square root, computed in a constructor.
     // The actual allocation will copy in this result as the initial
     // value for 'diag'.
-    flt diag = arg*arg/2;
+    flt !diag = arg*arg/2;
     while( 1 ) {
         flt next = (side/diag + diag)/2;
         if( next == diag ) break;
