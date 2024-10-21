@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.Utils;
 
 import java.util.BitSet;
 
@@ -22,7 +23,9 @@ public class MinusNode extends Node {
     public Type compute() {
         if( in(1)._type instanceof TypeInteger i0 ) {
             if( i0.isHigh() ) return TypeInteger.TOP;
-            return i0==TypeInteger.BOT ? TypeInteger.BOT : TypeInteger.make(-i0._max,-i0._min);
+            if( i0==TypeInteger.BOT || i0._min == Long.MIN_VALUE || i0._max == Long.MIN_VALUE )
+                return TypeInteger.BOT;
+            return TypeInteger.make(-i0._max,-i0._min);
         }
         return TypeInteger.TOP.meet(in(1)._type);
     }
