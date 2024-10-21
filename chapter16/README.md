@@ -52,8 +52,10 @@ declaration or the allocation.  Any amount of code is legal, including
 ```
 struct Square {
     flt side = arg;
-    flt diag = arg*arg/2;
-    // Newtons approximation to the square root, done in a constructor
+    flt diag = arg*arg/2;    
+    // Newtons approximation to the square root, computed in a constructor.
+    // The actual allocation will copy in this result as the initial
+    // value for 'diag'.
     while( 1 ) {
         // The next-guess variable "next" is not a field in Square, 
         // because it does not appear at the top level
