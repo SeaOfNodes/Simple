@@ -179,6 +179,9 @@ return next.i;
 """
 struct Square {
     flt !side = arg;
+    // Newtons approximation to the square root, computed in a constructor.
+    // The actual allocation will copy in this result as the initial
+    // value for 'diag'.
     flt diag = arg*arg/2;
     while( 1 ) {
         flt next = (side/diag + diag)/2;
