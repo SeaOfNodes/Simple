@@ -36,7 +36,7 @@ public class AddNode extends Node {
         return TypeInteger.BOT;
     }
 
-    private static boolean overflow( long x, long y ) {
+    static boolean overflow( long x, long y ) {
         if( (x ^    y ) < 0 ) return false; // unequal signs, never overflow
         return (x ^ (x + y)) < 0; // sum has unequal signs, so overflow
     }

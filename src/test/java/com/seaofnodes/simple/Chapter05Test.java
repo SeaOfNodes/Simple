@@ -17,12 +17,11 @@ if (arg == 1)
     a = arg+2;
 else {
     a = arg-3;
-
 }
-
-return a;""");
+return a;
+""");
         StopNode ret = parser.parse().iterate();
-        assertEquals("return Phi(Region23,(arg+2),(arg-3));", ret.toString());
+        assertEquals("return Phi(Region,(arg+2),(arg-3));", ret.toString());
     }
 
     @Test
@@ -37,7 +36,7 @@ if (arg == 1) {
 }
 return c;""", TypeInteger.BOT);
         StopNode ret = parser.parse().iterate();
-        assertEquals("return Phi(Region22,4,3);", ret.toString());
+        assertEquals("return Phi(Region,4,3);", ret.toString());
     }
 
     @Test
@@ -65,7 +64,7 @@ else
     b=a+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate();
-        assertEquals("return ((arg*2)+Phi(Region26,2,3));", ret.toString());
+        assertEquals("return ((arg*2)+Phi(Region,2,3));", ret.toString());
     }
 
     @Test
@@ -80,7 +79,7 @@ else
     a=b+1;
 return a+b;""");
         StopNode ret = parser.parse().iterate();
-        assertEquals("return ((Phi(Region37,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
+        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
     }
 
     @Test
@@ -100,7 +99,7 @@ else
 return a;
 """, TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region43,Phi(Region28,2,3),Phi(Region41,4,5));", stop.toString());
+        assertEquals("return Phi(Region,Phi(Region,2,3),Phi(Region,4,5));", stop.toString());
     }
 
     @Test
@@ -116,7 +115,7 @@ if( arg==0 )
 return arg+a+b;
 """, TypeInteger.BOT);
         StopNode stop = parser.parse();
-        assertEquals("return ((arg+Phi(Region20,1,0))+Phi(Region37,2,0));", stop.toString());
+        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", stop.toString());
     }
 
     @Test
@@ -130,7 +129,7 @@ if( arg==1 )
 }
 return a;""");
         StopNode ret = parser.parse().iterate();
-        assertEquals("return (arg==Phi(Region22,3,2));", ret.toString());
+        assertEquals("return (arg==Phi(Region,3,2));", ret.toString());
     }
 
     @Test
