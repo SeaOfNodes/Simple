@@ -83,7 +83,7 @@ struct Foo {
     int x;
 };
 Foo? foo = null;
-Bar bar = new Bar;
+Bar !bar = new Bar;
 bar.a = 1;
 bar.a = 2;
 return bar.a;
@@ -96,7 +96,7 @@ return bar.a;
     public void testExample() {
         Parser parser = new Parser("""
 struct Vector2D { int x; int y; };
-Vector2D v = new Vector2D;
+Vector2D !v = new Vector2D;
 v.x = 1;
 if (arg)
     v.y = 2;
@@ -135,7 +135,7 @@ arg=0+new s0.0;
     public void testLoop() {
         Parser parser = new Parser("""
 struct Bar { int a; };
-Bar bar = new Bar;
+Bar !bar = new Bar;
 while (arg) {
     bar.a = bar.a + 2;
     arg = arg + 1;
@@ -143,14 +143,14 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
     public void testIf() {
         Parser parser = new Parser("""
 struct Bar { int a; };
-Bar bar = new Bar;
+Bar !bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
@@ -163,7 +163,7 @@ return bar.a;
     public void testIf2() {
         Parser parser = new Parser("""
 struct Bar { int a; };
-Bar? bar = null;
+Bar? !bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
@@ -189,13 +189,13 @@ return bar.a;
     public void testIfOrNull() {
         Parser parser = new Parser("""
 struct Bar { int a; };
-Bar? bar = new Bar;
+Bar? !bar = new Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region38,(*void)Phi(Region24,null,Bar),null);", stop.toString());
+        assertEquals("return Phi(Region,(*void)Phi(Region,null,Bar),null);", stop.toString());
     }
 
     @Test
@@ -203,7 +203,7 @@ return bar;
         Parser parser = new Parser(
 """
 struct Bar { int a; };
-Bar? bar = new Bar;
+Bar? !bar = new Bar;
 if (arg) bar = null;
 int rez = 3;
 if( !bar ) rez=4;
@@ -211,14 +211,14 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region44,4,3);", stop.toString());
+        assertEquals("return Phi(Region,4,3);", stop.toString());
     }
 
     @Test
     public void testWhileWithNullInside() {
         Parser parser = new Parser("""
 struct s0 {int v0;};
-s0? v0 = new s0;
+s0? !v0 = new s0;
 int ret = 0;
 while(arg) {
     ret = v0.v0;
@@ -255,7 +255,7 @@ struct Iter {
     int x;
     int len;
 };
-Iter i = new Iter;
+Iter !i = new Iter;
 i.len = arg;
 int sum=0;
 while( i.x < i.len ) {
@@ -265,7 +265,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop21,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
 
 
@@ -273,9 +273,9 @@ return sum;
     public void test1() {
         Parser parser = new Parser("""
 struct s0 {int v0;};
-s0 ret = new s0;
+s0 !ret = new s0;
 while(arg) {
-    s0 v0 = new s0;
+    s0 !v0 = new s0;
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
@@ -284,15 +284,15 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,s0,Phi(Region43,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
     }
 
     @Test
     public void test2() {
         Parser parser = new Parser("""
 struct s0 {int v0;};
-s0 ret = new s0;
-s0 v0 = new s0;
+s0 !ret = new s0;
+s0 !v0 = new s0;
 while(arg) {
     v0.v0 = arg;
     arg = arg-1;
@@ -302,7 +302,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop20,s0,Phi(Region44,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
     }
 
 
@@ -310,16 +310,16 @@ return ret;
     public void test3() {
         Parser parser = new Parser("""
 struct s0 {int v0;};
-s0 ret = new s0;
+s0 !ret = new s0;
 while(arg < 10) {
-    s0 v0 = new s0;
+    s0 !v0 = new s0;
     if (arg == 5) ret=v0;
     arg = arg + 1;
 }
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,s0,Phi(Region41,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -389,7 +389,7 @@ s0 v1 = v0;
 return v1;
     """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return s0;", stop.toString());
+        assertEquals("return (const)s0;", stop.toString());
     }
 
 

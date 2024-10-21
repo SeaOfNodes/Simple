@@ -58,7 +58,7 @@ public class Chapter01Test {
     @Test
     public void testNotBad3() {
         // this test used to fail in chapter 1
-        assertEquals("return 12;", new Parser("return --12;").parse().print());
+        assertEquals("return 12;", new Parser("return - -12;").parse().print());
     }
 
     @Test

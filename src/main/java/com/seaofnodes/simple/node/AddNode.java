@@ -36,7 +36,7 @@ public class AddNode extends Node {
         return TypeInteger.BOT;
     }
 
-    private static boolean overflow( long x, long y ) {
+    static boolean overflow( long x, long y ) {
         if( (x ^    y ) < 0 ) return false; // unequal signs, never overflow
         return (x ^ (x + y)) < 0; // sum has unequal signs, so overflow
     }
@@ -44,6 +44,7 @@ public class AddNode extends Node {
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
+        if( rhs.err() != null ) return null;
         Type t2 = rhs._type;
 
         // Add of 0.  We do not check for (0+x) because this will already
