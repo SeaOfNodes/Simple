@@ -44,7 +44,10 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type t = val()._type.meet(MemMergeNode.contents(mem(),_alias,this));
+        Type val = val()._type;
+        if( _declaredType.isFRef() && val instanceof TypeMemPtr tmp && !tmp.isFRef() )
+            _declaredType = tmp;
+        Type t = val.join(_declaredType).meet(MemMergeNode.contents(mem(),_alias,this));
         return TypeMem.make(_alias,t);
     }
 
@@ -113,6 +116,9 @@ public class StoreNode extends MemOpNode {
     String err() {
         String err = super.err();
         if( err != null ) return err;
+        TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
+        if( tmp._obj.field(_name)._final )
+            return "Cannot modify final field '"+_name+"'";
         Type t = val()._type;
         return _init || t.isa(_declaredType) ? null : "Cannot store "+t+" into field "+_declaredType+" "+_name;
     }

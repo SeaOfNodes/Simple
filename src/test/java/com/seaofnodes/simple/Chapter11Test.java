@@ -15,7 +15,7 @@ public class Chapter11Test {
     public void testFuzzer() {
         Parser parser = new Parser(
 """
-while(-----arg) {
+while(---- -arg) {
     while(-arg) {
         while(-----arg*---0) {
                 int N=--false==false<--arg;
@@ -104,7 +104,7 @@ while(-----arg) {
             int UX=arg;
             while(UX<-3*arg) {
                 UX=UX+arg/-1;
-                arg=-3--(-UX--47<arg==--arg==arg)/arg--UX>=-arg;
+                arg=-3--(-UX- -47<arg==--arg==arg)/arg- -UX>=-arg;
                 if(---12) while(-UX) break;
                 break;
             }
@@ -225,9 +225,9 @@ if(arg!=62==arg) {
                 }
             }
             arg=-arg+arg;
-            arg=--47+-arg<1>arg*(-arg==-arg--0>3);
+            arg=--47+-arg<1>arg*(-arg==-arg- -0>3);
             arg=(----arg)!=arg+--59;
-            arg=--4+arg==-(arg)-arg;
+            arg=- -4+arg==-(arg)-arg;
         }
         else {
             while(--true-----true*-25+-18>arg>=-----(-arg)---13) {
@@ -293,7 +293,7 @@ else {
 }
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 9; return 0; return 0; ]", stop.toString());
+        assertEquals("Stop[ return 9; return 0; return 0; return 0; return 0; ]", stop.toString());
     }
 
 
@@ -325,7 +325,7 @@ while( prime <= arg ) {
 return primeCount;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return Phi(Loop21,1,Phi(Region88,Phi_primeCount,Phi(Region82,(Phi_primeCount+1),Phi_primeCount))); ]", stop.toString());
+        assertEquals("Stop[ return 0; return Phi(Loop,1,Phi(Region,Phi_primeCount,Phi(Region,(Phi_primeCount+1),Phi_primeCount))); ]", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  1)); // No primes 1 or below
         assertEquals(1L, Evaluator.evaluate(stop,  2)); // 2
         assertEquals(2L, Evaluator.evaluate(stop,  3)); // 2, 3
@@ -339,7 +339,7 @@ return primeCount;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v=new S;
+S !v=new S;
 v.f = 2;
 int i=new S.f;
 i=v.f;
@@ -357,9 +357,9 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 v.f = arg;
-S t = new S;
+S !t = new S;
 int i = 0;
 if (arg) {
     if (arg+1) v = t;
@@ -370,7 +370,7 @@ if (arg) {
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region48,.f,0);", stop.toString());
+        assertEquals("return Phi(Region,.f,0);", stop.toString());
     }
 
     @Test
@@ -378,7 +378,7 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v0 = new S;
+S !v0 = new S;
 S? v1;
 if (arg) v1 = new S;
 if (v1) {
@@ -398,7 +398,7 @@ return v0;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 v.f = arg;
 S t = new S;
 int i = v.f;
@@ -415,7 +415,7 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 while(1) {
     while(arg+1) { arg=arg-1; }
     if (arg) break;
@@ -432,14 +432,14 @@ return v;
         Parser parser = new Parser(
 """
 struct s { int v; };
-s ptr=new s;
+s !ptr=new s;
 while( -arg )
   ptr = new s;
 while(1)
   arg = arg+ptr.v;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return 0; ]", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -447,7 +447,7 @@ while(1)
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 S t = new S;
 int i = v.f;
 while (arg) {
@@ -465,7 +465,7 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 S t = new S;
 while(arg) {
     arg=arg-1;
@@ -477,7 +477,7 @@ while(arg) {
 return arg;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop23,arg,Phi(Region50,.f,0));", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -485,7 +485,7 @@ return arg;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 S t = new S;
 if (arg) {
     v.f=2;
@@ -503,7 +503,7 @@ return v;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 int i = arg;
 while (arg > 0) {
     int j = i/3;
