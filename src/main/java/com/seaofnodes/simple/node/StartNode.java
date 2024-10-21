@@ -14,11 +14,11 @@ import static com.seaofnodes.simple.Utils.TODO;
  * In ch10 we also add mem aliases as structs get defined; each field in struct
  * adds a distinct alias to Start's tuple.
  */
-public class StartNode extends CFGNode implements MultiNode {
+public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(Type arg) { super(); _arg = arg; _type = compute(); }
+    public StartNode(Type arg) { super(null); _arg = arg; _type = compute(); }
 
     @Override public String label() { return "Start"; }
 
@@ -41,9 +41,4 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public int idepth() { return 0; }
     @Override public CFGNode idom(Node dep) { return null; }
 
-    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) { }
-
-    @Override public int loopDepth() { return (_loopDepth=1); }
-
-    @Override public Node getBlockStart() { return this; }
 }
