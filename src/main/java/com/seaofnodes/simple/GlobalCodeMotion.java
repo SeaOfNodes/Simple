@@ -16,43 +16,6 @@ public abstract class GlobalCodeMotion {
         schedLate( stop);
     }
 
-    // ------------------------------------------------------------------------
-    // Backwards walk on the CFG only, looking for unreachable code - which has
-    // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
-    // loop becomes reachable.  Also, set loop nesting depth
-    public static void fixLoops(StopNode stop) {
-        // Backwards walk from Stop, looking for unreachable code
-        BitSet visit = new BitSet();
-        HashSet<CFGNode> unreach = new HashSet<>();
-        unreach.add(Parser.START);
-        for( Node ret : stop._inputs )
-            ((ReturnNode)ret).walkUnreach(visit,unreach);
-        if( unreach.isEmpty() ) return;
-
-        // Forwards walk from unreachable, looking for loops with no exit test.
-        visit.clear();
-        for( CFGNode cfg : unreach )
-            walkInfinite(cfg,visit,stop);
-        // Set loop depth on remaining graph
-        unreach.clear();
-        visit.clear();
-        for( Node ret : stop._inputs )
-            ((ReturnNode)ret).walkUnreach(visit,unreach);
-        assert unreach.isEmpty();
-    }
-
-
-    // Forwards walk over previously unreachable, looking for loops with no
-    // exit test.
-    static private void walkInfinite( CFGNode n, BitSet visit, StopNode stop ) {
-        if( visit.get(n._nid) ) return; // Been there, done that
-        visit.set(n._nid);
-        if( n instanceof LoopNode loop )
-            loop.forceExit(stop);
-        for( Node use : n._outputs )
-            if( use instanceof CFGNode cfg )
-                walkInfinite(cfg,visit,stop);
-    }
 
     // ------------------------------------------------------------------------
     // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
@@ -66,7 +29,7 @@ public abstract class GlobalCodeMotion {
         // Reverse Post-Order on CFG
         for( int j=rpo.size()-1; j>=0; j-- ) {
             CFGNode cfg = rpo.get(j);
-            cfg.loopDepth();    // Pre-compute loop depth
+            cfg.loopDepth();
             for( Node n : cfg._inputs )
                 _schedEarly(n,visit);
             if( cfg instanceof RegionNode )
@@ -138,14 +101,13 @@ public abstract class GlobalCodeMotion {
 
                 // All uses done?
                 for( Node use : n._outputs )
-                    if( use!=null && late[use._nid]==null && !(use instanceof PhiNode) )
+                    if( use!=null && late[use._nid]==null )
                         continue outer; // Nope, await all uses done
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
-                        if( !(memuse instanceof PhiNode) &&
-                            late[memuse._nid]==null &&
+                        if( late[memuse._nid]==null &&
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use indirectly defines memory
@@ -211,7 +173,7 @@ public abstract class GlobalCodeMotion {
 
     // Least loop depth first, then largest idepth
     private static boolean better( CFGNode lca, CFGNode best ) {
-        return lca._loopDepth < best._loopDepth ||
+        return lca.loopDepth() < best.loopDepth() ||
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
@@ -251,9 +213,9 @@ public abstract class GlobalCodeMotion {
     //
     private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
         // Walk store blocks "reach" from its scheduled location to its earliest
-        for( ; stblk != defblk; stblk = stblk.idom() ) {
+        for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
-            if( !(stblk instanceof IfNode) && stblk._anti==load._nid ) {
+            if( stblk._anti==load._nid ) {
                 lca = stblk._idom(lca,null); // Raise Loads LCA
                 if( lca == stblk && st != null && st._inputs.find(load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
