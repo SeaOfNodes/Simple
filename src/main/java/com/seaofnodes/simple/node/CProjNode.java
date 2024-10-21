@@ -52,10 +52,6 @@ public class CProjNode extends CFGNode {
     }
 
     @Override
-    public Node getBlockStart() {
-        return ctrl() instanceof IfNode ? this : ctrl().getBlockStart();
-    }
-    @Override
     boolean eq( Node n ) { return _idx == ((CProjNode)n)._idx; }
 
     @Override

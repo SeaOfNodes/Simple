@@ -47,6 +47,4 @@ public class ReturnNode extends CFGNode {
             return ctrl();
         return null;
     }
-
-    @Override public Node getBlockStart() { return ctrl().getBlockStart(); }
 }
