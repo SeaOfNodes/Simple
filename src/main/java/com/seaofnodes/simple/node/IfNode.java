@@ -43,6 +43,9 @@ public class IfNode extends CFGNode implements MultiNode {
         // Else true branch is reachable
         if( t.isConstant() )
             return t.makeInit()==t ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
+        // Integers allow non-zero ranges: "1-65535"
+        if( t.makeZero().meet(t) != t )
+            return TypeTuple.IF_TRUE;
 
         return TypeTuple.IF_BOTH;
     }
@@ -60,12 +63,4 @@ public class IfNode extends CFGNode implements MultiNode {
         return null;
     }
 
-    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
-        for( Node proj : _outputs )
-            if( ((CProjNode)proj)._loopDepth == 0 )
-                unreach.add((CProjNode)proj);
-        super._walkUnreach(visit,unreach);
-    }
-
-    @Override public Node getBlockStart() { return ctrl().getBlockStart(); }
 }

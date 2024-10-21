@@ -22,20 +22,19 @@ public class NotNode extends Node {
         switch( t0 ) {
         case TypeInteger i0:  return i0._max < 0 || i0._min > 0 ? TypeInteger.FALSE : (i0==TypeInteger.ZERO ? TypeInteger.TRUE : TypeInteger.BOOL);
         case TypeFloat   i0:
-            return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : TypeInteger.BOT;
+            return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : TypeInteger.BOOL;
         case TypeMemPtr p0:
             // top->top, bot->bot, null->1, *void->0, not-null ptr->0, ptr/nil->bot
             // If input in null then true
             // If input is not null ptr then false
-            if( p0 == TypeMemPtr.TOP  )    return TypeInteger.TOP;
-            if( p0 == TypeMemPtr.NULLPTR ) return TypeInteger.constant(1);
-            if( !p0._nil )                 return TypeInteger.constant(0);
-            return TypeInteger.BOT;
+            if( p0 == TypeMemPtr.NULLPTR ) return TypeInteger.TRUE;
+            if( !p0._nil )                 return TypeInteger.FALSE;
+            return TypeInteger.BOOL;
         case Type t:
             if( t0.getClass() != Type.class )
                 // Only doing NOT on ints and ptrs
                 throw Utils.TODO();
-            return t0==Type.TOP ? TypeInteger.TOP : TypeInteger.BOT;
+            return TypeInteger.BOOL;
         }
     }
 
