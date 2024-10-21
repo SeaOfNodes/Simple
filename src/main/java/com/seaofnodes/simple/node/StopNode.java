@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.GlobalCodeMotion;
 import com.seaofnodes.simple.GraphVisualizer;
@@ -63,8 +64,6 @@ public class StopNode extends CFGNode {
     }
     @Override public CFGNode idom(Node dep) { return null; }
 
-    @Override public int loopDepth() { return (_loopDepth=1); }
-
     public Node addReturn(Node node) {
         return addDef(node);
     }
@@ -77,13 +76,10 @@ public class StopNode extends CFGNode {
         return this;
     }
     StopNode GCM(boolean show) {
-        // Break infinite loops, forcing a Never-branch to exit
-        GlobalCodeMotion.fixLoops(this);
+        Parser.START.buildLoopTree(this);
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(this,null,null));
         GlobalCodeMotion.buildCFG(this);
         return this;
     }
-
-    @Override public Node getBlockStart() { return this; }
 }
