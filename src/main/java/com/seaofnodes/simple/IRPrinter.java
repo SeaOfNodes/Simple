@@ -216,10 +216,11 @@ public class IRPrinter {
             // Print block header
             sb.append("%-13.13s".formatted(label(blk)+":"));
             sb.append( "     ".repeat(4) ).append(" [[  ");
-            if( blk instanceof RegionNode || blk instanceof StopNode )
+            if( blk instanceof StartNode ) ;
+            else if( blk instanceof RegionNode || blk instanceof StopNode )
                 for( int i=(blk instanceof StopNode ? 0 : 1); i<blk.nIns(); i++ )
                     label(sb,blk.cfg(i));
-            else if( !(blk instanceof StartNode) )
+            else
                 label(sb,blk.cfg(0));
             sb.append(" ]]  \n");
 

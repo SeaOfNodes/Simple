@@ -69,7 +69,7 @@ while (arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,arg,(Phi_arg+2));", stop.toString());
+        assertEquals("return Phi(Loop,arg,(Phi_arg+2));", stop.toString());
         Assert.assertEquals(11L, Evaluator.evaluate(stop, 1));
     }
 
@@ -86,7 +86,7 @@ while (arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,arg,(Phi_arg+4));", stop.toString());
+        assertEquals("return Phi(Loop,arg,(Phi_arg+4));", stop.toString());
         Assert.assertEquals(13L, Evaluator.evaluate(stop, 1));
     }
 
@@ -115,7 +115,7 @@ while (arg) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop18,arg,(Phi_arg+1));", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test
@@ -185,7 +185,7 @@ while(arg) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop13,0,(-(Phi_a+3)));", stop.toString());
+        assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", stop.toString());
     }
 
     @Test
@@ -283,7 +283,7 @@ return v1+v0;
     public void testFuzz8() {
         Parser parser = new Parser("while(arg) arg = arg - 1;  return arg;");
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,arg,(Phi_arg-1));", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test

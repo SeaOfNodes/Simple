@@ -47,7 +47,7 @@ public class PhiNode extends Node {
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type
-        Type t = _declaredType.glb().dual();
+        Type t = _declaredType.lub();
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
@@ -101,7 +101,7 @@ public class PhiNode extends Node {
             if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
-                if( r.idom(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
+                if( r.idom(this).addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();

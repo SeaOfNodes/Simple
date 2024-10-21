@@ -31,8 +31,10 @@ public class Field extends Type {
         return new Field(fname,type,alias,xfinal).intern();
     }
     public Field makeFrom( Type type ) {
-        return new Field(_fname,type,_alias,_final).intern();
+        return type == _type ? this : new Field(_fname,type,_alias,_final).intern();
     }
+    @Override public Field makeRO() { return _final ? this : make(_fname,_type.makeRO(),_alias,true);  }
+    @Override public boolean isFinal() { return _final && _type.isFinal(); }
 
     public static final Field TEST = make("test",TypeInteger.ZERO,-2,false);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); }
@@ -41,16 +43,20 @@ public class Field extends Type {
         Field fld = (Field)that; // Invariant
         assert _fname.equals(fld._fname);
         assert _alias==fld._alias;
-        assert _final==fld._final;
-        return make(_fname,_type.meet(fld._type),_alias,_final);
+        return make(_fname,_type.meet(fld._type),_alias,_final | fld._final);
     }
 
     @Override
-    public Field dual() { return make(_fname,_type.dual(),_alias,_final); }
+    public Field dual() { return make(_fname,_type.dual(),_alias,!_final); }
 
-    @Override
-    public Field glb() {
-        return make(_fname,_type.glb(),_alias,_final);
+    @Override public Field glb() {
+        Type glb = _type.glb();
+        return glb==_type ? this : make(_fname,glb,_alias,_final);
+    }
+
+    @Override public Field lub() {
+        Type lub = _type.lub();
+        return lub==_type ? this : make(_fname,lub,_alias,_final);
     }
 
     // Override in subclasses
@@ -64,7 +70,7 @@ public class Field extends Type {
 
     @Override
     public StringBuilder print( StringBuilder sb ) {
-        return _type.print(sb.append(_final?"!":"").append(_fname).append(":").append(_alias).append(" : "));
+        return _type.print(sb.append(_final?"":"!").append(_fname).append(":").append(_alias).append(" : "));
     }
 
     @Override public String str() { return _fname; }
