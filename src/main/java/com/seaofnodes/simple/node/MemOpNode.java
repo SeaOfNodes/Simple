@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.Field;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
@@ -11,7 +10,9 @@ public abstract class MemOpNode extends Node {
 
     public final String _name;
     public final int _alias;
-    public final Type _declaredType;
+    // Declared type; not final because it might be a forward-reference
+    // which will be lazily improved when the reference is declared.
+    public Type _declaredType;
 
     public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
         super(null, mem, ptr, off);
