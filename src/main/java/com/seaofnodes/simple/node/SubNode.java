@@ -29,6 +29,11 @@ public class SubNode extends Node {
             t2 instanceof TypeInteger i2 ) {
             if (i1.isConstant() && i2.isConstant())
                 return TypeInteger.constant(i1.value()-i2.value());
+            // Fold ranges like {2-3} - {0-1} into {1-3}.
+            if( !AddNode.overflow(i1._min,-i2._max) &&
+                !AddNode.overflow(i1._max,-i2._min) &&
+                i2._min != Long.MIN_VALUE  )
+                return TypeInteger.make(i1._min-i2._max,i1._max-i2._min);
         }
         // Sub of same is 0
         if( in(1)==in(2) )
