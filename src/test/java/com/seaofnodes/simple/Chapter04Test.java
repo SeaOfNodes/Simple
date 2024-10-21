@@ -96,14 +96,14 @@ public class Chapter04Test {
 
     @Test
     public void testBug1() {
-        Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; ");
+        Parser parser = new Parser("int a=arg+1; int !b=a; b=1; return a+2; ");
         StopNode ret = parser.parse();
         assertEquals("return (arg+3);", ret.print());
     }
 
     @Test
     public void testBug2() {
-        Parser parser = new Parser("int a=arg+1; a=a; return a; ");
+        Parser parser = new Parser("int !a=arg+1; a=a; return a; ");
         StopNode ret = parser.parse();
         assertEquals("return (arg+1);", ret.print());
     }

@@ -15,7 +15,7 @@ public class BrainFuckTest {
     @Test
     public void testBrainfuck() {
         var program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.".getBytes(StandardCharsets.UTF_8);
-        var encoded = new StringBuilder("u8[] program = new u8[").append(program.length).append("];");
+        var encoded = new StringBuilder("u8[] !program = new u8[").append(program.length).append("];");
         for (int i = 0; i < program.length; i++) {
             int value = program[i] & 0xFF;
             encoded.append("program[").append(i).append("] = ").append(value).append(";");
@@ -23,54 +23,46 @@ public class BrainFuckTest {
 
         Parser parser = new Parser(
                 encoded + """
-int pc = 0;
-int d = 0;
-u8[] data = new u8[100];
-u8[] output = new u8[0];
+var d = 0;
+u8[] !output = new u8[0];
+u8[] !data = new u8[100];
 
-while (pc < program#) {
-    int command = program[pc];
+for( int pc = 0; pc < program#; pc++ ) {
+    var command = program[pc];
     if (command == 62) {
-        d = d + 1;
+        d++;
     } else if (command == 60) {
-        d = d - 1;
+        d--;
     } else if (command == 43) {
-        data[d] = data[d] + 1;
+        data[d]++;
     } else if (command == 45) {
-        data[d] = data[d] - 1;
+        data[d]--;
     } else if (command == 46) {
-        u8[] old = output;
+        // Output a byte; increase the output array size
+        var old = output;
         output = new u8[output# + 1];
-        int i = 0;
-        while (i < old#) {
+        for( var i = 0; i < old#; i++ )
             output[i] = old[i];
-            i = i + 1;
-        }
-        output[i] = data[d];
+        output[old#] = data[d]; // Add the extra byte on the end
     } else if (command == 44) {
         data[d] = 42;
     } else if (command == 91) {
         if (data[d] == 0) {
-            int d = 1;
-            while (d > 0) {
-                pc = pc + 1;
-                command = program[pc];
-                if (command == 91) d = d + 1;
-                if (command == 93) d = d - 1;
+            for( var d = 1; d > 0; ) {
+                command = program[++pc];
+                if (command == 91) d++;
+                if (command == 93) d--;
             }
         }
     } else if (command == 93) {
-        if (data[d] != 0) {
-            int d = 1;
-            while (d > 0) {
-                pc = pc - 1;
-                command = program[pc];
-                if (command == 93) d = d + 1;
-                if (command == 91) d = d - 1;
+        if (data[d]) {
+            for( var d = 1; d > 0; ) {
+                command = program[--pc];
+                if (command == 93) d++;
+                if (command == 91) d--;
             }
         }
     }
-    pc = pc + 1;
 }
 return output;
                 """);
