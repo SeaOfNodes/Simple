@@ -918,7 +918,7 @@ public class Parser {
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
-        if( base.isAry() ) load.setDef(0,ctrl());
+        //if( base.isAry() ) load.setDef(0,ctrl());
         return parsePostfix(load.peephole());
     }
 
