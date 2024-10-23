@@ -70,7 +70,7 @@ a `Phi` notices this and replaces itself with the live input.
 
 ## Discussion
 
-With the changes above, our peephol optimization is able to fold dead code when
+With the changes above, our peephole optimization is able to fold dead code when
 an `if` statement has a condition that evaluates to `true` or `false` at compile time.
 
 Let's look at a simple example below:
