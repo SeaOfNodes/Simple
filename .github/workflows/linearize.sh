@@ -90,6 +90,7 @@ while read -r chapter; do
   sed -Ei 's,\bdocs/,,' "docs/$chapter/README.md"
   git add README.md "docs/$chapter/README.md" pom.xml
 
+  # Create a commit for the chapter, using the metadata.
   if [[ ! "$first_author" =~ ^(.*)\ \<(.*)\>$ ]]; then
     echo "First author does not match pattern" >&2
     exit 1
@@ -99,4 +100,7 @@ while read -r chapter; do
   GIT_AUTHOR_NAME="$name" GIT_AUTHOR_EMAIL="$email" GIT_AUTHOR_DATE="$author_date" \
   GIT_COMMITTER_NAME="$name" GIT_COMMITTER_EMAIL="$email" GIT_COMMITTER_DATE="$committer_date" \
   git commit -q -m "$message"
+
+  # Tag the chapter, so it can be stably linked.
+  git tag "linear-$chapter"
 done

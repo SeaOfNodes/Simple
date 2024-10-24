@@ -9,6 +9,8 @@ return 1 + 2 * 3 + -5;
 
 Here is the [complete language grammar](docs/02-grammar.md) for this chapter.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter02) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter01...linear-chapter02) it to the previous chapter.
+
 ## Extensions to Intermediate Representation
 
 In [Chapter 1](../chapter01/README.md) we introduced following nodes.

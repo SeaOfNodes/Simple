@@ -8,6 +8,8 @@ In this chapter:
 
 Here is the [complete language grammar](docs/10-grammar.md) for this chapter.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter10) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter09...linear-chapter10) it to the previous chapter.
+
 ## Memory
 
 In previous chapters, we dealt with scalar values that fit into a single

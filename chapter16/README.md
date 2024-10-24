@@ -1,5 +1,8 @@
 # Chapter 16: Constructors and Final fields
 
+In this chapter, we add constructors and final fields.
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter16) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter15...linear-chapter16) it to the previous chapter.
 
 ## Constructors
 

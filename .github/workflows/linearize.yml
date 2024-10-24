@@ -23,6 +23,6 @@ jobs:
           git fetch linear
           git checkout -b linear linear/main
           git remote remove linear
-          git push -f origin linear
+          git push -f origin refs/heads/linear 'refs/tags/linear-chapter*'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

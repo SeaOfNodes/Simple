@@ -10,6 +10,8 @@ In this chapter we extend the language grammar with following features:
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter04) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter03...linear-chapter04) it to the previous chapter.
+
 ## Extensions to Intermediate Representation
 
 In this chapter we add some new nodes and revise some existing nodes.

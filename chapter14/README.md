@@ -1,5 +1,9 @@
 # Chapter 14: Narrow types
 
+In this chapter, we add sub-word integer types.
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter14) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter13...linear-chapter14) it to the previous chapter.
+
 ## Narrow or sub-word types
 
 As a prelude to arrays, especially arrays of bytes common in all networking

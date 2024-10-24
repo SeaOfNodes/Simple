@@ -2,6 +2,8 @@
 
 In this chapter we do not add new language features. Our goal is to add peephole optimization to `if` statements.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter06) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter05...linear-chapter06) it to the previous chapter.
+
 ## Type System Revision
 
 We now need to extend the type system to introduce another lattice structure, in addition to the Integer sub-lattice.
