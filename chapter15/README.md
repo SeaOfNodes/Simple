@@ -21,6 +21,7 @@ will panic the Evaluator.
 - `new int[1<<63]; // Too large`
 - `new int[3.14];  // Not an integer`
  
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter15) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter14...linear-chapter15) it to the previous chapter.
 
 ## Parser
 

@@ -15,6 +15,8 @@ return c;
 
 Here is the [complete language grammar](docs/03-grammar.md) for this chapter.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter03) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter02...linear-chapter03) it to the previous chapter.
+
 ## Extensions to Intermediate Representation
 
 To recap, our list of Nodes are:

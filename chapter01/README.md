@@ -10,9 +10,11 @@ We implement the `return` statement.
 The `return` statement accepts an `expression` as an argument.
 The only `expression` type is an integer literal, as shown in the example above.
 
+To implement this simple language, we introduce a few key components and data structures.
+
 Here is the [complete language grammar](docs/01-grammar.md) for this chapter.
 
-To implement this simple language, we introduce a few key components and data structures.
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter01) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch.
 
 ## Implementation Language
 

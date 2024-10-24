@@ -8,6 +8,8 @@ In this chapter:
 
 Here is the [complete language grammar](docs/08-grammar.md) for this chapter.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter08) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter07...linear-chapter08) it to the previous chapter.
+
 ## Lazy Phi Creation
 
 In [chapter 7](../chapter07/README.md), we created `PhiNode`s for all variables

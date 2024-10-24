@@ -4,6 +4,8 @@ In this chapter we introduce the `while` statement.
 
 Here is the [complete language grammar](docs/07-grammar.md) for this chapter.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter07) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter06...linear-chapter07) it to the previous chapter.
+
 ## Dealing With Back Edges
 
 The complication introduced by looping constructs is that variables flow back into the body of the loop on iteration.

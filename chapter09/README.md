@@ -7,6 +7,8 @@ In this chapter:
 
 No language changes in this chapter, just adding optimizations.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter09) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter08...linear-chapter09) it to the previous chapter.
+
 ## Engineering Peepholes
 
 The goal for Ch 9 is to "finish out" the Peepholes.  Not that no more peeps will

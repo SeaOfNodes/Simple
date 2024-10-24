@@ -16,6 +16,8 @@ differences compared to the version described in the paper.
 
 Since this is a complex topic, we will present a high level summary first and then delve into the details.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter11) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter10...linear-chapter11) it to the previous chapter.
+
 ## High Level Overview
 
 The Sea of Nodes graph has two virtual graphs within it.
