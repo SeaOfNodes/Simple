@@ -247,6 +247,9 @@ Without GVN the peepholes cannot see that both sides of the subtraction have the
 
 ![Graph3](./docs/09-graph3.svg)
 
+- Each multiplication(*) node has two edges going to `arg`. 
+- In the example above, we fused them to make the graph more readable.
+
 With GVN, the peepholes can do a better job:
 
 ![Graph4](./docs/09-graph4.svg)
