@@ -36,7 +36,7 @@ public class Evaluator {
                 sb.append("obj@").append(cid);
                 return id;
             }
-            if (struct._name.equals("u8[]")) {
+            if (struct._name.equals("[u8]")) {
                 sb.append('"');
                 for (int i=struct._fields.length-1; i<fields.length; i++) {
                     var v = fields[i];
