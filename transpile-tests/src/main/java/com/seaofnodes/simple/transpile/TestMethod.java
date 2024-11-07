@@ -31,6 +31,9 @@ public class TestMethod {
         }
     }
 
-    public record Evaluation(Number result, long parameter) {
+    /**
+     * result is a literal value
+     **/
+    public record Evaluation(Object result, long parameter) {
     }
 }

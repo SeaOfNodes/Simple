@@ -57,11 +57,16 @@ public class RustPrinter {
         out.println("""
                 use crate::datastructures::arena::DroplessArena;
                 use crate::sea_of_nodes::parser::Parser;
-                use crate::sea_of_nodes::types::Types;
-                """);
+                use crate::sea_of_nodes::types::Types;""");
 
-        if (tests.stream().anyMatch(t -> t.parseErrorMessage != null)) {
+        if (tests.stream().anyMatch(t -> t.assertStopRetCtrlIsProj || t.assertStopRetCtrlIsCProj || t.assertStopRetCtrlIsRegion)) {
+            out.println("use crate::sea_of_nodes::nodes::Op;");
+        }
+        if (tests.stream().anyMatch(t -> t.parseErrorMessage != null && !t.iterate)) {
             out.println("use crate::sea_of_nodes::tests::test_error;");
+        }
+        if (tests.stream().anyMatch(t -> t.parseErrorMessage != null && t.iterate)) {
+            out.println("use crate::sea_of_nodes::tests::test_error_iterate;");
         }
         if (tests.stream().anyMatch(t -> t.irPrinter && !t.irPrinterLLVM)) {
             out.println("use crate::sea_of_nodes::ir_printer::pretty_print;");
@@ -70,7 +75,7 @@ public class RustPrinter {
             out.println("use crate::sea_of_nodes::ir_printer::pretty_print_llvm;");
         }
         if (tests.stream().anyMatch(t -> !t.evaluations.isEmpty())) {
-            out.println("use crate::sea_of_nodes::graph_evaluator::evaluate;");
+            out.println("use crate::sea_of_nodes::tests::evaluator::{evaluate, Object};");
         }
 
         for (TestMethod test : tests) {
@@ -83,14 +88,18 @@ public class RustPrinter {
         out.println("#[test]");
         out.println("fn " + snakeCase(test.name) + "() {");
         if (test.parseErrorMessage != null) {
-            out.println("test_error(" + string(test.parserInput) + ", " + string(test.parseErrorMessage) + ");");
+            if (test.iterate) {
+                out.println("test_error_iterate(" + string(test.parserInput) + ", " + string(test.parseErrorMessage) + ");");
+            } else {
+                out.println("test_error(" + string(test.parserInput) + ", " + string(test.parseErrorMessage) + ");");
+            }
         } else if (test.parserInput != null) {
             out.println("let arena = DroplessArena::new();");
             out.println("let types = Types::new(&arena);");
             if (test.parserArg == null) {
-                out.println("let mut parser = Parser::new(" + string(test.parserInput, true) + ", &types);");
+                out.println("let mut parser = Parser::new(" + string(test.parserInput) + ", &types);");
             } else {
-                out.printf("let mut parser = Parser::new_with_arg(%s, &types, %s);\n", string(test.parserInput, true), switch (test.parserArg) {
+                out.printf("let mut parser = Parser::new_with_arg(%s, &types, %s);\n", string(test.parserInput), switch (test.parserArg) {
                     case TestMethod.Arg.IntBot ignored -> "types.ty_int_bot";
                     case TestMethod.Arg.IntTop ignored -> "types.ty_int_top";
                     case TestMethod.Arg.IntConstant c -> "types.get_int(" + c.value() + ")";
@@ -105,6 +114,7 @@ public class RustPrinter {
             }
             if (test.iterate) {
                 out.println("parser.iterate(stop);");
+                out.println("parser.type_check(stop).unwrap();\n");
             }
             if (test.showAfterIterate) {
                 out.println("parser.show_graph();");
@@ -116,16 +126,26 @@ public class RustPrinter {
                 out.println("assert_eq!(parser.print(stop), " + string(test.assertStopEquals) + ");");
             }
             if (test.assertStopRetCtrlIsProj) {
-                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Node::Proj(_)));");
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Op::Proj(_)));");
             }
             if (test.assertStopRetCtrlIsCProj) {
-                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Node::CProj(_)));");
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Op::CProj(_)));");
             }
             if (test.assertStopRetCtrlIsRegion) {
-                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Node::Region{..}));");
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Op::Region{..}));");
             }
             for (var evaluation : test.evaluations) {
-                out.println("assert_eq!(evaluate(&parser.nodes, stop, Some(" + evaluation.parameter() + "), None), " + evaluation.result() + ");");
+                var result = switch (evaluation.result()) {
+                    case null -> "Object::Null";
+                    case Integer l -> "Object::Long(" + l + ")";
+                    case Long l -> "Object::Long(" + l + ")";
+                    case Float d -> "Object::Double(" + d + ")";
+                    case Double d -> "Object::Double(" + d + ")";
+                    case String s -> string(s);
+                    default ->
+                            throw new RuntimeException("unexpected evaluation result: " + evaluation.result().getClass());
+                };
+                out.println("assert_eq!(" + result + ", evaluate(&parser.nodes, stop, Some(" + evaluation.parameter() + "), None).1);");
             }
         } else {
             out.println("todo!();");
@@ -134,22 +154,18 @@ public class RustPrinter {
     }
 
     private String string(String value) {
-        return string(value, false);
-    }
-
-    private String string(String value, boolean multiline) {
         var escaped = value.replace("\\", "\\\\")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t")
                 .replace("\"", "\\\"");
-        if (multiline && escaped.contains("\n")) {
+        if (escaped.contains("\n")) {
             return "\"\\\n" + escaped + "\"";
         } else {
-            return "\"" + escaped.replace("\n", "\\n") + "\"";
+            return "\"" + escaped + "\"";
         }
     }
 
     private String snakeCase(String identifier) {
-        return identifier.replaceAll("[A-Z]+", "_$0").toLowerCase();
+        return identifier.replaceAll("([A-Z]+)|([0-9]+)", "_$0").toLowerCase();
     }
 }
