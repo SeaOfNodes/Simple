@@ -73,15 +73,34 @@ class AstVisitor extends TreeScanner<Void, Void> {
                 } else {
                     if (args.size() != 2)
                         throw new RuntimeException("Unexpected number of arguments " + node);
-                    if (args.get(1).toString().endsWith(".toString()") || args.get(1).toString().endsWith(".print()")) {
-                        current.assertStopEquals = (String) literal(args.get(0));
-                    } else if (args.get(1).toString().contains("evaluate(")) {
-                        Number result = (Number) literal(args.get(0));
-                        var evalArgs = ((MethodInvocationTree) args.get(1)).getArguments();
+                    if (args.get(1).toString().contains("evaluate(")) {
+                        // visit evaluate(..) or evaluate(..).toString()
+                        var eval = args.get(1).accept(new TreeScanner<MethodInvocationTree, Void>() {
+                            @Override
+                            public MethodInvocationTree reduce(MethodInvocationTree r1, MethodInvocationTree r2) {
+                                return r1 != null ? r1 : r2;
+                            }
+
+                            @Override
+                            public MethodInvocationTree visitMethodInvocation(MethodInvocationTree n, Void unused1) {
+                                if (n.getMethodSelect().toString().endsWith(".evaluate"))
+                                    return n;
+                                return super.visitMethodInvocation(n, unused1);
+                            }
+                        }, null);
+
+                        Object result = literal(args.get(0));
+                        var evalArgs = eval.getArguments();
                         if (evalArgs.size() != 2 || !evalArgs.get(0).toString().equals("stop"))
                             throw new RuntimeException("Unexpected eval arguments " + node);
                         long parameter = Long.parseLong(literal(evalArgs.get(1)).toString());
                         current.evaluations.add(new TestMethod.Evaluation(result, parameter));
+                    } else if (args.get(1).toString().endsWith(".toString()") || args.get(1).toString().endsWith(".print()")) {
+                        if (current.assertStopEquals == null) {
+                            // Assume the first one prints the stop node. Ignore assertions from evaluator:
+                            //     assertEquals("int[] {\n  # :int;\n  [] :int;\n}",obj.struct().toString());
+                            current.assertStopEquals = (String) literal(args.get(0));
+                        }
                     }
                 }
             }
@@ -113,7 +132,7 @@ class AstVisitor extends TreeScanner<Void, Void> {
                         case "TypeInteger.BOT" -> new TestMethod.Arg.IntBot();
                         case "TypeInteger.TOP" -> new TestMethod.Arg.IntTop();
                         case String s -> {
-                            var parts = s.split("\\(|\\)");
+                            var parts = s.split("[()]");
                             if (parts.length != 2 | !parts[0].equals("TypeInteger.constant"))
                                 throw new RuntimeException("Unexpected Argument " + s);
                             yield new TestMethod.Arg.IntConstant(Long.parseLong(parts[1]));
