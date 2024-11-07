@@ -49,6 +49,43 @@ return -arg---arg--;
         assertEquals(1L, Evaluator.evaluate(stop, 0));
     }
 
+    @Test
+    public void testInc3() {
+        Parser parser = new Parser("""
+int[] xs = new int[arg];
+xs[0]++;
+xs[1]++;
+return xs[0];
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 1;", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop, 2));
+    }
+
+    @Test
+    public void testInc4() {
+        Parser parser = new Parser("""
+u8[] xs = new u8[1];
+xs[0]--;
+return xs[0];
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 255;", stop.toString());
+        assertEquals(255L, Evaluator.evaluate(stop, 2));
+    }
+
+    @Test
+    public void testInc5() {
+        Parser parser = new Parser("""
+struct S { u16 x; };
+S s = new S;
+s.x--;
+return s.x;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 65535;", stop.toString());
+        assertEquals(65535L, Evaluator.evaluate(stop, 2));
+    }
 
     @Test
     public void testLinkedList2() {

@@ -761,8 +761,8 @@ public class Parser {
         // Expect an identifier now
         ScopeMinNode.Var n = requireLookupId("an identifier or expression");
         Node rvalue = _scope.in(n).keep();
-        if( matchx("++") ) _scope.update(n,new AddNode(rvalue,con( 1)).peephole());
-        if( matchx("--") ) _scope.update(n,new AddNode(rvalue,con(-1)).peephole());
+        if( matchx("++") || matchx("--") )
+            _scope.update(n,new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1)).peephole());
         return rvalue.unkeep();
     }
 
@@ -907,24 +907,24 @@ public class Parser {
         // Get field type and layout offset from base type and field index fidx
         Field f = base._fields[fidx];  // Field from field index
 
-        Node off = name.equals("[]")       // If field is an array body
+        Node off = (name.equals("[]")       // If field is an array body
             // Array index math
             ? new AddNode(con(base.aryBase()),new ShlNode(require(parseExpression(),"]"),con(base.aryScale())).peephole()).peephole()
             // Struct field offsets are hardwired
-            : con(base.offset(fidx));
+            : con(base.offset(fidx))).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
             Node val = parseExpression();
             // Auto-truncate when storing to narrow fields
-            val = zsMask(val,f._type);
-            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
+            val = zsMask(val,f._type).keep();
+            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off.unkeep(), val, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.
             if( base.isAry() )  st.setDef(0,ctrl());
             memAlias(f._alias, st.peephole());
-            return val;        // "obj.a = expr" returns the expression while updating memory
+            return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
         Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr, off);
@@ -932,7 +932,23 @@ public class Parser {
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
         if( base.isAry() ) load.setDef(0,ctrl());
-        return parsePostfix(load.peephole());
+        load = load.peephole();
+
+        // ary[idx]++
+        if( matchx("++") || matchx("--") ) {
+            Node inc = new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)).peephole();
+            Node val = zsMask(inc,f._type);
+            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
+            // Arrays include control, as a proxy for a safety range check.
+            // Structs don't need this; they only need a NPE check which is
+            // done via the type system.
+            if( base.isAry() )  st.setDef(0,ctrl());
+            memAlias(f._alias, st.peephole());
+            // And use the original loaded value as the result
+        }
+        if( off.unkeep().isDead() ) off.kill();
+
+        return parsePostfix(load);
     }
 
 
@@ -1044,6 +1060,8 @@ public class Parser {
             return isEOF() ? Character.MAX_VALUE   // Special value that causes parsing to terminate
                     : (char) _input[_position];
         }
+        // Just crash if misused
+        public byte peek(int off) { return _input[_position+off]; }
 
         private char nextChar() {
             char ch = peek();
