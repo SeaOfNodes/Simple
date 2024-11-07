@@ -278,6 +278,7 @@ public abstract class Node implements OutNode {
             int idx = n._inputs.find(this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
+            IterPeeps.addAll(n._outputs);
         }
         kill();
     }
@@ -419,7 +420,7 @@ public abstract class Node implements OutNode {
      * And more folding:
      * <pre>   ary + ((idx<<2) + 16)</pre>
      * And during code-gen:
-     * <pre>   MOV4 Rary,Ridx,16 // or some such hardware-specific notation </pre>
+     * <pre>   MOV4 Rary,[Ridx<<2 +16] // or some such hardware-specific notation </pre>
      * <p>
      * {@link #idealize} has a very specific calling convention:
      * <ul>
@@ -541,9 +542,6 @@ public abstract class Node implements OutNode {
 
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
-
-    /** Return block start from a isCFG() */
-    public Node getBlockStart() { return null; }
 
     /** Pinned in the schedule; these are data nodes whose input#0 is not allowed to change */
     public boolean isPinned() { return false; }

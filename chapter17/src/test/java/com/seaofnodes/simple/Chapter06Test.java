@@ -84,7 +84,7 @@ else
     b=5;
 return b;""", TypeInteger.BOT);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region38,2,5);", stop.toString());
+        assertEquals("return Phi(Region36,2,5);", stop.toString());
     }
 
     @Test
@@ -200,7 +200,7 @@ if( arg ) {
 return a+b;
 """);
         StopNode ret = parser.parse().iterate();
-        assertEquals("return Phi(Region35,4,1);", ret.toString());
+        assertEquals("return Phi(Region32,4,1);", ret.toString());
     }
 
 
@@ -251,7 +251,7 @@ if( arg ) {
 return a+b+c;
 """);
         StopNode ret = parser.parse().iterate();
-        assertEquals("return (Phi(Region48,Phi(Region29,2,3),0)+Phi(Region,3,1));", ret.toString());
+        assertEquals("return (Phi(Region45,Phi(Region29,2,3),0)+Phi(Region,3,1));", ret.toString());
     }
 
 

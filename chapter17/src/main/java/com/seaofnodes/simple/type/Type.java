@@ -179,6 +179,9 @@ public class Type {
      */
     public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
 
+    // Is forward-reference
+    public boolean isFRef() { return false; }
+
     // ----------------------------------------------------------
 
     // Size in bits to hold an instance of this type.

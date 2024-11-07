@@ -84,6 +84,4 @@ public class StopNode extends CFGNode {
         GlobalCodeMotion.buildCFG(this);
         return this;
     }
-
-    @Override public Node getBlockStart() { return this; }
 }

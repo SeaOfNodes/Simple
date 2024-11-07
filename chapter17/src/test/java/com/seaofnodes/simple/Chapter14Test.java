@@ -59,7 +59,7 @@ while( b ) b = b + 456;// Truncate
 return b;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,123,((Phi_b+456)&255));", stop.toString());
+        assertEquals("return 0;", stop.toString());
     }
 
     @Test

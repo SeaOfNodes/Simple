@@ -42,9 +42,15 @@ public class StoreNode extends MemOpNode {
     public Type compute() {
         Type val = val()._type;
         TypeMem mem = (TypeMem)mem()._type; // Invariant
-        Type t = mem._alias==_alias
-            ? val.meet(mem._t)  // Meet into existing memory
-            : Type.BOTTOM;
+        Type t = Type.BOTTOM;               // No idea on field contents
+        // Same alias, lift val to the declared type and then meet into other fields
+        if( mem._alias == _alias ) {
+            // Update declared forward ref to the actual
+            if( _declaredType.isFRef() && val instanceof TypeMemPtr tmp && !tmp.isFRef() )
+                _declaredType = tmp;
+            val = val.join(_declaredType);
+            t = val.meet(mem._t);
+        }
         return TypeMem.make(_alias,t);
     }
 

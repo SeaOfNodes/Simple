@@ -14,15 +14,27 @@ public class ScopeMinNode extends Node {
     /** The tracked fields are now complex enough to deserve a array-of-structs layout
      */
     public static class Var {
-        public final int _idx;
-        public final String _name;
-        public final Type _type;
-        public final boolean _final;
+        public final int _idx;       // index in containing scope
+        public final String _name;   // Declared name
+        private Type _type;          // Declared type
+        public final boolean _final; // Final field
         public Var(int idx, String name, Type type, boolean xfinal) {
             _idx = idx;
             _name = name;
             _type = type;
             _final = xfinal;
+        }
+        public Type type() {
+            if( !_type.isFRef() ) return _type;
+            Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
+            return (_type=_type.meet(def));
+        }
+        public Type glb() {
+            Type t = type();
+            return t instanceof TypeMemPtr ? t : t.glb();
+        }
+        @Override public String toString() {
+            return _type.toString()+(_final ? " !": " ")+_name;
         }
     }
 

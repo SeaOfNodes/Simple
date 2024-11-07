@@ -79,7 +79,7 @@ public class TypeTest {
 
     // Test theoretical properties.
     // This is a symmetric complete bounded (ranked) lattice.
-    // Also the meet is commutative and associative.
+    // Also, the meet is commutative and associative.
     // The lattice has a dual (symmetric), and join is ~(~x meet ~y).
     // See https://en.wikipedia.org/wiki/Lattice_(order).
     @Test
