@@ -245,7 +245,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,s0,Phi(Region43,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop16,s0,Phi(Region45,s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -263,7 +263,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop20,s0,Phi(Region44,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop20,s0,Phi(Region46,s0,Phi_ret));", stop.toString());
     }
 
 
@@ -280,7 +280,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,s0,Phi(Region41,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop16,s0,Phi(Region42,s0,Phi_ret));", stop.toString());
     }
 
     @Test

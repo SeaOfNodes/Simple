@@ -50,7 +50,7 @@ return output;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return [u8];", stop.toString());
-        assertEquals("Obj<[u8]>{#=1,[]=[1]}", Evaluator.evaluate(stop,  0).toString());
+        assertEquals("\u0001", Evaluator.evaluate(stop,  0).toString());
     }
 
     @Test

@@ -66,6 +66,4 @@ public class IfNode extends CFGNode implements MultiNode {
                 unreach.add((CProjNode)proj);
         super._walkUnreach(visit,unreach);
     }
-
-    @Override public Node getBlockStart() { return ctrl().getBlockStart(); }
 }

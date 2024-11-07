@@ -1,4 +1,21 @@
-# Chapter 17: Functions
+# Chapter 17: Syntax Sugar
+
+# Post-increment
+
+Allow `arg++` and `arg--` with the usual meanings; the value is updated and the
+expression is the pre-update value.  Greedy match is used so `arg---arg` parses
+as `(arg--)-arg`.
+
+
+var/val
+invert !
+C++-style for-loop
+for-interator
+
+
+
+
+# Chapter 18: Functions
 
 Some thinking on function syntax:
 

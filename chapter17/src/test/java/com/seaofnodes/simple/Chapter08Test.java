@@ -23,7 +23,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region45,Phi(Region32,Phi(Loop10,arg,(Phi_arg+1)),Add),Add);", stop.toString());
+        assertEquals("return Phi(Region46,Phi(Region33,Phi(Loop10,arg,(Phi_arg+1)),Add),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
         Assert.assertEquals(5L, Evaluator.evaluate(stop, 1));
         Assert.assertEquals(10L, Evaluator.evaluate(stop, 6));
@@ -46,7 +46,7 @@ while(arg < 10) {
 return a;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,1,Phi(Region52,Phi_a,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Loop11,1,Phi(Region53,Phi_a,(Phi_a+1)));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -65,7 +65,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region43,Phi(Loop10,arg,(Phi_arg+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region44,Phi(Loop10,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -81,7 +81,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region32,Phi(Loop10,arg,(Phi_arg+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region33,Phi(Loop10,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -185,7 +185,7 @@ while(arg < 10) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region35,Phi(Loop11,1,(Phi_a+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region36,Phi(Loop11,1,(Phi_a+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 

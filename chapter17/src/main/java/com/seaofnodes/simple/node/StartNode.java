@@ -44,6 +44,4 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) { }
 
     @Override public int loopDepth() { return (_loopDepth=1); }
-
-    @Override public Node getBlockStart() { return this; }
 }

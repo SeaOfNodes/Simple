@@ -33,10 +33,13 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        if( mem()._type instanceof TypeMem mem &&
-            // No constant folding if ptr might null-check
-            _declaredType != mem._t && err()==null ) {
-            return  _declaredType.join(mem._t);
+        if( mem()._type instanceof TypeMem mem ) {
+            // Update declared forward ref to the actual
+            if( _declaredType.isFRef() && mem._t instanceof TypeMemPtr tmp && !tmp.isFRef() )
+                _declaredType = tmp;
+            // No lifting if ptr might null-check
+            if( err()==null )
+                return _declaredType.join(mem._t);
         }
         return _declaredType;
     }

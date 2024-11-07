@@ -96,7 +96,7 @@ public class Parser {
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
     // have C-style '*ptr' references.
-    public final HashMap<String, Type> TYPES;
+    public static HashMap<String, Type> TYPES;
 
     // Mapping from a type name to the constructor for a Type.
     public final HashMap<String, StructNode> INITS;
@@ -267,6 +267,7 @@ public class Parser {
         // the loop predicate.  Note that body Scope is still our current scope.
         ctrl(ifF);
         _xScopes.push(_breakScope = _scope.dup());
+        _breakScope.upcast(ifF,pred,true); // Up-cast predicate
 
         // No continues yet
         _continueScope = null;
@@ -274,6 +275,7 @@ public class Parser {
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
+        _scope.upcast(ifT,pred,false); // Up-cast predicate
         parseStatement();       // Parse loop body
 
         // Merge the loop bottom into other continue statements
@@ -302,7 +304,8 @@ public class Parser {
         // the scope is the exit scope after the exit test.
         _xScopes.pop();
         _xScopes.push(exit);
-        return _scope = exit;
+        _scope = exit;
+        return _scope;
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
@@ -438,7 +441,7 @@ public class Parser {
             // need to check the final bit.
             if( _scope.in(def._idx)._type!=Type.TOP && def._final )
                 throw error("Cannot reassign final '"+name+"'");
-            t = def._type; // Declared field type
+            t = def.type(); // Declared field type
         }
 
         // Auto-widen int to float
@@ -527,7 +530,7 @@ public class Parser {
         for( int i=lexlen; i<varlen; i++ ) {
             s.addDef(_scope.in(i));
             ScopeMinNode.Var v = _scope._vars.at(i);
-            fs[i-lexlen] = Field.make(v._name,v._type,ALIAS++,v._final);
+            fs[i-lexlen] = Field.make(v._name,v.type(),ALIAS++,v._final);
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
         TYPES.put(typeName, TypeMemPtr.make(ts));
@@ -550,7 +553,7 @@ public class Parser {
         if( tname==null ) return null;
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
-        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.make(tname)) : t0; // Null: assume a forward ref type
+        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         while( true ) {
             assert !(t1 instanceof TypeStruct);
@@ -744,23 +747,33 @@ public class Parser {
      * Parse a primary expression:
      *
      * <pre>
-     *     primaryExpr : integerLiteral | Identifier | true | false | null | new Type | '(' expression ')'
+     *     primaryExpr : integerLiteral | true | false | null | new Type | '(' expression ')' | Id['++','--']
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
     private Node parsePrimary() {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
-        if( match("(") ) return require(parseExpression(), ")");
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return con(TypeMemPtr.NULLPTR);
+        if( match("(") ) return require(parseExpression(), ")");
         if( matchx("new"  ) ) return alloc();
         // Expect an identifier now
-        String name = _lexer.matchId();
-        if( name == null) throw errorSyntax("an identifier or expression");
-        ScopeMinNode.Var n = _scope.lookup(name);
-        if( n!=null ) return _scope.in(n);
-        throw error("Undefined name '" + name + "'");
+        ScopeMinNode.Var n = requireLookupId("an identifier or expression");
+        Node rvalue = _scope.in(n).keep();
+        if( matchx("++") ) _scope.update(n,new AddNode(rvalue,con( 1)).peephole());
+        if( matchx("--") ) _scope.update(n,new AddNode(rvalue,con(-1)).peephole());
+        return rvalue.unkeep();
+    }
+
+    ScopeMinNode.Var requireLookupId(String msg) {
+        String id = _lexer.matchId();
+        if( id == null || KEYWORDS.contains(id) )
+            throw errorSyntax(msg);
+        ScopeMinNode.Var n = _scope.lookup(id);
+        if( n==null )
+            throw error("Undefined name '" + id + "'");
+        return n;
     }
 
     /**

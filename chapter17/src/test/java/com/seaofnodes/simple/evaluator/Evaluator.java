@@ -100,7 +100,7 @@ public class Evaluator {
         }
         @Override
         public String toString() {
-            if (struct._name.equals("u8[]")) {
+            if (struct._name.equals("[u8]")) {
                 var sb = new StringBuilder();
                 for (int i=struct._fields.length-1; i<fields.length; i++) {
                     var v = fields[i];

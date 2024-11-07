@@ -36,7 +36,7 @@ public class TypeStruct extends Type {
     public static final TypeStruct BOT = make("$BOT",new Field[0]);
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
     // Forward-ref version
-    public static TypeStruct make(String name) { return make(name, (Field[])null); }
+    public static TypeStruct makeFRef(String name) { return make(name, (Field[])null); }
 
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
@@ -47,8 +47,8 @@ public class TypeStruct extends Type {
     }
 
     // A pair of self-cyclic types
-    private static final TypeStruct S1F = make("S1");
-    private static final TypeStruct S2F = make("S2");
+    private static final TypeStruct S1F = makeFRef("S1");
+    private static final TypeStruct S2F = makeFRef("S2");
     public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make(S2F,false),-2, false) });
     private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeFloat  .BOT, -3, false), Field.make("s1",TypeMemPtr.make(S1F,false),-4, false) });
 
@@ -89,8 +89,8 @@ public class TypeStruct extends Type {
         // And the answer is: "don't ask".
         if( !_name.equals(that._name) )
             return BOT;         // It's a struct; that's about all we know
-        if( this._fields==null ) return this;
-        if( that._fields==null ) return that;
+        if( this._fields==null ) return that;
+        if( that._fields==null ) return this;
         if( _fields.length != that._fields.length ) return BOT;
         // Just do field meets
         Field[] flds = new Field[_fields.length];
@@ -131,6 +131,9 @@ public class TypeStruct extends Type {
                  return false;
         return true;
     }
+
+    // Is forward-reference
+    @Override public boolean isFRef() { return _fields==null; }
 
     @Override
     boolean eq(Type t) {

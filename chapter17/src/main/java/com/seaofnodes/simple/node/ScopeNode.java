@@ -43,7 +43,7 @@ public class ScopeNode extends ScopeMinNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
             Var v = _vars.get(i);
-            v._type.print(sb);
+            v.type().print(sb);
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);
@@ -125,7 +125,7 @@ public class ScopeNode extends ScopeMinNode {
     public Var lookup( String name ) {
         int idx = find(name);
         // -1 is missed in all scopes, not found
-        return idx == -1 ? null : _update(_vars.at(idx),null);
+        return idx == -1 ? null : update(_vars.at(idx),null);
     }
 
     /**
@@ -137,10 +137,10 @@ public class ScopeNode extends ScopeMinNode {
     public void update( String name, Node n ) {
         int idx = find(name);
         assert idx>=0;
-        _update(_vars.at(idx),n);
+        update(_vars.at(idx),n);
     }
 
-    Var _update( ScopeNode.Var v, Node st ) {
+    public Var update( ScopeNode.Var v, Node st ) {
         Node old = in(v._idx);
         if( old instanceof ScopeNode loop ) {
             // Lazy Phi!
@@ -151,7 +151,7 @@ public class ScopeNode extends ScopeMinNode {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(v._idx,new PhiNode(v._name, v._type instanceof TypeMemPtr ? v._type : v._type.glb(), loop.ctrl(), loop.in(loop._update(v,null)._idx),null).peephole());
+                : loop.setDef(v._idx,new PhiNode(v._name, v.glb(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
         if( st!=null ) setDef(v._idx,st); // Set new value
@@ -223,9 +223,9 @@ public class ScopeNode extends ScopeMinNode {
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
                 Var v = _vars.at(i);
-                Node lhs = this.in(this._update(v,null));
-                Node rhs = that.in(that._update(v,null));
-                setDef(i, new PhiNode(v._name, v._type, r, lhs, rhs).peephole());
+                Node lhs = this.in(this.update(v,null));
+                Node rhs = that.in(that.update(v,null));
+                setDef(i, new PhiNode(v._name, v.type(), r, lhs, rhs).peephole());
             }
     }
 
@@ -268,6 +268,8 @@ public class ScopeNode extends ScopeMinNode {
     // This Scope looks for direct variable uses, or certain simple
     // combinations, and replaces the variable with the upcast variant.
     public Node upcast( Node ctrl, Node pred, boolean invert ) {
+        if( ctrl._type == Type.XCONTROL || pred.isDead() )
+            return null; // Dead, do not do anything
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());

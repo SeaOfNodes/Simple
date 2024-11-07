@@ -12,7 +12,6 @@ import static org.junit.Assert.fail;
 
 public class BrainFuckTest {
 
-    @Ignore
     @Test
     public void testBrainfuck() {
         var program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.".getBytes(StandardCharsets.UTF_8);
