@@ -117,7 +117,7 @@ return sum;
     }
 
     @Test
-    public void sieveOEratosthenes() {
+    public void sieveOfEratosthenes() {
         Parser parser = new Parser(
 """
 val ary = new bool[arg], primes = new int[arg];

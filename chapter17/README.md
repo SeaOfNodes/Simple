@@ -6,12 +6,33 @@ Allow `arg++` and `arg--` with the usual meanings; the value is updated and the
 expression is the pre-update value.  Greedy match is used so `arg---arg` parses
 as `(arg--)-arg`.
 
+Also allows `s.fld++` and `ary[idx]++`, and their `--` variants.
 
-var/val
+# var & val
+
+`var` can be used in the `type` position to indicate a "variable" (mutable
+value), whose type will be inferred from the initalizing expression.  
+
+`val` is the same as `var`, except its a "value" (not mutable).
+
+The inferred value is the `glb` of the peephole type, which means `var` and
+`val` will not infer types like `u8` or `f32`, instead inferring `int` and
+`flt` respectively.  Struct types will always infer as nullable, so e.g. 
+
+`var s = new S;` 
+
+infers as
+
+`S s? = new S;`
+
+
+
+
 invert !
 C++-style for-loop
 for-interator
-
+trinary
+switch
 
 
 
