@@ -216,38 +216,36 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     public void sieveOEratosthenes() {
         Parser parser = new Parser(
 """
-int[] ary = new int[arg];
-int[] primes = new int[arg];
-int nprimes = 0;
-// Find primes
-int j=2;
-while( j*j < arg ) {
-    while( ary[j]==1 ) j = j + 1;
-    // j is now a prime
-    primes[nprimes] = j;  nprimes = nprimes + 1;
+int[] ary = new int[arg], primes = new int[arg];
+int nprimes = 0, p=2;
+// Find primes while p^2 < arg
+while( p*p < arg ) {
+    // skip marked non-primes
+    while( ary[p]==1 ) p = p + 1;
+    // p is now a prime
+    primes[nprimes] = p;  nprimes = nprimes + 1;
     // Mark out the rest non-primes
-    int i = j + j;
+    int i = p + p;
     while( i < ary# ) {
         ary[i] = 1;
-        i = i + j;
+        i = i + p;
     }
-    j = j + 1;
+    p = p + 1;
 }
-// Now just collect the remaining primes
-while( j < arg ) {
-    if( ary[j] == 0 ) {
-        primes[nprimes] = j;  nprimes = nprimes + 1;
+// Now just collect the remaining primes, no more marking
+while( p < arg ) {
+    if( ary[p] == 0 ) {
+        primes[nprimes] = p;  nprimes = nprimes + 1;
     }
-    j = j + 1;
+    p = p + 1;
 }
-// Shrink the result array to size
+// Copy/shrink the result array
 int[] rez = new int[nprimes];
-j = 0;
+int j = 0;
 while( j < nprimes ) {
     rez[j] = primes[j];
     j = j + 1;
 }
-
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
