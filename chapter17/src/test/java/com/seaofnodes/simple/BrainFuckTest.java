@@ -23,11 +23,12 @@ public class BrainFuckTest {
 
         Parser parser = new Parser(
                 encoded + """
-int pc = 0, d = 0;
-u8[] data = new u8[100],  output = new u8[0];
+var pc = 0, d = 0;
+u8[] output = new u8[0];
+val data = new u8[100];
 
 while (pc < program#) {
-    int command = program[pc];
+    var command = program[pc];
     if (command == 62) {
         d++;
     } else if (command == 60) {
@@ -37,9 +38,9 @@ while (pc < program#) {
     } else if (command == 45) {
         data[d]--;
     } else if (command == 46) {
-        u8[] old = output;
+        var old = output;
         output = new u8[output# + 1];
-        int i = 0;
+        var i = 0;
         while (i < old#)
             output[i] = old[i++];
         output[i] = data[d];
@@ -47,7 +48,7 @@ while (pc < program#) {
         data[d] = 42;
     } else if (command == 91) {
         if (data[d] == 0) {
-            int d = 1;
+            var d = 1;
             while (d > 0) {
                 pc++;
                 command = program[pc];
@@ -57,7 +58,7 @@ while (pc < program#) {
         }
     } else if (command == 93) {
         if (data[d]) {
-            int d = 1;
+            var d = 1;
             while (d > 0) {
                 pc--;
                 command = program[pc];

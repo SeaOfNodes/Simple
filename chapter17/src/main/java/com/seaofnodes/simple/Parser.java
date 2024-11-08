@@ -141,6 +141,8 @@ public class Parser {
             put("u16" ,TypeInteger.U16);
             put("u32" ,TypeInteger.U32);
             put("u8"  ,TypeInteger.U8 );
+            put("val" ,Type.TOP);    // Marker type, indicates type inference
+            put("var" ,Type.BOTTOM); // Marker type, indicates type inference
         }};
     }
 
@@ -422,6 +424,8 @@ public class Parser {
                 ? Type.TOP
                 // Else takes the default
                 : t.makeInit();
+            // "var" and "val" require an expression to infer
+            if( init == null ) throw errorSyntax("expression");
             expr = con(init);
 
         } else if( !match("=") ) {     // Something else
@@ -453,6 +457,9 @@ public class Parser {
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
             e = TYPES.get(tmp._obj._name);
+        // "var" and "val" use TOP and BOTTOM - but just take the expression type.
+        if( t==Type.TOP || t==Type.BOTTOM )
+            t = expr._type.glb();
         // Type is sane
         if( !e.isa(t) )
             throw error("Type " + e.str() + " is not of declared type " + t.str());
@@ -468,7 +475,9 @@ public class Parser {
     /** Parse final: [!]asgn
      */
     private Node parseFinal(Type t) {
-        boolean xfinal = t!=null && match("!");
+        // TOP is a "val" marker - uses type inference for a "value", i.e. a final.
+        // BOT is a "var" marker - uses type inference for a "variable", i.e. not final
+        boolean xfinal = t==Type.TOP || (t!=null && match("!"));
         return parseAsgn(t,xfinal);
     }
 
@@ -761,8 +770,11 @@ public class Parser {
         // Expect an identifier now
         ScopeMinNode.Var n = requireLookupId("an identifier or expression");
         Node rvalue = _scope.in(n).keep();
-        if( matchx("++") || matchx("--") )
+        if( matchx("++") || matchx("--") ) {
+            if( n._final )
+                throw error("Cannot reassign final '"+n._name+"'");
             _scope.update(n,new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1)).peephole());
+        }
         return rvalue.unkeep();
     }
 

@@ -88,6 +88,16 @@ return s.x;
     }
 
     @Test
+    public void testVar0() {
+        Parser parser = new Parser("""
+var d;
+return d;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Syntax error, expected expression: ;",e.getMessage()); }
+    }
+
+    @Test
     public void testLinkedList2() {
         Parser parser = new Parser("""
 struct LLI { LLI? next; int i; };
@@ -104,6 +114,46 @@ return sum;
         StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop35,0,(Phi_sum+.i));", stop.toString());
         assertEquals(45L, Evaluator.evaluate(stop, 10));
+    }
+
+    @Test
+    public void sieveOEratosthenes() {
+        Parser parser = new Parser(
+"""
+val ary = new bool[arg], primes = new int[arg];
+var nprimes=0, p=2;
+// Find primes while p^2 < arg
+while( p*p < arg ) {
+    // skip marked non-primes
+    while( ary[p] ) p++;
+    // p is now a prime
+    primes[nprimes++] = p;
+    // Mark out the rest non-primes
+    int i = p + p;
+    while( i < ary# ) {
+        ary[i] = true;
+        i = i + p;
+    }
+    p++;
+}
+// Now just collect the remaining primes, no more marking
+while( p++ < arg )
+    if( !ary[p-1] )
+        primes[nprimes++] = p-1;
+// Copy/shrink the result array
+var rez = new int[nprimes], j = 0;
+while( j < nprimes )
+    rez[j] = primes[j++];
+return rez;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return [int];", stop.toString());
+        Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
+        assertEquals("[int] {  # :int;   [] :int; }",obj.struct().toString());
+        long nprimes = (Long)obj.fields()[0];
+        long[] primes = new long[]{2,3,5,7,11,13,17,19};
+        for( int i=0; i<nprimes; i++ )
+            assertEquals(primes[i],(long)(Long)obj.fields()[i+1]);
     }
 
 }
