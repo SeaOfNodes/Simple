@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.Type;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -113,9 +114,12 @@ public abstract class IterPeeps {
         MID_ASSERT = true;
         int old_cnt = Node.ITER_CNT, old_nop = Node.ITER_NOP_CNT;
         Node changed = stop.walk( n -> {
-                if( WORK.on(n) ) return null;
-                Node m = n.peepholeOpt();
-                if( m==null ) return null;
+                Node m = n;
+                if( n.compute().isa(n._type) ) { // Types must be forwards, even if on worklist
+                    if( WORK.on(n) ) return null;
+                    m = n.peepholeOpt();
+                    if( m==null ) return null;
+                }
                 System.err.println("BREAK HERE FOR BUG");
                 return m;
             });

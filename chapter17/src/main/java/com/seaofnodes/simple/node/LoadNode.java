@@ -87,6 +87,8 @@ public class LoadNode extends MemOpNode {
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.in(_alias);// Bypass unrelated New
                     break;
+                } else if( mproj.in(0) instanceof StartNode ) {
+                    break outer;
                 } else throw Utils.TODO();
             default:
                 throw Utils.TODO();
@@ -101,7 +103,11 @@ public class LoadNode extends MemOpNode {
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
         if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
-            off() instanceof ConstantNode ) {
+            // Offset can be hoisted
+            off() instanceof ConstantNode &&
+            // Pointer can be hoisted
+            hoistPtr(ptr,memphi)  ) {
+
             // Profit on RHS/Loop backedge
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
@@ -123,6 +129,25 @@ public class LoadNode extends MemOpNode {
             // Unrelated allocations
             ptr1 instanceof ProjNode && ptr1.in(0) instanceof NewNode &&
             ptr2 instanceof ProjNode && ptr2.in(0) instanceof NewNode;
+    }
+
+    private static boolean hoistPtr(Node ptr, PhiNode memphi ) {
+        // Can I hoist ptr above the Region?
+        if( !(memphi.region() instanceof RegionNode r) )
+            return false;       // Dead or dying Region/Phi
+        // If ptr from same Region, then yes, just use hoisted split pointers
+        if( ptr instanceof PhiNode pphi && pphi.region() == r )
+            return true;
+
+        // No, so can we lift this ptr?
+        CFGNode cptr = ptr.cfg0();
+        if( cptr != null )
+            // Pointer is controlled high
+            // TODO: Really needs to be the LCA of all inputs is high
+            return cptr.idepth() <= r.idepth();
+
+        // Dunno without a longer walk
+        return false;
     }
 
     // Profitable if we find a matching Store on this Phi arm.

@@ -150,7 +150,7 @@ public class Parser {
     public static Node find(int nid) { return START.find(nid); }
 
     private Node ctrl() { return _scope.ctrl(); }
-    private Node ctrl(Node n) { return _scope.ctrl(n); }
+    private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
@@ -165,7 +165,7 @@ public class Parser {
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
 
         // Parse whole program
-        parseBlock();
+        parseBlock(false);
 
         if( ctrl()._type==Type.CONTROL )
             STOP.addReturn(new ReturnNode(ctrl(), ZERO, _scope).peephole());
@@ -189,9 +189,9 @@ public class Parser {
      * Does not parse the opening or closing '{}'
      * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock() {
+    private Node parseBlock(boolean inCon) {
         // Enter a new scope
-        _scope.push();
+        _scope.push(inCon);
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
         // Exit scope
@@ -210,7 +210,7 @@ public class Parser {
     private Node parseStatement() {
         if( false ) return null;
         else if (matchx("return")  ) return parseReturn();
-        else if (match ("{")       ) return require(parseBlock(),"}");
+        else if (match ("{")       ) return require(parseBlock(false),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
         else if (matchx("break")   ) return parseBreak();
@@ -324,7 +324,7 @@ public class Parser {
             return cur;
         // toScope is either the break scope, or a scope that was created here
         assert toScope._lexSize.size() <= _breakScope._lexSize.size();
-        toScope.ctrl(toScope.mergeScopes(cur));
+        toScope.ctrl(toScope.mergeScopes(cur).peephole());
         return toScope;
     }
 
@@ -342,9 +342,16 @@ public class Parser {
      * @return a {@link Node}, never {@code null}
      */
     private Node parseIf() {
-        require("(");
         // Parse predicate
-        var pred = require(parseExpression(), ")").keep();
+        require("(");
+        var pred = require(parseExpression(), ")");
+        return parseTrinary(pred,true,"else");
+    }
+
+    // Parse a conditional expression, merging results.
+    private Node parseTrinary( Node pred, boolean stmt, String fside ) {
+        pred.keep();
+
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
@@ -359,19 +366,24 @@ public class Parser {
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.upcast(ifT,pred,false); // Up-cast predicate
-        parseStatement();       // Parse true-side
+        Node lhs = stmt ? parseStatement() : parseExpression().keep(); // Parse true-side
         ScopeNode tScope = _scope;
 
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
         ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
-        _scope.upcast(ifF,pred,true); // Up-cast predicate
-        if (matchx("else")) {
-            parseStatement();
+        // Up-cast predicate, even if not else clause, because predicate can
+        // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
+        _scope.upcast(ifF,pred,true);
+        boolean doRHS = match(fside);
+        Node rhs = doRHS
+            ? (stmt ? parseStatement() : parseExpression())
+            : (stmt ? null             : con(lhs._type.makeZero()));
+        if( doRHS )
             fScope = _scope;
-        }
         pred.unkeep();
 
+        // Check for `if(pred) int x=17;`
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
 
@@ -379,9 +391,11 @@ public class Parser {
         _scope = tScope;
         _xScopes.pop();       // Discard pushed from graph display
 
-        return ctrl(tScope.mergeScopes(fScope));
+        RegionNode r = ctrl(tScope.mergeScopes(fScope));
+        Node ret = stmt ? r : new PhiNode("",lhs._type.meet(rhs._type),r,lhs,rhs).peephole();
+        r.peephole();
+        return ret;
     }
-
 
     /**
      * Parses a return statement; "return" already parsed.
@@ -410,42 +424,39 @@ public class Parser {
 
     /** Parse: name [=expr]
      */
-    private Node parseAsgn(Type t, boolean xfinal) {
-        boolean isDecl = t!=null; // Having a type is a declaration, missing one is updating a prior name
+    // t==null          ==>> re-assign: !final, expr=parse(), t:=def ._type
+    // t==TOP           ==>> value    :  final, expr=parse(), t:=expr._type
+    // t==BOT           ==>> variable : !final, expr=parse(), t:=expr._type
+    // t==type && !expr ==>> declaratn: !final, expr=makeInit; t:=type;
+    // t==type &&  expr ==>> declaratn:  final=inCon && noBang, expr=parse() ; t:=type;
+    private Node parseAsgn(Type t, boolean hasBang) {
+        boolean isDecl = t!=null;
         int old = _lexer._position;
         String name = requireId();
-        Node expr;
-        if( peek(';') || peek(',') ) {
-            // Bare "name" is not allowed
-            if( t==null ) throw errorSyntax("expression");
-            // Does this declaration need an initializer and not getting one?
-            Type init = xfinal || t instanceof TypeMemPtr tmp && !tmp._nil
-                // Must be initialized in the "new" constructor
-                ? Type.TOP
-                // Else takes the default
-                : t.makeInit();
-            // "var" and "val" require an expression to infer
-            if( init == null ) throw errorSyntax("expression");
-            expr = con(init);
 
-        } else if( !match("=") ) {     // Something else
-            _lexer._position = old;
-            return null;
-        } else
-            expr = parseExpression();
+        boolean hasType = t!=null && t!=Type.TOP && t!=Type.BOTTOM; // User written type
+        boolean hasExpr = !(peek(';') || peek(','));   // Expression follows
+        if( hasExpr && !match("=") )                   // Something else
+            { _lexer._position = old;  return null; }
+        if( !hasExpr && t==Type.BOTTOM )  throw errorSyntax("expression");
+        Node expr = hasExpr ? parseExpression() : con(t.makeInit());
+        boolean xfinal = t==Type.TOP || (hasType && hasExpr && !hasBang && _scope.inCon());
 
         // Defining a new variable vs updating an old one
-        if( !isDecl ) { // Assigning over an existing name
-            // Lookup
+        if( t==null ) {
+            // Lookup old variable
             ScopeMinNode.Var def = _scope.lookup(name);
             if( def==null )
                 throw error("Undefined name '" + name + "'");
             // TOP fields are for late-initialized fields; these have never
             // been written to, and this must be the final write.  Other writes
-            // need to check the final bit.
-            if( _scope.in(def._idx)._type!=Type.TOP && def._final )
+            // outside the constructor need to check the final bit.
+            if( _scope.in(def._idx)._type!=Type.TOP && def._final && !_scope.inCon() )
                 throw error("Cannot reassign final '"+name+"'");
             t = def.type(); // Declared field type
+        } else if( !hasType && hasExpr ) {
+            // Discovered type from expression
+            t = expr._type.glb();
         }
 
         // Auto-widen int to float
@@ -475,10 +486,7 @@ public class Parser {
     /** Parse final: [!]asgn
      */
     private Node parseFinal(Type t) {
-        // TOP is a "val" marker - uses type inference for a "value", i.e. a final.
-        // BOT is a "var" marker - uses type inference for a "variable", i.e. not final
-        boolean xfinal = t==Type.TOP || (t!=null && match("!"));
-        return parseAsgn(t,xfinal);
+        return parseAsgn(t,match("!"));
     }
 
     /**
@@ -526,7 +534,7 @@ public class Parser {
             throw errorSyntax("struct '" + typeName + "' cannot be redefined");
 
         // A Block scope parse, and inspect the scope afterward for fields.
-        _scope.push();
+        _scope.push(true);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
@@ -562,6 +570,9 @@ public class Parser {
         if( tname==null ) return null;
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
+        // No new types as keywords
+        if( t0 == null && KEYWORDS.contains(tname) )
+          { _lexer._position = old1; return null; }
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         while( true ) {
@@ -616,11 +627,14 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : compareExpr
+     *     expr : bitwise [? expr [: expr]]
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() { return parseBitwise(); }
+    private Node parseExpression() {
+        Node expr = parseBitwise();
+        return match("?") ? parseTrinary(expr,false,":") : expr;
+    }
 
     /**
      * Parse an bitwise expression
@@ -823,7 +837,7 @@ public class Parser {
             for( int i=0; i<fs.length; i++ )
                 _scope.define(fs[i]._fname, fs[i]._type, fs[i]._final, s.in(i));
             // Parse the constructor body
-            parseBlock();
+            parseBlock(true);
             require("}");
             init = _scope._inputs;
         }
@@ -948,6 +962,8 @@ public class Parser {
 
         // ary[idx]++
         if( matchx("++") || matchx("--") ) {
+            if( f._final && !f._fname.equals("[]") )
+                throw error("Cannot reassign final '"+f._fname+"'");
             Node inc = new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)).peephole();
             Node val = zsMask(inc,f._type);
             Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);

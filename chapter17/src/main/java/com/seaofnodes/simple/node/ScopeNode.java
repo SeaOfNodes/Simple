@@ -29,9 +29,11 @@ public class ScopeNode extends ScopeMinNode {
     // Since of each nested lexical scope
     public final Ary<Integer> _lexSize;
 
+    // True if parsing inside of a constructor
+    public final Ary<Boolean> _inCons;
 
     // A new ScopeNode
-    public ScopeNode() { _vars = new Ary<>(Var.class); _lexSize = new Ary<>(Integer.class); }
+    public ScopeNode() { _vars = new Ary<>(Var.class); _lexSize = new Ary<>(Integer.class); _inCons = new Ary<>(Boolean.class); }
 
     @Override public String label() { return "Scope"; }
 
@@ -75,16 +77,23 @@ public class ScopeNode extends ScopeMinNode {
      *
      * @return Node that was bound
      */
-    public Node ctrl(Node n) { return setDef(0,n); }
+    public <N extends Node> N ctrl(N n) { return setDef(0,n); }
 
-    public void push() {
+    public void push() { push(false); }
+    public void push(boolean inCon) {
+        assert _lexSize._len==_inCons._len;
         _lexSize.push(_vars.size());
+        _inCons.push(inCon);
     }
     public void pop() {
+        assert _lexSize._len==_inCons._len;
         int n = _lexSize.pop();
+        _inCons.pop();
         popUntil(n);
         _vars.setLen(n);
     }
+
+    public boolean inCon() { return _inCons.last(); }
 
     // Find name in reverse, return an index into _vars or -1.  Linear scan
     // instead of hashtable, but probably doesn't matter until the scan
@@ -180,6 +189,7 @@ public class ScopeNode extends ScopeMinNode {
         // 3) Ensure that the order of defs is the same to allow easy merging
         dup._vars.addAll(_vars);
         dup._lexSize.addAll(_lexSize);
+        dup._inCons .addAll(_inCons );
         dup.addDef(ctrl());     // Control input is just copied
 
         // Memory input is a shallow copy
@@ -208,13 +218,13 @@ public class ScopeNode extends ScopeMinNode {
      * @param that The ScopeNode to be merged into this
      * @return A new node representing the merge point
      */
-    public Node mergeScopes(ScopeNode that) {
+    public RegionNode mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
         mem()._merge(that.mem(),r);
         this ._merge(that      ,r);
         that.kill();            // Kill merged scope
         IterPeeps.add(r);
-        return r.unkeep().peephole();
+        return r.unkeep();
     }
 
     private void _merge(ScopeNode that, RegionNode r) {

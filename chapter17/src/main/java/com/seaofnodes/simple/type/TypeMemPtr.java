@@ -59,7 +59,8 @@ public class TypeMemPtr extends Type {
     public TypeMemPtr glb() { return make(_obj.glb(),true); }
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
-    @Override public TypeMemPtr makeInit() { return NULLPTR; }
+    @Override public Type makeInit() { return _nil ? NULLPTR : Type.TOP; }
+    @Override public Type makeZero() { return NULLPTR; }
     @Override public Type nonZero() { return VOIDPTR; }
 
     @Override public boolean isHigh() { return this==TOP; }

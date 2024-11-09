@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -96,6 +97,71 @@ return d;
         try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected expression: ;",e.getMessage()); }
     }
+
+
+    @Test
+    public void testTrinary0() {
+        Parser parser = new Parser("""
+return arg ? 1 : 2;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Region19,1,2);", stop.toString());
+        assertEquals(2L, Evaluator.evaluate(stop, 0));
+        assertEquals(1L, Evaluator.evaluate(stop, 1));
+    }
+
+    @Test
+    public void testTrinary1() {
+        Parser parser = new Parser("""
+return arg ? 0 : arg;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop, 0));
+    }
+
+    @Test
+    public void testTrinary2() {
+        Parser parser = new Parser("""
+struct Bar { int x; };
+var b = arg ? new Bar : null;
+return b ? b.x++ + b.x++ : -1;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Region54,1,-1);", stop.toString());
+        assertEquals(-1L, Evaluator.evaluate(stop, 0));
+        assertEquals( 1L, Evaluator.evaluate(stop, 1));
+    }
+
+    @Test
+    public void testTrinary3() {
+        Parser parser = new Parser("""
+struct Bar { int x; };
+var b = arg ? new Bar;
+return b ? b.x++ + b.x++ : -1;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Region54,1,-1);", stop.toString());
+        assertEquals(-1L, Evaluator.evaluate(stop, 0));
+        assertEquals( 1L, Evaluator.evaluate(stop, 1));
+    }
+
+    @Ignore
+    @Test
+    public void testTrinary4() {
+        Parser parser = new Parser("""
+struct Bar { Bar? next; int x; };
+var b = arg ? new Bar { next = (arg==2) ? new Bar{x=2;}; x=1; };
+return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Region51,1,-1);", stop.toString());
+        assertEquals( 0L, Evaluator.evaluate(stop, 0));
+        assertEquals( 1L, Evaluator.evaluate(stop, 1));
+        assertEquals( 2L, Evaluator.evaluate(stop, 2));
+    }
+
+
 
     @Test
     public void testLinkedList2() {

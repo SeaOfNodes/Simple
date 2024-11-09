@@ -28,15 +28,6 @@ public abstract class CFGNode extends Node {
     // Block head is Start, Region, CProj, but not e.g. If, Return, Stop
     public boolean blockHead() { return false; }
 
-    // Should be exactly 1 tail from a block head
-    public CFGNode blockTail() {
-        assert blockHead();
-        for( Node n : _outputs )
-            if( n instanceof CFGNode cfg )
-                return cfg;
-        return null;
-    }
-
     // ------------------------------------------------------------------------
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM during

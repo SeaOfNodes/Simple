@@ -144,7 +144,7 @@ struct S{};
     public void testForwardRef0() {
         Parser parser = new Parser(
 """
-struct S1 { S2 s; };
+struct S1 { S2? s; };
 return new S2;
 """);
         try { parser.parse().iterate(); fail(); }
