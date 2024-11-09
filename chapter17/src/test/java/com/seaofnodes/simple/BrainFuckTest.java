@@ -24,7 +24,7 @@ public class BrainFuckTest {
         Parser parser = new Parser(
                 encoded + """
 var pc = 0, d = 0;
-u8[] output = new u8[0];
+u8[] !output = new u8[0];
 val data = new u8[100];
 
 while (pc < program#) {

@@ -153,7 +153,7 @@ public abstract class Node implements OutNode {
      * @param new_def the new definition
      * @return new_def for flow coding
      */
-    public Node setDef(int idx, Node new_def ) {
+    public <N extends Node> N setDef(int idx, N new_def ) {
         unlock();
         Node old_def = in(idx);
         if( old_def == new_def ) return new_def; // No change

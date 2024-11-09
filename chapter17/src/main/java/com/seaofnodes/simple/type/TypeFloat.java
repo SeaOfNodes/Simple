@@ -108,6 +108,7 @@ public class TypeFloat extends Type {
     public Type glb() { return BOT; }
 
     @Override public TypeFloat makeInit() { return ZERO; }
+    @Override public TypeFloat makeZero() { return ZERO; }
 
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz); }

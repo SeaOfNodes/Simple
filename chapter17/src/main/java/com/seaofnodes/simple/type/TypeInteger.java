@@ -81,6 +81,7 @@ public class TypeInteger extends Type {
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
         if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
         if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
+        if( isHighOrConst() ) return 0;
         throw Utils.TODO();
     }
 
@@ -115,6 +116,7 @@ public class TypeInteger extends Type {
     @Override public TypeInteger dual() { return make(_max,_min); }
     @Override public TypeInteger glb() { return BOT; }
     @Override public TypeInteger makeInit() { return ZERO; }
+    @Override public TypeInteger makeZero() { return ZERO; }
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
         if( _min==0 ) return make(1,Math.max(_max,1)); // specifically good on BOOL
