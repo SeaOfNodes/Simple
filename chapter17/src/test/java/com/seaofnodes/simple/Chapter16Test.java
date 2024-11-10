@@ -64,7 +64,7 @@ if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region21,9,3);", stop.toString());
+        assertEquals("return Phi(Region,9,3);", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop, 0));
         assertEquals(9L, Evaluator.evaluate(stop, 1));
     }

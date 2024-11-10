@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import static com.seaofnodes.simple.Utils.TODO;
 
 import java.util.*;
 
@@ -91,7 +90,7 @@ public class Parser {
     public final Stack<ScopeNode> _xScopes = new Stack<>();
 
     ScopeNode _continueScope;
-    ScopeNode _breakScope;
+    ScopeNode _breakScope;      // Merge all the while-breaks here
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
@@ -169,7 +168,7 @@ public class Parser {
 
         if( ctrl()._type==Type.CONTROL )
             STOP.addReturn(new ReturnNode(ctrl(), ZERO, _scope).peephole());
-        _scope.pop();
+        _scope.kill();
         _xScopes.pop();
         for( StructNode init : INITS.values() )
             init.unkeep().kill();
@@ -269,7 +268,7 @@ public class Parser {
         // the loop predicate.  Note that body Scope is still our current scope.
         ctrl(ifF);
         _xScopes.push(_breakScope = _scope.dup());
-        _breakScope.upcast(ifF,pred,true); // Up-cast predicate
+        _breakScope.addGuards(ifF,pred,true); // Up-cast predicate
 
         // No continues yet
         _continueScope = null;
@@ -277,8 +276,9 @@ public class Parser {
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
-        _scope.upcast(ifT,pred,false); // Up-cast predicate
+        _scope.addGuards(ifT,pred,false); // Up-cast predicate
         parseStatement();       // Parse loop body
+        _scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
         if (_continueScope != null) {
@@ -330,8 +330,17 @@ public class Parser {
 
     private void checkLoopActive() { if (_breakScope == null) throw Parser.error("No active loop for a break or continue"); }
 
-    private Node parseBreak   () { checkLoopActive(); return (   _breakScope = require(jumpTo(    _breakScope ),";"));  }
     private Node parseContinue() { checkLoopActive(); return (_continueScope = require(jumpTo( _continueScope ),";"));  }
+    private Node parseBreak   () {
+        checkLoopActive();
+        // At the time of the break, and loop-exit conditions are only valid if
+        // they are ALSO valid at the break.  It is the intersection of
+        // conditions here, not the union.
+        _breakScope.removeGuards(_breakScope.ctrl());
+        _breakScope = require(jumpTo(_breakScope ),";");
+        _breakScope.addGuards(_breakScope.ctrl(), null, false);
+        return _breakScope;
+    }
 
     /**
      * Parses a statement
@@ -365,8 +374,10 @@ public class Parser {
 
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
-        _scope.upcast(ifT,pred,false); // Up-cast predicate
+        _scope.addGuards(ifT,pred,false); // Up-cast predicate
         Node lhs = stmt ? parseStatement() : parseExpression().keep(); // Parse true-side
+        _scope.removeGuards(ifT);
+
         ScopeNode tScope = _scope;
 
         // Parse the false side
@@ -374,11 +385,12 @@ public class Parser {
         ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
         // Up-cast predicate, even if not else clause, because predicate can
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
-        _scope.upcast(ifF,pred,true);
+        _scope.addGuards(ifF,pred,true);
         boolean doRHS = match(fside);
         Node rhs = doRHS
             ? (stmt ? parseStatement() : parseExpression())
             : (stmt ? null             : con(lhs._type.makeZero()));
+        _scope.removeGuards(ifF);
         if( doRHS )
             fScope = _scope;
         pred.unkeep();
@@ -392,7 +404,7 @@ public class Parser {
         _xScopes.pop();       // Discard pushed from graph display
 
         RegionNode r = ctrl(tScope.mergeScopes(fScope));
-        Node ret = stmt ? r : new PhiNode("",lhs._type.meet(rhs._type),r,lhs,rhs).peephole();
+        Node ret = stmt ? r : peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs,rhs));
         r.peephole();
         return ret;
     }
@@ -461,7 +473,7 @@ public class Parser {
 
         // Auto-widen int to float
         if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
-            expr = new ToFloatNode(expr).peephole();
+            expr = peep(new ToFloatNode(expr));
         // Auto-narrow wide ints to narrow ints
         expr = zsMask(expr,t);
         // Auto-deepen forward ref types
@@ -653,7 +665,7 @@ public class Parser {
             else if( match("^") ) lhs = new XorNode(lhs,null);
             else break;
             lhs.setDef(2,parseComparison());
-            lhs = lhs.peephole();
+            lhs = peep(lhs);
         }
         return lhs;
     }
@@ -681,9 +693,9 @@ public class Parser {
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             lhs.setDef(idx,parseShift());
-            lhs = lhs.widen().peephole();
+            lhs = peep(lhs.widen());
             if( negate )        // Extra negate for !=
-                lhs = new NotNode(lhs).peephole();
+                lhs = peep(new NotNode(lhs));
         }
         return lhs;
     }
@@ -705,7 +717,7 @@ public class Parser {
             else if( match(">>") ) lhs = new SarNode(lhs,null);
             else break;
             lhs.setDef(2,parseAddition());
-            lhs = lhs.widen().peephole();
+            lhs = peep(lhs.widen());
         }
         return lhs;
     }
@@ -726,7 +738,7 @@ public class Parser {
             else if( match("-") ) lhs = new SubNode(lhs,null);
             else break;
             lhs.setDef(2,parseMultiplication());
-            lhs = lhs.widen().peephole();
+            lhs = peep(lhs.widen());
         }
         return lhs;
     }
@@ -747,7 +759,7 @@ public class Parser {
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
             lhs.setDef(2,parseUnary());
-            lhs = lhs.widen().peephole();
+            lhs = peep(lhs.widen());
         }
         return lhs;
     }
@@ -761,8 +773,8 @@ public class Parser {
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if (match("-")) return new MinusNode(parseUnary()).widen().peephole();
-        if (match("!")) return new   NotNode(parseUnary()).peephole();
+        if (match("-")) return peep(new MinusNode(parseUnary()).widen());
+        if (match("!")) return peep(new   NotNode(parseUnary()));
         return parsePostfix(parsePrimary());
     }
 
@@ -787,7 +799,7 @@ public class Parser {
         if( matchx("++") || matchx("--") ) {
             if( n._final )
                 throw error("Cannot reassign final '"+n._name+"'");
-            _scope.update(n,new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1)).peephole());
+            _scope.update(n,peep(new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1))));
         }
         return rvalue.unkeep();
     }
@@ -882,7 +894,7 @@ public class Parser {
     private Node newArray(TypeStruct ary, Node len) {
         int base = ary.aryBase ();
         int scale= ary.aryScale();
-        Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
+        Node size = peep(new AddNode(con(base),peep(new ShlNode(len,con(scale)))));
         ALTMP.clear();  ALTMP.add(len); ALTMP.add(con(ary._fields[1]._type.makeInit()));
         return newStruct(ary,size,0,ALTMP);
     }
@@ -935,7 +947,7 @@ public class Parser {
 
         Node off = (name.equals("[]")       // If field is an array body
             // Array index math
-            ? new AddNode(con(base.aryBase()),new ShlNode(require(parseExpression(),"]"),con(base.aryScale())).peephole()).peephole()
+            ? peep(new AddNode(con(base.aryBase()),peep(new ShlNode(require(parseExpression(),"]"),con(base.aryScale())))))
             // Struct field offsets are hardwired
             : con(base.offset(fidx))).keep();
 
@@ -958,20 +970,20 @@ public class Parser {
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
         if( base.isAry() ) load.setDef(0,ctrl());
-        load = load.peephole();
+        load = peep(load);
 
         // ary[idx]++
         if( matchx("++") || matchx("--") ) {
             if( f._final && !f._fname.equals("[]") )
                 throw error("Cannot reassign final '"+f._fname+"'");
-            Node inc = new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)).peephole();
+            Node inc = peep(new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)));
             Node val = zsMask(inc,f._type);
             Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.
             if( base.isAry() )  st.setDef(0,ctrl());
-            memAlias(f._alias, st.peephole());
+            memAlias(f._alias, peep(st));
             // And use the original loaded value as the result
         }
         if( off.unkeep().isDead() ) off.kill();
@@ -987,16 +999,16 @@ public class Parser {
             if( !(val._type instanceof TypeFloat tval && t instanceof TypeFloat t0 && !tval.isa(t0)) )
                 return val;
             // Float rounding
-            return new RoundF32Node(val).peephole();
+            return peep(new RoundF32Node(val));
         }
         if( t0._min==0 )        // Unsigned
-            return new AndNode(val,con(t0._max)).peephole();
+            return peep(new AndNode(val,con(t0._max)));
         // Signed extension
         int shift = Long.numberOfLeadingZeros(t0._max)-1;
         Node shf = con(shift);
         if( shf._type==TypeInteger.ZERO )
             return val;
-        return new SarNode(new ShlNode(val,shf.keep()).peephole(),shf.unkeep()).peephole();
+        return peep(new SarNode(peep(new ShlNode(val,shf.keep())),shf.unkeep()));
     }
 
 
@@ -1011,6 +1023,10 @@ public class Parser {
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
     public static Node con( long con ) { return con(TypeInteger.constant(con));  }
     public static ConstantNode con( Type t ) { return (ConstantNode)new ConstantNode(t).peephole();  }
+    public Node peep( Node n ) {
+        // Peephole, then improve with lexically scoped guards
+        return _scope.upcastGuard(n.peephole());
+    }
 
     //////////////////////////////////
     // Utilities for lexical analysis

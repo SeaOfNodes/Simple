@@ -32,11 +32,18 @@ public class ScopeNode extends ScopeMinNode {
     // True if parsing inside of a constructor
     public final Ary<Boolean> _inCons;
 
+    // Extra guards; tested predicates and casted results
+    private final Ary<Node> _guards;
+
     // A new ScopeNode
-    public ScopeNode() { _vars = new Ary<>(Var.class); _lexSize = new Ary<>(Integer.class); _inCons = new Ary<>(Boolean.class); }
+    public ScopeNode() {
+        _vars   = new Ary<>(Var    .class);
+        _lexSize= new Ary<>(Integer.class);
+        _inCons = new Ary<>(Boolean.class);
+        _guards = new Ary<>(Node   .class);
+    }
 
     @Override public String label() { return "Scope"; }
-
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -187,9 +194,15 @@ public class ScopeNode extends ScopeMinNode {
         // 1) duplicate the name bindings of the ScopeNode across all stack levels
         // 2) Make the new ScopeNode a user of all the nodes bound
         // 3) Ensure that the order of defs is the same to allow easy merging
-        dup._vars.addAll(_vars);
+        dup._vars   .addAll(_vars   );
         dup._lexSize.addAll(_lexSize);
         dup._inCons .addAll(_inCons );
+        dup._guards .addAll(_guards );
+        // The dup'd guards all need dup'd keepers, to keep proper accounting
+        // when later removing all guards
+        for( Node n : _guards )
+            if( !(n instanceof CFGNode) )
+                n.keep();
         dup.addDef(ctrl());     // Control input is just copied
 
         // Memory input is a shallow copy
@@ -274,43 +287,77 @@ public class ScopeNode extends ScopeMinNode {
 
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
-
-    // This Scope looks for direct variable uses, or certain simple
-    // combinations, and replaces the variable with the upcast variant.
-    public Node upcast( Node ctrl, Node pred, boolean invert ) {
-        if( ctrl._type == Type.XCONTROL || pred.isDead() )
-            return null; // Dead, do not do anything
+    public void addGuards( Node ctrl, Node pred, boolean invert ) {
+        assert ctrl instanceof CFGNode;
+        _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
+        // add pred & its cast to the normal input list, with special Vars
+        if( ctrl._type == Type.XCONTROL || pred==null || pred.isDead() )
+            return;           // Dead, do not add any guards
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
-
-        // Direct use of a value as predicate.  This is a zero/null test.
-        if( _inputs.find(pred) != -1 ) {
-            if( !(pred._type instanceof TypeMemPtr tmp) )
-                // Must be an `int`, since int and ptr are the only two value types
-                // being tested. No representation for a generic not-null int, so no upcast.
-                return null;
-            if( tmp.isa(TypeMemPtr.VOIDPTR) )
-                return null;    // Already not-null, no reason to upcast
-            // Upcast the ptr to not-null ptr, and replace in scope
-            return replace(pred,new CastNode(TypeMemPtr.VOIDPTR,ctrl,pred).peephole());
+        // This is a zero/null test.
+        // Compute the positive test type.
+        Type tnz   = pred._type.nonZero();
+        Type tcast = tnz.join(pred._type);
+        if( tcast != pred._type ) {
+            Node cast = new CastNode(tnz,ctrl,pred.keep()).peephole().keep();
+            _guards.add(pred);
+            _guards.add(cast);
+            replace(pred,cast);
         }
 
+        // Compute the negative test type.
         if( pred instanceof NotNode not ) {
-            // Direct use of a !value as predicate.  This is a zero/null test.
-            if( _inputs.find(not.in(1)) != -1 ) {
-                Type tinit = not.in(1)._type.makeInit();
-                if( not.in(1)._type.isa(tinit) ) return null; // Already zero/null, no reason to upcast
-                return replace(not.in(1), new ConstantNode(tinit).peephole());
+            Node npred = not.in(1);
+            Type tzero = npred._type.makeZero();
+            Type tzcast= tzero.join(npred._type);
+            if( tzcast != npred._type ) {
+                Node cast = new CastNode(tzero,ctrl,npred.keep()).peephole().keep();
+                _guards.add(npred);
+                _guards.add( cast);
+                replace(npred,cast);
             }
         }
-        // Apr/9/2024: Attempted to replace X with Y if guarded by a test of
-        // X==Y.  This didn't seem to help very much, or at least in the test
-        // cases seen so far was a very minor help.
-
-        // No upcast
-        return null;
     }
+
+    // Remove matching pred/cast pairs from this guarded region.
+    public void removeGuards( Node ctrl ) {
+        assert ctrl instanceof CFGNode;
+        // 0,1 or 2 guards
+        while( true ) {
+            Node g = _guards.pop();
+            if( g == ctrl ) break;
+            if( g instanceof CFGNode ) continue;
+            g            .unkill(); // Pop/kill cast
+            _guards.pop().unkill(); // Pop/kill pred
+        }
+    }
+
+    // If we find a guarded instance of pred, replace with the upcasted version
+    public Node upcastGuard( Node pred ) {
+        // If finding an instanceof pred, replace with cast.
+        // Otherwise, just pred itself.
+        int i = _guards._len;
+        while( i > 0 ) {
+            Node  cast = _guards.at(--i);
+            if( cast instanceof CFGNode ) continue; // Marker between guard sets
+            Node xpred = _guards.at(--i);
+            if( xpred == pred )
+                return cast;
+        }
+        return pred;
+    }
+
+    // Kill guards also
+    @Override public void kill() {
+        for( Node n : _guards )
+            if( !(n instanceof CFGNode) )
+                n.unkill();
+        _guards.clear();
+        super.kill();
+    }
+
 
     private Node replace( Node old, Node cast ) {
         assert old!=null && old!=cast;
