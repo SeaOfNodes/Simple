@@ -105,7 +105,7 @@ return d;
 return arg ? 1 : 2;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region19,1,2);", stop.toString());
+        assertEquals("return Phi(Region,1,2);", stop.toString());
         assertEquals(2L, Evaluator.evaluate(stop, 0));
         assertEquals(1L, Evaluator.evaluate(stop, 1));
     }
@@ -128,7 +128,7 @@ var b = arg ? new Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region54,1,-1);", stop.toString());
+        assertEquals("return Phi(Region,1,-1);", stop.toString());
         assertEquals(-1L, Evaluator.evaluate(stop, 0));
         assertEquals( 1L, Evaluator.evaluate(stop, 1));
     }
@@ -141,21 +141,21 @@ var b = arg ? new Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region54,1,-1);", stop.toString());
+        assertEquals("return Phi(Region,1,-1);", stop.toString());
         assertEquals(-1L, Evaluator.evaluate(stop, 0));
         assertEquals( 1L, Evaluator.evaluate(stop, 1));
     }
 
-    @Ignore
     @Test
     public void testTrinary4() {
+        // This test case will benefit from an unzipping transformation
         Parser parser = new Parser("""
 struct Bar { Bar? next; int x; };
 var b = arg ? new Bar { next = (arg==2) ? new Bar{x=2;}; x=1; };
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region51,1,-1);", stop.toString());
+        assertEquals("return Phi(Region,Phi(Region,.x,.x),0);", stop.toString());
         assertEquals( 0L, Evaluator.evaluate(stop, 0));
         assertEquals( 1L, Evaluator.evaluate(stop, 1));
         assertEquals( 2L, Evaluator.evaluate(stop, 2));
@@ -178,7 +178,7 @@ while( head ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop35,0,(Phi_sum+.i));", stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi_sum+.i));", stop.toString());
         assertEquals(45L, Evaluator.evaluate(stop, 10));
     }
 

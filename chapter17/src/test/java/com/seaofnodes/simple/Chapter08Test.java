@@ -23,7 +23,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region46,Phi(Region33,Phi(Loop10,arg,(Phi_arg+1)),Add),Add);", stop.toString());
+        assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
         Assert.assertEquals(5L, Evaluator.evaluate(stop, 1));
         Assert.assertEquals(10L, Evaluator.evaluate(stop, 6));
@@ -46,7 +46,7 @@ while(arg < 10) {
 return a;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop11,1,Phi(Region53,Phi_a,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -65,7 +65,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region44,Phi(Loop10,arg,(Phi_arg+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -81,7 +81,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region33,Phi(Loop10,arg,(Phi_arg+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -100,7 +100,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,arg,(Phi_arg+1));", stop.toString());
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -117,7 +117,7 @@ while(arg < 10) {
 return arg;
                 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,arg,(Phi_arg+1));", stop.toString());
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -185,7 +185,7 @@ while(arg < 10) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region36,Phi(Loop11,1,(Phi_a+1)),Add);", stop.toString());
+        assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof RegionNode);
     }
 
@@ -201,7 +201,7 @@ while(1) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return (Phi(Loop11,1,Add)+1);", stop.toString());
+        assertEquals("return (Phi(Loop,1,Add)+1);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode prj && prj._idx==1 );
     }
 

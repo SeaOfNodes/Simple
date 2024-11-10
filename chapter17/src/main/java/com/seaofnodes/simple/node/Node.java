@@ -267,6 +267,10 @@ public abstract class Node implements OutNode {
     }
     // Test "keep" status
     public boolean iskeep() { return _outputs.find(null) != -1; }
+    public void unkill() {
+        if( unkeep().isUnused() )
+            kill();
+    }
 
 
     // Replace self with nnn in the graph, making 'this' go dead

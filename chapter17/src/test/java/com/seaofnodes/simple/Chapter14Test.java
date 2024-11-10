@@ -175,7 +175,7 @@ while(v1) break;
 return v1;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return (Phi(Loop18,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", stop.toString());
+        assertEquals("return (Phi(Loop,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
 

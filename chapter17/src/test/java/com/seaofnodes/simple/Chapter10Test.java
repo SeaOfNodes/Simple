@@ -104,7 +104,7 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
@@ -156,7 +156,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region38,(*void)Phi(Region24,null,Bar),null);", stop.toString());
+        assertEquals("return Phi(Region,(*void)Phi(Region,null,Bar),null);", stop.toString());
     }
 
     @Test
@@ -172,7 +172,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region44,4,3);", stop.toString());
+        assertEquals("return Phi(Region,4,3);", stop.toString());
     }
 
     @Test
@@ -226,7 +226,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop21,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
 
 
@@ -245,7 +245,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,s0,Phi(Region45,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -263,7 +263,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop20,s0,Phi(Region46,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
     }
 
 
@@ -280,7 +280,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,s0,Phi(Region42,s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
     }
 
     @Test

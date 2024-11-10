@@ -18,7 +18,7 @@ public class RegionNode extends CFGNode {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append(label()).append(_nid);
+        return sb.append(label());
     }
 
     @Override public boolean isMultiHead() { return true; }
