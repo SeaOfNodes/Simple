@@ -135,8 +135,8 @@ return i; // ERROR: Undefined name 'i'
 
 
 
-pre-dec
 finalize final
+oper-assign +=, -=
 TODO
 for-interator
 switch

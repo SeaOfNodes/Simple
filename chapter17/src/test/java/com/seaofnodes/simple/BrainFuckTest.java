@@ -38,11 +38,12 @@ for( int pc = 0; pc < program#; pc++ ) {
     } else if (command == 45) {
         data[d]--;
     } else if (command == 46) {
+        // Output a byte; increase the output array size
         var old = output;
         output = new u8[output# + 1];
         for( var i = 0; i < old#; i++ )
             output[i] = old[i];
-        output[old#] = data[d];
+        output[old#] = data[d]; // Add the extra byte on the end
     } else if (command == 44) {
         data[d] = 42;
     } else if (command == 91) {
