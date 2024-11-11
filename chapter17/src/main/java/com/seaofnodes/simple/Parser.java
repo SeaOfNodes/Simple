@@ -476,7 +476,7 @@ public class Parser {
         _xScopes.pop();       // Discard pushed from graph display
 
         RegionNode r = ctrl(tScope.mergeScopes(fScope));
-        Node ret = stmt ? r : peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs,rhs));
+        Node ret = stmt ? r : peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs.unkeep(),rhs));
         r.peephole();
         return ret;
     }
@@ -838,11 +838,29 @@ public class Parser {
      * Parse a unary minus expression.
      *
      * <pre>
-     *     unaryExpr : ('-') | '!') unaryExpr | postfixExpr | primaryExpr
+     *     unaryExpr : ('-') unaryExpr | '!') unaryExpr | postfixExpr | primaryExpr | '--' Id | '++' Id
      * </pre>
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
+        // Pre-dec/pre-inc
+        int old = pos();
+        if( match("--") || match("++") ) {
+            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
+            String name = _lexer.matchId();
+            if( name!=null ) {
+                ScopeMinNode.Var n = _scope.lookup(name);
+                if( n != null ) {
+                    if( n._final )
+                        throw error("Cannot reassign final '"+n._name+"'");
+                    Node expr = peep(new AddNode(_scope.in(n),con(delta)));
+                    _scope.update(n,expr);
+                    return expr;
+                }
+            }
+            // Reset, try again
+            pos(old);
+        }
         if (match("-")) return peep(new MinusNode(parseUnary()).widen());
         if (match("!")) return peep(new   NotNode(parseUnary()));
         return parsePostfix(parsePrimary());
@@ -892,7 +910,7 @@ public class Parser {
         if( t==null ) throw error("Expected a type");
         // Parse ary[ length_expr ]
         if( match("[") ) {
-            Node len = parseExpression().keep();
+            Node len = parseExpression();
             if( !(len._type instanceof TypeInteger) )
                 throw error("Cannot allocate an array with length "+len._type);
             require("]");
@@ -964,8 +982,8 @@ public class Parser {
     private Node newArray(TypeStruct ary, Node len) {
         int base = ary.aryBase ();
         int scale= ary.aryScale();
-        Node size = peep(new AddNode(con(base),peep(new ShlNode(len,con(scale)))));
-        ALTMP.clear();  ALTMP.add(len); ALTMP.add(con(ary._fields[1]._type.makeInit()));
+        Node size = peep(new AddNode(con(base),peep(new ShlNode(len.keep(),con(scale)))));
+        ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._type.makeInit()));
         return newStruct(ary,size,0,ALTMP);
     }
 

@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
+import org.junit.Ignore;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -86,6 +87,17 @@ return s.x;
         assertEquals("return 65535;", stop.toString());
         assertEquals(65535L, Evaluator.evaluate(stop, 2));
     }
+
+    @Test
+    public void testInc6() {
+        Parser parser = new Parser("""
+return --arg;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return (arg+-1);", stop.toString());
+        assertEquals(-1L, Evaluator.evaluate(stop, 0));
+    }
+
 
     @Test
     public void testVar0() {

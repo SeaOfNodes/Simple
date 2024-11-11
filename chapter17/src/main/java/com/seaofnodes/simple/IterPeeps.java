@@ -1,25 +1,24 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Random;
 
 /**
- * The IterOptim runs after parsing. It iterates the peepholes to a fixed point
+ * The IterPeeps runs after parsing. It iterates the peepholes to a fixed point
  * so that no more peepholes apply.  This should be linear because peepholes rarely
  * (never?)  increase code size.  The graph should monotonically reduce in some
  * dimension, which is usually size.  It might also reduce in e.g. number of
  * MulNodes or Load/Store nodes, swapping out more "expensive" Nodes for cheaper
  * ones.
- *
+ * <br>
  * The theoretical overall worklist is mindless just grabbing the next thing and
- * doing it.  If the graph changes, put the neighbors on the worklist.  Lather,
- * Rinse, Repeat until the worklist runs dry.
- *
+ * doing it.  If the graph changes, put the neighbors on the worklist.
+ * <br>
+ * Lather, Rinse, Repeat until the worklist runs dry.
+ * <p>
  * The main issues we have to deal with:
  *
  * <ul>
@@ -29,7 +28,7 @@ import java.util.Random;
  *   is stable and correct between peepholes.  In our case `Node.subsume` does
  *   most of the munging, building on our prior stable Node utilities.</li>
  *
- * <li>Changing a Node also changes the graph "neighborhood".  The neigbors need to
+ * <li>Changing a Node also changes the graph "neighborhood".  The neighbors need to
  *   be checked to see if THEY can also peephole, and so on.  After any peephole
  *   or graph update we put a Nodes uses and defs on the worklist.</li>
  *
@@ -39,7 +38,7 @@ import java.util.Random;
  *   check is linear at each peephole step... so quadratic overall.  Its a useful
  *   assert, but one we can disable once the overall algorithm is stable - and
  *   then turn it back on again when some new set of peepholes is misbehaving.
- *   The code for this is turned on in `IterOptim.iterate` as `assert
+ *   The code for this is turned on in `IterPeeps.iterate` as `assert
  *   progressOnList(stop);`</li>
  * </ul>
  */
@@ -115,7 +114,7 @@ public abstract class IterPeeps {
         int old_cnt = Node.ITER_CNT, old_nop = Node.ITER_NOP_CNT;
         Node changed = stop.walk( n -> {
                 Node m = n;
-                if( n.compute().isa(n._type) ) { // Types must be forwards, even if on worklist
+                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=5) ) { // Types must be forwards, even if on worklist
                     if( WORK.on(n) ) return null;
                     m = n.peepholeOpt();
                     if( m==null ) return null;
