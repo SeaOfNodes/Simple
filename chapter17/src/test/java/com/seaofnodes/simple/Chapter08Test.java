@@ -138,7 +138,7 @@ return arg;
 
     @Test
     public void testRegress2() {
-        Parser parser = new Parser("if(1) return 0;  else while(arg>--arg) arg=arg+1; return 0;");
+        Parser parser = new Parser("if(1) return 0;  else while(arg>- -arg) arg=arg+1; return 0;");
         StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }

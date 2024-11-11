@@ -1,13 +1,15 @@
 # Chapter 17: Syntax Sugar
 
 
-## Post-increment
+## Pre/Post-increment
 
 Allow `arg++` and `arg--` with the usual meanings; the value is updated and the
 expression is the pre-update value.  Greedy match is used so `arg---arg` parses
 as `(arg--)-arg`.
 
 Also allows `s.fld++` and `ary[idx]++`, and their `--` variants.
+
+Allow pre-increment for identifiers only, for now: `--pc`.
 
 
 ## var & val
@@ -19,7 +21,7 @@ value), whose type will be inferred from the initalizing expression.
 
 The inferred value is the `glb` of the peephole type, which means `var` and
 `val` will not infer types like `u8` or `f32`, instead inferring `int` and
-`flt` respectively.  Struct types will always infer as nullable, so e.g. 
+`flt` respectively.  Reference types will always infer as nullable, so e.g. 
 
 `var s = new S;` 
 
@@ -93,12 +95,10 @@ return p.x;
 
 ```cpp
 struct Bar { int x; };
-Bar  b  = new Bar; /* b = null; *//* b.x++; */ // immutable & deep immutable
-Bar !b  = new Bar;    b = null;   /* b.x++; */ //   mutable & deep immutable
-Bar  b! = new Bar; /* b = null; */   b.x++;    // immutable & deep   mutable
-Bar !b! = new Bar;    b = null;      b.x++;    //   mutable & deep   mutable (ignoring NPE)
-val  b  = new Bar; /* b = null; *//* b.x++; */ // immutable & deep immutable
-var  b  = new Bar;    b = null;      b.x++;    //   mutable & inherits deep mutability from RHS
+Bar  b  = new Bar; /* b = new Bar; *//* b.x++; */ // immutable & deep immutable
+Bar !b  = new Bar;    b = new Bar;      b.x++;    //   mutable & deep   mutable
+val  b  = new Bar; /* b = new Bar; *//* b.x++; */ // immutable & deep immutable
+var  b  = new Bar;    b = new Bar;      b.x++;    //   mutable & inherits deep mutability from RHS
 ```
 
 
@@ -114,6 +114,8 @@ Allow C/C++ style `for` loops:
 
 `for( init; test; next ) body`
 
+Example:
+
 ```cpp
 int sum=0;
 for( int i=0; i<arg; i++ )
@@ -128,12 +130,14 @@ Any of `init`, `test` and `next` can be empty.
 int sum=0;
 for( int i=0; i<arg; i++ )
     sum = sum + i;
-return sum;
+return i; // ERROR: Undefined name 'i'
 ```
 
 
 
-
+pre-dec
+finalize final
+TODO
 for-interator
 switch
 

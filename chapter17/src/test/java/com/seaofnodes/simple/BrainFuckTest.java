@@ -48,8 +48,7 @@ for( int pc = 0; pc < program#; pc++ ) {
     } else if (command == 91) {
         if (data[d] == 0) {
             for( var d = 1; d > 0; ) {
-                pc++;
-                command = program[pc];
+                command = program[++pc];
                 if (command == 91) d++;
                 if (command == 93) d--;
             }
@@ -57,8 +56,7 @@ for( int pc = 0; pc < program#; pc++ ) {
     } else if (command == 93) {
         if (data[d]) {
             for( var d = 1; d > 0; ) {
-                pc--;
-                command = program[pc];
+                command = program[--pc];
                 if (command == 93) d++;
                 if (command == 91) d--;
             }
