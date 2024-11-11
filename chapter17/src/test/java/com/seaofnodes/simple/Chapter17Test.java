@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -162,6 +161,72 @@ return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0
     }
 
 
+    @Test
+    public void testFor0() {
+        Parser parser = new Parser("""
+int sum=0;
+for( int i=0; i<arg; i++ )
+    sum = sum + i;
+return sum;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop, 3));
+        assertEquals(45L, Evaluator.evaluate(stop, 10));
+    }
+    @Test
+    public void testFor1() {
+        Parser parser = new Parser("""
+int sum=0, i=0;
+for( ; i<arg; i++ )
+    sum = sum + i;
+return sum;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop, 3));
+        assertEquals(45L, Evaluator.evaluate(stop, 10));
+    }
+    @Test
+    public void testFor2() {
+        Parser parser = new Parser("""
+int sum=0;
+for( int i=0; ; i++ ) {
+    if( i>=arg ) break;
+    sum = sum + i;
+}
+return sum;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop, 3));
+        assertEquals(45L, Evaluator.evaluate(stop, 10));
+    }
+    @Test
+    public void testFor3() {
+        Parser parser = new Parser("""
+int sum=0;
+for( int i=0; i<arg; )
+    sum = sum + i++;
+return sum;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", stop.toString());
+        assertEquals(3L, Evaluator.evaluate(stop, 3));
+        assertEquals(45L, Evaluator.evaluate(stop, 10));
+    }
+    @Test
+    public void testFor4() {
+        Parser parser = new Parser("""
+int sum=0;
+for( int i=0; i<arg; i++ )
+    sum = sum + i;
+return i;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Undefined name 'i'",e.getMessage()); }
+    }
+
 
     @Test
     public void testLinkedList2() {
@@ -171,10 +236,8 @@ LLI? head = null;
 while( arg-- )
     head = new LLI { next=head; i=arg; };
 int sum=0;
-while( head ) {
+for( ; head; head = head.next )
     sum = sum + head.i;
-    head = head.next;
-}
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
@@ -187,29 +250,25 @@ return sum;
         Parser parser = new Parser(
 """
 val ary = new bool[arg], primes = new int[arg];
-var nprimes=0, p=2;
+var nprimes=0, p=0;
 // Find primes while p^2 < arg
-while( p*p < arg ) {
+for( p=2; p*p < arg; p++ ) {
     // skip marked non-primes
     while( ary[p] ) p++;
     // p is now a prime
     primes[nprimes++] = p;
     // Mark out the rest non-primes
-    int i = p + p;
-    while( i < ary# ) {
+    for( int i = p + p; i < ary#; i = i + p )
         ary[i] = true;
-        i = i + p;
-    }
-    p++;
 }
 // Now just collect the remaining primes, no more marking
-while( p++ < arg )
-    if( !ary[p-1] )
-        primes[nprimes++] = p-1;
+for( ; p < arg; p++ )
+    if( !ary[p] )
+        primes[nprimes++] = p;
 // Copy/shrink the result array
-var rez = new int[nprimes], j = 0;
-while( j < nprimes )
-    rez[j] = primes[j++];
+var rez = new int[nprimes];
+for( int j=0; j<nprimes; j++ )
+    rez[j] = primes[j];
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
