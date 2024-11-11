@@ -212,6 +212,7 @@ public class Parser {
         else if (match ("{")       ) return require(parseBlock(false),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
+        else if (matchx("for")     ) return parseFor();
         else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
@@ -221,6 +222,7 @@ public class Parser {
         // to ambiguity
         else return parseExpressionStatement();
     }
+
     /**
      * Parses a while statement
      *
@@ -230,11 +232,40 @@ public class Parser {
      * @return a {@link Node}, never {@code null}
      */
     private Node parseWhile() {
+        require("(");
+        return parseLooping(false);
+    }
+
+
+    /**
+     * Parses a for statement
+     *
+     * <pre>
+     *     for( var x=init; test; incr ) body
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
+    private Node parseFor() {
+        // {   var x=init,y=init,...;
+        //     while( pred ) {
+        //         body;
+        //         next;
+        //     }
+        // }
+        require("(");
+        _scope.push();          // Scope for the index variables
+        if( !match(";") )       // Can be empty init "for(;test;next) body"
+            parseExpressionStatement(); // Non-empty init
+        Node rez = parseLooping(true);
+        _scope.pop();           // Exit index variable scope
+        return rez;
+    }
+
+    // Shared by `for` and `while`
+    private Node parseLooping( boolean doFor ) {
 
         var savedContinueScope = _continueScope;
         var savedBreakScope    = _breakScope;
-
-        require("(");
 
         // Loop region has two control inputs, the first is the entry
         // point, and second is back edge that is set after loop is parsed
@@ -255,12 +286,24 @@ public class Parser {
         _xScopes.push(_scope = _scope.dup(true)); // The true argument triggers creating phis
 
         // Parse predicate
-        var pred = require(parseExpression(), ")");
+        var pred = peek(';') ? con(1) : parseExpression();
+        require( doFor ? ";" : ")" );
+
         // IfNode takes current control and predicate
-        Node ifNode = new IfNode(ctrl(), pred).peephole();
+        Node ifNode = new IfNode(ctrl(), pred.keep()).peephole();
         // Setup projection nodes
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+
+        // for( ;;next ) body
+        int nextPos = -1, nextEnd = -1;
+        if( doFor ) {
+            // Skip the next expression and parse it later
+            nextPos = pos();
+            skipAsgn();
+            nextEnd = pos();
+            require(")");
+        }
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -276,7 +319,7 @@ public class Parser {
         // Parse the true side, which corresponds to loop body
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
-        _scope.addGuards(ifT,pred,false); // Up-cast predicate
+        _scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
         parseStatement();       // Parse loop body
         _scope.removeGuards(ifT);
 
@@ -285,6 +328,15 @@ public class Parser {
             _continueScope = jumpTo(_continueScope);
             _scope.kill();
             _scope = _continueScope;
+        }
+
+        // Now append the next code onto the body code
+        if( doFor ) {
+            int old = pos(nextPos);
+            if( !peek(')') )
+              parseAsgn(null,false);
+            assert pos() == nextEnd;
+            pos(old);
         }
 
         // The true branch loops back, so whatever is current _scope.ctrl gets
@@ -341,6 +393,26 @@ public class Parser {
         _breakScope.addGuards(_breakScope.ctrl(), null, false);
         return _breakScope;
     }
+
+    // Look for an unbalanced `)`, skipping balanced
+    private void skipAsgn() {
+        int paren=0;
+        while( true )
+            // Next X char handles skipping complex comments
+            switch( _lexer.nextXChar() ) {
+            case Character.MAX_VALUE:
+                throw Utils.TODO();
+            case ')':
+                if( --paren<0 ) {
+                    pos(pos()-1); // Leave the `)` behind
+                    return;
+                }
+                break;
+            case '(': paren ++; break;
+            default: break;
+            }
+    }
+
 
     /**
      * Parses a statement
@@ -443,13 +515,13 @@ public class Parser {
     // t==type &&  expr ==>> declaratn:  final=inCon && noBang, expr=parse() ; t:=type;
     private Node parseAsgn(Type t, boolean hasBang) {
         boolean isDecl = t!=null;
-        int old = _lexer._position;
+        int old = pos();
         String name = requireId();
 
         boolean hasType = t!=null && t!=Type.TOP && t!=Type.BOTTOM; // User written type
         boolean hasExpr = !(peek(';') || peek(','));   // Expression follows
         if( hasExpr && !match("=") )                   // Something else
-            { _lexer._position = old;  return null; }
+            { pos(old);  return parseExpression(); }
         if( !hasExpr && t==Type.BOTTOM )  throw errorSyntax("expression");
         Node expr = hasExpr ? parseExpression() : con(t.makeInit());
         boolean xfinal = t==Type.TOP || (hasType && hasExpr && !hasBang && _scope.inCon());
@@ -523,10 +595,8 @@ public class Parser {
                 n = parseFinal(t);
 
             // Parse "asgn;" which is just "name = expr;"
-        } else if( ( n = parseAsgn(null,false)) == null ) {
-            // Something else
-            n = parseExpression();
-        }
+        } else
+            n = parseAsgn(null,false);
         return require(n,";");
     }
 
@@ -577,14 +647,14 @@ public class Parser {
     // types (which ARE valid here) from local vars in an (optional) forward
     // ref type position.
     private Type type() {
-        int old1 = _lexer._position;
+        int old1 = pos();
         String tname = _lexer.matchId();
         if( tname==null ) return null;
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
         // No new types as keywords
         if( t0 == null && KEYWORDS.contains(tname) )
-          { _lexer._position = old1; return null; }
+            { pos(old1); return null; }
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         while( true ) {
@@ -607,11 +677,11 @@ public class Parser {
         if( t0 != null ) return t1;
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
-        int old2 = _lexer._position;
+        int old2 = pos();
         String id = _lexer.matchId();
-        _lexer._position = old2; // Reset lexer to reparse
+        pos(old2);              // Reset lexer to reparse
         if( id==null ) {
-            _lexer._position = old1; // Reset lexer to reparse
+            pos(old1);          // Reset lexer to reparse
             return null;        // Not a type
         }
         // Yes a forward ref, so declare it
@@ -1040,6 +1110,13 @@ public class Parser {
     private boolean peek(char ch) { return _lexer.peek(ch); }
     private boolean peekIsId() { return _lexer.peekIsId(); }
 
+    private int pos() { return _lexer._position; }
+    private int pos(int pos) {
+        int old = _lexer._position;
+        _lexer._position = pos;
+        return old;
+    }
+
     // Require and return an identifier
     private String requireId() {
         String id = _lexer.matchId();
@@ -1134,6 +1211,8 @@ public class Parser {
             }
         }
 
+        // Next non-white-space character, or EOF
+        public char nextXChar() { skipWhiteSpace(); return nextChar(); }
 
         // Return true, if we find "syntax" after skipping white space; also
         // then advance the cursor past syntax.

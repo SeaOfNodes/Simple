@@ -108,16 +108,34 @@ Allow `pred ? e_true : e_false`.  Also allow `pred ? e_true`, where the false re
 is the zero type version of the true result.
 
 
+## For Loops
+
+Allow C/C++ style `for` loops:
+
+`for( init; test; next ) body`
+
+```cpp
+int sum=0;
+for( int i=0; i<arg; i++ )
+    sum = sum + i;
+return sum;
+```
+
+Any of `init`, `test` and `next` can be empty.
+`init` allows for declaration of a new variable, with scope limited to the `for` expression.
+
+```cpp
+int sum=0;
+for( int i=0; i<arg; i++ )
+    sum = sum + i;
+return sum;
+```
 
 
 
 
-
-C++-style for-loop
 for-interator
-trinary
 switch
-
 
 
 
