@@ -34,7 +34,7 @@ public class LoopNode extends RegionNode {
 
     @Override public int loopDepth() {
         if( _loopDepth!=0 ) return _loopDepth; // Was already set
-        _loopDepth = entry()._loopDepth+1;     // Entry depth plus one
+        _loopDepth = entry().loopDepth()+1;     // Entry depth plus one
         // One-time tag loop exits
         for( CFGNode idom = back(); idom!=this; idom = idom.idom() ) {
             // Walk idom in loop, setting depth
@@ -61,8 +61,9 @@ public class LoopNode extends RegionNode {
         CFGNode x = back();
         while( x != this ) {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
-                Node other = iff.cproj(1-exit._idx);
-                if( !(other.out(0) instanceof LoopNode loop) || loop.entry()==exit )
+                CFGNode other = iff.cproj(1-exit._idx);
+                //if( !(other.out(0) instanceof LoopNode loop) || loop.entry()==exit )
+                if( other.loopDepth() < loopDepth() )
                     return;         // Found an exit, not an infinite loop
             }
             x = x.idom();
