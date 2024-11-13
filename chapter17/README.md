@@ -15,7 +15,7 @@ Allow pre-increment for identifiers only, for now: `--pc`.
 ## var & val
 
 `var` can be used in the `type` position to indicate a "variable" (mutable
-value), whose type will be inferred from the initalizing expression.
+value), whose type will be inferred from the required initalizing expression.
 
 `val` is the same as `var`, except it is a "value" (not mutable).
 
@@ -30,76 +30,66 @@ infers as
 `S s? = new S;`
 
 
-## Initialized fields are immutable by default
+## Mutability
 
-Typed field declarations with an initializer are immutable by default, and can
-be made mutable with a leading `!`.  `var` and `val` keep their current sense.
-Fields are immutable at the end of either constructor, but can be changed
-during construction.
+Typed primitive fields are always mutable.  Typed reference fields without an
+initializer must be mutable to get a value.  References with an initializer are
+immutable by default and can be made mutable with a leading `!`.  `var` and
+`val` keep their current sense and can be used to make any field mutable or
+immutable.  Fields are always mutable during construction, but will become
+immutable at the end of either constructor.
 
+`int x; x=3; x++; // OK, primitive so mutable`
+`int x   =3; x++; // Ok, primitive so mutable, despite initializer`
 
-Examples:
+Assume in the next examples this struct exists:
+`struct S { int x; };`
 
+Then:
+`S s; s = new S     ; s.x++; // OK, no initializer so s.x is   mutable`
+`S s; s = new S{x=3}; s.x++; // OK, no initializer so s.x is   mutable`
+`S s    = new S     ; s.x++; // Error, initializer so s.x is immutable`
+`S s    = new S{x=3}; s.x++; // Error, initializer so s.x is immutable`
 
-```java
-struct Point { int x,y; };  // Fields x and y are not initialized, mutable
-Point p = new Point;
-p.x++;                      // Mutate is ok
-return p.x;
-```
+Leading `!` makes mutable:
+`S !s = new S; s.x++; // Ok, has '!' so mutable`
 
-```java
-struct Point { int x=3,y=4; };  // Fields x and y are initialized, immutable
-Point p = new Point;
-p.x++;                          // Error!
-return p.x;
-```
+'var' is variable:
+`var s = new S; s.x++; // Ok, has var so mutable`
 
-```java
-struct Point { int x=3,y=4; };  // Fields x and y are initialized, immutable
-Point p = new Point { x=x*x; y=y*y; }; // Ok to mutate in the constructor
-p.x++;                          // Error!
-return p.x;
-```
-
-```java
-struct Point { int !x=3, !y=4; }; // Fields x and y are initialized, mutable
-Point p = new Point; 
-p.x++;                            // Mutate is OK
-return p.x;
-```
-
-```java
-struct Point { var x,y; }; // Error, var and val require an initializer
-Point p = new Point; 
-p.x++;
-return p.x;
-```
-
-```java
-struct Point { var x=3,y=4; };  // Fields x and y are mutable
-Point p = new Point; 
-p.x++;                          // Mutate is OK
-return p.x;
-```
-
-```java
-struct Point { val x=3,y=4; };  // Fields x and y are immutable
-Point p = new Point; 
-p.x++;                          // Error!
-return p.x;
-```
+'val' is a "value": not mutable through this reference, but may be mutable
+through other references.
+`val s = new S; s.x++; // Error, val so s.x is immutable`
 
 
-## Deep Immutability (proposal)
+
+### References with an initializer are deeply immutable
+
+References with an initializer are deeply immutable, but a mutable version of
+the same reference can exist.  This works for `var` and normal type
+declarations: `var s = new S;` and `S s = new S` both make `s` an 
+immutable reference to a `struct S`.
+
 
 ```cpp
-struct Bar { int x; };
-Bar  b  = new Bar; /* b = new Bar; *//* b.x++; */ // immutable & deep immutable
-Bar !b  = new Bar;    b = new Bar;      b.x++;    //   mutable & deep   mutable
-val  b  = new Bar; /* b = new Bar; *//* b.x++; */ // immutable & deep immutable
-var  b  = new Bar;    b = new Bar;      b.x++;    //   mutable & inherits deep mutability from RHS
+struct Bar { int x; }
+Bar !bar = new Bar;
+bar.x = 3;         // Ok, bar is mutable
+
+struct Foo { Bar !bar; int y; }
+Foo !foo = new Foo;
+foo.bar = barl     // Ok bar is mutable
+foo.bar.x++;       // Ok foo and foo.bar and foo.bar.x are all mutable
+
+val xfoo = foo;    // Throw away mutability
+xfoo.bar.x++;      // Error, cannot mutate through xfoo
+
+print(xfoo.bar.x); // Ok to read through xfoo, prints 4
+foo.bar.x++;       // Bumps to 5
+print(xfoo.bar.x); // Ok to read through xfoo, prints 5
 ```
+
+
 
 
 ## Trinary
@@ -138,7 +128,6 @@ return i; // ERROR: Undefined name 'i'
 finalize final
 oper-assign +=, -=
 TODO
-for-interator
 switch
 
 

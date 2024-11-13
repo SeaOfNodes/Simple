@@ -114,7 +114,7 @@ Point p = new Point { x=3; y=4; };
 return p;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Point;", stop.toString());
+        assertEquals("return (const)Point;", stop.toString());
         assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(stop,  0).toString());
     }
 
@@ -127,7 +127,7 @@ p.x++;
 return p;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
@@ -139,7 +139,7 @@ p.x++;
 return p;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
@@ -170,7 +170,7 @@ return p;
     public void testStructFinal5() {
         Parser parser = new Parser("""
 struct Point { var x=3; var y=4; };
-Point p = new Point;
+Point !p = new Point;
 p.x++;
 return p;
 """);
@@ -186,7 +186,7 @@ return p;
         Parser parser = new Parser(
 """
 struct LLI { LLI? next; int i; };
-LLI? head = null;
+LLI? !head = null;
 while( arg ) {
     head = new LLI { next=head; i=arg; };
     arg = arg-1;
@@ -208,7 +208,7 @@ return next.i;
         Parser parser = new Parser(
 """
 struct LLI { LLI? next; int i; };
-LLI? head = null;
+LLI? !head = null;
 while( arg ) {
     head = new LLI {
         next=head;

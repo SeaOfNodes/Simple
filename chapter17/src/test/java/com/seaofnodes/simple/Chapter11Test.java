@@ -338,7 +338,7 @@ return primeCount;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v=new S;
+S !v=new S;
 v.f = 2;
 int i=new S.f;
 i=v.f;
@@ -356,9 +356,9 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 v.f = arg;
-S t = new S;
+S !t = new S;
 int i = 0;
 if (arg) {
     if (arg+1) v = t;
@@ -377,7 +377,7 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v0 = new S;
+S !v0 = new S;
 S? v1;
 if (arg) v1 = new S;
 if (v1) {
@@ -397,7 +397,7 @@ return v0;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 v.f = arg;
 S t = new S;
 int i = v.f;
@@ -414,7 +414,7 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 while(1) {
     while(arg+1) { arg=arg-1; }
     if (arg) break;
@@ -431,7 +431,7 @@ return v;
         Parser parser = new Parser(
 """
 struct s { int v; };
-s ptr=new s;
+s !ptr=new s;
 while( -arg )
   ptr = new s;
 while(1)
@@ -446,7 +446,7 @@ while(1)
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 S t = new S;
 int i = v.f;
 while (arg) {
@@ -464,7 +464,7 @@ return i;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 S t = new S;
 while(arg) {
     arg=arg-1;
@@ -484,7 +484,7 @@ return arg;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 S t = new S;
 if (arg) {
     v.f=2;
@@ -502,7 +502,7 @@ return v;
         Parser parser = new Parser(
 """
 struct S { int f; };
-S v = new S;
+S !v = new S;
 int i = arg;
 while (arg > 0) {
     int j = i/3;

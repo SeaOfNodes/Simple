@@ -94,7 +94,7 @@ return b;
         Parser parser = new Parser(
 """
 struct Foo { u1 b; };
-Foo f = new Foo;
+Foo !f = new Foo;
 f.b = 123;
 return f.b;
 """);

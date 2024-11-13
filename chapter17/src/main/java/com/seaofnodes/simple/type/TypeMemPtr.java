@@ -33,7 +33,9 @@ public class TypeMemPtr extends Type {
     }
     public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
     public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
-    public TypeMemPtr makeFrom(TypeStruct obj) { return make(obj, _nil); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(obj, _nil); }
+    @Override public TypeMemPtr makeRO() { return makeFrom(_obj.makeRO()); }
+    @Override public boolean isFinal() { return _obj.isFinal(); }
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not.
@@ -55,8 +57,8 @@ public class TypeMemPtr extends Type {
     @Override
     public TypeMemPtr dual() { return TypeMemPtr.make(_obj.dual(), !_nil); }
 
-    @Override
-    public TypeMemPtr glb() { return make(_obj.glb(),true); }
+    @Override public TypeMemPtr glb() { return make(_obj.glb(),true ); }
+    @Override public TypeMemPtr lub() { return make(_obj.lub(),false); }
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
     @Override public Type makeInit() { return _nil ? NULLPTR : Type.TOP; }

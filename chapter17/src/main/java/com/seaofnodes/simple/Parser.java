@@ -395,7 +395,7 @@ public class Parser {
     }
 
     // Look for an unbalanced `)`, skipping balanced
-    private void skipAsgn() {
+    private Type skipAsgn() {
         int paren=0;
         while( true )
             // Next X char handles skipping complex comments
@@ -403,10 +403,8 @@ public class Parser {
             case Character.MAX_VALUE:
                 throw Utils.TODO();
             case ')':
-                if( --paren<0 ) {
-                    pos(pos()-1); // Leave the `)` behind
-                    return;
-                }
+                if( --paren<0 )
+                    return posT(pos()-1); // Leave the `)` behind
                 break;
             case '(': paren ++; break;
             default: break;
@@ -521,10 +519,12 @@ public class Parser {
         boolean hasType = t!=null && t!=Type.TOP && t!=Type.BOTTOM; // User written type
         boolean hasExpr = !(peek(';') || peek(','));   // Expression follows
         if( hasExpr && !match("=") )                   // Something else
-            { pos(old);  return parseExpression(); }
-        if( !hasExpr && t==Type.BOTTOM )  throw errorSyntax("expression");
+            { pos(old); return parseExpression(); }
+        if( !hasExpr && !hasType )  throw errorSyntax("expression");
         Node expr = hasExpr ? parseExpression() : con(t.makeInit());
-        boolean xfinal = t==Type.TOP || (hasType && hasExpr && !hasBang && _scope.inCon());
+
+        // Final if no Bang AND TMP; primitives are not-final by default
+        boolean xfinal = !hasBang && (t instanceof TypeMemPtr) && hasExpr;
 
         // Defining a new variable vs updating an old one
         if( t==null ) {
@@ -538,9 +538,17 @@ public class Parser {
             if( _scope.in(def._idx)._type!=Type.TOP && def._final && !_scope.inCon() )
                 throw error("Cannot reassign final '"+name+"'");
             t = def.type(); // Declared field type
-        } else if( !hasType && hasExpr ) {
-            // Discovered type from expression
+
+        } else if( !hasType && hasExpr ) { // Either 'val' or 'var'
+            // Either 'var' or 'val'; type comes from expression
+            xfinal = t==Type.TOP; // xfinal === 'val'; otherwise 'var'
             t = expr._type.glb();
+        }
+
+        // Final is deep on ptrs
+        if( xfinal && t instanceof TypeMemPtr tmp ) {
+            t = tmp.makeRO();
+            expr = peep(new ReadOnlyNode(expr));
         }
 
         // Auto-widen int to float
@@ -550,15 +558,13 @@ public class Parser {
         expr = zsMask(expr,t);
         // Auto-deepen forward ref types
         Type e = expr._type;
-        if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
+        if( e instanceof TypeMemPtr tmp && tmp.isFRef() )
             e = TYPES.get(tmp._obj._name);
-        // "var" and "val" use TOP and BOTTOM - but just take the expression type.
-        if( t==Type.TOP || t==Type.BOTTOM )
-            t = expr._type.glb();
         // Type is sane
         if( !e.isa(t) )
             throw error("Type " + e.str() + " is not of declared type " + t.str());
 
+        // Define a new name, vs update an old one
         if( isDecl ) {
             if( !_scope.define(name,t,xfinal,expr) )
                 throw error("Redefining name '" + name + "'");
@@ -612,7 +618,7 @@ public class Parser {
         if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
         String typeName = requireId();
         Type t = TYPES.get(typeName);
-        if( t!=null && !(t instanceof TypeMemPtr tmp && tmp._obj._fields==null) )
+        if( t!=null && !(t instanceof TypeMemPtr tmp && tmp.isFRef() ) )
             throw errorSyntax("struct '" + typeName + "' cannot be redefined");
 
         // A Block scope parse, and inspect the scope afterward for fields.
@@ -646,6 +652,8 @@ public class Parser {
     // 'id' which the caller must parse.  This lets us distinguish forward ref
     // types (which ARE valid here) from local vars in an (optional) forward
     // ref type position.
+
+    // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
     private Type type() {
         int old1 = pos();
         String tname = _lexer.matchId();
@@ -654,7 +662,7 @@ public class Parser {
         Type t0 = TYPES.get(tname);
         // No new types as keywords
         if( t0 == null && KEYWORDS.contains(tname) )
-            { pos(old1); return null; }
+            return posT(old1);
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         while( true ) {
@@ -680,10 +688,8 @@ public class Parser {
         int old2 = pos();
         String id = _lexer.matchId();
         pos(old2);              // Reset lexer to reparse
-        if( id==null ) {
-            pos(old1);          // Reset lexer to reparse
-            return null;        // Not a type
-        }
+        if( id==null )
+            return posT(old1);  // Reset lexer to reparse
         // Yes a forward ref, so declare it
         TYPES.put(tname,t1);
         return t1;
@@ -853,7 +859,7 @@ public class Parser {
                 if( n != null ) {
                     if( n._final )
                         throw error("Cannot reassign final '"+n._name+"'");
-                    Node expr = peep(new AddNode(_scope.in(n),con(delta)));
+                    Node expr = zsMask(peep(new AddNode(_scope.in(n),con(delta))),n.type());
                     _scope.update(n,expr);
                     return expr;
                 }
@@ -887,7 +893,7 @@ public class Parser {
         if( matchx("++") || matchx("--") ) {
             if( n._final )
                 throw error("Cannot reassign final '"+n._name+"'");
-            _scope.update(n,peep(new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1))));
+            _scope.update(n,zsMask(peep(new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1))),n.type()));
         }
         return rvalue.unkeep();
     }
@@ -1025,7 +1031,7 @@ public class Parser {
 
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
-        if( tmp == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        if( tmp == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr + "'");
         TypeStruct base = tmp._obj;
         int fidx = base.find(name);
         if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
@@ -1053,28 +1059,28 @@ public class Parser {
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
-        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr, off);
+        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr.keep(), off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
         if( base.isAry() ) load.setDef(0,ctrl());
         load = peep(load);
 
-        // ary[idx]++
+        // ary[idx]++ or ptr.fld++
         if( matchx("++") || matchx("--") ) {
             if( f._final && !f._fname.equals("[]") )
                 throw error("Cannot reassign final '"+f._fname+"'");
             Node inc = peep(new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)));
             Node val = zsMask(inc,f._type);
-            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
+            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr.unkeep(), off, val, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.
             if( base.isAry() )  st.setDef(0,ctrl());
             memAlias(f._alias, peep(st));
             // And use the original loaded value as the result
-        }
-        if( off.unkeep().isDead() ) off.kill();
+        } else expr.unkill();
+        off.unkill();
 
         return parsePostfix(load);
     }
@@ -1134,6 +1140,7 @@ public class Parser {
         _lexer._position = pos;
         return old;
     }
+    private Type posT(int pos) { _lexer._position = pos; return null; }
 
     // Require and return an identifier
     private String requireId() {

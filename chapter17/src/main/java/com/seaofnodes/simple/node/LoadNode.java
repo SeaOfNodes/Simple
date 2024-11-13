@@ -63,13 +63,15 @@ public class LoadNode extends MemOpNode {
         // Load-after-Store on same address, but bypassing provably unrelated
         // stores.  This is a more complex superset of the above two peeps.
         // "Provably unrelated" is really weak.
+        if( ptr instanceof ReadOnlyNode ro )
+            ptr = ro.in(1);
         Node mem = mem();
         outer:
         while( true ) {
             switch( mem ) {
             case StoreNode st:
                 if( ptr == st.ptr() && off() == st.off() )
-                    return st.val(); // Proved equal
+                    return castRO(st.val()); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
                     !neverAlias(ptr,st.ptr()) )                   // And might alias
@@ -82,7 +84,7 @@ public class LoadNode extends MemOpNode {
             case ProjNode mproj:
                 if( mproj.in(0) instanceof NewNode nnn1 ) {
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return nnn1.in(nnn1.findAlias(_alias)); // Load from New init
+                        return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.in(_alias);// Bypass unrelated New
@@ -120,10 +122,12 @@ public class LoadNode extends MemOpNode {
 
         return null;
     }
+
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
         return new LoadNode(_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
     }
+
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {
         return ptr1.in(0) != ptr2.in(0) &&
             // Unrelated allocations
@@ -157,5 +161,12 @@ public class LoadNode extends MemOpNode {
         if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) { px.addDep(this); return true; }
         if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) { px.addDep(this); return true; }
         return false;
+    }
+
+    // Read-Only is a deep property, and cannot be cast-away
+    private Node castRO(Node rez) {
+        if( ptr()._type.isFinal() && !rez._type.isFinal() )
+            return new ReadOnlyNode(rez).peephole();
+        return rez;
     }
 }

@@ -167,7 +167,7 @@ public class ScopeNode extends ScopeMinNode {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(v._idx,new PhiNode(v._name, v.glb(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
+                : loop.setDef(v._idx,new PhiNode(v._name, v.lazyGLB(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
         if( st!=null ) setDef(v._idx,st); // Set new value

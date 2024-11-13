@@ -308,6 +308,7 @@ public class Evaluator {
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
             case ScopeMinNode mem   -> null;
+            case ReadOnlyNode ro    -> val(ro.in(1));
             default                 -> throw new AssertionError("Unexpected node " + node);
         };
     }

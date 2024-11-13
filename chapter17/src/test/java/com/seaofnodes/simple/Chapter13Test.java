@@ -23,9 +23,9 @@ return 3.14;
         Parser parser = new Parser(
 """
 struct LLI { LLI? next; int i; };
-LLI? head = null;
+LLI? !head = null;
 while( arg ) {
-    LLI x = new LLI;
+    LLI !x = new LLI;
     x.next = head;
     x.i = arg;
     head = x;
@@ -42,9 +42,9 @@ return head.next.i;
         Parser parser = new Parser(
 """
 struct LLI { LLI? next; int i; };
-LLI? head = null;
+LLI? !head = null;
 while( arg ) {
-    LLI x = new LLI;
+    LLI !x = new LLI;
     x.next = head;
     x.i = arg;
     head = x;
@@ -66,9 +66,9 @@ return next.i;
 """
 struct int0 { int i; flt0? f; };
 struct flt0 { flt f; int0? i; };
-int0 i0 = new int0;
+int0 !i0 = new int0;
 i0.i = 17;
-flt0 f0 = new flt0;
+flt0 !f0 = new flt0;
 f0.f = 3.14;
 i0.f = f0;
 f0.i = i0;
@@ -100,7 +100,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return M;", stop.toString());
+        assertEquals("return (const)M;", stop.toString());
     }
 
     @Test
@@ -121,7 +121,7 @@ return n.next;
         Parser parser = new Parser(
 """
 struct N { N? next; int i; };
-N n = new N;
+N !n = new N;
 n.i = 3.14;
 return n.i;
 """);
@@ -169,7 +169,7 @@ return new S1.s=new S2;
 """
 struct I {int i;};
 struct P { I? pi; };
-P p1 = new P;
+P !p1 = new P;
 P p2 = new P;
 p2.pi = new I;
 p2.pi.i = 2;

@@ -81,9 +81,6 @@ public class Type {
      */
     public StringBuilder typeName( StringBuilder sb) { return print(sb); }
 
-    public Type makeInit() { return null; }
-    public Type makeZero() { return null; }
-    public Type nonZero() { return glb(); }
 
     // ----------------------------------------------------------
 
@@ -175,13 +172,28 @@ public class Type {
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
 
-    /**
-     * Compute greatest lower bound in the lattice
-     */
-    public Type glb() { return _type==TCTRL ? XCONTROL : BOTTOM; }
+    /** Compute greatest lower bound in the lattice */
+    public Type glb() { return _type==TCTRL ? CONTROL : BOTTOM; }
+    /** Compute least upper bound in the lattice */
+    public Type lub() { return _type==TCTRL ? XCONTROL : TOP; }
+
+    // Make an initial/default version of this type.  Typically, 0 for integers
+    // and null for nullable pointers.
+    public Type makeInit() { return null; }
+    // Make a zero version of this type, 0 for integers and null for pointers.
+    public Type makeZero() { return null; }
+    // Make a non-zero version of this type, if possible.  Integers attempt to
+    // exclude zero from their range and pointers become not-null.
+    public Type nonZero() { return glb(); }
 
     // Is forward-reference
     public boolean isFRef() { return false; }
+
+    // All reachable struct Fields are final
+    public boolean isFinal() { return true; }
+
+    // Make all reachable struct Fields final
+    public Type makeRO() { return this; }
 
     // ----------------------------------------------------------
 
