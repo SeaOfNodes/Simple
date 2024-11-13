@@ -29,12 +29,12 @@ public class ScopeMinNode extends Node {
             Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
             return (_type=_type.meet(def));
         }
-        public Type glb() {
+        public Type lazyGLB() {
             Type t = type();
             return t instanceof TypeMemPtr ? t : t.glb();
         }
         @Override public String toString() {
-            return _type.toString()+(_final ? " !": " ")+_name;
+            return _type.toString()+(_final ? " ": " !")+_name;
         }
     }
 

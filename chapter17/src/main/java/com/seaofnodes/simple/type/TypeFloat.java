@@ -104,9 +104,8 @@ public class TypeFloat extends Type {
         return make((byte)-_sz,0);
     }
 
-    @Override
-    public Type glb() { return BOT; }
-
+    @Override public Type glb() { return BOT; }
+    @Override public Type lub() { return TOP; }
     @Override public TypeFloat makeInit() { return ZERO; }
     @Override public TypeFloat makeZero() { return ZERO; }
 

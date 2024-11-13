@@ -115,6 +115,7 @@ public class TypeInteger extends Type {
 
     @Override public TypeInteger dual() { return make(_max,_min); }
     @Override public TypeInteger glb() { return BOT; }
+    @Override public TypeInteger lub() { return TOP; }
     @Override public TypeInteger makeInit() { return ZERO; }
     @Override public TypeInteger makeZero() { return ZERO; }
     @Override public TypeInteger nonZero() {

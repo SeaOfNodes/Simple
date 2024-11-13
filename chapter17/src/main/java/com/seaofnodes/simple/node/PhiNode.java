@@ -47,7 +47,7 @@ public class PhiNode extends Node {
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type
-        Type t = _declaredType.glb().dual();
+        Type t = _declaredType.lub();
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.

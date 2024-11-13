@@ -25,7 +25,7 @@ return 3.14;
         Parser parser = new Parser(
 """
 struct C { C? l; };
-C c = new C;
+C !c = new C;
 c.l = c;
 return c;
 """);
@@ -39,7 +39,7 @@ return c;
         Parser parser = new Parser(
 """
 u8[] old = new u8[0];
-u8[] output = new u8[1];
+u8[] !output = new u8[1];
 int i = 0;
 while (i < old#) {
     output[i] = old[i];
@@ -82,7 +82,7 @@ return is[1];
     public void testBasic3() {
         Parser parser = new Parser(
 """
-int[] a = new int[2];
+int[] !a = new int[2];
 a[0] = 1;
 a[1] = 2;
 return a[0];
@@ -97,7 +97,7 @@ return a[0];
         Parser parser = new Parser(
 """
 struct A { int i; };
-A?[] a = new A?[2];
+A?[] !a = new A?[2];
 return a;
 """);
         StopNode stop = parser.parse().iterate();
@@ -111,10 +111,10 @@ return a;
 """
 struct S { int x; flt y; };
 // A new S
-S s = new S; s.x=99; s.y = 3.14;
+S !s = new S; s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
-S?[]?[] iss = new S?[]?[2];
+S?[]?[] !iss = new S?[]?[2];
 iss[0] = new S?[7];
 iss[0][2] = s;
 
@@ -135,14 +135,13 @@ return rez;
         assertEquals(1.2 , Evaluator.evaluate(stop, 1));
     }
 
-    @Ignore
     @Test
     public void testBasic6() {
         Parser parser = new Parser(
 """
 struct S { int x; flt y; };
 // A new S
-S s = new S; s.x=99; s.y = 3.14;
+S !s = new S; s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
 S?[]?[] iss = new S?[]?[2];
@@ -156,9 +155,8 @@ if( iss[arg] )
         rez = iss[arg][2].y;
 return rez;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,Phi(Region,.y,1.2),1.2);", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop, 0));
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'y'",e.getMessage()); }
     }
 
     @Test
@@ -167,8 +165,8 @@ return rez;
 """
 // Can we define a forward-reference array?
 struct Tree { Tree?[]? _kids; };
-Tree root = new Tree;
-root._kids = new Tree?[2];
+Tree !root = new Tree;
+root._kids = new Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
 root._kids[0] = new Tree;
 return root;
 """);
@@ -192,7 +190,7 @@ return 0;
     public void testRollingSum() {
         Parser parser = new Parser(
 """
-int[] ary = new int[arg];
+int[] !ary = new int[arg];
 // Fill [0,1,2,3,4,...]
 int i=0;
 while( i < ary# ) {
@@ -216,7 +214,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     public void sieveOEratosthenes() {
         Parser parser = new Parser(
 """
-int[] ary = new int[arg], primes = new int[arg];
+int[] !ary = new int[arg], !primes = new int[arg];
 int nprimes = 0, p=2;
 // Find primes while p^2 < arg
 while( p*p < arg ) {
@@ -240,7 +238,7 @@ while( p < arg ) {
     p = p + 1;
 }
 // Copy/shrink the result array
-int[] rez = new int[nprimes];
+int[] !rez = new int[nprimes];
 int j = 0;
 while( j < nprimes ) {
     rez[j] = primes[j];
@@ -251,7 +249,7 @@ return rez;
         StopNode stop = parser.parse().iterate();
         assertEquals("return [int];", stop.toString());
         Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(stop, 20);
-        assertEquals("[int] {  # :int;   [] :int; }",obj.struct().toString());
+        assertEquals("[int] {int #; int ![]; }",obj.struct().toString());
         long nprimes = (Long)obj.fields()[0];
         long[] primes = new long[]{2,3,5,7,11,13,17,19};
         for( int i=0; i<nprimes; i++ )
@@ -263,8 +261,8 @@ return rez;
         Parser parser = new Parser(
 """
 struct S {int i; flt f;};
-S s1 = new S;
-S s2 = new S;
+S !s1 = new S;
+S !s2 = new S;
 s2.i = 3;
 s2.f = 2.0;
 if (arg) s1 = new S;

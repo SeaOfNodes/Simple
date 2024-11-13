@@ -15,7 +15,7 @@ public class BrainFuckTest {
     @Test
     public void testBrainfuck() {
         var program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.".getBytes(StandardCharsets.UTF_8);
-        var encoded = new StringBuilder("u8[] program = new u8[").append(program.length).append("];");
+        var encoded = new StringBuilder("u8[] !program = new u8[").append(program.length).append("];");
         for (int i = 0; i < program.length; i++) {
             int value = program[i] & 0xFF;
             encoded.append("program[").append(i).append("] = ").append(value).append(";");
@@ -25,7 +25,7 @@ public class BrainFuckTest {
                 encoded + """
 var d = 0;
 u8[] !output = new u8[0];
-val data = new u8[100];
+u8[] !data = new u8[100];
 
 for( int pc = 0; pc < program#; pc++ ) {
     var command = program[pc];
