@@ -12,17 +12,7 @@ public class Chapter17Test {
     @Test
     public void testJig() {
         Parser parser = new Parser("""
-i32 v0=0;
-if(1<<arg) return 0&0;
-            int v1=0;
-            while(0<<0!=1) {
-                v1=v0;
-                    while(0<--v0)
-                        if(1&v0) continue;
-                        else arg=0;
-                if(v1) continue;
-                    arg=0;
-            }
+return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
