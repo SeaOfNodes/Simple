@@ -39,15 +39,12 @@ public class LoopNode extends RegionNode {
         for( CFGNode idom = back(); idom!=this; idom = idom.idom() ) {
             // Walk idom in loop, setting depth
             idom._loopDepth = _loopDepth;
-            // Loop exit hits the CProj before the If, instead of jumping from
-            // Region directly to If.
-            if( idom instanceof CProjNode proj ) {
-                assert proj.in(0) instanceof IfNode; // Loop exit test
-                // Find the loop exit CProj, and set loop_depth
-                for( Node use : proj.in(0)._outputs )
-                    if( use instanceof CProjNode proj2 && proj2 != idom )
-                        proj2._loopDepth = _loopDepth-1;
-            }
+            // Mark backedge loop depth.  The loop exit hits the CProj before the
+            // If, instead of jumping from Region directly to If.  The other
+            // arm is either a loop exit OR if this is a split tail the other
+            // arm leads to a inner loop.
+            if( idom instanceof CProjNode cproj )
+                break;
         }
         return _loopDepth;
     }
@@ -62,7 +59,6 @@ public class LoopNode extends RegionNode {
         while( x != this ) {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
-                //if( !(other.out(0) instanceof LoopNode loop) || loop.entry()==exit )
                 if( other.loopDepth() < loopDepth() )
                     return;         // Found an exit, not an infinite loop
             }
