@@ -78,7 +78,6 @@ the same reference can exist.  This works for `var` and normal type
 declarations: `var s = new S;` and `S s = new S` both make `s` an 
 immutable reference to a `struct S`.
 
-
 ```cpp
 struct Bar { int x; }
 Bar !bar = new Bar;
@@ -97,9 +96,6 @@ foo.bar.x++;       // Bumps to 5
 print(xfoo.bar.x); // Ok to read through xfoo, prints 5
 ```
 
-
-
-
 ## Trinary
 
 Allow `pred ? e_true : e_false`.  Also allow `pred ? e_true`, where the false result
@@ -117,17 +113,17 @@ Example:
 ```cpp
 int sum=0;
 for( int i=0; i<arg; i++ )
-    sum = sum + i;
+    sum += i;
 return sum;
 ```
 
-Any of `init`, `test` and `next` can be empty.
-`init` allows for declaration of a new variable, with scope limited to the `for` expression.
+Any of `init`, `test` and `next` can be empty.  `init` allows for declaration
+of a new variable, with scope limited to the `for` expression.
 
 ```cpp
 int sum=0;
 for( int i=0; i<arg; i++ )
-    sum = sum + i;
+    sum += i;
 return i; // ERROR: Undefined name 'i'
 ```
 
