@@ -12,6 +12,14 @@ Also allows `s.fld++` and `ary[idx]++`, and their `--` variants.
 Allow pre-increment for identifiers only, for now: `--pc`.
 
 
+## Operator assignment
+
+Along the same lines as post-increment, we now allow `op=` assignment
+with semantics similar to other languages.
+
+`x += y`
+
+
 ## var & val
 
 `var` can be used in the `type` position to indicate a "variable" (mutable
@@ -125,11 +133,5 @@ return i; // ERROR: Undefined name 'i'
 
 
 
-oper-assign +=, -=
 TODO
 switch
-
-
-
-
-
