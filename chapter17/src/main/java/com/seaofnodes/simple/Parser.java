@@ -889,13 +889,30 @@ public class Parser {
         if( matchx("new"  ) ) return alloc();
         // Expect an identifier now
         ScopeMinNode.Var n = requireLookupId("an identifier or expression");
-        Node rvalue = _scope.in(n).keep();
-        if( matchx("++") || matchx("--") ) {
-            if( n._final )
-                throw error("Cannot reassign final '"+n._name+"'");
-            _scope.update(n,zsMask(peep(new AddNode(rvalue,con( _lexer.peek(-1)=='+' ? 1 : -1))),n.type()));
-        }
-        return rvalue.unkeep();
+        Node rvalue = _scope.in(n);
+        // Check for assign-update, x += e0;
+        char ch = _lexer.matchOperAssign();
+        if( ch==0  ) return rvalue;
+        if( n._final )
+            throw error("Cannot reassign final '"+n._name+"'");
+        Node op = switch(ch) {
+        case '+'      -> new AddNode(rvalue,null);
+        case '-'      -> new SubNode(rvalue,null);
+        case '*'      -> new MulNode(rvalue,null);
+        case '/'      -> new DivNode(rvalue,null);
+        case        1 -> new AddNode(rvalue,con( 1));
+        case (char)-1 -> new AddNode(rvalue,con(-1));
+        default -> throw Utils.TODO();
+        };
+        // Return pre-value (x+=1) or post-value (x++)
+        boolean pre = op.in(2)==null;
+        // Parse RHS argument as needed
+        if( pre )
+            { op.keep().setDef(2,parseExpression());  op.unkeep(); }
+        else rvalue.keep();     // Keep post-value across peeps
+        op = zsMask(peep(op),n.type());
+        _scope.update(n,op);
+        return pre ? op : rvalue.unkeep();
     }
 
     ScopeMinNode.Var requireLookupId(String msg) {
@@ -1344,12 +1361,28 @@ public class Parser {
 
         //
         private boolean isPunctuation(char ch) {
-            return "=;[]<>()+-/*".indexOf(ch) != -1;
+            return "=;[]<>()+-/*&|^".indexOf(ch) != -1;
         }
 
         private String parsePunctuation() {
             int start = _position;
             return new String(_input, start, 1);
+        }
+
+        // Next oper= character, or 0.
+        // As a convenience, mark "++" as a char 1 and "--" as char -1 (65535)
+        public char matchOperAssign() {
+            skipWhiteSpace();
+            if( _position+2 >= _input.length ) return 0;
+            char ch0 = (char)_input[_position];
+            if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
+            char ch1 = (char)_input[_position+1];
+            if( ch1=='=' )
+                { _position += 2; return ch0; }
+            if( isIdLetter((char)_input[_position+2]) ) return 0; // Stop --x
+            if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
+            if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
+            return 0;
         }
     }
 }

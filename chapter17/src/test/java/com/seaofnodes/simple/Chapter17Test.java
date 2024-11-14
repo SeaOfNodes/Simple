@@ -105,6 +105,14 @@ return s.x;
         assertEquals(255L, Evaluator.evaluate(stop, 0));
     }
 
+    @Test
+    public void testInc8() {
+        Parser parser = new Parser("int x; x+=2; return x+=3;");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 5;", stop.toString());
+        assertEquals(5L, Evaluator.evaluate(stop, 0));
+    }
+
     // ---------------------------------------------------------------
     @Test public void testVar0() {
         Parser parser = new Parser("var d; return d;");
@@ -288,7 +296,7 @@ return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0
         Parser parser = new Parser("""
 int sum=0;
 for( int i=0; i<arg; i++ )
-    sum = sum + i;
+    sum += i;
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
@@ -301,7 +309,7 @@ return sum;
         Parser parser = new Parser("""
 int sum=0, i=0;
 for( ; i<arg; i++ )
-    sum = sum + i;
+    sum += i;
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
@@ -315,7 +323,7 @@ return sum;
 int sum=0;
 for( int i=0; ; i++ ) {
     if( i>=arg ) break;
-    sum = sum + i;
+    sum += i;
 }
 return sum;
 """);
@@ -329,7 +337,7 @@ return sum;
         Parser parser = new Parser("""
 int sum=0;
 for( int i=0; i<arg; )
-    sum = sum + i++;
+    sum += i++;
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
@@ -342,7 +350,7 @@ return sum;
         Parser parser = new Parser("""
 int sum=0;
 for( int i=0; i<arg; i++ )
-    sum = sum + i;
+    sum += i;
 return i;
 """);
         try { parser.parse().iterate(); fail(); }
@@ -361,7 +369,7 @@ while( arg-- )
 int sum=0;
 var ptr = head; // A read-only ptr, to be assigned from read-only next fields
 for( ; ptr; ptr = ptr.next )
-    sum = sum + ptr.i;
+    sum += ptr.i;
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
@@ -382,7 +390,7 @@ for( p=2; p*p < arg; p++ ) {
     // p is now a prime
     primes[nprimes++] = p;
     // Mark out the rest non-primes
-    for( int i = p + p; i < ary#; i = i + p )
+    for( int i = p + p; i < ary#; i += p )
         ary[i] = true;
 }
 // Now just collect the remaining primes, no more marking
