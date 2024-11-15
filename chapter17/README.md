@@ -10,6 +10,8 @@ as `(arg--)-arg`.
 Also allows `s.fld++` and `ary[idx]++`, and their `--` variants.
 
 Allow pre-increment for identifiers only, for now: `--pc`.
+`--ary[idx]`   `ary[idx] -= 1`
+`--expr.fld`
 
 
 ## Operator assignment
@@ -41,8 +43,8 @@ infers as
 ## Mutability
 
 Typed primitive fields are always mutable.  Typed reference fields without an
-initializer must be mutable to get a value.  References with an initializer are
-immutable by default and can be made mutable with a leading `!`.  `var` and
+initializer must be mutable to get a value.  Initialized reference variables
+are immutable by default and can be made mutable with a leading `!`.  `var` and
 `val` keep their current sense and can be used to make any field mutable or
 immutable.  Fields are always mutable during construction, but will become
 immutable at the end of either constructor.
@@ -73,10 +75,9 @@ through other references.
 
 ### References with an initializer are deeply immutable
 
-References with an initializer are deeply immutable, but a mutable version of
-the same reference can exist.  This works for `var` and normal type
-declarations: `var s = new S;` and `S s = new S` both make `s` an 
-immutable reference to a `struct S`.
+Initialized variables are deeply immutable, but a mutable version of the same
+reference can exist.  This works for `val` and normal type declarations: `val s
+= new S;` and `S s = new S` both make `s` an immutable reference to a `struct S`.
 
 ```cpp
 struct Bar { int x; }
