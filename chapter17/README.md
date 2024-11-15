@@ -79,9 +79,9 @@ through other references.
 
 
 
-### References with an initializer are deeply immutable
+### Reference variables with an initializer are deeply immutable
 
-Initialized variables are deeply immutable, but a mutable version of the same
+Initialized reference variables are deeply immutable, but a mutable version of the same
 reference can exist.  This works for `val` and normal type declarations: `val s
 = new S;` and `S s = new S` both make `s` an immutable reference to a `struct S`.
 
