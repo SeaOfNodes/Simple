@@ -687,7 +687,7 @@ public class Parser {
         int old2 = pos();
         String id = _lexer.matchId();
         pos(old2);              // Reset lexer to reparse
-        if( id==null )
+        if( id==null || _scope.lookup(id)!=null )
             return posT(old1);  // Reset lexer to reparse
         // Yes a forward ref, so declare it
         TYPES.put(tname,t1);
@@ -1054,6 +1054,10 @@ public class Parser {
 
         // Get field type and layout offset from base type and field index fidx
         Field f = base._fields[fidx];  // Field from field index
+        Type tf = f._type;
+        if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
+            tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
+
 
         Node off = (name.equals("[]")       // If field is an array body
             // Array index math
@@ -1065,8 +1069,10 @@ public class Parser {
         if( matchOpx('=','=') ) {
             Node val = parseExpression();
             // Auto-truncate when storing to narrow fields
-            val = zsMask(val,f._type).keep();
-            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off.unkeep(), val, false);
+            val = zsMask(val,tf).keep();
+            if( !val._type.isa(tf) )
+                throw error("Cannot store "+val._type+" into field "+tf+" "+name);
+            Node st = new StoreNode(name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), val, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.
@@ -1075,7 +1081,7 @@ public class Parser {
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
-        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr.keep(), off);
+        Node load = new LoadNode(name, f._alias, tf.glb(), memAlias(f._alias), expr.keep(), off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
@@ -1087,8 +1093,8 @@ public class Parser {
             if( f._final && !f._fname.equals("[]") )
                 throw error("Cannot reassign final '"+f._fname+"'");
             Node inc = peep(new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)));
-            Node val = zsMask(inc,f._type);
-            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr.unkeep(), off, val, false);
+            Node val = zsMask(inc,tf);
+            Node st = new StoreNode(name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off, val, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.

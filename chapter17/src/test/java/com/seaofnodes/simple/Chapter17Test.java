@@ -12,17 +12,13 @@ public class Chapter17Test {
     @Test
     public void testJig() {
         Parser parser = new Parser("""
-struct A { int i; };
-A! a = new A;
-a.i=a;
-a.i=2;
-return a;
-                                   //return 3.14;
+return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
+
 
     // ---------------------------------------------------------------
     @Test
