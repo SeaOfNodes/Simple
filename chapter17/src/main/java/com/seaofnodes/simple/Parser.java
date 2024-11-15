@@ -666,24 +666,22 @@ public class Parser {
             return posT(old1);
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
+        Type t2 = t1;
         while( true ) {
-            assert !(t1 instanceof TypeStruct);
+            assert !(t2 instanceof TypeStruct);
             if( match("?") ) {
-                if( !(t1 instanceof TypeMemPtr tmp) )
+                if( !(t2 instanceof TypeMemPtr tmp) )
                     throw error("Type "+t0+" cannot be null");
-                if( tmp._nil ) throw error("Type "+t1+" already allows null");
-                t1 = TypeMemPtr.make(tmp._obj,true);
-                continue;
-            }
-            if( match("[]") ) {
-                t1 = typeAry(t1);
-                continue;
-            }
-            break;
+                if( tmp._nil ) throw error("Type "+t2+" already allows null");
+                t2 = TypeMemPtr.make(tmp._obj,true);
+            } else if( match("[]") ) {
+                t2 = typeAry(t2);
+            } else
+                break;
         }
 
         // Check no forward ref
-        if( t0 != null ) return t1;
+        if( t0 != null ) return t2;
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = pos();
@@ -692,9 +690,8 @@ public class Parser {
         if( id==null )
             return posT(old1);  // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        Type t2 = t1 instanceof TypeMemPtr tmp ? tmp.makeFrom(false): t1;
-        TYPES.put(tname,t2);
-        return t1;
+        TYPES.put(tname,t1);
+        return t2;
     }
 
     // Make an array type of t
