@@ -14,7 +14,7 @@ public class Chapter11Test {
     public void testFuzzer() {
         Parser parser = new Parser(
 """
-while(-----arg) {
+while(---- -arg) {
     while(-arg) {
         while(-----arg*---0) {
                 int N=--false==false<--arg;
@@ -103,7 +103,7 @@ while(-----arg) {
             int UX=arg;
             while(UX<-3*arg) {
                 UX=UX+arg/-1;
-                arg=-3--(-UX--47<arg==--arg==arg)/arg--UX>=-arg;
+                arg=-3--(-UX- -47<arg==--arg==arg)/arg- -UX>=-arg;
                 if(---12) while(-UX) break;
                 break;
             }
@@ -224,9 +224,9 @@ if(arg!=62==arg) {
                 }
             }
             arg=-arg+arg;
-            arg=--47+-arg<1>arg*(-arg==-arg--0>3);
+            arg=--47+-arg<1>arg*(-arg==-arg- -0>3);
             arg=(----arg)!=arg+--59;
-            arg=--4+arg==-(arg)-arg;
+            arg=- -4+arg==-(arg)-arg;
         }
         else {
             while(--true-----true*-25+-18>arg>=-----(-arg)---13) {
