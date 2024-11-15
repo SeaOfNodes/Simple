@@ -1379,9 +1379,7 @@ public class Parser {
             char ch0 = (char)_input[_position];
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
             char ch1 = (char)_input[_position+1];
-            if( ch1=='=' )
-                { _position += 2; return ch0; }
-            if( isIdLetter((char)_input[_position+2]) ) return 0; // Stop --x
+            if(               ch1 == '=' ) { _position += 2; return ch0; }
             if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
             if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
             return 0;
