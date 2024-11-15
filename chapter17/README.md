@@ -10,8 +10,6 @@ as `(arg--)-arg`.
 Also allows `s.fld++` and `ary[idx]++`, and their `--` variants.
 
 Allow pre-increment for identifiers only, for now: `--pc`.
-`--ary[idx]`   `ary[idx] -= 1`
-`--expr.fld`
 
 
 ## Operator assignment
@@ -50,25 +48,33 @@ immutable.  Fields are always mutable during construction, but will become
 immutable at the end of either constructor.
 
 `int x; x=3; x++; // OK, primitive so mutable`
+
 `int x   =3; x++; // Ok, primitive so mutable, despite initializer`
 
 Assume in the next examples this struct exists:
 `struct S { int x; };`
 
 Then:
+
 `S s; s = new S     ; s.x++; // OK, no initializer so s.x is   mutable`
+
 `S s; s = new S{x=3}; s.x++; // OK, no initializer so s.x is   mutable`
+
 `S s    = new S     ; s.x++; // Error, initializer so s.x is immutable`
+
 `S s    = new S{x=3}; s.x++; // Error, initializer so s.x is immutable`
 
 Leading `!` makes mutable:
+
 `S !s = new S; s.x++; // Ok, has '!' so mutable`
 
 'var' is variable:
+
 `var s = new S; s.x++; // Ok, has var so mutable`
 
 'val' is a "value": not mutable through this reference, but may be mutable
 through other references.
+
 `val s = new S; s.x++; // Error, val so s.x is immutable`
 
 
@@ -128,7 +134,3 @@ for( int i=0; i<arg; i++ )
 return i; // ERROR: Undefined name 'i'
 ```
 
-
-
-TODO
-switch
