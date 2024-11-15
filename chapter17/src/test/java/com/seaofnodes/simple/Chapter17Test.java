@@ -356,7 +356,31 @@ return i;
         try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Undefined name 'i'",e.getMessage()); }
     }
+    @Test
+    public void testFor5() {
+        Parser parser = new Parser("""
+for(;;arg++;) {}
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Syntax error, expected Unexpected code after expression: ;",e.getMessage()); }
+    }
 
+
+
+    // ---------------------------------------------------------------
+    @Test
+    public void testForward() {
+        Parser parser = new Parser("""
+struct A{
+    B? f1;
+    B? f2;
+};
+return new A;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return A;", stop.toString());
+        assertEquals("Obj<A>{f1=null,f2=null}", Evaluator.evaluate(stop).toString());
+    }
 
     // ---------------------------------------------------------------
     @Test
