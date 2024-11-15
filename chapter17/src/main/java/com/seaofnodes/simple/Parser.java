@@ -335,7 +335,8 @@ public class Parser {
             int old = pos(nextPos);
             if( !peek(')') )
               parseAsgn(null,false);
-            assert pos() == nextEnd;
+            if( pos() != nextEnd )
+                throw errorSyntax( "Unexpected code after expression" );
             pos(old);
         }
 
@@ -691,7 +692,8 @@ public class Parser {
         if( id==null )
             return posT(old1);  // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        TYPES.put(tname,t1);
+        Type t2 = t1 instanceof TypeMemPtr tmp ? tmp.makeFrom(false): t1;
+        TYPES.put(tname,t2);
         return t1;
     }
 

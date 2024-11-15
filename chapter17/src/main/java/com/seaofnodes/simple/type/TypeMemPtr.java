@@ -34,6 +34,7 @@ public class TypeMemPtr extends Type {
     public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
     public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
     public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(obj, _nil); }
+    public TypeMemPtr makeFrom(boolean nil) { return nil==_nil ? this : make(_obj, nil); }
     @Override public TypeMemPtr makeRO() { return makeFrom(_obj.makeRO()); }
     @Override public boolean isFinal() { return _obj.isFinal(); }
 
