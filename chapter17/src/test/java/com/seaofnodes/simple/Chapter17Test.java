@@ -12,7 +12,12 @@ public class Chapter17Test {
     @Test
     public void testJig() {
         Parser parser = new Parser("""
-return 3.14;
+struct A { int i; };
+A! a = new A;
+a.i=a;
+a.i=2;
+return a;
+                                   //return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
@@ -369,7 +374,7 @@ for(;;arg++;) {}
 
     // ---------------------------------------------------------------
     @Test
-    public void testForward() {
+    public void testForward0() {
         Parser parser = new Parser("""
 struct A{
     B? f1;
@@ -380,6 +385,20 @@ return new A;
         StopNode stop = parser.parse().iterate();
         assertEquals("return A;", stop.toString());
         assertEquals("Obj<A>{f1=null,f2=null}", Evaluator.evaluate(stop).toString());
+    }
+
+    @Test
+    public void testForward1() {
+        Parser parser = new Parser("""
+struct A{
+    B?[]? nil_array_of_b;
+    B?[]  not_array_of_b = new B?[0];
+};
+return new A.not_array_of_b;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return (const)[*B?];", stop.toString());
+        assertEquals("Obj<[*B?]>{#=0,[]=[]}", Evaluator.evaluate(stop).toString());
     }
 
     // ---------------------------------------------------------------
