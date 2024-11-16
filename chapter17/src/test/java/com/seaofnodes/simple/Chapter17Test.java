@@ -12,11 +12,14 @@ public class Chapter17Test {
     @Test
     public void testJig() {
         Parser parser = new Parser("""
-return 3.14;
+int i = 0;
+i=i=1;
+return i;
+                                   //return 3.14;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        assertEquals("return 1;", stop.toString());
+        assertEquals(1L, Evaluator.evaluate(stop,  0));
     }
 
 
@@ -118,13 +121,13 @@ return s.x;
     @Test public void testVar0() {
         Parser parser = new Parser("var d; return d;");
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
     }
 
     @Test public void testVar1() {
         Parser parser = new Parser("val d; return d;");
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
     }
 
     @Test public void testVar2() {
@@ -227,6 +230,43 @@ return x4*10+x5;
         assertEquals(45L, Evaluator.evaluate(stop, 0));
     }
 
+    @Test
+    public void testVar13() {
+        Parser parser = new Parser("""
+int i,i++;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Redefining name 'i'",e.getMessage()); }
+    }
+
+
+    @Test
+    public void testVar14() {
+        Parser parser = new Parser("""
+struct B {};
+struct A { B b; };
+A x = new A {
+    return b; // read before init
+    b = new B;
+};
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot read uninitialized field 'b'",e.getMessage()); }
+    }
+
+    @Test
+    public void testVar15() {
+        Parser parser = new Parser("""
+struct B {};
+struct A { B b; };
+return new A {
+    if (arg) b = new B; // Constructor ends with partial init of b
+}.b;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("'A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
+    }
+
     // ---------------------------------------------------------------
     @Test
     public void testTrinary0() {
@@ -290,6 +330,16 @@ return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0
         assertEquals( 2L, Evaluator.evaluate(stop, 2));
     }
 
+    @Test
+    public void testTrinary5() {
+        Parser parser = new Parser("""
+flt f=arg?1:1.2;
+return f;   // missing widening
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Region,1.0,1.2);", stop.toString());
+        assertEquals(1.2, Evaluator.evaluate(stop,  0));
+    }
 
     // ---------------------------------------------------------------
     @Test

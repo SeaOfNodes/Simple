@@ -26,6 +26,7 @@ public class ScopeMinNode extends Node {
         }
         public Type type() {
             if( !_type.isFRef() ) return _type;
+            // Update self to no longer use the forward ref type
             Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
             return (_type=_type.meet(def));
         }

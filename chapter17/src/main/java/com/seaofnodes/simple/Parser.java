@@ -218,9 +218,8 @@ public class Parser {
         else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")       ) return null; // Empty statement
-        // declarations of vars with struct type are handled in parseExpressionStatement due
-        // to ambiguity
-        else return parseExpressionStatement();
+        // Declaration or normal assignment/expression
+        else return parseDeclarationStatement();
     }
 
     /**
@@ -255,7 +254,7 @@ public class Parser {
         require("(");
         _scope.push();          // Scope for the index variables
         if( !match(";") )       // Can be empty init "for(;test;next) body"
-            parseExpressionStatement(); // Non-empty init
+            parseDeclarationStatement(); // Non-empty init
         Node rez = parseLooping(true);
         _scope.pop();           // Exit index variable scope
         return rez;
@@ -286,7 +285,7 @@ public class Parser {
         _xScopes.push(_scope = _scope.dup(true)); // The true argument triggers creating phis
 
         // Parse predicate
-        var pred = peek(';') ? con(1) : parseExpression();
+        var pred = peek(';') ? con(1) : parseAsgn();
         require( doFor ? ";" : ")" );
 
         // IfNode takes current control and predicate
@@ -334,7 +333,7 @@ public class Parser {
         if( doFor ) {
             int old = pos(nextPos);
             if( !peek(')') )
-              parseAsgn(null,false);
+              parseAsgn();
             if( pos() != nextEnd )
                 throw errorSyntax( "Unexpected code after expression" );
             pos(old);
@@ -424,7 +423,7 @@ public class Parser {
     private Node parseIf() {
         // Parse predicate
         require("(");
-        var pred = require(parseExpression(), ")");
+        var pred = require(parseAsgn(), ")");
         return parseTrinary(pred,true,"else");
     }
 
@@ -446,7 +445,7 @@ public class Parser {
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
-        Node lhs = stmt ? parseStatement() : parseExpression().keep(); // Parse true-side
+        Node lhs = stmt ? parseStatement() : parseAsgn().keep(); // Parse true-side
         _scope.removeGuards(ifT);
 
         ScopeNode tScope = _scope;
@@ -459,7 +458,7 @@ public class Parser {
         _scope.addGuards(ifF,pred,true);
         boolean doRHS = match(fside);
         Node rhs = doRHS
-            ? (stmt ? parseStatement() : parseExpression())
+            ? (stmt ? parseStatement() : parseAsgn())
             : (stmt ? null             : con(lhs._type.makeZero()));
         _scope.removeGuards(ifF);
         if( doRHS )
@@ -469,6 +468,13 @@ public class Parser {
         // Check for `if(pred) int x=17;`
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
+
+        // Check the trinary widening int/flt
+        if( !stmt ) {
+            rhs = widenInt( rhs, lhs._type ).keep();
+            lhs = widenInt( lhs.unkeep(), rhs._type ).keep();
+            rhs.unkeep();
+        }
 
         // Merge results
         _scope = tScope;
@@ -490,7 +496,7 @@ public class Parser {
      * @return an expression {@link Node}, never {@code null}
      */
     private Node parseReturn() {
-        var expr = require(parseExpression(), ";");
+        var expr = require(parseAsgn(), ";");
         Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
         ctrl(XCTRL);            // Kill control
         return ret;
@@ -505,107 +511,119 @@ public class Parser {
         return null;
     }
 
-    /** Parse: name [=expr]
+    /** Parse: [name '='] expr
      */
-    // t==null          ==>> re-assign: !final, expr=parse(), t:=def ._type
-    // t==TOP           ==>> value    :  final, expr=parse(), t:=expr._type
-    // t==BOT           ==>> variable : !final, expr=parse(), t:=expr._type
-    // t==type && !expr ==>> declaratn: !final, expr=makeInit; t:=type;
-    // t==type &&  expr ==>> declaratn:  final=inCon && noBang, expr=parse() ; t:=type;
-    private Node parseAsgn(Type t, boolean hasBang) {
-        boolean isDecl = t!=null;
+    private Node parseAsgn() {
         int old = pos();
-        String name = requireId();
+        String name = _lexer.matchId();
+        // Just a plain expression, no assignment.
+        // Distinguish `var==expr` from `var=expr`
+        if( name==null || KEYWORDS.contains(name) || !matchOpx('=','=') )
+            {  pos(old);  return parseExpression();  }
 
-        boolean hasType = t!=null && t!=Type.TOP && t!=Type.BOTTOM; // User written type
-        boolean hasExpr = !(peek(';') || peek(','));   // Expression follows
-        if( hasExpr && !match("=") )                   // Something else
-            { pos(old); return parseExpression(); }
-        if( !hasExpr && !hasType )  throw errorSyntax("expression");
-        Node expr = hasExpr ? parseExpression() : con(t.makeInit());
+        // Parse assignment expression
+        Node expr = parseAsgn();
 
-        // Final if no Bang AND TMP; primitives are not-final by default
-        boolean xfinal = !hasBang && (t instanceof TypeMemPtr) && hasExpr;
+        // Final variable to update
+        ScopeMinNode.Var def = _scope.lookup(name);
+        if( def==null )
+            throw error("Undefined name '" + name + "'");
 
-        // Defining a new variable vs updating an old one
-        if( t==null ) {
-            // Lookup old variable
-            ScopeMinNode.Var def = _scope.lookup(name);
-            if( def==null )
-                throw error("Undefined name '" + name + "'");
-            // TOP fields are for late-initialized fields; these have never
-            // been written to, and this must be the final write.  Other writes
-            // outside the constructor need to check the final bit.
-            if( _scope.in(def._idx)._type!=Type.TOP && def._final && !_scope.inCon() )
-                throw error("Cannot reassign final '"+name+"'");
-            t = def.type(); // Declared field type
+        // TOP fields are for late-initialized fields; these have never
+        // been written to, and this must be the final write.  Other writes
+        // outside the constructor need to check the final bit.
+        if( _scope.in(def._idx)._type!=Type.TOP && def._final && !_scope.inCon() )
+            throw error("Cannot reassign final '"+name+"'");
 
-        } else if( !hasType && hasExpr ) { // Either 'val' or 'var'
-            // Either 'var' or 'val'; type comes from expression
-            xfinal = t==Type.TOP; // xfinal === 'val'; otherwise 'var'
-            t = expr._type.glb();
-        }
+        // Lift expression, based on type
+        Node lift = liftExpr(expr, def.type(), def._final);
+        // Update
+        _scope.update(name,lift);
+        // Return un-lifted expr
+        return expr;
+    }
 
+    // Make finals deep; widen ints to floats; narrow wide int types.
+    // Early error if types do not match variable.
+    private Node liftExpr( Node expr, Type t, boolean xfinal ) {
+        assert !(expr._type instanceof TypeMemPtr tmp) || !tmp.isFRef();
         // Final is deep on ptrs
         if( xfinal && t instanceof TypeMemPtr tmp ) {
             t = tmp.makeRO();
             expr = peep(new ReadOnlyNode(expr));
         }
-
         // Auto-widen int to float
-        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
-            expr = peep(new ToFloatNode(expr));
+        expr = widenInt( expr, t );
         // Auto-narrow wide ints to narrow ints
         expr = zsMask(expr,t);
-        // Auto-deepen forward ref types
-        Type e = expr._type;
-        if( e instanceof TypeMemPtr tmp && tmp.isFRef() )
-            e = TYPES.get(tmp._obj._name);
         // Type is sane
-        if( !e.isa(t) )
-            throw error("Type " + e.str() + " is not of declared type " + t.str());
-
-        // Define a new name, vs update an old one
-        if( isDecl ) {
-            if( !_scope.define(name,t,xfinal,expr) )
-                throw error("Redefining name '" + name + "'");
-        } else
-            _scope.update(name,expr);
+        if( !expr._type.isa(t) )
+            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
     }
 
-    /** Parse final: [!]asgn
-     */
-    private Node parseFinal(Type t) {
-        return parseAsgn(t,match("!"));
+    private Node widenInt( Node expr, Type t ) {
+        return expr._type instanceof TypeInteger && t instanceof TypeFloat
+            ? peep(new ToFloatNode(expr)) : expr;
     }
 
     /**
-     * Parses an expression statement or a declaration statement where type is a struct
-     *
-     * <pre>
-     * type decl [, decl]*;  // Define many names with the same type
-     * asgn;                 // Assign or load a variable
-     * expr;                 // Something else
-     * name;                 // Bare name is an error
-
-     * </pre>
-     * @return an expression {@link Node}, never {@code null}
+     * Parse declaration or expression statement
+     * declStmt = type var['=' exprAsgn][, var['=' exprAsgn]]* ';' | exprAsgn ';'
+     * <p>
+     * exprAsgn = var '=' exprAsgn | expr
      */
-    private Node parseExpressionStatement() {
-        Node n;
+    private Node parseDeclarationStatement() {
         Type t = type();
-        if( t != null ) {
-            // now parse final [, final]*
-            n = parseFinal(t);
-            while( match(",") )
-                n = parseFinal(t);
+        if( t == null )
+            return require(parseAsgn(),";");
 
-            // Parse "asgn;" which is just "name = expr;"
-        } else
-            n = parseAsgn(null,false);
+        // now parse var['=' asgnexpr] in a loop
+        Node n = parseDeclaration(t);
+        while( match(",") )
+            n = parseDeclaration(t);
         return require(n,";");
     }
+
+    /** Parse final: [!]var['=' asgn]
+     */
+    private Node parseDeclaration(Type t) {
+        assert t!=null;
+        // Has var/val instead of a user-declared type
+        boolean inferType = t==Type.TOP || t==Type.BOTTOM;
+        boolean hasBang = match("!");
+        String name = requireId();
+
+        // Optional initializing expression follows
+        boolean xfinal = false;
+        Node expr;
+        if( match("=") ) {
+            expr = parseAsgn();
+            // `val` is always final
+            xfinal = (t==Type.TOP) ||
+                // var is always not-final, final if no Bang AND TMP since primitives are not-final by default
+                (t!=Type.BOTTOM && !hasBang && (t instanceof TypeMemPtr));
+            // var/val, then type comes from expression
+            if( inferType )
+                t = expr._type.glb();
+
+        } else {
+            if( inferType && !_scope.inCon() )
+                throw errorSyntax("=expression");
+            expr = con(t.makeInit());
+        }
+
+        // Lift expression, based on type
+        Node lift = liftExpr(expr, t, xfinal);
+        if( xfinal && t instanceof TypeMemPtr tmp )
+            t = tmp.makeRO();
+
+        // Define a new name,
+        if( !_scope.define(name,t,xfinal,lift) )
+            throw error("Redefining name '" + name + "'");
+        return null;
+    }
+
 
 
     /**
@@ -707,6 +725,15 @@ public class Parser {
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
         return tary;
+    }
+
+    // Fixup forward refs lazily.  Basically a Union-Find flavored read
+    // barrier.
+    Type lazyFRef(Type t) {
+        //if( !t.isFRef() ) return t;
+        //Type def = Parser.TYPES.get(((TypeMemPtr)t)._obj._name);
+        throw Utils.TODO();
+
     }
 
 
@@ -884,11 +911,13 @@ public class Parser {
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return con(TypeMemPtr.NULLPTR);
-        if( match("(") ) return require(parseExpression(), ")");
+        if( match("(") ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
         // Expect an identifier now
         ScopeMinNode.Var n = requireLookupId("an identifier or expression");
         Node rvalue = _scope.in(n);
+        if( rvalue._type == Type.BOTTOM )
+            throw error("Cannot read uninitialized field '"+n._name+"'");
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
         if( ch==0  ) return rvalue;
@@ -907,7 +936,7 @@ public class Parser {
         boolean pre = op.in(2)==null;
         // Parse RHS argument as needed
         if( pre )
-            { op.keep().setDef(2,parseExpression());  op.unkeep(); }
+            { op.keep().setDef(2,parseAsgn());  op.unkeep(); }
         else rvalue.keep();     // Keep post-value across peeps
         op = zsMask(peep(op),n.type());
         _scope.update(n,op);
@@ -932,7 +961,7 @@ public class Parser {
         if( t==null ) throw error("Expected a type");
         // Parse ary[ length_expr ]
         if( match("[") ) {
-            Node len = parseExpression();
+            Node len = parseAsgn();
             if( !(len._type instanceof TypeInteger) )
                 throw error("Cannot allocate an array with length "+len._type);
             require("]");
@@ -957,7 +986,7 @@ public class Parser {
             // Push a scope, and pre-assign all struct fields.
             _scope.push();
             for( int i=0; i<fs.length; i++ )
-                _scope.define(fs[i]._fname, fs[i]._type, fs[i]._final, s.in(i));
+                _scope.define(fs[i]._fname, fs[i]._type, fs[i]._final, s.in(i)._type==Type.TOP ? con(Type.BOTTOM) : s.in(i));
             // Parse the constructor body
             parseBlock(true);
             require("}");
@@ -965,7 +994,7 @@ public class Parser {
         }
         // Check that all fields are initialized
         for( int i=idx; i<init.size(); i++ )
-            if( init.get(i)._type == Type.TOP )
+            if( /*init.at(i)._type == Type.TOP ||*/ init.at(i)._type == Type.BOTTOM )
                 throw error("'"+tmp._obj._name+"' is not fully initialized, field '" + fs[i-idx]._fname + "' needs to be set in a constructor");
         Node ptr = newStruct(tmp._obj, con(tmp._obj.offset(fs.length)), idx, init );
         if( hasConstructor )
@@ -1029,7 +1058,7 @@ public class Parser {
      */
     private Node parsePostfix(Node expr) {
         String name = null;
-        if( match(".") )      name = requireId().intern();
+        if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
         else if( match("[") ) name = "[]";
         else return expr;       // No postfix
@@ -1043,7 +1072,7 @@ public class Parser {
         // spoil the user experience with error messages.
         if( ctrl()._type==Type.XCONTROL )
             // Exit out via parsing the trailing expression
-            return matchOpx('=','=') ? parseExpression() : parsePostfix(con(Type.TOP));
+            return matchOpx('=','=') ? parseAsgn() : parsePostfix(con(Type.TOP));
 
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
@@ -1058,21 +1087,19 @@ public class Parser {
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
             tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
 
-
+        // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
             // Array index math
-            ? peep(new AddNode(con(base.aryBase()),peep(new ShlNode(require(parseExpression(),"]"),con(base.aryScale())))))
+            ? peep(new AddNode(con(base.aryBase()),peep(new ShlNode(require(parseAsgn(),"]"),con(base.aryScale())))))
             // Struct field offsets are hardwired
             : con(base.offset(fidx))).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
-            Node val = parseExpression();
-            // Auto-truncate when storing to narrow fields
-            val = zsMask(val,tf).keep();
-            if( !val._type.isa(tf) )
-                throw error("Cannot store "+val._type+" into field "+tf+" "+name);
-            Node st = new StoreNode(name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), val, false);
+            Node val = parseAsgn().keep();
+            Node lift = liftExpr( val, tf, f._final );
+
+            Node st = new StoreNode(name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), lift, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.
@@ -1167,11 +1194,18 @@ public class Parser {
     // Require and return an identifier
     private String requireId() {
         String id = _lexer.matchId();
-        if (id != null && !KEYWORDS.contains(id) ) return id;
+        if (id != null && !KEYWORDS.contains(id) ) return id.intern();
         throw error("Expected an identifier, found '"+id+"'");
     }
 
-
+    private String matchId() {
+        int old = pos();
+        String id = _lexer.matchId();
+        if( id==null ) return null;
+        if( !KEYWORDS.contains(id) ) return id;
+        pos(old);
+        return null;
+    }
 
     // Require an exact match
     private Parser require(String syntax) { require(null, syntax); return this; }

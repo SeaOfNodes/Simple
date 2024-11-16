@@ -179,7 +179,7 @@ public class Type {
 
     // Make an initial/default version of this type.  Typically, 0 for integers
     // and null for nullable pointers.
-    public Type makeInit() { return null; }
+    public Type makeInit() { return this; }
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return null; }
     // Make a non-zero version of this type, if possible.  Integers attempt to
