@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.type.*;
 import java.util.*;

@@ -151,7 +151,7 @@ p.x++;
 return p;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
     }
 
     @Test

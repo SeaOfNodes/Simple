@@ -126,7 +126,7 @@ n.i = 3.14;
 return n.i;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
     }
 
     @Test
