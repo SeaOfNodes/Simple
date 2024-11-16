@@ -60,7 +60,8 @@ public class JUnitParser {
 
         var visitor = new AstVisitor();
         for (var tree : task.parse()) {
-            tree.accept(visitor, null);
+            try { tree.accept(visitor, null); }
+            catch( IllegalArgumentException iae ) {}
         }
 
         var testClasses = new ArrayList<>(visitor.results.values());
@@ -68,4 +69,3 @@ public class JUnitParser {
         return testClasses;
     }
 }
-

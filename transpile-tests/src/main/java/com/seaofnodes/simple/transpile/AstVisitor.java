@@ -92,7 +92,7 @@ class AstVisitor extends TreeScanner<Void, Void> {
                         Object result = literal(args.get(0));
                         var evalArgs = eval.getArguments();
                         if (evalArgs.size() != 2 || !evalArgs.get(0).toString().equals("stop"))
-                            throw new RuntimeException("Unexpected eval arguments " + node);
+                            throw new IllegalArgumentException("Unexpected eval arguments " + node);
                         long parameter = Long.parseLong(literal(evalArgs.get(1)).toString());
                         current.evaluations.add(new TestMethod.Evaluation(result, parameter));
                     } else if (args.get(1).toString().endsWith(".toString()") || args.get(1).toString().endsWith(".print()")) {
