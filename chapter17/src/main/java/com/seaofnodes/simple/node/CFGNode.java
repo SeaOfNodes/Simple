@@ -55,27 +55,78 @@ public abstract class CFGNode extends Node {
         return lhs;
     }
 
-    // Loop nesting depth
-    public int _loopDepth;
-    public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(0).loopDepth()) : _loopDepth; }
-
     // Anti-dependence field support
     public int _anti;           // Per-CFG field to help find anti-deps
 
     // ------------------------------------------------------------------------
-    // Support routines for Global Code Motion
+    // Loop nesting
+    public LoopNode loop() { return _ltree._head; }
+    public int loopDepth() { return _ltree==null ? 0 : _ltree.depth(); }
 
-    // Tik-tok recursion pattern.  This method is final, and every caller does
-    // this work.
-    public final void walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
-        if( visit.get(_nid) ) return;
-        visit.set(_nid);
-        _walkUnreach(visit,unreach);
-        unreach.remove(this); // Since we reached here... Node was not unreachable
+    LoopTree _ltree;
+    int _pre;                   // Pre-order numbers for loop tree finding
+    private static class LoopTree {
+        LoopTree _par;
+        final LoopNode _head;
+        int _depth;
+        LoopTree(LoopNode head) { _head = head; }
+        @Override public String toString() { return "LOOP"+_head._nid; }
+        int depth() {
+            return _depth==0 ? (_par==null ? 0 : (_depth = _par.depth()+1)) : _depth;
+        }
     }
 
-    // Tik-tok recursion pattern; not-final; callers override this.
-    void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
-        cfg(0).walkUnreach(visit,unreach);
+    // ------------------------------------------------------------------------
+    // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
+    // also refer to *their* containing LoopNode, as well as have their depth.
+    // Start is a LoopNode which contains all at depth 1.
+    public void buildLoopTree(StopNode stop) {
+        _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
+        _bltWalk(2,stop, new BitSet());
+    }
+    private int _bltWalk(int pre, StopNode stop, BitSet post) {
+        // Pre-walked?
+        if( _pre!=0 ) return pre;
+        _pre = pre++;
+        // Pre-walk
+        for( Node use : _outputs )
+            if( use instanceof CFGNode usecfg )
+                pre = usecfg._bltWalk(pre,stop,post);
+
+        // Post-order work: find innermost loop
+        LoopTree inner = null, ltree;
+        for( Node use : _outputs ) {
+            if( !(use instanceof CFGNode usecfg) ) continue;
+            // Child visited but not post-visited?
+            if( !post.get(usecfg._nid) ) {
+                // Must be a backedge to a LoopNode then
+                ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
+            } else {
+                // Take child's loop choice, which must exist
+                ltree = usecfg._ltree;
+                // If falling into a loop, use the target loop's parent instead
+                if( ltree._head == usecfg ) {
+                    if( ltree._par == null )
+                        // This loop never had an If test choose to take its
+                        // exit, i.e. it is a no-exit infinite loop.
+                        ltree._par = ltree._head.forceExit(stop)._ltree;
+                    ltree = ltree._par;
+                }
+            }
+            // Sort inner loops.  The decision point is some branch far removed
+            // from either loop head OR either backedge so requires pre-order
+            // numbers to figure out innermost.
+            if( inner == null ) { inner = ltree; continue; }
+            if( inner == ltree ) continue; // No change
+            LoopTree outer = ltree._head._pre > inner._head._pre ? inner : ltree;
+            inner =          ltree._head._pre > inner._head._pre ? ltree : inner;
+            inner._par = outer;
+        }
+        // Set selected loop
+        if( inner!=null )
+            _ltree = inner;
+        // Tag as post-walked
+        post.set(_nid);
+        return pre;
     }
 }

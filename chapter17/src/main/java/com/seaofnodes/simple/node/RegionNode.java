@@ -108,13 +108,6 @@ public class RegionNode extends CFGNode {
         return lca;
     }
 
-    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
-        for( int i=1; i<nIns(); i++ )
-            cfg(i).walkUnreach(visit,unreach);
-    }
-
-    @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
-
     // True if last input is null
     public final boolean inProgress() {
         return nIns()>1 && in(nIns()-1) == null;
