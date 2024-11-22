@@ -642,6 +642,7 @@ public class Parser {
 
         // A Block scope parse, and inspect the scope afterward for fields.
         _scope.push(true);
+        _xScopes.push(_scope);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
@@ -662,6 +663,7 @@ public class Parser {
         // Done with struct/block scope
         require("}");
         require(";");
+        _xScopes.pop();
         _scope.pop();
         return null;
     }
