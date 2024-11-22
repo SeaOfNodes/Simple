@@ -16,43 +16,6 @@ public abstract class GlobalCodeMotion {
         schedLate( stop);
     }
 
-    // ------------------------------------------------------------------------
-    // Backwards walk on the CFG only, looking for unreachable code - which has
-    // to be an infinite loop.  Insert a bogus never-taken exit to Stop, so the
-    // loop becomes reachable.  Also, set loop nesting depth
-    public static void fixLoops(StopNode stop) {
-        // Backwards walk from Stop, looking for unreachable code
-        BitSet visit = new BitSet();
-        HashSet<CFGNode> unreach = new HashSet<>();
-        unreach.add(Parser.START);
-        for( Node ret : stop._inputs )
-            ((ReturnNode)ret).walkUnreach(visit,unreach);
-        if( unreach.isEmpty() ) return;
-
-        // Forwards walk from unreachable, looking for loops with no exit test.
-        visit.clear();
-        for( CFGNode cfg : unreach )
-            walkInfinite(cfg,visit,stop);
-        // Set loop depth on remaining graph
-        unreach.clear();
-        visit.clear();
-        for( Node ret : stop._inputs )
-            ((ReturnNode)ret).walkUnreach(visit,unreach);
-        assert unreach.isEmpty();
-    }
-
-
-    // Forwards walk over previously unreachable, looking for loops with no
-    // exit test.
-    static private void walkInfinite( CFGNode n, BitSet visit, StopNode stop ) {
-        if( visit.get(n._nid) ) return; // Been there, done that
-        visit.set(n._nid);
-        if( n instanceof LoopNode loop )
-            loop.forceExit(stop);
-        for( Node use : n._outputs )
-            if( use instanceof CFGNode cfg )
-                walkInfinite(cfg,visit,stop);
-    }
 
     // ------------------------------------------------------------------------
     // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
@@ -210,7 +173,7 @@ public abstract class GlobalCodeMotion {
 
     // Least loop depth first, then largest idepth
     private static boolean better( CFGNode lca, CFGNode best ) {
-        return lca._loopDepth < best._loopDepth ||
+        return lca.loopDepth() < best.loopDepth() ||
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 

@@ -63,10 +63,4 @@ public class IfNode extends CFGNode implements MultiNode {
         return null;
     }
 
-    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
-        for( Node proj : _outputs )
-            if( ((CProjNode)proj)._loopDepth == 0 )
-                unreach.add((CProjNode)proj);
-        super._walkUnreach(visit,unreach);
-    }
 }

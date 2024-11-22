@@ -10,12 +10,12 @@ public class Chapter07Test {
     @Test
     public void testExample() {
         Parser parser = new Parser(
-                """
-                while(arg < 10) {
-                    arg = arg + 1;
-                }
-                return arg;
-                """);
+"""
+while(arg < 10) {
+    arg = arg + 1;
+}
+return arg;
+""");
         Node._disablePeephole = true;
         StopNode stop = parser.parse();
         assertEquals("return Phi(Loop,arg,(Phi_arg+1));", stop.toString());

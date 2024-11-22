@@ -32,26 +32,9 @@ public class LoopNode extends RegionNode {
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override public CFGNode idom(Node dep) { return entry(); }
 
-    @Override public int loopDepth() {
-        if( _loopDepth!=0 ) return _loopDepth; // Was already set
-        _loopDepth = entry().loopDepth()+1;     // Entry depth plus one
-        // One-time tag loop exits
-        for( CFGNode idom = back(); idom!=this; idom = idom.idom() ) {
-            // Walk idom in loop, setting depth
-            idom._loopDepth = _loopDepth;
-            // Mark backedge loop depth.  The loop exit hits the CProj before the
-            // If, instead of jumping from Region directly to If.  The other
-            // arm is either a loop exit OR if this is a split tail the other
-            // arm leads to a inner loop.
-            if( idom instanceof CProjNode cproj )
-                break;
-        }
-        return _loopDepth;
-    }
-
     // If this is an unreachable loop, it may not have an exit.  If it does not
     // (i.e., infinite loop), force an exit to make it reachable.
-    public void forceExit( StopNode stop ) {
+    public StopNode forceExit( StopNode stop ) {
         // Walk the backedge, then immediate dominator tree util we hit this
         // Loop again.  If we ever hit a CProj from an If (as opposed to
         // directly on the If) we found our exit.
@@ -60,7 +43,7 @@ public class LoopNode extends RegionNode {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
                 if( other.loopDepth() < loopDepth() )
-                    return;         // Found an exit, not an infinite loop
+                    return stop; // Found an exit, not an infinite loop
             }
             x = x.idom();
         }
@@ -73,5 +56,6 @@ public class LoopNode extends RegionNode {
         CProjNode f = new CProjNode(iff,1,"False");
         setDef(2,f);
         stop.addDef(new ReturnNode(t,Parser.ZERO,null));
+        return stop;
     }
 }
