@@ -1,12 +1,8 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
-import org.junit.Test;
-import org.junit.Ignore;
-
 import java.nio.charset.StandardCharsets;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -21,9 +17,10 @@ public class BrainFuckTest {
             encoded.append("program[").append(i).append("] = ").append(value).append(";");
         }
 
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 encoded + """
-var d = 0;
+
+int d = 0;
 u8[] !output = new u8[0];
 u8[] !data = new u8[100];
 
@@ -41,14 +38,14 @@ for( int pc = 0; pc < program#; pc++ ) {
         // Output a byte; increase the output array size
         var old = output;
         output = new u8[output# + 1];
-        for( var i = 0; i < old#; i++ )
+        for( int i = 0; i < old#; i++ )
             output[i] = old[i];
         output[old#] = data[d]; // Add the extra byte on the end
     } else if (command == 44) {
         data[d] = 42;
     } else if (command == 91) {
         if (data[d] == 0) {
-            for( var d = 1; d > 0; ) {
+            for( int d = 1; d > 0; ) {
                 command = program[++pc];
                 if (command == 91) d++;
                 if (command == 93) d--;
@@ -56,7 +53,7 @@ for( int pc = 0; pc < program#; pc++ ) {
         }
     } else if (command == 93) {
         if (data[d]) {
-            for( var d = 1; d > 0; ) {
+            for( int d = 1; d > 0; ) {
                 command = program[--pc];
                 if (command == 93) d++;
                 if (command == 91) d--;
@@ -66,7 +63,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("Hello World!\n", Evaluator.evaluate(stop, 0, 10000).toString());
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
 }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
@@ -36,8 +37,9 @@ public class Field extends Type {
     @Override public Field makeRO() { return _final ? this : make(_fname,_type.makeRO(),_alias,true);  }
     @Override public boolean isFinal() { return _final && _type.isFinal(); }
 
-    public static final Field TEST = make("test",TypeInteger.ZERO,-2,false);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); }
+    public static final Field TEST = make("test",Type.NIL,-2,false);
+    public static final Field TEST2= make("test",Type.NIL,-2,true);
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST2); }
 
     @Override Field xmeet( Type that ) {
         Field fld = (Field)that; // Invariant
@@ -51,12 +53,7 @@ public class Field extends Type {
 
     @Override public Field glb() {
         Type glb = _type.glb();
-        return glb==_type ? this : make(_fname,glb,_alias,_final);
-    }
-
-    @Override public Field lub() {
-        Type lub = _type.lub();
-        return lub==_type ? this : make(_fname,lub,_alias,_final);
+        return (glb==_type && _final) ? this : make(_fname,glb,_alias,true);
     }
 
     // Override in subclasses
@@ -69,8 +66,8 @@ public class Field extends Type {
 
 
     @Override
-    public StringBuilder print( StringBuilder sb ) {
-        return _type.print(sb.append(_final?"":"!").append(_fname).append(":").append(_alias).append(" : "));
+    public SB print( SB sb ) {
+        return _type.print(sb.p(_final?"":"!").p(_fname).p(":").p(_alias).p(" : "));
     }
 
     @Override public String str() { return _fname; }
