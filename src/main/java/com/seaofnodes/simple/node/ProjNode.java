@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 
 import java.util.BitSet;
 
-public class ProjNode extends Node {
+public class ProjNode extends Node implements MultiUse {
 
     // Which slice of the incoming multipart value
     public final int _idx;
@@ -21,11 +21,19 @@ public class ProjNode extends Node {
     }
 
     @Override public String label() { return _label; }
+    @Override public int idx() { return _idx; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        if( _label != null )  return sb.append(_label);
+        if( in(0) instanceof CallEndNode cend && cend.call()!=null )
+            return cend.call()._print0(sb,visited);
+        return sb.append("LONELY PROJ");
+    }
 
-    @Override public CFGNode cfg0() { return in(0).cfg0(); }
+    @Override public CFGNode cfg0() {
+        return in(0) instanceof CFGNode cfg ? cfg : in(0).cfg0();
+    }
 
     @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
@@ -37,7 +45,7 @@ public class ProjNode extends Node {
         return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
 
     @Override
     boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }

@@ -1,6 +1,11 @@
 package com.seaofnodes.simple.node;
 
-public interface MultiNode extends OutNode {
+import com.seaofnodes.simple.Ary;
+
+
+public interface MultiNode {
+
+    abstract Ary<Node> outs();
 
     // Find a projection by index
     default ProjNode proj( int idx ) {
@@ -17,4 +22,8 @@ public interface MultiNode extends OutNode {
                 return prj;
         return null;
     }
+
+    // Return not-null if this projection index is a ideal copy.
+    // Called by ProjNode ideal and used to collapse Multis.
+    default Node pcopy(int idx) { return null; }
 }

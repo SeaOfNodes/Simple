@@ -22,7 +22,7 @@ public class MinusFNode extends Node {
     public Type compute() {
         if (in(1)._type instanceof TypeFloat i0)
             return i0.isConstant() ? TypeFloat.constant(-i0.value()) : i0;
-        return TypeFloat.BOT;
+        return TypeFloat.F64;
     }
 
     @Override
