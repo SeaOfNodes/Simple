@@ -8,7 +8,7 @@
         <artifactId>simple</artifactId>
         <version>1.0</version>
     </parent>
-    <artifactId>chapter17</artifactId>
+    <artifactId>chapter18</artifactId>
     <packaging>jar</packaging>
-    <name>Chapter 17</name>
+    <name>Chapter 18</name>
 </project>

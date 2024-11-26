@@ -11,20 +11,25 @@ public class TypeTuple extends Type {
 
     private static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
     public  static final TypeTuple START = make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
-    public  static void gather(ArrayList<Type> ts) {  ts.add(TEST); ts.add(START); }
+    public  static final TypeTuple SIGTEST = make(TypeInteger.BOT,TypeInteger.BOT);
+    public  static final TypeTuple SIGBOT = make(Type.BOTTOM);
+    public  static final TypeTuple SIGTOP = SIGBOT.dual();
+    public  static void gather(ArrayList<Type> ts) {  ts.add(TEST); ts.add(START); ts.add(SIGTEST); }
 
     @Override
     Type xmeet(Type other) {
         TypeTuple tt = (TypeTuple)other;     // contract from xmeet
+        if( this==SIGTOP ) return other;
+        if( tt  ==SIGTOP ) return this ;
         if( _types.length != tt._types.length )
-            return BOTTOM;
+            return SIGBOT;
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
             ts[i] = _types[i].meet(tt._types[i]);
         return make(ts);
     }
 
-    @Override public Type dual() {
+    @Override public TypeTuple dual() {
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
             ts[i] = _types[i].dual();
