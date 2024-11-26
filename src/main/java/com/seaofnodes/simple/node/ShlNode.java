@@ -5,19 +5,13 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
-public class ShlNode extends Node {
-    public ShlNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class ShlNode extends LogicalNode {
+    public ShlNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "Shl"; }
+    @Override public String op() { return "<<"; }
 
-    @Override public String glabel() { return "<<"; }
-
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append("<<"), visited);
-        return sb.append(")");
-    }
+    @Override public String glabel() { return "&lt;&lt;"; }
 
     @Override
     public Type compute() {
@@ -44,10 +38,10 @@ public class ShlNode extends Node {
             if( (shl.value()&63)==0 )
                 return lhs;
             // (x + c) << i  =>  (x << i) + (c << i)
-            if( lhs instanceof AddNode add && add.addDep(this).in(2)._type instanceof TypeInteger c && c.isConstant() && c!=TypeInteger.ZERO ) {
+            if( lhs instanceof AddNode add && add.addDep(this).in(2)._type instanceof TypeInteger c && c.isConstant() ) {
                 long sum = c.value() << shl.value();
                 if( Integer.MIN_VALUE <= sum  && sum <= Integer.MAX_VALUE )
-                    return new AddNode( new ShlNode(add.in(1),rhs).peephole(), Parser.con(sum) );
+                    return new AddNode(new ShlNode(_loc,add.in(1),rhs).peephole(), Parser.con(sum) );
             }
         }
 
@@ -55,10 +49,5 @@ public class ShlNode extends Node {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new ShlNode(lhs,rhs); }
-    @Override String err() {
-        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '<<' " + in(1)._type;
-        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '<<' " + in(2)._type;
-        return null;
-    }
+    @Override Node copy(Node lhs, Node rhs) { return new ShlNode(_loc,lhs,rhs); }
 }

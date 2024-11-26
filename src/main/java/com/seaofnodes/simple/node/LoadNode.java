@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -19,8 +19,8 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(name, alias, glb, mem, ptr, off);
+    public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
+        super(loc, name, alias, glb, mem, ptr, off);
     }
 
     // GraphVis DOT code (must be valid Java identifiers) and debugger labels
@@ -70,7 +70,7 @@ public class LoadNode extends MemOpNode {
         while( true ) {
             switch( mem ) {
             case StoreNode st:
-                if( ptr == st.ptr() && off() == st.off() )
+                if( ptr == st.ptr().addDep(this) && off() == st.off() )
                     return castRO(st.val()); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
@@ -79,19 +79,27 @@ public class LoadNode extends MemOpNode {
                 // Pointers cannot overlap
                 mem = st.mem(); // Proved never equal
                 break;
-            case PhiNode phi:      break outer;  // Assume related
+            case PhiNode phi:
+                // Assume related
+                phi.addDep(this);
+                break outer;
             case ConstantNode top: break outer;  // Assume shortly dead
-            case ProjNode mproj:
-                if( mproj.in(0) instanceof NewNode nnn1 ) {
+            case ProjNode mproj: // Memory projection
+                switch( mproj.in(0) ) {
+                case NewNode nnn1:
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
                         return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.in(_alias);// Bypass unrelated New
                     break;
-                } else if( mproj.in(0) instanceof StartNode ) {
-                    break outer;
-                } else throw Utils.TODO();
+                case StartNode  start: break outer;
+                case CallEndNode cend: break outer; // TODO: Bypass no-alias call
+                default: throw Utils.TODO();
+                }
+                break;
+            case MemMergeNode merge:  mem = merge.alias(_alias);  break;
+
             default:
                 throw Utils.TODO();
             }
@@ -125,7 +133,7 @@ public class LoadNode extends MemOpNode {
 
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
-        return new LoadNode(_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+        return new LoadNode(_loc,_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {
@@ -158,8 +166,9 @@ public class LoadNode extends MemOpNode {
     private boolean profit(PhiNode phi, int idx) {
         Node px = phi.in(idx);
         if( px==null ) return false;
-        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) { px.addDep(this); return true; }
-        if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) { px.addDep(this); return true; }
+        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) return true;
+        if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) return true;
+        px.addDep(this);
         return false;
     }
 
