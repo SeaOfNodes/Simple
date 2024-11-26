@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 
@@ -20,8 +21,8 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(name, alias, glb, mem, ptr, off, value);
+    public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
+        super(loc, name, alias, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -42,6 +43,7 @@ public class StoreNode extends MemOpNode {
     public Type compute() {
         Type val = val()._type;
         TypeMem mem = (TypeMem)mem()._type; // Invariant
+        if( mem == TypeMem.TOP ) return TypeMem.TOP;
         Type t = Type.BOTTOM;               // No idea on field contents
         // Same alias, lift val to the declared type and then meet into other fields
         if( mem._alias == _alias ) {
@@ -71,7 +73,7 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
-        // Simple store-after-new on same address.  Should pick up the
+        // Simple store-after-new on same address.  Should pick up
         // an init-store being stomped by a first user store.
         if( mem() instanceof ProjNode st  && st .in(0) instanceof NewNode nnn &&
             ptr() instanceof ProjNode ptr && ptr.in(0) == nnn &&
@@ -79,7 +81,7 @@ public class StoreNode extends MemOpNode {
             // Cannot fold a store of a single element over the array body initializer value
             !(tmp._obj.isAry() && tmp._obj._fields[1]._alias==_alias) &&
             // Very sad strong cutout: val has to be legal to hoist to a New
-            // input, which means it cannot depend on the New.  Many many
+            // input, which means it cannot depend on the New.  Many, many
             // things are legal here but difficult to check without doing a
             // full dominator check.  Example failure:
             // "struct C { C? c; }; C self = new C { c=self; }"
@@ -90,10 +92,11 @@ public class StoreNode extends MemOpNode {
             // Folding away a broken store
             err()==null ) {
             nnn.setDef(nnn.findAlias(_alias),val());
-            // Must retype the NewNode
-            nnn  ._type = nnn.  compute();
+            // Must *retype* the NewNode, this is not monotonic in isolation
+            // but is monotonic counting from this Store to the New.
+            nnn  ._type = nnn  .compute();
             mem()._type = mem().compute();
-            return st;
+            return mem();
         }
 
         return null;
@@ -111,13 +114,13 @@ public class StoreNode extends MemOpNode {
     }
 
     @Override
-    String err() {
-        String err = super.err();
+    public Parser.ParseException err() {
+        Parser.ParseException err = super.err();
         if( err != null ) return err;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( tmp._obj.field(_name)._final )
-            return "Cannot modify final field '"+_name+"'";
+        if( tmp._obj.field(_name)._final && !"[]".equals(_name) )
+            return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
-        return _init || t.isa(_declaredType) ? null : "Cannot store "+t+" into field "+_declaredType+" "+_name;
+        return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
     }
 }

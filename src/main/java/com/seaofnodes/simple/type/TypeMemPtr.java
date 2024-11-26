@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
 /**
@@ -11,9 +13,9 @@ import java.util.ArrayList;
  * The distinguished *$BOT ptr represents union of *void and Null.
  * The distinguished *$TOP ptr represents the dual of *$BOT.
  */
-public class TypeMemPtr extends Type {
+public class TypeMemPtr extends TypeNil {
     // A TypeMemPtr is pair (obj,nil)
-    // where obj is a TypeStruct, possibly TypeStruct.BOT
+    // where obj is a TypeStruct, possibly TypeStruct.BOT/TOP
     // where nil is an explicit null is allowed or not
 
     // Examples:
@@ -23,76 +25,81 @@ public class TypeMemPtr extends Type {
     // (TOP   ,true ) - a nil
 
     public final TypeStruct _obj;
-    public final boolean _nil;
 
-    private TypeMemPtr(TypeStruct obj, boolean nil) {
-        super(TMEMPTR);
+    private TypeMemPtr(byte nil, TypeStruct obj) {
+        super(TMEMPTR,nil);
         assert obj!=null;
         _obj = obj;
-        _nil = nil;
     }
-    public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
-    public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
-    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(obj, _nil); }
-    public TypeMemPtr makeFrom(boolean nil) { return nil==_nil ? this : make(_obj, nil); }
+    static TypeMemPtr make(byte nil, TypeStruct obj) { return new TypeMemPtr(nil, obj).intern(); }
+    public static TypeMemPtr makeNullable(TypeStruct obj) { return make((byte)3, obj); }
+    public static TypeMemPtr make(TypeStruct obj) { return new TypeMemPtr((byte)2, obj).intern(); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj); }
+    public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
+    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil,_obj); }
     @Override public TypeMemPtr makeRO() { return makeFrom(_obj.makeRO()); }
     @Override public boolean isFinal() { return _obj.isFinal(); }
 
     // An abstract pointer, pointing to either a Struct or an Array.
-    // Can also be null or not.
-    public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
+    // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}
+    public static TypeMemPtr BOT = make((byte)3, TypeStruct.BOT);
     public static TypeMemPtr TOP = BOT.dual();
-    // An abstract null (can be Struct or Array) or not-null C void*
-    public static TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
-    public static TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
+    public static TypeMemPtr NOTBOT = make((byte)2,TypeStruct.BOT);
 
-    public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
-    public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
+    public static TypeMemPtr TEST= make((byte)2, TypeStruct.TEST);
+    public static void gather(ArrayList<Type> ts) { ts.add(NOTBOT); ts.add(BOT); ts.add(TEST); }
 
     @Override
-    Type xmeet(Type t) {
+    public TypeNil xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
-        return TypeMemPtr.make((TypeStruct)_obj.meet(that._obj), _nil | that._nil);
+        return TypeMemPtr.make(xmeet0(that), (TypeStruct)_obj.meet(that._obj));
     }
 
     @Override
-    public TypeMemPtr dual() { return TypeMemPtr.make(_obj.dual(), !_nil); }
+    public TypeMemPtr dual() { return TypeMemPtr.make( dual0(), _obj.dual()); }
 
-    @Override public TypeMemPtr glb() { return make(_obj.glb(),true ); }
-    @Override public TypeMemPtr lub() { return make(_obj.lub(),false); }
+    // RHS is NIL; do not deep-dual when crossing the centerline
+    @Override Type meet0() { return _nil==3 ? this : make((byte)3,_obj); }
+
+
+    // True if this "isa" t up to named structures
+    @Override public boolean shallowISA( Type t ) {
+        if( !(t instanceof TypeMemPtr that) ) return false;
+        if( this==that ) return true;
+        if( xmeet0(that)!=that._nil ) return false;
+        if( _obj==that._obj ) return true;
+        if( _obj._name.equals(that._obj._name) )
+            return true;        // Shallow, do not follow matching names, just assume ok
+        throw Utils.TODO(); // return _obj.shallowISA(that._obj);
+    }
+
+    @Override public TypeMemPtr glb() { return make((byte)3,_obj.glb()); }
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
-    @Override public Type makeInit() { return _nil ? NULLPTR : Type.TOP; }
-    @Override public Type makeZero() { return NULLPTR; }
-    @Override public Type nonZero() { return VOIDPTR; }
-
-    @Override public boolean isHigh() { return this==TOP; }
-    @Override public boolean isConstant() { return this==NULLPTR; }
-    @Override public boolean isHighOrConst() { return this==TOP || this==NULLPTR; }
 
     @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
 
-    @Override
-    int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }
+    @Override int hash() { return _obj.hashCode() ^ super.hash(); }
 
-    @Override
-    boolean eq(Type t) {
+    @Override boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return _obj == ptr._obj  && _nil == ptr._nil;
-    }
-
-    // [void,name,MANY]*[,?]
-    @Override
-    public StringBuilder print(StringBuilder sb) {
-        if( this== NULLPTR) return sb.append("null");
-        if( this== VOIDPTR) return sb.append("*void");
-        return _obj.print(sb.append("*")).append(_nil ? "?" : "");
+        return _obj == ptr._obj  && super.eq(ptr);
     }
 
     @Override public String str() {
-        if( this== NULLPTR) return "null";
-        if( this== VOIDPTR) return "*void";
-        return "*"+_obj.str()+(_nil ? "?" : "");
+        if( this== NOTBOT) return "*void";
+        if( this==    BOT) return "*void?";
+        return x()+"*"+_obj.str()+q();
     }
 
+    @Override public SB print(SB sb) {
+        if( this== NOTBOT) return sb.p("*void");
+        if( this==    BOT) return sb.p("*void?");
+        return _obj.print(sb.p(x()).p("*")).p(q());
+    }
+    @Override public SB gprint(SB sb) {
+        if( this== NOTBOT) return sb.p("*void");
+        if( this==    BOT) return sb.p("*void?");
+        return _obj.gprint(sb.p(x()).p("*")).p(q());
+    }
 }
