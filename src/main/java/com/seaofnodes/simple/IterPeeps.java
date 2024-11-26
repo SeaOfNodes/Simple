@@ -57,7 +57,7 @@ public abstract class IterPeeps {
     /**
      * Iterate peepholes to a fixed point
      */
-    public static StopNode iterate(StopNode stop) {
+    public static void iterate( StopNode stop) {
         assert progressOnList(stop);
         int cnt=0;
 
@@ -86,13 +86,13 @@ public abstract class IterPeeps {
                 }
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
+                JSViewer.show(); // Show again
                 assert progressOnList(stop); // Very expensive assert
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
         }
 
-        return stop;
     }
 
     // Visit ALL nodes and confirm the invariant:
@@ -114,7 +114,7 @@ public abstract class IterPeeps {
         int old_cnt = Node.ITER_CNT, old_nop = Node.ITER_NOP_CNT;
         Node changed = stop.walk( n -> {
                 Node m = n;
-                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=5) ) { // Types must be forwards, even if on worklist
+                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
                     if( WORK.on(n) ) return null;
                     m = n.peepholeOpt();
                     if( m==null ) return null;
@@ -182,6 +182,7 @@ public abstract class IterPeeps {
          * True if Node is on the WorkList
          */
         boolean on( E x ) { return _on.get(x._nid); }
+        boolean isEmpty() { return _len==0; }
 
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty

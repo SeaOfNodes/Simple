@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.fuzzer;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.evaluator.Evaluator;
+import com.seaofnodes.simple.Eval2;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StopNode;
-
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Random;
@@ -46,8 +45,8 @@ public class Fuzzer {
         e.printStackTrace(System.out);
         System.out.println("========== Seed ==========");
         System.out.println(seed);
-        System.out.println("========== Code ===========");
-        System.out.println(script);
+        //System.out.println("========== Code ===========");
+        //System.out.println(script);
         System.out.println("========= Reduced =========");
         System.out.println(Reducer.reduce(script, e, reproducer));
         System.out.println("===========================");
@@ -56,13 +55,6 @@ public class Fuzzer {
 
     private static boolean neq(Object a, Object b) {
         if (Objects.equals(a, b)) return false;
-        if (a instanceof Evaluator.Obj ea && b instanceof Evaluator.Obj eb) {
-            if (ea.struct() != eb.struct()) return true;
-            for(int i=0;i<ea.fields().length;i++) {
-                if (neq(ea.fields()[i], eb.fields()[i])) return true;
-            }
-            return false;
-        }
         return true;
     }
 
@@ -72,11 +64,11 @@ public class Fuzzer {
      * @param e2 Evaluator for the second graph
      * @param in The input value to both graphs to test for an equal output
      */
-    private static void checkGraphs(Evaluator e1, Evaluator e2, long in) {
-        var r1 = e1.evaluate(in, EVAL_TIMEOUT);
-        var r2 = e2.evaluate(in, EVAL_TIMEOUT);
-        if (r1 == Evaluator.Status.TIMEOUT || r2 == Evaluator.Status.TIMEOUT) return;
-        if (neq(r1, r2))
+    private static void checkGraphs(CodeGen code1, CodeGen code2, long in) {
+        var r1 = Eval2.eval(code1, in, EVAL_TIMEOUT);
+        var r2 = Eval2.eval(code2, in, EVAL_TIMEOUT);
+        if( r1 == null || r2 == null ) return; // Timeout test invalid
+        if( neq(r1, r2) )
             throw new RuntimeException("Different calculations values " + r1 + " vs " + r2);
     }
 
@@ -88,27 +80,25 @@ public class Fuzzer {
      * @param valid If the script is definitely valid. If not some exceptions may be suppressed.
      */
     private static void runCheck(String script, boolean valid) {
-        StopNode stop1;
+        CodeGen code1;
         try {
-            stop1 = FuzzerUtils.parse(script, false);
+            code1 = FuzzerUtils.parse(script, false);
         } catch (RuntimeException e1) {
             try {
                 FuzzerUtils.parse(script, true);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
-                    if (!valid || e1.getClass() == RuntimeException.class) return;
+                    if (!valid || e1.getClass() == Parser.ParseException.class) return;
                 } else {
                     e1.addSuppressed(e2);
                 }
             }
             throw e1;
         }
-        var stop2 = FuzzerUtils.parse(script, true);
-        var e1 = new Evaluator(stop1);
-        var e2 = new Evaluator(stop2);
-        checkGraphs(e1, e2, 0);
-        checkGraphs(e1, e2, 1);
-        checkGraphs(e1, e2, 10);
+        CodeGen code2 = FuzzerUtils.parse(script, true);
+        checkGraphs(code1, code2, 0);
+        checkGraphs(code1, code2, 1);
+        checkGraphs(code1, code2, 10);
     }
 
     /**
@@ -133,9 +123,9 @@ public class Fuzzer {
         var sb = new StringBuilder();
         new ScriptGenerator(rand, sb, true).genProgram();
         try {
-            var parser = new Parser(sb.toString());
+            var code = new CodeGen(sb.toString());
 
-            var stop = parser.parse();
+            code.parse();
             int parse_peeps= Node.ITER_CNT;
             int parse_nops = Node.ITER_NOP_CNT;
             double parse_nop_ratio = (double)parse_nops/parse_peeps;
@@ -144,7 +134,7 @@ public class Fuzzer {
 
             double parse_peeps_per_node = (double)parse_peeps/nids;
 
-            stop.iterate();
+            code.opto();
             int iter_peeps= Node.ITER_CNT;
             int iter_nops = Node.ITER_NOP_CNT;
             double iter_nop_ratio = (double)iter_nops/iter_peeps;

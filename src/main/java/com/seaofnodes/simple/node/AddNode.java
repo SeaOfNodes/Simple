@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-
 import java.util.BitSet;
 
 public class AddNode extends Node {
@@ -44,12 +44,12 @@ public class AddNode extends Node {
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
-        if( rhs.err() != null ) return null;
+        if( rhs.err()!=null ) return null;
         Type t2 = rhs._type;
 
         // Add of 0.  We do not check for (0+x) because this will already
         // canonicalize to (x+0)
-        if( t2 instanceof TypeInteger i && i.isConstant() && i.value()==0 )
+        if( t2 == TypeInteger.ZERO )
             return lhs;
 
         // Add of same to a multiply by 2
@@ -185,9 +185,10 @@ public class AddNode extends Node {
 
     @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
     @Override Node copyF() { return new AddFNode(null,null); }
-    @Override public String err() {
-        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(1)._type;
-        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(2)._type;
+    @Override public Parser.ParseException err() {
+        if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return null;
+        if( !(in(1)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+label()+"' " + in(1)._type,null);
+        if( !(in(2)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+label()+"' " + in(2)._type,null);
         return null;
     }
 }

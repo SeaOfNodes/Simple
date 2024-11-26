@@ -18,7 +18,7 @@ public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(Type arg) { super(null); _arg = arg; _type = compute(); }
+    public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
 
     @Override public String label() { return "Start"; }
 
@@ -29,7 +29,19 @@ public class StartNode extends LoopNode implements MultiNode {
 
     @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
-    @Override public CFGNode cfg0() { return this; }
+    @Override public CFGNode cfg0() { return null; }
+
+    // Get the one control following; error to call with more than one e.g. an
+    // IfNode or other multi-way branch.  For Start, its "main"
+    @Override public CFGNode uctrl() {
+        // Find "main", its the start.
+        CFGNode C = null;
+        for( Node use : _outputs )
+            if( use instanceof FunNode fun && fun.sig().isa(TypeFunPtr.MAIN) )
+                { assert C==null; C = fun; }
+        return C;
+    }
+
 
     @Override public TypeTuple compute() {
         return TypeTuple.make(Type.CONTROL,TypeMem.TOP,_arg);

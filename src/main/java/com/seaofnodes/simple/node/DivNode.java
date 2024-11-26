@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-
 import java.util.BitSet;
 
 public class DivNode extends Node {

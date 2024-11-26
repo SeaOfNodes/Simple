@@ -1,17 +1,14 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Ary;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 
-import static com.seaofnodes.simple.Utils.TODO;
-
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
- * stack of hashmaps.
+ * stack of variables.
  */
-public class ScopeNode extends ScopeMinNode {
+public class ScopeNode extends MemMergeNode {
 
     /**
      * The control is a name that binds to the currently active control
@@ -24,20 +21,22 @@ public class ScopeNode extends ScopeMinNode {
     // All active/live variables in all nested scopes, all run together
     public final Ary<Var> _vars;
 
-    // Since of each nested lexical scope
+    // Size of each nested lexical scope
     public final Ary<Integer> _lexSize;
 
-    // True if parsing inside of a constructor
-    public final Ary<Boolean> _inCons;
+    // Lexical scope is one of normal Block, constructor or function
+    public enum Kind { Block, Constructor, Function };
+    public final Ary<Kind> _kinds;
 
     // Extra guards; tested predicates and casted results
     private final Ary<Node> _guards;
 
     // A new ScopeNode
     public ScopeNode() {
+        super(true);
         _vars   = new Ary<>(Var    .class);
         _lexSize= new Ary<>(Integer.class);
-        _inCons = new Ary<>(Boolean.class);
+        _kinds  = new Ary<>(Kind   .class);
         _guards = new Ary<>(Node   .class);
     }
 
@@ -50,7 +49,7 @@ public class ScopeNode extends ScopeMinNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
             Var v = _vars.get(i);
-            v.type().print(sb);
+            sb.append(v.type().print(new SB()));
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);
@@ -70,7 +69,7 @@ public class ScopeNode extends ScopeMinNode {
 
 
     public Node ctrl() { return in(0); }
-    public ScopeMinNode mem() { return (ScopeMinNode)in(1); }
+    public MemMergeNode mem() { return (MemMergeNode)in(1); }
 
     /**
      * The ctrl of a ScopeNode is always bound to the currently active
@@ -83,29 +82,60 @@ public class ScopeNode extends ScopeMinNode {
      * @return Node that was bound
      */
     public <N extends Node> N ctrl(N n) { return setDef(0,n); }
+    public Node mem(Node n) { return setDef(1,n); }
 
-    public void push() { push(false); }
-    public void push(boolean inCon) {
-        assert _lexSize._len==_inCons._len;
+    public void push(Kind kind) {
+        assert _lexSize._len==_kinds._len;
         _lexSize.push(_vars.size());
-        _inCons.push(inCon);
+        _kinds  .push(kind);
     }
+
+    // Pop a lexical scope
     public void pop() {
-        assert _lexSize._len==_inCons._len;
+        assert _lexSize._len==_kinds._len;
+        promote();
         int n = _lexSize.pop();
-        _inCons.pop();
+        _kinds.pop();
         popUntil(n);
         _vars.setLen(n);
     }
 
-    public boolean inCon() { return _inCons.last(); }
+
+    // Look for forward references in the last lexical scope and promote to the
+    // next outer lexical scope.  At the last scope declare them an error.
+    public void promote() {
+        int n = _lexSize.last();
+        for( int i=n; i<nIns(); i++ ) {
+            Var v = _vars.at(i);
+            if( !v.isFRef() ) continue;
+            if( _lexSize._len==1 )
+                throw Parser.error("Undefined name '" + v._name + "'",v._loc);
+            _vars.swap(n,i);
+            _inputs.swap(n,i);
+            v._idx = n;
+            n++;
+            _lexSize.set(_lexSize._len-1,n);
+        }
+    }
+
+
+    public boolean inCon() { return _kinds.last() == Kind.Constructor; }
+
+    // Is v outside any current function scope?
+    public boolean outOfFunction( Var v ) {
+        for( int i=_lexSize._len-1; i>=0 && v._idx<_lexSize.at(i); i-- )
+            if( _kinds.at(i)==Kind.Function )
+                return true;
+        return false;
+    }
+
 
     // Find name in reverse, return an index into _vars or -1.  Linear scan
     // instead of hashtable, but probably doesn't matter until the scan
     // typically hits many dozens of variables.
     int find( String name ) {
         for( int i=_vars.size()-1; i>=0; i-- )
-            if( _vars.get(i)._name.equals(name) )
+            if( _vars.at(i)._name.equals(name) )
                 return i;
         return -1;
     }
@@ -113,13 +143,24 @@ public class ScopeNode extends ScopeMinNode {
     /**
      * Create a new variable name in the current scope
      */
-    public boolean define( String name, Type declaredType, boolean xfinal, Node init ) {
-        assert name.charAt(0)!='$' || _lexSize.size()==1; // Later scopes do not define memory
-        if( _lexSize._len > 1 )
-            for( int i=_vars.size()-1; i>=_lexSize.last(); i-- )
-                if( _vars.get(i)._name.equals(name) )
-                    return false;   // Double define
-        _vars.add(new Var(nIns(),name,declaredType,xfinal));
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
+        assert _lexSize.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
+        if( _lexSize._len > 0 )
+            for( int i=_vars.size()-1; i>=_lexSize.last(); i-- ) {
+                Var n = _vars.at(i);
+                if( n._name.equals(name) ) {
+                    if( !n.isFRef() ) return false;       // Double define
+                    FRefNode fref = (FRefNode)in(n._idx); // Get forward ref
+                    if( !xfinal || !declaredType.isConstant() ) throw fref.err();  // Must be a final constant
+                    n.defFRef(declaredType,xfinal,loc);   // Declare full correct type, final, source location
+                    setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
+                }
+            }
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==Parser.XCTRL);
+        _vars.add(v);
+        // Creating a forward reference
+        if( init==Parser.XCTRL )
+            init = new FRefNode(v).init();
         addDef(init);
         return true;
     }
@@ -154,7 +195,7 @@ public class ScopeNode extends ScopeMinNode {
         update(_vars.at(idx),n);
     }
 
-    public Var update( ScopeNode.Var v, Node st ) {
+    public Var update( Var v, Node st ) {
         Node old = in(v._idx);
         if( old instanceof ScopeNode loop ) {
             // Lazy Phi!
@@ -168,6 +209,7 @@ public class ScopeNode extends ScopeMinNode {
                 : loop.setDef(v._idx,new PhiNode(v._name, v.lazyGLB(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
+        assert !v._final || st==null;
         if( st!=null ) setDef(v._idx,st); // Set new value
         return v;
     }
@@ -194,7 +236,7 @@ public class ScopeNode extends ScopeMinNode {
         // 3) Ensure that the order of defs is the same to allow easy merging
         dup._vars   .addAll(_vars   );
         dup._lexSize.addAll(_lexSize);
-        dup._inCons .addAll(_inCons );
+        dup._kinds  .addAll(_kinds  );
         dup._guards .addAll(_guards );
         // The dup'd guards all need dup'd keepers, to keep proper accounting
         // when later removing all guards
@@ -204,7 +246,7 @@ public class ScopeNode extends ScopeMinNode {
         dup.addDef(ctrl());     // Control input is just copied
 
         // Memory input is a shallow copy
-        ScopeMinNode memdup = new ScopeMinNode(), mem = mem();
+        MemMergeNode memdup = new MemMergeNode(true), mem = mem();
         memdup.addDef(null);
         memdup.addDef(loop ? this : mem.in(1));
         for( int i=2; i<mem.nIns(); i++ )
@@ -217,7 +259,7 @@ public class ScopeNode extends ScopeMinNode {
         for( int i=2; i<nIns(); i++ )
             // For lazy phis on loops we use a sentinel
             // that will trigger phi creation on update
-            dup.addDef(loop ? this : in(i));
+            dup.addDef(loop && !_vars.at(i)._final ? this : in(i));
         return dup;
     }
 
@@ -229,8 +271,8 @@ public class ScopeNode extends ScopeMinNode {
      * @param that The ScopeNode to be merged into this
      * @return A new node representing the merge point
      */
-    public RegionNode mergeScopes(ScopeNode that) {
-        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
+    public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
+        RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
         mem()._merge(that.mem(),r);
         this ._merge(that      ,r);
         that.kill();            // Kill merged scope
@@ -249,6 +291,20 @@ public class ScopeNode extends ScopeMinNode {
                 setDef(i, new PhiNode(v._name, v.type(), r, lhs, rhs).peephole());
             }
     }
+
+    // Balance arms of an IF.  Extra lonely defs are thrown: "if(pred) int x;".
+    // Forward refs are copied to the other side, "as if" they were there all along.
+    public void balanceIf( ScopeNode scope ) {
+        for( int i = nIns(); i < scope.nIns(); i++ ) {
+            Var n = scope._vars.at(i);
+            if( n.isFRef() ) {  // RHS has forward refs
+                _vars.add(n);   // Copy to LHS
+                addDef(scope.in(i));
+            } else
+                throw Parser.error("Cannot define a '"+n._name+"' on one arm of an if",n._loc);
+        }
+    }
+
 
     // peephole the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
@@ -272,6 +328,8 @@ public class ScopeNode extends ScopeMinNode {
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
         for( int i=2; i<nIns(); i++ ) {
+            if( _vars.at(i)._final ) continue; // Final vars did not get modified in the loop
+            if( _vars.at(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
             if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;
@@ -289,38 +347,38 @@ public class ScopeNode extends ScopeMinNode {
         assert ctrl instanceof CFGNode;
         _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
         // add pred & its cast to the normal input list, with special Vars
-        if( ctrl._type == Type.XCONTROL || pred==null || pred.isDead() )
+        if( pred==null || pred.isDead() )
             return;           // Dead, do not add any guards
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
         // This is a zero/null test.
         // Compute the positive test type.
-        Type tnz   = pred._type.nonZero();
-        Type tcast = tnz.join(pred._type);
-        if( tcast != pred._type ) {
-            Node cast = new CastNode(tnz,ctrl,pred.keep()).peephole().keep();
-            _guards.add(pred);
-            _guards.add(cast);
-            replace(pred,cast);
-        }
+        Type tnz = pred._type.nonZero();
+        if( tnz!=null )
+            _addGuard(tnz,ctrl,pred);
 
         // Compute the negative test type.
         if( pred instanceof NotNode not ) {
             Node npred = not.in(1);
             Type tzero = npred._type.makeZero();
-            Type tzcast= tzero.join(npred._type);
-            if( tzcast != npred._type ) {
-                Node cast = new CastNode(tzero,ctrl,npred.keep()).peephole().keep();
-                _guards.add(npred);
-                _guards.add( cast);
-                replace(npred,cast);
-            }
+            _addGuard(tzero,ctrl,npred);
         }
     }
 
+    private void _addGuard(Type guard, Node ctrl, Node pred) {
+        Type tcast = guard.join(pred._type);
+        if( tcast != pred._type && !tcast.isHigh() ) {
+            Node cast = new CastNode(tcast,ctrl,pred.keep()).peephole().keep();
+            _guards.add(pred);
+            _guards.add(cast);
+            replace(pred,cast);
+        }
+    }
+
+
     // Remove matching pred/cast pairs from this guarded region.
-    public void removeGuards( Node ctrl ) {
+    public ScopeNode removeGuards( Node ctrl ) {
         assert ctrl instanceof CFGNode;
         // 0,1 or 2 guards
         while( true ) {
@@ -330,6 +388,7 @@ public class ScopeNode extends ScopeMinNode {
             g            .unkill(); // Pop/kill cast
             _guards.pop().unkill(); // Pop/kill pred
         }
+        return this;
     }
 
     // If we find a guarded instance of pred, replace with the upcasted version
@@ -353,16 +412,17 @@ public class ScopeNode extends ScopeMinNode {
             if( !(n instanceof CFGNode) )
                 n.unkill();
         _guards.clear();
-        super.kill();
+        // Can have lazy uses remaining
+        if( isUnused() )
+            super.kill();
     }
 
 
-    private Node replace( Node old, Node cast ) {
+    private void replace( Node old, Node cast ) {
         assert old!=null && old!=cast;
         for( int i=0; i<nIns(); i++ )
             if( in(i)==old )
                 setDef(i,cast);
-        return cast;
     }
 
 }

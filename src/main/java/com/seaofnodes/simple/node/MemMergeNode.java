@@ -2,58 +2,44 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
-
 import static com.seaofnodes.simple.Utils.TODO;
 
-/* */
-public class ScopeMinNode extends Node {
+/**
+ *  Memory Merge - a merge of many aliases into a "fat memory".  All aliases
+ *  are here, but most will be lazy - take the default fat memory.
+ */
+public class MemMergeNode extends Node {
 
-    /** The tracked fields are now complex enough to deserve a array-of-structs layout
+    /*
+     *  In-Progress means this is being used by the Parser to track memory
+     *  aliases.  No optimizations are allowed.  When no longer "in progress"
+     *  normal peeps work.
      */
-    public static class Var {
-        public final int _idx;       // index in containing scope
-        public final String _name;   // Declared name
-        private Type _type;          // Declared type
-        public final boolean _final; // Final field
-        public Var(int idx, String name, Type type, boolean xfinal) {
-            _idx = idx;
-            _name = name;
-            _type = type;
-            _final = xfinal;
-        }
-        public Type type() {
-            if( !_type.isFRef() ) return _type;
-            // Update self to no longer use the forward ref type
-            Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
-            return (_type=_type.meet(def));
-        }
-        public Type lazyGLB() {
-            Type t = type();
-            return t instanceof TypeMemPtr ? t : t.glb();
-        }
-        @Override public String toString() {
-            return _type.toString()+(_final ? " ": " !")+_name;
-        }
-    }
+    public final boolean _inProgress;
 
-    public ScopeMinNode() { _type = TypeMem.BOT; }
+    public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
 
 
-    @Override public String label() { return "MEM"; }
+    // If being used by a Scope, this is "in progress" from the Parser.
+    // Otherwise, it's a memory merge
+    boolean inProgress() { return _inProgress; }
+
+    @Override public String label() { return "ALLMEM"; }
+    @Override public boolean isMem() { return true; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("MEM[ ");
+        sb.append(_inProgress ? "Merge[" : "MEM[ ");
         for( int j=2; j<nIns(); j++ ) {
             sb.append(j);
             sb.append(":");
             Node n = in(j);
             while( n instanceof ScopeNode loop ) {
                 sb.append("Lazy_");
-                n = loop.in(j);
+                n = loop.mem(j);
             }
             if( n==null ) sb.append("___ ");
             else n._print0(sb, visited).append(" ");
@@ -62,14 +48,33 @@ public class ScopeMinNode extends Node {
         return sb.append("]");
     }
 
+    // Make a memory merge: no longer a Scope really, tracking memory state but
+    // not related to the parser in any way.
+    public Node merge() {
+        // Force default memory to not be lazy
+        MemMergeNode merge = new MemMergeNode(false);
+        for( Node n : _inputs )
+            merge.addDef(n);
+        merge._mem(1,null);
+        return merge.peephole();
+    }
+
 
     @Override public Type compute() { return TypeMem.BOT; }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() {
+        if( inProgress() ) return null;
+
+        // If not merging any memory (all memory is just the default)
+        if( nIns()==2 )
+            return in(1);       // Become default memory
+
+        return null;
+    }
 
     public Node in( Var v ) { return in(v._idx); }
 
-    Node alias( int alias ) {
+    public Node alias( int alias ) {
         return in(alias<nIns() && in(alias)!=null ? alias : 1);
     }
 
@@ -77,7 +82,6 @@ public class ScopeMinNode extends Node {
         while( alias >= nIns() ) addDef(null);
         return setDef(alias,st);
     }
-
 
     // Read or update from memory.
     // A shared implementation allows us to create lazy phis both during
@@ -87,7 +91,7 @@ public class ScopeMinNode extends Node {
         // then it must be START.proj(1)
         Node old = alias(alias);
         if( old instanceof ScopeNode loop ) {
-            ScopeMinNode loopmem = loop.mem();
+            MemMergeNode loopmem = loop.mem();
             Node memdef = loopmem.alias(alias);
             // Lazy phi!
             old = memdef instanceof PhiNode phi && loop.ctrl()==phi.region()
@@ -104,28 +108,27 @@ public class ScopeMinNode extends Node {
     }
 
 
-    void _merge(ScopeMinNode that, RegionNode r) {
+    void _merge( MemMergeNode that, RegionNode r) {
         int len = Math.max(nIns(),that.nIns());
         for( int i = 2; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
-                // by name as it will trigger a phi creation
-                //Var v = _vars.at(i);
+                // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), TypeMem.BOT, r, lhs, rhs).peephole());
+                alias(i, new PhiNode(Parser.memName(i), lhs._type.glb().meet(rhs._type.glb()), r, lhs, rhs).peephole());
             }
     }
 
     // Fill in the backedge of any inserted Phis
-    void _endLoopMem( ScopeNode scope, ScopeMinNode back, ScopeMinNode exit ) {
-        for( int i=2; i<back.nIns(); i++ ) {
-            if( back.in(i) != scope ) {
-                PhiNode phi = (PhiNode)in(i);
-                assert phi.region()==scope.ctrl() && phi.in(2)==null;
-                phi.setDef(2,back.in(i)); // Fill backedge
+    void _endLoopMem( ScopeNode scope, MemMergeNode back, MemMergeNode exit ) {
+        Node exit_def = exit.alias(1);
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
+                assert phi.in(2)==null;
+                phi.setDef(2,back.in(i)==scope ? phi : back.in(i)); // Fill backedge
             }
-            if( exit.alias(i) == scope ) // Replace a lazy-phi on the exit path also
+            if( exit_def == scope ) // Replace a lazy-phi on the exit path also
                 exit.alias(i,in(i));
         }
     }
@@ -147,4 +150,7 @@ public class ScopeMinNode extends Node {
         }
     }
 
+    @Override boolean eq( Node n ) {
+        return this==n || !_inProgress;
+    }
 }

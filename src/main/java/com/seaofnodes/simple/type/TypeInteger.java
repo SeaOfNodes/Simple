@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
@@ -8,17 +9,19 @@ import java.util.ArrayList;
  */
 public class TypeInteger extends Type {
 
-    public final static TypeInteger TOP = make(false, 0);
-    public final static TypeInteger BOT = make(false, 1);
     public final static TypeInteger ZERO= make(0,0);
-    public final static TypeInteger U1  = make(0,1);
-    public final static TypeInteger BOOL= U1;
     public final static TypeInteger FALSE=ZERO;
     public final static TypeInteger TRUE= make(1,1);
+
+    public final static TypeInteger I1  = make(-1,0);
     public final static TypeInteger I8  = make(-128,127);
     public final static TypeInteger I16 = make(-32768,32767);
     public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1);
+    public final static TypeInteger BOT = make(Long.MIN_VALUE,Long.MAX_VALUE);
+    public final static TypeInteger TOP = BOT.dual();
 
+    public final static TypeInteger U1  = make(0,1);
+    public final static TypeInteger BOOL= U1;
     public final static TypeInteger U8  = make(0,255);
     public final static TypeInteger U16 = make(0,65535);
     public final static TypeInteger U32 = make(0,(1L<<32)-1);
@@ -26,55 +29,50 @@ public class TypeInteger extends Type {
     /**
      * Describes an integer *range* - everything from min to max; both min and
      * max are inclusive.  If min==max, this is a constant.
-     *
+     * <br>
      * If min <= max, this is a  below center (towards bottom).
      * If min >  max, this is an above center (towards top).
      */
     public final long _min, _max;
 
-    private TypeInteger(long min, long max) { super(TINT); _min = min; _max = max; }
-    public static TypeInteger make(long lo, long hi) {  return new TypeInteger(lo,hi).intern();  }
-    public static TypeInteger make(boolean is_con, long con) {
-        return make(is_con ? con : (con==0 ? Long.MAX_VALUE : Long.MIN_VALUE),
-                    is_con ? con : (con==0 ? Long.MIN_VALUE : Long.MAX_VALUE));
+    private TypeInteger(long min, long max) {
+        super(TINT);
+        _min = min;
+        _max = max;
     }
 
-    public static TypeInteger constant(long con) { return make(true, con); }
+    // Strict non-zero contract
+    public static TypeInteger make(long lo, long hi) { return new TypeInteger(lo,hi).intern(); }
 
-    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); ts.add(U1); ts.add(U8); }
+    public static TypeInteger constant(long con) { return make(con, con); }
 
-    // FIXME this display format is problematic
-    // In visualizer '#' gets prepended if its a constant
-    @Override
-    public StringBuilder print(StringBuilder sb) { return sb.append(str()); }
+    public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); }
 
     @Override public String str() {
-        if( this==TOP ) return "~int";
-        if( this==BOT ) return  "int";
-        if( this==BOOL) return ("bool");
-        if( this==I8  ) return ("i8");
-        if( this==I16 ) return ("i16");
-        if( this==I32 ) return ("i32");
-        if( this==U8  ) return ("u8");
-        if( this==U16 ) return ("u16");
-        if( this==U32 ) return ("u32");
         if( isConstant() ) return ""+_min;
-        return "["+_min+"-"+_max+"]";
+        long lo = _min, hi = _max;
+        String x = "";
+        if( hi < lo ) {
+            lo = _max;  hi = _min;
+            x = "~";
+        }
+        return x+_str(lo,hi);
+    }
+    private static String _str(long lo, long hi) {
+        if( lo==Long.MIN_VALUE && hi==Long.MAX_VALUE ) return "int";
+        if( lo==       0 && hi==         1 ) return "bool";
+        if( lo==      -1 && hi==         0 ) return "i1";
+        if( lo==    -128 && hi==       127 ) return "i8";
+        if( lo==  -32768 && hi==     32767 ) return "i16";
+        if( lo== -1L<<31 && hi==(1L<<31)-1 ) return "i32";
+        if( lo==       0 && hi==      255  ) return "u8";
+        if( lo==       0 && hi==     65535 ) return "u16";
+        if( lo==       0 && hi==(1L<<32)-1 ) return "u32";
+        return "["+lo+"-"+hi+"]";
     }
 
-    /**
-     * Display Type name in a format that's good for IR printer
-     */
-    @Override
-    public StringBuilder typeName(StringBuilder sb) {
-        if( this==TOP ) return sb.append("IntTop");
-        if( this==BOT ) return sb.append("IntBot");
-        return sb.append("Int");
-    }
-
-    @Override public boolean isHigh       () { return _min >  _max; }
-    @Override public boolean isHighOrConst() { return _min >= _max; }
-    @Override public boolean isConstant   () { return _min == _max; }
+    @Override public boolean isHigh    () { return _min >  _max; }
+    @Override public boolean isConstant() { return _min == _max; }
 
     @Override public int log_size() {
         if( this==I8  || this==U8 || this==BOOL ) return 0; // 1<<0 == 1 bytes
@@ -93,8 +91,6 @@ public class TypeInteger extends Type {
     public long mask() {
         if( isHigh() ) return 0;
         if( isConstant() ) return _min;
-        //if( _min<0 ) return -1L;
-        //if( _max==Long.MAX_VALUE ) return -1L;
         // Those bit positions which differ min to max
         long x = _min ^ _max;
         // Highest '1' bit in the differ set.  Since the range is from min to
@@ -114,19 +110,18 @@ public class TypeInteger extends Type {
     }
 
     @Override public TypeInteger dual() { return make(_max,_min); }
-    @Override public TypeInteger glb() { return BOT; }
-    @Override public TypeInteger lub() { return TOP; }
-    @Override public TypeInteger makeInit() { return ZERO; }
-    @Override public TypeInteger makeZero() { return ZERO; }
+
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
+        if( this==ZERO ) return null;                  // No sane answer
         if( _min==0 ) return make(1,Math.max(_max,1)); // specifically good on BOOL
         if( _max==0 ) return make(_min,-1);
         return this;
     }
-    @Override int hash() { return (int)((_min ^ (_min>>32)) *(_max ^ (_max>>32))); }
-    @Override
-    public boolean eq( Type t ) {
+    @Override public Type makeZero() { return ZERO; }
+    @Override public TypeInteger glb() { return BOT; }
+    @Override int hash() { return Utils.fold(_min) * Utils.fold(_max); }
+    @Override public boolean eq( Type t ) {
         TypeInteger i = (TypeInteger)t; // Contract
         return _min==i._min && _max==i._max;
     }
