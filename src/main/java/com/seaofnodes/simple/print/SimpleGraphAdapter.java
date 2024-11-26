@@ -6,18 +6,33 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 
-/** Chapter 17's view of the IR; browser, transport and layout are shared. */
+/** Chapter 18's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
     @Override protected String edgeName(Node n, int i) {
         return n instanceof ScopeNode scope && i < scope._vars.size()
                 ? scope._vars.get(i)._name : null;
     }
+    @Override protected int edgeJump(Node n, int i) {
+        return n instanceof CallEndNode && i>0 && n.in(i) instanceof ReturnNode ret
+                ? ref(ret.fun()) : 0;
+    }
     @Override protected int projectionIndex(Node n) { return n instanceof ProjNode p ? p._idx : n instanceof CProjNode p ? p._idx : -1; }
+
+    @Override protected boolean folding(Node n) {
+        if( n instanceof FunNode fun ) return fun.folding();
+        if( n instanceof ReturnNode ret ) return ret.fun().folding();
+        if( n instanceof CallEndNode cend ) return cend.folding();
+        if( n instanceof CallNode )
+            for( int i=0; i<n.nOuts(); i++ )
+                if( n.out(i) instanceof CallEndNode cend && cend.folding() ) return true;
+        return false;
+    }
 
     @Override protected Kind kind(Node n) {
         if( n instanceof StopNode ) return Kind.STOP;
         if( n instanceof ScopeNode ) return Kind.SCOPE;
+        if( n instanceof FunNode ) return Kind.FUN;
         if( n instanceof StartNode ) return Kind.CTRL;
         if( n instanceof LoopNode ) return Kind.LOOP;
         if( n instanceof RegionNode ) return Kind.REGION;
@@ -26,13 +41,13 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     @Override protected Role role(Node n, int i) {
-        if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof XCtrlNode ) return Role.ASSOC;
+        if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof CtrlNode || n instanceof XCtrlNode ) return Role.ASSOC;
         if( n instanceof PhiNode ) return i == 0 ? Role.ASSOC : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof ProjNode || n instanceof CProjNode )
             return n instanceof CFGNode ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
-        if( i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode || n instanceof NewNode) ) return Role.MEM;
+        if( n instanceof MemMergeNode || (i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode || n instanceof CallNode || n instanceof NewNode)) ) return Role.MEM;
         Node def = n.in(i);
         if( def != null && isMem(def) ) return Role.MEM;
         return Role.DATA;

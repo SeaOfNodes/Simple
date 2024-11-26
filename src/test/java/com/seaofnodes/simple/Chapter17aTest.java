@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -10,63 +9,63 @@ public class Chapter17aTest {
 
     @Test
     public void testFinal1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int x=2, y=3;
 if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,9,3);", stop.toString());
-        assertEquals(3L, Evaluator.evaluate(stop, 0));
-        assertEquals(9L, Evaluator.evaluate(stop, 1));
+        code.parse().iter();
+        assertEquals("return Phi(Region,9,3);", code.print());
+        assertEquals("3", Eval2.eval(code, 0));
+        assertEquals("9", Eval2.eval(code, 1));
     }
 
     @Test
     public void testConstruct1() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct X { int ~x; };
 X z = new X { x=3; };
 return z.x;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
-        assertEquals(3L, Evaluator.evaluate(stop,  0));
+        code.parse().iter();
+        assertEquals("return 3;", code.print());
+        assertEquals("3", Eval2.eval(code,  0));
     }
 
     @Test
     public void testStructFinal0() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Point { int ~x, ~y; };
 Point p = new Point { x=3; y=4; };
 return p;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (const)Point;", stop.toString());
-        assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(stop,  0).toString());
+        code.parse().iter();
+        assertEquals("return (const)Point;", code.print());
+        assertEquals("Point{x=3,y=4}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testStructFinal1() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
 Point p = new Point { x=5; y=6; };
 p.x++;
 return p;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
     public void testStructFinal2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
 Point p = new Point;
 p.x++;
 return p;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -74,34 +73,34 @@ return p;
     public void testStructFinal3() {
         for( String fields : new String[] { "var x; var y;", "int[] !x;", "int[] !x;" } ) {
             String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
-            try { new Parser(src).parse().iterate(); fail(fields); }
+            try { new CodeGen(src).parse().iter(); fail(fields); }
             catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
         }
     }
 
     @Test
     public void testStructFinal4() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Point { val x=3; val y=4; };
 Point p = new Point;
 p.x++;
 return p;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().iter(); fail(); }
         catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test
     public void testStructFinal5() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Point { var x=3; var y=4; };
 !Point !p = new Point;
 p.x++;
 return p;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Point;", stop.toString());
-        assertEquals("Obj<Point>{x=4,y=4}", Evaluator.evaluate(stop,  0).toString());
+        code.parse().iter();
+        assertEquals("return Point;", code.print());
+        assertEquals("Point{x=4,y=4}", Eval2.eval(code,  0));
     }
 
 }
