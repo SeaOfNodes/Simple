@@ -2,10 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.type.TypeFloat;
-import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 import static com.seaofnodes.simple.type.TypeInteger.*;
@@ -35,15 +32,19 @@ abstract public class BoolNode extends Node {
     public TypeInteger compute() {
         Type t1 = in(1)._type;
         Type t2 = in(2)._type;
+        // Exactly equals?
         if( t1.isHigh() || t2.isHigh() )
             return BOOL.dual();
+        if( in(1)==in(2) )
+            // LT fails, both EQ and LE succeed
+            return this instanceof LT ? TypeInteger.FALSE : TypeInteger.TRUE;
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 )
             return doOp(i1,i2);
         if( t1 instanceof TypeFloat f1 &&
             t2 instanceof TypeFloat f2 &&
             f1.isConstant() && f2.isConstant() )
-            return TypeInteger.constant(doOp(f1.value(), f2.value()) ? 1 : 0);
+            return doOp(f1.value(), f2.value()) ? TypeInteger.TRUE : TypeInteger.FALSE;
         return BOOL;
     }
 
@@ -54,7 +55,7 @@ abstract public class BoolNode extends Node {
     public Node idealize() {
         // Compare of same
         if( in(1)==in(2) )
-            return new ConstantNode(doOp(ZERO,ZERO));
+            return this instanceof LT ? Parser.ZERO : new ConstantNode(TypeInteger.TRUE);
 
         // Equals pushes constant to the right; 5==X becomes X==5.
         if( this instanceof EQ ) {
@@ -65,7 +66,7 @@ abstract public class BoolNode extends Node {
                     return in(1)._type instanceof TypeFloat ? new EQF(in(2),in(1)) : new EQ(in(2),in(1));
             }
             // Equals X==0 becomes a !X
-            if( (in(2)._type == ZERO || in(2)._type == TypeMemPtr.NULLPTR) )
+            if( (in(2)._type == ZERO || in(2)._type == Type.NIL) )
                 return new NotNode(in(1));
         }
 
@@ -92,6 +93,7 @@ abstract public class BoolNode extends Node {
     public static class LT extends BoolNode {
         public LT(Node lhs, Node rhs) { super(lhs,rhs); }
         String op() { return "<" ; }
+        public String glabel() { return "&lt;"; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <  i2._min ) return TRUE;
             if( i1._min >= i2._max ) return FALSE;
@@ -103,6 +105,7 @@ abstract public class BoolNode extends Node {
     public static class LE extends BoolNode {
         public LE(Node lhs, Node rhs) { super(lhs,rhs); }
         String op() { return "<="; }
+        public String glabel() { return "&lt;="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <= i2._min ) return TRUE;
             if( i1._min >  i2._max ) return FALSE;
