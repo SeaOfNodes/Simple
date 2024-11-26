@@ -2,10 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.IterPeeps;
-
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
 // Can also be used to make a type-assertion if ctrl is null.
@@ -20,6 +20,7 @@ public class CastNode extends Node {
     @Override public String label() { return "("+_t.str()+")"; }
 
 
+    @Override public boolean isConst() { return true; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.p(label()).n(in(1));
@@ -33,5 +34,22 @@ public class CastNode extends Node {
     @Override
     public Node idealize() {
         return in(1)._type.isa(_t) ? in(1) : null;
+    }
+
+    @Override
+    boolean eq(Node n) {
+        CastNode cast = (CastNode)n; // Contract
+        return _t==cast._t;
+    }
+
+    @Override
+    int hash() { return _t.hashCode(); }
+
+    @Override
+    public Parser.ParseException err() {
+        // Has a condition to test, so OK
+        if( in(0) != null ) return null;
+        // No condition to test, so this must optimize away
+        throw Utils.TODO();
     }
 }
