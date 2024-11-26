@@ -18,25 +18,13 @@ public class NotNode extends Node {
     }
 
     @Override
-    public Type compute() {
+    public TypeInteger compute() {
         Type t0 = in(1)._type;
-        if( t0.isHigh() ) return TypeInteger.BOOL.dual();
-        switch( t0 ) {
-        case TypeInteger i0:  return i0._max < 0 || i0._min > 0 ? TypeInteger.FALSE : (i0==TypeInteger.ZERO ? TypeInteger.TRUE : TypeInteger.BOOL);
-        case TypeFloat   i0:  return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
-        case TypeMemPtr p0:
-            // top->top, bot->bot, null->1, *void->0, not-null ptr->0, ptr/nil->bot
-            // If input in null then true
-            // If input is not null ptr then false
-            if( p0 == TypeMemPtr.NULLPTR ) return TypeInteger.TRUE;
-            if( !p0._nil )                 return TypeInteger.FALSE;
-            return TypeInteger.BOOL;
-        case Type t:
-            if( t0.getClass() != Type.class )
-                // Only doing NOT on ints and ptrs
-                throw Utils.TODO();
-            return TypeInteger.BOOL;
-        }
+        if( t0.isHigh() )  return TypeInteger.BOOL.dual();
+        if( t0 == Type.NIL || t0 == TypeInteger.ZERO ) return TypeInteger.TRUE;
+        if( t0 instanceof TypeNil tn && tn.notNull() ) return TypeInteger.FALSE;
+        if( t0 instanceof TypeInteger i && (i._min > 0 || i._max < 0) ) return TypeInteger.FALSE;
+        return TypeInteger.BOOL;
     }
 
     @Override
