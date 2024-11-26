@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
@@ -22,15 +23,15 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(name, alias, glb, mem, ptr, off);
+    public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
+        super(loc, name, alias, glb, mem, ptr, off);
     }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
         return super.canDrop(other,dep) && !clobbered(dep);
     }
 
-    // Check only immediate memory users. Stores clobber memory; Phis and
+    // Check only immediate memory users. Writers clobber memory; Phis and
     // aggregates might lead to a clobber, so stop rather than search further.
     private boolean clobbered(Node dep) {
         Node mem = mem();
@@ -40,7 +41,7 @@ public class LoadNode extends MemOpNode {
             use.addDepForwards(dep);
             if( use instanceof StoreNode || use instanceof PhiNode ||
                 use instanceof MemMergeNode ||
-                use instanceof NewNode ) return true;
+                use instanceof NewNode || use instanceof CallNode ) return true;
         }
         return false;
     }
@@ -95,7 +96,7 @@ public class LoadNode extends MemOpNode {
                 mem = merge.alias(_alias);
                 break;
             case StoreNode st:
-                if( _alias==st._alias && ptr == st.ptr() && off() == st.off() )
+                if( _alias==st._alias && ptr == st.ptr().addDep(this) && off() == st.off() )
                     return castRO(st.val()); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( _alias==st._alias && !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
@@ -104,17 +105,26 @@ public class LoadNode extends MemOpNode {
                 // Pointers cannot overlap
                 mem = st.mem(); // Proved never equal
                 break;
-            case PhiNode phi:      break outer;  // Assume related
+            case PhiNode phi:
+                // Assume related
+                phi.addDep(this);
+                break outer;
             case ConstantNode top: break outer;  // Assume shortly dead
-            case ProjNode mproj:
-                if( mproj.in(0) instanceof NewNode nnn1 ) {
+            case ProjNode mproj: // Memory projection
+                switch( mproj.in(0) ) {
+                case NewNode nnn1:
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
                         return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.mem();// Bypass unrelated New
                     break;
-                } else break outer;
+                case StartNode  start: break outer;
+                case CallEndNode cend: break outer; // TODO: Bypass no-alias call
+                default: throw Utils.TODO();
+                }
+                break;
+
             default:
                 break outer;
             }
@@ -148,7 +158,7 @@ public class LoadNode extends MemOpNode {
 
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
-        LoadNode ld = new LoadNode(_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr,off());
+        LoadNode ld = new LoadNode(_loc,_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr,off());
         ld.setDef(0,in(0));
         return ld.peephole();
     }
@@ -212,7 +222,8 @@ public class LoadNode extends MemOpNode {
                 Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
                 if( (slice==mem) || (slice==null && merge.in(1)==mem) )
                     antiDeps(merge,deps,visit);
-            } else if( (use instanceof StoreNode st && st._alias==_alias) ||
+            } else if( use instanceof CallNode ||
+                       (use instanceof StoreNode st && st._alias==_alias) ||
                        (use instanceof NewNode nnn && nnn.field(_alias)!=null) ||
                        (use instanceof MemPhiNode phi && phi._alias==_alias) ||
                        (use instanceof BulkMemPhiNode phi && !phi.isSplit(_alias)) ) {

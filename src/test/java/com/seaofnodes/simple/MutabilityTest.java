@@ -5,16 +5,16 @@ import static org.junit.Assert.*;
 
 public class MutabilityTest {
     private static void ok(String src, String result) {
-        var stop = new Parser(src).parse().iterate();
-        assertEquals(result,com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,0).toString());
+        var code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals(result,Eval2.eval(code,0));
     }
     private static void bad(String src) {
         try {
-            new Parser(src).parse().iterate();
+            new CodeGen(src).parse().opto().typeCheck();
         } catch( RuntimeException expected ) {
             String msg = expected.getMessage();
             assertTrue("Expected a permission error, got: "+expected,
-                msg!=null && (msg.contains("final") || msg.contains("not of declared type") || msg.contains("Cannot store")));
+                msg!=null && (msg.contains("final") || msg.contains("not of declared type") || msg.contains("Cannot store") || msg.contains("Argument #")));
             return;
         }
         fail("Accepted forbidden write: "+src);
@@ -41,6 +41,15 @@ public class MutabilityTest {
         ok("struct P { int x; }; val p=new P; p.x=7; return p.x;", "7");
         bad("struct P { int x; }; val p=new P; p=new P; return 0;");
         bad("struct P { int x; }; P p=new P; var q=p; q.x=7; return 0;");
+    }
+
+    @Test public void testParameterPermissions() {
+        ok("struct P { int x; }; val f={ !P p -> p.x=7; return p.x; }; return f(new P);", "7");
+        ok("val f={ int ~x -> return x; }; return f(7);", "7");
+        bad("val f={ int ~x -> x=7; return x; }; return f(3);");
+        bad("struct P { int x; }; val f={ P p -> p.x=7; return p.x; }; return f(new P);");
+        bad("struct P { int x; }; val f={ !P p -> p.x=7; return p.x; }; P p=new P; return f(p);");
+        bad("struct P { int x; }; val f={ P?[] a -> return a#; }; !P?[] a=new !P?[1]; return f(a);");
     }
 
     @Test public void testConstructorScope() {

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.Utils;
@@ -28,6 +29,17 @@ public abstract class CFGNode extends Node {
     // Block head is Start, Region, CProj, but not e.g. If, Return, Stop
     public boolean blockHead() { return false; }
 
+    // Get the one control following; error to call with more than one e.g. an
+    // IfNode or other multi-way branch.
+    public CFGNode uctrl() {
+        CFGNode c = null;
+        for( Node n : _outputs )
+            if( n instanceof CFGNode cfg )
+                {  assert c==null;  c = cfg; }
+        return c;
+    }
+
+
     // ------------------------------------------------------------------------
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM during
@@ -37,12 +49,16 @@ public abstract class CFGNode extends Node {
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     public char _idepth;
-    public int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(idom().idepth()+1); }
+    public char _idepthVersion;
+    public int idepth() { return validIDepth() ? _idepth : cacheIDepth(idom().idepth()+1); }
     // Zero depth means uncached. Check before narrowing so overflow cannot wrap.
     final int cacheIDepth(int depth) {
         assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
+        _idepthVersion = CodeGen.CODE.iDepthVersion();
         return _idepth = (char)depth;
     }
+
+    final boolean validIDepth() { return _idepth!=0 && _idepthVersion==CodeGen.CODE.iDepthVersion(); }
 
 
     // Return the immediate dominator of this Node and compute dom tree depth.
@@ -83,24 +99,36 @@ public abstract class CFGNode extends Node {
     // ------------------------------------------------------------------------
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
-    // Start is a LoopNode which contains all at depth 1.
+    // Start contains the function bodies at depth 0; real loops add depth.
     public void buildLoopTree(StopNode stop) {
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        _bltWalk(2,stop, new BitSet());
+        _bltWalk(2,null,stop, new BitSet());
     }
-    private int _bltWalk(int pre, StopNode stop, BitSet post) {
+    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
+        // Seed the function's outer tree before walking its body.  Synthetic
+        // exits can be added before the post-order walk reaches the entry.
+        if( this instanceof FunNode ) _ltree = stop._ltree;
+        if( this instanceof ReturnNode ) {
+            _ltree = fun._ltree;
+            post.set(_nid);
+            return pre; // Stop/Start links describe the outside world, not a loop.
+        }
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg )
-                pre = usecfg._bltWalk(pre,stop,post);
+            if( use instanceof CFGNode usecfg && !skip(usecfg) )
+                pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
         for( Node use : _outputs ) {
             if( !(use instanceof CFGNode usecfg) ) continue;
+            if( skip(usecfg) ) continue;
+            if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
+                usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
+                continue;
             // Child visited but not post-visited?
             if( !post.get(usecfg._nid) ) {
                 // Must be a backedge to a LoopNode then
@@ -113,7 +141,7 @@ public abstract class CFGNode extends Node {
                     if( ltree._par == null )
                         // This loop never had an If test choose to take its
                         // exit, i.e. it is a no-exit infinite loop.
-                        ltree._par = ltree._head.forceExit(stop)._ltree;
+                        ltree._par = ltree._head.forceExit(fun,stop)._ltree;
                     ltree = ltree._par;
                 }
             }
@@ -133,4 +161,13 @@ public abstract class CFGNode extends Node {
         post.set(_nid);
         return pre;
     }
+
+    boolean skip(CFGNode usecfg) {
+        // Only walk control users that are alive.
+        // Do not walk from a Call to linked Fun's.
+        return usecfg instanceof XCtrlNode ||
+                (this instanceof CallNode && usecfg instanceof FunNode) ||
+                (this instanceof ReturnNode && usecfg instanceof CallEndNode);
+    }
+
 }

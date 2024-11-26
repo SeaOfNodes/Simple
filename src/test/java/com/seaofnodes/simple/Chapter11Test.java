@@ -1,26 +1,26 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.evaluator.Evaluator;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter11Test {
     @Test public void testIndependentField() {
-        var stop = new Parser("""
+        var code = new CodeGen("""
             struct S { int x; int y; };
             !S !s = new S;
             s.x = 42;
             while (arg > 0) { s.y = s.y + arg; arg = arg - 1; }
             return s.x;
-            """).parse().iterate();
+            """).parse().opto();
+        var stop = code._stop;
         assertEquals("return 42;",stop.toString());
-        assertEquals(42L,Evaluator.evaluate(stop,5));
+        assertEquals("42",Eval2.eval(code,5));
         assertNull(stop.walk(n -> n instanceof LoadNode ? n : null));
     }
 
     @Test public void testParallelMemoryPhis() {
-        var stop = new Parser("""
+        var code = new CodeGen("""
             struct S { int x; int y; int z; };
             !S !a = new S; !S !b = new S;
             !S !p = a; if (arg) p = b;
@@ -31,7 +31,8 @@ public class Chapter11Test {
                 arg = arg - 1;
             }
             return a;
-            """).parse().iterate();
+            """).parse().opto();
+        var stop = code._stop;
         int[] phis = {0};
         stop.walk(n -> {
             // Store sinking can replace field memory Phis with value Phis.
@@ -40,26 +41,26 @@ public class Chapter11Test {
                 for(int a=b._aliases.nextSetBit(0); a>=0; a=b._aliases.nextSetBit(a+1))
                     assertTrue(a<m.nIns() && m.in(a)!=null);
             assertFalse(n instanceof PhiNode && n.isMem() &&
-                !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode));
+                !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode) && !(n instanceof ParmNode));
             return null;
         });
         assertTrue(phis[0]>=4); // Three fields and the loop counter.
-        assertArrayEquals(new Object[]{1L,2L,3L},((Evaluator.Obj)Evaluator.evaluate(stop,4)).fields());
+        assertEquals("S{x=1,y=2,z=3}",Eval2.eval(code,4));
     }
 
     @Test public void testLateSliceWorklist() throws ReflectiveOperationException {
         // Seed 97 exposed a store selecting a bulk predecessor without queuing
         // it. Keep both the worklist assertion and the final heap check.
         for (int seed : new int[]{0,97,123,456}) {
-            var parser = new Parser(Chapter10Test.NESTED_MEMORY);
+            var code = new CodeGen(Chapter10Test.NESTED_MEMORY).parse();
             var field = IterPeeps.class.getDeclaredField("WORK");
             field.setAccessible(true);
             Object work = field.get(null);
             field = work.getClass().getDeclaredField("_R");
             field.setAccessible(true);
             ((java.util.Random)field.get(work)).setSeed(seed);
-            var stop = parser.parse().iterate();
-            assertArrayEquals(new Object[]{9L,25L,17L},((Evaluator.Obj)Evaluator.evaluate(stop,4)).fields());
+            code.opto();
+            assertEquals("S{x=9,y=25,z=17}",Eval2.eval(code,4));
         }
     }
 }

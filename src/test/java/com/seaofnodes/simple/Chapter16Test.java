@@ -12,68 +12,68 @@ public class Chapter16Test {
     @Ignore
     @Test
     public void testJig() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
 
     @Test
     public void testMulti0() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int x, y;
 return x+y;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
     @Test
     public void testMulti1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int x=2, y=x+1;
 return x+y;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 5;", stop.toString());
-        assertEquals(5L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 5;", code.print());
+        assertEquals("5", Eval2.eval(code,  0));
     }
 
 
     @Test
     public void testConstruct0() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct X { int x=3; };
 X z = new X;
 return z.x;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
-        assertEquals(3L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3;", code.print());
+        assertEquals("3", Eval2.eval(code,  0));
     }
 
     @Test
     public void testConstruct2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct X { int x=3; };
 X z = new X { x = 4; };
 return z.x;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 4;", stop.toString());
-        assertEquals(4L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 4;", code.print());
+        assertEquals("4", Eval2.eval(code,  0));
     }
 
 
     @Test
     public void testLinkedList1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct LLI { !LLI? !next; int i; };
 !LLI? !head = null;
@@ -86,16 +86,16 @@ LLI? next = head.next;
 if( !next ) return 1;
 return next.i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
-        assertEquals(1L, Evaluator.evaluate(stop,  1));
-        assertEquals(2L, Evaluator.evaluate(stop,  3));
+        code.parse().opto();
+        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
+        assertEquals("1", Eval2.eval(code,  1));
+        assertEquals("2", Eval2.eval(code,  3));
     }
 
     @Test
     public void testLinkedList2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct LLI { !LLI? !next; int i; };
 !LLI? !head = null;
@@ -117,16 +117,16 @@ LLI? next = head.next;
 if( !next ) return 1;
 return next.i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
-        assertEquals(1L, Evaluator.evaluate(stop,  1));
-        assertEquals(2L, Evaluator.evaluate(stop, 11));
+        code.parse().opto();
+        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
+        assertEquals("1", Eval2.eval(code,  1));
+        assertEquals("2", Eval2.eval(code, 11));
     }
 
     @Test
     public void testSquare() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct Square {
     flt !side = arg;
@@ -142,10 +142,10 @@ struct Square {
 };
 return new Square;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Square;", stop.toString());
-        assertEquals("Obj<Square>{side=3.0,diag=1.7320508075688772}", Evaluator.evaluate(stop,  3).toString());
-        assertEquals("Obj<Square>{side=4.0,diag=2.0}", Evaluator.evaluate(stop, 4).toString());
+        code.parse().opto();
+        assertEquals("return Square;", code.print());
+        assertEquals("Square{side=3.0,diag=1.7320508075688772}", Eval2.eval(code,  3));
+        assertEquals("Square{side=4.0,diag=2.0}", Eval2.eval(code, 4));
     }
     static final String CONSTRUCTOR_MEMORY = """
         struct S { int x; int y; };
@@ -166,8 +166,8 @@ return new Square;
         """;
 
     @Test public void testConstructorMemory() {
-        StopNode stop = new Parser(CONSTRUCTOR_MEMORY).parse().iterate();
-        assertEquals(111249L,Evaluator.evaluate(stop,0));
-        assertEquals(222352L,Evaluator.evaluate(stop,1));
+        var code = new CodeGen(CONSTRUCTOR_MEMORY).parse().opto();
+        assertEquals("111249",Eval2.eval(code,0));
+        assertEquals("222352",Eval2.eval(code,1));
     }
 }

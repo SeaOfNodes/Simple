@@ -1,16 +1,16 @@
 package com.seaofnodes.simple.node;
 
-
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
+import java.util.BitSet;
 
-public class OrNode extends Node {
-    public OrNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class OrNode extends LogicalNode {
+    public OrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "Or"; }
-
-    @Override protected String format() { return "(%1|%2)"; }
+    @Override public String op() { return "|"; }
 
     @Override
     public Type compute() {
@@ -49,10 +49,5 @@ public class OrNode extends Node {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new OrNode(lhs,rhs); }
-    @Override String err() {
-        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '|' " + in(1)._type;
-        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '|' " + in(2)._type;
-        return null;
-    }
+    @Override Node copy(Node lhs, Node rhs) { return new OrNode(_loc,lhs,rhs); }
 }

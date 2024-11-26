@@ -483,7 +483,7 @@ public class ScriptGenerator {
             fields[i] = new TypeStruct.Field(fieldName.toString(), type, struct);
         }
         indentation -= INDENTATION;
-        printIndentation().append("}");
+        printIndentation().append("};");
         struct.fields = fields;
         forwardStructs.remove(struct);
         structs.add(struct);
@@ -685,6 +685,7 @@ public class ScriptGenerator {
     public int genDecl() {
         var type = getType();
         var name = getVarName();
+        // Always make them mutable
         sb.append(generateInvalid() ? getRandomName() : declType(type)).append(" !").append(name);
         if (!(type instanceof TypeNullable) || random.nextBoolean()) {
             sb.append("=");

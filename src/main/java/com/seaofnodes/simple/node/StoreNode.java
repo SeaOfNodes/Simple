@@ -2,10 +2,11 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
-
 
 /**
  * Store represents setting a value to a memory based object, in chapter 10
@@ -22,8 +23,8 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(name, alias, glb, mem, ptr, off, value);
+    public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
+        super(loc, name, alias, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -73,7 +74,7 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
-        // Simple store-after-new on same address.  Should pick up the
+        // Simple store-after-new on same address.  Should pick up
         // an init-store being stomped by a first user store.
         if( mem() instanceof ProjNode st  && st .in(0) instanceof NewNode nnn &&
             ptr() instanceof ProjNode ptr && ptr.in(0) == nnn &&
@@ -81,7 +82,7 @@ public class StoreNode extends MemOpNode {
             // Cannot fold a store of a single element over the array body initializer value
             !(tmp._obj.isAry() && tmp._obj._fields[1]._alias==_alias) &&
             // Very sad strong cutout: val has to be legal to hoist to a New
-            // input, which means it cannot depend on the New.  Many many
+            // input, which means it cannot depend on the New.  Many, many
             // things are legal here but difficult to check without doing a
             // full dominator check.  Example failure:
             // "struct C { C? c; }; C self = new C { c=self; }"
@@ -92,10 +93,12 @@ public class StoreNode extends MemOpNode {
             // Folding away a broken store
             err()==null ) {
             nnn.setDef(nnn.findAlias(_alias),val());
-            // Must retype the NewNode
-            nnn  ._type = nnn.  compute();
+            // Must *retype* the NewNode, this is not monotonic in isolation
+            // but is monotonic counting from this Store to the New.
+            nnn  ._type = nnn  .compute();
             mem()._type = mem().compute();
-            return st;
+            IterPeeps.addAll(nnn._outputs);
+            return mem();
         }
 
         return null;
@@ -130,9 +133,9 @@ public class StoreNode extends MemOpNode {
         if( ctrl==null ) return null;
 
         Node mem = phi.in(1);
-        Node init = new LoadNode(_name,_alias,_declaredType,mem,ptr(),off()).peephole();
+        Node init = new LoadNode(_loc,_name,_alias,_declaredType,mem,ptr(),off()).peephole();
         Node value = new PhiNode(_name,_declaredType,loop,init,val()).peephole();
-        Node sink = new StoreNode(_name,_alias,_declaredType,mem,ptr(),off(),value,_init);
+        Node sink = new StoreNode(_loc,_name,_alias,_declaredType,mem,ptr(),off(),value,_init);
         // Break the memory cycle, killing the old store. Keep the Phi alive
         // even if that store was its last use, until our caller replaces it.
         phi.keep();
@@ -153,13 +156,15 @@ public class StoreNode extends MemOpNode {
     }
 
     @Override
-    String err() {
-        String err = super.err();
+    public Parser.ParseException err() {
+        Parser.ParseException err = super.err();
         if( err != null ) return err;
+        if( ptr()._type == Type.TOP )
+            return null; // Dead store
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( tmp._ro || tmp._obj.field(_name)._final )
-            return "Cannot modify final field '"+_name+"'";
+        if( tmp._ro || (tmp._obj.field(_name)._final && !"[]".equals(_name)) )
+            return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
-        return _init || t.isa(_declaredType) ? null : "Cannot store "+t+" into field "+_declaredType+" "+_name;
+        return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
     }
 }
