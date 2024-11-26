@@ -87,6 +87,9 @@ public class Scheduler {
             this.entry = entry;
             this.prev = prev;
         }
+        BasicBlock(Node entry, BasicBlock prev) {
+            this(entry,prev.depth+1,prev);
+        }
 
     }
 
@@ -358,35 +361,29 @@ public class Scheduler {
         var queue = new Stack<NodeData>();
         var phiQueue = new Stack<NodeData>();
         queue.push(d(start));
-        int depth = 0;
         while (!queue.isEmpty()) {
             var data = queue.pop();
             var node = data.node;
             assert node instanceof CFGNode;
-            BasicBlock block;
-            switch (node) {
-                case StartNode s:
-                    block = new BasicBlock(s, depth++);
-                    break;
-                case LoopNode l:
-                    block = new BasicBlock(l, depth++, d(l.in(1)).block);
-                    break;
-                case RegionNode r:
+            BasicBlock block = switch (node) {
+            case StartNode s -> new BasicBlock(s, 0);
+            case LoopNode l -> new BasicBlock(l, d(l.in(1)).block);
+            case RegionNode r -> {
                     var prev = new ArrayList<BasicBlock>();
+                    int depth = 0;
                     for(int i=1; i<r.nIns(); i++) {
-                        od(r.in(i)).ifPresent(d->prev.add(d.block));
+                        if( !od(r.in(i)).isPresent() ) continue;
+                        BasicBlock bb = d(r.in(i)).block;
+                        prev.add(bb);
+                        depth = Math.max(depth,bb.depth);
                     }
-                    block = new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
-                    break;
-                case IfNode i:
-                    block = d(i.in(0)).block;
-                    break;
-                case ReturnNode r:
-                    block = d(r.in(0)).block;
-                    break;
-                default:
-                    block = new BasicBlock(node, depth++, d(node.in(0)).block);
+                    yield new BasicBlock(r, depth+1, prev.toArray(BasicBlock[]::new));
             }
+            case IfNode i -> d(i.in(0)).block;
+            case ReturnNode ret -> d(ret .in(0)).block;
+            case CallNode call -> throw Utils.TODO();
+            default -> new BasicBlock(node, d(node.in(0)).block);
+            };
             data.block = block;
             if (node instanceof RegionNode r) {
                 // Regions might have phis which need to be scheduled.
@@ -401,10 +398,17 @@ public class Scheduler {
                     }
                 }
             }
-            if (!(node instanceof ReturnNode))
+            if( node instanceof FunNode fun ) {
+                // Cannot find CFG user from fun via a naive search, because always find
+                // Return but Return is not always the one CFG user.
+                CFGNode n = fun.uctrl();
+                assert isCFGNodeReady(n) && d(n).block==null;
+                queue.push(d(n));
+            } else if( !(node instanceof ReturnNode) ) {
                 for (Node n : node._outputs)
                     if(n instanceof CFGNode && isCFGNodeReady(n) && d(n).block == null)
                         queue.push(d(n));
+            }
             var b = block;
             for(var in:data.node._inputs) od(in).ifPresent(d->update(d, b));
         }
@@ -449,7 +453,7 @@ public class Scheduler {
             var data = cfgQueue.pop();
             node = data.node;
             assert node instanceof CFGNode;
-            if (!(node instanceof ReturnNode)) {
+            if (!(node instanceof ReturnNode) ) {
                 for (var out : node._outputs) if (out!=null && out instanceof CFGNode && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
             }
             for (var in : node._inputs) if(in!=null && !(in instanceof CFGNode) && isNotXCtrl(in)) markAlive(dataQueue, in, false);
@@ -499,15 +503,18 @@ public class Scheduler {
     /**
      * Find the CFG output of a node
      * @param node The node
-     * @return THe CFG output of the node.
+     * @return The CFG output of the node.
      */
-    private static Node findSingleCFGOut(Node node) {
+    private static CFGNode findSingleCFGOut(Node node) {
         if (node instanceof StartNode) {
-            for(var n:node._outputs) if (n instanceof CProjNode p && p._idx==0) return p;
+            for(var n:node._outputs)
+                if (n instanceof FunNode fun && "main".equals(fun.sig()._name) )
+                   return fun;
             return null;
         }
+        if( node instanceof FunNode fun ) return fun.uctrl();
         assert node._outputs.stream().filter(x -> x instanceof CFGNode).limit(2).count()<=1;
-        for(var n:node._outputs) if(n instanceof CFGNode) return n;
+        for(var n:node._outputs) if(n instanceof CFGNode cfg) return cfg;
         return null;
     }
 
@@ -561,7 +568,7 @@ public class Scheduler {
                 case null -> new Block(arr, null, -1, new Block[0]);
                 case IfNode i -> new Block(arr, i, -1, new Block[2]);
                 case RegionNode r -> new Block(arr, r, r._inputs.find(prev), new Block[1]);
-                case ReturnNode r -> new Block(arr, r, -1, new Block[0]);
+                case ReturnNode r -> new Block(arr, r   , -1, new Block[0]);
                 default -> throw new AssertionError("Unexpected block exit node");
             });
         }
