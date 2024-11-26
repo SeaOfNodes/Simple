@@ -20,7 +20,7 @@ public class DivFNode extends Node {
             if (i0.isConstant() && i1.isConstant())
                 return TypeFloat.constant(i0.value()/i1.value());
             // Two f32 inputs can still produce a result needing f64 precision.
-            return TypeFloat.BOT;
+            return TypeFloat.F64;
         }
         return in(1)._type.meet(in(2)._type);
     }
@@ -32,7 +32,7 @@ public class DivFNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        // Div of 1.
+        // Div of 1.  
         if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==1 )
             return lhs;
 

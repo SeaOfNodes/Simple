@@ -2,12 +2,9 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.BaseNode;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.CodeGen;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.IRPrinter;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import java.util.*;
@@ -18,7 +15,7 @@ import java.util.function.Function;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable {
+public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -71,6 +68,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
 
     public boolean isMultiHead() { return false; }
     public boolean isMultiTail() { return false; }
+    public boolean isConst    () { return false; }
 
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
@@ -84,7 +82,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
      */
     public Node in(int i) { return _inputs.get(i); }
     public Node out(int i) { return _outputs.get(i); }
-    @Override public Ary<Node> outs() { return _outputs; }
+    public final Ary<Node> outs() { return _outputs; }
 
     public int nIns() { return _inputs.size(); }
 
@@ -121,9 +119,11 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
             new_def.addUse(this);
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
-        if( old_def != null &&  // If the old def exists, remove a def->use edge
-            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-            old_def.kill();     // Kill old def
+        if( old_def != null ) {          // If the old def exists, remove a def->use edge
+            if( old_def.delUse(this) )  // If we removed the last use, the old def is now dead
+                old_def.kill();         // Kill old def
+            else IterPeeps.add(old_def);// Else old lost a use, so onto worklist
+        }
         moveDepsToWorklist();
         // Return new_def for easy flow-coding
         return new_def;
@@ -249,10 +249,10 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
      * Always returns some not-null Node (often this).
      */
     public final Node peephole() {
-        var obs = IterPeeps.midAssert() ? null : Parser.PARSER == null ? null : Parser.PARSER._obs;
+        var obs = CodeGen.CODE == null || IterPeeps.midAssert() || CodeGen.CODE._phase == CodeGen.Phase.Parse && CodeGen.CODE.P == null ? null : CodeGen.CODE._obs;
         if( obs != null ) obs.before(this);
         Node n = peepholeOpt();
-        Node rez = n == null ? this : deadCodeElim(n.peephole());
+        Node rez = n == null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n);
         if( obs != null ) obs.after(this, n == null ? null : rez, false);
         return rez;
     }
@@ -280,9 +280,9 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         // Compute initial or improved Type
         Type old = setType(compute());
 
-        // Replace constant computations from non-constants with a constant node
-        if( !(this instanceof ConstantNode) && !(this instanceof XCtrlNode) && _type.isHighOrConst() )
-            return (_type==Type.XCONTROL ? new XCtrlNode() : new ConstantNode(_type)).peepholeOpt();
+        // Replace constant computations from non-constants with a constant node.
+        if( _type.isHighOrConst() && !isConst() )
+            return ConstantNode.make(_type).peepholeOpt();
 
         // Global Value Numbering
         if( _hash==0 ) {
@@ -305,8 +305,9 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         if( n != null )         // Something changed
             return n;           // Report progress
 
-        if( old==_type ) ITER_NOP_CNT++;
-        return old==_type ? null : this; // Report progress
+        if( old!=_type ) return this; // Report progress;
+        ITER_NOP_CNT++;
+        return null;            // No progress
     }
     public static int ITER_CNT, ITER_NOP_CNT;
 
@@ -356,6 +357,8 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         moveDepsToWorklist();
         return old;
     }
+
+    public <N extends Node> N init() { _type = compute(); return (N)this; }
 
     /**
      * This function rewrites the current Node into a more "idealized" form.
@@ -430,7 +433,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( IterPeeps.midAssert() ) return this;
-        var obs = IterPeeps.midAssert() ? null : Parser.PARSER == null ? null : Parser.PARSER._obs;
+        var obs = CodeGen.CODE == null || IterPeeps.midAssert() || CodeGen.CODE._phase == CodeGen.Phase.Parse && CodeGen.CODE.P == null ? null : CodeGen.CODE._obs;
         if( obs != null ) obs.dep(this, dep);
         if( _deps==null ) _deps = new Ary<>(Node.class);
         if( _deps   .find(dep) != -1 ) return this; // Already on list
@@ -528,9 +531,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     // Swap inputs without letting either input go dead during the swap.
     Node swap12() {
         unlock();               // Hash is order dependent
-        Node tmp = in(1);
-        _inputs.set(1,in(2));
-        _inputs.set(2,tmp);
+        _inputs.swap(1,2);
         return this;
     }
 
@@ -555,14 +556,14 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
-    // Exact-class copy preserving operation attributes, with fresh identity
-    // and no edges, dependencies, or GVN membership.
+    // Exact-class copy with fresh identity and no edges.  Unlike machine
+    // rematerialization copies, this never registers or copies input edges.
     public final Node copyEmpty() {
         Node n;
         try { n = (Node)clone(); }
-        catch( CloneNotSupportedException e ) { throw new AssertionError(e); }
-        n._nid = UNIQUE_ID++;
-        n._inputs = new Ary<>(Node.class);
+        catch( Exception e ) { throw new RuntimeException(e); }
+        n._nid = UNIQUE_ID++; // allocate unique dense ID
+        n._inputs  = new Ary<>(Node.class);
         n._outputs = new Ary<>(Node.class);
         n._deps = null;
         n._hash = 0;
@@ -570,7 +571,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     }
 
     // Report any post-optimize errors
-    String err() { return null; }
+    public Parser.ParseException err() { return null; }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

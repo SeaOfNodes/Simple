@@ -1,7 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
@@ -22,10 +20,10 @@ public class SchedulingScratchTest {
             """;
         // Each fresh compilation reuses node IDs and the scheduler's scratch.
         for( int round=0; round<3; round++ ) {
-            StopNode stop = new Parser(src).parse().iterate();
-            assertEquals(6L,Evaluator.evaluate(stop,0));
-            assertEquals(0L,Evaluator.evaluate(stop,1));
-            assertEquals(8L,Evaluator.evaluate(stop,2));
+            CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+            assertEquals("6",Eval2.eval(code,0));
+            assertEquals("0",Eval2.eval(code,1));
+            assertEquals("8",Eval2.eval(code,2));
         }
     }
 }
