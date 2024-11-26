@@ -7,9 +7,10 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Normal tests run chapter-local regression seeds. Open failures and exploratory
- * fuzzing are opt-in (run directly in the IDE or temporarily remove Ignore).
- * Seeds depend on this chapter's generator; do not copy them between chapters.
+ * Normal tests run only this chapter's fixed regression seeds. Open failures
+ * and exploratory fuzzing are opt-in: run their methods directly in the IDE,
+ * or temporarily remove the relevant Ignore annotation when investigating.
+ * Seeds belong to this chapter's generator; do not copy them between chapters.
  */
 public class FuzzerWrap {
 
@@ -17,6 +18,7 @@ public class FuzzerWrap {
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
+        973358943756616234L, // Parser failure on nullable field access after dead code
     };
 
     @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(REGRESSION_SEEDS); }
@@ -43,7 +45,7 @@ public class FuzzerWrap {
         Random R = new Random(System.currentTimeMillis());
         var fuzzer = new Fuzzer();
         for (int i=0; i<100; i++)
-            fuzzer.fuzzPeeps(R.nextLong());
+            fuzzer.fuzzPeeps( R.nextLong());
         assertTrue(fuzzer.noExceptions());
     }
 

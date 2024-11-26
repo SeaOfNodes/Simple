@@ -9,10 +9,10 @@ import static org.junit.Assert.fail;
 
 public class Chapter12Test {
     @Test public void testSubZeroFloat() {
-        var stop = new Parser("flt x = arg; return 0-x;").parse().iterate();
+        var code = new CodeGen("flt x = arg; return 0-x;").parse().opto().typeCheck();
         // Compare strings so +0.0 and -0.0 remain distinct.
-        assertEquals("0.0", Evaluator.evaluate(stop,0).toString());
-        assertEquals("-1.0", Evaluator.evaluate(stop,1).toString());
+        assertEquals("0.0", Eval2.eval(code,0));
+        assertEquals("-1.0", Eval2.eval(code,1));
     }
 
     @Test public void testDeadNumericReturns() {
@@ -23,37 +23,37 @@ public class Chapter12Test {
             {"return 2.5; return 7;", "2.5"}
         } ) {
             String src = test[0];
-            var stop = new Parser(src).parse().iterate();
-            assertEquals(src,test[1],com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,0).toString());
+            var code = new CodeGen(src).parse().opto().typeCheck();
+            assertEquals(src,test[1],Eval2.eval(code,0));
         }
     }
 
 
     @Test
     public void testJig() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
     @Test
     public void testFloat() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
     @Test
     public void testSquareRoot() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 flt guess = arg;
 while( 1 ) {
@@ -63,21 +63,21 @@ while( 1 ) {
 }
 return guess;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0));", stop.toString());
-        assertEquals(3.0, Evaluator.evaluate(stop,  9));
-        assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
+        code.parse().opto();
+        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0f));", code.print());
+        assertEquals("3.0", Eval2.eval(code,  9));
+        assertEquals("1.414213562373095", Eval2.eval(code,  2));
     }
 
     @Test
     public void testFPOps() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 flt x = arg;
 return x+1==x;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return ((flt)arg==(ToFloat+1.0));", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop, 1));
+        code.parse().opto();
+        assertEquals("return ((flt)arg==(ToFloat+1.0f));", code.print());
+        assertEquals("0", Eval2.eval(code, 1));
     }
 }

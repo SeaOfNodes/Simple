@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 import java.util.ArrayList;
 
-/** Chapter 17's view of the IR; browser, transport and layout are shared. */
+/** Chapter 18's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
@@ -24,7 +24,9 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
         for( int i = 0; i < n.nIns(); i++ ) {
             String name = n instanceof ScopeNode scope && i < scope._vars.size()
                 ? scope._vars.get(i)._name : null;
-            edges.add(new Edge(i, ref(n.in(i)), role(n, i), name));
+            int jump = n instanceof CallEndNode && i>0 && n.in(i) instanceof ReturnNode ret
+                ? ref(ret.fun()) : 0;
+            edges.add(new Edge(i, ref(n.in(i)), role(n, i), name, jump));
         }
         return edges;
     }
@@ -34,12 +36,23 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
             : n instanceof CProjNode p ? new Projection(ref(n.in(0)), p._idx) : null;
         String label = n.label();
         return new GraphSnapshot.Node(n._nid, label == null ? n.getClass().getSimpleName() : label,
-                                      n._type == null ? null : n._type.toString(), kind(n), edges(n), proj);
+                                      n._type == null ? null : n._type.toString(), kind(n), edges(n), proj, folding(n));
+    }
+
+    private boolean folding(Node n) {
+        if( n instanceof FunNode fun ) return fun.folding();
+        if( n instanceof ReturnNode ret ) return ret.fun().folding();
+        if( n instanceof CallEndNode cend ) return cend.folding();
+        if( n instanceof CallNode )
+            for( int i=0; i<n.nOuts(); i++ )
+                if( n.out(i) instanceof CallEndNode cend && cend.folding() ) return true;
+        return false;
     }
 
     private Kind kind(Node n) {
         if( n instanceof StopNode ) return Kind.STOP;
         if( n instanceof ScopeNode ) return Kind.SCOPE;
+        if( n instanceof FunNode ) return Kind.FUN;
         if( n instanceof StartNode ) return Kind.CTRL;
         if( n instanceof LoopNode ) return Kind.LOOP;
         if( n instanceof RegionNode ) return Kind.REGION;
@@ -48,13 +61,13 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     private Role role(Node n, int i) {
-        if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof XCtrlNode ) return Role.ASSOC;
+        if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof CtrlNode || n instanceof XCtrlNode ) return Role.ASSOC;
         if( n instanceof PhiNode ) return i == 0 ? Role.ASSOC : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof ProjNode || n instanceof CProjNode )
             return n instanceof CFGNode ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
-        if( i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode) ) return Role.MEM;
+        if( n instanceof MemMergeNode || i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode || n instanceof CallNode) ) return Role.MEM;
         Node def = n.in(i);
         if( def != null && isMem(def) ) return Role.MEM;
         return Role.DATA;

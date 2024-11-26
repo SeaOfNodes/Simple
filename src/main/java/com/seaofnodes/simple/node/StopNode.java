@@ -1,10 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.GlobalCodeMotion;
-
 import java.util.BitSet;
 
 public class StopNode extends CFGNode {
@@ -14,6 +11,7 @@ public class StopNode extends CFGNode {
     public StopNode(String src) {
         super();
         _src = src;
+        _type = compute();
     }
 
     @Override
@@ -23,7 +21,8 @@ public class StopNode extends CFGNode {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( ret()!=null ) return ret()._print0(sb, visited);
+        // For the sake of many old tests, and single value prints as "return val"
+        if( ret()!=null ) return ret()._print0(sb,visited);
         sb.append("Stop[ ");
         for( Node ret : _inputs )
             ret._print0(sb, visited).append(" ");
@@ -32,10 +31,11 @@ public class StopNode extends CFGNode {
 
     @Override public boolean blockHead() { return true; }
 
+
     // If a single Return, return it.
     // Otherwise, null because ambiguous.
     public ReturnNode ret() {
-        return nIns()==1 ? (ReturnNode)in(0) : null;
+        return nIns()==1 && in(0) instanceof ReturnNode ret ? ret : null;
     }
 
     @Override
@@ -47,42 +47,17 @@ public class StopNode extends CFGNode {
     public Node idealize() {
         int len = nIns();
         for( int i=0; i<nIns(); i++ )
-            if( in(i)._type==Type.XCONTROL )
+            if( ((ReturnNode)in(i)).fun().isDead() )
                 delDef(i--);
         if( len != nIns() ) return this;
         return null;
     }
 
     @Override public int idepth() {
-        if( _idepth!=0 ) return _idepth;
+        if( validIDepth() ) return _idepth;
         int d=0;
-        for( Node n : _inputs )
-            if( n!=null )
-                d = Math.max(d,((CFGNode)n).idepth()+1);
+        for( Node ret : _inputs )
+            d = Math.max(d,((ReturnNode)ret).idepth()+1);
         return cacheIDepth(d);
-    }
-    @Override public CFGNode idom(Node dep) { return null; }
-
-    public Node addReturn(Node node) {
-        return addDef(node);
-    }
-
-    public StopNode iterate() { return IterPeeps.iterate(this).typeCheck().GCM(); }
-    public StopNode typeCheck() {
-        var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
-        String err = walk(n -> {
-            String msg = n.err();
-            if( msg != null && obs != null ) obs.error(n, msg);
-            return msg;
-        });
-        if( err != null ) throw new RuntimeException(err);
-        if( obs != null ) obs.phase("TypeCheck");
-        return this;
-    }
-    StopNode GCM() {
-        Parser.START.buildLoopTree(this);
-
-        GlobalCodeMotion.buildCFG(this);
-        return this;
     }
 }
