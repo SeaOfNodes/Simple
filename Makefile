@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 .DELETE_ON_ERROR:
 
+
 # for printing variable values
 # usage: make print-VARIABLE
 #        > VARIABLE = value_of_variable
@@ -67,12 +68,18 @@ JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
-	@$(JVM) org.junit.runner.JUnitCore $(test_cp) com.seaofnodes.simple.FuzzerWrap
+	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
+	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
 fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+
+# Launch viewer
+view:	$(main_classes)
+	@echo "viewing "
+	@$(JVM) com.seaofnodes.simple.JSViewer
 
 .PHONY: clean
 clean:

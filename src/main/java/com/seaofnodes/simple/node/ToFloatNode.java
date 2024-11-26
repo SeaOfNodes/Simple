@@ -20,9 +20,13 @@ public class ToFloatNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0 && i0.isConstant() )
-            return TypeFloat.constant(i0.value());
-        return TypeFloat.BOT;
+        if( in(1)._type == Type.NIL ) return TypeFloat.FZERO;
+        if (in(1)._type instanceof TypeInteger i0 ) {
+            if( i0.isHigh() ) return TypeFloat.F64.dual();
+            if( i0.isConstant() )
+                return TypeFloat.constant(i0.value());
+        }
+        return TypeFloat.F64;
     }
 
     @Override public Node idealize() { return null; }
