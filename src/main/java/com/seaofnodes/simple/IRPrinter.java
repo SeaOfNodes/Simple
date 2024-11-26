@@ -2,6 +2,9 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.print.IRAdapter;
 import com.seaofnodes.simple.node.*;
+import java.util.ArrayList;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.CodeGen;
 
 /** This chapter's read-only IR facts and the familiar debugger entry points. */
 public final class IRPrinter extends IRAdapter<Node> {
@@ -12,9 +15,13 @@ public final class IRPrinter extends IRAdapter<Node> {
     @Override public Kind kind(Node n) {
         if( n instanceof StartNode ) return Kind.START;
         if( n instanceof StopNode ) return Kind.STOP;
+        if( n instanceof FunNode ) return Kind.FUN;
         if( n instanceof LoopNode ) return Kind.LOOP;
         if( n instanceof RegionNode ) return Kind.REGION;
+        if( n instanceof ParmNode ) return Kind.PARM;
         if( n instanceof PhiNode ) return Kind.PHI;
+        if( n instanceof CallEndNode ) return Kind.CALL_END;
+        if( n instanceof CallNode ) return Kind.CALL;
         if( n instanceof ReturnNode ) return Kind.RETURN;
         if( n instanceof ConstantNode ) return Kind.CONSTANT;
         if( n instanceof CProjNode ) return Kind.CPROJ;
@@ -28,6 +35,20 @@ public final class IRPrinter extends IRAdapter<Node> {
         if( n instanceof CProjNode p ) return p._idx;
         return n._nid;
     }
+    @Override public String functionName(Node n) { return n.label(); }
+    @Override public String signature(Node n) {
+        FunNode fun=(FunNode)n;
+        return fun.sig().str();
+    }
 
     public static String prettyPrint(Node n, int depth) { return PRINT.prettyPrint(n,depth); }
+    public static SB printLine(Node n, SB sb) { return sb.p(PRINT.line(n)); }
+
+    public static String prettyPrint(CodeGen code) {
+        var units=new ArrayList<com.seaofnodes.print.IRPrinter.Unit<Node>>();
+        var funs=new ArrayList<Node>();
+        for( Node n : code._start._outputs ) if( n instanceof FunNode ) funs.add(n);
+        units.add(new com.seaofnodes.print.IRPrinter.Unit<>(null,null,null,funs));
+        return PRINT.program(code._start,code._stop,units);
+    }
 }

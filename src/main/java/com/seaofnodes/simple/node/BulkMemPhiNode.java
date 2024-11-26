@@ -94,6 +94,7 @@ public class BulkMemPhiNode extends PhiNode {
     private int inputAlias(Node n) {
         return switch(n) {
         case ProjNode proj -> 0;
+        case ParmNode parm -> 0;
         case ConstantNode con -> 0;
         case MemMergeNode mmm -> missingAlias(mmm);
         case MemOpNode mem -> unsplit(mem._alias);
@@ -116,7 +117,7 @@ public class BulkMemPhiNode extends PhiNode {
         case MemOpNode mem -> unsplit(mem._alias);
         case MemPhiNode phi -> unsplit(phi._alias);
         default -> {
-            assert use instanceof ReturnNode
+            assert use instanceof ReturnNode || use instanceof CallNode || use instanceof ParmNode
                 : "Unexpected bulk-memory user "+use;
             yield 0;
         }

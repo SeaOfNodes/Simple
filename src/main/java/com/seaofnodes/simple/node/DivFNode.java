@@ -29,7 +29,7 @@ public class DivFNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        // Div of 1.
+        // Div of 1.  
         if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==1 )
             return lhs;
 
