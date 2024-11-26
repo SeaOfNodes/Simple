@@ -1,6 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
+
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -64,14 +64,31 @@ public class CompoundAssignmentTest {
             check(src, 0, 0);
             fail("Accepted invalid assignment: " + src);
         } catch (RuntimeException e) {
-            assertEquals("Must report a language error", RuntimeException.class, e.getClass());
+            assertTrue("Must report a language error: " + e, e instanceof Parser.ParseException);
             assertNotNull(e.getMessage());
             assertFalse("Must report a language error: " + e, e.getMessage().contains("Not yet implemented"));
         }
     }
 
+    @Test public void testFields() {
+        for (String op : OPS) {
+            long expected = apply(op, -8, 3);
+            check("struct S { int x; }; S !s=new S; s.x=arg; int r=(s.x " +
+                  op + " 3); return s.x*10+r;", -8, expected*11);
+        }
+    }
+
+    @Test public void testArrayAddressAndRhsOnce() {
+        for (String op : OPS) {
+            long expected = apply(op, 5, 1);
+            check("int[] !a=new int[2]; a[0]=arg; int i=0; int count=0; " +
+                  "int r=(a[i++] " + op + " (count=count+1)); " +
+                  "return i*1000+count*100+a[0]*10+r;", 5, 1100+expected*11);
+        }
+    }
+
     private static void check(String src, long arg, long expected) {
-        var stop = new Parser(src).parse().iterate();
-        assertEquals(src, Long.valueOf(expected), Evaluator.evaluate(stop, arg));
+        var code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals(src, Long.toString(expected), Eval2.eval(code, arg));
     }
 }

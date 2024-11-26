@@ -43,9 +43,8 @@ public class MemMergeNode extends Node {
             Node init = nnn.in(nnn.findAlias(alias)).addDep(dep);
             return contents(nnn.mem(),alias,dep).meet(init._type);
         }
-        // There are no heap arguments in this chapter. Before the first New,
-        // the set of allocated objects (and hence stored values) is empty.
-        if( mem instanceof ProjNode proj && proj.in(0) instanceof StartNode ) return Type.TOP;
+        // Function parameters and call results may contain arbitrary heap values.
+        // Their bulk memory types do not imply empty or zero-filled storage.
         if( mem._type==Type.TOP || mem._type==TypeMem.TOP ) return Type.TOP;
         if( mem._type instanceof TypeMem mt && mt._alias==alias ) return mt._t;
         return Type.BOTTOM;

@@ -4,8 +4,6 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.util.*;
 
 public class Evaluator {
@@ -207,7 +205,8 @@ public class Evaluator {
             for (int i=0; i<num; i++)
                 body[i] = val(alloc.in(3+i));
         }
-        return new Object[]{new Obj(type,body),MEMORY};
+        return new Object[]{new Obj(type,body),null};
+
     }
 
     private Object load(LoadNode load) {
@@ -259,14 +258,14 @@ public class Evaluator {
     private double vald(Node node) {
         var v = val(node);
         if (v instanceof Number n) return n.doubleValue();
+        if( v == null ) return 0;
         throw new AssertionError("Not a double " + v);
     }
 
     private Object cons(ConstantNode cons) {
         var type = cons.compute();
-        if (type instanceof TypeInteger i) return i.value();
+        if (type instanceof TypeInteger i) return i.isConstant() ? i.value() : Integer.MAX_VALUE;
         if (type instanceof TypeFloat i) return i.value();
-        assert type instanceof TypeMemPtr;
         return null;
     }
 
@@ -300,11 +299,12 @@ public class Evaluator {
             case ToFloatNode  cast  -> (double)vall(cast.in(1));
             case LoadNode     load  -> load(load);
             case StoreNode    store -> store(store);
-            case MemMergeNode merge -> MEMORY;
             case NewNode      alloc -> alloc(alloc);
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
+            case MemMergeNode mem   -> null;
             case ReadOnlyNode ro    -> val(ro.in(1));
+            case CallNode     call  -> Utils.TODO(); // should not reach here, go the IfNode route
             default                 -> throw new AssertionError("Unexpected node " + node);
         };
     }
@@ -324,31 +324,33 @@ public class Evaluator {
             for(; i<block.nodes().length;i++) values[block.nodes()[i]._nid] = exec(block.nodes()[i]);
             i=0;
             switch (block.exit()) {
-                case null:
-                    return Status.FALLTHROUGH;
-                case ReturnNode ret:
-                    return val(ret.expr());
-                case IfNode ifn:
-                    block = block.next()[isTrue(val(ifn.in(1))) ? 0 : 1];
-                    if (block == null) return Status.FALLTHROUGH;
-                    break;
-                case RegionNode region:
-                    if (loops-- <= 0) return Status.TIMEOUT;
-                    int exit = block.exitId();
-                    assert exit > 0 && region.nIns() > exit;
-                    block = block.next()[0];
-                    assert block != null;
-                    for (; i < block.nodes().length; i++) {
-                        if (!(block.nodes()[i] instanceof PhiNode)) break;
-                        phiCache.add(val(block.nodes()[i].in(exit)));
-                    }
-                    for (i=0; i<phiCache.size(); i++) {
-                        values[block.nodes()[i]._nid] = phiCache.get(i);
-                    }
-                    phiCache.clear();
-                    break;
-                default:
-                    throw Utils.TODO("Unexpected control node " + block.exit());
+            case null:
+                return Status.FALLTHROUGH;
+            case ReturnNode ret :  return val(ret .expr());
+            case IfNode ifn:
+                block = block.next()[isTrue(val(ifn.in(1))) ? 0 : 1];
+                if (block == null) return Status.FALLTHROUGH;
+                break;
+            case RegionNode region:
+                if (loops-- <= 0) return Status.TIMEOUT;
+                int exit = block.exitId();
+                assert exit > 0 && region.nIns() > exit;
+                block = block.next()[0];
+                assert block != null;
+                for (; i < block.nodes().length; i++) {
+                    if (!(block.nodes()[i] instanceof PhiNode phi)) break;
+                    var val = region instanceof FunNode fun && "main".equals(fun.sig()._name) && ((ParmNode)phi)._idx==2 && exit==1
+                            ? parameter
+                            : val(phi.in(exit));
+                    phiCache.add(val);
+                }
+                for (i=0; i<phiCache.size(); i++) {
+                    values[block.nodes()[i]._nid] = phiCache.get(i);
+                }
+                phiCache.clear();
+                break;
+            default:
+                throw Utils.TODO("Unexpected control node " + block.exit());
             }
         }
     }

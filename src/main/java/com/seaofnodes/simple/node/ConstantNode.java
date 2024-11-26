@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.Type;
 
 
@@ -19,25 +20,30 @@ import com.seaofnodes.simple.type.Type;
  * The Constant's value is the value stored in it.
  */
 public class ConstantNode extends Node {
-    final Type _con;
+    public final Type _con;
     public ConstantNode( Type type ) {
         super(Parser.START);
         _con = type;
+    }
+
+    public static Node make( Type type ) {
+        if( type==Type. CONTROL ) return new CtrlNode();
+        if( type==Type.XCONTROL ) return new XCtrlNode();
+        return new ConstantNode(type);
     }
 
     @Override protected String repeatName() {
         return _con==null || _con.toString().length()<=32 ? null : uniqueName();
     }
 
-    @Override
-    public String label() { return "Con"; }
-
+    @Override public String label() { return "Con"; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
-        return p.p(_con);
+        return p.p(_con.print(new SB()));
     }
 
     @Override public boolean isMultiTail() { return true; }
+    @Override public boolean isConst() { return true; }
 
     @Override
     public Type compute() { return _con; }

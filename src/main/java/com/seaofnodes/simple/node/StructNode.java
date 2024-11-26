@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.*;
 
 /**
@@ -19,7 +20,7 @@ public class StructNode extends Node {
         p.p(_ts._name).p(" {");
         for( int i=0; i<nIns(); i++ ) {
             p.p(_ts._fields[i]._fname).p(":");
-            p.p(in(i)==null ? Type.BOTTOM : in(i)._type);
+            p.p((in(i)==null ? Type.BOTTOM : in(i)._type).print(new SB()));
             p.p("; ");
         }
         return p.unchar("; ").p("}");

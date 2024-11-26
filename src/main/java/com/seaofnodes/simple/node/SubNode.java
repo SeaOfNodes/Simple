@@ -5,7 +5,6 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
-
 public class SubNode extends Node {
     public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
@@ -18,6 +17,9 @@ public class SubNode extends Node {
         Type t1 = in(1)._type, t2 = in(2)._type;
         if( t1.isHigh() || t2.isHigh() )
             return TypeInteger.TOP;
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return TypeInteger.ZERO;
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 ) {
             if (i1.isConstant() && i2.isConstant())
@@ -28,9 +30,6 @@ public class SubNode extends Node {
                 i2._min != Long.MIN_VALUE  )
                 return TypeInteger.make(i1._min-i2._max,i1._max-i2._min);
         }
-        // Sub of same is 0
-        if( in(1)==in(2) )
-            return TypeInteger.ZERO;
 
         return TypeInteger.BOT;
     }

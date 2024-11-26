@@ -20,7 +20,7 @@ public class SchedulerTest {
     @Test
     @Ignore
     public void testJig() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct S {
     int f;
 }
@@ -30,14 +30,14 @@ int i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        StopNode stop = parser.parse();//.iterate();
-        var eval = new Evaluator(stop);
+        code.parse();//.opto();
+        var eval = new Evaluator(code._stop);
         assertEquals(2L, eval.evaluate(1, 10));
     }
 
     @Test
     public void testStoreInIf() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct S {
     int f;
 };
@@ -45,15 +45,15 @@ S !v0=new S;
 if(arg) v0.f=1;
 return v0;
 """);
-        StopNode stop = parser.parse().iterate();
-        var eval = new Evaluator(stop);
+        code.parse().opto();
+        var eval = new Evaluator(code._stop);
         assertObj(eval.evaluate(0, 10), "S", 0L);
         assertObj(eval.evaluate(1, 10), "S", 1L);
     }
 
     @Test
     public void testStoreInIf2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct S {
     int f;
 };
@@ -64,8 +64,8 @@ i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        StopNode stop = parser.parse().iterate();
-        var eval = new Evaluator(stop);
+        code.parse().opto();
+        var eval = new Evaluator(code._stop);
         assertEquals(2L, eval.evaluate(0, 10));
         assertEquals(2L, eval.evaluate(1, 10));
     }

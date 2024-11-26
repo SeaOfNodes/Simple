@@ -10,10 +10,60 @@ public abstract class GlobalCodeMotion {
     // Arrange that the existing isCFG() Nodes form a valid CFG.  The
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
-    public static void buildCFG( StopNode stop ) {
-        schedEarly();
-        Parser.SCHEDULED = true;
-        schedLate( stop);
+    public static void buildCFG( StartNode start, StopNode stop ) {
+        schedEarly(start);
+        breakUpGlobalConstants(start);
+        schedLate(stop);
+    }
+
+
+    // After early scheduling, every global chain member has Start in slot 0.
+    // Give each function one private copy of the entire dependency graph.
+    private static void breakUpGlobalConstants( StartNode start ) {
+        var globals = new IdentityHashMap<Node,Boolean>();
+        var cons = new ArrayList<Node>();
+        for( Node con : start._outputs )
+            if( con!=null && !(con instanceof CFGNode) &&
+                con.isConst() ) {
+                globals.put(con,true);
+                cons.add(con.keep()); // Preserve original inputs while rewiring users.
+            }
+
+        var copies = new IdentityHashMap<FunNode,IdentityHashMap<Node,Node>>();
+        for( Node con : cons )
+            for( Node use : con._outputs.asAry() ) {
+                if( use==null || globals.containsKey(use) ) continue;
+                for( int i=0; i<use.nIns(); i++ ) {
+                    if( use.in(i)!=con ) continue;
+                    FunNode fun = useFun(use,i);
+                    if( fun==null ) continue; // Unknown-caller types stay global.
+                    var local = copies.computeIfAbsent(fun,f -> new IdentityHashMap<>());
+                    use.setDef(i,cloneGlobal(con,fun,globals,local));
+                }
+            }
+        for( Node con : cons ) con.unkill();
+    }
+
+    private static Node cloneGlobal(Node con, FunNode fun, IdentityHashMap<Node,Boolean> globals,
+                                    IdentityHashMap<Node,Node> copies) {
+        Node copy = copies.get(con);
+        if( copy!=null ) return copy;
+        copies.put(con,copy=con.copyEmpty());
+        copy.addDef(fun);
+        for( int i=1; i<con.nIns(); i++ ) {
+            Node def = con.in(i);
+            copy.addDef(globals.containsKey(def) ? cloneGlobal(def,fun,globals,copies) : def);
+        }
+        return copy;
+    }
+
+    private static FunNode useFun(Node use, int idx) {
+        if( use instanceof ReturnNode ret ) return ret.fun();
+        // Calls are still linked: a Parm input is evaluated in its caller.
+        CFGNode cfg = use instanceof ParmNode parm ? parm.fun().cfg(idx) : use.cfg0();
+        while( cfg!=null && !(cfg instanceof FunNode) )
+            cfg = cfg.idom();
+        return (FunNode)cfg;
     }
 
 
@@ -22,10 +72,10 @@ public abstract class GlobalCodeMotion {
     // (except at loops).  Since defs are visited first - and hoisted as early
     // as possible, when we come to a use we place it just after its deepest
     // input.
-    private static void schedEarly() {
+    private static void schedEarly(StartNode start) {
         ArrayList<CFGNode> rpo = new ArrayList<>();
         BitSet visit = new BitSet();
-        _rpo_cfg(Parser.START, visit, rpo);
+        _rpo_cfg(null, start, visit, rpo);
         // Reverse Post-Order on CFG
         for( int j=rpo.size()-1; j>=0; j-- ) {
             CFGNode cfg = rpo.get(j);
@@ -43,12 +93,14 @@ public abstract class GlobalCodeMotion {
     }
 
     // Post-Order of CFG
-    private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
-        if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
+    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
+        if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
+        if( def instanceof CallNode && cfg instanceof FunNode )
+            return;           // Ignore linked function calls
         visit.set(cfg._nid);
-        for( Node use : cfg._outputs )
-            _rpo_cfg(use,visit,rpo);
+        for( Node useuse : cfg._outputs )
+            _rpo_cfg(cfg,useuse,visit,rpo);
         rpo.add(cfg);
     }
 
@@ -166,6 +218,7 @@ public abstract class GlobalCodeMotion {
         for( int i=1; i<phi.nIns(); i++ )
             if( phi.in(i)==n )
                 found = phi.region().cfg(i).domLCA(found,null); // Can be more than one matching input.
+
         assert found!=null;
         return found;
     }
@@ -202,7 +255,7 @@ public abstract class GlobalCodeMotion {
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
-            case NewNode st:
+            case CallNode st:
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
@@ -213,6 +266,10 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
                 break;
+            case NewNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
+                break;
             default: throw Utils.TODO();
             }
         }
@@ -221,14 +278,12 @@ public abstract class GlobalCodeMotion {
 
     //
     private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
-        // Preserve the full store range for the earlier evaluator scheduler.
-        // It places nodes independently of GCM and may hoist this store.
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( anti[stblk._nid]==load._nid ) {
                 lca = stblk.domLCA(lca,null); // Raise Loads LCA
-                if( lca == stblk && st != null && st._inputs.find(load) == -1 ) // And if something moved,
-                    st.addDef(load);   // Add anti-dep as well
+                if( lca == stblk && st != null && !(st instanceof CallNode) && st._inputs.find(load) == -1 ) // And if something moved,
+                    st.addDef(load);   // Add anti-dep as well; Calls already end their block.
                 return lca;            // Cap this stores' anti-dep to here
             }
         }
