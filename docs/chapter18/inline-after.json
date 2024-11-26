@@ -1,0 +1,101 @@
+{
+  "ver": 1,
+  "comp": "inline",
+  "step": 2,
+  "roots": [
+    12
+  ],
+  "scope": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "label": "Parm_arg",
+      "type": "int",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 2,
+      "label": "Con",
+      "type": "1",
+      "kind": "DATA",
+      "edges": [],
+      "proj": null
+    },
+    {
+      "id": 8,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 1,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 2,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 12,
+      "label": "Return main",
+      "type": null,
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 8,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    }
+  ],
+  "groups": []
+}

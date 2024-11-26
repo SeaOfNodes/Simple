@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
@@ -24,14 +23,15 @@ public class FloatPrecisionTest {
     }
 
     private static String evaluate(String src, long arg) {
-        return Evaluator.evaluate(new Parser(src).parse().iterate(),arg).toString();
+        CodeGen code = new CodeGen(src).parse().iter();
+        return Eval2.eval(code,arg);
     }
 
     @Test public void testMonotoneCompute() {
-        new Parser("");
+        new CodeGen("");
         ArrayList<Type> inputs = new ArrayList<>(Arrays.asList(
-            Type.TOP,Type.BOTTOM,TypeFloat.B32,TypeFloat.BOT,
-            TypeFloat.B32.dual(),TypeFloat.BOT.dual()));
+            Type.TOP,Type.BOTTOM,TypeFloat.F32,TypeFloat.F64,
+            TypeFloat.F32.dual(),TypeFloat.F64.dual()));
         for( double value : new double[]{-0.0,0.0,-1.0,1.0,3.0,16777216.0,16777217.0,
                                           Double.NaN,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY} )
             inputs.add(TypeFloat.constant(value));

@@ -1,16 +1,15 @@
 package com.seaofnodes.simple.node;
 
-
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
+import java.util.BitSet;
 
-
-public class XorNode extends Node {
-    public XorNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class XorNode extends LogicalNode {
+    public XorNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "Xor"; }
-
-    @Override protected String format() { return "(%1^%2)"; }
+    @Override public String op() { return "^"; }
 
     @Override
     public Type compute() {
@@ -49,10 +48,5 @@ public class XorNode extends Node {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new XorNode(lhs,rhs); }
-    @Override String err() {
-        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '^' " + in(1)._type;
-        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '^' " + in(2)._type;
-        return null;
-    }
+    @Override Node copy(Node lhs, Node rhs) { return new XorNode(_loc,lhs,rhs); }
 }

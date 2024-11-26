@@ -2,20 +2,26 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
-import com.seaofnodes.simple.Utils;
-
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.type.*;
 
 public class PhiNode extends Node {
 
-    final String _label;
+    public final String _label;
 
     // The Phi type we compute must stay within the domain of the Phi.
     // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
+
+    public PhiNode(RegionNode r, Node sample) {
+        super(r);
+        _label = "";
+        _declaredType = sample._type;
+        while( nIns() < r.nIns() )
+            addDef(sample);
+    }
 
     public static PhiNode make(String label, Type type, Node... inputs) {
         return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,type,inputs);
@@ -43,7 +49,7 @@ public class PhiNode extends Node {
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type
-        Type t = _declaredType.lub();
+        Type t = _declaredType.glb().dual();//Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
@@ -78,14 +84,16 @@ public class PhiNode extends Node {
         // then replace with plain val.
         if( nIns()==3 ) {
             int nullx = -1;
-            if( in(1)._type == in(1)._type.makeInit() ) nullx = 1;
-            if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
+            if( in(1)._type == in(1)._type.makeZero() ) nullx = 1;
+            if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
+                if( val instanceof CastNode cast )
+                    val = cast.in(1);
                 if( r.idom(this).addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);
-                    while( idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
+                    while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
                 }
@@ -190,12 +198,34 @@ public class PhiNode extends Node {
     }
 
     // True if last input is null
-    public final boolean inProgress() {
+    public boolean inProgress() {
         return in(nIns()-1) == null;
     }
 
     // Never equal if inProgress
     @Override boolean eq( Node n ) {
         return !inProgress();
+    }
+
+    @Override
+    public Parser.ParseException err() {
+        if( _type != Type.BOTTOM ) return null;
+
+        // BOTTOM means we mixed e.g. int and ptr
+        for( int i=1; i<nIns(); i++ )
+            // Already an error, but better error messages come from elsewhere
+            if( in(i)._type == Type.BOTTOM )
+                return null;
+
+        // Gather a minimal set of types that "cover" all the rest
+        boolean ti=false, tf=false, tp=false, tn=false;
+        for( int i=1; i<nIns(); i++ ) {
+            Type t = in(i)._type;
+            ti |= t instanceof TypeInteger x;
+            tf |= t instanceof TypeFloat   x;
+            tp |= t instanceof TypeMemPtr  x;
+            tn |= t==Type.NIL;
+        }
+        return ReturnNode.mixerr(ti,tf,tp,tn, ((RegionNode)region())._loc);
     }
 }

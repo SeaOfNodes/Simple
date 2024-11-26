@@ -16,7 +16,7 @@ public class RoundF32Node extends Node {
     public Type compute() {
         if (in(1)._type instanceof TypeFloat i0 && i0.isConstant() )
             return TypeFloat.constant((float)i0.value());
-        if( in(1)._type==TypeFloat.BOT ) return TypeFloat.B32;
+        if( in(1)._type==TypeFloat.F64 ) return TypeFloat.F32;
         return in(1)._type;
     }
 
