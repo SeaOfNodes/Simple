@@ -14,11 +14,12 @@ public class NewNode extends Node implements MultiNode {
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
+        assert !ptr.nullable();
         _ptr = ptr;
         assert nodes.length==3+ptr._obj._fields.length;
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type==Type.XCONTROL;
         assert nodes[1]._type instanceof TypeMem;
-        assert nodes[2]._type instanceof TypeInteger;
+        assert nodes[2]._type instanceof TypeInteger || nodes[2]._type==Type.NIL;
         for( int i=3; i<nodes.length; i++ ) assert nodes[i]._type!=null;
     }
 
