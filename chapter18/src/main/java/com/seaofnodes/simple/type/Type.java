@@ -40,6 +40,7 @@ public class Type {
     static final byte TSTRUCT =10; // Structs; tuples with named fields
     static final byte TFLD    =11; // Fields into struct
     static final byte TARRAY  =12; // Array
+    static final byte TFUNPTR =13; // Function
 
     public final byte _type;
 
@@ -62,6 +63,7 @@ public class Type {
         TypeMemPtr.gather(ts);
         TypeStruct.gather(ts);
         TypeTuple.gather(ts);
+        TypeFunPtr.gather(ts);
         int sz = ts.size();
         for( int i = 0; i < sz; i++ )
             ts.add(ts.get(i).dual());
