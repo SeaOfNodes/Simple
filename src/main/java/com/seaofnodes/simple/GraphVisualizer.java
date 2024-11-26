@@ -27,9 +27,9 @@ public class GraphVisualizer {
 
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
-        Collection<Node> all = findAll(stop, scope);
+        Collection<Node> all = findAll(xScopes, stop, scope);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter11 {\n");
+        sb.append("digraph chapter18 {\n");
         sb.append("/*\n");
         sb.append(stop._src);
         sb.append("\n*/\n");
@@ -81,7 +81,7 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for (Node n : all) {
-            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeMinNode || n==Parser.XCTRL)
+            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n==Parser.XCTRL)
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             if( _separateControlCluster &&  doCtrl && !(n instanceof CFGNode) ) continue;
             if( _separateControlCluster && !doCtrl &&  (n instanceof CFGNode) ) continue;
@@ -137,7 +137,7 @@ public class GraphVisualizer {
             for (Node n : all) {
                 if (n instanceof RegionNode region) {
                     sb.append("\t\t{ rank=same; ");
-                    sb.append(region).append(";");
+                    sb.append(region.uniqueName()).append(";");
                     for (Node phi : region._outputs)
                         if (phi instanceof PhiNode) sb.append(phi.uniqueName()).append(";");
                     sb.append("}\n");
@@ -163,7 +163,7 @@ public class GraphVisualizer {
             sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             // Special for memory ScopeMinNode
             if( level==0 ) {
-                ScopeMinNode n = scope.mem();
+                MemMergeNode n = scope.mem();
                 sb.append("\t\t").append(n.uniqueName()).append(" [label=\"").append(n.glabel()).append("\"];\n");
             }
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
@@ -263,12 +263,12 @@ public class GraphVisualizer {
     /**
      * Finds all nodes in the graph.
      */
-    private Collection<Node> findAll(Node stop, Node scope) {
+    public static Collection<Node> findAll(Stack<ScopeNode> ss, Node... ns) {
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : stop._inputs )
+        for( Node n : ns )
             walk(all, n);
-        if( scope != null )
-            for( Node n : scope._inputs )
+        if( ss != null )
+            for( Node n : ss )
                 walk(all, n);
         return all.values();
     }
@@ -276,7 +276,7 @@ public class GraphVisualizer {
     /**
      * Walk a subgraph and populate distinct nodes in the all list.
      */
-    private void walk(HashMap<Integer,Node> all, Node n) {
+    private static void walk(HashMap<Integer,Node> all, Node n) {
         if(n == null ) return;
         if (all.get(n._nid) != null) return; // Been there, done that
         all.put(n._nid, n);

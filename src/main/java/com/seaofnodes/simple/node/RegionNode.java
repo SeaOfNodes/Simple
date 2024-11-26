@@ -10,8 +10,11 @@ import java.util.BitSet;
 import java.util.HashSet;
 
 public class RegionNode extends CFGNode {
+    // Source location for late discovered errors
+    public Parser.Lexer _loc;
 
-    public RegionNode(Node... nodes) { super(nodes); }
+    public RegionNode(Node... nodes) { this(null,nodes); }
+    public RegionNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
 
     @Override
     public String label() { return "Region"; }
@@ -65,12 +68,18 @@ public class RegionNode extends CFGNode {
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
-        if( !hasPhi() &&       // No Phi users, just a control user
+        if( !_disablePeephole && // Optional
+            !hasPhi() &&         // No Phi users, just a control user
             in(1) instanceof CProjNode p1 &&
             in(2) instanceof CProjNode p2 &&
             p1.in(0).addDep(this)==p2.in(0).addDep(this) &&
-            p1.in(0) instanceof IfNode iff )
-            return iff.ctrl();
+            p1.in(0) instanceof IfNode iff ) {
+            // Replace with the iff.ctrl directly
+            if( nIns()==3 ) return iff.ctrl();
+            // Just delete the path for fat Regions
+            setDef(1,iff.ctrl());
+            return delDef(2);
+        }
 
         return null;
     }
@@ -82,7 +91,7 @@ public class RegionNode extends CFGNode {
         return 0;               // All inputs alive
     }
 
-    private boolean hasPhi() {
+    boolean hasPhi() {
         for( Node phi : _outputs )
             if( phi instanceof PhiNode )
                 return true;
@@ -109,12 +118,9 @@ public class RegionNode extends CFGNode {
     }
 
     // True if last input is null
-    public final boolean inProgress() {
-        return nIns()>1 && in(nIns()-1) == null;
-    }
+    public boolean inProgress() { return nIns()>1 && in(nIns()-1) == null; }
 
     // Never equal if inProgress
-    @Override boolean eq( Node n ) {
-        return !inProgress();
-    }
+    @Override boolean eq( Node n ) { return !inProgress(); }
+
 }
