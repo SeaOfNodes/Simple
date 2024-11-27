@@ -118,6 +118,7 @@ Additionally, the following Node types will be enhanced:
 | Start     | Control | Start will produce the initial Memory projections, one per slice |
 | Return    | Control | Will merge all memory slices                                     |
 
+
 ## Enhanced Type Lattice
 
 The Type Lattice for Simple has a major revision in this chapter.
@@ -126,22 +127,38 @@ The Type Lattice for Simple has a major revision in this chapter.
 
 Within the Type Lattice, we now have the following type domains:
 
-* Control type - this represents control flow
-* Integer type - Integer values
-* Tuple type - when a Node results in more than one value
-* Struct type (new) - Represents user defined struct types, a struct type is allowed to have members of Integer type only in this chapter
-  * `$TOP` represents local Top for struct type; all we know about the type is that it is a struct but, we do not know if it is a specific struct, or all possible structs, etc.
-  * `$BOT` represents local Bottom for struct type; we definitely know the value can take all possible struct types.
-* Pointer type (new) - Represents a pointer to a struct type
-  * `null` is a pointer to non-existent memory object
-  * We use the prefix `*` to mean pointer-to. Thus `*S1` means pointer to `S1`, `*$TOP` means pointer to `$TOP`.
-  * `*void` is a synonym for `*$BOT` - i.e. it represents a Non-Null pointer to all possible struct types, akin to `void *` in C except not null.
+* <font style="background-color:yellow">Control type</font> - represents control flow
+* <font style="background-color:lightblue">Integer type</font> - Integer values, with a Top, Bottom and constants
+* <font style="background-color:green" color="white">Pointer type</font> (new) - Represents a pointer to a struct type
+  * We use the prefix `*` to mean pointer-to.  Thus `*S1` means pointer to
+    `S1`, `*$TOP` means pointer to `$TOP`.  
   * `?` suffix represents the union of a pointer to some type and `null`.
-  * `null` pointer evaluates to False and non-null pointers evaluate to True, as in C.
-* Memory (new) - Represents memory and memory slices
-  * `MEM#TOP` - Nothing known about a slice
-  * `#n` - refers to a memory slice
-  * `MEM#BOT` - all of memory
+  * The pointer lattice has only 2 entries: null or not-null.  In both cases a struct lattice element is 
+    included, and can be any member of the struct lattice.    
+  * `null` is a pointer to non-existent memory object, i.e. `*$TOP?`, and is a
+    nullable.  Notice that the null part of the type is low in the lattice,
+    while the struct part is the highest struct.
+  * `*void` is a synonym for `*$BOT` - i.e. it represents a non-null pointer to
+    all possible struct types, akin to `void *` in C except not null.  It is
+    the inverse or *dual* of `null`, and the null part is high in the pointer
+    lattice, while the struct part is the lowest struct.    
+  * `null` pointer evaluates to False and non-null pointers evaluate to True, as in C.  
+  
+* <font style="background-color:lightgreen">Struct type</font> (new) -
+  Represents user defined struct types, a struct type is allowed to have
+  members of Integer type only in this chapter, later chapters will expand
+  this.
+  * `⊤:struct` represents local Top for struct type; all we know about the type
+    is that it is a struct but, we do not know if it is a specific struct, or
+    all possible structs.  In the code, we use a struct with no fields named `$TOP`.  
+  * `⊥:struct` represents local Bottom for struct type; we definitely know the
+    value can take all possible struct types.  In the code, we uise a struct
+    with no fields named `$BOT`.
+* <font style="background-color:blue" color="white">Memory type</font> (new) - Represents memory and memory slices
+  * `⊤:mem` - Nothing known about a slice; in the code we use `MEM#TOP`.
+  * `#n` - refers to a memory slice, and `n` is the alias class.
+  * `⊥:mem` - all of memory; in the code we use `MEM#BOT`.
+* <font style="background-color:pink">Tuple type</font> - when a Node results in a collection of values
 
 We make use of following operations on the lattice.
 
@@ -150,20 +167,22 @@ We make use of following operations on the lattice.
   thought of as set union (ORing) of its input types (as sets).
   * Example, meet of `*S1` and `*S2` results in `*void` - there is no lattice
     element for exactly both `{*S1,*S2}`, so we drop down to the nearest
-    element containing both (and maybe more), which is `*void*`.
-  * Meet of `*S1` and struct `Null` results in `*S1?`
-  * Meet of `*void` and `Null` results in `*$BOT?`; bear in mind that `*void` is a synonym for `*$BOT`.
+    element containing both (and maybe more), which is `*void`.
+  * Meet of `*S1` and pointer `null` results in `*S1?`
+  * Meet of `*void` and `null` results in `*$BOT?`; bear in mind that `*void` is a synonym for `*$BOT`.
   * Meet of `1` and `2` results in `Int Bot`.
   * Meet of `#1` and `#2` results in `MEM#BOT`.
 * The `dual` operation is symmetric across the lattice centerline.  Types directly on the centerline are their own dual.
   * Find the corresponding node of the lattice after inverting the lattice.
     * Thus, dual of `Top` is `Bot`.
     * The dual of `*$TOP` is `*$BOT?`.
-  * For structs, the dual is obtained by computing the dual of each struct member. Thus, dual of `*S1` is not `*S1?`.
+  * For structs, the dual is obtained by computing the dual of each struct
+    member. Thus, dual of `*S1` is not `*S1?`, it is some `*S1?` with dualed
+    fields.
 
 * The `join` operation takes two types and computes the least upper bound type.
   Similar to `meet` this can thought of as set intersection (ANDing) of its input types.
-  Because our lattice structure is simple, we compute `join` with a well known identity:
+  Because our lattice structure is symmetric and complete, we compute `join` with a well known identity:
   `JOIN(x,y) === MEET(x.dual,y.dual).dual`
   * Example, join of `*S1` and `*S2` results in `*$TOP`.
   * Join of `1` and `2` results in `Int Top`.
@@ -195,8 +214,8 @@ lattice described in the previous section.
 ## Null Pointer Analysis
 
 The Simple language syntax allows a pointer variable to be specified as
-Null-able - and it prevents ever throwing a Null Pointer Exception.  The
-compiler tries to decide in a null check is needed, and if needed and missing
+null-able - and it prevents ever throwing a Null Pointer Exception.  The
+compiler decides if a null check is needed, and if needed and missing
 the compiler rejects the program (asking the user to insert a null check).
 
 When the Parser encounters conditions that test the truthiness of a pointer variable, it uses this knowledge to refine the type information in the branches that follow.

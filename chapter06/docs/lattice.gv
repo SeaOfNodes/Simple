@@ -4,27 +4,30 @@ digraph Lattice {
     node [shape=circle, style=filled, fillcolor=lightblue];
     nodesep=0.6;
 
-    TOP [label="⊤" , fillcolor=black, fontcolor=white];
-    BOT [label="⊥", fillcolor=black, fontcolor=white];
+    TOP [label=<<B>⊤</B >>, fillcolor=black, fontcolor=white];
+    BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
 
-    XCTRL [label="⊤ :Ctrl", fillcolor=yellow];
-    CTRL  [label="⊥ :Ctrl", fillcolor=yellow];
+    // ----------------------
+    // Control
+    XCTRL [label=<<B>⊤</B >:ctrl>, fillcolor=yellow, shape=oval];
+    CTRL  [label=<<B>⊥</B>:ctrl>, fillcolor=yellow, shape=oval];
 
-    INT_TOP [label="⊤ :Int"];
-    INT_BOT [label="⊥ :Int"];
+    TOP   -> XCTRL;
+    XCTRL -> CTRL;
+    CTRL  -> BOT;
 
-    INT_MIN [label="-n"];
-    INT_MINUS [label="-1"];
-    INT_MINDOTS [label="..." shape=none style=none];
-    INT_ZERO [label="0"];
-    INT_PLUS [label="1"];
-    INT_MAXDOTS [label="..." shape=none style=none];
-    INT_MAX [label="+n"];
+    // ----------------------
+    // Integers
+    INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
+    INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
 
-    TUPLE [label="TUPLE", fillcolor=pink];
-
-    // Define edges
-    edge [arrowhead=none];
+    INT_MIN     [label="-n" , fillcolor=lightblue];
+    INT_MINDOTS [label="...", fillcolor=lightblue shape=oval];
+    INT_MINUS   [label="-1" , fillcolor=lightblue];
+    INT_ZERO    [label="0"  , fillcolor=lightblue];
+    INT_PLUS    [label="1"  , fillcolor=lightblue];
+    INT_MAXDOTS [label="...", fillcolor=lightblue, shape=oval];
+    INT_MAX     [label="+n" , fillcolor=lightblue];
 
     TOP         -> INT_TOP;
     INT_TOP     -> INT_MIN;
@@ -44,18 +47,51 @@ digraph Lattice {
     INT_BOT     -> BOT;
 
     INT_MIN -> INT_MINDOTS -> INT_MINUS -> INT_ZERO -> INT_PLUS -> INT_MAXDOTS -> INT_MAX [style=invis];
+    
+    // ----------------------
+    // Tuples
 
-    TOP   -> TUPLE;
-    TUPLE -> BOT;
+    TUPLE_TOP [label=<<B>⊤</B >:tuple>, fillcolor=pink, shape=oval];
+    TUPLE_BOT [label=<<B>⊥</B>:tuple>, fillcolor=pink, shape=oval];
 
-    TOP   -> XCTRL;
-    XCTRL -> CTRL;
-    CTRL  -> BOT;
+    TUPLE1 [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+    TUPLE2 [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+    TUPLEN [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">...</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+
+
+    TOP -> TUPLE_TOP;
+    TUPLE_TOP -> TUPLE1;
+    TUPLE_TOP -> TUPLE2;
+    TUPLE_TOP -> TUPLEN;
+    TUPLE1 -> TUPLE_BOT;
+    TUPLE2 -> TUPLE_BOT;
+    TUPLEN -> TUPLE_BOT;
+    TUPLE_BOT -> BOT;
 
     // Additional customization
     {rank=same; TOP}
-    {rank=same; INT_TOP; XCTRL}
-    {rank=same; INT_MIN; INT_MINDOTS; INT_MINUS; INT_ZERO; INT_PLUS; INT_MAXDOTS; INT_MAX; TUPLE }
-    {rank=same; INT_BOT; CTRL}
+    {rank=same; XCTRL; INT_TOP; TUPLE_TOP}
+    {rank=same;
+      INT_MIN; INT_MINDOTS; INT_MINUS; INT_ZERO; INT_PLUS; INT_MAXDOTS; INT_MAX;
+    }
+    {rank=same; CTRL; INT_BOT, TUPLE_BOT}
     {rank=same; BOT;}
 }

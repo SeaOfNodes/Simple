@@ -22,20 +22,58 @@ digraph Lattice {
     INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
     INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
 
-    INT_MINDOTS [label="...", fillcolor=lightblue, shape=oval];
-    INT_ZERO    [label="0"  , fillcolor=lightblue];
-    INT_MAXDOTS [label="...", fillcolor=lightblue, shape=oval];
+    INT_HI    [label="max < min" , fillcolor=lightblue, shape=oval];
+    INT_XBOOL [label="1...0", fillcolor=lightblue, shape=oval];
+    INT_CON   [label="constants", fillcolor=lightblue, shape=oval];
+    INT_CON0  [label="0", fillcolor=lightblue];
+    INT_CON1  [label="1", fillcolor=lightblue];
+    INT_BOOL  [label="0...1", fillcolor=lightblue,shape=oval];
+    INT_LO    [label="max > min" , fillcolor=lightblue, shape=oval];
 
-    TOP         -> INT_TOP;
-    INT_TOP     -> INT_MINDOTS;
-    INT_TOP     -> INT_ZERO;
-    INT_TOP     -> INT_MAXDOTS;
-    INT_MINDOTS -> INT_BOT;
-    INT_ZERO    -> INT_BOT;
-    INT_MAXDOTS -> INT_BOT;
-    INT_BOT     -> BOT;
+    TOP        -> INT_TOP;
+    INT_TOP    -> INT_HI;
+    INT_HI     -> INT_XBOOL;
+    INT_XBOOL  -> INT_CON0;
+    INT_XBOOL  -> INT_CON1;
+    INT_HI     -> INT_CON;
+    INT_CON0   -> INT_BOOL;
+    INT_CON1   -> INT_BOOL;
+    INT_BOOL   -> INT_LO;
+    INT_CON    -> INT_LO;
+    INT_LO     -> INT_BOT;
+    INT_BOT    -> BOT;
 
-    INT_MINDOTS -> INT_ZERO -> INT_MAXDOTS [style=invis];
+    INT_CON0 -> INT_CON1 -> INT_CON [style=invis];
+
+    // ----------------------
+    // Integers
+    FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
+    FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
+
+    FLT_CON64  [label="64b consts\n[excludes\n32b consts]" , fillcolor=aqua, shape=oval];
+    FLT_CON32  [label="32b consts", fillcolor=aqua, shape=oval];
+    FLT_CONPI  [label="3.14159...", fillcolor=aqua, shape=oval];
+    FLT_X32    [label="~f32", fillcolor=aqua];
+    FLT_CON0   [label="0."  , fillcolor=aqua];
+    FLT_32     [label="f32" , fillcolor=aqua];
+
+    TOP       -> FLT_TOP;
+    FLT_TOP   -> FLT_CON64
+    FLT_TOP   -> FLT_CONPI
+    FLT_CON64 -> FLT_BOT
+    FLT_CONPI -> FLT_BOT
+    
+    FLT_TOP   -> FLT_X32;
+    FLT_X32   -> FLT_CON0;
+    FLT_X32   -> FLT_CON32;
+    FLT_CON0  -> FLT_32;
+    FLT_CON32 -> FLT_32;
+    FLT_32    -> FLT_BOT
+    
+    FLT_BOT   -> BOT;
+
+    FLT_CON0 -> FLT_CON32 -> FLT_CONPI -> FLT_CON64 [style=invis];
+
 
     // ----------------------
     // Pointers, just a boolean nil/not and a struct
@@ -152,10 +190,13 @@ digraph Lattice {
     // ----------------------
     // Additional customization
     {rank=same; TOP;}
-    {rank=same; INT_TOP; XCTRL; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
-    {rank=same; INT_MINDOTS; INT_ZERO; INT_MAXDOTS;
+    {rank=same; INT_TOP; FLT_TOP; XCTRL; PTR; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
+    {rank=same; INT_CON; INT_CON0; INT_CON1;
+                FLT_CON32; FLT_CON64;  FLT_CON0; FLT_CONPI;
                 STRUCT_S1; STRUCT_S2; STRUCT_SN;
-                MEM_ALIAS1; MEM_ALIASDOTS; MEM_ALIASN;}
-    {rank=same; INT_BOT; CTRL; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
+                MEM_ALIAS1;  MEM_ALIASDOTS; MEM_ALIASN;
+                TUPLE1; TUPLE2; TUPLEN;
+    }
+    {rank=same; INT_BOT; FLT_BOT; CTRL; PTR0; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
     {rank=same; BOT;}
 }

@@ -65,12 +65,27 @@ f32       // IEEE 754 32-bit float
 
 ## Type Implementation
 
-The TypeInteger class is reworked to support a full range of min/max values.
-At this time, only some power-of-2 sized ranges are exposed but the optimizer
+The <font style="background-color:lightblue">TypeInteger type</font> class is
+reworked to support a full range of min/max values.  At this time, only some
+power-of-2 sized ranges are exposed to the programmer but the optimizer
 internally supports all ranges.  The MEET operation takes the min-of-mins and
 max-of-maxes.  The DUAL operation inverts the min and max.
 
-The TypeFloat class is also reworked to support 32-bit and 64-bit sizes.
+Example: the constant `0` has `[0...0]`.
+
+Example: the `bool` the range `[0...1]`.
+
+Example: the `u8` the range `[0...255]`.
+
+Example: the `i8` the range `[-128...127]`.
+
+Example: the `dual` of `bool` is `[1...0]` (just swap min and max).
+
+The <font style="background-color:aqua">TypeFloat</font> class is also reworked to support 32-bit and 64-bit sizes.
+
+![Graph1](./docs/lattice.svg)
+
+
 
 
 ## Nodes
