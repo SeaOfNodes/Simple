@@ -93,17 +93,18 @@ Type
 ```
 
 It turns out that the set of values associated with a Type at a specific Node
-can be conveniently represented as a "lattice"
-https://en.wikipedia.org/wiki/Lattice_(order)
-.  Our lattice has the following structure:
+can be conveniently represented as a *lattice* 
+[wiki/Lattice_(order)](https://en.wikipedia.org/wiki/Lattice_(order)).  Our lattice has the following structure:
 
-![Lattice](./docs/02-lattice.svg)
+![Lattice](./docs/lattice.svg)
 
 Our lattice elements can be one of three types:
 
-* The highest element is "top", denoted by T; assigning T means that the Node's value may or may not be a compile time constant.
+* The highest element is "top", denoted by ⊤; assigning ⊤ means that the Node's
+  value may or may not be a compile time constant.
 * All elements in the middle are constants.
-* The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the Node's value is **not** a compile time constant.
+* The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the
+  Node's value is **not** a compile time constant.
 
 An invariant of peephole optimizations is that the type of a Node always moves
 *up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst

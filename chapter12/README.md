@@ -47,7 +47,8 @@ And their own section in the Type lattice:
 
 Within the Type Lattice, we now add the following domain:
 
-* Float type - Float values.  The same shape as the Integer values, but floats
+* <font style="background-color:aqua">Float type</font> - Float values.  The same shape as the Integer values, but floats
   with a TOP, BOT and constants
 
+![Graph1](./docs/lattice.svg)
 

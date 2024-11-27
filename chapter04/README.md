@@ -184,11 +184,9 @@ lattice.
 In this chapter we extend the Type hierarchy as follows:
 
 ```
-Type
-+-- TypeControl             (New - represents control token)
-+-- TypeInteger             (Enhanced - now has Top and Bottom types)
-+-- TypeBot
-+-- TypeTuple               (New - represents multi-valued result)
+Type              (Enhanced - now has Control, and a global Top and Bottom)
++-- TypeInteger   (Enhanced - now has Top and Bottom types)
++-- TypeTuple     (New - represents multi-valued result)
 ```
 
 Our enhanced Lattice looks like this:
@@ -197,14 +195,18 @@ Our enhanced Lattice looks like this:
 
 
 In this chapter we introduce the possibility of a program input variable named
-`arg`; all we know about this variable is that it is some integer value, but we do not know whether it is a constant or not.
+`arg`; all we know about this variable is that it is some integer value, but we
+do not know whether it is a constant or not.
 
-To support the requirements for non-constant integer values, we enhance `TypeInteger` to
-allow it to represent `IntTop` and `IntBot` integer types in addition to the earlier constant value.
+To support the requirements for non-constant integer values, we enhance
+`TypeInteger` to allow it to represent `IntTop` and `IntBot` integer types in
+addition to the earlier constant value.
 
-Now that integer values may be constants or non-constants, we need to introduce the "meet" operator
-in our lattice. The `meet` operator describes rules that define the resulting type when we combine
-integer values.
+Now that integer values may be constants or non-constants, we need to introduce
+the *meet* operator over our lattice. The `meet` operator describes rules that
+define the resulting type when we combine integer values.  In the lattice
+diagram you can start from the two elements being `meet` and follow the
+two arrows down the graph to the first point they meet.
 
 |        | IntBot | Con1   | Con2   | IntTop |
 |--------|--------|--------|--------|--------|
@@ -223,13 +225,26 @@ Currently, all our integer valued nodes are either a constant or a `IntBot` inte
 When we start optimizing loops, we will start seeing `IntTop` values.
 
 
+### Tuple Types
+
+Tuple types need a little more explaination: they are a fixed-size grouping of
+types; literally a `Type[]`.  Tuples represent a collection of otherwise
+unrelated types, and come from `MultiNode`s.  `ProjNode`s will take the
+appropriate `Type` array element out of a Tuple.  The `StartNode` now produces
+a 2-element `TypeTuple` with control and the type of `arg`: `[ctrl, TypeInteger.INTBOT]`
+
+The lattice `meet` operator on Tuples is done element by element; each array
+element recursively calls `meet`.  Tuples of mixed sizes are a internal
+compiler error, and the `meet` uses Bottom for them.
+
+
 ## `$ctrl` name binding
 
 In previous chapters, we had a hard coded control input edge from Start to
 Return. In this chapter we no longer have such a hard-wired edge.  Instead, we
 track the current in-scope control node via the name `$ctrl`.  This means that
-when we need to create an edge to the predecessor control node, we simply
-look up this name in the current scope.
+when we need to create an edge to the predecessor control node, we simply look
+up this name in the current scope.
 
 This introduces the idea that the control flow subgraph is a Petri net model.[^1]
 The control token moves virtually from node to node as execution proceeds.  The

@@ -38,6 +38,26 @@ digraph Lattice {
     INT_MINDOTS -> INT_ZERO -> INT_MAXDOTS [style=invis];
 
     // ----------------------
+    // Integers
+    FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
+    FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
+
+    FLT_MINDOTS [label="...", fillcolor=aqua, shape=oval];
+    FLT_ZERO    [label="0"  , fillcolor=aqua];
+    FLT_MAXDOTS [label="...", fillcolor=aqua, shape=oval];
+
+    TOP         -> FLT_TOP;
+    FLT_TOP     -> FLT_MINDOTS;
+    FLT_TOP     -> FLT_ZERO;
+    FLT_TOP     -> FLT_MAXDOTS;
+    FLT_MINDOTS -> FLT_BOT;
+    FLT_ZERO    -> FLT_BOT;
+    FLT_MAXDOTS -> FLT_BOT;
+    FLT_BOT     -> BOT;
+
+    FLT_MINDOTS -> FLT_ZERO -> FLT_MAXDOTS [style=invis];
+    
+    // ----------------------
     // Pointers, just a boolean nil/not and a struct
     PTR  [shape=none, fillcolor=none, label=<
       <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
@@ -152,10 +172,11 @@ digraph Lattice {
     // ----------------------
     // Additional customization
     {rank=same; TOP;}
-    {rank=same; INT_TOP; XCTRL; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
-    {rank=same; INT_MINDOTS; INT_ZERO; INT_MAXDOTS;
+    {rank=same; INT_TOP; FLT_TOP; XCTRL; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
+    {rank=same; INT_MINDOTS; INT_ZERO; INT_MAXDOTS; 
+                FLT_MINDOTS; FLT_ZERO; FLT_MAXDOTS;
                 STRUCT_S1; STRUCT_S2; STRUCT_SN;
-                MEM_ALIAS1; MEM_ALIASDOTS; MEM_ALIASN;}
-    {rank=same; INT_BOT; CTRL; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
+                MEM_ALIAS1;  MEM_ALIASDOTS; MEM_ALIASN;}
+    {rank=same; INT_BOT; FLT_BOT; CTRL; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
     {rank=same; BOT;}
 }

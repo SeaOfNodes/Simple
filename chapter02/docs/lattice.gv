@@ -1,0 +1,40 @@
+digraph Lattice {
+    compound = true;
+    // Define nodes
+    splines=false;
+    node [shape=circle, style=filled];
+    nodesep=0.6;
+
+    // ----------------------
+    // Integers
+    INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
+    INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
+
+    INT_MIN     [label="-n" , fillcolor=lightblue];
+    INT_MINDOTS [label="...", fillcolor=lightblue shape=oval];
+    INT_MINUS   [label="-1" , fillcolor=lightblue];
+    INT_ZERO    [label="0"  , fillcolor=lightblue];
+    INT_PLUS    [label="1"  , fillcolor=lightblue];
+    INT_MAXDOTS [label="...", fillcolor=lightblue, shape=oval];
+    INT_MAX     [label="+n" , fillcolor=lightblue];
+
+    INT_TOP     -> INT_MIN;
+    INT_TOP     -> INT_MINDOTS;
+    INT_TOP     -> INT_MINUS;
+    INT_TOP     -> INT_ZERO;
+    INT_TOP     -> INT_PLUS;
+    INT_TOP     -> INT_MAXDOTS;
+    INT_TOP     -> INT_MAX;
+    INT_MIN     -> INT_BOT;
+    INT_MINDOTS -> INT_BOT;
+    INT_MINUS   -> INT_BOT;
+    INT_ZERO    -> INT_BOT;
+    INT_PLUS    -> INT_BOT;
+    INT_MAXDOTS -> INT_BOT;
+    INT_MAX     -> INT_BOT;
+
+    INT_MIN -> INT_MINDOTS -> INT_MINUS -> INT_ZERO -> INT_PLUS -> INT_MAXDOTS -> INT_MAX [style=invis];
+
+    // Additional customization
+    {rank=same; INT_MIN; INT_MINDOTS; INT_MINUS; INT_ZERO; INT_PLUS; INT_MAXDOTS; INT_MAX; }
+}
