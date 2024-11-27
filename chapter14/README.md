@@ -73,11 +73,11 @@ max-of-maxes.  The DUAL operation inverts the min and max.
 
 Example: the constant `0` has `[0...0]`.
 
-Example: the `bool` the range `[0...1]`.
+Example: the `bool` type has the range `[0...1]`.
 
-Example: the `u8` the range `[0...255]`.
+Example: the `u8` type has the range `[0...255]`.
 
-Example: the `i8` the range `[-128...127]`.
+Example: the `i8` type has the range `[-128...127]`.
 
 Example: the `dual` of `bool` is `[1...0]` (just swap min and max).
 
