@@ -29,7 +29,7 @@ public class GraphVisualizer {
         // nodes in the graph.
         Collection<Node> all = findAll(stop, scope);
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph chapter11 {\n");
+        sb.append("digraph chapter18 {\n");
         sb.append("/*\n");
         sb.append(stop._src);
         sb.append("\n*/\n");
