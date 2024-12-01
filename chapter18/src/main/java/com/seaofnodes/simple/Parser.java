@@ -246,7 +246,7 @@ public class Parser {
      */
     private Node parseFor() {
         // {   var x=init,y=init,...;
-        //     while( pred ) {
+        //     while( test ) {
         //         body;
         //         next;
         //     }

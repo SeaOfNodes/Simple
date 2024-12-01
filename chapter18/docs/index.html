@@ -1,0 +1,168 @@
+<!DOCTYPE html style="height: 100%; margin:0">
+<meta charset="utf-8">
+<title>Simple Viewer</title>
+<script src="d3.v7.min.js"></script>
+<script src="graphviz.umd.js"></script>
+<script src="d3-graphviz.js"></script>
+
+<body style="height: 100%; margin:0">
+
+  <div style="display:flex; flex-flow:column; height: 100%;">
+    <div id="head" style="flex: 0 1 auto; align-self:center; "> HEADER </div>
+    <div id="fill" style="flex: 1 1 auto"> </div>
+    <div id="graph" style="flex: 0 1 auto; align-self:center;"> </div>
+
+    <div style="display:flex; flex-flow:row; flex: 0 1 auto; align-self:center;">
+      <style>
+        .button { color:white; background-color:black; font-size:20px; min-width:30px }
+      </style>
+      <button id="doPrev" type="button" onclick="doPrev()" class="button">&#11164;</button>
+      <div id="N" style="font-size: 20px; border-style: ridge; min-width: 50px; text-align: right; padding-right: 10px;">0</div>
+      <button id="doNext" type="button" onclick="doNext()" class="button">&#11166;</button>
+      <button id="doExit" type="button" onclick="doExit()" class="button">Exit</button>
+    </div>
+  </div>
+
+
+<script>
+
+  var _timer;    // Shutdown timer if server goes silent
+  var N=0 ;      // Which dot/graph is being displayed
+  var dots=[];   // An array of DOT strings
+  // Graphviz renderer
+  var graphviz = d3.select("#graph").graphviz()
+      .transition(function () {
+          return d3.transition("main")
+              .ease(d3.easeLinear)
+              .delay(0)
+              .duration(500);
+      });
+
+  // Websocket.  :-P
+  const socket = new WebSocket("ws://localhost:12345");
+
+
+  // Read user program
+  function get_program() {
+    updateN(0);
+    dots=[];
+    var src = prompt("Simple program:", "return 0;");
+    socket.send(src);
+    // Once the program is sent, timer starts
+    _timer = setTimeout("close()",10000)
+  };
+
+  // Go forwards in the animation
+  function doNext() {
+    updateN(N+1);
+    if( N < dots.length ) {
+      render(N-1,N,1);
+    } else {
+      N = dots.length;
+      socket.send("+"); // Block awaiting server next frame
+    }
+  }
+
+  // Go back in the animation
+  function doPrev() {
+    if( N>0 ) {
+      updateN(N-1);
+      if( N < dots.length-1 ) {
+        render(N+1,N,-1);
+      }
+    }
+  }
+
+  // exit
+  function doExit() { socket.send(null); close(); };
+
+  // Update step counter display and buttons
+  function updateN(newN) {
+    N = newN;
+    DOC_PREV = document.getElementById("doPrev");
+    DOC_NEXT = document.getElementById("doNext");
+
+    if( N==0 && !DOC_PREV.disabled ) {
+      DOC_PREV.disabled = true;
+      DOC_PREV.style.backgroundColor = "grey";
+    }
+    if( N>0 && DOC_PREV.disabled ) {
+      DOC_PREV.disabled = false;
+      DOC_PREV.style.backgroundColor = "black";
+    }
+    if( N <dots.length && DOC_NEXT.disabled ) {
+      // Indicate stall, no next frame from server
+      DOC_NEXT.textContent = "\u2B9E";
+      DOC_NEXT.disabled = false;
+      DOC_NEXT.style.backgroundColor = "black";
+    }
+    if( N==dots.length && !DOC_NEXT.disabled ) {
+      // Indicate stall, no next frame from server
+      DOC_NEXT.textContent = "...";
+      DOC_NEXT.disabled = true;
+      DOC_NEXT.style.backgroundColor = "grey";
+    }
+    document.getElementById("N").textContent = N==dots.length ? (">"+(N-1)) : N;
+
+  };
+
+
+  // Render an animation, from idx to end by step.
+  function render(idx, end, step) {
+    _rend(idx,end+step,step);
+  }
+  // Render an animation in a 'for' loop of frames
+  // until we hit the end.  Looping is done via callbacks.
+  var aix = -1; // Last DOT rendered
+  function _rend(idx,end,step) {
+    // Skip animation if already rendered/showing on screen
+   // if( idx==aix ) _rendNext(idx,end,step);
+    aix = idx;
+    graphviz.renderDot(dots[idx]).on("end", _rendNext(idx,end,step))
+  }
+  function _rendNext(idx,end,step) {
+    if( idx+step != end )
+      _rend(idx+step,end,step);
+  };
+
+
+  socket.onopen = () => { console.log('WebSocket connection opened'); };
+
+  // receive message from server; either a shutdown or a new graph
+  socket.onmessage = (event) => {
+    clearTimeout(_timer);  _timer=null;
+    const dot = event.data;
+    console.log("Received:", dot.substring(0,100));
+
+    if( dot == "!" ) {
+      // Server requests client resets
+      get_program();
+
+    } else if( dot.startsWith("digraph") ) {
+      // Received a new graph
+      dots.push(dot);
+      updateN(N);
+      socket.send("+"); // Get another frame
+      // If at-end, receiving a graph immediately renders
+      if( dots.length==1 )
+        graphviz.renderDot(dots[0]);
+      else if( N+1 == dots.length )
+        render(N-1,N,1);
+      // After render, hang around until user clicks things
+      console.log("GRAPHVIZ done; N="+N+"; dots="+dots.length);
+
+    } else {
+      console.error('Server sent unexpected: ',dot);
+      get_program();
+    }
+  };
+
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+
+  // Starter situation, as-if reset
+  get_program();
+
+</script>
+</body>
