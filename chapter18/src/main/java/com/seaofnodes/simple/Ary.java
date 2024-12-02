@@ -57,18 +57,6 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return true;
     }
 
-    ///** Slow, linear-time, element insert.  Preserves order.
-    // *  @param i index to insert at, between 0 and _len inclusive.
-    // *  @param e Element to insert
-    // */
-    //public void insert( int i, E e ) {
-    //    if( i < 0 || i>_len )
-    //        throw new ArrayIndexOutOfBoundsException(""+i+" >= "+_len);
-    //    if( _len >= _es.length ) _es = Arrays.copyOf(_es,Math.max(1,_es.length<<1));
-    //    System.arraycopy(_es,i,_es,i+1,(_len++)-i);
-    //    _es[i] = e;
-    //}
-
     /** Fast, constant-time, element removal.  Does not preserve order
      *  @param i element to be removed
      *  @return element removed */

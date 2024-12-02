@@ -82,7 +82,6 @@ public class Parser {
             add("while");
         }};
 
-
     /**
      * We clone ScopeNodes when control flows branch; it is useful to have
      * a list of all active ScopeNodes for purposes of visualization of the SoN graph
@@ -100,6 +99,7 @@ public class Parser {
     // Mapping from a type name to the constructor for a Type.
     public final HashMap<String, StructNode> INITS;
 
+    public Parser(String source) { this(source, TypeInteger.BOT); }
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
@@ -115,10 +115,6 @@ public class Parser {
         ALIAS = 2; // alias 0 for the control, 1 for memory
         TYPES = defaultTypes();
         INITS = new HashMap<>();
-    }
-
-    public Parser(String source) {
-        this(source, TypeInteger.BOT);
     }
 
     @Override
@@ -162,6 +158,7 @@ public class Parser {
         mem.addDef(                                           new  ProjNode(START, 1, ScopeNode.MEM0).peephole());
         _scope.define(ScopeNode.MEM0, TypeMem.TOP    , false, mem                                    .peephole());
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
+        JSViewer.show();
 
         // Parse whole program
         parseBlock(false);

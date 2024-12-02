@@ -27,7 +27,7 @@ public class GraphVisualizer {
 
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
-        Collection<Node> all = findAll(stop, scope);
+        Collection<Node> all = findAll(xScopes, stop, scope);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter18 {\n");
         sb.append("/*\n");
@@ -263,20 +263,19 @@ public class GraphVisualizer {
     /**
      * Finds all nodes in the graph.
      */
-    private Collection<Node> findAll(Node stop, Node scope) {
+    public static Collection<Node> findAll(Stack<ScopeNode> ss, Node... ns) {
         final HashMap<Integer, Node> all = new HashMap<>();
-        for( Node n : stop._inputs )
+        for( Node n : ns )
             walk(all, n);
-        if( scope != null )
-            for( Node n : scope._inputs )
-                walk(all, n);
+        for( Node n : ss )
+            walk(all, n);
         return all.values();
     }
 
     /**
      * Walk a subgraph and populate distinct nodes in the all list.
      */
-    private void walk(HashMap<Integer,Node> all, Node n) {
+    private static void walk(HashMap<Integer,Node> all, Node n) {
         if(n == null ) return;
         if (all.get(n._nid) != null) return; // Been there, done that
         all.put(n._nid, n);

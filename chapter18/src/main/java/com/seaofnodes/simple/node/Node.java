@@ -1,9 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.IRPrinter;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import java.util.*;
@@ -306,7 +303,7 @@ public abstract class Node implements OutNode {
             return this;        // Peephole optimizations turned off
         }
         Node n = peepholeOpt();
-        return n==null ? this : deadCodeElim(n.peephole()); // Cannot return null for no-progress
+        return n==null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n); // Cannot return null for no-progress
     }
 
     /**
@@ -328,6 +325,13 @@ public abstract class Node implements OutNode {
      * </ul>
      */
     public final Node peepholeOpt( ) {
+        JSViewer.show();
+        Node n = _peepholeOpt();
+        if( n==null ) return null;
+        JSViewer.show();
+        return n;
+    }
+    private final Node _peepholeOpt( ) {
         ITER_CNT++;
         // Compute initial or improved Type
         Type old = setType(compute());

@@ -17,8 +17,10 @@
         .button { color:white; background-color:black; font-size:20px; min-width:30px }
       </style>
       <button id="doPrev" type="button" onclick="doPrev()" class="button">&#11164;</button>
-      <div id="N" style="font-size: 20px; border-style: ridge; min-width: 50px; text-align: right; padding-right: 10px;">0</div>
+      <div id="N"   style="font-size: 20px; border-style: ridge; min-width: 50px; text-align: right; padding-right: 10px;">0</div>
       <button id="doNext" type="button" onclick="doNext()" class="button">&#11166;</button>
+      <div id="len" style="font-size: 20px;                      min-width: 50px; text-align: right; padding-right: 10px;">0</div>
+      <button id="doNew"  type="button" onclick="doNew ()" class="button">New</button>
       <button id="doExit" type="button" onclick="doExit()" class="button">Exit</button>
     </div>
   </div>
@@ -29,11 +31,12 @@
   var _timer;    // Shutdown timer if server goes silent
   var N=0 ;      // Which dot/graph is being displayed
   var dots=[];   // An array of DOT strings
+  var done;      // No more DOTs from server
   // Graphviz renderer
   var graphviz = d3.select("#graph").graphviz()
       .transition(function () {
           return d3.transition("main")
-              .ease(d3.easeLinear)
+              .ease(d3.easePolyInOut)
               .delay(0)
               .duration(500);
       });
@@ -46,10 +49,11 @@
   function get_program() {
     updateN(0);
     dots=[];
+    done=false;
     var src = prompt("Simple program:", "return 0;");
     socket.send(src);
     // Once the program is sent, timer starts
-    _timer = setTimeout("close()",10000)
+    _timer = setTimeout("close()",100000)
   };
 
   // Go forwards in the animation
@@ -75,6 +79,8 @@
 
   // exit
   function doExit() { socket.send(null); close(); };
+  // New program
+  function doNew() { get_program(); }
 
   // Update step counter display and buttons
   function updateN(newN) {
@@ -102,7 +108,8 @@
       DOC_NEXT.disabled = true;
       DOC_NEXT.style.backgroundColor = "grey";
     }
-    document.getElementById("N").textContent = N==dots.length ? (">"+(N-1)) : N;
+    document.getElementById("N")  .textContent = N==dots.length ? (">"+(N-1)) : N;
+    document.getElementById("len").textContent = dots.length;
 
   };
 
@@ -138,9 +145,14 @@
       // Server requests client resets
       get_program();
 
+    } else if( dot == "#" ) {
+      // Server sent final frame
+      done = true;
+
     } else if( dot.startsWith("digraph") ) {
       // Received a new graph
       dots.push(dot);
+      console.log(dot);
       updateN(N);
       socket.send("+"); // Get another frame
       // If at-end, receiving a graph immediately renders
@@ -157,6 +169,7 @@
     }
   };
 
+  socket.onclose = () => { close(); }
   socket.onerror = (error) => {
     console.error('WebSocket error:', error);
   };
