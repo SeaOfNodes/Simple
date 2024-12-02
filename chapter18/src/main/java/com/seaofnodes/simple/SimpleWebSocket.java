@@ -60,7 +60,7 @@ class SimpleWebSocket extends ServerSocket {
         _len = _in.read(_ins);  _x=0;
         int op = rawget();
         if( (op&0x80)!=0x80 ) // FIN bit not set?
-            throw Utils.TODO("Multi-part from client: "+op); // Multi-part message
+            throw Utils.TODO("Multi-part from client: "+op); // Multipart message
         op &= 0x7F;         // Strip FIN bit
         switch( op&15) {
         case 1: {
@@ -89,9 +89,20 @@ class SimpleWebSocket extends ServerSocket {
 
     // Classic put to browser client.  No encoding.
     public void put(String msg) throws IOException {
-        assert msg.length() < 125;
-        _out.write(129); // FIN
-        _out.write(msg.length());
+        int len = msg.length();
+        if( len <= 125 ) {
+            _out.write(129); // FIN, opcode 1 - whole text message
+            _out.write(len);
+            for( int i=0; i<msg.length(); i++ )
+                _out.write(msg.charAt(i));
+            return;
+        }
+        if( len > 65535 )
+            throw Utils.TODO("MOAR LENGTH");
+        _out.write(129);        // FIN, opcode 1 - whole text message
+        _out.write(126);        // Length is 16b
+        _out.write(len>>>8);
+        _out.write(len&255);
         for( int i=0; i<msg.length(); i++ )
             _out.write(msg.charAt(i));
     }

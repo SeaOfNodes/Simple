@@ -15,6 +15,7 @@ public class StopNode extends CFGNode {
     public StopNode(String src) {
         super();
         _src = src;
+        _type = compute();
     }
 
     @Override
