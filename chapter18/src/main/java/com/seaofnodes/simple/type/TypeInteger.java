@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
@@ -46,7 +47,7 @@ public class TypeInteger extends Type {
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
     @Override
-    public StringBuilder print(StringBuilder sb) { return sb.append(str()); }
+    public SB print(SB sb) { return sb.p(str()); }
 
     @Override public String str() {
         if( this==TOP ) return "~int";
@@ -60,16 +61,6 @@ public class TypeInteger extends Type {
         if( this==U32 ) return ("u32");
         if( isConstant() ) return ""+_min;
         return "["+_min+"-"+_max+"]";
-    }
-
-    /**
-     * Display Type name in a format that's good for IR printer
-     */
-    @Override
-    public StringBuilder typeName(StringBuilder sb) {
-        if( this==TOP ) return sb.append("IntTop");
-        if( this==BOT ) return sb.append("IntBot");
-        return sb.append("Int");
     }
 
     @Override public boolean isHigh       () { return _min >  _max; }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import java.util.ArrayList;
 
 /**
@@ -83,10 +84,10 @@ public class TypeMemPtr extends Type {
 
     // [void,name,MANY]*[,?]
     @Override
-    public StringBuilder print(StringBuilder sb) {
-        if( this== NULLPTR) return sb.append("null");
-        if( this== VOIDPTR) return sb.append("*void");
-        return _obj.print(sb.append("*")).append(_nil ? "?" : "");
+    public SB print(SB sb) {
+        if( this== NULLPTR) return sb.p("null");
+        if( this== VOIDPTR) return sb.p("*void");
+        return _obj.print(sb.p("*")).p(_nil ? "?" : "");
     }
 
     @Override public String str() {

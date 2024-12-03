@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Ary;
+import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
-
 import static com.seaofnodes.simple.Utils.TODO;
 
 /**
@@ -50,7 +50,7 @@ public class ScopeNode extends ScopeMinNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
             Var v = _vars.get(i);
-            v.type().print(sb);
+            sb.append(v.type().print(new SB()));
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);

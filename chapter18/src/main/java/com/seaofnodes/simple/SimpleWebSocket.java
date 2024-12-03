@@ -65,9 +65,12 @@ class SimpleWebSocket extends ServerSocket {
         switch( op&15) {
         case 1: {
             // Message length
-            int len = (rawget()&0xFF)-128;
-            if( len > 125 )
-                throw Utils.TODO(); // Multi-byte length
+            int len = rawget()-128;
+            if( len > 125 ) {
+                if( len > 126 )
+                    throw Utils.TODO(); // Multi-byte length
+                len = (rawget()<<8) | rawget();
+            }
             // Encoding key
             _key[0] = (byte)rawget();
             _key[1] = (byte)rawget();
@@ -108,8 +111,10 @@ class SimpleWebSocket extends ServerSocket {
     }
 
     @Override public void close() throws IOException {
-        _out.write(0b10001000);
-        _out.flush();
+        if( _out != null ) {
+            _out.write(0b10001000);
+            _out.flush();
+        }
         super.close();
     }
 }

@@ -11,7 +11,7 @@ public class IRPrinter {
     // Print a node on 1 line, columnar aligned, as:
     // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
-    public static void _printLine( Node n, StringBuilder sb ) {
+    public static void printLine( Node n, StringBuilder sb ) {
         sb.append("%4d %-7.7s ".formatted(n._nid,n.label()));
         if( n._inputs==null ) {
             sb.append("DEAD\n");
@@ -40,40 +40,14 @@ public class IRPrinter {
         return sb;
     }
 
-    // Print a node on 1 line, format is inspired by LLVM
-    // %id: TYPE = NODE(inputs ....)
-    // Nodes as referred to as %id
-    public static void _printLineLlvmFormat( Node n, StringBuilder sb ) {
-        nodeId(sb, n).append(": ");
-        if( n._inputs==null ) {
-            sb.append("DEAD\n");
-            return;
-        }
-        if( n._type!= null ) n._type.typeName(sb);
-        sb.append(" = ").append( n.label() ).append( "(" );
-        for( int i = 0; i < n._inputs.size(); i++ ) {
-            Node def = n.in(i);
-            if (i > 0)
-                sb.append(", ");
-            if (def == null) sb.append("_");
-            else             nodeId(sb, def);
-        }
-        sb.append(")").append("\n");
-    }
-
-    public static void printLine( Node n, StringBuilder sb, boolean llvmFormat ) {
-        if (llvmFormat) _printLineLlvmFormat( n, sb );
-        else            _printLine          ( n, sb );
-    }
-
     public static String prettyPrint(Node node, int depth) {
         return Parser.SCHEDULED
-            ? prettyPrintScheduled( node, depth, false )
-            : prettyPrint( node, depth, false );
+            ? _prettyPrintScheduled( node, depth )
+            : _prettyPrint( node, depth );
     }
 
     // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
-    public static String prettyPrint( Node node, int depth, boolean llvmFormat ) {
+    private static String _prettyPrint( Node node, int depth ) {
         // First, a Breadth First Search at a fixed depth.
         BFS bfs = new BFS(node,depth);
         // Convert just that set to a post-order
@@ -88,16 +62,16 @@ public class IRPrinter {
             Node n = rpos.get(i);
             if( n instanceof CFGNode || n.isMultiHead() ) {
                 if( !gap ) sb.append("\n"); // Blank before multihead
-                printLine( n, sb, llvmFormat ); // Print head
+                printLine( n, sb );         // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
                     if( !t.isMultiTail() ) { i++; break; }
-                    printLine( t, sb, llvmFormat );
+                    printLine( t, sb );
                 }
                 sb.append("\n"); // Blank after multitail
                 gap = true;
             } else {
-                printLine( n, sb, llvmFormat );
+                printLine( n, sb );
                 gap = false;
             }
         }
@@ -188,7 +162,7 @@ public class IRPrinter {
     }
 
     // Bulk pretty printer, knowing scheduling information is available
-    public static String prettyPrintScheduled( Node node, int depth, boolean llvmFormat ) {
+    private static String _prettyPrintScheduled( Node node, int depth ) {
         // Backwards DFS walk to depth.
         HashMap<Integer,Integer> ds = new HashMap<>();
         ArrayList<Node> ns = new ArrayList<>();
@@ -237,17 +211,17 @@ public class IRPrinter {
             // Print Phis up front, if any
             for( int i=0; i<bns.size(); i++ )
                 if( bns.get(i) instanceof PhiNode phi )
-                    printLine( phi, sb, llvmFormat,bns,i--,ds,ns);
+                    printLine( phi, sb,bns,i--,ds,ns);
 
             // Print block contents in depth order, bumping depth until whole block printed
             for( ; !bns.isEmpty(); xd++ )
                 for( int i=0; i<bns.size(); i++ ) {
                     Node n = bns.get(i);
                     if( ds.get(n._nid)==xd ) {
-                        printLine( n, sb, llvmFormat, bns, i--, ds,ns );
+                        printLine( n, sb, bns, i--, ds,ns );
                         if( n instanceof MultiNode && !(n instanceof CFGNode) ) {
                             for( Node use : n._outputs ) {
-                                printLine(use,sb,llvmFormat,bns,bns.indexOf(use),ds,ns);
+                                printLine(use,sb,bns,bns.indexOf(use),ds,ns);
                             }
                         }
                     }
@@ -276,8 +250,8 @@ public class IRPrinter {
         if( !blk.blockHead() ) blk = blk.cfg(0);
         sb.append( "%-9.9s ".formatted( label( blk ) ) );
     }
-    static void printLine( Node n, StringBuilder sb, boolean llvmFormat, ArrayList<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
-        printLine( n, sb, llvmFormat );
+    static void printLine( Node n, StringBuilder sb, ArrayList<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
+        printLine( n, sb );
         if( i != -1 ) Utils.del(bns,i);
         ds.remove(n._nid);
         ns.remove(n);

@@ -42,7 +42,8 @@ public class ScopeMinNode extends Node {
     public ScopeMinNode() { _type = TypeMem.BOT; }
 
 
-    @Override public String label() { return "MEM"; }
+    @Override public String label() { return "$mem"; }
+    @Override public boolean isMem() { return true; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {

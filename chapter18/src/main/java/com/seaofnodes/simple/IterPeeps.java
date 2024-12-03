@@ -86,6 +86,7 @@ public abstract class IterPeeps {
                 }
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
+                JSViewer.show(); // Show again
                 assert progressOnList(stop); // Very expensive assert
             }
             if( n.isUnused() && !(n instanceof StopNode) )

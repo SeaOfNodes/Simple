@@ -156,7 +156,7 @@ public class Parser {
         mem.addDef(null);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, new CProjNode(START, 0, ScopeNode.CTRL).peephole());
         mem.addDef(                                           new  ProjNode(START, 1, ScopeNode.MEM0).peephole());
-        _scope.define(ScopeNode.MEM0, TypeMem.TOP    , false, mem                                    .peephole());
+        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, mem                                    .peephole());
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
         JSViewer.show();
 
@@ -172,6 +172,7 @@ public class Parser {
         INITS.clear();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         STOP.peephole();
+        JSViewer.show();
         if( show ) showGraph();
         return STOP;
     }

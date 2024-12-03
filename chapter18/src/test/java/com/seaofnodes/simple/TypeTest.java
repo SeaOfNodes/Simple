@@ -32,7 +32,7 @@ public class TypeTest {
         Assert.assertNotEquals(m3, m4);
 
         Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
-        Assert.assertEquals(TypeMem.make(-1,TypeInteger.U16), m1.meet(m2));
+        Assert.assertEquals(TypeMem.make(0,TypeInteger.U16), m1.meet(m2));
         Assert.assertEquals(TypeMem   .BOT, m2.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 

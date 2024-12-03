@@ -36,7 +36,7 @@
   var graphviz = d3.select("#graph").graphviz()
       .transition(function () {
           return d3.transition("main")
-              .ease(d3.easePolyInOut)
+              .ease(d3.easeLinear)
               .delay(0)
               .duration(500);
       });
@@ -50,7 +50,15 @@
     updateN(0);
     dots=[];
     done=false;
-    var src = prompt("Simple program:", "return 0;");
+    var src = prompt("Simple program:",`struct Vector2D { int x; int y; };
+Vector2D !v = new Vector2D;
+v.x = 1;
+if (arg)
+    v.y = 2;
+else
+    v.y = 3;
+return v;
+`);
     socket.send(src);
     // Once the program is sent, timer starts
     _timer = setTimeout("close()",100000)
