@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import java.util.ArrayList;
 
 public class TypeTuple extends Type {
@@ -44,34 +45,18 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override public StringBuilder print(StringBuilder sb) {
-        sb.append("[  ");
+    @Override public SB print(SB sb) {
+        sb.p("[  ");
         for( Type t : _types )
-            t.print(sb).append(", ");
-        sb.setLength(sb.length()-2);
-        sb.append("]");
-        return sb;
+            t.print(sb).p(", ");
+        return sb.unchar(2).p("]");
     }
 
     @Override public String str() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("[  ");
+        SB sb = new SB().p("[  ");
         for( Type t : _types )
-            sb.append(t.str()).append(", ");
-        sb.setLength(sb.length()-2);
-        return sb.append("]").toString();
-    }
-
-    /**
-     * Display Type name in a format that's good for IR printer
-     */
-    @Override
-    public StringBuilder typeName(StringBuilder sb) {
-        sb.append("[");
-        for( Type t : _types )
-            t.typeName(sb).append(",");
-        sb.setLength(sb.length()-1);
-        return sb.append("]");
+            sb.p(t.str()).p(", ");
+        return sb.unchar(2).p("]").toString();
     }
 
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});

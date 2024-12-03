@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
@@ -195,13 +196,13 @@ public class TypeStruct extends Type {
     }
 
     @Override
-    public StringBuilder print(StringBuilder sb) {
-        sb.append(_name);
+    public SB print(SB sb) {
+        sb.p(_name);
         if( _fields == null ) return sb; // Forward reference struct, just print the name
-        sb.append(" {");
+        sb.p(" {");
         for( Field f : _fields )
-            f._type.print(sb).append(f._final ? " " : " !").append(f._fname).append("; ");
-        return sb.append("}");
+            f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");
+        return sb.p("}");
     }
 
     @Override public String str() { return _name; }

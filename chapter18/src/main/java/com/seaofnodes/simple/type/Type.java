@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -77,12 +77,6 @@ public class Type {
     // Strict constant values, things on the lattice centerline.
     // Excludes both high and low values
     public boolean isConstant() { return false; }
-
-    /**
-     * Display Type name in a format that's good for IR printer
-     */
-    public StringBuilder typeName( StringBuilder sb) { return print(sb); }
-
 
     // ----------------------------------------------------------
 
@@ -210,10 +204,10 @@ public class Type {
     // This is a more verbose dev-friendly print.
     @Override
     public final String toString() {
-        return print(new StringBuilder()).toString();
+        return print(new SB()).toString();
     }
 
-    public StringBuilder print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public SB print(SB sb) { return is_simple() ? sb.p(STRS[_type]) : sb;}
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }

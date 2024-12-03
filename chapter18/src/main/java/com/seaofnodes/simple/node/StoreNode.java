@@ -93,7 +93,7 @@ public class StoreNode extends MemOpNode {
             // Must retype the NewNode
             nnn  ._type = nnn.  compute();
             mem()._type = mem().compute();
-            return st;
+            return mem();
         }
 
         return null;

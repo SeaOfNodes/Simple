@@ -90,8 +90,9 @@ public abstract class Node implements OutNode {
     @Override
     public final String toString() {  return print(); }
 
-    // This is a *deep* print.  We print with a tik-tok style; the common
-    // _print0 calls the per-Node _print1, which calls back to _print0;
+    // This is a *deep* print.  We print with a mutually recursive tik-tok
+    // style; the common _print0 calls the per-Node _print1, which calls back
+    // to _print0;
     public final String print() {
         return _print0(new StringBuilder(), new BitSet()).toString();
     }
@@ -302,7 +303,11 @@ public abstract class Node implements OutNode {
             _type = compute();
             return this;        // Peephole optimizations turned off
         }
+        if( _type==null )       // Brand-new node, never peeped before
+            JSViewer.show();
         Node n = peepholeOpt();
+        if( n!=null )           // Made progress?
+            JSViewer.show();    // Show again
         return n==null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n); // Cannot return null for no-progress
     }
 
@@ -325,13 +330,6 @@ public abstract class Node implements OutNode {
      * </ul>
      */
     public final Node peepholeOpt( ) {
-        JSViewer.show();
-        Node n = _peepholeOpt();
-        if( n==null ) return null;
-        JSViewer.show();
-        return n;
-    }
-    private final Node _peepholeOpt( ) {
         ITER_CNT++;
         // Compute initial or improved Type
         Type old = setType(compute());

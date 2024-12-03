@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
@@ -69,8 +70,8 @@ public class Field extends Type {
 
 
     @Override
-    public StringBuilder print( StringBuilder sb ) {
-        return _type.print(sb.append(_final?"":"!").append(_fname).append(":").append(_alias).append(" : "));
+    public SB print( SB sb ) {
+        return _type.print(sb.p(_final?"":"!").p(_fname).p(":").p(_alias).p(" : "));
     }
 
     @Override public String str() { return _fname; }

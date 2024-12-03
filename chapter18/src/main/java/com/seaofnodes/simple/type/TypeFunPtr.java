@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
@@ -74,23 +75,23 @@ public class TypeFunPtr extends Type {
 
     // [void,name,MANY]*[,?]
     @Override
-    public StringBuilder print(StringBuilder sb) {
-        if( this== NULLPTR) return sb.append("null");
-        if( this== VOIDPTR) return sb.append("*void");
-        sb.append("{ ");
+    public SB print(SB sb) {
+        if( this== NULLPTR) return sb.p("null");
+        if( this== VOIDPTR) return sb.p("*void");
+        sb.p("{ ");
         for( int i=1; i<_sig._types.length; i++ )
-            _sig._types[i].print(sb).append(" ");
-        _sig._types[0].print(sb.append("-> "));
-        sb.append(String.format(" #%X",_fidxs));
-        sb.append("}");
-        if( (_fidxs&1)==1 ) sb.append("?");
+            _sig._types[i].print(sb).p(" ");
+        _sig._types[0].print(sb.p("-> "));
+        sb.p(String.format(" #%X",_fidxs));
+        sb.p("}");
+        if( (_fidxs&1)==1 ) sb.p("?");
         return sb;
     }
 
     @Override public String str() {
         if( this== NULLPTR) return "null";
         if( this== VOIDPTR) return "*void";
-        return print(new StringBuilder()).toString();
+        return print(new SB()).toString();
     }
 
 }

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.BitSet;
@@ -32,7 +33,7 @@ public class ConstantNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return _con.print(sb);
+        return sb.append(_con.print(new SB()));
     }
 
     @Override public boolean isMultiTail() { return true; }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.SB;
 import java.util.ArrayList;
 
 /**
@@ -37,12 +38,12 @@ public class TypeFloat extends Type {
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
     @Override
-    public StringBuilder print(StringBuilder sb) {
-        if( this==TOP ) return sb.append("FltTop");
-        if( this==T32 ) return sb.append("F32Top");
-        if( this==B32 ) return sb.append("F32Bot");
-        if( this==BOT ) return sb.append("FltBot");
-        return sb.append(_con);
+    public SB print(SB sb) {
+        if( this==TOP ) return sb.p("FltTop");
+        if( this==T32 ) return sb.p("F32Top");
+        if( this==B32 ) return sb.p("F32Bot");
+        if( this==BOT ) return sb.p("FltBot");
+        return sb.p(_con);
     }
 
     @Override public String str() {
@@ -51,18 +52,6 @@ public class TypeFloat extends Type {
         if( this==B32 ) return  "f32";
         if( this==BOT ) return  "flt";
         return ""+_con+(isF32() ? "f" : "");
-    }
-
-    /**
-     * Display Type name in a format that's good for IR printer
-     */
-    @Override
-    public StringBuilder typeName(StringBuilder sb) {
-        if( this==TOP ) return sb.append("FltTop");
-        if( this==T32 ) return sb.append("F32Top");
-        if( this==B32 ) return sb.append("F32Bot");
-        if( this==BOT ) return sb.append("FltBot");
-        return sb.append(isF32() ? "F32" : "Flt");
     }
 
     boolean isF32() { return ((float)_con)==_con; }

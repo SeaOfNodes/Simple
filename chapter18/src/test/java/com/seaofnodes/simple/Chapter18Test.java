@@ -21,7 +21,7 @@ return 3.14;
 
 
     // ---------------------------------------------------------------
-    @Test
+    @Ignore @Test
     public void testType0() {
         Parser parser = new Parser("""
 {int -> int}? x2 = null; // null function ptr

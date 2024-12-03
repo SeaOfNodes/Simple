@@ -84,7 +84,11 @@ public class PhiNode extends Node {
             }
             Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
             Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
-            return op.copy(phi_lhs,phi_rhs);
+            Node down = op.copy(phi_lhs,phi_rhs);
+            // Test not running backwards, which can happen for e.g. And's
+            if( down.compute().isa(compute()) )
+                return down;
+            down.kill();
         }
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.

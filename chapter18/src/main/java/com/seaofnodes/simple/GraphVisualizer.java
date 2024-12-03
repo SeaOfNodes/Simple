@@ -267,8 +267,9 @@ public class GraphVisualizer {
         final HashMap<Integer, Node> all = new HashMap<>();
         for( Node n : ns )
             walk(all, n);
-        for( Node n : ss )
-            walk(all, n);
+        if( ss != null )
+            for( Node n : ss )
+                walk(all, n);
         return all.values();
     }
 

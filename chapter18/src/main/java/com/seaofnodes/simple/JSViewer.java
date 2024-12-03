@@ -1,10 +1,10 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
 
 import java.nio.file.Paths;
 import java.io.IOException;
-import java.util.Stack;
 import java.util.Collection;
 
 public class JSViewer implements AutoCloseable {
@@ -49,11 +49,12 @@ public class JSViewer implements AutoCloseable {
                     P.parse();
                     // No longer user parse internal state when building views
                     P = null;
-
+                    STOP.iterate();
 
 
                     // Catch and ignore Parser errors
                 } catch(RuntimeException re) {
+                    System.err.println(re);
                 } finally {
                     SHOW = false;
                     SERVER.put("#"); // Final frame
@@ -124,7 +125,6 @@ public class JSViewer implements AutoCloseable {
     }
 
 
-
     private static void nodes(SB sb, Collection<Node> all) {
         // Just the Nodes first, in a cluster no edges
         sb.i().p("subgraph cluster_Nodes {\n").ii(); // Magic "cluster_" in the subgraph name
@@ -132,13 +132,12 @@ public class JSViewer implements AutoCloseable {
             if( n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeMinNode || n==Parser.XCTRL )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.i().p(n.uniqueName()).p(" [ ");
-            String lab = n.glabel();
             if( n instanceof MultiNode ) {
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.    p("shape=plaintext label=<\n").ii();
                 sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
                 // Row over single cell for node label
-                cell(sb.i().p("<TR>"), lab, null, true, false).p("</TR>\n");
+                cell(sb.i().p("<TR>"), n.glabel(), n, null).p("</TR>\n");
                 // Row over single cell, for nested table
                 sb.i().p("<TR><TD>\n").ii();
                 sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">").p("\n");
@@ -147,12 +146,11 @@ public class JSViewer implements AutoCloseable {
                 boolean empty_row=true;
                 for( Node use : n._outputs )
                     if( use instanceof MultiUse muse ) {
-                        cell(sb,use.glabel(),"p"+muse.idx(),use instanceof CFGNode,use.isMem());
+                        cell(sb,use.glabel(),use,"p"+muse.idx());
                         empty_row=false;
                     }
                 // At least one cell on row
-                if( empty_row )
-                    cell(sb,"",null,false,false);
+                if( empty_row )  sb.p("<TD></TD>");
                 sb.    p("</TR>").p("\n");
                 sb.i().p("</TABLE>").p("\n").di();
                 sb.i().p("</TD></TR>\n");
@@ -162,9 +160,9 @@ public class JSViewer implements AutoCloseable {
             } else {
                 // control nodes have box shape
                 // other nodes are ellipses, i.e. default shape
-                if( n instanceof CFGNode ) sb.p("shape=box style=filled fillcolor=yellow ");
-                else if (n instanceof PhiNode) sb.p("style=filled fillcolor=lightyellow ");
-                sb.p("label=\"").p(lab).p("\" ];\n");
+                //else if (n instanceof PhiNode) sb.p("style=filled fillcolor=lightyellow ");
+                node(sb,n.glabel(),n);
+                sb.p("];\n");
             }
         }
         // Force Region & Phis to line up
@@ -191,30 +189,28 @@ public class JSViewer implements AutoCloseable {
             sb.i().p("subgraph cluster_").p(scopeName).p(" {\n").ii(); // Magic "cluster_" in the subgraph name
             sb.i().p(scopeName).p(" [label=<\n").ii();
             sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
-            // Add the scope level
-            sb.i().p("<TR><TD BGCOLOR=\"cyan\">").p(level).p("</TD>");
             int lexStart=scope._lexSize.at(level);
             // Special for memory ScopeMinNode
             ScopeMinNode n = scope.nIns()>1 ? scope.mem() : null;
             if( level==0 && n!=null && n.nIns()>2 ) {
-                sb.    p("<TD BGCOLOR=\"blue\" BORDER=0 colspan=\"").p(last-lexStart-1).p("\">\n");
-                sb.i().p("\t<TABLE><TR>");
-                for( int m=2; m<n.nIns(); m++ ) {
-                    sb.p("<TD>").p(m).p("</TD>");
-                    throw Utils.TODO(); // Need port names for edges
+                sb.i().p("<TR>");
+                for( int m=2; m<n.nIns(); m++ )
+                    cell(sb,"#"+m,n.in(m),"m"+m);
+                sb.p("</TR>\n"); // End scope level
+            }
+            // Scope variables, empty if none
+            if( lexStart<last ) {
+                sb.i().p("<TR>\n");
+                for( int j=lexStart; j<last; j++ ) {
+                    var v = scope._vars.at(j);
+                    cell(sb.i(),v._name,scope.in(j),makePortName(scopeName, v._name)).nl();
                 }
-                sb.p("</TR></TABLE>\n");
-                sb.i().p("</TD>");
+                last = lexStart;
+                sb.i().p("</TR>\n");
             }
-            sb.    p("</TR>\n"); // End scope level
-            sb.i().p("<TR>\n");
-            for( int j=lexStart; j<last; j++ ) {
-                var v = scope._vars.at(j);
-                cell(sb.i(),v._name,makePortName(scopeName, v._name),j==0,j==1).nl();
-            }
-            last = lexStart;
-            sb.i().p("</TR>\n");
             sb.i().p("</TABLE>>];\n").di();
+            // Scope label
+            sb.i().p(scopeName).p("A [label=\"").p(level).p("\" shape=doublecircle style=filled fillcolor=aqua fontsize=10 margin=0 width=0.2 ];\n");
         }
         // Scope clusters nest, so the graphics shows the nested scopes, so
         // they are not closed as they are printed; so they just keep nesting.
@@ -224,18 +220,41 @@ public class JSViewer implements AutoCloseable {
     }
 
     // Append a cell, with color
-    private static SB cell(SB sb, String text, String port, boolean isCFG, boolean isMem) {
-        sb.p("<TD ");
-        if( port!=null )  sb.p("PORT=\"").p(port).p("\"");
-        if( isCFG ) sb.p(" BGCOLOR=\"yellow\"");
-        if( isMem ) sb.p(" BGCOLOR=\"blue\"");
-        sb.p(">");
-        if( isMem ) sb.p("<FONT color=\"white\">");
+    private static SB cell(SB sb, String text, Node n, String port) {
+        boolean dark=false;
+        sb.p("<TD");
+        if( n instanceof CFGNode    ) sb.p(" BGCOLOR=\"yellow\"");
+        if( n instanceof NewNode    ) sb.p(" BGCOLOR=\"lightgreen\"");
+        if( n instanceof StructNode ) sb.p(" BGCOLOR=\"lightgreen\"");
+        if( n.isMem() )             { sb.p(" BGCOLOR=\"blue\""); dark=true; }
+        if( n._type instanceof TypeMemPtr ) { sb.p(" BGCOLOR=\"green\""); dark=true; }
+        if( n._type instanceof TypeInteger )  sb.p(" BGCOLOR=\"lightblue\"");
+        if( port!=null )  sb.p(" PORT=\"").p(port).p("\"");
+        return colorcell(sb.p(">"),text,n,dark).p("</TD>");
+    }
+    private static SB node(SB sb, String text, Node n) {
+        boolean dark=false;
+        if( n instanceof CFGNode )   sb.p("style=filled fillcolor=yellow shape=box ");
+        if( n instanceof PhiNode )   sb.p("style=filled fillcolor=lightyellow ");
+        if( n instanceof StructNode) sb.p("style=filled fillcolor=lightgreen ");
+        if( n.isMem()            ) { sb.p("style=filled fillcolor=blue "); dark=true; }
+        if( n._type instanceof TypeMemPtr ) { sb.p("style=filled fillcolor=green "); dark=true; }
+        if( n._type instanceof TypeInteger )  sb.p("style=filled fillcolor=lightblue ");
+        return colorcell(sb.p("label=<"),text,n,dark).p(">");
+    }
+    // Called with an open div
+    private static SB colorcell(SB sb, String text, Node n, boolean dark) {
+        if( dark ) sb.p("<font color=\"white\">");
         sb.p(text);
-        if( isMem ) sb.p("</FONT>");
-        sb.p("</TD>");
+        if( n._type!=null ) {
+            sb.p("<br /><font point-size=\"10\">");
+            n._type.print(sb);
+            sb.p("</font>");
+        }
+        if( dark ) sb.p("</font>");
         return sb;
     }
+
 
     private static String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
     private static String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
@@ -279,14 +298,8 @@ public class JSViewer implements AutoCloseable {
                     } else sb.p(def.uniqueName());
                     // Number edges, so we can see how they track
                     sb.p("[taillabel=").p(i);
-                    // The edge from New to ctrl is just for anchoring the New
-                    if ( n instanceof NewNode )
-                        sb.p(" color=green");
-                    // control edges are colored red
-                    else if( def instanceof CFGNode )
-                        sb.p(" color=red");
-                    else if( def.isMem() )
-                        sb.p(" color=blue");
+                    // Color the edge
+                    nodeEdgeColor(sb,def._type);
                     // Backedges do not add a ranking constraint
                     if( i==2 && (n instanceof PhiNode || n instanceof LoopNode) )
                         sb.p(" constraint=false");
@@ -296,9 +309,21 @@ public class JSViewer implements AutoCloseable {
 
             // Bonus edge if hooked by parser
             if( (n.iskeep() || n.isUnused()) && scopeName != null ) {
-                sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ stype=dotted color=grey]\n");
+                sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ style=dashed color=grey]\n");
             }
         }
+    }
+
+    private static void nodeEdgeColor(SB sb, Type t) {
+        String color = switch( t ) {
+        case TypeMem mem -> "blue";
+        case TypeMemPtr ptr -> "green";
+        case TypeInteger ti -> "lightblue";
+        // control edges are colored red
+        default -> (t==Type.CONTROL || t==Type.XCONTROL) ? "red" : null;
+        };
+        if( color!=null )
+            sb.p(" color=").p(color);
     }
 
     // Walk the scope edges
@@ -318,14 +343,29 @@ public class JSViewer implements AutoCloseable {
                 .p(scopeName).p(":")
                 .p('"').p(makePortName(scopeName, v._name)).p('"') // wrap port name with quotes because $ctrl is not valid unquoted
                 .p(" -> ");
-            if( def instanceof CProjNode proj ) {
-                sb.p(def.in(0).uniqueName()).p(":p").p(proj._idx);
-            } else if( def instanceof ProjNode proj ) {
-                sb.p(def.in(0).uniqueName()).p(":p").p(proj._idx);
-            } else sb.p(def.uniqueName());
-            sb.p(";\n");
+            defPort(sb,def).p(";\n");
         }
+
+        // Memory
+        if( scope.nIns()>1 ) {
+            ScopeMinNode n = scope.mem();
+            for( int i=2; i<n.nIns(); i++ ) {
+                Node def = n.in(i);
+                while( def instanceof ScopeNode lazy )
+                    //def = lazy.in(v._idx);
+                    throw Utils.TODO();
+                if( def==null ) continue;
+                String scopeName = makeScopeName(scope, 0);
+                sb.i().p(scopeName).p(":m").p(i).p(" -> ");
+                defPort(sb,def).p(";\n");
+            }
+        }
+
     }
 
-
+    private static SB defPort(SB sb, Node def) {
+        return def instanceof MultiUse muse
+            ? sb.p(def.in(0).uniqueName()).p(":p").p(muse.idx())
+            : sb.p(def.uniqueName());
+    }
 }
