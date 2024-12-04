@@ -312,7 +312,7 @@ public class JSViewer implements AutoCloseable {
 
             // Bonus edge if hooked by parser
             if( (n.iskeep() || n.isUnused()) && scopeName != null ) {
-                sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ style=dashed color=grey]\n");
+                sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ style=dashed color=grey];\n");
             }
         }
     }
@@ -355,8 +355,7 @@ public class JSViewer implements AutoCloseable {
             for( int i=2; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
                 while( def instanceof ScopeNode lazy )
-                    //def = lazy.in(v._idx);
-                    throw Utils.TODO();
+                    def = lazy.in(i);
                 if( def==null ) continue;
                 String scopeName = makeScopeName(scope, 0);
                 sb.i().p(scopeName).p(":m").p(i).p(" -> ");

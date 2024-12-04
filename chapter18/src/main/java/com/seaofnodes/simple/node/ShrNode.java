@@ -10,7 +10,7 @@ public class ShrNode extends Node {
 
     @Override public String label() { return "Shr"; }
 
-    @Override public String glabel() { return ">>>"; }
+    @Override public String glabel() { return "&gt;&gt;&gt;"; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
