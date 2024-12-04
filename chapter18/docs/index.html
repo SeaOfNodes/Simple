@@ -153,7 +153,7 @@
         document.getElementById("program").focus();
         document.getElementById("program").setSelectionRange(pos,pos+1);
       }
-      graphviz.renderDot(dots[idx]).on("end", _rendNext(idx,end,step))
+      graphviz.renderDot(dots[idx]).on("end", () => _rendNext(idx,end,step))
     }
   }
   function _rendNext(idx,end,step) {
