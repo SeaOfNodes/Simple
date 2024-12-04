@@ -640,7 +640,6 @@ public class Parser {
 
         // A Block scope parse, and inspect the scope afterward for fields.
         _scope.push(true);
-        _xScopes.push(_scope);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
@@ -661,7 +660,6 @@ public class Parser {
         // Done with struct/block scope
         require("}");
         require(";");
-        _xScopes.pop();
         _scope.pop();
         return null;
     }
@@ -1183,7 +1181,7 @@ public class Parser {
     private boolean peek(char ch) { return _lexer.peek(ch); }
     private boolean peekIsId() { return _lexer.peekIsId(); }
 
-    private int pos() { return _lexer._position; }
+    public int pos() { return _lexer._position; }
     private int pos(int pos) {
         int old = _lexer._position;
         _lexer._position = pos;

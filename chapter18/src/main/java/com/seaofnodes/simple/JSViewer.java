@@ -30,6 +30,7 @@ public class JSViewer implements AutoCloseable {
     }
 
     void run( ) throws Exception {
+        SERVER.put("!");
         while( true ) {
             String src = SERVER.get();
             switch( src ) {
@@ -74,6 +75,8 @@ public class JSViewer implements AutoCloseable {
         Collection<Node> all = GraphVisualizer.findAll(P==null ? null : P._xScopes, STOP, P==null ? null : P._scope);
         SB sb = new SB();
         sb.p("digraph view_").p(N++).p(" {\n").ii();
+        if( P!=null )
+            sb.i().p("// POS: ").p(P.pos()).nl();
 
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
