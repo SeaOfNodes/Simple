@@ -8,7 +8,15 @@
 <body style="height: 100%; margin:0">
 
   <div style="display:flex; flex-flow:column; height: 100%;">
-    <div id="head" style="flex: 0 1 auto; align-self:center; "> HEADER </div>
+    <div style="position:fixed; top:0; left:0; height:20%; width:30%;" >
+      <div align="center" >Simple Program:</div>
+      <textarea
+        id="program"
+        autofocus="true"
+        name="Program"
+        defaultValue="return 0;"
+        ></textarea>
+    </div>
     <div id="fill" style="flex: 1 1 auto"> </div>
     <div id="graph" style="flex: 0 1 auto; align-self:center;"> </div>
 
@@ -20,7 +28,6 @@
       <div id="N"   style="font-size: 20px; border-style: ridge; min-width: 50px; text-align: right; padding-right: 10px;">0</div>
       <button id="doNext" type="button" onclick="doNext()" class="button">&#11166;</button>
       <div id="len" style="font-size: 20px;                      min-width: 50px; text-align: right; padding-right: 10px;">0</div>
-      <button id="doNew"  type="button" onclick="doNew ()" class="button">New</button>
       <button id="doExit" type="button" onclick="doExit()" class="button">Exit</button>
     </div>
   </div>
@@ -44,25 +51,24 @@
   // Websocket.  :-P
   const socket = new WebSocket("ws://localhost:12345");
 
-
   // Read user program
+  const DOC_PROG = document.getElementById('program');
+  // Default value seems to be ignored???
+  DOC_PROG.value="return 0;";
   function get_program() {
+    console.log("get_program");
+    var src = DOC_PROG.value;
+    console.log(src);
+    // Reset visualizer state before sending
     updateN(0);
     dots=[];
     done=false;
-    var src = prompt("Simple program:",`struct Vector2D { int x; int y; };
-Vector2D !v = new Vector2D;
-v.x = 1;
-if (arg)
-    v.y = 2;
-else
-    v.y = 3;
-return v;
-`);
+    // Send program; will start getting DOT frames shortly
     socket.send(src);
     // Once the program is sent, timer starts
     _timer = setTimeout("close()",100000)
   };
+  DOC_PROG.onchange=get_program;
 
   // Go forwards in the animation
   function doNext() {
@@ -87,8 +93,6 @@ return v;
 
   // exit
   function doExit() { socket.send(null); close(); };
-  // New program
-  function doNew() { get_program(); }
 
   // Update step counter display and buttons
   function updateN(newN) {
@@ -118,26 +122,54 @@ return v;
     }
     document.getElementById("N")  .textContent = N==dots.length ? (">"+(N-1)) : N;
     document.getElementById("len").textContent = dots.length;
-
   };
 
 
   // Render an animation, from idx to end by step.
+  // 'end' is inclusive.
+  var renderActive = -1;
   function render(idx, end, step) {
-    _rend(idx,end+step,step);
+    old = renderActive;
+    renderActive = (end+step);
+    // No active, so start rendering
+    if( old == -1 )
+      _rend(idx,end+step,step);
   }
   // Render an animation in a 'for' loop of frames
   // until we hit the end.  Looping is done via callbacks.
+  // end is exclusive.
   var aix = -1; // Last DOT rendered
   function _rend(idx,end,step) {
     // Skip animation if already rendered/showing on screen
-   // if( idx==aix ) _rendNext(idx,end,step);
-    aix = idx;
-    graphviz.renderDot(dots[idx]).on("end", _rendNext(idx,end,step))
+    if( idx==aix ) _rendNext(idx,end,step);
+    else {
+      aix = idx;
+      var str = dots[idx].indexOf("// POS: ");
+      console.log(str);
+      if( str == -1 ) DOC_PROG.setSelectionRange(0,0);
+      else {
+        var pos = Number(dots[idx].substring(str+8,str+12));
+        console.log(pos,pos+1);
+        document.getElementById("program").focus();
+        document.getElementById("program").setSelectionRange(pos,pos+1);
+      }
+      graphviz.renderDot(dots[idx]).on("end", _rendNext(idx,end,step))
+    }
   }
   function _rendNext(idx,end,step) {
+    // Not at end so...
     if( idx+step != end )
+      // Render next step
       _rend(idx+step,end,step);
+    else {
+      // All desired frames rendered
+      if( renderActive == end ) {
+        renderActive = -1; // all frames done
+      } else {
+        // Skip-a-few and render the last asked for
+        _rend(renderActive-1,renderActive,1)
+      }
+    }
   };
 
 
@@ -147,7 +179,7 @@ return v;
   socket.onmessage = (event) => {
     clearTimeout(_timer);  _timer=null;
     const dot = event.data;
-    console.log("Received:", dot.substring(0,100));
+    console.log("Received:", dot.substring(0,40));
 
     if( dot == "!" ) {
       // Server requests client resets
@@ -160,7 +192,7 @@ return v;
     } else if( dot.startsWith("digraph") ) {
       // Received a new graph
       dots.push(dot);
-      console.log(dot);
+      //console.log(dot);
       updateN(N);
       socket.send("+"); // Get another frame
       // If at-end, receiving a graph immediately renders
@@ -181,9 +213,6 @@ return v;
   socket.onerror = (error) => {
     console.error('WebSocket error:', error);
   };
-
-  // Starter situation, as-if reset
-  get_program();
 
 </script>
 </body>
