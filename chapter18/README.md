@@ -102,6 +102,9 @@ value.  Since it was loaded from the field, the function is **pre-bound**
 (curried) to the `self` it was loaded from.
 
 `{int->u8} atCliff = name.at; // The "at" for Cliff; function does not take a String anymore`
+
 `var       atHello = greet.at;`
+
 `atCliff[0]; // Returns 'C'`
+
 `atHello[0]; // Returns 'H'`
