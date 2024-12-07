@@ -207,7 +207,8 @@ public class Type {
         return print(new SB()).toString();
     }
 
-    public SB print(SB sb) { return is_simple() ? sb.p(STRS[_type]) : sb;}
+    public SB  print(SB sb) { return is_simple() ? sb.p(STRS[_type]) : sb;}
+    public SB gprint(SB sb) { return print(sb); }
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }

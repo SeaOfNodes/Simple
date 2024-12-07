@@ -251,7 +251,7 @@ public class JSViewer implements AutoCloseable {
         sb.p(text);
         if( n._type!=null ) {
             sb.p("<br /><font point-size=\"10\">");
-            n._type.print(sb);
+            n._type.gprint(sb);
             sb.p("</font>");
         }
         if( dark ) sb.p("</font>");

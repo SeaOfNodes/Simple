@@ -51,6 +51,12 @@ public class TypeTuple extends Type {
             t.print(sb).p(", ");
         return sb.unchar(2).p("]");
     }
+    @Override public SB gprint(SB sb) {
+        sb.p("[  ");
+        for( Type t : _types )
+            t.gprint(sb).p(", ");
+        return sb.unchar(2).p("]");
+    }
 
     @Override public String str() {
         SB sb = new SB().p("[  ");

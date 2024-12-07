@@ -89,6 +89,12 @@ public class TypeMemPtr extends Type {
         if( this== VOIDPTR) return sb.p("*void");
         return _obj.print(sb.p("*")).p(_nil ? "?" : "");
     }
+    @Override
+    public SB gprint(SB sb) {
+        if( this== NULLPTR) return sb.p("null");
+        if( this== VOIDPTR) return sb.p("*void");
+        return _obj.gprint(sb.p("*")).p(_nil ? "?" : "");
+    }
 
     @Override public String str() {
         if( this== NULLPTR) return "null";

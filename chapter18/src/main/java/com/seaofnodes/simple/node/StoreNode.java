@@ -79,14 +79,14 @@ public class StoreNode extends MemOpNode {
             // Cannot fold a store of a single element over the array body initializer value
             !(tmp._obj.isAry() && tmp._obj._fields[1]._alias==_alias) &&
             // Very sad strong cutout: val has to be legal to hoist to a New
-            // input, which means it cannot depend on the New.  Many many
+            // input, which means it cannot depend on the New.  Many, many
             // things are legal here but difficult to check without doing a
             // full dominator check.  Example failure:
             // "struct C { C? c; }; C self = new C { c=self; }"
             val()._type.isHighOrConst() &&
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
-            checkOnlyUse(st) &&
+            //checkOnlyUse(st) &&
             // Folding away a broken store
             err()==null ) {
             nnn.setDef(nnn.findAlias(_alias),val());
