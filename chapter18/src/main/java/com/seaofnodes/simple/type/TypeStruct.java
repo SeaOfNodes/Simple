@@ -204,6 +204,7 @@ public class TypeStruct extends Type {
             f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");
         return sb.p("}");
     }
+    @Override public SB gprint( SB sb ) { return sb.p(_name); }
 
     @Override public String str() { return _name; }
 

@@ -62,6 +62,12 @@ public class TypeMem extends Type {
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         return _t.print(sb.p(_alias).p(":"));
     }
+    @Override
+    public SB gprint(SB sb) {
+        sb.p("#");
+        if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
+        return _t.gprint(sb.p(_alias).p(":"));
+    }
 
     @Override public String str() { return toString(); }
 }
