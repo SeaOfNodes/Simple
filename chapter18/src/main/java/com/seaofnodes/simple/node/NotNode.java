@@ -22,7 +22,7 @@ public class NotNode extends Node {
         Type t0 = in(1)._type;
         if( t0.isHigh() )  return TypeInteger.BOOL.dual();
         if( t0 == Type.NIL || t0 == TypeInteger.ZERO ) return TypeInteger.TRUE;
-        if( t0 instanceof TypeNil tn && tn._nil==2 ) return TypeInteger.FALSE;
+        if( t0 instanceof TypeNil tn && tn.notNull() ) return TypeInteger.FALSE;
         if( t0 instanceof TypeInteger i && (i._min > 0 || i._max < 0) ) return TypeInteger.FALSE;
         return TypeInteger.BOOL;
     }

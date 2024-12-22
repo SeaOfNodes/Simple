@@ -87,7 +87,7 @@ N n = new N;
 return n.next;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return nil;", stop.toString());
+        assertEquals("return null;", stop.toString());
     }
 
     @Test
@@ -113,7 +113,7 @@ N n = new N { next = null; }
 return n.next;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Type nil is not of declared type *M",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
     }
 
     @Test

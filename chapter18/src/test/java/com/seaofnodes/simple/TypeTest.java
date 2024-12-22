@@ -25,7 +25,6 @@ public class TypeTest {
         Assert.assertNotEquals(s1, s1.dual());
         Assert.assertEquals(s1.makeRO(), s1.dual().glb());
 
-        //TypeMem m1 = TypeMem.make(1,TypeInteger.ZERO);
         TypeMem m1 = TypeMem.make(1,TypeNil.NIL);
         TypeMem m2 = TypeMem.make(2,TypeInteger.U16);
         TypeMem m3 = TypeMem.make(3,TypeFloat.F64);
@@ -41,20 +40,19 @@ public class TypeTest {
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
         Assert.assertEquals(m1, m1.glb());
-        //Assert.assertEquals(TypeMem.make(1,TypeInteger.ZERO), m1.dual());
         Assert.assertEquals(TypeMem.make(1,Type.XNIL), m1.dual());
         Assert.assertEquals(m4.dual(), m4.glb().dual());
 
-        TypeMemPtr ptr1 = TypeMemPtr.make((byte)2, s1);
+        TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
-        TypeMemPtr ptr2 = TypeMemPtr.make((byte)2, s2);
+        TypeMemPtr ptr2 = TypeMemPtr.make(s2);
         Assert.assertEquals(s2, ptr2._obj);
 
-        TypeMemPtr ptr1nil = TypeMemPtr.make(s1);
+        TypeMemPtr ptr1nil = TypeMemPtr.makeNullable(s1);
         Assert.assertEquals(s1, ptr1nil._obj);
-        assertEquals( 3, ptr1nil._nil );
+        Assert.assertTrue( ptr1nil.nullable() );
         Assert.assertNotNull( ptr1nil._obj );
-        TypeMemPtr ptr2nil = TypeMemPtr.make( s2);
+        TypeMemPtr ptr2nil = TypeMemPtr.makeNullable( s2);
         Assert.assertEquals(s2, ptr2nil._obj);
 
         Assert.assertNotEquals(ptr1, ptr2);
@@ -63,14 +61,12 @@ public class TypeTest {
 
         Assert.assertEquals(ptr1, ptr1.dual().dual());
         Assert.assertEquals(ptr1.glb().makeRO(), ptr1.dual().glb());
-        Assert.assertEquals(TypeMemPtr.make((byte)3,TypeStruct.BOT), ptr1.meet(ptr2nil));
-        //Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeMemPtr.NULLPTR));
+        Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT), ptr1.meet(ptr2nil));
         Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeNil.NIL).makeRO());
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
-        TypeMemPtr BOT = TypeMemPtr.make((byte)3,TypeStruct.BOT);
-        TypeMemPtr PTR = TypeMemPtr.make((byte)2,TypeStruct.BOT);
-        //TypeMemPtr NULL = TypeMemPtr.NULLPTR;
+        TypeMemPtr BOT = TypeMemPtr.makeNullable(TypeStruct.BOT);
+        TypeMemPtr PTR = TypeMemPtr.make(TypeStruct.BOT);
         Type NULL = TypeNil.NIL;
         Type PTR_meet_NULL = NULL.meet(PTR);
         Assert.assertEquals(BOT, PTR_meet_NULL);

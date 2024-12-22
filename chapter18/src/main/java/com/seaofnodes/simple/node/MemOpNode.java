@@ -49,7 +49,7 @@ public abstract class MemOpNode extends Node {
         // Already an error, but better error messages come from elsewhere
         if( ptr == Type.BOTTOM ) return null;
         // Better be a not-nil TMP
-        if( ptr instanceof TypeMemPtr tmp && tmp._nil==2 )
+        if( ptr instanceof TypeMemPtr tmp && tmp.notNull() )
             return null;
         return "Might be null accessing '" + _name + "'";
     }

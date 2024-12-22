@@ -617,7 +617,15 @@ public class Parser {
         } else {
             if( inferType && !_scope.inCon() )
                 throw errorSyntax("=expression");
-            expr = t instanceof TypeMemPtr tn ? (tn._nil==3 ? NIL : con(Type.TOP)) : (t==Type.BOTTOM ? con(t) : ZERO);
+            // Initial value for uninitialized struct fields.
+            expr = t instanceof TypeMemPtr tn
+                // Nullable pointers get a NIL; not-null get a TOP which
+                // signals that they *must* be initialized in the constructor.
+                ? (tn.nullable() ? NIL : con(Type.TOP))
+                // Bottom signals type inference: they must be initialized in
+                // the constructor and that's when we'll discover the type.
+                // Otherwise, its an Integer and use 0.
+                : (t==Type.BOTTOM ? con(t) : ZERO);
         }
 
         // Lift expression, based on type
@@ -664,7 +672,7 @@ public class Parser {
             fs[i-lexlen] = Field.make(v._name,v.type(),ALIAS++,v._final);
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
-        TYPES.put(typeName, TypeMemPtr.make((byte)2,ts));
+        TYPES.put(typeName, TypeMemPtr.make(ts));
         INITS.put(typeName,s.peephole().keep());
         // Done with struct/block scope
         require("}");
@@ -695,15 +703,15 @@ public class Parser {
         if( t0 == null && KEYWORDS.contains(tname) )
             return posT(old1);
         if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
-        Type t1 = t0 == null ? TypeMemPtr.make((byte)2,TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
+        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
             if( match("?") ) {
                 if( !(t2 instanceof TypeMemPtr tmp) )
                     throw error("Type "+t0+" cannot be null");
-                if( tmp._nil==3 ) throw error("Type "+t2+" already allows null");
-                t2 = tmp.makeFrom((byte)3);
+                if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
+                t2 = tmp.makeNullable();
             } else if( match("[]") ) {
                 t2 = typeAry(t2);
             } else
@@ -726,7 +734,7 @@ public class Parser {
 
     // Make an array type of t
     private TypeMemPtr typeAry( Type t ) {
-        if( t instanceof TypeMemPtr tmp && (tmp._nil==1|| tmp._nil==2)  )
+        if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
             throw error("Arrays of reference types must always be nullable");
         String tname = "["+t.str()+"]";
         Type ta = TYPES.get(tname);
@@ -734,7 +742,7 @@ public class Parser {
         // Need make an array type.
         TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++);
         assert ts.str().equals(tname);
-        TypeMemPtr tary = TypeMemPtr.make((byte)2,ts);
+        TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
         return tary;
     }
@@ -756,7 +764,7 @@ public class Parser {
                 if( ret==null ) return posT(old);
                 ts.set(0,ret);
                 if( !match("}") ) return posT(old); // Not a function
-                return TypeFunPtr.make(TypeTuple.make(ts.asAry()),match("?"));
+                return TypeFunPtr.make(match("?"),TypeTuple.make(ts.asAry()));
             }
             Type t1 = type();
             if( t1==null ) return posT(old); // Not a function
@@ -1059,7 +1067,7 @@ public class Parser {
         // Initial values for every field
         for( int i = 0; i < len; i++ )
             ns[2+len+i] = init.get(i+idx);
-        Node nnn = new NewNode(TypeMemPtr.make((byte)2,obj), ns).peephole();
+        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
         for( int i = 0; i < len; i++ )
             memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
         return new ProjNode(nnn,1,obj._name).peephole();
