@@ -12,7 +12,7 @@ public abstract class TypeNil extends Type {
     // 1 = high-subclass no nil
     // 2 = low -subclass no nil
     // 3 = low -subclass also nil
-    public final byte _nil;
+    final byte _nil;
 
     TypeNil(byte t, byte nil ) { super(t); _nil = nil; }
 
@@ -47,6 +47,10 @@ public abstract class TypeNil extends Type {
     @Override public boolean isHigh       () { return _nil <= 1; }
     @Override public boolean isConstant   () { return false; }
     @Override public boolean isHighOrConst() { return isHigh() || isConstant(); }
+
+
+    public boolean notNull() { return _nil==1 || _nil==2; }
+    public boolean nullable() { return _nil==3; }
 
     final String q() { return _nil == 1 || _nil == 2 ? "" : "?"; }
     final String x() { return isHigh() ? "~" : ""; }

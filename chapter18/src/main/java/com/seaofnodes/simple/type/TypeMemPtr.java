@@ -31,10 +31,12 @@ public class TypeMemPtr extends TypeNil {
         assert obj!=null;
         _obj = obj;
     }
-    public static TypeMemPtr make(byte nil, TypeStruct obj) { return new TypeMemPtr(nil, obj).intern(); }
-    public static TypeMemPtr make(TypeStruct obj) { return make((byte)3, obj); }
+    static TypeMemPtr make(byte nil, TypeStruct obj) { return new TypeMemPtr(nil, obj).intern(); }
+    public static TypeMemPtr makeNullable(TypeStruct obj) { return make((byte)3, obj); }
+    public static TypeMemPtr make(TypeStruct obj) { return new TypeMemPtr((byte)2, obj).intern(); }
     public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj); }
-    @Override public TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil,_obj); }
+    public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
+    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil,_obj); }
     @Override public TypeMemPtr makeRO() { return makeFrom(_obj.makeRO()); }
     @Override public boolean isFinal() { return _obj.isFinal(); }
 

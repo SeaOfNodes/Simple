@@ -22,15 +22,15 @@ return 3.14;
 
 
     // ---------------------------------------------------------------
-    @Ignore @Test
+    @Test
     public void testType0() {
         Parser parser = new Parser("""
 {int -> int}? x2 = null; // null function ptr
 return x2;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return arg;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop, 0));
+        assertEquals("return null;", stop.toString());
+        assertEquals(null, Evaluator.evaluate(stop, 0));
     }
 
 

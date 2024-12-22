@@ -117,7 +117,7 @@ bar.a = 1;
 return bar.a;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Type nil is not of declared type *Bar",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
     @Test
@@ -143,7 +143,7 @@ bar.a = 1;
 return bar.a;
 """);
         try { parser.parse(); fail(); }
-        catch( Exception e ) { assertEquals("Type nil is not of declared type *Bar", e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
     }
 
     @Test
@@ -156,7 +156,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region,nil,Bar);", stop.toString());
+        assertEquals("return Phi(Region,null,Bar);", stop.toString());
     }
 
     @Test

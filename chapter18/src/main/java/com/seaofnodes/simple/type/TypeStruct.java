@@ -49,7 +49,7 @@ public class TypeStruct extends Type {
 
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
-        assert body instanceof TypeInteger || (body instanceof TypeNil tn && tn._nil==3);
+        assert body instanceof TypeInteger || (body instanceof TypeNil tn && tn.nullable());
         return make("[" + body.str() + "]",
                     Field.make("#" ,len , lenAlias,true ),
                     Field.make("[]",body,bodyAlias,false));

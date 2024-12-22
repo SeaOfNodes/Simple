@@ -17,7 +17,7 @@ public class NewNode extends Node implements MultiNode {
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
-        assert ptr._nil!=3;
+        assert !ptr.nullable();
         _ptr = ptr;
         _len = ptr._obj._fields.length;
         // Control in slot 0
