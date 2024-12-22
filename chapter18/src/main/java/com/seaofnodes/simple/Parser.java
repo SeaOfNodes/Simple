@@ -955,8 +955,9 @@ public class Parser {
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return NIL;
-        if( match("(") ) return require(parseAsgn(), ")");
+        if( match ("("    ) ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
+        if( match ("{"    ) ) return func();
         // Expect an identifier now
         ScopeMinNode.Var n = requireLookupId("an identifier or expression");
         Node rvalue = _scope.in(n);
@@ -1091,8 +1092,8 @@ public class Parser {
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
     /**
-     * Parse postfix expression. For now this is just a field
-     * expression, but in future could be array index too.
+     * Parse postfix expression; this can be a field expression, an array
+     * lookup or a postfix operator like '#'
      *
      * <pre>
      *     expr ('.' IDENTIFIER)* [ = expr ]
@@ -1200,6 +1201,36 @@ public class Parser {
         if( shf._type==TypeInteger.ZERO )
             return val;
         return peep(new SarNode(peep(new ShlNode(val,shf.keep())),shf.unkeep()));
+    }
+
+    /**
+     * Parse a function; the leading '{' is already parsed.
+     *
+     * <pre>
+     *     { [type arg,]* -> expr }
+     *     { expr } // The no-argument function
+     * </pre>
+     */
+    private Node func() {
+        int old = pos();        // Record lexer position
+        Ary<Type> ts = new Ary<>(Type.class);
+        Ary<String> ids = new Ary<>(String.class);
+        ts .push(Type.BOTTOM);   // Return type, unknown yet
+        ids.push(null);          // Not an argument
+        while( true ) {
+            Type t = type();    // Arg type
+            if( t==null ) break;
+            String id = requireId();
+            ts .push(t );       // Push type/arg pairs
+            ids.push(id);
+            match(",");
+        }
+        require("->");
+        // Make a concrete function type, with a fidx
+        TypeFunPtr tfp = TypeFunPtr.makeFun(TypeTuple.make(ts.asAry()));
+        //FunNode fun = (FunNode)peep(new FunNode());
+
+        throw Utils.TODO();
     }
 
 

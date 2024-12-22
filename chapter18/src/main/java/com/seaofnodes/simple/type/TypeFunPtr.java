@@ -3,6 +3,7 @@ package com.seaofnodes.simple.type;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Represents a Pointer to a function.
@@ -34,6 +35,19 @@ public class TypeFunPtr extends TypeNil {
     static TypeFunPtr make( byte nil, TypeTuple sig, long fidxs ) { return new TypeFunPtr(nil,sig,fidxs).intern(); }
     public static TypeFunPtr make( boolean nil, TypeTuple sig ) { return make((byte)(nil ? 3 : 2),sig,-1); }
     @Override TypeFunPtr makeFrom( byte nil ) { return nil==_nil ? this : make(nil,_sig,_fidxs); }
+
+    // Compute "function indices": FIDX
+    private static final HashMap<TypeTuple,Integer> FIDXS = new HashMap<>();
+    private static int nextFIDX(TypeTuple sig) {
+        Integer i = FIDXS.get(sig);
+        int fidx = i==null ? 0 : i;
+        FIDXS.put(sig,fidx+1);  // Track count per sig
+        assert fidx<64;         // TODO: need a larger FIDX space
+        return fidx;            // Return
+    }
+    public static TypeFunPtr makeFun( TypeTuple sig ) {
+        return make((byte)2,sig,1L<<nextFIDX(sig));
+    }
 
     public static TypeFunPtr BOT     = make((byte)3,TypeTuple.SIGBOT,-1);
     public static TypeFunPtr TEST    = make((byte)2,TypeTuple.SIGTEST,1);
