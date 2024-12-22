@@ -6,104 +6,90 @@ import java.util.ArrayList;
 /**
  * Float Type
  */
-public class TypeFloat extends Type {
+public class TypeFloat extends TypeNil {
 
-    public final static TypeFloat TOP = make((byte)-64, 0);
-    public final static TypeFloat T32 = make((byte)-32, 0);
-    public final static TypeFloat ZERO= make((byte)  0, 0);
-    public final static TypeFloat B32 = make((byte) 32, 0);
-    public final static TypeFloat BOT = make((byte) 64, 0);
+    public final static TypeFloat  ONE = constant(1.0);
+    public final static TypeFloat  F32 = make((byte)3, true, 0);
+    public final static TypeFloat NF64 = make((byte)2,false, 0);
+    public final static TypeFloat  F64 = make((byte)3,false, 0);
 
-    /** +/-64 for double; +/-32 for float, or 0 for constants */
-    public final byte _sz;
+    // true for 32bits, false for 64bits
+    public final boolean _f32;
 
     /**
      * The constant value or 0
      */
     public final double _con;
 
-    private TypeFloat(byte sz, double con) {
-        super(TFLT);
-        _sz  = sz ;
+    private TypeFloat(byte nil, boolean f32, double con) {
+        super(TFLT,nil);
+        assert !isConstant() || ((float)con == con) == f32;
+        _f32 = f32;
         _con = con;
     }
-    private static TypeFloat make(byte sz, double con) {
-        return new TypeFloat(sz,con).intern();
+    private static TypeFloat make(byte nil, boolean f32, double con) {
+        return new TypeFloat(nil,f32,con).intern();
+    }
+    @Override public TypeFloat makeFrom(byte nil) {
+        return nil==_nil ? this : make(nil,_f32,_con);
     }
 
-    public static TypeFloat constant(double con) { return make((byte)0, con); }
+    public static TypeFloat constant(double con) { assert con!=0; return make((byte)2,((float)con)==con, con); }
 
-    public static void gather(ArrayList<Type> ts) { ts.add(ZERO); ts.add(BOT); ts.add(B32); ts.add(constant(3.141592653589793)); }
-
-    // FIXME this display format is problematic
-    // In visualizer '#' gets prepended if its a constant
-    @Override
-    public SB print(SB sb) {
-        if( this==TOP ) return sb.p("FltTop");
-        if( this==T32 ) return sb.p("F32Top");
-        if( this==B32 ) return sb.p("F32Bot");
-        if( this==BOT ) return sb.p("FltBot");
-        return sb.p(_con);
-    }
+    public static void gather(ArrayList<Type> ts) { ts.add(F64); ts.add(F32); ts.add(constant(3.141592653589793)); }
 
     @Override public String str() {
-        if( this==TOP ) return "~flt";
-        if( this==T32 ) return "~f32";
-        if( this==B32 ) return  "f32";
-        if( this==BOT ) return  "flt";
-        return ""+_con+(isF32() ? "f" : "");
+        if( isConstant() )
+            return ""+_con+(_f32 ? "f" : "");
+        String s = "";
+        if( isHigh() ) s = "~";
+        if( 1 <= _nil && _nil <= 2 ) // Disallow nil?
+            s += "n";
+        s += "f";
+        s += _f32 ? "32" : "lt";
+        return s;
     }
 
-    boolean isF32() { return ((float)_con)==_con; }
-    @Override public boolean isHigh()        { return _sz< 0; }
-    @Override public boolean isHighOrConst() { return _sz<=0; }
-    @Override public boolean isConstant()    { return _sz==0; }
-
-    @Override public int log_size() {
-        int sz = _sz==0 ? (isF32() ? 32 : 64) : Math.abs(_sz);
-        return _sz==32 ? 2 : 3;
-    }
+    @Override public boolean isConstant() { return _con!=0; }
+    @Override public int log_size() { return _f32 ? 2 : 3; }
 
     public double value() { return _con; }
 
     @Override
-    public Type xmeet(Type other) {
-        // Invariant from caller: 'this' != 'other' and same class (TypeFloat)
+    public TypeFloat xmeet(Type other) {
+        // Invariant from caller: 'this' != 'other' and same class (TypeFloat).
         TypeFloat i = (TypeFloat)other; // Contract
-        // Larger size in i1, smaller in i0
-        TypeFloat i0 = _sz < i._sz ? this : i;
-        TypeFloat i1 = _sz < i._sz ? i : this;
+        if(   isConstant() && i.isHigh() ) return i._f32 && !  _f32 ? NF64 : this;
+        if( i.isConstant() &&   isHigh() ) return   _f32 && !i._f32 ? NF64 :  i  ;
 
-        if( i1._sz== 64 ) return BOT;
-        if( i0._sz==-64 ) return i1;
-        if( i1._sz== 32 )
-            return i0._sz==0 && !i0.isF32() ? BOT : B32;
-        if( i1._sz!=  0 ) return i1;
-        // i1 is a constant
-        if( i0._sz==-32 )
-            return i1.isF32() ? i1 : BOT;
-        // Since both are constants, and are never equals (contract) unequals
-        // constants fall to bottom
-        return i0.isF32() && i1.isF32() ? B32 : BOT;
+
+        // From online Karnaugh map; if both values are small the result is
+        // small, otherwise the result is small if the otherside is high.
+        boolean f32 = (_f32&i._f32) | (i.isHigh()&_f32) | (isHigh()&i._f32);
+        return make(xmeet0(i), f32, 0);
     }
 
     @Override
     public Type dual() {
-        if( _sz==0 ) return this; // Constants are a self-dual
-        return make((byte)-_sz,0);
+        if( isConstant() ) return this; // Constants are a self-dual
+        return make(dual0(),_f32,0);
     }
 
-    @Override public Type glb() { return BOT; }
-    @Override public Type lub() { return TOP; }
-    @Override public TypeFloat makeInit() { return ZERO; }
-    @Override public TypeFloat makeZero() { return ZERO; }
+    // RHS is NIL
+    @Override Type meet0() {
+        // From high, falling to the least Float that contains a zero
+        return isHigh() || _f32 ? F32 : F64;
+    }
+
+
+    @Override public Type glb() { return F64; }
 
     @Override
-    int hash() { return (int)(Double.hashCode(_con) ^ _sz); }
+    int hash() { return (int)(Double.hashCode(_con) ^ (_f32 ? 2048 : 0) ^ super.hash()); }
     @Override
     public boolean eq( Type t ) {
         TypeFloat i = (TypeFloat)t; // Contract
-        return _con==i._con && _sz==i._sz;
+        return _con==i._con && _f32==i._f32 && super.eq(i);
     }
 
 }

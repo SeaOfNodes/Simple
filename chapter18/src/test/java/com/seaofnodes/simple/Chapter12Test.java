@@ -43,7 +43,7 @@ while( 1 ) {
 return guess;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0));", stop.toString());
+        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0f));", stop.toString());
         assertEquals(3.0, Evaluator.evaluate(stop,  9));
         assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
     }
@@ -56,7 +56,7 @@ flt x = arg;
 return x+1==x;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return ((flt)arg==(ToFloat+1.0));", stop.toString());
+        assertEquals("return ((flt)arg==(ToFloat+1.0f));", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop, 1));
     }
 }

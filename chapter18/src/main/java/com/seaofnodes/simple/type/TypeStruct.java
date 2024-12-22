@@ -49,7 +49,7 @@ public class TypeStruct extends Type {
 
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
-        assert !(body instanceof TypeMemPtr tmp && !tmp._nil);
+        assert body instanceof TypeInteger || (body instanceof TypeNil tn && tn._nil==3);
         return make("[" + body.str() + "]",
                     Field.make("#" ,len , lenAlias,true ),
                     Field.make("[]",body,bodyAlias,false));
@@ -58,10 +58,10 @@ public class TypeStruct extends Type {
     // A pair of self-cyclic types
     private static final TypeStruct S1F = makeFRef("S1");
     private static final TypeStruct S2F = makeFRef("S2");
-    public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make(S2F,false),-2, false) );
-    private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .BOT, -3, false), Field.make("s1",TypeMemPtr.make(S1F,false),-4, false) );
+    public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false) );
+    private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false) );
 
-    private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeFloat.BOT,-2);
+    private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeInteger.BOT,-2);
 
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); }
 
@@ -143,22 +143,6 @@ public class TypeStruct extends Type {
                  return false;
         return true;
     }
-    @Override public TypeStruct lub() {
-        if( _lub() ) return this;
-        // Need to glb each field
-        Field[] flds = new Field[_fields.length];
-        for( int i=0; i<_fields.length; i++ )
-            flds[i] = _fields[i].lub();
-        return make(_name,flds);
-    }
-    private boolean _lub() {
-        if( _fields!=null )
-          for( Field f : _fields )
-              if( f.lub() != f )
-                 return false;
-        return true;
-    }
-
 
     // Is forward-reference
     @Override public boolean isFRef() { return _fields==null; }

@@ -263,6 +263,7 @@ public class Evaluator {
     private double vald(Node node) {
         var v = val(node);
         if (v instanceof Number n) return n.doubleValue();
+        if( v == null ) return 0;
         throw new AssertionError("Not a double " + v);
     }
 
@@ -270,7 +271,7 @@ public class Evaluator {
         var type = cons.compute();
         if (type instanceof TypeInteger i) return i.value();
         if (type instanceof TypeFloat i) return i.value();
-        assert type instanceof TypeMemPtr;
+        assert type == Type.NIL;
         return null;
     }
 

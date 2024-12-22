@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 import static com.seaofnodes.simple.Utils.TODO;
@@ -230,7 +228,7 @@ public class ScopeNode extends ScopeMinNode {
      * @return A new node representing the merge point
      */
     public RegionNode mergeScopes(ScopeNode that) {
-        RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
+        RegionNode r = ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
         mem()._merge(that.mem(),r);
         this ._merge(that      ,r);
         that.kill();            // Kill merged scope
@@ -296,28 +294,27 @@ public class ScopeNode extends ScopeMinNode {
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
         // This is a zero/null test.
         // Compute the positive test type.
-        Type tnz   = pred._type.nonZero();
-        Type tcast = tnz.join(pred._type);
-        if( tcast != pred._type ) {
-            Node cast = new CastNode(tnz,ctrl,pred.keep()).peephole().keep();
-            _guards.add(pred);
-            _guards.add(cast);
-            replace(pred,cast);
-        }
+        Type tnz = pred._type.nonZero();
+        _addGuard(tnz,ctrl,pred);
 
         // Compute the negative test type.
         if( pred instanceof NotNode not ) {
             Node npred = not.in(1);
             Type tzero = npred._type.makeZero();
-            Type tzcast= tzero.join(npred._type);
-            if( tzcast != npred._type ) {
-                Node cast = new CastNode(tzero,ctrl,npred.keep()).peephole().keep();
-                _guards.add(npred);
-                _guards.add( cast);
-                replace(npred,cast);
-            }
+            _addGuard(tzero,ctrl,npred);
         }
     }
+
+    private void _addGuard(Type guard, Node ctrl, Node pred) {
+        Type tcast = guard.join(pred._type);
+        if( tcast != pred._type ) {
+            Node cast = new CastNode(tcast,ctrl,pred.keep()).peephole().keep();
+            _guards.add(pred);
+            _guards.add(cast);
+            replace(pred,cast);
+        }
+    }
+
 
     // Remove matching pred/cast pairs from this guarded region.
     public void removeGuards( Node ctrl ) {

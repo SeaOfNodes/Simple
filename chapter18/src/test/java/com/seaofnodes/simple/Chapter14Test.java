@@ -158,11 +158,11 @@ return (arg | 123 ^ 456) >>> 1;
         Parser parser = new Parser(
 """
 flt f = arg;
-arg = f & 0;
+arg = f & 1;
 return arg;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '&' FltBot",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot '&' flt",e.getMessage()); }
     }
 
     @Test

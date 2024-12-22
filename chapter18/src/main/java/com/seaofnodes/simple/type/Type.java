@@ -31,39 +31,48 @@ public class Type {
     static final byte TTOP    = 1; // Top    (ANY)
     static final byte TCTRL   = 2; // Ctrl flow bottom
     static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
-    static final byte TSIMPLE = 4; // End of the Simple Types
-    static final byte TINT    = 5; // All Integers; see TypeInteger
-    static final byte TFLT    = 6; // All Integers; see TypeInteger
-    static final byte TTUPLE  = 7; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMEM    = 8; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TMEMPTR = 9; // Memory pointer type
-    static final byte TSTRUCT =10; // Structs; tuples with named fields
-    static final byte TFLD    =11; // Fields into struct
-    static final byte TARRAY  =12; // Array
-    static final byte TFUNPTR =13; // Function
+    static final byte TNIL    = 4; // low null of all flavors
+    static final byte TXNIL   = 5; // high or choice null
+    static final byte TSIMPLE = 6; // End of the Simple Types
+
+    static final byte TPTR    = 7; // All nil-able scalar values
+    static final byte TINT    = 8; // All Integers; see TypeInteger
+    static final byte TFLT    = 9; // All Floats  ; see TypeFloat
+    static final byte TMEMPTR =10; // Memory pointer to a struct type
+    static final byte TFUNPTR =11; // Function pointer; unique signature and code address (just a bit)
+    static final byte TTUPLE  =12; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TSTRUCT =14; // Structs; tuples with named fields
+    static final byte TFLD    =15; // Named fields in structs
 
     public final byte _type;
 
     public boolean is_simple() { return _type < TSIMPLE; }
-    private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl"};
+    private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","nil","~nil"};
     protected Type(byte type) { _type = type; }
 
     public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
     public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
     public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
     public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
+    public static final Type NIL      = new Type( TNIL   ).intern(); // low null of all flavors
+    public static final Type XNIL     = new Type( TXNIL  ).intern(); // high or choice null
     public static Type[] gather() {
         ArrayList<Type> ts = new ArrayList<>();
         ts.add(BOTTOM);
         ts.add(CONTROL);
-        Field.gather(ts);
+        ts.add(NIL);
+        ts.add(XNIL);
+        TypeNil.gather(ts);
+        TypePtr.gather(ts);
         TypeInteger.gather(ts);
         TypeFloat.gather(ts);
-        TypeMem.gather(ts);
         TypeMemPtr.gather(ts);
+        TypeFunPtr.gather(ts);
+        TypeMem.gather(ts);
+        Field.gather(ts);
         TypeStruct.gather(ts);
         TypeTuple.gather(ts);
-        TypeFunPtr.gather(ts);
         int sz = ts.size();
         for( int i = 0; i < sz; i++ )
             ts.add(ts.get(i).dual());
@@ -71,12 +80,12 @@ public class Type {
     }
 
     // Is high or on the lattice centerline.
-    public boolean isHigh       () { return _type==TTOP || _type==TXCTRL; }
-    public boolean isHighOrConst() { return _type==TTOP || _type==TXCTRL; }
+    public boolean isHigh       () { return _type==TTOP || _type==TXCTRL || _type==TXNIL; }
+    public boolean isHighOrConst() { return isHigh() || isConstant(); }
 
     // Strict constant values, things on the lattice centerline.
     // Excludes both high and low values
-    public boolean isConstant() { return false; }
+    public boolean isConstant() { return _type==TNIL; }
 
     // ----------------------------------------------------------
 
@@ -88,7 +97,7 @@ public class Type {
     // to be immutable once defined.  The rationale for interning is
     // *correctness* with cyclic type definitions.  Simple structural recursive
     // checks go exponential with merely sharing, but with cycles they will
-    // stack overflow and crash.  Intering means we do not need to have sharing
+    // stack overflow and crash.  Interning means we do not need to have sharing
     // checks with every type compare, only during interning.
 
     // Factory method which interns "this"
@@ -127,6 +136,9 @@ public class Type {
         if( t == this ) return this;
         // Same-type is always safe in the subclasses
         if( _type==t._type ) return xmeet(t);
+        // TypeNil vs TypeNil meet
+        if( this instanceof TypeNil ptr0 && t instanceof TypeNil ptr1 )
+            return ptr0.nmeet(ptr1);
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
@@ -141,18 +153,27 @@ public class Type {
         // ANY meet anything is thing; thing meet ALL is ALL
         if( _type==TBOT || t._type==TTOP ) return this;
         if( _type==TTOP || t._type==TBOT ) return    t;
-        // 'this' is {TCTRL,TXCTRL}
+
+        // RHS TypeNil vs NIL/XNIL
+        if( _type==  TNIL ) return t instanceof TypeNil ptr ? ptr.meet0() : (t._type==TXNIL ? TypePtr.PTR : BOTTOM);
+        if( _type== TXNIL ) return t instanceof TypeNil ptr ? ptr.meetX() : (t._type== TNIL ? TypePtr.PTR : BOTTOM);
+        // 'this' is only {TCTRL,TXCTRL}
+        // Other non-simple RHS things bottom out
         if( !t.is_simple() ) return BOTTOM;
-        // 't' is {TCTRL,TXCTRL}
+        // If RHS is NIL/XNIL
+        if( t._type==TNIL || t._type==TXNIL ) return BOTTOM;
+        // Both are {TCTRL,TXCTRL} and unequal to each other
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
 
     public Type dual() {
         return switch( _type ) {
-        case TBOT -> TOP;
-        case TTOP -> BOTTOM;
-        case TCTRL -> XCONTROL;
-        case TXCTRL -> CONTROL;
+        case TBOT  -> TOP;
+        case TTOP  -> BOTTOM;
+        case TCTRL ->XCONTROL;
+        case TXCTRL-> CONTROL;
+        case TNIL  ->XNIL;
+        case TXNIL -> NIL;
         default -> throw Utils.TODO(); // Should not reach here
         };
     }
@@ -168,19 +189,13 @@ public class Type {
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
 
-    /** Compute greatest lower bound in the lattice */
-    public Type glb() { return _type==TCTRL ? CONTROL : BOTTOM; }
-    /** Compute least upper bound in the lattice */
-    public Type lub() { return _type==TCTRL ? XCONTROL : TOP; }
+    public Type nonZero() { return TypePtr.NPTR; }
 
-    // Make an initial/default version of this type.  Typically, 0 for integers
-    // and null for nullable pointers.
-    public Type makeInit() { return this; }
     // Make a zero version of this type, 0 for integers and null for pointers.
-    public Type makeZero() { return null; }
-    // Make a non-zero version of this type, if possible.  Integers attempt to
-    // exclude zero from their range and pointers become not-null.
-    public Type nonZero() { return glb(); }
+    public Type makeZero() { return Type.NIL; }
+
+    /** Compute greatest lower bound in the lattice */
+    public Type glb() { return Type.NIL; }
 
     // Is forward-reference
     public boolean isFRef() { return false; }
@@ -207,7 +222,7 @@ public class Type {
         return print(new SB()).toString();
     }
 
-    public SB  print(SB sb) { return is_simple() ? sb.p(STRS[_type]) : sb;}
+    public SB  print(SB sb) { return sb.p(str()); }
     public SB gprint(SB sb) { return print(sb); }
 
     // This is used by error messages, and is a shorted print.

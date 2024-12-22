@@ -25,7 +25,7 @@ public class TypeMem extends Type {
     public static final TypeMem TOP = make(0, Type.TOP   );
     public static final TypeMem BOT = make(0, Type.BOTTOM);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(make(1,TypeInteger.ZERO)); ts.add(BOT); }
+    public static void gather(ArrayList<Type> ts) { ts.add(make(1,Type.NIL)); ts.add(make(1,TypeInteger.ZERO)); ts.add(BOT); }
 
     @Override
     TypeMem xmeet(Type t) {
@@ -45,25 +45,20 @@ public class TypeMem extends Type {
     }
 
     @Override public Type glb() { return make(_alias,_t.glb()); }
-    @Override public Type lub() { return make(_alias,_t.lub()); }
 
-    @Override
-    int hash() { return 9876543 + _alias + _t.hashCode(); }
+    @Override int hash() { return 9876543 + _alias + _t.hashCode(); }
 
-    @Override
-    boolean eq(Type t) {
+    @Override boolean eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
         return _alias == that._alias && _t == that._t;
     }
 
-    @Override
-    public SB print(SB sb) {
+    @Override public SB print(SB sb) {
         sb.p("#");
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         return _t.print(sb.p(_alias).p(":"));
     }
-    @Override
-    public SB gprint(SB sb) {
+    @Override public SB gprint(SB sb) {
         sb.p("#");
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         return _t.gprint(sb.p(_alias).p(":"));

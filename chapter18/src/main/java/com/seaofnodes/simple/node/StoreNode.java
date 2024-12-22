@@ -71,7 +71,7 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
-        // Simple store-after-new on same address.  Should pick up the
+        // Simple store-after-new on same address.  Should pick up
         // an init-store being stomped by a first user store.
         if( mem() instanceof ProjNode st  && st .in(0) instanceof NewNode nnn &&
             ptr() instanceof ProjNode ptr && ptr.in(0) == nnn &&
@@ -86,7 +86,7 @@ public class StoreNode extends MemOpNode {
             val()._type.isHighOrConst() &&
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
-            //checkOnlyUse(st) &&
+            checkOnlyUse(st) &&
             // Folding away a broken store
             err()==null ) {
             nnn.setDef(nnn.findAlias(_alias),val());

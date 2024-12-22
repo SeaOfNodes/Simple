@@ -198,7 +198,7 @@ public class JSViewer implements AutoCloseable {
             if( level==0 && n!=null && n.nIns()>2 ) {
                 sb.i().p("<TR>");
                 for( int m=2; m<n.nIns(); m++ )
-                    cell(sb,"#"+m,n.in(m),"m"+m);
+                    cell(sb,"#"+m,n.alias(m),"m"+m);
                 sb.p("</TR>\n"); // End scope level
             }
             // Scope variables, empty if none

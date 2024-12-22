@@ -337,7 +337,7 @@ flt f=arg?1:1.2;
 return f;   // missing widening
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,1.0,1.2);", stop.toString());
+        assertEquals("return Phi(Region,1.0f,1.2);", stop.toString());
         assertEquals(1.2, Evaluator.evaluate(stop,  0));
     }
 

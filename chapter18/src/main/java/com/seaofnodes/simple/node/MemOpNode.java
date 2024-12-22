@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
@@ -48,7 +49,7 @@ public abstract class MemOpNode extends Node {
         // Already an error, but better error messages come from elsewhere
         if( ptr == Type.BOTTOM ) return null;
         // Better be a not-nil TMP
-        if( ptr instanceof TypeMemPtr tmp && !tmp._nil )
+        if( ptr instanceof TypeMemPtr tmp && tmp._nil==2 )
             return null;
         return "Might be null accessing '" + _name + "'";
     }

@@ -37,7 +37,7 @@ public class Field extends Type {
     @Override public Field makeRO() { return _final ? this : make(_fname,_type.makeRO(),_alias,true);  }
     @Override public boolean isFinal() { return _final && _type.isFinal(); }
 
-    public static final Field TEST = make("test",TypeInteger.ZERO,-2,false);
+    public static final Field TEST = make("test",Type.NIL,-2,false);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); }
 
     @Override Field xmeet( Type that ) {
@@ -52,12 +52,7 @@ public class Field extends Type {
 
     @Override public Field glb() {
         Type glb = _type.glb();
-        return glb==_type ? this : make(_fname,glb,_alias,_final);
-    }
-
-    @Override public Field lub() {
-        Type lub = _type.lub();
-        return lub==_type ? this : make(_fname,lub,_alias,_final);
+        return (glb==_type && _final) ? this : make(_fname,glb,_alias,true);
     }
 
     // Override in subclasses

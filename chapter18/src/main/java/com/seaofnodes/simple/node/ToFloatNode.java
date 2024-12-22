@@ -21,8 +21,8 @@ public class ToFloatNode extends Node {
     @Override
     public Type compute() {
         if (in(1)._type instanceof TypeInteger i0 && i0.isConstant() )
-            return TypeFloat.constant(i0.value());
-        return TypeFloat.BOT;
+            return i0.value()==0 ? Type.NIL : TypeFloat.constant(i0.value());
+        return TypeFloat.F64;
     }
 
     @Override public Node idealize() { return null; }

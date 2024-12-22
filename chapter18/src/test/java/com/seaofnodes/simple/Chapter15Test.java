@@ -3,9 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
-import org.junit.Ignore;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class Chapter15Test {
 

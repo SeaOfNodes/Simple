@@ -17,15 +17,16 @@ public class NewNode extends Node implements MultiNode {
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
+        assert ptr._nil!=3;
         _ptr = ptr;
         _len = ptr._obj._fields.length;
         // Control in slot 0
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
         // Malloc-length in slot 1
-        assert nodes[1]._type instanceof TypeInteger;
+        assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
         for( int i=0; i<_len; i++ ) {
             // Memory slices for all fields.
-            assert nodes[2+     i]._type instanceof TypeMem;
+            assert nodes[2+     i]._type.isa(TypeMem.BOT);
             // Value  slices for all fields.
             assert nodes[2 + _len + i]._type != null;
         }
@@ -57,7 +58,8 @@ public class NewNode extends Node implements MultiNode {
         ts[0] = Type.CONTROL;
         ts[1] = _ptr;
         for( int i=0; i<fs.length; i++ ) {
-            TypeMem mem = (TypeMem)in(i+2)._type;
+            Type mt = in(i+2)._type;
+            TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)in(i+2)._type;
             Type tfld = in(2+_len+i)._type.meet(mem._t);
             ts[i+2] = TypeMem.make(fs[i]._alias,tfld);
         }
