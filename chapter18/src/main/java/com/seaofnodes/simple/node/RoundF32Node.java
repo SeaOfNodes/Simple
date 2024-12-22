@@ -30,7 +30,7 @@ public class RoundF32Node extends Node {
         Type t1 = lhs._type;
 
         // RoundF32 of float
-        if( t1 instanceof TypeFloat tf && tf._sz==32 )
+        if( t1 instanceof TypeFloat tf && tf._f32 )
             return lhs;
 
         return null;

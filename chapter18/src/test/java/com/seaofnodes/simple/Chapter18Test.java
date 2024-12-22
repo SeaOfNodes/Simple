@@ -11,7 +11,8 @@ public class Chapter18Test {
 
     @Test
     public void testJig() {
-        Parser parser = new Parser("""
+        Parser parser = new Parser(
+"""
 return 3.14;
 """);
         StopNode stop = parser.parse().iterate();

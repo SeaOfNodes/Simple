@@ -70,7 +70,7 @@ public class ScopeMinNode extends Node {
 
     public Node in( Var v ) { return in(v._idx); }
 
-    Node alias( int alias ) {
+    public Node alias( int alias ) {
         return in(alias<nIns() && in(alias)!=null ? alias : 1);
     }
 
@@ -114,7 +114,7 @@ public class ScopeMinNode extends Node {
                 //Var v = _vars.at(i);
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), TypeMem.BOT, r, lhs, rhs).peephole());
+                alias(i, new PhiNode(Parser.memName(i), lhs._type.glb().meet(rhs._type.glb()), r, lhs, rhs).peephole());
             }
     }
 

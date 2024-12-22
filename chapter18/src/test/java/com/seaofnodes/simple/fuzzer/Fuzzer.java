@@ -46,8 +46,8 @@ public class Fuzzer {
         e.printStackTrace(System.out);
         System.out.println("========== Seed ==========");
         System.out.println(seed);
-        System.out.println("========== Code ===========");
-        System.out.println(script);
+        //System.out.println("========== Code ===========");
+        //System.out.println(script);
         System.out.println("========= Reduced =========");
         System.out.println(Reducer.reduce(script, e, reproducer));
         System.out.println("===========================");
@@ -63,6 +63,10 @@ public class Fuzzer {
             }
             return false;
         }
+        if( a==null && b == Long.valueOf(0) )
+            return false;
+        if( b==null && a == Long.valueOf(0) )
+            return false;
         return true;
     }
 

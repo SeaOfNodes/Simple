@@ -68,7 +68,8 @@ JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
-	@$(JVM) org.junit.runner.JUnitCore $(test_cp) com.seaofnodes.simple.FuzzerWrap
+	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
+	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
 fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)

@@ -115,7 +115,7 @@ public abstract class IterPeeps {
         int old_cnt = Node.ITER_CNT, old_nop = Node.ITER_NOP_CNT;
         Node changed = stop.walk( n -> {
                 Node m = n;
-                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=5) ) { // Types must be forwards, even if on worklist
+                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
                     if( WORK.on(n) ) return null;
                     m = n.peepholeOpt();
                     if( m==null ) return null;

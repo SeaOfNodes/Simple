@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
-import com.seaofnodes.simple.Utils;
-
+import com.seaofnodes.simple.type.TypeNil;
 import java.util.BitSet;
 
 public class PhiNode extends Node {
@@ -47,7 +47,7 @@ public class PhiNode extends Node {
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type
-        Type t = _declaredType.lub();
+        Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
@@ -101,10 +101,12 @@ public class PhiNode extends Node {
         // then replace with plain val.
         if( nIns()==3 ) {
             int nullx = -1;
-            if( in(1)._type == in(1)._type.makeInit() ) nullx = 1;
-            if( in(2)._type == in(2)._type.makeInit() ) nullx = 2;
+            if( in(1)._type == in(1)._type.makeZero() ) nullx = 1;
+            if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
+                if( val instanceof CastNode cast )
+                    val = cast.in(1);
                 if( r.idom(this).addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);

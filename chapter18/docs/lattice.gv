@@ -3,7 +3,8 @@ digraph Lattice {
     // Define nodes
     splines=false;
     node [shape=circle, style=filled];
-    nodesep=0.6;
+    nodesep=0.2;
+    ranksep=0.2;
 
     TOP [label=<<B>⊤</B >>, fillcolor=black, fontcolor=white];
     BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
@@ -22,13 +23,13 @@ digraph Lattice {
     INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
     INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
 
-    INT_HI    [label="max < min" , fillcolor=lightblue, shape=oval];
-    INT_XBOOL [label="1...0", fillcolor=lightblue, shape=oval];
+    INT_HI    [label="[min>max]" , fillcolor=lightblue, shape=oval];
+    INT_XBOOL [label="[1...0]", fillcolor=lightblue, shape=oval];
     INT_CON   [label="constants", fillcolor=lightblue, shape=oval];
     INT_CON0  [label="0", fillcolor=lightblue];
     INT_CON1  [label="1", fillcolor=lightblue];
-    INT_BOOL  [label="0...1", fillcolor=lightblue,shape=oval];
-    INT_LO    [label="max > min" , fillcolor=lightblue, shape=oval];
+    INT_BOOL  [label="[0...1]", fillcolor=lightblue,shape=oval];
+    INT_LO    [label="[min<max]" , fillcolor=lightblue, shape=oval];
 
     TOP        -> INT_TOP;
     INT_TOP    -> INT_HI;

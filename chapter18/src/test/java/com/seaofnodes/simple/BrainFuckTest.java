@@ -23,7 +23,8 @@ public class BrainFuckTest {
 
         Parser parser = new Parser(
                 encoded + """
-var d = 0;
+
+int d = 0;
 u8[] !output = new u8[0];
 u8[] !data = new u8[100];
 
@@ -41,14 +42,14 @@ for( int pc = 0; pc < program#; pc++ ) {
         // Output a byte; increase the output array size
         var old = output;
         output = new u8[output# + 1];
-        for( var i = 0; i < old#; i++ )
+        for( int i = 0; i < old#; i++ )
             output[i] = old[i];
         output[old#] = data[d]; // Add the extra byte on the end
     } else if (command == 44) {
         data[d] = 42;
     } else if (command == 91) {
         if (data[d] == 0) {
-            for( var d = 1; d > 0; ) {
+            for( int d = 1; d > 0; ) {
                 command = program[++pc];
                 if (command == 91) d++;
                 if (command == 93) d--;
@@ -56,7 +57,7 @@ for( int pc = 0; pc < program#; pc++ ) {
         }
     } else if (command == 93) {
         if (data[d]) {
-            for( var d = 1; d > 0; ) {
+            for( int d = 1; d > 0; ) {
                 command = program[--pc];
                 if (command == 93) d++;
                 if (command == 91) d--;

@@ -359,8 +359,9 @@ public abstract class Node implements OutNode {
         if( n != null )         // Something changed
             return n;           // Report progress
 
-        if( old==_type ) ITER_NOP_CNT++;
-        return old==_type ? null : this; // Report progress
+        if( old!=_type ) return this; // Report progress;
+        ITER_NOP_CNT++;
+        return null;            // No progress
     }
     public static int ITER_CNT, ITER_NOP_CNT;
 

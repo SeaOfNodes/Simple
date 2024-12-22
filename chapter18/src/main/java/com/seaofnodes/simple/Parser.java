@@ -24,6 +24,7 @@ public class Parser {
     public static StartNode START;
 
     public static ConstantNode ZERO; // Very common node, cached here
+    public static ConstantNode NIL;  // Very common node, cached here
     public static XCtrlNode XCTRL;   // Very common node, cached here
 
     // Next available memory alias number
@@ -110,7 +111,8 @@ public class Parser {
         _continueScope = _breakScope = null;
         START = new StartNode(arg);
         STOP = new StopNode(source);
-        ZERO = con(0).keep();
+        ZERO  = con(TypeInteger.ZERO).keep();
+        NIL  = con(Type.NIL).keep();
         XCTRL= new XCtrlNode().peephole().keep();
         ALIAS = 2; // alias 0 for the control, 1 for memory
         TYPES = defaultTypes();
@@ -124,9 +126,9 @@ public class Parser {
         return new HashMap<>() {{
             put("bool",TypeInteger.U1 );
             put("byte",TypeInteger.U8 );
-            put("f32" ,TypeFloat  .B32);
-            put("f64" ,TypeFloat  .BOT);
-            put("flt" ,TypeFloat  .BOT);
+            put("f32" ,TypeFloat  .F32);
+            put("f64" ,TypeFloat  .F64);
+            put("flt" ,TypeFloat  .F64);
             put("i16" ,TypeInteger.I16);
             put("i32" ,TypeInteger.I32);
             put("i64" ,TypeInteger.BOT);
@@ -170,7 +172,7 @@ public class Parser {
         for( StructNode init : INITS.values() )
             init.unkeep().kill();
         INITS.clear();
-        if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
+        if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
         STOP.peephole();
         JSViewer.show();
         if( show ) showGraph();
@@ -207,7 +209,6 @@ public class Parser {
     private Node parseStatement() {
         if( false ) return null;
         else if (matchx("return")  ) return parseReturn();
-        else if (match ("{")       ) return require(parseBlock(false),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
         else if (matchx("for")     ) return parseFor();
@@ -216,6 +217,11 @@ public class Parser {
         else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")       ) return null; // Empty statement
+        // Break ambiguity around leading function types and starting a block
+        else if (peek('{') && !isTypeFun() ) {
+            match("{");
+            return require(parseBlock(false),"}");
+        }
         // Declaration or normal assignment/expression
         else return parseDeclarationStatement();
     }
@@ -378,7 +384,7 @@ public class Parser {
         return toScope;
     }
 
-    private void checkLoopActive() { if (_breakScope == null) throw Parser.error("No active loop for a break or continue"); }
+    private void checkLoopActive() { if (_breakScope == null) throw error("No active loop for a break or continue"); }
 
     private Node parseContinue() { checkLoopActive(); return (_continueScope = require(jumpTo( _continueScope ),";"));  }
     private Node parseBreak   () {
@@ -602,13 +608,16 @@ public class Parser {
                 // var is always not-final, final if no Bang AND TMP since primitives are not-final by default
                 (t!=Type.BOTTOM && !hasBang && (t instanceof TypeMemPtr));
             // var/val, then type comes from expression
-            if( inferType )
+            if( inferType ) {
+                if( expr._type==Type.NIL )
+                    throw error("a not-null/non-zero expression");
                 t = expr._type.glb();
+            }
 
         } else {
             if( inferType && !_scope.inCon() )
                 throw errorSyntax("=expression");
-            expr = con(t.makeInit());
+            expr = t instanceof TypeMemPtr tn ? (tn._nil==3 ? NIL : con(Type.TOP)) : (t==Type.BOTTOM ? con(t) : ZERO);
         }
 
         // Lift expression, based on type
@@ -632,11 +641,11 @@ public class Parser {
      * @return The statement following the struct
      */
     private Node parseStruct() {
-        if (_xScopes.size() > 1) throw errorSyntax("struct declarations can only appear in top level scope");
+        if (_xScopes.size() > 1) throw error("struct declarations can only appear in top level scope");
         String typeName = requireId();
         Type t = TYPES.get(typeName);
         if( t!=null && !(t instanceof TypeMemPtr tmp && tmp.isFRef() ) )
-            throw errorSyntax("struct '" + typeName + "' cannot be redefined");
+            throw error("struct '" + typeName + "' cannot be redefined");
 
         // A Block scope parse, and inspect the scope afterward for fields.
         _scope.push(true);
@@ -655,7 +664,7 @@ public class Parser {
             fs[i-lexlen] = Field.make(v._name,v.type(),ALIAS++,v._final);
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
-        TYPES.put(typeName, TypeMemPtr.make(ts));
+        TYPES.put(typeName, TypeMemPtr.make((byte)2,ts));
         INITS.put(typeName,s.peephole().keep());
         // Done with struct/block scope
         require("}");
@@ -673,23 +682,28 @@ public class Parser {
     // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
     private Type type() {
         int old1 = pos();
+        // Only type with a leading `{` is a function pointer...
+        if( peek('{') ) return typeFunPtr();
+
+        // Otherwise you get a type name
         String tname = _lexer.matchId();
         if( tname==null ) return null;
+
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
         // No new types as keywords
         if( t0 == null && KEYWORDS.contains(tname) )
             return posT(old1);
-        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
+        if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
+        Type t1 = t0 == null ? TypeMemPtr.make((byte)2,TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
-            assert !(t2 instanceof TypeStruct);
             if( match("?") ) {
                 if( !(t2 instanceof TypeMemPtr tmp) )
                     throw error("Type "+t0+" cannot be null");
-                if( tmp._nil ) throw error("Type "+t2+" already allows null");
-                t2 = TypeMemPtr.make(tmp._obj,true);
+                if( tmp._nil==3 ) throw error("Type "+t2+" already allows null");
+                t2 = tmp.makeFrom((byte)3);
             } else if( match("[]") ) {
                 t2 = typeAry(t2);
             } else
@@ -712,7 +726,7 @@ public class Parser {
 
     // Make an array type of t
     private TypeMemPtr typeAry( Type t ) {
-        if( t instanceof TypeMemPtr tmp && !tmp._nil )
+        if( t instanceof TypeMemPtr tmp && (tmp._nil==1|| tmp._nil==2)  )
             throw error("Arrays of reference types must always be nullable");
         String tname = "["+t.str()+"]";
         Type ta = TYPES.get(tname);
@@ -720,20 +734,44 @@ public class Parser {
         // Need make an array type.
         TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++);
         assert ts.str().equals(tname);
-        TypeMemPtr tary = TypeMemPtr.make(ts);
+        TypeMemPtr tary = TypeMemPtr.make((byte)2,ts);
         TYPES.put(tname,tary);
         return tary;
     }
 
-    // Fixup forward refs lazily.  Basically a Union-Find flavored read
-    // barrier.
-    Type lazyFRef(Type t) {
-        //if( !t.isFRef() ) return t;
-        //Type def = Parser.TYPES.get(((TypeMemPtr)t)._obj._name);
-        throw Utils.TODO();
+    // A function type is `{ type... -> type }` or `{ type }`.
+    private Type typeFunPtr() {
+        int old = pos();        // Record lexer position
+        match("{");             // Skip already-peeked '{'
+        Type t0 = type();       // Either return or first arg
+        if( t0==null ) return posT(old); // Not a function
+        if( match("}") )                 // No-arg function { -> type }
+            throw Utils.TODO();
+        Ary<Type> ts = new Ary<>(Type.class);
+        ts.push(null);          // Return filled in later
+        ts.push(t0);            // First argument
+        while( true ) {
+            if( match("->") ) { // End of arguments, parse return
+                Type ret = type();
+                if( ret==null ) return posT(old);
+                ts.set(0,ret);
+                if( !match("}") ) return posT(old); // Not a function
+                return TypeFunPtr.make(TypeTuple.make(ts.asAry()),match("?"));
+            }
+            Type t1 = type();
+            if( t1==null ) return posT(old); // Not a function
+            ts.push(t1);
+        }
 
     }
 
+    // True if a TypeFunPtr, without advancing parser
+    private boolean isTypeFun() {
+        int old = pos();
+        if( typeFunPtr()==null ) return false;
+        pos(old);
+        return true;
+    }
 
     /**
      * Parse an expression of the form:
@@ -908,7 +946,7 @@ public class Parser {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
-        if( matchx("null" ) ) return con(TypeMemPtr.NULLPTR);
+        if( matchx("null" ) ) return NIL;
         if( match("(") ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
         // Expect an identifier now
@@ -1021,7 +1059,7 @@ public class Parser {
         // Initial values for every field
         for( int i = 0; i < len; i++ )
             ns[2+len+i] = init.get(i+idx);
-        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
+        Node nnn = new NewNode(TypeMemPtr.make((byte)2,obj), ns).peephole();
         for( int i = 0; i < len; i++ )
             memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
         return new ProjNode(nnn,1,obj._name).peephole();
@@ -1032,7 +1070,7 @@ public class Parser {
         int base = ary.aryBase ();
         int scale= ary.aryScale();
         Node size = peep(new AddNode(con(base),peep(new ShlNode(len.keep(),con(scale)))));
-        ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._type.makeInit()));
+        ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._type.makeZero()));
         return newStruct(ary,size,0,ALTMP);
     }
 
@@ -1061,16 +1099,20 @@ public class Parser {
         else if( match("[") ) name = "[]";
         else return expr;       // No postfix
 
-        // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error("Expected reference but got " + expr._type.str());
-
         // Happens when parsing known dead code, which often has other typing
         // issues.  Since the code is dead, possibly due to inlining, lets not
         // spoil the user experience with error messages.
         if( ctrl()._type==Type.XCONTROL )
             // Exit out via parsing the trailing expression
             return matchOpx('=','=') ? parseAsgn() : parsePostfix(con(Type.TOP));
+
+        //
+        if( expr._type==Type.NIL )
+            throw error("Accessing unknown field '" + name + "' from 'null'");
+
+        // Sanity check expr for being a reference
+        if( !(expr._type instanceof TypeMemPtr ptr) )
+            throw error("Expected reference but got " + expr._type.str());
 
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
@@ -1162,7 +1204,7 @@ public class Parser {
      * </pre>
      */
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
-    public static Node con( long con ) { return con(TypeInteger.constant(con));  }
+    public static Node con( long con ) { return con==0 ? ZERO : con(TypeInteger.constant(con));  }
     public static ConstantNode con( Type t ) { return (ConstantNode)new ConstantNode(t).peephole();  }
     public Node peep( Node n ) {
         // Peephole, then improve with lexically scoped guards
@@ -1212,13 +1254,11 @@ public class Parser {
         throw errorSyntax(syntax);
     }
 
-    RuntimeException errorSyntax(String syntax) {
-        return error("Syntax error, expected " + syntax + ": " + _lexer.getAnyNextToken());
+    RuntimeException errorSyntax(String syntax) { return _errorSyntax("expected "+syntax);  }
+    private RuntimeException _errorSyntax(String msg) {
+        return _lexer.error("Syntax error, "+msg+": " + _lexer.getAnyNextToken());
     }
-
-    public static RuntimeException error( String errorMessage ) {
-        return new RuntimeException(errorMessage);
-    }
+    RuntimeException error(String msg) { return _lexer.error(msg); }
 
     ////////////////////////////////////
     // Lexer components
@@ -1229,6 +1269,11 @@ public class Parser {
         private final byte[] _input;
         // Tracks current position in input buffer
         private int _position = 0;
+
+        //
+        private int _line_number = 1;
+        // Start of current line
+        private int _line_start = 0;
 
         /**
          * Record the source text for lexing
@@ -1263,9 +1308,16 @@ public class Parser {
         // Just crash if misused
         public byte peek(int off) { return _input[_position+off]; }
 
+        private void inc() {
+            if( _position++ < _input.length && _input[_position-1] == '\n' ) {
+                _line_number++;
+                _line_start = _position;
+            }
+        }
+        // Does not honor LF, so caller must roll back position on a LF
         private char nextChar() {
             char ch = peek();
-            _position++;
+            inc();
             return ch;
         }
 
@@ -1279,13 +1331,13 @@ public class Parser {
          */
         private void skipWhiteSpace() {
             while( true ) {
-                if( isWhiteSpace() ) _position++;
+                if( isWhiteSpace() ) inc();
                 // Skip // to end of line
                 else if( _position+2 < _input.length &&
                          _input[_position  ] == '/' &&
                          _input[_position+1] == '/') {
-                    _position += 2;
-                    while( !isEOF() && _input[_position] != '\n' ) _position++;
+                    inc(); inc();
+                    while( !isEOF() && _input[_position] != '\n' ) inc();
                 } else break;
             }
         }
@@ -1297,6 +1349,7 @@ public class Parser {
         // then advance the cursor past syntax.
         // Return false otherwise, and do not advance the cursor.
         boolean match(String syntax) {
+            assert syntax.indexOf('\n')==-1; // No newlines in match
             skipWhiteSpace();
             int len = syntax.length();
             if (_position + len > _input.length) return false;
@@ -1319,7 +1372,7 @@ public class Parser {
             skipWhiteSpace();
             if( _position+1 >= _input.length || _input[_position]!=c0 || _input[_position+1]==c1 )
                 return false;
-            _position++;
+            inc();
             return true;
         }
 
@@ -1357,7 +1410,8 @@ public class Parser {
             if( len > 0 ) {
                 if( len > 1 && _input[old]=='0' )
                     throw error("Syntax error: integer values cannot start with '0'");
-                return TypeInteger.constant(Long.parseLong(new String(_input,old,len)));
+                long i = Long.parseLong(new String(_input,old,len));
+                return TypeInteger.constant(i);
             }
             return TypeFloat.constant(Double.parseDouble(new String(_input,old,-len)));
         }
@@ -1418,6 +1472,12 @@ public class Parser {
             if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
             if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
             return 0;
+        }
+
+        public RuntimeException error( String errorMessage ) {
+            // file:line:charoff err
+            //String msg = "src:"+_line_number+":"+(_position-_line_start)+" "+errorMessage;
+            return new RuntimeException(errorMessage);
         }
     }
 }

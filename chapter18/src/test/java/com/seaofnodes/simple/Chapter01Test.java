@@ -93,7 +93,7 @@ public class Chapter01Test {
             new Parser("return 1;}").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, unexpected }",e.getMessage());
+            assertEquals("Syntax error, unexpected: }",e.getMessage());
         }
     }
 
