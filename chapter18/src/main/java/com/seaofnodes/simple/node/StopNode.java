@@ -1,11 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.GlobalCodeMotion;
-import com.seaofnodes.simple.GraphVisualizer;
-
 import java.util.BitSet;
 
 public class StopNode extends CFGNode {
@@ -25,7 +21,9 @@ public class StopNode extends CFGNode {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( ret()!=null ) return ret()._print0(sb, visited);
+        // For the sake of many old tests, and single value prints as "return val"
+        if( nIns() == 3 ) return expr()._print0(sb.append("return "),visited).append(";");
+        if( ret()!=null ) return ret()._print0(sb,visited);
         sb.append("Stop[ ");
         for( Node ret : _inputs )
             ret._print0(sb, visited).append(" ");
@@ -34,10 +32,15 @@ public class StopNode extends CFGNode {
 
     @Override public boolean blockHead() { return true; }
 
+
+    public CFGNode ctrl() { return (CFGNode)in(0); }
+    public Node mem () { return in(1); }
+    public Node expr() { return in(2); }
+
     // If a single Return, return it.
     // Otherwise, null because ambiguous.
     public ReturnNode ret() {
-        return nIns()==1 ? (ReturnNode)in(0) : null;
+        return nIns()==4 && in(3) instanceof ReturnNode ret ? ret : null;
     }
 
     @Override
@@ -48,8 +51,8 @@ public class StopNode extends CFGNode {
     @Override
     public Node idealize() {
         int len = nIns();
-        for( int i=0; i<nIns(); i++ )
-            if( in(i)._type==Type.XCONTROL )
+        for( int i=3; i<nIns(); i++ )
+            if( ((ReturnNode)in(i)).fun()==null )
                 delDef(i--);
         if( len != nIns() ) return this;
         return null;
@@ -59,28 +62,16 @@ public class StopNode extends CFGNode {
         if( _idepth!=0 ) return _idepth;
         int d=0;
         for( Node n : _inputs )
-            if( n!=null )
-                d = Math.max(d,((CFGNode)n).idepth()+1);
+            if( n instanceof CFGNode cfg )
+                d = Math.max(d,cfg.idepth()+1);
         return _idepth=d;
     }
-    @Override public CFGNode idom(Node dep) { return null; }
 
-    public Node addReturn(Node node) {
-        return addDef(node);
-    }
-
-    public StopNode iterate(            ) { return IterPeeps.iterate(this).typeCheck().GCM(false); }
-    public StopNode iterate(boolean show) { return IterPeeps.iterate(this).typeCheck().GCM(show ); }
-    StopNode typeCheck() {
-        String err = walk( Node::err );
-        if( err != null ) throw new RuntimeException(err);
-        return this;
-    }
-    StopNode GCM(boolean show) {
-        Parser.START.buildLoopTree(this);
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(this,null,null));
-        GlobalCodeMotion.buildCFG(this);
-        return this;
+    // Add a new function exit point.  Validates Parsers function borders, then
+    // hands off to the guaranteed return.
+    public void addReturn(Node ctrl, Node mem, Node rez, FunNode fun) {
+        ReturnNode ret = (ReturnNode)_inputs.last();
+        assert ret.fun()==fun && ret.inProgress();
+        ret.addReturn(ctrl,mem,rez);
     }
 }

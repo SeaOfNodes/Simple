@@ -11,18 +11,18 @@ public class Chapter14Test {
 
     @Test
     public void testJig() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code._stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testRange() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int b;
 if( arg ) b=1; else b=0;
@@ -31,157 +31,157 @@ if( b < 0 ) c = -1;
 if( b > 2 ) c =  1;
 return c;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 99;", stop.toString());
-        assertEquals(99L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 99;", code._stop.toString());
+        assertEquals(99L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testU8() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 u8 b = 123;
 b = b + 456;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 67;", stop.toString());
-        assertEquals(67L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 67;", code._stop.toString());
+        assertEquals(67L, Evaluator.evaluate(code._stop,  0));
     }
 
 
     @Test
     public void testU8While() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 u8 b = 123;
 while( b ) b = b + 456;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testU1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 bool b = 123;
 b = b + 456;// Truncate
 u1 c = b;   // No more truncate needed
 return c;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 1;", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 1;", code._stop.toString());
+        assertEquals(1L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testAnd() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int b = 123;
 b = b+456 & 31;                 // Precedence
 return b;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
-        assertEquals(3L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3;", code._stop.toString());
+        assertEquals(3L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testRefLoad() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct Foo { u1 b; };
 Foo !f = new Foo;
 f.b = 123;
 return f.b;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 1;", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 1;", code._stop.toString());
+        assertEquals(1L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testSigned() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 i8 b = 255;                     // Chopped
 return b;                       // Sign extend
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return -1;", stop.toString());
-        assertEquals(-1L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return -1;", code._stop.toString());
+        assertEquals(-1L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testI8() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 i8 b = arg;
 b = b + 1;// Truncate
 return b;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop, 0));
-        assertEquals(-128L, Evaluator.evaluate(stop, 127));
+        code.parse().opto();
+        assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", code._stop.toString());
+        assertEquals(1L, Evaluator.evaluate(code._stop, 0));
+        assertEquals(-128L, Evaluator.evaluate(code._stop, 127));
     }
 
     @Test
     public void testMask() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 u16 mask = (1<<16)-1;           // AND mask
 int c = 123456789 & mask;
 return c;                       //
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 52501;", stop.toString());
-        assertEquals(52501L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 52501;", code._stop.toString());
+        assertEquals(52501L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testOr() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return (arg | 123 ^ 456) >>> 1;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (((arg|123)^456)>>>1);", stop.toString());
-        assertEquals(217L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return (((arg|123)^456)>>>1);", code._stop.toString());
+        assertEquals(217L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testMaskFloat() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 flt f = arg;
 arg = f & 1;
 return arg;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot '&' flt",e.getMessage()); }
     }
 
     @Test
     public void testCloneAnd() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int v0=0;
 u32 v1 = 1&(1<<arg)&(1<<arg);
 while(arg) v1=-v0;
 while(v1) break;
 return v1;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (Phi(Loop,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", stop.toString());
-        assertEquals(1L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return (Phi(Loop,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", code._stop.toString());
+        assertEquals(1L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testAndHigh() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int v0=0;
 if(0&0>>>0) {
     while(0) {
@@ -193,14 +193,14 @@ if(0&0>>>0) {
 }
 return v0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testTypes() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 i8  xi8  = 123456789;  if( xi8  !=        21 ) return -8;
 i16 xi16 = 123456789;  if( xi16 !=    -13035 ) return -16;
@@ -219,9 +219,9 @@ f32 ff32 = 3.141592653589793;  if( ff32 != 3.1415927410125732) return 5;
 
 return 0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
     }
 
 }

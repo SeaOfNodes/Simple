@@ -44,7 +44,7 @@ public abstract class MemOpNode extends Node {
     int hash() { return _alias; }
 
     @Override
-    String err() {
+    public String err() {
         Type ptr = ptr()._type;
         // Already an error, but better error messages come from elsewhere
         if( ptr == Type.BOTTOM ) return null;

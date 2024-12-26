@@ -155,7 +155,7 @@ public class PhiNode extends Node {
     }
 
     // True if last input is null
-    public final boolean inProgress() {
+    public boolean inProgress() {
         return in(nIns()-1) == null;
     }
 

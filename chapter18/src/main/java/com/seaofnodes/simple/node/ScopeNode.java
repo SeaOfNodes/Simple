@@ -81,6 +81,7 @@ public class ScopeNode extends ScopeMinNode {
      * @return Node that was bound
      */
     public <N extends Node> N ctrl(N n) { return setDef(0,n); }
+    public Node mem(Node n) { return setDef(1,n); }
 
     public void push() { push(false); }
     public void push(boolean inCon) {
@@ -350,7 +351,9 @@ public class ScopeNode extends ScopeMinNode {
             if( !(n instanceof CFGNode) )
                 n.unkill();
         _guards.clear();
-        super.kill();
+        // Can have lazy uses remaining
+        if( isUnused() )
+            super.kill();
     }
 
 

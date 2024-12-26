@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.fuzzer;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
-
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Random;
@@ -137,9 +136,9 @@ public class Fuzzer {
         var sb = new StringBuilder();
         new ScriptGenerator(rand, sb, true).genProgram();
         try {
-            var parser = new Parser(sb.toString());
+            var code = new CodeGen(sb.toString());
 
-            var stop = parser.parse();
+            code.parse();
             int parse_peeps= Node.ITER_CNT;
             int parse_nops = Node.ITER_NOP_CNT;
             double parse_nop_ratio = (double)parse_nops/parse_peeps;
@@ -148,7 +147,7 @@ public class Fuzzer {
 
             double parse_peeps_per_node = (double)parse_peeps/nids;
 
-            stop.iterate();
+            code.opto();
             int iter_peeps= Node.ITER_CNT;
             int iter_nops = Node.ITER_NOP_CNT;
             double iter_nop_ratio = (double)iter_nops/iter_peeps;

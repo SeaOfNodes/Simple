@@ -21,7 +21,7 @@ public class BrainFuckTest {
             encoded.append("program[").append(i).append("] = ").append(value).append(";");
         }
 
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 encoded + """
 
 int d = 0;
@@ -67,7 +67,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("Hello World!\n", Evaluator.evaluate(stop, 0, 10000).toString());
+        code.parse().opto().typeCheck().codegen();
+        assertEquals("Hello World!\n", Evaluator.evaluate(code._stop, 0, 10000).toString());
     }
 }

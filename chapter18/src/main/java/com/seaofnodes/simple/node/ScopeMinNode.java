@@ -42,7 +42,7 @@ public class ScopeMinNode extends Node {
     public ScopeMinNode() { _type = TypeMem.BOT; }
 
 
-    @Override public String label() { return "$mem"; }
+    @Override public String label() { return "ALLMEM"; }
     @Override public boolean isMem() { return true; }
 
     @Override
@@ -66,7 +66,15 @@ public class ScopeMinNode extends Node {
 
     @Override public Type compute() { return TypeMem.BOT; }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() {
+        if( inProgress() ) return null;
+
+        // If not merging any memory (all memory is just the default)
+        if( nIns()==2 )
+            return in(1);       // Become default memory
+
+        return null;
+    }
 
     public Node in( Var v ) { return in(v._idx); }
 
@@ -78,7 +86,6 @@ public class ScopeMinNode extends Node {
         while( alias >= nIns() ) addDef(null);
         return setDef(alias,st);
     }
-
 
     // Read or update from memory.
     // A shared implementation allows us to create lazy phis both during
@@ -148,4 +155,16 @@ public class ScopeMinNode extends Node {
         }
     }
 
+    // If being used by a Scope, this is "in progress" from the Parser.
+    // Once no more scope users, this is just a memory-merge.
+    boolean inProgress() {
+        for( Node n : _outputs )
+            if( n instanceof ScopeNode scope )
+                return true;
+        return false;
+    }
+
+    @Override boolean eq( Node n ) {
+        return this==n || !inProgress();
+    }
 }

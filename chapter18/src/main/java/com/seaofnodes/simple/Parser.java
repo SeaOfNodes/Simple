@@ -32,9 +32,6 @@ public class Parser {
 
     public StopNode STOP;
 
-    // Debugger Printing.
-    public static boolean SCHEDULED; // True if debug printer can use schedule info
-
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
@@ -91,6 +88,7 @@ public class Parser {
 
     ScopeNode _continueScope;
     ScopeNode _breakScope;      // Merge all the while-breaks here
+    FunNode _fun;               // Current function being parsed
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
@@ -100,12 +98,16 @@ public class Parser {
     // Mapping from a type name to the constructor for a Type.
     public final HashMap<String, StructNode> INITS;
 
+    // "Linker" mapping from constant TypeFunPtrs to heads of function
+    public static final HashMap<TypeFunPtr,FunNode> LINKER = new HashMap<>();
+
+
     public Parser(String source) { this(source, TypeInteger.BOT); }
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        SCHEDULED = false;
+        LINKER.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -154,29 +156,104 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
+        Node ctrl = new CProjNode(START, 0, ScopeNode.CTRL).peephole();
+        Node pmem = new  ProjNode(START, 1, ScopeNode.MEM0).peephole();
+        Node arg  = new  ProjNode(START, 2, ScopeNode.ARG0).peephole();
         ScopeMinNode mem = new ScopeMinNode();
         mem.addDef(null);
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, new CProjNode(START, 0, ScopeNode.CTRL).peephole());
-        mem.addDef(                                           new  ProjNode(START, 1, ScopeNode.MEM0).peephole());
-        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, mem                                    .peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
-        JSViewer.show();
+        mem.addDef(pmem);
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, ctrl);
+        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, mem );
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, arg );
 
-        // Parse whole program
-        parseBlock(false);
+        // Call main
+        CallNode main = (CallNode)new CallNode(ctrl,pmem,arg,con(TypeFunPtr.MAIN)).peephole();
+        // Call End
+        CallEndNode cend = (CallEndNode)new CallEndNode(main).peephole();
+        STOP.addDef(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
+        STOP.addDef(new  ProjNode(cend,1,ScopeNode.MEM0).peephole());
+        STOP.addDef(new  ProjNode(cend,2,ScopeNode.ARG0).peephole());
 
-        if( ctrl()._type==Type.CONTROL )
-            STOP.addReturn(new ReturnNode(ctrl(), ZERO, _scope).peephole());
+        // Parse whole program, as-if function header "{ int arg -> body }"
+        ReturnNode ret = parseFunctionBody("main",TypeFunPtr.MAIN,"arg");
+        LINKER.put(TypeFunPtr.MAIN,ret.fun());
+        main.peephole();
+        if( cend.peephole() != null )
+            IterPeeps.addAll(cend._outputs);
+
+        if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
+
+        // Clean up and reset
         _scope.kill();
         _xScopes.pop();
         for( StructNode init : INITS.values() )
             init.unkeep().kill();
         INITS.clear();
-        if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
         STOP.peephole();
         JSViewer.show();
         if( show ) showGraph();
         return STOP;
+    }
+
+    /**
+     *  Parses a function body, assuming the header is parsed.
+     */
+    private ReturnNode parseFunctionBody(String name, TypeFunPtr sig, String... ids) {
+        sig.setName(name);
+        FunNode fun = _fun = (FunNode)peep(new FunNode(START,sig,name));
+
+        // Build a multi-exit return point for all function returns
+        RegionNode r = new RegionNode(null,null);
+        assert r.inProgress();
+        PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null);
+        PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null);
+        ReturnNode ret = new ReturnNode(r, rmem, rrez, fun);
+        assert ret.inProgress();
+        STOP.addDef(ret);
+
+        // Pre-call the function from Start, with worse-case arguments.  This
+        // represents all the future, yet-to-be-parsed functions calls and
+        // external calls.
+        _scope.push();
+        ctrl(fun);              // Scope control from function
+        // Private mem alias tracking per function
+        ScopeMinNode startMem = _scope.mem();
+        ScopeMinNode mem = new ScopeMinNode();
+        mem.addDef(null);       // Alias#0
+        mem.addDef(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,startMem).peephole()); // All aliases
+        _scope.mem(mem);
+        // All args, "as-if" called externally
+        for( int i=0; i<ids.length; i++ ) {
+            Type t = sig.arg(i);
+            assert t==t.glb();  // Expect args declared type not be lifted
+            _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole());
+        }
+
+        // Parse the body
+        Node last=null;
+        while (!peek('}') && !_lexer.isEOF())
+            last = parseStatement();
+
+        // Last expression is the return
+        if( ctrl()._type==Type.CONTROL )
+            STOP.addReturn(ctrl(), _scope.mem(), last, fun);
+
+        // Function scope ends
+        _scope.pop();
+        _fun = null;
+
+        // Pop off the inProgress node on the multi-exit Region merge
+        assert r.inProgress();
+        r   ._inputs.pop();
+        rmem._inputs.pop();
+        rrez._inputs.pop();
+        assert !r.inProgress();
+
+        // Force peeps, which have been avoided due to inProgress
+        ret.setDef(1,rmem.peephole());
+        ret.setDef(2,rrez.peephole());
+        ret.setDef(0,r.peephole());
+        return (ReturnNode)ret.peephole();
     }
 
     /**
@@ -191,11 +268,13 @@ public class Parser {
     private Node parseBlock(boolean inCon) {
         // Enter a new scope
         _scope.push(inCon);
+        Node last = ZERO;
         while (!peek('}') && !_lexer.isEOF())
-            parseStatement();
+            last = parseStatement();
         // Exit scope
+        last.keep();
         _scope.pop();
-        return null;
+        return last.unkeep();
     }
 
     /**
@@ -323,7 +402,7 @@ public class Parser {
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
-        parseStatement();       // Parse loop body
+        Node expr = parseStatement().keep();       // Parse loop body
         _scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
@@ -363,7 +442,7 @@ public class Parser {
         _xScopes.pop();
         _xScopes.push(exit);
         _scope = exit;
-        return _scope;
+        return peep(expr.unkeep());
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
@@ -386,7 +465,7 @@ public class Parser {
 
     private void checkLoopActive() { if (_breakScope == null) throw error("No active loop for a break or continue"); }
 
-    private Node parseContinue() { checkLoopActive(); return (_continueScope = require(jumpTo( _continueScope ),";"));  }
+    private Node parseContinue() { checkLoopActive(); _continueScope = require(jumpTo( _continueScope ),";"); return ZERO; }
     private Node parseBreak   () {
         checkLoopActive();
         // At the time of the break, and loop-exit conditions are only valid if
@@ -395,11 +474,11 @@ public class Parser {
         _breakScope.removeGuards(_breakScope.ctrl());
         _breakScope = require(jumpTo(_breakScope ),";");
         _breakScope.addGuards(_breakScope.ctrl(), null, false);
-        return _breakScope;
+        return ZERO;
     }
 
     // Look for an unbalanced `)`, skipping balanced
-    private Type skipAsgn() {
+    private void skipAsgn() {
         int paren=0;
         while( true )
             // Next X char handles skipping complex comments
@@ -407,8 +486,10 @@ public class Parser {
             case Character.MAX_VALUE:
                 throw Utils.TODO();
             case ')':
-                if( --paren<0 )
-                    return posT(pos()-1); // Leave the `)` behind
+                if( --paren<0 ) {
+                    posT( pos() - 1 );
+                    return; // Leave the `)` behind
+                }
                 break;
             case '(': paren ++; break;
             default: break;
@@ -449,7 +530,7 @@ public class Parser {
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
-        Node lhs = stmt ? parseStatement() : parseAsgn().keep(); // Parse true-side
+        Node lhs = (stmt ? parseStatement() : parseAsgn()).keep(); // Parse true-side
         _scope.removeGuards(ifT);
 
         ScopeNode tScope = _scope;
@@ -461,9 +542,9 @@ public class Parser {
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);
         boolean doRHS = match(fside);
-        Node rhs = doRHS
+        Node rhs = (doRHS
             ? (stmt ? parseStatement() : parseAsgn())
-            : (stmt ? null             : con(lhs._type.makeZero()));
+            : con(lhs._type.makeZero())).keep();
         _scope.removeGuards(ifF);
         if( doRHS )
             fScope = _scope;
@@ -475,9 +556,8 @@ public class Parser {
 
         // Check the trinary widening int/flt
         if( !stmt ) {
-            rhs = widenInt( rhs, lhs._type ).keep();
+            rhs = widenInt( rhs.unkeep(), lhs._type ).keep();
             lhs = widenInt( lhs.unkeep(), rhs._type ).keep();
-            rhs.unkeep();
         }
 
         // Merge results
@@ -485,7 +565,7 @@ public class Parser {
         _xScopes.pop();       // Discard pushed from graph display
 
         RegionNode r = ctrl(tScope.mergeScopes(fScope));
-        Node ret = stmt ? r : peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs.unkeep(),rhs));
+        Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs.unkeep(),rhs.unkeep()));
         r.peephole();
         return ret;
     }
@@ -501,9 +581,9 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseAsgn(), ";");
-        Node ret = STOP.addReturn(new ReturnNode(ctrl(), expr, _scope).peephole());
+        STOP.addReturn(ctrl(), _scope.mem(), expr, _fun);
         ctrl(XCTRL);            // Kill control
-        return ret;
+        return expr;
     }
 
     /**
@@ -540,11 +620,11 @@ public class Parser {
             throw error("Cannot reassign final '"+name+"'");
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, def.type(), def._final);
+        Node lift = liftExpr(expr.keep(), def.type(), def._final);
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
-        return expr;
+        return expr.unkeep();
     }
 
     // Make finals deep; widen ints to floats; narrow wide int types.
@@ -636,7 +716,7 @@ public class Parser {
         // Define a new name,
         if( !_scope.define(name,t,xfinal,lift) )
             throw error("Redefining name '" + name + "'");
-        return null;
+        return lift;
     }
 
 
@@ -678,7 +758,7 @@ public class Parser {
         require("}");
         require(";");
         _scope.pop();
-        return null;
+        return ZERO;
     }
 
 
@@ -756,21 +836,18 @@ public class Parser {
         if( match("}") )                 // No-arg function { -> type }
             throw Utils.TODO();
         Ary<Type> ts = new Ary<>(Type.class);
-        ts.push(null);          // Return filled in later
         ts.push(t0);            // First argument
         while( true ) {
             if( match("->") ) { // End of arguments, parse return
                 Type ret = type();
-                if( ret==null ) return posT(old);
-                ts.set(0,ret);
-                if( !match("}") ) return posT(old); // Not a function
-                return TypeFunPtr.make(match("?"),TypeTuple.make(ts.asAry()));
+                if( ret==null || !match("}") )
+                    return posT(old); // Not a function
+                return TypeFunPtr.make(match("?"),TypeTuple.make(ts.asAry()),ret);
             }
             Type t1 = type();
             if( t1==null ) return posT(old); // Not a function
             ts.push(t1);
         }
-
     }
 
     // True if a TypeFunPtr, without advancing parser
@@ -1215,8 +1292,6 @@ public class Parser {
         int old = pos();        // Record lexer position
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
-        ts .push(Type.BOTTOM);   // Return type, unknown yet
-        ids.push(null);          // Not an argument
         while( true ) {
             Type t = type();    // Arg type
             if( t==null ) break;
@@ -1227,12 +1302,9 @@ public class Parser {
         }
         require("->");
         // Make a concrete function type, with a fidx
-        TypeFunPtr tfp = TypeFunPtr.makeFun(TypeTuple.make(ts.asAry()));
-        //FunNode fun = (FunNode)peep(new FunNode());
-
-        throw Utils.TODO();
+        TypeFunPtr tfp = TypeFunPtr.makeFun(TypeTuple.make(ts.asAry()),Type.BOTTOM);
+        return parseFunctionBody(null,tfp,ids.asAry());
     }
-
 
     /**
      * Parse integer literal

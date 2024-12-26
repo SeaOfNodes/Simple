@@ -10,53 +10,51 @@ public class Chapter02Test {
 
     @Test
     public void testParseGrammar() {
-        Parser parser = new Parser("return 1+2*3+-5;");
-        Node._disablePeephole = true; // disable peephole so we can observe full graph
-        StopNode ret = parser.parse();
-        assertEquals("return ((1+(2*3))+(-5));", ret.print());
-        Node._disablePeephole = false;
+        CodeGen code = new CodeGen("return 1+2*3+-5;");
+        code.parse(true); // Disable peepholes
+        assertEquals("return Phi(Region,((1+(2*3))+(-5)));", code._stop.ret().print());
     }
 
     @Test
     public void testAddPeephole() {
-        Parser parser = new Parser("return 1+2;");
-        StopNode ret = parser.parse();
-        assertEquals("return 3;", ret.print());
+        CodeGen code = new CodeGen("return 1+2;");
+        code.parse().opto();
+        assertEquals("return 3;", code._stop.print());
     }
 
     @Test
     public void testSubPeephole() {
-        Parser parser = new Parser("return 1-2;");
-        StopNode ret = parser.parse();
-        assertEquals("return -1;", ret.print());
+        CodeGen code = new CodeGen("return 1-2;");
+        code.parse().opto();
+        assertEquals("return -1;", code._stop.print());
     }
 
     @Test
     public void testMulPeephole() {
-        Parser parser = new Parser("return 2*3;");
-        StopNode ret = parser.parse();
-        assertEquals("return 6;", ret.print());
+        CodeGen code = new CodeGen("return 2*3;");
+        code.parse().opto();
+        assertEquals("return 6;", code._stop.print());
     }
 
     @Test
     public void testDivPeephole() {
-        Parser parser = new Parser("return 6/3;");
-        StopNode ret = parser.parse();
-        assertEquals("return 2;", ret.print());
+        CodeGen code = new CodeGen("return 6/3;");
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.print());
     }
 
     @Test
     public void testMinusPeephole() {
-        Parser parser = new Parser("return 6/-3;");
-        StopNode ret = parser.parse();
-        assertEquals("return -2;", ret.print());
+        CodeGen code = new CodeGen("return 6/-3;");
+        code.parse().opto();
+        assertEquals("return -2;", code._stop.print());
     }
 
     @Test
     public void testExample() {
-        Parser parser = new Parser("return 1+2*3+-5;");
-        StopNode ret = parser.parse();
-        assertEquals("return 2;", ret.print());
+        CodeGen code = new CodeGen("return 1+2*3+-5;");
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.print());
     }
 
 }

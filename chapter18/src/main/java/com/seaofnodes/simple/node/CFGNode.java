@@ -82,16 +82,16 @@ public abstract class CFGNode extends Node {
     // Start is a LoopNode which contains all at depth 1.
     public void buildLoopTree(StopNode stop) {
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        _bltWalk(2,stop, new BitSet());
+        _bltWalk(2,null,stop, new BitSet());
     }
-    private int _bltWalk(int pre, StopNode stop, BitSet post) {
+    private int _bltWalk(int pre, FunNode fun, StopNode stop, BitSet post) {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
         // Pre-walk
         for( Node use : _outputs )
             if( use instanceof CFGNode usecfg )
-                pre = usecfg._bltWalk(pre,stop,post);
+                pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
@@ -109,7 +109,7 @@ public abstract class CFGNode extends Node {
                     if( ltree._par == null )
                         // This loop never had an If test choose to take its
                         // exit, i.e. it is a no-exit infinite loop.
-                        ltree._par = ltree._head.forceExit(stop)._ltree;
+                        ltree._par = ltree._head.forceExit(fun,stop)._ltree;
                     ltree = ltree._par;
                 }
             }

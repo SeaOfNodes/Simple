@@ -26,7 +26,9 @@ public class ProjNode extends Node implements MultiUse {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
-    @Override public CFGNode cfg0() { return in(0).cfg0(); }
+    @Override public CFGNode cfg0() {
+        return in(0) instanceof CFGNode cfg ? cfg : in(0).cfg0();
+    }
 
     @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
@@ -38,7 +40,7 @@ public class ProjNode extends Node implements MultiUse {
         return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
     }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
 
     @Override
     boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }

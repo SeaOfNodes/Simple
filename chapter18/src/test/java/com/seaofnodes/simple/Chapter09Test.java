@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
@@ -15,7 +14,7 @@ public class Chapter09Test {
     @Test
     @Ignore
     public void testJig() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int v0=0;
 arg=0;
 while(v0) {
@@ -25,12 +24,12 @@ while(v0) {
 }
 return 0;
                 """);
-        StopNode stop = parser.parse().iterate();
+        code.parse().opto();
     }
 
     @Test
     public void testGVN1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 int x = arg + arg;
 if(arg < 10) {
@@ -41,26 +40,26 @@ else {
 }
 return x;
                 """);
-        StopNode stop = parser.parse();
-        assertEquals("Stop[ return (arg*2); return (Mul+1); ]", stop.toString());
-        Assert.assertEquals(2L, Evaluator.evaluate(stop, 1));
-        Assert.assertEquals(23L, Evaluator.evaluate(stop, 11));
+        code.parse().opto();
+        assertEquals("return Phi(Region,(arg*2),(Mul+1));", code._stop.toString());
+        Assert.assertEquals(2L, Evaluator.evaluate(code._stop, 1));
+        Assert.assertEquals(23L, Evaluator.evaluate(code._stop, 11));
     }
 
     @Test
     public void testGVN2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 return arg*arg-arg*arg;
                 """);
-        StopNode stop = parser.parse();
-        assertEquals("return 0;", stop.toString());
-        Assert.assertEquals(0L, Evaluator.evaluate(stop, 1));
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
+        Assert.assertEquals(0L, Evaluator.evaluate(code._stop, 1));
     }
 
     @Test
     public void testWorklist1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 int step = 1;
 while (arg < 10) {
@@ -68,14 +67,14 @@ while (arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+2));", stop.toString());
-        Assert.assertEquals(11L, Evaluator.evaluate(stop, 1));
+        code.parse().opto();
+        assertEquals("return Phi(Loop,arg,(Phi_arg+2));", code._stop.toString());
+        Assert.assertEquals(11L, Evaluator.evaluate(code._stop, 1));
     }
 
     @Test
     public void testWorklist2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 int cond = 0;
 int one = 1;
@@ -85,14 +84,14 @@ while (arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+4));", stop.toString());
-        Assert.assertEquals(13L, Evaluator.evaluate(stop, 1));
+        code.parse().opto();
+        assertEquals("return Phi(Loop,arg,(Phi_arg+4));", code._stop.toString());
+        Assert.assertEquals(13L, Evaluator.evaluate(code._stop, 1));
     }
 
     @Test
     public void testWorklist3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 int v1 = 0;
 int v2 = 0;
@@ -114,13 +113,13 @@ while (arg) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testRegionPeepBug() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 int v0=0;
 int v1=0;
@@ -132,48 +131,48 @@ while(v1+arg) {
     v1=v2;
 }
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return 0; ]", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testWhile0() {
-        Parser parser = new Parser("while(0) continue; if(0) arg=0;");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        CodeGen code = new CodeGen("while(0) continue; if(0) arg=0;");
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testWhile1() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 if(0) while(0) {
     int arg=arg;
     while(0) {}
 }
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
 
     @Test
     public void testPrecedence() {
-        Parser parser = new Parser("return 3-1+2;");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 4;", stop.toString());
+        CodeGen code = new CodeGen("return 3-1+2;");
+        code.parse().opto();
+        assertEquals("return 4;", code._stop.toString());
     }
 
     @Test
     public void testSwap2() {
-        Parser parser = new Parser("return 1+(1+1);");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
+        CodeGen code = new CodeGen("return 1+(1+1);");
+        code.parse().opto();
+        assertEquals("return 3;", code._stop.toString());
     }
 
 
     @Test
     public void testFuzz0() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int one = 1;
 int a = 0;
 int zero = 0;
@@ -184,13 +183,13 @@ while(arg) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", code._stop.toString());
     }
 
     @Test
     public void testFuzz1() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 while(1) {}
 while(arg) break;
 while(arg) arg=0;
@@ -198,40 +197,40 @@ arg=0;
 int v0=0!=0<-0;
 return -0+0+0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
 
     @Test
     public void testFuzz2() {
-        Parser parser = new Parser("return 0+-0;");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        CodeGen code = new CodeGen("return 0+-0;");
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testFuzz3() {
-        Parser parser = new Parser("int v0=0; while(0==69) while(v0) return 0;");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0;");
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testFuzz4() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 while(1) {
     arg=0<=0;
     if(1<0) while(arg==-0) arg=arg-arg;
 }
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return Top;", code._stop.toString());
     }
 
     @Test
     public void testFuzz5() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 {
     int v0=0;
     while(1)
@@ -247,25 +246,25 @@ while(1) {
 }
 return 0!=0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testFuzz6() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int v0=0;
 while(0==1) while(v0)
         v0=1+v0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return ~int;", code._stop.toString());
     }
 
     @Test
     public void testFuzz7() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 while(1) {}
 int v0=0;
 while(v0)
@@ -275,15 +274,15 @@ while(1)
         v1=1;
 return v1+v0;
                                    """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return Top;", code._stop.toString());
     }
 
     @Test
     public void testFuzz8() {
-        Parser parser = new Parser("while(arg) arg = arg - 1;  return arg;");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        CodeGen code = new CodeGen("while(arg) arg = arg - 1;  return arg;");
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test

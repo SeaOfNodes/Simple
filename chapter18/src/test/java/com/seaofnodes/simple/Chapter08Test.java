@@ -11,7 +11,7 @@ public class Chapter08Test {
 
     @Test
     public void testEx6() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 while(arg < 10) {
     arg = arg + 1;
@@ -22,17 +22,17 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof RegionNode);
-        Assert.assertEquals(5L, Evaluator.evaluate(stop, 1));
-        Assert.assertEquals(10L, Evaluator.evaluate(stop, 6));
+        code.parse().opto();
+        assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", code._stop.toString());
+        assertTrue(code._stop.in(0) instanceof RegionNode);
+        Assert.assertEquals(5L, Evaluator.evaluate(code._stop, 1));
+        Assert.assertEquals(10L, Evaluator.evaluate(code._stop, 6));
     }
 
 
     @Test
     public void testEx5() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 int a = 1;
 while(arg < 10) {
@@ -45,15 +45,15 @@ while(arg < 10) {
 }
 return a;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
 
     @Test
     public void testEx4() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 while(arg < 10) {
     arg = arg + 1;
@@ -64,14 +64,14 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof RegionNode);
+        code.parse().opto();
+        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof RegionNode);
     }
 
     @Test
     public void testEx3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 while(arg < 10) {
     arg = arg + 1;
@@ -80,15 +80,15 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof RegionNode);
+        code.parse().opto();
+        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof RegionNode);
     }
 
 
     @Test
     public void testEx2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 while(arg < 10) {
     arg = arg + 1;
@@ -99,15 +99,15 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
 
     @Test
     public void testEx1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 while(arg < 10) {
     arg = arg + 1;
@@ -116,14 +116,14 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
     @Test
     public void testRegress1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
                 """
 while( arg < 10 ) {
     int a = arg+2;
@@ -132,15 +132,15 @@ while( arg < 10 ) {
 }
 return arg;
                 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return arg;", stop.toString());
+        code.parse().opto();
+        assertEquals("return arg;", code._stop.toString());
     }
 
     @Test
     public void testRegress2() {
-        Parser parser = new Parser("if(1) return 0;  else while(arg>- -arg) arg=arg+1; return 0;");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        CodeGen code = new CodeGen("if(1) return 0;  else while(arg>- -arg) arg=arg+1; return 0;");
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
@@ -161,19 +161,19 @@ return arg;
 
     @Test
     public void testRegress3() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 while(arg < 10) {
     break;
 }
 return arg;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return arg;", stop.toString());
+        code.parse().opto();
+        assertEquals("return arg;", code._stop.toString());
     }
 
     @Test
     public void testRegress4() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 1;
 while(arg < 10) {
     a = a + 1;
@@ -184,14 +184,14 @@ while(arg < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof RegionNode);
+        code.parse().opto();
+        assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof RegionNode);
     }
 
     @Test
     public void testRegress5() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 1;
 while(1) {
     a = a + 1;
@@ -200,9 +200,9 @@ while(1) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (Phi(Loop,1,Add)+1);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode prj && prj._idx==1 );
+        code.parse().opto();
+        assertEquals("return (Phi(Loop,1,Add)+1);", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode prj && prj._idx==1 );
     }
 
 }

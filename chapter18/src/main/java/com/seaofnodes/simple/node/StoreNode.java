@@ -111,7 +111,7 @@ public class StoreNode extends MemOpNode {
     }
 
     @Override
-    String err() {
+    public String err() {
         String err = super.err();
         if( err != null ) return err;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;

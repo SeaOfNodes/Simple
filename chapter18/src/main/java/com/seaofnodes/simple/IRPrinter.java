@@ -18,7 +18,9 @@ public class IRPrinter {
             return;
         }
         for( Node def : n._inputs )
-            sb.append(def==null ? "____ " : "%4d ".formatted(def._nid));
+            sb.append(def==null ? "____" : "%4d".formatted(def._nid))
+                // Lazy Phi indicator
+                .append(n instanceof ScopeMinNode && def instanceof ScopeMinNode ? "^" : " ");
         for( int i = n._inputs.size(); i<4; i++ )
             sb.append("     ");
         sb.append(" [[  ");
@@ -41,7 +43,7 @@ public class IRPrinter {
     }
 
     public static String prettyPrint(Node node, int depth) {
-        return Parser.SCHEDULED
+        return CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Schedule.ordinal()
             ? _prettyPrintScheduled( node, depth )
             : _prettyPrint( node, depth );
     }
@@ -54,7 +56,7 @@ public class IRPrinter {
         ArrayList<Node> rpos = new ArrayList<>();
         BitSet visit = new BitSet();
         for( int i=bfs._lim; i< bfs._bfs.size(); i++ )
-            postOrd( bfs._bfs.get(i), rpos, visit, bfs._bs);
+            postOrd( bfs._bfs.get(i), null, rpos, visit, bfs._bs);
         // Reverse the post-order walk
         StringBuilder sb = new StringBuilder();
         boolean gap=false;
@@ -78,23 +80,26 @@ public class IRPrinter {
         return sb.toString();
     }
 
-    private static void postOrd(Node n, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
+    private static void postOrd(Node n, Node prior, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
         if( !bfs.get(n._nid) )
             return;  // Not in the BFS visit
+        if( n instanceof FunNode && !(prior instanceof StartNode) )
+            return;                     // Only visit Fun from Start
         if( visit.get(n._nid) ) return; // Already post-order walked
         visit.set(n._nid);
         // First walk the CFG, then everything
         if( n instanceof CFGNode ) {
             for( Node use : n._outputs )
-                if( use instanceof CFGNode && use.nOuts() >= 1 && !(use._outputs.get( 0 ) instanceof LoopNode) )
-                    postOrd(use, rpos,visit,bfs);
+                if( use instanceof CFGNode && use.nOuts() >= 1 &&
+                    !(use._outputs.get( 0 ) instanceof LoopNode) )
+                    postOrd(use, n, rpos,visit,bfs);
             for( Node use : n._outputs )
                 if( use instanceof CFGNode )
-                    postOrd(use,rpos,visit,bfs);
+                    postOrd(use,n,rpos,visit,bfs);
         }
         for( Node use : n._outputs )
             if( use != null )
-                postOrd(use, rpos,visit,bfs);
+                postOrd(use, n, rpos,visit,bfs);
         // Post-order
         rpos.add(n);
     }
@@ -176,15 +181,15 @@ public class IRPrinter {
         }
         // Print by block with least idepth
         StringBuilder sb = new StringBuilder();
-        ArrayList<Node> bns = new ArrayList<>();
+        Ary<Node> bns = new Ary<>(Node.class);
         while( !ds.isEmpty() ) {
             CFGNode blk = null;
             for( Node n : ns ) {
                 CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : n.cfg0();
-                if( blk==null || cfg.idepth() < blk.idepth() )
+                if( blk==null || cfg.idepth() < blk.idepth() || (blk instanceof FunNode && !(cfg instanceof FunNode)))
                     blk = cfg;
             }
-            ds.remove(blk._nid);
+            Integer d = ds.remove(blk._nid);
             ns.remove(blk);
 
             // Print block header
@@ -192,11 +197,13 @@ public class IRPrinter {
             sb.append( "     ".repeat(4) ).append(" [[  ");
             if( blk instanceof StartNode ) ;
             else if( blk instanceof RegionNode || blk instanceof StopNode )
-                for( int i=(blk instanceof StopNode ? 0 : 1); i<blk.nIns(); i++ )
+                for( int i=(blk instanceof StopNode ? 3 : 1); i<blk.nIns(); i++ )
                     label(sb,blk.cfg(i));
             else
                 label(sb,blk.cfg(0));
             sb.append(" ]]  \n");
+            sb.append(d);
+            printLine(blk,sb);
 
             // Collect block contents that are in the depth limit
             bns.clear();
@@ -204,7 +211,8 @@ public class IRPrinter {
             for( Node use : blk._outputs ) {
                 Integer i = ds.get(use._nid);
                 if( i!=null && !(use instanceof CFGNode cfg && cfg.blockHead()) ) {
-                    bns.add(use);
+                    if( bns.find(use)==-1 )
+                        bns.add(use);
                     xd = Math.min(xd,i);
                 }
             }
@@ -233,12 +241,16 @@ public class IRPrinter {
 
     private static void _walk( HashMap<Integer,Integer> ds, ArrayList<Node> ns, Node node, int d ) {
         Integer nd = ds.get(node._nid);
-        if( nd!=null && d <= nd ) return; // Been there, done that
-        if( ds.put(node._nid,d) == null )
+        if( nd!=null && d >= nd ) return; // Been there, done that
+        Integer old = ds.put(node._nid,d) ;
+        if( old == null )
           ns.add(node);
         if( d == 0 ) return;    // Depth cutoff
         for( Node def : node._inputs )
-            if( def != null )
+            if( def != null &&
+                // Don't walk into or out of functions
+                !(node instanceof CallEndNode && def instanceof ReturnNode) &&
+                !(node instanceof FunNode && def instanceof CallNode) )
                 _walk(ds,ns,def,d-1);
     }
 
@@ -250,9 +262,10 @@ public class IRPrinter {
         if( !blk.blockHead() ) blk = blk.cfg(0);
         sb.append( "%-9.9s ".formatted( label( blk ) ) );
     }
-    static void printLine( Node n, StringBuilder sb, ArrayList<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
+    static void printLine( Node n, StringBuilder sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
+        sb.append(ds.get(n._nid));
         printLine( n, sb );
-        if( i != -1 ) Utils.del(bns,i);
+        if( i != -1 ) bns.del(i);
         ds.remove(n._nid);
         ns.remove(n);
     }

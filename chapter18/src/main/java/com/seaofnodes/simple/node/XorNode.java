@@ -57,7 +57,7 @@ public class XorNode extends Node {
         return null;
     }
     @Override Node copy(Node lhs, Node rhs) { return new XorNode(lhs,rhs); }
-    @Override String err() {
+    @Override public String err() {
         if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '^' " + in(1)._type;
         if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '^' " + in(2)._type;
         return null;
