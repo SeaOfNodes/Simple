@@ -10,32 +10,32 @@ public class Chapter06Test {
 
     @Test
     public void testPeepholeReturn() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 if( true ) return 2;
 return 1;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 2;", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.toString());
+        assertTrue(code._stop.in(0) instanceof CProjNode);
     }
 
     @Test
     public void testPeepholeRotate() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 if (arg)
     a = 2;
 return (arg < a) < 3; // Because (arg < a) is a bool/uint1/[0-1], its always less than 3
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 1;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 1;", code._stop.toString());
     }
 
     @Test
     public void testPeepholeCFG() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( true )
@@ -44,14 +44,14 @@ else
   a=3;
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 2;", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.toString());
+        assertTrue(code._stop.in(0) instanceof CProjNode);
     }
 
     @Test
     public void testIfIf() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg!=1 )
@@ -63,14 +63,15 @@ if( a==2 )
     b=42;
 else
     b=5;
-return b;""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,42,5);", stop.toString());
+return b;
+""");
+        code.parse().opto();
+        assertEquals("return Phi(Region,42,5);", code._stop.toString());
     }
 
     @Test
     public void testIfArgIf() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( 1==1 )
@@ -82,14 +83,14 @@ if( arg==2 )
     b=a;
 else
     b=5;
-return b;""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,2,5);", stop.toString());
+return b;""");
+        code.parse().opto();
+        assertEquals("return Phi(Region,2,5);", code._stop.toString());
     }
 
     @Test
     public void testMerge3With2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg==1 )
@@ -103,13 +104,13 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(2));
-        StopNode stop = parser.parse();
-        assertEquals("return 5;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 5;", code._stop.toString());
     }
 
     @Test
     public void testMerge3With1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg==1 )
@@ -123,13 +124,13 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1));
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 3;", code._stop.toString());
     }
 
     @Test
     public void testMerge3Peephole() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg==1 )
@@ -142,14 +143,14 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,3,Phi(Region,4,5));", stop.toString());
+""");
+        code.parse().opto();
+        assertEquals("return Phi(Region,3,Phi(Region,4,5));", code._stop.toString());
     }
 
     @Test
     public void testMerge3Peephole1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg==1 )
@@ -163,13 +164,13 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1));
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 3;", code._stop.toString());
     }
 
     @Test
     public void testMerge3Peephole3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg==1 )
@@ -183,13 +184,13 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(3));
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 4;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 4;", code._stop.toString());
     }
 
     @Test
     public void testDemo1NonConst() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 0;
 int b = 1;
 if( arg ) {
@@ -199,14 +200,14 @@ if( arg ) {
 }
 return a+b;
 """);
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return Phi(Region,4,1);", ret.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Region,4,1);", code._stop.toString());
     }
 
 
     @Test
     public void testDemo1True() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 0;
 int b = 1;
 if( arg ) {
@@ -216,13 +217,13 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(1));
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return 4;", ret.toString());
+        code.parse().opto();
+        assertEquals("return 4;", code._stop.toString());
     }
 
     @Test
     public void testDemo1False() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 0;
 int b = 1;
 if( arg ) {
@@ -232,13 +233,13 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(0));
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return 1;", ret.toString());
+        code.parse().opto();
+        assertEquals("return 1;", code._stop.toString());
     }
 
     @Test
     public void testDemo2NonConst() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 0;
 int b = 1;
 int c = 0;
@@ -250,14 +251,14 @@ if( arg ) {
 }
 return a+b+c;
 """);
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return (Phi(Region,Phi(Region,2,3),0)+Phi(Region,3,1));", ret.toString());
+        code.parse().opto();
+        assertEquals("return (Phi(Region,Phi(Region,2,3),0)+Phi(Region,3,1));", code._stop.toString());
     }
 
 
     @Test
     public void testDemo2True() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 0;
 int b = 1;
 int c = 0;
@@ -269,13 +270,13 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(1));
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return 6;", ret.toString());
+        code.parse().opto();
+        assertEquals("return 6;", code._stop.toString());
     }
 
     @Test
     public void testDemo2arg2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int a = 0;
 int b = 1;
 int c = 0;
@@ -287,8 +288,8 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(2));
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return 5;", ret.toString());
+        code.parse().opto();
+        assertEquals("return 5;", code._stop.toString());
     }
 
 }

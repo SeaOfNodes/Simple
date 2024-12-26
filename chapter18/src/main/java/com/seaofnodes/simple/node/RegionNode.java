@@ -109,7 +109,7 @@ public class RegionNode extends CFGNode {
     }
 
     // True if last input is null
-    public final boolean inProgress() {
+    public boolean inProgress() {
         return nIns()>1 && in(nIns()-1) == null;
     }
 

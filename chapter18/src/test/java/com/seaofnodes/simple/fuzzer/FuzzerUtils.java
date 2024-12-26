@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.fuzzer;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
-
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
@@ -126,10 +126,10 @@ class FuzzerUtils {
             } catch (Throwable e) {
                 throw rethrow(e);
             }
-            var parser = new Parser(script);
+            var code = new CodeGen(script);
             Node._disablePeephole = !runPeeps;
-            var stop = parser.parse();
-            return runPeeps ? stop.iterate() : stop;
+            code.parse();
+            return runPeeps ? code.opto().typeCheck().codegen()._stop : code._stop;
         } finally {
             NodeWalkVisit.clear();
             System.setErr(err);

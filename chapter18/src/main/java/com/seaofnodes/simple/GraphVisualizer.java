@@ -137,7 +137,7 @@ public class GraphVisualizer {
             for (Node n : all) {
                 if (n instanceof RegionNode region) {
                     sb.append("\t\t{ rank=same; ");
-                    sb.append(region).append(";");
+                    sb.append(region.uniqueName()).append(";");
                     for (Node phi : region._outputs)
                         if (phi instanceof PhiNode) sb.append(phi.uniqueName()).append(";");
                     sb.append("}\n");

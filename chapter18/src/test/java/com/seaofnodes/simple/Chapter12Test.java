@@ -10,29 +10,29 @@ import static org.junit.Assert.fail;
 public class Chapter12Test {
     @Test
     public void testJig() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code._stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testFloat() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code._stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testSquareRoot() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 flt guess = arg;
 while( 1 ) {
@@ -42,21 +42,21 @@ while( 1 ) {
 }
 return guess;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0f));", stop.toString());
-        assertEquals(3.0, Evaluator.evaluate(stop,  9));
-        assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
+        code.parse().opto();
+        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0f));", code._stop.toString());
+        assertEquals(3.0, Evaluator.evaluate(code._stop,  9));
+        assertEquals(1.414213562373095, Evaluator.evaluate(code._stop,  2));
     }
 
     @Test
     public void testFPOps() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 flt x = arg;
 return x+1==x;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return ((flt)arg==(ToFloat+1.0f));", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop, 1));
+        code.parse().opto();
+        assertEquals("return ((flt)arg==(ToFloat+1.0f));", code._stop.toString());
+        assertEquals(0L, Evaluator.evaluate(code._stop, 1));
     }
 }

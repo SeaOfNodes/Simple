@@ -10,15 +10,10 @@ public class Chapter01Test {
 
     @Test
     public void testSimpleProgram() {
-        Parser parser = new Parser("return 1;");
-        StopNode stop = parser.parse();
-        StartNode start = Parser.START;
-        ReturnNode ret = (ReturnNode)stop.in(0);
-
-        assertTrue(ret.ctrl() instanceof CProjNode);
-        Node expr = ret.expr();
+        CodeGen code = new CodeGen("return 1;").parse().opto();
+        Node expr = code._stop.expr();
         if( expr instanceof ConstantNode con ) {
-            assertEquals(start,con.in(0));
+            assertEquals(code._start,con.in(0));
             assertEquals(TypeInteger.constant(1), con._type);
         } else {
             fail();
@@ -27,10 +22,9 @@ public class Chapter01Test {
 
     @Test
     public void testZero() {
-        Parser parser = new Parser("return 0;");
-        parser.parse();
-        StartNode start = Parser.START;
-        for( Node use : start._outputs )
+        CodeGen code = new CodeGen("return 0;");
+        code.parse();
+        for( Node use : code._start._outputs )
             if( use instanceof ConstantNode con && con._type instanceof TypeInteger )
                 assertEquals(TypeInteger.constant(0),con._type);
     }
@@ -38,7 +32,7 @@ public class Chapter01Test {
     @Test
     public void testBad1() {
         try {
-            new Parser("ret").parse();
+            new CodeGen("ret").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'ret'",e.getMessage());
@@ -48,7 +42,7 @@ public class Chapter01Test {
     @Test
     public void testBad2() {
         try {
-            new Parser("return 0123;").parse();
+            new CodeGen("return 0123;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage());
@@ -58,13 +52,13 @@ public class Chapter01Test {
     @Test
     public void testNotBad3() {
         // this test used to fail in chapter 1
-        assertEquals("return 12;", new Parser("return - -12;").parse().print());
+        assertEquals("return 12;", new CodeGen("return - -12;").parse().opto()._stop.print());
     }
 
     @Test
     public void testBad4() {
         try {
-            new Parser("return 100").parse();
+            new CodeGen("return 100").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error, expected ;: ",e.getMessage());
@@ -74,13 +68,13 @@ public class Chapter01Test {
     @Test
     public void testNotBad5() {
         // this test used to fail in chapter 1
-        assertEquals("return -100;", new Parser("return -100;").parse().print());
+        assertEquals("return -100;", new CodeGen("return -100;").parse().opto()._stop.print());
     }
 
     @Test
     public void testBad6() {
         try {
-            new Parser("return100").parse();
+            new CodeGen("return100").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'return100'",e.getMessage());
@@ -90,7 +84,7 @@ public class Chapter01Test {
     @Test
     public void testBad7() {
         try {
-            new Parser("return 1;}").parse();
+            new CodeGen("return 1;}").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Syntax error, unexpected: }",e.getMessage());

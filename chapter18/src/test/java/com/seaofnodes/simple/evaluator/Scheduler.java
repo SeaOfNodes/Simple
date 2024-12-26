@@ -363,30 +363,21 @@ public class Scheduler {
             var data = queue.pop();
             var node = data.node;
             assert node instanceof CFGNode;
-            BasicBlock block;
-            switch (node) {
-                case StartNode s:
-                    block = new BasicBlock(s, depth++);
-                    break;
-                case LoopNode l:
-                    block = new BasicBlock(l, depth++, d(l.in(1)).block);
-                    break;
-                case RegionNode r:
+            BasicBlock block = switch (node) {
+            case StartNode s -> new BasicBlock(s, depth++);
+            case LoopNode l -> new BasicBlock(l, depth++, d(l.in(1)).block);
+            case RegionNode r -> {
                     var prev = new ArrayList<BasicBlock>();
                     for(int i=1; i<r.nIns(); i++) {
                         od(r.in(i)).ifPresent(d->prev.add(d.block));
                     }
-                    block = new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
-                    break;
-                case IfNode i:
-                    block = d(i.in(0)).block;
-                    break;
-                case ReturnNode r:
-                    block = d(r.in(0)).block;
-                    break;
-                default:
-                    block = new BasicBlock(node, depth++, d(node.in(0)).block);
+                    yield new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
             }
+            case IfNode i -> d(i.in(0)).block;
+            case ReturnNode ret -> d(ret .in(0)).block;
+            case StopNode stop  -> d(stop.in(0)).block;
+            default -> new BasicBlock(node, depth++, d(node.in(0)).block);
+            };
             data.block = block;
             if (node instanceof RegionNode r) {
                 // Regions might have phis which need to be scheduled.
@@ -401,7 +392,7 @@ public class Scheduler {
                     }
                 }
             }
-            if (!(node instanceof ReturnNode))
+            if( !(node instanceof ReturnNode) && !(node instanceof StopNode) )
                 for (Node n : node._outputs)
                     if(n instanceof CFGNode && isCFGNodeReady(n) && d(n).block == null)
                         queue.push(d(n));
@@ -449,7 +440,7 @@ public class Scheduler {
             var data = cfgQueue.pop();
             node = data.node;
             assert node instanceof CFGNode;
-            if (!(node instanceof ReturnNode)) {
+            if (!(node instanceof ReturnNode) && !(node instanceof StopNode) ) {
                 for (var out : node._outputs) if (out!=null && out instanceof CFGNode && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
             }
             for (var in : node._inputs) if(in!=null && !(in instanceof CFGNode) && isNotXCtrl(in)) markAlive(dataQueue, in, false);
@@ -506,6 +497,9 @@ public class Scheduler {
             for(var n:node._outputs) if (n instanceof CProjNode p && p._idx==0) return p;
             return null;
         }
+        // From start, a Call, or one of many functions
+        if( node instanceof CProjNode c && c.in(0) instanceof StartNode )
+            return c.out(0);
         assert node._outputs.stream().filter(x -> x instanceof CFGNode).limit(2).count()<=1;
         for(var n:node._outputs) if(n instanceof CFGNode) return n;
         return null;
@@ -550,6 +544,7 @@ public class Scheduler {
                     break;
                 }
                 if (last instanceof ReturnNode) break;
+                if( last instanceof StopNode ) break;
                 if (last instanceof IfNode if_) {
                     for(var out:if_._outputs) if (out instanceof CFGNode && blocks.get(out) == null) queue.push(d(out));
                     break;
@@ -561,7 +556,8 @@ public class Scheduler {
                 case null -> new Block(arr, null, -1, new Block[0]);
                 case IfNode i -> new Block(arr, i, -1, new Block[2]);
                 case RegionNode r -> new Block(arr, r, r._inputs.find(prev), new Block[1]);
-                case ReturnNode r -> new Block(arr, r, -1, new Block[0]);
+                case ReturnNode r -> new Block(arr, r   , -1, new Block[0]);
+                case StopNode stop-> new Block(arr, stop, -1, new Block[0]);
                 default -> throw new AssertionError("Unexpected block exit node");
             });
         }
@@ -576,7 +572,7 @@ public class Scheduler {
                     block.next[0] = blocks.get(r);
                     break;
                 default:
-                    assert block.exit instanceof ReturnNode;
+                    assert block.exit instanceof ReturnNode || block.exit instanceof StopNode;
             }
         }
         // And return the block for the start node.

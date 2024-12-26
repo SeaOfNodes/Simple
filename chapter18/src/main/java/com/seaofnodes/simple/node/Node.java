@@ -11,7 +11,7 @@ import java.util.function.Function;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node implements OutNode {
+public abstract class Node {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
@@ -125,7 +125,7 @@ public abstract class Node implements OutNode {
      */
     public Node in(int i) { return _inputs.get(i); }
     public Node out(int i) { return _outputs.get(i); }
-    @Override public Ary<Node> outs() { return _outputs; }
+    public final Ary<Node> outs() { return _outputs; }
 
     public int nIns() { return _inputs.size(); }
 
@@ -162,9 +162,11 @@ public abstract class Node implements OutNode {
             new_def.addUse(this);
         // Set the new_def over the old (killed) edge
         _inputs.set(idx,new_def);
-        if( old_def != null &&  // If the old def exists, remove a def->use edge
-            old_def.delUse(this) ) // If we removed the last use, the old def is now dead
-            old_def.kill();     // Kill old def
+        if( old_def != null ) {          // If the old def exists, remove a def->use edge
+            if( old_def.delUse(this) )  // If we removed the last use, the old def is now dead
+                old_def.kill();         // Kill old def
+            else IterPeeps.add(old_def);// Else old lost a use, so onto worklist
+        }
         moveDepsToWorklist();
         // Return new_def for easy flow-coding
         return new_def;
@@ -609,7 +611,7 @@ public abstract class Node implements OutNode {
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
     // Report any post-optimize errors
-    String err() { return null; }
+    public String err() { return null; }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

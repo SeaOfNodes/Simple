@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -9,18 +8,18 @@ import static org.junit.Assert.fail;
 public class Chapter13Test {
     @Test
     public void testJig() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 3.14;", code._stop.toString());
+        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testLinkedList0() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct LLI { LLI? next; int i; };
 LLI? !head = null;
@@ -33,13 +32,13 @@ while( arg ) {
 }
 return head.next.i;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
     }
 
     @Test
     public void testLinkedList1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct LLI { LLI? next; int i; };
 LLI? !head = null;
@@ -55,14 +54,14 @@ LLI? next = head.next;
 if( next==null ) return 1;
 return next.i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
-        assertEquals(2L, Evaluator.evaluate(stop,  3));
+        code.parse().opto();
+        assertEquals("return Phi(Region,0,1,.i);", code._stop.toString());
+        assertEquals(2L, Evaluator.evaluate(code._stop,  3));
     }
 
     @Test
     public void testCoRecur() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct int0 { int i; flt0? f; };
 struct flt0 { flt f; int0? i; };
@@ -74,98 +73,98 @@ i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 17;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 17;", code._stop.toString());
     }
 
     @Test
     public void testNullRef0() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct N { N? next; int i; };
 N n = new N;
 return n.next;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return null;", stop.toString());
+        code.parse().opto();
+        assertEquals("return null;", code._stop.toString());
     }
 
     @Test
     public void testNullRef1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct M { int m; };
 struct N { M next; int i; };
 N n = new N { next = new M; };
 return n.next;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (const)M;", stop.toString());
+        code.parse().opto();
+        assertEquals("return (const)M;", code._stop.toString());
     }
 
     @Test
     public void testNullRef2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct M { int m; };
 struct N { M next; int i; };
 N n = new N { next = null; }
 return n.next;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
     }
 
     @Test
     public void testNullRef3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct N { N? next; int i; };
 N !n = new N;
 n.i = 3.14;
 return n.i;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
     }
 
     @Test
     public void testEmpty() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S{};
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  0));
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
     }
 
     @Test
     public void testForwardRef0() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S1 { S2? s; };
 return new S2;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
     @Test
     public void testForwardRef1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S1 { S2? s; };
 struct S2 { int x; };
 return new S1.s=new S2;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return S2;", stop.toString());
+        code.parse().opto();
+        assertEquals("return S2;", code._stop.toString());
     }
 
     @Test
     public void testcheckNull() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct I {int i;};
 struct P { I? pi; };
@@ -176,7 +175,7 @@ p2.pi.i = 2;
 if (arg) p1 = new P;
 return p1.pi.i + 1;
 """);
-        try { parser.parse(false).iterate();  fail(); }
+        try { code.parse().opto().typeCheck();  fail(); }
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 

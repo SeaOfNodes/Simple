@@ -10,10 +10,9 @@ public abstract class GlobalCodeMotion {
     // Arrange that the existing isCFG() Nodes form a valid CFG.  The
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
-    public static void buildCFG( StopNode stop ) {
-        schedEarly();
-        Parser.SCHEDULED = true;
-        schedLate( stop);
+    public static void buildCFG( StartNode start, StopNode stop ) {
+        schedEarly(start);
+        schedLate(stop);
     }
 
 
@@ -22,10 +21,10 @@ public abstract class GlobalCodeMotion {
     // (except at loops).  Since defs are visited first - and hoisted as early
     // as possible, when we come to a use we place it just after its deepest
     // input.
-    private static void schedEarly() {
+    private static void schedEarly(StartNode start) {
         ArrayList<CFGNode> rpo = new ArrayList<>();
         BitSet visit = new BitSet();
-        _rpo_cfg(Parser.START, visit, rpo);
+        _rpo_cfg(start, visit, rpo);
         // Reverse Post-Order on CFG
         for( int j=rpo.size()-1; j>=0; j-- ) {
             CFGNode cfg = rpo.get(j);
@@ -164,8 +163,8 @@ public abstract class GlobalCodeMotion {
         CFGNode found=null;
         for( int i=1; i<phi.nIns(); i++ )
             if( phi.in(i)==n )
-                if( found==null ) found = phi.region().cfg(i);
-                else Utils.TODO(); // Can be more than once
+                found = phi.region().cfg(i)._idom(found,null);
+
         assert found!=null;
         return found;
     }

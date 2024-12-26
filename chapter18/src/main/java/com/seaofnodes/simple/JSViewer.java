@@ -1,10 +1,11 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-
-import java.nio.file.Paths;
 import java.io.IOException;
+import java.util.Stack;
+import java.nio.file.Paths;
 import java.util.Collection;
 
 public class JSViewer implements AutoCloseable {
@@ -21,8 +22,7 @@ public class JSViewer implements AutoCloseable {
     static SimpleWebSocket SERVER;
 
     static int N;               // Dot frames
-    static Parser P;            //
-    static StopNode STOP;       //
+    static CodeGen CODE;        //
 
     JSViewer() throws Exception {
         // Launch server; hand shake
@@ -42,16 +42,13 @@ public class JSViewer implements AutoCloseable {
                 try {
                     N=0;
                     // Use parser scope, xscope when building views
-                    P = new Parser(src);
-                    STOP = P.STOP;
+                    CODE = new CodeGen(src);
                     SHOW = true;
                     show();
                     // Parse program, generating views at every parse point
-                    P.parse();
+                    CODE.parse();
                     // No longer user parse internal state when building views
-                    P = null;
-                    STOP.iterate();
-
+                    CODE.opto();
 
                     // Catch and ignore Parser errors
                 } catch(RuntimeException re) {
@@ -72,11 +69,14 @@ public class JSViewer implements AutoCloseable {
 
     public static void show() { if( SERVER!=null && SHOW ) _show(); }
     private static void _show() {
-        Collection<Node> all = GraphVisualizer.findAll(P==null ? null : P._xScopes, STOP, P==null ? null : P._scope);
+        boolean midParse = CODE.P!=null;
+        Stack<ScopeNode> xScopes = midParse ? CODE.P._xScopes : null;
+
+        Collection<Node> all = GraphVisualizer.findAll(xScopes, CODE._stop, midParse ? CODE.P._scope: null);
         SB sb = new SB();
         sb.p("digraph view_").p(N++).p(" {\n").ii();
-        if( P!=null )
-            sb.i().p("// POS: ").p(P.pos()).nl();
+        if( midParse )
+            sb.i().p("// POS: ").p(CODE.P.pos()).nl();
 
         // To keep the Scopes below the graph and pointing up into the graph we
         // need to group the Nodes in a subgraph cluster, and the scopes into a
@@ -101,17 +101,17 @@ public class JSViewer implements AutoCloseable {
         nodes(sb, all);
 
         // Now the scopes, in a cluster no edges
-        if( P!=null )
-            for( ScopeNode xscope : P._xScopes )
+        if( midParse )
+            for( ScopeNode xscope : xScopes )
                 if( !xscope.isDead() )
                     scope( sb, xscope );
 
         // Walk the Node edges
-        nodeEdges(sb, P!=null && !P._xScopes.empty() ? P._xScopes.peek() : null, all);
+        nodeEdges(sb, midParse && !xScopes.empty() ? xScopes.peek() : null, all);
 
         // Walk the active Scope edges
-        if( P!=null )
-            for( ScopeNode xscope : P._xScopes )
+        if( midParse )
+            for( ScopeNode xscope : xScopes )
                 if( !xscope.isDead() )
                     scopeEdges( sb, xscope );
 

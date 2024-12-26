@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 
 
@@ -12,7 +11,7 @@ public class Chapter11Test {
     // A placeholder test used to rapidly rotate through fuzzer produced issues
     @Test
     public void testFuzzer() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 while(---- -arg) {
     while(-arg) {
@@ -291,14 +290,14 @@ else {
         }
 }
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 9; return 0; return 0; return 0; return 0; ]", stop.toString());
+        code.parse().opto().typeCheck().codegen();
+        assertEquals("return Phi(Region,9,Top,Top,Top,Top);", code._stop.toString());
     }
 
 
     @Test
     public void testPrimes() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 if( arg < 2 ) return 0;
 int primeCount = 1;
@@ -323,19 +322,19 @@ while( prime <= arg ) {
 }
 return primeCount;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("Stop[ return 0; return Phi(Loop,1,Phi(Region,Phi_primeCount,Phi(Region,(Phi_primeCount+1),Phi_primeCount))); ]", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop,  1)); // No primes 1 or below
-        assertEquals(1L, Evaluator.evaluate(stop,  2)); // 2
-        assertEquals(2L, Evaluator.evaluate(stop,  3)); // 2, 3
-        assertEquals(2L, Evaluator.evaluate(stop,  4)); // 2, 3
-        assertEquals(3L, Evaluator.evaluate(stop,  5)); // 2, 3, 5
-        assertEquals(4L, Evaluator.evaluate(stop, 10)); // 2, 3, 5, 7
+        code.parse().opto();
+        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi(Region,(Phi_primeCount+1),Phi_primeCount))));", code._stop.toString());
+        assertEquals(0L, Evaluator.evaluate(code._stop,  1)); // No primes 1 or below
+        assertEquals(1L, Evaluator.evaluate(code._stop,  2)); // 2
+        assertEquals(2L, Evaluator.evaluate(code._stop,  3)); // 2, 3
+        assertEquals(2L, Evaluator.evaluate(code._stop,  4)); // 2, 3
+        assertEquals(3L, Evaluator.evaluate(code._stop,  5)); // 2, 3, 5
+        assertEquals(4L, Evaluator.evaluate(code._stop, 10)); // 2, 3, 5, 7
     }
 
     @Test
     public void testAntiDeps1() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v=new S;
@@ -345,15 +344,15 @@ i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 2;", stop.toString());
-        assertEquals(2L, Evaluator.evaluate(stop, 0));
-        assertEquals(2L, Evaluator.evaluate(stop, 1));
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.toString());
+        assertEquals(2L, Evaluator.evaluate(code._stop, 0));
+        assertEquals(2L, Evaluator.evaluate(code._stop, 1));
     }
 
     @Test
     public void testAntiDeps2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -368,13 +367,13 @@ if (arg) {
 }
 return i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,.f,0);", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Region,.f,0);", code._stop.toString());
     }
 
     @Test
     public void testAntiDeps3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v0 = new S;
@@ -387,14 +386,14 @@ if (v1) {
 }
 return v0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return S;", stop.toString());
+        code.parse().opto();
+        assertEquals("return S;", code._stop.toString());
     }
 
 
     @Test
     public void testAntiDeps4() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -405,13 +404,13 @@ if (arg+1) arg= 0;
 while (arg) v.f = 2;
 return i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return arg;", stop.toString());
+        code.parse().opto();
+        assertEquals("return arg;", code._stop.toString());
     }
 
     @Test
     public void testAntiDeps5() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -422,13 +421,13 @@ while(1) {
 }
 return v;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return S;", stop.toString());
+        code.parse().opto();
+        assertEquals("return S;", code._stop.toString());
     }
 
     @Test
     public void testAntiDeps6() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct s { int v; };
 s !ptr=new s;
@@ -437,13 +436,13 @@ while( -arg )
 while(1)
   arg = arg+ptr.v;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return Top;", code._stop.toString());
     }
 
     @Test
     public void testAntiDeps7() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -455,13 +454,13 @@ while (arg) {
 }
 return i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testAntiDeps8() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -475,13 +474,13 @@ while(arg) {
 }
 return arg;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testAntiDeps9() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -493,13 +492,13 @@ if (arg) {
 }
 return v;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return S;", stop.toString());
+        code.parse().opto();
+        assertEquals("return S;", code._stop.toString());
     }
 
     @Test
     public void testExample2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct S { int f; };
 S !v = new S;
@@ -512,13 +511,13 @@ while (arg > 0) {
 }
 return v;
                 """);
-        StopNode stop = parser.parse().iterate();
-        //assertEquals("return new S;", stop.toString());
+        code.parse().opto();
+        //assertEquals("return new S;", code._stop.toString());
     }
 
     @Test
     public void testScheduleUse() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int v0=0;
 while(0>=0) {
@@ -529,13 +528,13 @@ while(0>=0) {
 }
 return 0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return Top;", code._stop.toString());
     }
 
     @Test
     public void testLoopCarriedDep() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 u32 v0=0;
 {
@@ -544,10 +543,11 @@ u32 v0=0;
         v1=1>>>v0!=0;
         v0=v1/0;
     }
+    return v1;
 }
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
 }

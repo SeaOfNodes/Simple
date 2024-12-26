@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -10,7 +9,7 @@ public class Chapter05Test {
 
     @Test
     public void testIfStmt() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 if (arg == 1)
@@ -20,13 +19,13 @@ else {
 }
 return a;
 """);
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return Phi(Region,(arg+2),(arg-3));", ret.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Region,(arg+2),(arg-3));", code._stop.toString());
     }
 
     @Test
     public void testTest() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int c = 3;
 int b = 2;
@@ -34,27 +33,28 @@ if (arg == 1) {
     b = 3;
     c = 4;
 }
-return c;""", TypeInteger.BOT);
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return Phi(Region,4,3);", ret.toString());
+return c;
+""");
+        code.parse().opto();
+        assertEquals("return Phi(Region,4,3);", code._stop.toString());
     }
 
     @Test
     public void testReturn2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 if( arg==1 )
     return 3;
 else
     return 4;
-""", TypeInteger.BOT);
-        StopNode stop = parser.parse();
-        assertEquals("Stop[ return 3; return 4; ]", stop.toString());
+""");
+        code.parse();
+        assertEquals("return Phi(Region,3,4);", code._stop.expr().in(0).in(1).toString());
     }
 
     @Test
     public void testIfMergeB() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=arg+1;
 int b=0;
@@ -63,13 +63,13 @@ if( arg==1 )
 else
     b=a+1;
 return a+b;""");
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return ((arg*2)+Phi(Region,2,3));", ret.toString());
+        code.parse().opto();
+        assertEquals("return ((arg*2)+Phi(Region,2,3));", code._stop.toString());
     }
 
     @Test
     public void testIfMerge2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=arg+1;
 int b=arg+2;
@@ -78,13 +78,13 @@ if( arg==1 )
 else
     a=b+1;
 return a+b;""");
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", ret.toString());
+        code.parse().opto();
+        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", code._stop.toString());
     }
 
     @Test
     public void testMerge3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=1;
 if( arg==1 )
@@ -97,14 +97,14 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.BOT);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,Phi(Region,2,3),Phi(Region,4,5));", stop.toString());
+""");
+        code.parse().opto();
+        assertEquals("return Phi(Region,Phi(Region,2,3),Phi(Region,4,5));", code._stop.toString());
     }
 
     @Test
     public void testMerge4() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=0;
 int b=0;
@@ -113,29 +113,30 @@ if( arg )
 if( arg==0 )
     b=2;
 return arg+a+b;
-""", TypeInteger.BOT);
-        StopNode stop = parser.parse();
-        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", stop.toString());
+""");
+        code.parse().opto();
+        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", code._stop.toString());
     }
 
     @Test
     public void testMerge5() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a=arg==2;
 if( arg==1 )
 {
     a=arg==3;
 }
-return a;""");
-        StopNode ret = parser.parse().iterate();
-        assertEquals("return (arg==Phi(Region,3,2));", ret.toString());
+return a;
+""");
+        code.parse().opto();
+        assertEquals("return (arg==Phi(Region,3,2));", code._stop.toString());
     }
 
     @Test
     public void testTrue() {
       StopNode stop = new Parser("return true;").parse();
-      assertEquals("return 1;",stop.toString());
+      assertEquals("return 1;",stop.expr().in(0).in(1).toString());
     }
 
     @Test

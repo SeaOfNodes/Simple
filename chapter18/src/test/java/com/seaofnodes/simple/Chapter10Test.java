@@ -10,7 +10,7 @@ public class Chapter10Test {
 
     @Test
     public void testFuzzer() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = arg/3;
 int b = arg*5;
@@ -29,13 +29,13 @@ if( (arg/13)==0 ) {
 int r = g+h;
 return p-r;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testStruct() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Bar {
     int a;
     int b;
@@ -49,13 +49,13 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return 2;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.toString());
     }
 
     @Test
     public void testExample() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Vector2D { int x; int y; };
 Vector2D !v = new Vector2D;
 v.x = 1;
@@ -65,36 +65,36 @@ else
     v.y = 3;
 return v;
 """);
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Vector2D;", stop.toString());
+        code.parse().opto();
+        assertEquals("return Vector2D;", code._stop.toString());
     }
 
     @Test
     public void testBug() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {
     int v0;
 };
 s0? v1=null;
 int v3=v1.zAicm;
 """);
-        try { parser.parse();  fail(); }
+        try { code.parse();  fail(); }
         catch( Exception e ) {  assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());  }
     }
 
     @Test
     public void testBug2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 { int v0; };
 arg=0+new s0.0;
 """);
-        try { parser.parse(); fail(); }
+        try { code.parse(); fail(); }
         catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
     }
 
     @Test
     public void testLoop() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Bar { int a; };
 Bar !bar = new Bar;
 while (arg) {
@@ -103,65 +103,65 @@ while (arg) {
 }
 return bar.a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,0,(Phi_a+2));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,0,(Phi_a+2));", code._stop.toString());
     }
 
     @Test
     public void testIf() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Bar { int a; };
 Bar !bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
     @Test
     public void testIf2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Bar { int a; };
 Bar? !bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'a'",e.getMessage()); }
     }
 
     @Test
     public void testIf3() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Bar { int a; };
 Bar bar = null;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { parser.parse(); fail(); }
+        try { code.parse(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
     }
 
     @Test
     public void testIfOrNull() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct Bar { int a; };
 Bar? !bar = new Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
 """);
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region,null,Bar);", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Region,null,Bar);", code._stop.toString());
     }
 
     @Test
     public void testIfOrNull2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct Bar { int a; };
 Bar? !bar = new Bar;
@@ -171,13 +171,13 @@ if( !bar ) rez=4;
 else bar.a = 1;
 return rez;
 """);
-        StopNode stop = parser.parse(false).iterate();
-        assertEquals("return Phi(Region,4,3);", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Region,4,3);", code._stop.toString());
     }
 
     @Test
     public void testWhileWithNullInside() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {int v0;};
 s0? !v0 = new s0;
 int ret = 0;
@@ -188,14 +188,14 @@ while(arg) {
 }
 return ret;
 """);
-        try { parser.parse().iterate(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) {
             assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
 
     @Test
     public void testRedeclareStruct() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {
     int v0;
 };
@@ -203,14 +203,14 @@ s0? v1=new s0;
 s0? v1;
 v1=new s0;
 """);
-        try { parser.parse(); fail(); }
+        try { code.parse(); fail(); }
         catch( Exception e ) { assertEquals("Redefining name 'v1'", e.getMessage()); }
     }
 
     @Test
     public void testIter() {
         // Build and use an iterator
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 struct Iter {
     int x;
@@ -225,14 +225,14 @@ while( i.x < i.len ) {
 }
 return sum;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code._stop.toString());
     }
 
 
     @Test
     public void test1() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {int v0;};
 s0 !ret = new s0;
 while(arg) {
@@ -244,13 +244,13 @@ while(arg) {
 }
 return ret;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code._stop.toString());
     }
 
     @Test
     public void test2() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {int v0;};
 s0 !ret = new s0;
 s0 !v0 = new s0;
@@ -262,14 +262,14 @@ while(arg) {
 }
 return ret;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code._stop.toString());
     }
 
 
     @Test
     public void test3() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {int v0;};
 s0 !ret = new s0;
 while(arg < 10) {
@@ -279,25 +279,25 @@ while(arg < 10) {
 }
 return ret;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code._stop.toString());
     }
 
     @Test
     public void testBug3() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 { int f0; };
 return new s0;
 int v0=null.f0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return s0;", stop.toString());
-        assertEquals("Obj<s0>{f0=0}", Evaluator.evaluate(stop, 0).toString());
+        code.parse().opto();
+        assertEquals("return s0;", code._stop.toString());
+        assertEquals("Obj<s0>{f0=0}", Evaluator.evaluate(code._stop, 0).toString());
     }
 
     @Test
     public void testBug4() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 if(0) {
     while(0) if(arg) continue;
     int v0=0;
@@ -307,13 +307,13 @@ if(0) {
     }
 }
    """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testBug5() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {
     int f0;
 };
@@ -321,13 +321,13 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return s0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return s0;", code._stop.toString());
     }
 
     @Test
     public void testBug6MissedWorklist() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 while(0) {}
 int v4=0;
 while(0<arg) {
@@ -337,26 +337,26 @@ while(0<arg) {
 }
 return 0;
     """);
-        StopNode stop = parser.parse().iterate();
+        code.parse().opto();
     }
 
     @Test
     public void testBug7() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 struct s0 {  int f0; };
 s0 v0 = new s0;
 while(v0.f0) {}
 s0 v1 = v0;
 return v1;
     """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return (const)s0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return (const)s0;", code._stop.toString());
     }
 
 
     @Test
     public void testBug8() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int v2=0;
 while(0)
 while(0) {}
@@ -381,19 +381,19 @@ while(0) {}
         }    }
 }
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testBug9() {
-        Parser parser = new Parser("""
+        CodeGen code = new CodeGen("""
 int v0=arg==0;
 while(v0) continue;
 return 0;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 0;", stop.toString());
+        code.parse().opto();
+        assertEquals("return 0;", code._stop.toString());
     }
 
 }

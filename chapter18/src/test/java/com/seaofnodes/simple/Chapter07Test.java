@@ -9,7 +9,7 @@ public class Chapter07Test {
 
     @Test
     public void testExample() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 while(arg < 10) {
     arg = arg + 1;
@@ -17,15 +17,15 @@ while(arg < 10) {
 return arg;
 """);
         Node._disablePeephole = true;
-        StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse();
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code._stop.expr().in(0).in(1).toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
     @Test
     public void testRegression() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 if(arg){}else{
@@ -35,13 +35,13 @@ if(arg){}else{
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,1,Phi(Loop,1,(Phi_a+1)));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Region,1,Phi(Loop,1,(Phi_a+1)));", code._stop.toString());
     }
 
     @Test
     public void testWhileNested() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int sum = 0;
 int i = 0;
@@ -55,13 +55,13 @@ while(i < arg) {
 }
 return sum;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,0,Phi(Loop,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
+        code.parse().opto();
+        assertEquals("return Phi(Loop,0,Phi(Loop,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", code._stop.toString());
     }
 
     @Test
     public void testWhileScope() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 int b = 2;
@@ -72,15 +72,15 @@ while(a < 10) {
 return b;
 """);
         Node._disablePeephole = true;
-        StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop,2,Phi(Region,Phi_b,4));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse();
+        assertEquals("return Phi(Loop,2,Phi(Region,Phi_b,4));", code._stop.expr().in(0).in(1).toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
     @Test
     public void testWhileNestedIfAndInc() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 int b = 2;
@@ -92,15 +92,15 @@ while(a < 10) {
 }
 return b;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,2,(Phi(Region,Phi_b,4)+1));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,2,(Phi(Region,Phi_b,4)+1));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
 
     @Test
     public void testWhile() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 while(a < 10) {
@@ -110,15 +110,15 @@ while(a < 10) {
 return a;
 """);
         Node._disablePeephole = true;
-        StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop,1,((Phi_a+1)+2));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse();
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.expr().in(0).in(1).toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
     @Test
     public void testWhilePeep() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 while(a < 10) {
@@ -127,42 +127,42 @@ while(a < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
     @Test
     public void testWhile2() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 while(arg) a = 2;
 return a;
 """);
         Node._disablePeephole = true;
-        StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop,1,2);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse();
+        assertEquals("return Phi(Loop,1,2);", code._stop.expr().in(0).in(1).toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
     @Test
     public void testWhile2Peep() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 while(arg) a = 2;
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,1,2);", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,1,2);", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
     @Test
     public void testWhile3() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 while(a < 10) {
@@ -172,15 +172,15 @@ while(a < 10) {
 return a;
 """);
         Node._disablePeephole = true;
-        StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop,1,((Phi_a+1)+2));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse();
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.expr().in(0).in(1).toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
     @Test
     public void testWhile3Peep() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 while(a < 10) {
@@ -189,14 +189,14 @@ while(a < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
     @Test
     public void testWhile4() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 int b = 2;
@@ -207,15 +207,15 @@ while(a < 10) {
 return a;
 """);
         Node._disablePeephole = true;
-        StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop,1,((Phi_a+1)+2));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse();
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.expr().in(0).in(1).toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
     @Test
     public void testWhile4Peep() {
-        Parser parser = new Parser(
+        CodeGen code = new CodeGen(
 """
 int a = 1;
 int b = 2;
@@ -225,9 +225,9 @@ while(a < 10) {
 }
 return a;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", stop.toString());
-        assertTrue(stop.ret().ctrl() instanceof CProjNode);
+        code.parse().opto();
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.toString());
+        assertTrue(code._stop.ctrl() instanceof CProjNode);
     }
 
 }

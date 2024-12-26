@@ -57,7 +57,7 @@ public abstract class IterPeeps {
     /**
      * Iterate peepholes to a fixed point
      */
-    public static StopNode iterate(StopNode stop) {
+    public static void iterate( StopNode stop) {
         assert progressOnList(stop);
         int cnt=0;
 
@@ -93,7 +93,6 @@ public abstract class IterPeeps {
                 n.kill();       // Just plain dead
         }
 
-        return stop;
     }
 
     // Visit ALL nodes and confirm the invariant:
