@@ -22,7 +22,6 @@ public class StopNode extends CFGNode {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         // For the sake of many old tests, and single value prints as "return val"
-        if( nIns() == 3 ) return expr()._print0(sb.append("return "),visited).append(";");
         if( ret()!=null ) return ret()._print0(sb,visited);
         sb.append("Stop[ ");
         for( Node ret : _inputs )
@@ -33,14 +32,10 @@ public class StopNode extends CFGNode {
     @Override public boolean blockHead() { return true; }
 
 
-    public CFGNode ctrl() { return (CFGNode)in(0); }
-    public Node mem () { return in(1); }
-    public Node expr() { return in(2); }
-
     // If a single Return, return it.
     // Otherwise, null because ambiguous.
     public ReturnNode ret() {
-        return nIns()==4 && in(3) instanceof ReturnNode ret ? ret : null;
+        return nIns()==1 && in(0) instanceof ReturnNode ret ? ret : null;
     }
 
     @Override
@@ -51,7 +46,7 @@ public class StopNode extends CFGNode {
     @Override
     public Node idealize() {
         int len = nIns();
-        for( int i=3; i<nIns(); i++ )
+        for( int i=0; i<nIns(); i++ )
             if( ((ReturnNode)in(i)).fun()==null )
                 delDef(i--);
         if( len != nIns() ) return this;
@@ -61,9 +56,8 @@ public class StopNode extends CFGNode {
     @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;
         int d=0;
-        for( Node n : _inputs )
-            if( n instanceof CFGNode cfg )
-                d = Math.max(d,cfg.idepth()+1);
+        for( Node ret : _inputs )
+            d = Math.max(d,((ReturnNode)ret).idepth()+1);
         return _idepth=d;
     }
 

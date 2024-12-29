@@ -19,10 +19,16 @@ import java.util.BitSet;
  * The Constant's value is the value stored in it.
  */
 public class ConstantNode extends Node {
-    Type _con;
+    public final Type _con;
     public ConstantNode( Type type ) {
         super(Parser.START);
         _con = type;
+    }
+
+    public static Node make( Type type ) {
+        if( type==Type. CONTROL ) return new CtrlNode();
+        if( type==Type.XCONTROL ) return new XCtrlNode();
+        return new ConstantNode(type);
     }
 
     @Override
@@ -37,6 +43,7 @@ public class ConstantNode extends Node {
     }
 
     @Override public boolean isMultiTail() { return true; }
+    @Override public boolean isConst() { return true; }
 
     @Override
     public Type compute() { return _con; }

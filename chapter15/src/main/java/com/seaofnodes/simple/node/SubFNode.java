@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node;
+epackage com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
@@ -34,7 +34,7 @@ public class SubFNode extends Node {
         Node lhs = in(1);
         Type t2 = in(2)._type;
 
-        // Sub of 1.
+        // Sub of 0.
         if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==0 )
             return lhs;
 

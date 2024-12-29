@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import java.lang.StringBuilder;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -11,33 +10,31 @@ public class IRPrinter {
     // Print a node on 1 line, columnar aligned, as:
     // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
-    public static void printLine( Node n, StringBuilder sb ) {
-        sb.append("%4d %-7.7s ".formatted(n._nid,n.label()));
-        if( n._inputs==null ) {
-            sb.append("DEAD\n");
-            return;
-        }
+    public static SB printLine( Node n, SB sb ) {
+        sb.p("%4d %-7.7s ".formatted(n._nid,n.label()));
+        if( n._inputs==null )
+            return sb.p("DEAD\n");
         for( Node def : n._inputs )
-            sb.append(def==null ? "____" : "%4d".formatted(def._nid))
+            sb.p(def==null ? "____" : "%4d".formatted(def._nid))
                 // Lazy Phi indicator
-                .append(n instanceof ScopeMinNode && def instanceof ScopeMinNode ? "^" : " ");
+                .p(n instanceof ScopeMinNode && def instanceof ScopeMinNode ? "^" : " ");
         for( int i = n._inputs.size(); i<4; i++ )
-            sb.append("     ");
-        sb.append(" [[  ");
+            sb.p("     ");
+        sb.p(" [[  ");
         for( Node use : n._outputs )
-            sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
+            sb.p(use==null ? "____ " : "%4d ".formatted(use._nid));
         int lim = 6 - Math.max(n._inputs.size(),4);
         for( int i = n._outputs.size(); i<lim; i++ )
-            sb.append("     ");
-        sb.append(" ]]  ");
-        if( n._type!= null ) sb.append(n._type.str());
-        sb.append("\n");
+            sb.p("     ");
+        sb.p(" ]]  ");
+        if( n._type!= null ) sb.p(n._type.str());
+        return sb.p("\n");
     }
 
-    private static StringBuilder nodeId(StringBuilder sb, Node n) {
-        sb.append("%%%d".formatted(n._nid));
+    private static SB nodeId(SB sb, Node n) {
+        sb.p("%%%d".formatted(n._nid));
         if (n instanceof ProjNode proj) {
-            sb.append(".").append(proj._idx);
+            sb.p(".").p(proj._idx);
         }
         return sb;
     }
@@ -58,19 +55,19 @@ public class IRPrinter {
         for( int i=bfs._lim; i< bfs._bfs.size(); i++ )
             postOrd( bfs._bfs.get(i), null, rpos, visit, bfs._bs);
         // Reverse the post-order walk
-        StringBuilder sb = new StringBuilder();
+        SB sb = new SB();
         boolean gap=false;
         for( int i=rpos.size()-1; i>=0; i-- ) {
             Node n = rpos.get(i);
             if( n instanceof CFGNode || n.isMultiHead() ) {
-                if( !gap ) sb.append("\n"); // Blank before multihead
+                if( !gap ) sb.p("\n"); // Blank before multihead
                 printLine( n, sb );         // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
                     if( !t.isMultiTail() ) { i++; break; }
                     printLine( t, sb );
                 }
-                sb.append("\n"); // Blank after multitail
+                sb.p("\n"); // Blank after multitail
                 gap = true;
             } else {
                 printLine( n, sb );
@@ -180,7 +177,7 @@ public class IRPrinter {
             }
         }
         // Print by block with least idepth
-        StringBuilder sb = new StringBuilder();
+        SB sb = new SB();
         Ary<Node> bns = new Ary<>(Node.class);
         while( !ds.isEmpty() ) {
             CFGNode blk = null;
@@ -193,16 +190,15 @@ public class IRPrinter {
             ns.remove(blk);
 
             // Print block header
-            sb.append("%-13.13s".formatted(label(blk)+":"));
-            sb.append( "     ".repeat(4) ).append(" [[  ");
+            sb.p("%-13.13s".formatted(label(blk)+":"));
+            sb.p( "     ".repeat(4) ).p(" [[  ");
             if( blk instanceof StartNode ) ;
             else if( blk instanceof RegionNode || blk instanceof StopNode )
                 for( int i=(blk instanceof StopNode ? 3 : 1); i<blk.nIns(); i++ )
                     label(sb,blk.cfg(i));
             else
                 label(sb,blk.cfg(0));
-            sb.append(" ]]  \n");
-            sb.append(d);
+            sb.p(" ]]  \n");
             printLine(blk,sb);
 
             // Collect block contents that are in the depth limit
@@ -234,20 +230,21 @@ public class IRPrinter {
                         }
                     }
                 }
-            sb.append("\n");
+            sb.p("\n");
         }
         return sb.toString();
     }
 
     private static void _walk( HashMap<Integer,Integer> ds, ArrayList<Node> ns, Node node, int d ) {
         Integer nd = ds.get(node._nid);
-        if( nd!=null && d >= nd ) return; // Been there, done that
+        if( nd!=null && d <= nd ) return; // Been there, done that
         Integer old = ds.put(node._nid,d) ;
         if( old == null )
           ns.add(node);
         if( d == 0 ) return;    // Depth cutoff
         for( Node def : node._inputs )
             if( def != null &&
+                !(node instanceof LoopNode loop && loop.back()==def) &&
                 // Don't walk into or out of functions
                 !(node instanceof CallEndNode && def instanceof ReturnNode) &&
                 !(node instanceof FunNode && def instanceof CallNode) )
@@ -258,12 +255,11 @@ public class IRPrinter {
         if( blk instanceof StartNode ) return "START";
         return (blk instanceof LoopNode ? "LOOP" : "L")+blk._nid;
     }
-    static void label( StringBuilder sb, CFGNode blk ) {
+    static void label( SB sb, CFGNode blk ) {
         if( !blk.blockHead() ) blk = blk.cfg(0);
-        sb.append( "%-9.9s ".formatted( label( blk ) ) );
+        sb.p( "%-9.9s ".formatted( label( blk ) ) );
     }
-    static void printLine( Node n, StringBuilder sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
-        sb.append(ds.get(n._nid));
+    static void printLine( Node n, SB sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
         printLine( n, sb );
         if( i != -1 ) bns.del(i);
         ds.remove(n._nid);

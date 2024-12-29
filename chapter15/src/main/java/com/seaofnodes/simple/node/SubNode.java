@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node;
+y!package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;

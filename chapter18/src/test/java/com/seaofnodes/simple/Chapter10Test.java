@@ -1,7 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -30,7 +28,7 @@ int r = g+h;
 return p-r;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -50,7 +48,7 @@ bar.a = 2;
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return 2;", code._stop.toString());
+        assertEquals("return 2;", code.print());
     }
 
     @Test
@@ -66,7 +64,7 @@ else
 return v;
 """);
         code.parse().opto();
-        assertEquals("return Vector2D;", code._stop.toString());
+        assertEquals("return Vector2D;", code.print());
     }
 
     @Test
@@ -104,7 +102,7 @@ while (arg) {
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(Phi_a+2));", code._stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi_a+2));", code.print());
     }
 
     @Test
@@ -156,7 +154,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,null,Bar);", code._stop.toString());
+        assertEquals("return Phi(Region,null,Bar);", code.print());
     }
 
     @Test
@@ -172,7 +170,7 @@ else bar.a = 1;
 return rez;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,4,3);", code._stop.toString());
+        assertEquals("return Phi(Region,4,3);", code.print());
     }
 
     @Test
@@ -226,7 +224,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code._stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code.print());
     }
 
 
@@ -245,7 +243,7 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code._stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
     }
 
     @Test
@@ -263,7 +261,7 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code._stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
     }
 
 
@@ -280,7 +278,7 @@ while(arg < 10) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code._stop.toString());
+        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
     }
 
     @Test
@@ -291,8 +289,8 @@ return new s0;
 int v0=null.f0;
 """);
         code.parse().opto();
-        assertEquals("return s0;", code._stop.toString());
-        assertEquals("Obj<s0>{f0=0}", Evaluator.evaluate(code._stop, 0).toString());
+        assertEquals("return s0;", code.print());
+        assertEquals("s0{f0=0}", Eval2.eval(code, 0));
     }
 
     @Test
@@ -308,7 +306,7 @@ if(0) {
 }
    """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -322,7 +320,7 @@ else return new s0;
 if(new s0.f0) return 0;
     """);
         code.parse().opto();
-        assertEquals("return s0;", code._stop.toString());
+        assertEquals("return s0;", code.print());
     }
 
     @Test
@@ -350,7 +348,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("return (const)s0;", code._stop.toString());
+        assertEquals("return (const)s0;", code.print());
     }
 
 
@@ -382,7 +380,7 @@ while(0) {}
 }
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -393,7 +391,7 @@ while(v0) continue;
 return 0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
 }

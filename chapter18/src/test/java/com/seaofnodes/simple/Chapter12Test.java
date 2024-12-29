@@ -15,8 +15,8 @@ public class Chapter12Test {
 return 3.14;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code._stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
     @Test
@@ -26,8 +26,8 @@ return 3.14;
 return 3.14;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code._stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
     @Test
@@ -43,9 +43,9 @@ while( 1 ) {
 return guess;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0f));", code._stop.toString());
-        assertEquals(3.0, Evaluator.evaluate(code._stop,  9));
-        assertEquals(1.414213562373095, Evaluator.evaluate(code._stop,  2));
+        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0f));", code.print());
+        assertEquals("3.0", Eval2.eval(code,  9));
+        assertEquals("1.414213562373095", Eval2.eval(code,  2));
     }
 
     @Test
@@ -56,7 +56,7 @@ flt x = arg;
 return x+1==x;
 """);
         code.parse().opto();
-        assertEquals("return ((flt)arg==(ToFloat+1.0f));", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop, 1));
+        assertEquals("return ((flt)arg==(ToFloat+1.0f));", code.print());
+        assertEquals("0", Eval2.eval(code, 1));
     }
 }

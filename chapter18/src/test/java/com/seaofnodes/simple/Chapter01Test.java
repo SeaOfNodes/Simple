@@ -10,8 +10,8 @@ public class Chapter01Test {
 
     @Test
     public void testSimpleProgram() {
-        CodeGen code = new CodeGen("return 1;").parse().opto();
-        Node expr = code._stop.expr();
+        CodeGen code = new CodeGen("return 1;").parse();
+        Node expr = code.expr();
         if( expr instanceof ConstantNode con ) {
             assertEquals(code._start,con.in(0));
             assertEquals(TypeInteger.constant(1), con._type);
@@ -52,7 +52,7 @@ public class Chapter01Test {
     @Test
     public void testNotBad3() {
         // this test used to fail in chapter 1
-        assertEquals("return 12;", new CodeGen("return - -12;").parse().opto()._stop.print());
+        assertEquals("return 12;", new CodeGen("return - -12;").parse()._stop.print());
     }
 
     @Test
@@ -68,7 +68,7 @@ public class Chapter01Test {
     @Test
     public void testNotBad5() {
         // this test used to fail in chapter 1
-        assertEquals("return -100;", new CodeGen("return -100;").parse().opto()._stop.print());
+        assertEquals("return -100;", new CodeGen("return -100;").parse()._stop.print());
     }
 
     @Test

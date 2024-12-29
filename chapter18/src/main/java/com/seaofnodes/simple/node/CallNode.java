@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
@@ -21,7 +21,7 @@ public class CallNode extends CFGNode {
         String fname = null;
         Node fptr = fptr();
         if( fptr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-            fname = Parser.LINKER.get(tfp)._name;
+            fname = CodeGen.CODE._linker.get(tfp)._name;
         if( fname==null ) fptr._print0(sb,visited);
         else sb.append(fname);
         sb.append("( ");
@@ -62,7 +62,7 @@ public class CallNode extends CFGNode {
                 for( ; fidxs!=0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
                     int fidx = Long.numberOfTrailingZeros(fidxs);
                     TypeFunPtr tfp0 = tfp.makeFrom(fidx);
-                    FunNode fun = Parser.LINKER.get(tfp0);
+                    FunNode fun = CodeGen.CODE._linker.get(tfp0);
                     if( fun!=null && !fun._folding && !linked(fun) )
                         link(fun);
                 }

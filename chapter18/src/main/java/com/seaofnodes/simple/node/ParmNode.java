@@ -7,7 +7,7 @@ import java.util.BitSet;
 public class ParmNode extends PhiNode {
 
     // Argument indices are mapped one-to-one on CallNode inputs
-    final int _idx;             // Argument index
+    public final int _idx;             // Argument index
 
     public ParmNode(String label, int idx, Type declaredType, Node... inputs) {
         super(label,declaredType,inputs);
@@ -18,7 +18,7 @@ public class ParmNode extends PhiNode {
 
     @Override public String glabel() { return _label; }
 
-    FunNode fun() { return (FunNode)in(0); }
+    public FunNode fun() { return (FunNode)in(0); }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {

@@ -1,7 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -14,8 +12,8 @@ public class Chapter15Test {
 return 3.14;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code._stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
     @Test
@@ -28,8 +26,8 @@ c.l = c;
 return c;
 """);
         code.parse().opto();
-        assertEquals("return C;", code._stop.toString());
-        assertEquals("Obj<C>@1{l=obj@1}", Evaluator.evaluate(code._stop,  0).toString());
+        assertEquals("return C;", code.print());
+        assertEquals("C{l=$cyclic}", Eval2.eval(code,  0));
     }
 
     @Test
@@ -47,8 +45,8 @@ output[i] = 1;
 return output;
 """);
         code.parse().opto();
-        assertEquals("return [u8];", code._stop.toString());
-        assertEquals("\u0001", Evaluator.evaluate(code._stop,  0).toString());
+        assertEquals("return [u8];", code.print());
+        assertEquals("\u0001", Eval2.eval(code,  0));
     }
 
     @Test
@@ -59,8 +57,8 @@ int[] is = new int[2];
 return is[1];
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
@@ -72,8 +70,8 @@ int[] is2 = new int[2];
 return is[1];
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
@@ -86,8 +84,8 @@ a[1] = 2;
 return a[0];
 """);
         code.parse().opto();
-        assertEquals("return 1;", code._stop.toString());
-        assertEquals(1L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 1;", code.print());
+        assertEquals("1", Eval2.eval(code,  0));
     }
 
     @Test
@@ -99,8 +97,8 @@ A?[] !a = new A?[2];
 return a;
 """);
         code.parse().opto();
-        assertEquals("return [*A?];", code._stop.toString());
-        assertEquals("Obj<[*A?]>{#=2,[]=[null,null]}", Evaluator.evaluate(code._stop, 0).toString());
+        assertEquals("return [*A?];", code.print());
+        assertEquals("*A {int !i; }?[ null,null]", Eval2.eval(code, 0));
     }
 
     @Test
@@ -128,9 +126,9 @@ else {
 return rez;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,1.2,Phi(Region,2.3,3.14));", code._stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(code._stop, 0));
-        assertEquals(1.2 , Evaluator.evaluate(code._stop, 1));
+        assertEquals("return Phi(Region,1.2,Phi(Region,2.3,.y));", code.print());
+        assertEquals("3.14", Eval2.eval(code, 0));
+        assertEquals("1.2", Eval2.eval(code, 1));
     }
 
     @Test
@@ -169,8 +167,8 @@ root._kids[0] = new Tree;
 return root;
 """);
         code.parse().opto();
-        assertEquals("return Tree;", code._stop.toString());
-        assertEquals("Obj<Tree>{_kids=Obj<[*Tree?]>{#=2,[]=[Obj<Tree>{_kids=null},null]}}", Evaluator.evaluate(code._stop,  0).toString());
+        assertEquals("return Tree;", code.print());
+        assertEquals("Tree{_kids=*Tree?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
     }
 
     @Test
@@ -181,7 +179,7 @@ struct S { int a; int[] b; };
 return 0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -204,8 +202,8 @@ while( i < ary# - 1 ) {
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
         code.parse().opto();
-        assertEquals("return (.[]+(.[]*1000));", code._stop.toString());
-        assertEquals(1006L, Evaluator.evaluate(code._stop,  4));
+        assertEquals("return (.[]+(.[]*1000));", code.print());
+        assertEquals("1006", Eval2.eval(code,  4));
     }
 
     @Test
@@ -245,13 +243,8 @@ while( j < nprimes ) {
 return rez;
 """);
         code.parse().opto();
-        assertEquals("return [int];", code._stop.toString());
-        Evaluator.Obj obj = (Evaluator.Obj)Evaluator.evaluate(code._stop, 20);
-        assertEquals("[int] {int #; int ![]; }",obj.struct().toString());
-        long nprimes = (Long)obj.fields()[0];
-        long[] primes = new long[]{2,3,5,7,11,13,17,19};
-        for( int i=0; i<nprimes; i++ )
-            assertEquals(primes[i],(long)(Long)obj.fields()[i+1]);
+        assertEquals("return [int];", code.print());
+        assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
     @Test
@@ -267,8 +260,8 @@ if (arg) s1 = new S;
 return s1.i + s1.f;
 """);
         code.parse().opto();
-        assertEquals("return ((flt).i+.f);", code._stop.toString());
-        assertEquals(0.0, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return ((flt).i+.f);", code.print());
+        assertEquals("0.0", Eval2.eval(code,  0));
     }
 
 
@@ -311,11 +304,11 @@ int[] is = new int[arg];
 return is[1];
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  4));
-        try { Evaluator.evaluate(code._stop,0); }
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  4));
+        try { Eval2.eval(code,0); }
         catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
-        try { Evaluator.evaluate(code._stop,-1); }
+        try { Eval2.eval(code,-1); }
         catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
     }
 
@@ -341,8 +334,8 @@ while(v5+(0&0)) {
 return v1;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
@@ -356,7 +349,7 @@ int v8=0;
 while(0<--1>>>---(v7*0==v8)) {}
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
 
@@ -380,6 +373,6 @@ else {
 }
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 }

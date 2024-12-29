@@ -1,14 +1,13 @@
  package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import java.util.*;
+import java.util.HashMap;
 
 public class CodeGen {
 
     public enum Phase {
-        Parse, Opto, TypeCheck, Schedule, RegAlloc;
+        Parse, Opto, TypeCheck, Schedule, LocalSched, RegAlloc;
     }
     public Phase _phase;
 
@@ -20,6 +19,11 @@ public class CodeGen {
     public StartNode _start;
     public  StopNode _stop ;
 
+
+    // "Linker" mapping from constant TypeFunPtrs to heads of function
+    public final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+
+
     // Last created CodeGen as a global, for easier debugging prints
     public static CodeGen CODE;
 
@@ -30,6 +34,8 @@ public class CodeGen {
     public CodeGen parse(boolean disable) {
         assert _phase == null;
         _phase = Phase.Parse;
+        _linker.clear();
+
         P = new Parser(_src,_arg);
         Node._disablePeephole = disable;
         _stop = P.parse();
@@ -51,7 +57,7 @@ public class CodeGen {
     }
 
     public CodeGen typeCheck() {
-        assert _phase == Phase.Opto;
+        assert _phase == Phase.Opto || _phase == Phase.Parse;
         _phase = Phase.TypeCheck;
 
         // Type check
@@ -62,8 +68,8 @@ public class CodeGen {
     }
 
 
-    public CodeGen codegen() { return codegen(false); }
-    public CodeGen codegen(boolean show) {
+    public CodeGen GCM() { return GCM(false); }
+    public CodeGen GCM( boolean show) {
         assert _phase == Phase.TypeCheck;
         _phase = Phase.Schedule;
 
@@ -74,13 +80,22 @@ public class CodeGen {
 
         // TODO:
         // loop unroll, peel, RCE, etc
-
         GlobalCodeMotion.buildCFG(_start,_stop);
-
-        _phase = Phase.RegAlloc;
-
         return this;
     }
+
+     public CodeGen localSched() {
+        assert _phase == Phase.Schedule;
+        _phase = Phase.LocalSched;
+        ListScheduler.sched(this);
+        return this;
+     }
+
+
+    // Testing shortcuts
+    Node ctrl() { return _stop.ret().ctrl(); }
+    Node expr() { return _stop.ret().expr(); }
+    String print() { return _stop.print(); }
 
     // Debugging helper
     @Override public String toString() {

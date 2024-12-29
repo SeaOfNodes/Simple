@@ -182,6 +182,7 @@ public abstract class IterPeeps {
          * True if Node is on the WorkList
          */
         boolean on( E x ) { return _on.get(x._nid); }
+        boolean isEmpty() { return _len==0; }
 
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty

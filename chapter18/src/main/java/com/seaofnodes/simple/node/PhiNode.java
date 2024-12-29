@@ -8,13 +8,21 @@ import java.util.BitSet;
 
 public class PhiNode extends Node {
 
-    final String _label;
+    public final String _label;
 
     // The Phi type we compute must stay within the domain of the Phi.
     // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
+
+    public PhiNode(RegionNode r, Node sample) {
+        super(r);
+        _label = "";
+        _declaredType = sample._type;
+        while( nIns() < r.nIns() )
+            addDef(sample);
+    }
 
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 

@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
 import org.junit.Test;
 
 
@@ -290,8 +289,8 @@ else {
         }
 }
 """);
-        code.parse().opto().typeCheck().codegen();
-        assertEquals("return Phi(Region,9,Top,Top,Top,Top);", code._stop.toString());
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("return Phi(Region,9,Top,Top,Top,Top);", code.print());
     }
 
 
@@ -323,13 +322,13 @@ while( prime <= arg ) {
 return primeCount;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi(Region,(Phi_primeCount+1),Phi_primeCount))));", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  1)); // No primes 1 or below
-        assertEquals(1L, Evaluator.evaluate(code._stop,  2)); // 2
-        assertEquals(2L, Evaluator.evaluate(code._stop,  3)); // 2, 3
-        assertEquals(2L, Evaluator.evaluate(code._stop,  4)); // 2, 3
-        assertEquals(3L, Evaluator.evaluate(code._stop,  5)); // 2, 3, 5
-        assertEquals(4L, Evaluator.evaluate(code._stop, 10)); // 2, 3, 5, 7
+        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi(Region,(Phi_primeCount+1),Phi_primeCount))));", code.print());
+        assertEquals("0", Eval2.eval(code,  1)); // No primes 1 or below
+        assertEquals("1", Eval2.eval(code,  2)); // 2
+        assertEquals("2", Eval2.eval(code,  3)); // 2, 3
+        assertEquals("2", Eval2.eval(code,  4)); // 2, 3
+        assertEquals("3", Eval2.eval(code,  5)); // 2, 3, 5
+        assertEquals("4", Eval2.eval(code, 10)); // 2, 3, 5, 7
     }
 
     @Test
@@ -345,9 +344,9 @@ if (arg) v.f=1;
 return i;
 """);
         code.parse().opto();
-        assertEquals("return 2;", code._stop.toString());
-        assertEquals(2L, Evaluator.evaluate(code._stop, 0));
-        assertEquals(2L, Evaluator.evaluate(code._stop, 1));
+        assertEquals("return 2;", code.print());
+        assertEquals("2", Eval2.eval(code, 0));
+        assertEquals("2", Eval2.eval(code, 1));
     }
 
     @Test
@@ -368,7 +367,7 @@ if (arg) {
 return i;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,.f,0);", code._stop.toString());
+        assertEquals("return Phi(Region,.f,0);", code.print());
     }
 
     @Test
@@ -387,7 +386,7 @@ if (v1) {
 return v0;
 """);
         code.parse().opto();
-        assertEquals("return S;", code._stop.toString());
+        assertEquals("return S;", code.print());
     }
 
 
@@ -405,7 +404,7 @@ while (arg) v.f = 2;
 return i;
 """);
         code.parse().opto();
-        assertEquals("return arg;", code._stop.toString());
+        assertEquals("return arg;", code.print());
     }
 
     @Test
@@ -422,7 +421,7 @@ while(1) {
 return v;
 """);
         code.parse().opto();
-        assertEquals("return S;", code._stop.toString());
+        assertEquals("return S;", code.print());
     }
 
     @Test
@@ -437,7 +436,7 @@ while(1)
   arg = arg+ptr.v;
 """);
         code.parse().opto();
-        assertEquals("return Top;", code._stop.toString());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
@@ -455,7 +454,7 @@ while (arg) {
 return i;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -475,7 +474,7 @@ while(arg) {
 return arg;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -493,7 +492,7 @@ if (arg) {
 return v;
 """);
         code.parse().opto();
-        assertEquals("return S;", code._stop.toString());
+        assertEquals("return S;", code.print());
     }
 
     @Test
@@ -512,7 +511,7 @@ while (arg > 0) {
 return v;
                 """);
         code.parse().opto();
-        //assertEquals("return new S;", code._stop.toString());
+        //assertEquals("return new S;", code.print());
     }
 
     @Test
@@ -529,7 +528,7 @@ while(0>=0) {
 return 0;
 """);
         code.parse().opto();
-        assertEquals("return Top;", code._stop.toString());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
@@ -547,7 +546,7 @@ u32 v0=0;
 }
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
 }

@@ -98,16 +98,12 @@ public class Parser {
     // Mapping from a type name to the constructor for a Type.
     public final HashMap<String, StructNode> INITS;
 
-    // "Linker" mapping from constant TypeFunPtrs to heads of function
-    public static final HashMap<TypeFunPtr,FunNode> LINKER = new HashMap<>();
-
 
     public Parser(String source) { this(source, TypeInteger.BOT); }
 
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
-        LINKER.clear();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -154,38 +150,38 @@ public class Parser {
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
         _xScopes.push(_scope);
-        // Enter a new scope for the initial control and arguments
-        _scope.push();
-        Node ctrl = new CProjNode(START, 0, ScopeNode.CTRL).peephole();
-        Node pmem = new  ProjNode(START, 1, ScopeNode.MEM0).peephole();
-        Node arg  = new  ProjNode(START, 2, ScopeNode.ARG0).peephole();
-        ScopeMinNode mem = new ScopeMinNode();
-        mem.addDef(null);
-        mem.addDef(pmem);
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, ctrl);
-        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, mem );
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, arg );
-
-        // Call main
-        CallNode main = (CallNode)new CallNode(ctrl,pmem,arg,con(TypeFunPtr.MAIN)).peephole();
-        // Call End
-        CallEndNode cend = (CallEndNode)new CallEndNode(main).peephole();
-        STOP.addDef(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
-        STOP.addDef(new  ProjNode(cend,1,ScopeNode.MEM0).peephole());
-        STOP.addDef(new  ProjNode(cend,2,ScopeNode.ARG0).peephole());
+        //// Enter a new scope for the initial control and arguments
+        //_scope.push();
+        //Node ctrl = new CProjNode(START, 0, ScopeNode.CTRL).peephole();
+        //Node pmem = new  ProjNode(START, 1, ScopeNode.MEM0).peephole();
+        //Node arg  = new  ProjNode(START, 2, ScopeNode.ARG0).peephole();
+        //ScopeMinNode mem = new ScopeMinNode();
+        //mem.addDef(null);
+        //mem.addDef(pmem);
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null);
+        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null);
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null);
+        //
+        //// Call main
+        //CallNode main = (CallNode)new CallNode(ctrl,pmem,arg,con(TypeFunPtr.MAIN)).peephole();
+        //// Call End
+        //CallEndNode cend = (CallEndNode)new CallEndNode(main).peephole();
+        //STOP.addDef(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
+        //STOP.addDef(new  ProjNode(cend,1,ScopeNode.MEM0).peephole());
+        //STOP.addDef(new  ProjNode(cend,2,ScopeNode.ARG0).peephole());
 
         // Parse whole program, as-if function header "{ int arg -> body }"
         ReturnNode ret = parseFunctionBody("main",TypeFunPtr.MAIN,"arg");
-        LINKER.put(TypeFunPtr.MAIN,ret.fun());
-        main.peephole();
-        if( cend.peephole() != null )
-            IterPeeps.addAll(cend._outputs);
+        CodeGen.CODE._linker.put(TypeFunPtr.MAIN,ret.fun());
+        //main.peephole();
+        //if( cend.peephole() != null )
+        //    IterPeeps.addAll(cend._outputs);
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
         // Clean up and reset
-        _scope.kill();
         _xScopes.pop();
+        _scope.kill();
         for( StructNode init : INITS.values() )
             init.unkeep().kill();
         INITS.clear();
@@ -208,6 +204,7 @@ public class Parser {
         PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null);
         PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null);
         ReturnNode ret = new ReturnNode(r, rmem, rrez, fun);
+        fun.setRet(ret);
         assert ret.inProgress();
         STOP.addDef(ret);
 
@@ -217,10 +214,9 @@ public class Parser {
         _scope.push();
         ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
-        ScopeMinNode startMem = _scope.mem();
-        ScopeMinNode mem = new ScopeMinNode();
+        ScopeMinNode mem = new ScopeMinNode(true);
         mem.addDef(null);       // Alias#0
-        mem.addDef(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,startMem).peephole()); // All aliases
+        mem.addDef(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole()); // All aliases
         _scope.mem(mem);
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
@@ -236,7 +232,7 @@ public class Parser {
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )
-            STOP.addReturn(ctrl(), _scope.mem(), last, fun);
+            STOP.addReturn(ctrl(), _scope.mem().merge(), last, fun);
 
         // Function scope ends
         _scope.pop();
@@ -581,7 +577,9 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseAsgn(), ";");
-        STOP.addReturn(ctrl(), _scope.mem(), expr, _fun);
+        // Need default memory, since it can be lazy, need to force
+        // a non-lazy Phi
+        STOP.addReturn(ctrl(), _scope.mem().merge(), expr, _fun);
         ctrl(XCTRL);            // Kill control
         return expr;
     }
@@ -1043,26 +1041,36 @@ public class Parser {
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
         if( ch==0  ) return rvalue;
+
+        // the rvalue is an l-value now; it will be updated
+        Node lhs = rvalue.keep();
         if( n._final )
             throw error("Cannot reassign final '"+n._name+"'");
+        // RHS of the update
+        Node rhs =
+            (byte)ch ==  1 ? con( 1) : // var++
+            (byte)ch == -1 ? con(-1) : // var--
+            parseAsgn();         // var op= rhs
+        // Widen RHS int to a RHS float
+        rhs = widenInt(rhs,n.type());
+        // Complain a RHS float into a LHS int
+        if( !rhs._type.isa(n.type()) )
+            throw error("Type " + rhs._type.str() + " is not of declared type " + n.type().str());
+
         Node op = switch(ch) {
-        case '+'      -> new AddNode(rvalue,null);
-        case '-'      -> new SubNode(rvalue,null);
-        case '*'      -> new MulNode(rvalue,null);
-        case '/'      -> new DivNode(rvalue,null);
-        case        1 -> new AddNode(rvalue,con( 1));
-        case (char)-1 -> new AddNode(rvalue,con(-1));
-        default -> throw Utils.TODO();
+        case 1, (char)-1,
+             '+' -> new AddNode(lhs,rhs);
+        case '-' -> new SubNode(lhs,rhs);
+        case '*' -> new MulNode(lhs,rhs);
+        case '/' -> new DivNode(lhs,rhs);
+        default  -> throw Utils.TODO();
         };
-        // Return pre-value (x+=1) or post-value (x++)
-        boolean pre = op.in(2)==null;
-        // Parse RHS argument as needed
-        if( pre )
-            { op.keep().setDef(2,parseAsgn());  op.unkeep(); }
-        else rvalue.keep();     // Keep post-value across peeps
-        op = zsMask(peep(op),n.type());
+
+        op = zsMask(peep(op.widen()),n.type());
         _scope.update(n,op);
-        return pre ? op : rvalue.unkeep();
+        // Return pre-value (x+=1) or post-value (x++)
+        lhs.unkeep();
+        return (byte)ch== 1 || (byte)ch== -1 ? lhs : op;
     }
 
     ScopeMinNode.Var requireLookupId(String msg) {

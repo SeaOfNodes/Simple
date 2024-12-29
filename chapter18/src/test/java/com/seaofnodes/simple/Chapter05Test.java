@@ -20,7 +20,7 @@ else {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,(arg+2),(arg-3));", code._stop.toString());
+        assertEquals("return Phi(Region,(arg+2),(arg-3));", code.print());
     }
 
     @Test
@@ -36,7 +36,7 @@ if (arg == 1) {
 return c;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,4,3);", code._stop.toString());
+        assertEquals("return Phi(Region,4,3);", code.print());
     }
 
     @Test
@@ -49,7 +49,7 @@ else
     return 4;
 """);
         code.parse();
-        assertEquals("return Phi(Region,3,4);", code._stop.expr().in(0).in(1).toString());
+        assertEquals("return Phi(Region,3,4);", code.print());
     }
 
     @Test
@@ -64,7 +64,7 @@ else
     b=a+1;
 return a+b;""");
         code.parse().opto();
-        assertEquals("return ((arg*2)+Phi(Region,2,3));", code._stop.toString());
+        assertEquals("return ((arg*2)+Phi(Region,2,3));", code.print());
     }
 
     @Test
@@ -79,7 +79,7 @@ else
     a=b+1;
 return a+b;""");
         code.parse().opto();
-        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", code._stop.toString());
+        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", code.print());
     }
 
     @Test
@@ -99,7 +99,7 @@ else
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Region,2,3),Phi(Region,4,5));", code._stop.toString());
+        assertEquals("return Phi(Region,Phi(Region,2,3),Phi(Region,4,5));", code.print());
     }
 
     @Test
@@ -115,7 +115,7 @@ if( arg==0 )
 return arg+a+b;
 """);
         code.parse().opto();
-        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", code._stop.toString());
+        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", code.print());
     }
 
     @Test
@@ -130,13 +130,13 @@ if( arg==1 )
 return a;
 """);
         code.parse().opto();
-        assertEquals("return (arg==Phi(Region,3,2));", code._stop.toString());
+        assertEquals("return (arg==Phi(Region,3,2));", code.print());
     }
 
     @Test
     public void testTrue() {
       StopNode stop = new Parser("return true;").parse();
-      assertEquals("return 1;",stop.expr().in(0).in(1).toString());
+      assertEquals("return 1;",stop.ret().print());
     }
 
     @Test

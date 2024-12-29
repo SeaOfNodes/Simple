@@ -269,9 +269,8 @@ public class Evaluator {
 
     private Object cons(ConstantNode cons) {
         var type = cons.compute();
-        if (type instanceof TypeInteger i) return i.value();
+        if (type instanceof TypeInteger i) return i.isConstant() ? i.value() : Integer.MAX_VALUE;
         if (type instanceof TypeFloat i) return i.value();
-        assert type == Type.NIL;
         return null;
     }
 
@@ -333,7 +332,6 @@ public class Evaluator {
             case null:
                 return Status.FALLTHROUGH;
             case ReturnNode ret :  return val(ret .expr());
-            case   StopNode stop:  return val(stop.expr());
             case IfNode ifn:
                 block = block.next()[isTrue(val(ifn.in(1))) ? 0 : 1];
                 if (block == null) return Status.FALLTHROUGH;
@@ -345,8 +343,11 @@ public class Evaluator {
                 block = block.next()[0];
                 assert block != null;
                 for (; i < block.nodes().length; i++) {
-                    if (!(block.nodes()[i] instanceof PhiNode)) break;
-                    phiCache.add(val(block.nodes()[i].in(exit)));
+                    if (!(block.nodes()[i] instanceof PhiNode phi)) break;
+                    var val = region instanceof FunNode fun && fun._name.equals("main") && ((ParmNode)phi)._idx==2 && exit==1
+                            ? parameter
+                            : val(phi.in(exit));
+                    phiCache.add(val);
                 }
                 for (i=0; i<phiCache.size(); i++) {
                     values[block.nodes()[i]._nid] = phiCache.get(i);
