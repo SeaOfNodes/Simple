@@ -87,6 +87,9 @@ public class Scheduler {
             this.entry = entry;
             this.prev = prev;
         }
+        BasicBlock(Node entry, BasicBlock prev) {
+            this(entry,prev.depth+1,prev);
+        }
 
     }
 
@@ -358,25 +361,28 @@ public class Scheduler {
         var queue = new Stack<NodeData>();
         var phiQueue = new Stack<NodeData>();
         queue.push(d(start));
-        int depth = 0;
         while (!queue.isEmpty()) {
             var data = queue.pop();
             var node = data.node;
             assert node instanceof CFGNode;
             BasicBlock block = switch (node) {
-            case StartNode s -> new BasicBlock(s, depth++);
-            case LoopNode l -> new BasicBlock(l, depth++, d(l.in(1)).block);
+            case StartNode s -> new BasicBlock(s, 0);
+            case LoopNode l -> new BasicBlock(l, d(l.in(1)).block);
             case RegionNode r -> {
                     var prev = new ArrayList<BasicBlock>();
+                    int depth = 0;
                     for(int i=1; i<r.nIns(); i++) {
-                        od(r.in(i)).ifPresent(d->prev.add(d.block));
+                        if( !od(r.in(i)).isPresent() ) continue;
+                        BasicBlock bb = d(r.in(i)).block;
+                        prev.add(bb);
+                        depth = Math.max(depth,bb.depth);
                     }
-                    yield new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
+                    yield new BasicBlock(r, depth+1, prev.toArray(BasicBlock[]::new));
             }
             case IfNode i -> d(i.in(0)).block;
             case ReturnNode ret -> d(ret .in(0)).block;
-            case StopNode stop  -> d(stop.in(0)).block;
-            default -> new BasicBlock(node, depth++, d(node.in(0)).block);
+            case CallNode call -> throw Utils.TODO();
+            default -> new BasicBlock(node, d(node.in(0)).block);
             };
             data.block = block;
             if (node instanceof RegionNode r) {
@@ -392,10 +398,17 @@ public class Scheduler {
                     }
                 }
             }
-            if( !(node instanceof ReturnNode) && !(node instanceof StopNode) )
+            if( node instanceof FunNode fun ) {
+                // Cannot find CFG user from fun via a naive search, because always find
+                // Return but Return is not always the one CFG user.
+                CFGNode n = fun.uctrl();
+                assert isCFGNodeReady(n) && d(n).block==null;
+                queue.push(d(n));
+            } else if( !(node instanceof ReturnNode) ) {
                 for (Node n : node._outputs)
                     if(n instanceof CFGNode && isCFGNodeReady(n) && d(n).block == null)
                         queue.push(d(n));
+            }
             var b = block;
             for(var in:data.node._inputs) od(in).ifPresent(d->update(d, b));
         }
@@ -440,7 +453,7 @@ public class Scheduler {
             var data = cfgQueue.pop();
             node = data.node;
             assert node instanceof CFGNode;
-            if (!(node instanceof ReturnNode) && !(node instanceof StopNode) ) {
+            if (!(node instanceof ReturnNode) ) {
                 for (var out : node._outputs) if (out!=null && out instanceof CFGNode && isNotXCtrl(out)) markAlive(cfgQueue, out, true);
             }
             for (var in : node._inputs) if(in!=null && !(in instanceof CFGNode) && isNotXCtrl(in)) markAlive(dataQueue, in, false);
@@ -492,16 +505,16 @@ public class Scheduler {
      * @param node The node
      * @return THe CFG output of the node.
      */
-    private static Node findSingleCFGOut(Node node) {
+    private static CFGNode findSingleCFGOut(Node node) {
         if (node instanceof StartNode) {
-            for(var n:node._outputs) if (n instanceof CProjNode p && p._idx==0) return p;
+            for(var n:node._outputs)
+                if (n instanceof FunNode fun && fun._name.equals("main"))
+                   return fun;
             return null;
         }
-        // From start, a Call, or one of many functions
-        if( node instanceof CProjNode c && c.in(0) instanceof StartNode )
-            return c.out(0);
+        if( node instanceof FunNode fun ) return fun.uctrl();
         assert node._outputs.stream().filter(x -> x instanceof CFGNode).limit(2).count()<=1;
-        for(var n:node._outputs) if(n instanceof CFGNode) return n;
+        for(var n:node._outputs) if(n instanceof CFGNode cfg) return cfg;
         return null;
     }
 
@@ -544,7 +557,6 @@ public class Scheduler {
                     break;
                 }
                 if (last instanceof ReturnNode) break;
-                if( last instanceof StopNode ) break;
                 if (last instanceof IfNode if_) {
                     for(var out:if_._outputs) if (out instanceof CFGNode && blocks.get(out) == null) queue.push(d(out));
                     break;
@@ -557,7 +569,6 @@ public class Scheduler {
                 case IfNode i -> new Block(arr, i, -1, new Block[2]);
                 case RegionNode r -> new Block(arr, r, r._inputs.find(prev), new Block[1]);
                 case ReturnNode r -> new Block(arr, r   , -1, new Block[0]);
-                case StopNode stop-> new Block(arr, stop, -1, new Block[0]);
                 default -> throw new AssertionError("Unexpected block exit node");
             });
         }
@@ -572,7 +583,7 @@ public class Scheduler {
                     block.next[0] = blocks.get(r);
                     break;
                 default:
-                    assert block.exit instanceof ReturnNode || block.exit instanceof StopNode;
+                    assert block.exit instanceof ReturnNode;
             }
         }
         // And return the block for the start node.

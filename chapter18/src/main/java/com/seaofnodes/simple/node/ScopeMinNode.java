@@ -11,6 +11,8 @@ import static com.seaofnodes.simple.Utils.TODO;
 /* */
 public class ScopeMinNode extends Node {
 
+    public final boolean _inProgress;
+
     /** The tracked fields are now complex enough to deserve a array-of-structs layout
      */
     public static class Var {
@@ -39,8 +41,12 @@ public class ScopeMinNode extends Node {
         }
     }
 
-    public ScopeMinNode() { _type = TypeMem.BOT; }
+    public ScopeMinNode(boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
 
+
+    // If being used by a Scope, this is "in progress" from the Parser.
+    // Otherwise its a memory merge
+    boolean inProgress() { return _inProgress; }
 
     @Override public String label() { return "ALLMEM"; }
     @Override public boolean isMem() { return true; }
@@ -61,6 +67,17 @@ public class ScopeMinNode extends Node {
         }
         sb.setLength(sb.length()-1);
         return sb.append("]");
+    }
+
+    // Make a memory merge: no longer a Scope really, tracking memory state but
+    // not related to the parser in any way.
+    public Node merge() {
+        // Force default memory to not be lazy
+        ScopeMinNode merge = new ScopeMinNode(false);
+        for( Node n : _inputs )
+            merge.addDef(n);
+        merge._mem(1,null);
+        return merge.peephole();
     }
 
 
@@ -127,13 +144,13 @@ public class ScopeMinNode extends Node {
 
     // Fill in the backedge of any inserted Phis
     void _endLoopMem( ScopeNode scope, ScopeMinNode back, ScopeMinNode exit ) {
-        for( int i=2; i<back.nIns(); i++ ) {
-            if( back.in(i) != scope ) {
-                PhiNode phi = (PhiNode)in(i);
-                assert phi.region()==scope.ctrl() && phi.in(2)==null;
-                phi.setDef(2,back.in(i)); // Fill backedge
+        Node exit_def = exit.alias(1);
+        for( int i=1; i<back.nIns(); i++ ) {
+            if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
+                assert phi.in(2)==null;
+                phi.setDef(2,back.in(i)==scope ? phi : back.in(i)); // Fill backedge
             }
-            if( exit.alias(i) == scope ) // Replace a lazy-phi on the exit path also
+            if( exit_def == scope ) // Replace a lazy-phi on the exit path also
                 exit.alias(i,in(i));
         }
     }
@@ -155,16 +172,7 @@ public class ScopeMinNode extends Node {
         }
     }
 
-    // If being used by a Scope, this is "in progress" from the Parser.
-    // Once no more scope users, this is just a memory-merge.
-    boolean inProgress() {
-        for( Node n : _outputs )
-            if( n instanceof ScopeNode scope )
-                return true;
-        return false;
-    }
-
     @Override boolean eq( Node n ) {
-        return this==n || !inProgress();
+        return this==n || !_inProgress;
     }
 }

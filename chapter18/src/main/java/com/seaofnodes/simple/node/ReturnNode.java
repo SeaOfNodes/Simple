@@ -1,8 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.type.*;
-
 import java.util.BitSet;
 
 /**
@@ -16,14 +15,16 @@ import java.util.BitSet;
  */
 public class ReturnNode extends CFGNode {
 
+    public final FunNode _fun;
     public ReturnNode(Node ctrl, Node mem, Node data, FunNode fun) {
-        super(ctrl, mem, data, fun);
+        super(ctrl, mem, data);
+        _fun = fun;
     }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
     public Node expr() { return in(2); }
-    public FunNode fun() { return (FunNode)in(3); }
+    public FunNode fun() { return _fun; }
 
     @Override
     public String label() { return "Return"; }
@@ -31,7 +32,6 @@ public class ReturnNode extends CFGNode {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("return ");
-        if( expr()==null ) return sb.append("INPROGRESS");
         expr()._print0(sb, visited);
         return sb.append(";");
     }
@@ -45,7 +45,7 @@ public class ReturnNode extends CFGNode {
     @Override public Node idealize() { return null; }
 
     public boolean inProgress() {
-        return ctrl() instanceof RegionNode r && r.inProgress();
+        return ctrl().getClass() == RegionNode.class && ((RegionNode)ctrl()).inProgress();
     }
 
     // Add a return exit to the current parsing function

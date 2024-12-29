@@ -26,6 +26,9 @@ public class IfNode extends CFGNode implements MultiNode {
     public Node ctrl() { return in(0); }
     public Node pred() { return in(1); }
 
+    // No one unique control follows
+    @Override public CFGNode uctrl() { return null; }
+
     @Override
     public Type compute() {
         // If the If node is not reachable then neither is any following Proj

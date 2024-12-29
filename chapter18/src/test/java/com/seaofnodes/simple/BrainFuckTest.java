@@ -1,9 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import java.nio.charset.StandardCharsets;
 
@@ -67,7 +65,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        code.parse().opto().typeCheck().codegen();
-        assertEquals("Hello World!\n", Evaluator.evaluate(code._stop, 0, 10000).toString());
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
 }

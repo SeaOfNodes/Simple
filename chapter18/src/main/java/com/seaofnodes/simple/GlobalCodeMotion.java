@@ -54,7 +54,7 @@ public abstract class GlobalCodeMotion {
         visit.set(n._nid);
         // Schedule not-pinned not-CFG inputs before self.  Since skipping
         // Pinned, this never walks the backedge of Phis (and thus spins around
-        // a data-only loop, eventually attempting relying on some pre-visited-
+        // a data-only loop), eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
@@ -65,7 +65,7 @@ public abstract class GlobalCodeMotion {
             CFGNode early = Parser.START; // Maximally early, lowest idepth
             if( n.in(0) instanceof CFGNode cfg ) early = cfg;
             for( int i=1; i<n.nIns(); i++ )
-                if( n.in(i).cfg0().idepth() > early.idepth() )
+                if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
             n.setDef(0,early);              // First place this can go
         }

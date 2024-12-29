@@ -114,6 +114,7 @@ public abstract class Node {
 
     public boolean isMultiHead() { return false; }
     public boolean isMultiTail() { return false; }
+    public boolean isConst    () { return false; }
 
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
@@ -337,8 +338,8 @@ public abstract class Node {
         Type old = setType(compute());
 
         // Replace constant computations from non-constants with a constant node
-        if( !(this instanceof ConstantNode) && !(this instanceof XCtrlNode) && _type.isHighOrConst() )
-            return (_type==Type.XCONTROL ? new XCtrlNode() : new ConstantNode(_type)).peepholeOpt();
+        if( _type.isHighOrConst() && !isConst() )
+            return ConstantNode.make(_type).peepholeOpt();
 
         // Global Value Numbering
         if( _hash==0 ) {

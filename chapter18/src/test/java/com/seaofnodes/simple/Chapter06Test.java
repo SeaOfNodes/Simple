@@ -10,14 +10,13 @@ public class Chapter06Test {
 
     @Test
     public void testPeepholeReturn() {
-        CodeGen code = new CodeGen(
-"""
+        CodeGen code = new CodeGen("""
 if( true ) return 2;
 return 1;
 """);
         code.parse().opto();
-        assertEquals("return 2;", code._stop.toString());
-        assertTrue(code._stop.in(0) instanceof CProjNode);
+        assertEquals("return 2;", code.print());
+        assertTrue(code.ctrl() instanceof FunNode);
     }
 
     @Test
@@ -30,7 +29,7 @@ if (arg)
 return (arg < a) < 3; // Because (arg < a) is a bool/uint1/[0-1], its always less than 3
 """);
         code.parse().opto();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
     }
 
     @Test
@@ -45,8 +44,8 @@ else
 return a;
 """);
         code.parse().opto();
-        assertEquals("return 2;", code._stop.toString());
-        assertTrue(code._stop.in(0) instanceof CProjNode);
+        assertEquals("return 2;", code.print());
+        assertTrue(code.ctrl() instanceof FunNode);
     }
 
     @Test
@@ -66,7 +65,7 @@ else
 return b;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,42,5);", code._stop.toString());
+        assertEquals("return Phi(Region,42,5);", code.print());
     }
 
     @Test
@@ -85,13 +84,14 @@ else
     b=5;
 return b;""");
         code.parse().opto();
-        assertEquals("return Phi(Region,2,5);", code._stop.toString());
+        assertEquals("return Phi(Region,2,5);", code.print());
     }
 
     @Test
     public void testMerge3With2() {
         CodeGen code = new CodeGen(
 """
+arg=2;
 int a=1;
 if( arg==1 )
     if( arg==2 )
@@ -105,13 +105,14 @@ else
 return a;
 """, TypeInteger.constant(2));
         code.parse().opto();
-        assertEquals("return 5;", code._stop.toString());
+        assertEquals("return 5;", code.print());
     }
 
     @Test
     public void testMerge3With1() {
         CodeGen code = new CodeGen(
 """
+arg=1;
 int a=1;
 if( arg==1 )
     if( arg==2 )
@@ -125,7 +126,7 @@ else
 return a;
 """, TypeInteger.constant(1));
         code.parse().opto();
-        assertEquals("return 3;", code._stop.toString());
+        assertEquals("return 3;", code.print());
     }
 
     @Test
@@ -145,13 +146,14 @@ else
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,3,Phi(Region,4,5));", code._stop.toString());
+        assertEquals("return Phi(Region,3,Phi(Region,4,5));", code.print());
     }
 
     @Test
     public void testMerge3Peephole1() {
         CodeGen code = new CodeGen(
 """
+arg=1;
 int a=1;
 if( arg==1 )
     if( 1==2 )
@@ -165,13 +167,14 @@ else
 return a;
 """, TypeInteger.constant(1));
         code.parse().opto();
-        assertEquals("return 3;", code._stop.toString());
+        assertEquals("return 3;", code.print());
     }
 
     @Test
     public void testMerge3Peephole3() {
         CodeGen code = new CodeGen(
 """
+arg=3;
 int a=1;
 if( arg==1 )
     if( 1==2 )
@@ -185,7 +188,7 @@ else
 return a;
 """, TypeInteger.constant(3));
         code.parse().opto();
-        assertEquals("return 4;", code._stop.toString());
+        assertEquals("return 4;", code.print());
     }
 
     @Test
@@ -201,13 +204,14 @@ if( arg ) {
 return a+b;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,4,1);", code._stop.toString());
+        assertEquals("return Phi(Region,4,1);", code.print());
     }
 
 
     @Test
     public void testDemo1True() {
         CodeGen code = new CodeGen("""
+arg=1;
 int a = 0;
 int b = 1;
 if( arg ) {
@@ -218,12 +222,13 @@ if( arg ) {
 return a+b;
 """, TypeInteger.constant(1));
         code.parse().opto();
-        assertEquals("return 4;", code._stop.toString());
+        assertEquals("return 4;", code.print());
     }
 
     @Test
     public void testDemo1False() {
         CodeGen code = new CodeGen("""
+arg=0;
 int a = 0;
 int b = 1;
 if( arg ) {
@@ -234,7 +239,7 @@ if( arg ) {
 return a+b;
 """, TypeInteger.constant(0));
         code.parse().opto();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
     }
 
     @Test
@@ -252,13 +257,14 @@ if( arg ) {
 return a+b+c;
 """);
         code.parse().opto();
-        assertEquals("return (Phi(Region,Phi(Region,2,3),0)+Phi(Region,3,1));", code._stop.toString());
+        assertEquals("return (Phi(Region,Phi(Region,2,3),0)+Phi(Region,3,1));", code.print());
     }
 
 
     @Test
     public void testDemo2True() {
         CodeGen code = new CodeGen("""
+arg=1;
 int a = 0;
 int b = 1;
 int c = 0;
@@ -271,12 +277,13 @@ if( arg ) {
 return a+b+c;
 """, TypeInteger.constant(1));
         code.parse().opto();
-        assertEquals("return 6;", code._stop.toString());
+        assertEquals("return 6;", code.print());
     }
 
     @Test
     public void testDemo2arg2() {
         CodeGen code = new CodeGen("""
+arg=2;
 int a = 0;
 int b = 1;
 int c = 0;
@@ -289,7 +296,7 @@ if( arg ) {
 return a+b+c;
 """, TypeInteger.constant(2));
         code.parse().opto();
-        assertEquals("return 5;", code._stop.toString());
+        assertEquals("return 5;", code.print());
     }
 
 }

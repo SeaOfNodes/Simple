@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -23,10 +24,10 @@ while(arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", code._stop.toString());
-        assertTrue(code._stop.in(0) instanceof RegionNode);
-        Assert.assertEquals(5L, Evaluator.evaluate(code._stop, 1));
-        Assert.assertEquals(10L, Evaluator.evaluate(code._stop, 6));
+        assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", code.print());
+        assertTrue(code.ctrl() instanceof RegionNode);
+        Assert.assertEquals( "5", Eval2.eval(code, 1));
+        Assert.assertEquals("10", Eval2.eval(code, 6));
     }
 
 
@@ -46,8 +47,8 @@ while(arg < 10) {
 return a;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
 
@@ -65,8 +66,8 @@ while(arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof RegionNode);
+        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code.print());
+        assertTrue(code.ctrl() instanceof RegionNode);
     }
 
     @Test
@@ -81,8 +82,8 @@ while(arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof RegionNode);
+        assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code.print());
+        assertTrue(code.ctrl() instanceof RegionNode);
     }
 
 
@@ -100,8 +101,8 @@ while(arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
 
@@ -117,8 +118,8 @@ while(arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
     @Test
@@ -133,14 +134,14 @@ while( arg < 10 ) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return arg;", code._stop.toString());
+        assertEquals("return arg;", code.print());
     }
 
     @Test
     public void testRegress2() {
         CodeGen code = new CodeGen("if(1) return 0;  else while(arg>- -arg) arg=arg+1; return 0;");
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -168,7 +169,7 @@ while(arg < 10) {
 return arg;
 """);
         code.parse().opto();
-        assertEquals("return arg;", code._stop.toString());
+        assertEquals("return arg;", code.print());
     }
 
     @Test
@@ -185,8 +186,8 @@ while(arg < 10) {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof RegionNode);
+        assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", code.print());
+        assertTrue(code.ctrl() instanceof RegionNode);
     }
 
     @Test
@@ -201,8 +202,8 @@ while(1) {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return (Phi(Loop,1,Add)+1);", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode prj && prj._idx==1 );
+        assertEquals("return (Phi(Loop,1,Add)+1);", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode prj && prj._idx==1 );
     }
 
 }

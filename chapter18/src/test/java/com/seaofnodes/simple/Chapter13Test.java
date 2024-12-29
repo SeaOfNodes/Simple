@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -13,8 +12,8 @@ public class Chapter13Test {
 return 3.14;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code._stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
     @Test
@@ -55,8 +54,8 @@ if( next==null ) return 1;
 return next.i;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code._stop.toString());
-        assertEquals(2L, Evaluator.evaluate(code._stop,  3));
+        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("2", Eval2.eval(code,  3));
     }
 
     @Test
@@ -74,7 +73,7 @@ f0.i = i0;
 return f0.i.f.i.i;
 """);
         code.parse().opto();
-        assertEquals("return 17;", code._stop.toString());
+        assertEquals("return 17;", code.print());
     }
 
     @Test
@@ -86,7 +85,7 @@ N n = new N;
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("return null;", code._stop.toString());
+        assertEquals("return null;", code.print());
     }
 
     @Test
@@ -99,7 +98,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("return (const)M;", code._stop.toString());
+        assertEquals("return (const)M;", code.print());
     }
 
     @Test
@@ -135,8 +134,8 @@ return n.i;
 struct S{};
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
@@ -159,7 +158,7 @@ struct S2 { int x; };
 return new S1.s=new S2;
 """);
         code.parse().opto();
-        assertEquals("return S2;", code._stop.toString());
+        assertEquals("return S2;", code.print());
     }
 
     @Test

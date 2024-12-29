@@ -41,35 +41,31 @@ else {
 return x;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,(arg*2),(Mul+1));", code._stop.toString());
-        Assert.assertEquals(2L, Evaluator.evaluate(code._stop, 1));
-        Assert.assertEquals(23L, Evaluator.evaluate(code._stop, 11));
+        assertEquals("return Phi(Region,(arg*2),(Mul+1));", code.print());
+        Assert.assertEquals( "2", Eval2.eval(code,  1));
+        Assert.assertEquals("23", Eval2.eval(code, 11));
     }
 
     @Test
     public void testGVN2() {
-        CodeGen code = new CodeGen(
-                """
-return arg*arg-arg*arg;
-                """);
+        CodeGen code = new CodeGen("return arg*arg-arg*arg;");
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        Assert.assertEquals(0L, Evaluator.evaluate(code._stop, 1));
+        assertEquals("return 0;", code.print());
+        Assert.assertEquals("0", Eval2.eval(code,  1, 1));
     }
 
     @Test
     public void testWorklist1() {
-        CodeGen code = new CodeGen(
-                """
+        CodeGen code = new CodeGen("""
 int step = 1;
 while (arg < 10) {
     arg = arg + step + 1;
 }
 return arg;
-                """);
+""");
         code.parse().opto();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+2));", code._stop.toString());
-        Assert.assertEquals(11L, Evaluator.evaluate(code._stop, 1));
+        assertEquals("return Phi(Loop,arg,(Phi_arg+2));", code.print());
+        Assert.assertEquals("11", Eval2.eval(code,  1));
     }
 
     @Test
@@ -85,8 +81,8 @@ while (arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+4));", code._stop.toString());
-        Assert.assertEquals(13L, Evaluator.evaluate(code._stop, 1));
+        assertEquals("return Phi(Loop,arg,(Phi_arg+4));", code.print());
+        Assert.assertEquals("13", Eval2.eval(code,  1));
     }
 
     @Test
@@ -114,7 +110,7 @@ while (arg) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -132,14 +128,14 @@ while(v1+arg) {
 }
                 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
     public void testWhile0() {
         CodeGen code = new CodeGen("while(0) continue; if(0) arg=0;");
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -151,7 +147,7 @@ if(0) while(0) {
 }
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
 
@@ -159,14 +155,14 @@ if(0) while(0) {
     public void testPrecedence() {
         CodeGen code = new CodeGen("return 3-1+2;");
         code.parse().opto();
-        assertEquals("return 4;", code._stop.toString());
+        assertEquals("return 4;", code.print());
     }
 
     @Test
     public void testSwap2() {
         CodeGen code = new CodeGen("return 1+(1+1);");
         code.parse().opto();
-        assertEquals("return 3;", code._stop.toString());
+        assertEquals("return 3;", code.print());
     }
 
 
@@ -184,7 +180,7 @@ while(arg) {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", code._stop.toString());
+        assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", code.print());
     }
 
     @Test
@@ -198,7 +194,7 @@ int v0=0!=0<-0;
 return -0+0+0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
 
@@ -206,14 +202,14 @@ return -0+0+0;
     public void testFuzz2() {
         CodeGen code = new CodeGen("return 0+-0;");
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
     public void testFuzz3() {
         CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0;");
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -225,7 +221,7 @@ while(1) {
 }
 """);
         code.parse().opto();
-        assertEquals("return Top;", code._stop.toString());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
@@ -247,7 +243,7 @@ while(1) {
 return 0!=0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -259,7 +255,7 @@ while(0==1) while(v0)
         v0=1+v0;
 """);
         code.parse().opto();
-        assertEquals("return ~int;", code._stop.toString());
+        assertEquals("return ~int;", code.print());
     }
 
     @Test
@@ -275,14 +271,14 @@ while(1)
 return v1+v0;
                                    """);
         code.parse().opto();
-        assertEquals("return Top;", code._stop.toString());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
     public void testFuzz8() {
         CodeGen code = new CodeGen("while(arg) arg = arg - 1;  return arg;");
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test

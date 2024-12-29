@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
-import static com.seaofnodes.simple.Utils.TODO;
 
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
@@ -33,6 +32,7 @@ public class ScopeNode extends ScopeMinNode {
 
     // A new ScopeNode
     public ScopeNode() {
+        super(true);
         _vars   = new Ary<>(Var    .class);
         _lexSize= new Ary<>(Integer.class);
         _inCons = new Ary<>(Boolean.class);
@@ -113,8 +113,8 @@ public class ScopeNode extends ScopeMinNode {
      * Create a new variable name in the current scope
      */
     public boolean define( String name, Type declaredType, boolean xfinal, Node init ) {
-        assert name.charAt(0)!='$' || _lexSize.size()==1; // Later scopes do not define memory
-        if( _lexSize._len > 1 )
+        assert _lexSize.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
+        if( _lexSize._len > 0 )
             for( int i=_vars.size()-1; i>=_lexSize.last(); i-- )
                 if( _vars.get(i)._name.equals(name) )
                     return false;   // Double define
@@ -203,7 +203,7 @@ public class ScopeNode extends ScopeMinNode {
         dup.addDef(ctrl());     // Control input is just copied
 
         // Memory input is a shallow copy
-        ScopeMinNode memdup = new ScopeMinNode(), mem = mem();
+        ScopeMinNode memdup = new ScopeMinNode(true), mem = mem();
         memdup.addDef(null);
         memdup.addDef(loop ? this : mem.in(1));
         for( int i=2; i<mem.nIns(); i++ )

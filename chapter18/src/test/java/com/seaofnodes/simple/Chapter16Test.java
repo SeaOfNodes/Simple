@@ -15,8 +15,8 @@ public class Chapter16Test {
 return 3.14;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code._stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3.14;", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
     }
 
 
@@ -28,8 +28,8 @@ int x, y;
 return x+y;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
     @Test
     public void testMulti1() {
@@ -39,8 +39,8 @@ int x=2, y=x+1;
 return x+y;
 """);
         code.parse().opto();
-        assertEquals("return 5;", code._stop.toString());
-        assertEquals(5L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 5;", code.print());
+        assertEquals("5", Eval2.eval(code,  0));
     }
 
 //    @Test
@@ -64,9 +64,9 @@ if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,9,3);", code._stop.toString());
-        assertEquals(3L, Evaluator.evaluate(code._stop, 0));
-        assertEquals(9L, Evaluator.evaluate(code._stop, 1));
+        assertEquals("return Phi(Region,9,3);", code.print());
+        assertEquals("3", Eval2.eval(code, 0));
+        assertEquals("9", Eval2.eval(code, 1));
     }
 
     @Test
@@ -77,8 +77,8 @@ X z = new X;
 return z.x;
 """);
         code.parse().opto();
-        assertEquals("return 3;", code._stop.toString());
-        assertEquals(3L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3;", code.print());
+        assertEquals("3", Eval2.eval(code,  0));
     }
 
     @Test
@@ -89,8 +89,8 @@ X z = new X { x=3; };
 return z.x;
 """);
         code.parse().opto();
-        assertEquals("return 3;", code._stop.toString());
-        assertEquals(3L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 3;", code.print());
+        assertEquals("3", Eval2.eval(code,  0));
     }
 
     @Test
@@ -101,8 +101,8 @@ X z = new X { x = 4; };
 return z.x;
 """);
         code.parse().opto();
-        assertEquals("return 4;", code._stop.toString());
-        assertEquals(4L, Evaluator.evaluate(code._stop,  0));
+        assertEquals("return 4;", code.print());
+        assertEquals("4", Eval2.eval(code,  0));
     }
 
 
@@ -114,8 +114,8 @@ Point p = new Point { x=3; y=4; };
 return p;
 """);
         code.parse().opto();
-        assertEquals("return (const)Point;", code._stop.toString());
-        assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(code._stop,  0).toString());
+        assertEquals("return (const)Point;", code.print());
+        assertEquals("Point{x=3,y=4}", Eval2.eval(code,  0));
     }
 
     @Test
@@ -175,8 +175,8 @@ p.x++;
 return p;
 """);
         code.parse().opto();
-        assertEquals("return Point;", code._stop.toString());
-        assertEquals("Obj<Point>{x=4,y=4}", Evaluator.evaluate(code._stop,  0).toString());
+        assertEquals("return Point;", code.print());
+        assertEquals("Point{x=4,y=4}", Eval2.eval(code,  0));
     }
 
     // Same as the Chapter13 test with the same name, but using the new
@@ -197,10 +197,10 @@ if( !next ) return 1;
 return next.i;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
-        assertEquals(1L, Evaluator.evaluate(code._stop,  1));
-        assertEquals(2L, Evaluator.evaluate(code._stop,  3));
+        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
+        assertEquals("1", Eval2.eval(code,  1));
+        assertEquals("2", Eval2.eval(code,  3));
     }
 
     @Test
@@ -228,10 +228,10 @@ if( !next ) return 1;
 return next.i;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code._stop.toString());
-        assertEquals(0L, Evaluator.evaluate(code._stop,  0));
-        assertEquals(1L, Evaluator.evaluate(code._stop,  1));
-        assertEquals(2L, Evaluator.evaluate(code._stop, 11));
+        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
+        assertEquals("1", Eval2.eval(code,  1));
+        assertEquals("2", Eval2.eval(code, 11));
     }
 
     @Test
@@ -253,8 +253,8 @@ struct Square {
 return new Square;
 """);
         code.parse().opto();
-        assertEquals("return Square;", code._stop.toString());
-        assertEquals("Obj<Square>{side=3.0,diag=1.7320508075688772}", Evaluator.evaluate(code._stop,  3).toString());
-        assertEquals("Obj<Square>{side=4.0,diag=2.0}", Evaluator.evaluate(code._stop, 4).toString());
+        assertEquals("return Square;", code.print());
+        assertEquals("Square{side=3.0,diag=1.7320508075688772}", Eval2.eval(code,  3));
+        assertEquals("Square{side=4.0,diag=2.0}", Eval2.eval(code, 4));
     }
 }

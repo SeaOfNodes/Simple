@@ -28,6 +28,17 @@ public abstract class CFGNode extends Node {
     // Block head is Start, Region, CProj, but not e.g. If, Return, Stop
     public boolean blockHead() { return false; }
 
+    // Get the one control following; error to call with more than one e.g. an
+    // IfNode or other multi-way branch.
+    public CFGNode uctrl() {
+        CFGNode c = null;
+        for( Node n : _outputs )
+            if( n instanceof CFGNode cfg )
+                {  assert c==null;  c = cfg; }
+        return c;
+    }
+
+
     // ------------------------------------------------------------------------
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM during
@@ -90,13 +101,14 @@ public abstract class CFGNode extends Node {
         _pre = pre++;
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg )
+            if( use instanceof CFGNode usecfg && !(usecfg instanceof XCtrlNode) )
                 pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
         for( Node use : _outputs ) {
             if( !(use instanceof CFGNode usecfg) ) continue;
+            if( usecfg instanceof XCtrlNode ) continue;
             // Child visited but not post-visited?
             if( !post.get(usecfg._nid) ) {
                 // Must be a backedge to a LoopNode then

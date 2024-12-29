@@ -18,8 +18,8 @@ return arg;
 """);
         Node._disablePeephole = true;
         code.parse();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code._stop.expr().in(0).in(1).toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
@@ -36,7 +36,7 @@ if(arg){}else{
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,1,Phi(Loop,1,(Phi_a+1)));", code._stop.toString());
+        assertEquals("return Phi(Region,1,Phi(Loop,1,(Phi_a+1)));", code.print());
     }
 
     @Test
@@ -56,7 +56,7 @@ while(i < arg) {
 return sum;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,Phi(Loop,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", code._stop.toString());
+        assertEquals("return Phi(Loop,0,Phi(Loop,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", code.print());
     }
 
     @Test
@@ -73,8 +73,8 @@ return b;
 """);
         Node._disablePeephole = true;
         code.parse();
-        assertEquals("return Phi(Loop,2,Phi(Region,Phi_b,4));", code._stop.expr().in(0).in(1).toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,2,Phi(Region,Phi_b,4));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
@@ -93,8 +93,8 @@ while(a < 10) {
 return b;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,2,(Phi(Region,Phi_b,4)+1));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,2,(Phi(Region,Phi_b,4)+1));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
 
@@ -111,8 +111,8 @@ return a;
 """);
         Node._disablePeephole = true;
         code.parse();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.expr().in(0).in(1).toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
@@ -128,8 +128,8 @@ while(a < 10) {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
     @Test
@@ -142,8 +142,8 @@ return a;
 """);
         Node._disablePeephole = true;
         code.parse();
-        assertEquals("return Phi(Loop,1,2);", code._stop.expr().in(0).in(1).toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,2);", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
@@ -156,8 +156,8 @@ while(arg) a = 2;
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,1,2);", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,2);", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
     @Test
@@ -173,8 +173,8 @@ return a;
 """);
         Node._disablePeephole = true;
         code.parse();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.expr().in(0).in(1).toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
@@ -190,8 +190,8 @@ while(a < 10) {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
     @Test
@@ -208,8 +208,8 @@ return a;
 """);
         Node._disablePeephole = true;
         code.parse();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.expr().in(0).in(1).toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
         Node._disablePeephole = false;
     }
 
@@ -226,8 +226,8 @@ while(a < 10) {
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code._stop.toString());
-        assertTrue(code._stop.ctrl() instanceof CProjNode);
+        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertTrue(code.ctrl() instanceof CProjNode);
     }
 
 }

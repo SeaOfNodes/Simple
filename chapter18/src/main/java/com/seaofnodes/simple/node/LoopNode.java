@@ -58,17 +58,13 @@ public class LoopNode extends RegionNode {
         setDef(2,f);
 
         // Now fold control into the exit
-        if( fun!=null )
-            throw Utils.TODO();
-
-        // If not in a function, look for a last-level merge point;
-        // make if not there.
-        RegionNode ctrl = stop.ctrl() instanceof RegionNode r ? r : new RegionNode(null,stop.ctrl());
-        PhiNode    mem  = stop.mem () instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode("",stop.mem ()._type,ctrl,stop.mem ());
-        PhiNode    expr = stop.expr() instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode("",stop.expr()._type,ctrl,stop.expr());
-        if( stop.ctrl()!=ctrl ) stop.setDef(0,ctrl);
-        if( stop.mem ()!=mem  ) stop.setDef(1,mem );
-        if( stop.expr()!=expr ) stop.setDef(2,expr);
+        ReturnNode ret = fun.ret();
+        RegionNode ctrl = ret.ctrl() instanceof RegionNode r ? r : new RegionNode(null,ret.ctrl());
+        PhiNode    mem  = ret.mem () instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.mem ());
+        PhiNode    expr = ret.expr() instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.expr());
+        if( ret.ctrl()!=ctrl ) ret.setDef(0,ctrl);
+        if( ret.mem ()!=mem  ) ret.setDef(1,mem );
+        if( ret.expr()!=expr ) ret.setDef(2,expr);
         Node top = new ConstantNode(Type.TOP).peephole();
         ctrl.addDef(t  );
         mem .addDef(top);
