@@ -27,6 +27,9 @@ public abstract class Eval2 {
         // Start at the START
         CFGNode C = code._start, prior = null;
 
+        // Phi cache; size is limited to number of Phis at a merge point
+        Object[] phiCache = new Object[256];
+
         // Evaluate until we return or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
         SB sb = null; //new SB(); // TRACE
@@ -38,8 +41,19 @@ public abstract class Eval2 {
 
             // Run the worklist dry, computing data nodes under control of C
             if( sb!=null ) { IRPrinter.printLine(C,sb.p("--- ")); System.out.print(sb); sb.clear();  }
-            for( Node use : C._outputs )
-                step(use, path, arg, sb, visit);
+
+            // Parallel assign Phis.  First parallel read and cache
+            int i;
+            for( i = 0; i < C.nOuts(); i++ )
+                if( C.out(i) instanceof PhiNode phi )
+                    phiCache[i] = isArg(phi) ? arg : val(phi.in(path));
+                else break;
+            // Parallel assign; might assign before read, so read from cache
+            for( int j=0; j < i; j++ )
+                DATA[C.out(j)._nid] = phiCache[j];
+            // Now compute the rest of the nodes
+            for( ; i < C.nOuts(); i++ )
+                step(C.out(i), sb, visit);
 
             // Find the next control target
             prior = C;
@@ -58,74 +72,18 @@ public abstract class Eval2 {
 
     }
 
-    private static Object con( Type t ) {
-        if( t instanceof TypeInteger i )
-            return i.isConstant() ? (Long)i.value() : "INT";
-        if( t instanceof TypeFloat f )
-            return f.isConstant() ? (Double)f.value() : "FLT";
-        //
-        return null;
-    }
-
-    // Use type to print x as a string
-    static String prettyPrint( Type t, Object x ) { return _print(t,x,new SB(), new IdentityHashMap()).toString(); }
-    static SB _print( Type t, Object x, SB sb, IdentityHashMap visit ) {
-        if( x instanceof String s ) return sb.p(s);
-        if( x == null ) return sb.p("null");
-        return switch( t ) {
-        case TypeInteger i -> sb.p(  (Long)x);
-        case TypeFloat   f -> sb.p((Double)x);
-        case TypeMemPtr tmp -> {
-            if( visit.containsKey(x) ) yield sb.p("$cyclic");
-            visit.put(x,x);
-            // Since never can close the type cycle, without cyclic types, have
-            // to handle FRefs even here
-            if( tmp.isFRef() )
-                tmp = tmp.makeFrom(((TypeMemPtr)Parser.TYPES.get(tmp._obj._name))._obj);
-
-            Object[] xs = (Object[])x; // Array of fields
-            if( tmp._obj.isAry() ) {
-                Type elem = tmp._obj._fields[1]._type;
-                if( elem == TypeInteger.U8 ) {
-                    // Shortcut u8[] as a String
-                    for( Object o : xs )
-                        sb.p((char)(long)(Long)o);
-                } else {
-                    // Array of elements
-                    elem.print(sb).p("[ ");
-                    for( Object o : xs )
-                        _print( elem, o, sb, visit ).p( "," );
-                    sb.unchar().p("]");
-                }
-            } else {
-                sb.p(tmp._obj._name).p("{");
-                Field[] flds = tmp._obj._fields;
-                for( int i=0; i<flds.length; i++ )
-                    _print( flds[i]._type,xs[i], sb.p(flds[i]._fname).p("="), visit ).p(",");
-                sb.unchar().p("}");
-            }
-            yield sb;
-        }
-        case TypeMem mem -> sb.p("$mem");
-        case TypeTuple tt -> {
-            if( tt._types.length>1 && tt._types[1] instanceof TypeMemPtr )
-                // Assume a NewNode
-                yield _print( tt._types[1], x, sb, visit );
-            throw Utils.TODO();
-        }
-        case Type tt -> {
-            if( tt == Type.NIL ) yield sb.p("null");
-            throw Utils.TODO();
-        }
-        };
+    private static boolean isArg( PhiNode phi ) {
+        // Arg#2 into main.
+        // TODO: Needs some love for recursive main
+        return phi instanceof ParmNode parm && parm.fun()._sig==TypeFunPtr.MAIN && parm._idx==2;
     }
 
     // Take a worklist step: one data op from the current Control is updated.
-    private static void step(Node n, int path, long arg, SB sb, IdentityHashMap visit) {
+    private static void step(Node n, SB sb, IdentityHashMap visit) {
         // Only data nodes
         if( n instanceof CFGNode )  return;
         // Compute new value
-        DATA[n._nid] = compute(n,path,arg);
+        DATA[n._nid] = compute(n);
         // Trace
         if( sb!=null ) {
             IRPrinter.printLine(n,sb).unchar();
@@ -137,11 +95,11 @@ public abstract class Eval2 {
         // Also do any following projections, which are not in the local schedule otherwise
         if( n instanceof MultiNode )
             for( Node use : n._outputs )
-                step(use,-1,arg,sb,visit);
+                step(use,sb,visit);
     }
 
     // From here down shamelessly copied from Evaluator, written by @Xmilia
-    private static Object compute( Node n, int path, long arg ) {
+    private static Object compute( Node n ) {
         return switch( n ) {
         case AddFNode    adf   -> d(adf.in(1)) +  d(adf.in(2));
         case AddNode     add   -> x(add.in(1)) +  x(add.in(2));
@@ -158,7 +116,6 @@ public abstract class Eval2 {
         case MulNode     mul   -> x(mul.in(1)) *  x(mul.in(2));
         case NewNode     alloc -> alloc(alloc);
         case OrNode      or    -> x(or .in(1)) |  x(or .in(2));
-        case PhiNode     phi   -> phi instanceof ParmNode parm && parm.fun()._sig==TypeFunPtr.MAIN && parm._idx==2 ? arg : val(phi.in(path));
         case ProjNode    proj  -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
         case SarNode     sar   -> x(sar.in(1)) >> x(sar.in(2));
@@ -179,6 +136,15 @@ public abstract class Eval2 {
     static long   x( Node n ) { return DATA[n._nid]==null ? 0 : (Long)  DATA[n._nid];  }
     // Fetch and unbox as primitive double
     static double d( Node n ) { return DATA[n._nid]==null ? 0 : (Double)DATA[n._nid];  }
+    // Java box ints and floats.  Other things can just be null or some informative string
+    private static Object con( Type t ) {
+        if( t instanceof TypeInteger i )
+            return i.isConstant() ? (Long)i.value() : "INT";
+        if( t instanceof TypeFloat f )
+            return f.isConstant() ? (Double)f.value() : "FLT";
+        //
+        return null;
+    }
 
     // Convert array size to array element count
     private static int offToIdx( long off, TypeStruct t) {
@@ -241,4 +207,57 @@ public abstract class Eval2 {
         return "$mem";
     }
 
+
+    // Use type to print x as a string
+    static String prettyPrint( Type t, Object x ) { return _print(t,x,new SB(), new IdentityHashMap()).toString(); }
+    static SB _print( Type t, Object x, SB sb, IdentityHashMap visit ) {
+        if( x instanceof String s ) return sb.p(s);
+        if( x == null ) return sb.p("null");
+        return switch( t ) {
+        case TypeInteger i -> sb.p(  (Long)x);
+        case TypeFloat   f -> sb.p((Double)x);
+        case TypeMemPtr tmp -> {
+            if( visit.containsKey(x) ) yield sb.p("$cyclic");
+            visit.put(x,x);
+            // Since never can close the type cycle, without cyclic types, have
+            // to handle FRefs even here
+            if( tmp.isFRef() )
+                tmp = tmp.makeFrom(((TypeMemPtr)Parser.TYPES.get(tmp._obj._name))._obj);
+
+            Object[] xs = (Object[])x; // Array of fields
+            if( tmp._obj.isAry() ) {
+                Type elem = tmp._obj._fields[1]._type;
+                if( elem == TypeInteger.U8 ) {
+                    // Shortcut u8[] as a String
+                    for( Object o : xs )
+                        sb.p((char)(long)(Long)o);
+                } else {
+                    // Array of elements
+                    elem.print(sb).p("[ ");
+                    for( Object o : xs )
+                        _print( elem, o, sb, visit ).p( "," );
+                    sb.unchar().p("]");
+                }
+            } else {
+                sb.p(tmp._obj._name).p("{");
+                Field[] flds = tmp._obj._fields;
+                for( int i=0; i<flds.length; i++ )
+                    _print( flds[i]._type,xs[i], sb.p(flds[i]._fname).p("="), visit ).p(",");
+                sb.unchar().p("}");
+            }
+            yield sb;
+        }
+        case TypeMem mem -> sb.p("$mem");
+        case TypeTuple tt -> {
+            if( tt._types.length>1 && tt._types[1] instanceof TypeMemPtr )
+                // Assume a NewNode
+                yield _print( tt._types[1], x, sb, visit );
+            throw Utils.TODO();
+        }
+        case Type tt -> {
+            if( tt == Type.NIL ) yield sb.p("null");
+            throw Utils.TODO();
+        }
+        };
+    }
 }

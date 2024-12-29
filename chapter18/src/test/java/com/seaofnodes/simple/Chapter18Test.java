@@ -18,6 +18,26 @@ return 0;
         assertEquals("0", Eval2.eval(code,  0));
     }
 
+    @Test
+    public void testPhiParalleAssign() {
+        CodeGen code = new CodeGen("""
+int a = 1;
+int b = 2;
+while(arg--) {
+  int t = a;
+  a = b;
+  b = t;
+}
+return a;
+""");
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code._stop.toString());
+        assertEquals("1", Eval2.eval(code,  0));
+        assertEquals("2", Eval2.eval(code,  1));
+        assertEquals("1", Eval2.eval(code,  2));
+        assertEquals("2", Eval2.eval(code,  3));
+    }
+
 
     // ---------------------------------------------------------------
     @Test
