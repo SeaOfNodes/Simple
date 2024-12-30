@@ -134,3 +134,18 @@ for( int i=0; i<arg; i++ )
 return i; // ERROR: Undefined name 'i'
 ```
 
+A broken `find` call:
+```cpp
+for( int i=0; i<ary#; i++ )
+  if( ary[i]==e )
+    break;
+do_stuff(i); // ERROR: undefined name 'i'
+```
+
+An example `find` call:
+```cpp
+for( int i=0; i<ary#; i++ )
+  if( ary[i]==e )
+    return i;
+return -1;
+```
