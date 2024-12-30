@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -16,6 +17,7 @@ import java.util.BitSet;
 public class ReturnNode extends CFGNode {
 
     public final FunNode _fun;
+
     public ReturnNode(Node ctrl, Node mem, Node data, FunNode fun) {
         super(ctrl, mem, data);
         _fun = fun;
@@ -42,15 +44,40 @@ public class ReturnNode extends CFGNode {
         return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
     }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() {
+        if( inProgress() ) return null;
+        // If dead (cant be reached; infinite loop), kill the exit values
+        if( ctrl()._type==Type.XCONTROL &&
+            !(mem() instanceof ConstantNode && expr() instanceof ConstantNode) ) {
+            Node top = new ConstantNode(Type.TOP).peephole();
+            setDef(1,top);
+            setDef(2,top);
+            return this;
+        }
+        return null;
+    }
 
     public boolean inProgress() {
         return ctrl().getClass() == RegionNode.class && ((RegionNode)ctrl()).inProgress();
     }
 
+    // Gather parse-time return types for error reporting
+    private Type mt = Type.TOP;
+    private boolean ti=false, tf=false, tp=false, tn=false;
+
     // Add a return exit to the current parsing function
     void addReturn(Node ctrl, Node rmem, Node expr) {
         assert inProgress();
+
+        // Gather parse-time return types for error reporting
+        Type t = expr._type;
+        mt = mt.meet(t);
+        ti |= t instanceof TypeInteger x;
+        tf |= t instanceof TypeFloat   x;
+        tp |= t instanceof TypeMemPtr  x;
+        tn |= t==Type.NIL;
+
+        // Merge path into the One True Return
         RegionNode r = (RegionNode)ctrl();
         // Assert that the Phis are in particular outputs; not reordered or shuffled
         PhiNode mem = (PhiNode)r.out(0); assert mem._declaredType == TypeMem.BOT;
@@ -67,5 +94,18 @@ public class ReturnNode extends CFGNode {
         r  .addDef(null);
         mem.addDef(null);
         rez.addDef(null);
+    }
+
+    @Override public String err() {
+        return mt==Type.BOTTOM ? mixerr(ti,tf,tp,tn) : null;
+    }
+
+    static String mixerr( boolean ti, boolean tf, boolean tp, boolean tn ) {
+        SB sb = new SB().p("No common type amongst ");
+        if( ti ) sb.p("int and ");
+        if( tf ) sb.p("f64 and ");
+        if( tp ) sb.p("reference and ");
+        if( !tp && tn ) sb.p("nil and ");
+        return sb.unchar(5).toString();
     }
 }

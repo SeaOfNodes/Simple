@@ -115,6 +115,7 @@ public abstract class Eval2 {
         case MinusNode   sub   -> - x(sub.in(1));
         case MulNode     mul   -> x(mul.in(1)) *  x(mul.in(2));
         case NewNode     alloc -> alloc(alloc);
+        case NotNode     not   -> x(not.in(1)) == 0 ? 1L : 0L;
         case OrNode      or    -> x(or .in(1)) |  x(or .in(2));
         case ProjNode    proj  -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));

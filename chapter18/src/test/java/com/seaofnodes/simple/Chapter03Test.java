@@ -30,7 +30,7 @@ public class Chapter03Test {
     public void testVarScopeNoPeephole() {
         CodeGen code = new CodeGen("int a=1; int b=2; int !c=0; { int b=3; c=a+b;  } return c; ");
         code.parse(true);
-        assertEquals("return Phi(Region,(1+3));", code.print());
+        assertEquals("return (1+3);", code.print());
     }
 
     @Test

@@ -57,7 +57,10 @@ public class CodeGen {
     }
 
     public CodeGen typeCheck() {
-        assert _phase == Phase.Opto || _phase == Phase.Parse;
+        // Demand phase Opto for cleaning up dead control flow at least,
+        // required for the following GCM.  Note that peeps can be disabled,
+        // but still the dead CFG will get cleaned.
+        assert _phase == Phase.Opto;
         _phase = Phase.TypeCheck;
 
         // Type check

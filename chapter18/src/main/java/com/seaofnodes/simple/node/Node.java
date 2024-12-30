@@ -302,10 +302,6 @@ public abstract class Node {
      * Always returns some not-null Node (often this).
      */
     public final Node peephole( ) {
-        if (_disablePeephole) {
-            _type = compute();
-            return this;        // Peephole optimizations turned off
-        }
         if( _type==null )       // Brand-new node, never peeped before
             JSViewer.show();
         Node n = peepholeOpt();
@@ -337,8 +333,17 @@ public abstract class Node {
         // Compute initial or improved Type
         Type old = setType(compute());
 
-        // Replace constant computations from non-constants with a constant node
-        if( _type.isHighOrConst() && !isConst() )
+        // Peepholes can be turned off - except for cleaning up dead CFG paths.
+        // These need to clean up so the following code motion algorithms don't
+        // get confused by dead or infinite paths.
+        if( _disablePeephole && !(this instanceof RegionNode) && !(this instanceof PhiNode) )
+            return old==_type ? null : this;   // Peephole optimizations turned off
+
+        // Replace constant computations from non-constants with a constant
+        // node.  If peeps are disabled, still allow high Phis to collapse;
+        // they typically come from dead Regions and we want the Region to
+        // collapse, which requires the Phis to die first.
+        if( _type.isHighOrConst() && !isConst() && (!_disablePeephole || _type.isHigh()) )
             return ConstantNode.make(_type).peepholeOpt();
 
         // Global Value Numbering

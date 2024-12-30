@@ -107,6 +107,8 @@ public abstract class GlobalCodeMotion {
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
                         if( late[memuse._nid]==null &&
+                            // New makes new memory, never crushes load memory
+                            !(memuse instanceof NewNode) &&
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use indirectly defines memory
@@ -188,10 +190,6 @@ public abstract class GlobalCodeMotion {
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
                 break;
-            case NewNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
-                break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
                 // No anti-dep edges but may raise the LCA.
@@ -199,6 +197,7 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
                 break;
+            case NewNode st: break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
             case ScopeMinNode ret: break; // Mem uses now on ScopeMin

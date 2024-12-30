@@ -194,7 +194,7 @@ int v0=0!=0<-0;
 return -0+0+0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return Top;", code.print());
     }
 
 
@@ -243,7 +243,7 @@ while(1) {
 return 0!=0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test

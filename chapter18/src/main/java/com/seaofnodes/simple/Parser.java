@@ -226,7 +226,7 @@ public class Parser {
         }
 
         // Parse the body
-        Node last=null;
+        Node last=ZERO;
         while (!peek('}') && !_lexer.isEOF())
             last = parseStatement();
 
@@ -562,6 +562,9 @@ public class Parser {
 
         RegionNode r = ctrl(tScope.mergeScopes(fScope));
         Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs.unkeep(),rhs.unkeep()));
+        // Immediately fail e.g. `arg ? 7 : ptr`
+        if( !stmt && ret.err() !=null )
+            throw error(ret.err());
         r.peephole();
         return ret;
     }
@@ -938,6 +941,8 @@ public class Parser {
             else if( match(">>") ) lhs = new SarNode(lhs,null);
             else break;
             lhs.setDef(2,parseAddition());
+            if( lhs.err() != null )
+                throw error(lhs.err());
             lhs = peep(lhs.widen());
         }
         return lhs;
@@ -973,7 +978,7 @@ public class Parser {
      * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
-        var lhs = parseUnary();  boolean mul;
+        var lhs = parseUnary();
         while( true ) {
             if( false ) ;
             else if( match("*") ) lhs = new MulNode(lhs,null);
@@ -1004,7 +1009,9 @@ public class Parser {
                 if( n != null ) {
                     if( n._final )
                         throw error("Cannot reassign final '"+n._name+"'");
-                    Node expr = zsMask(peep(new AddNode(_scope.in(n),con(delta))),n.type());
+                    Node expr = n.type() instanceof TypeFloat
+                        ?        peep(new AddFNode(_scope.in(n),con(TypeFloat.constant(-1))))
+                        : zsMask(peep(new  AddNode(_scope.in(n),con(delta))),n.type());
                     _scope.update(n,expr);
                     return expr;
                 }
@@ -1054,7 +1061,7 @@ public class Parser {
         // Widen RHS int to a RHS float
         rhs = widenInt(rhs,n.type());
         // Complain a RHS float into a LHS int
-        if( !rhs._type.isa(n.type()) )
+        if( !(rhs._type instanceof TypeInteger) && !rhs._type.isa(n.type()) )
             throw error("Type " + rhs._type.str() + " is not of declared type " + n.type().str());
 
         Node op = switch(ch) {
@@ -1124,7 +1131,7 @@ public class Parser {
         }
         // Check that all fields are initialized
         for( int i=idx; i<init.size(); i++ )
-            if( /*init.at(i)._type == Type.TOP ||*/ init.at(i)._type == Type.BOTTOM )
+            if( init.at(i)._type == Type.TOP || init.at(i)._type == Type.BOTTOM )
                 throw error("'"+tmp._obj._name+"' is not fully initialized, field '" + fs[i-idx]._fname + "' needs to be set in a constructor");
         Node ptr = newStruct(tmp._obj, con(tmp._obj.offset(fs.length)), idx, init );
         if( hasConstructor )
@@ -1196,9 +1203,11 @@ public class Parser {
         // Happens when parsing known dead code, which often has other typing
         // issues.  Since the code is dead, possibly due to inlining, lets not
         // spoil the user experience with error messages.
-        if( ctrl()._type==Type.XCONTROL )
+        if( ctrl()._type==Type.XCONTROL ) {
+            if( expr.isUnused() ) expr.kill(); // Losing last use of expr
             // Exit out via parsing the trailing expression
-            return matchOpx('=','=') ? parseAsgn() : parsePostfix(con(Type.TOP));
+            return matchOpx( '=', '=' ) ? parseAsgn() : parsePostfix( con( Type.TOP ) );
+        }
 
         //
         if( expr._type==Type.NIL )
