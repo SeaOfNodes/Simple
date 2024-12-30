@@ -44,6 +44,7 @@ public class TypeMem extends Type {
         return make(_alias,_t.dual());
     }
 
+    @Override public boolean isHigh() { return _t.isHigh(); }
     @Override public Type glb() { return make(_alias,_t.glb()); }
 
     @Override int hash() { return 9876543 + _alias + _t.hashCode(); }

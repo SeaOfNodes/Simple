@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Ary;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
-import com.seaofnodes.simple.type.TypeNil;
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
 public class PhiNode extends Node {
@@ -75,13 +75,21 @@ public class PhiNode extends Node {
         Node live = singleUniqueInput();
         if (live != null)
             return live;
+        // No more fancy peeps
+        if( _disablePeephole )
+            return null;
+
+        // No bother if region is going to fold dead paths soon
+        for( int i=1; i<nIns(); i++ )
+            if( r.in(i)._type == Type.XCONTROL )
+                return null;
 
         // Pull "down" a common data op.  One less op in the world.  One more
         // Phi, but Phis do not make code.
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);
-        if( op.nIns()==3 && op.in(0)==null && same_op() ) {
+        if( !isMem() && op.nIns()==3 && op.in(0)==null && same_op() ) {
             assert !(op instanceof CFGNode);
             Node[] lhss = new Node[nIns()];
             Node[] rhss = new Node[nIns()];
@@ -170,5 +178,27 @@ public class PhiNode extends Node {
     // Never equal if inProgress
     @Override boolean eq( Node n ) {
         return !inProgress();
+    }
+
+    @Override
+    public String err() {
+        if( _type != Type.BOTTOM ) return null;
+
+        // BOTTOM means we mixed e.g. int and ptr
+        for( int i=1; i<nIns(); i++ )
+            // Already an error, but better error messages come from elsewhere
+            if( in(i)._type == Type.BOTTOM )
+                return null;
+
+        // Gather a minimal set of types that "cover" all the rest
+        boolean ti=false, tf=false, tp=false, tn=false;
+        for( int i=1; i<nIns(); i++ ) {
+            Type t = in(i)._type;
+            ti |= t instanceof TypeInteger x;
+            tf |= t instanceof TypeFloat   x;
+            tp |= t instanceof TypeMemPtr  x;
+            tn |= t==Type.NIL;
+        }
+        return ReturnNode.mixerr(ti,tf,tp,tn);
     }
 }

@@ -65,7 +65,8 @@ public class RegionNode extends CFGNode {
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
-        if( !hasPhi() &&       // No Phi users, just a control user
+        if( !_disablePeephole &&
+            !hasPhi() &&       // No Phi users, just a control user
             in(1) instanceof CProjNode p1 &&
             in(2) instanceof CProjNode p2 &&
             p1.in(0).addDep(this)==p2.in(0).addDep(this) &&

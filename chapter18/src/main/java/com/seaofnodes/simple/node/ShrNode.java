@@ -4,19 +4,13 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
-public class ShrNode extends Node {
-    public ShrNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class ShrNode extends LogicalNode {
+    public ShrNode(Node lhs, Node rhs) { super(lhs, rhs); }
 
     @Override public String label() { return "Shr"; }
+    @Override public String op() { return ">>>"; }
 
     @Override public String glabel() { return "&gt;&gt;&gt;"; }
-
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append(">>>"), visited);
-        return sb.append(")");
-    }
 
     @Override
     public Type compute() {

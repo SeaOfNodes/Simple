@@ -353,6 +353,17 @@ return f;   // missing widening
         assertEquals("1.2", Eval2.eval(code,  0));
     }
 
+
+    @Test
+    public void testTrinary6() {
+        CodeGen code = new CodeGen("""
+struct S{};
+return arg ? 7 : new S;
+""");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("No common type amongst int and reference",e.getMessage()); }
+    }
+
     // ---------------------------------------------------------------
     @Test
     public void testFor0() {

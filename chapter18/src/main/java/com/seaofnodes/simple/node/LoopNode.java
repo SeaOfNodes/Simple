@@ -43,7 +43,7 @@ public class LoopNode extends RegionNode {
         while( x != this ) {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
-                if( other.loopDepth() < loopDepth() )
+                if( other!=null && other.loopDepth() < loopDepth() )
                     return stop; // Found an exit, not an infinite loop
             }
             x = x.idom();
@@ -57,18 +57,25 @@ public class LoopNode extends RegionNode {
         CProjNode f = new CProjNode(iff,1,"False");
         setDef(2,f);
 
-        // Now fold control into the exit
-        ReturnNode ret = fun.ret();
-        RegionNode ctrl = ret.ctrl() instanceof RegionNode r ? r : new RegionNode(null,ret.ctrl());
-        PhiNode    mem  = ret.mem () instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.mem ());
-        PhiNode    expr = ret.expr() instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.expr());
-        if( ret.ctrl()!=ctrl ) ret.setDef(0,ctrl);
-        if( ret.mem ()!=mem  ) ret.setDef(1,mem );
-        if( ret.expr()!=expr ) ret.setDef(2,expr);
+        // Now fold control into the exit.  Might have 1 valid exit, or an
+        // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
-        ctrl.addDef(t  );
-        mem .addDef(top);
-        expr.addDef(top);
+        ReturnNode ret = fun.ret();
+        if( ret.ctrl()._type == Type.XCONTROL ) {
+            ret.setDef(0,t);
+            ret.setDef(1,top);
+            ret.setDef(2,top);
+        } else {
+            RegionNode ctrl = ret.ctrl() instanceof RegionNode r ? r : new RegionNode(null,ret.ctrl());
+            PhiNode    mem  = ret.mem () instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.mem ());
+            PhiNode    expr = ret.expr() instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.expr());
+            if( ret.ctrl()!=ctrl ) ret.setDef(0,ctrl);
+            if( ret.mem ()!=mem  ) ret.setDef(1,mem );
+            if( ret.expr()!=expr ) ret.setDef(2,expr).peepholeOpt();
+            ctrl.addDef(t  );
+            mem .addDef(top);
+            expr.addDef(top);
+        }
         return stop;
     }
 }

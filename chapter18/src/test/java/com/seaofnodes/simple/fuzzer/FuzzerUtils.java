@@ -114,7 +114,7 @@ class FuzzerUtils {
     /**
      * Parse script with peepholes enabled or disabled
      */
-    public static StopNode parse(String script, boolean runPeeps) {
+    public static CodeGen parse(String script, boolean runPeeps) {
         var err = System.err;
         var out = System.out;
         try {
@@ -126,12 +126,7 @@ class FuzzerUtils {
                 throw rethrow(e);
             }
             var code = new CodeGen(script);
-            Node._disablePeephole = !runPeeps;
-            code.parse();
-            if( runPeeps ) code.opto();
-            code.typeCheck();
-            if( runPeeps ) code.GCM(); // Fixup infinite loops
-            return code._stop;
+            return code.parse(!runPeeps).opto().typeCheck().GCM().localSched();
         } finally {
             NodeWalkVisit.clear();
             System.setErr(err);
