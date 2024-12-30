@@ -125,4 +125,10 @@ public class Chapter04Test {
         assertEquals("return (-arg);", ret.print());
     }
 
+    @Test
+    public void testBug5() {
+        Parser parser = new Parser("return arg--2;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (arg--2);", ret.print());
+    }
 }

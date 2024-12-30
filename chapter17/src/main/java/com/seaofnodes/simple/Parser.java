@@ -1412,6 +1412,7 @@ public class Parser {
 
         // Next oper= character, or 0.
         // As a convenience, mark "++" as a char 1 and "--" as char -1 (65535)
+        // Disallow e.g. "arg--1" which should parse as "arg - -1"
         public char matchOperAssign() {
             skipWhiteSpace();
             if( _position+2 >= _input.length ) return 0;
@@ -1419,6 +1420,7 @@ public class Parser {
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
             char ch1 = (char)_input[_position+1];
             if(               ch1 == '=' ) { _position += 2; return ch0; }
+            if( Character.isDigit(_input[_position+2]) ) return 0;
             if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
             if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
             return 0;

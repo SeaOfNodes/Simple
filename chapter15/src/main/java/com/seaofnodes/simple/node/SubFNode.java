@@ -1,4 +1,4 @@
-epackage com.seaofnodes.simple.node;
+package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
