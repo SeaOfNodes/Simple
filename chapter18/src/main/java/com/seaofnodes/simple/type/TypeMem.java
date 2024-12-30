@@ -19,7 +19,12 @@ public class TypeMem extends Type {
     public final int _alias;
     public final Type _t;       // Memory contents, some scalar type
 
-    private TypeMem(int alias, Type t) { super(TMEM); _alias = alias; _t = t; }
+    private TypeMem(int alias, Type t) {
+        super(TMEM);
+        assert alias!=0 || (t==Type.TOP || t==Type.BOTTOM);
+        _alias = alias;
+        _t = t;
+    }
 
     public static TypeMem make(int alias, Type t) { return new TypeMem(alias,t).intern(); }
     public static final TypeMem TOP = make(0, Type.TOP   );

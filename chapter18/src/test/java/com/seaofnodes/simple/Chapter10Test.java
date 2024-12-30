@@ -288,9 +288,8 @@ struct s0 { int f0; };
 return new s0;
 int v0=null.f0;
 """);
-        code.parse().opto();
-        assertEquals("return s0;", code.print());
-        assertEquals("s0{f0=0}", Eval2.eval(code, 0));
+        try { code.parse();  fail(); }
+        catch( Exception e ) {  assertEquals("Accessing unknown field 'f0' from 'null'",e.getMessage());  }
     }
 
     @Test

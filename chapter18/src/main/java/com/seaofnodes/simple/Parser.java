@@ -648,7 +648,7 @@ public class Parser {
     }
 
     private Node widenInt( Node expr, Type t ) {
-        return expr._type instanceof TypeInteger && t instanceof TypeFloat
+        return (expr._type instanceof TypeInteger || expr._type==Type.NIL) && t instanceof TypeFloat
             ? peep(new ToFloatNode(expr)) : expr;
     }
 
@@ -706,7 +706,7 @@ public class Parser {
                 // Bottom signals type inference: they must be initialized in
                 // the constructor and that's when we'll discover the type.
                 // Otherwise, its an Integer and use 0.
-                : (t==Type.BOTTOM ? con(t) : ZERO);
+                : (t==Type.BOTTOM ? con(t) : (t instanceof TypeInteger ? ZERO : con(TypeFloat.FZERO)));
         }
 
         // Lift expression, based on type
@@ -1203,11 +1203,11 @@ public class Parser {
         // Happens when parsing known dead code, which often has other typing
         // issues.  Since the code is dead, possibly due to inlining, lets not
         // spoil the user experience with error messages.
-        if( ctrl()._type==Type.XCONTROL ) {
-            if( expr.isUnused() ) expr.kill(); // Losing last use of expr
-            // Exit out via parsing the trailing expression
-            return matchOpx( '=', '=' ) ? parseAsgn() : parsePostfix( con( Type.TOP ) );
-        }
+        //if( ctrl()._type==Type.XCONTROL ) {
+        //    if( expr.isUnused() ) expr.kill(); // Losing last use of expr
+        //    // Exit out via parsing the trailing expression
+        //    return matchOpx( '=', '=' ) ? parseAsgn() : parsePostfix( con( Type.TOP ) );
+        //}
 
         //
         if( expr._type==Type.NIL )

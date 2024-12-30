@@ -35,10 +35,10 @@ public class TypeTest {
 
         Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
         Assert.assertEquals(TypeMem   .BOT, m1.meet(m2));
-        Assert.assertEquals(TypeMem.make(0,TypeFloat.F64), m1.meet(m3));
+        Assert.assertEquals(TypeMem.make(0,Type.BOTTOM), m1.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
-        Assert.assertEquals(m1, m1.glb());
+        Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.glb());
         Assert.assertEquals(TypeMem.make(1,Type.XNIL), m1.dual());
         Assert.assertEquals(m4.dual(), m4.glb().dual());
 

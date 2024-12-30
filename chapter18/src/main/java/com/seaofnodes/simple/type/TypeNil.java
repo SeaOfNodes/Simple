@@ -48,6 +48,7 @@ public abstract class TypeNil extends Type {
     @Override public boolean isConstant   () { return false; }
     @Override public boolean isHighOrConst() { return isHigh() || isConstant(); }
 
+    @Override public Type glb() { return Type.NIL; }
 
     public boolean notNull() { return _nil==1 || _nil==2; }
     public boolean nullable() { return _nil==3; }
