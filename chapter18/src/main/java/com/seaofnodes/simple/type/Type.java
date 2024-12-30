@@ -195,7 +195,7 @@ public class Type {
     public Type makeZero() { return Type.NIL; }
 
     /** Compute greatest lower bound in the lattice */
-    public Type glb() { return Type.NIL; }
+    public Type glb() { return Type.BOTTOM; }
 
     // Is forward-reference
     public boolean isFRef() { return false; }

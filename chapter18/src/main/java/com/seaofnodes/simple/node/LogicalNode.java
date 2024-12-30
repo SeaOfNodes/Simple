@@ -18,8 +18,8 @@ public abstract class LogicalNode extends Node {
 
     @Override public String err() {
         if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return null;
-        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '"+op()+"' " + in(1)._type;
-        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '"+op()+"' " + in(2)._type;
+        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '"+op()+"' " + in(1)._type.glb();
+        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '"+op()+"' " + in(2)._type.glb();
         return null;
     }
 }

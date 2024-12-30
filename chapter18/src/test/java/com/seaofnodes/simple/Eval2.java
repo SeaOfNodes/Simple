@@ -101,32 +101,36 @@ public abstract class Eval2 {
     // From here down shamelessly copied from Evaluator, written by @Xmilia
     private static Object compute( Node n ) {
         return switch( n ) {
-        case AddFNode    adf   -> d(adf.in(1)) +  d(adf.in(2));
-        case AddNode     add   -> x(add.in(1)) +  x(add.in(2));
-        case AndNode     and   -> x(and.in(1)) &  x(and.in(2));
-        case BoolNode.EQ eq    -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L; // Bool EQ supports pointers, nil, and integers
-        case BoolNode.LE le    -> x( le.in(1)) <= x(le .in(2)) ? 1L : 0L;
-        case BoolNode.LT lt    -> x( lt.in(1)) <  x(lt .in(2)) ? 1L : 0L;
+        case AddFNode     adf  -> d(adf.in(1)) +  d(adf.in(2));
+        case AddNode      add  -> x(add.in(1)) +  x(add.in(2));
+        case AndNode      and  -> x(and.in(1)) &  x(and.in(2));
+        case BoolNode.EQF eqf  -> d(eqf.in(1)) == d(eqf.in(2)) ? 1L : 0L;
+        case BoolNode.LEF lef  -> d(lef.in(1)) <= d(lef.in(2)) ? 1L : 0L;
+        case BoolNode.LTF ltf  -> d(ltf.in(1)) <  d(ltf.in(2)) ? 1L : 0L;
+        case BoolNode.EQ  eq   -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L; // Bool EQ supports pointers, nil, and integers
+        case BoolNode.LE  le   -> x(le .in(1)) <= x(le .in(2)) ? 1L : 0L;
+        case BoolNode.LT  lt   -> x(lt .in(1)) <  x(lt .in(2)) ? 1L : 0L;
         case CastNode    cast  -> val(cast.in(1));
         case ConstantNode con  -> con(con._con);
-        case DivFNode    dvf   -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
-        case DivNode     div   -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
-        case LoadNode    ld    -> load(ld);
-        case MinusNode   sub   -> - x(sub.in(1));
-        case MulNode     mul   -> x(mul.in(1)) *  x(mul.in(2));
-        case NewNode     alloc -> alloc(alloc);
-        case NotNode     not   -> x(not.in(1)) == 0 ? 1L : 0L;
-        case OrNode      or    -> x(or .in(1)) |  x(or .in(2));
-        case ProjNode    proj  -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
+        case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
+        case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
+        case LoadNode     ld   -> load(ld);
+        case MinusFNode   mnf  -> - d(mnf.in(1));
+        case MinusNode    sub  -> - x(sub.in(1));
+        case MulNode      mul  -> x(mul.in(1)) *  x(mul.in(2));
+        case NewNode      alloc-> alloc(alloc);
+        case NotNode      not  -> x(not.in(1)) == 0 ? 1L : 0L;
+        case OrNode       or   -> x(or .in(1)) |  x(or .in(2));
+        case ProjNode     proj -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
-        case SarNode     sar   -> x(sar.in(1)) >> x(sar.in(2));
+        case SarNode      sar  -> x(sar.in(1)) >> x(sar.in(2));
         case ScopeMinNode merge-> "$mem";
-        case ShlNode     shl   -> x(shl.in(1)) << x(shl.in(2));
-        case ShrNode     shr   -> x(shr.in(1)) >>>x(shr.in(2));
-        case StoreNode   st    -> store(st);
-        case SubNode     sub   -> x(sub.in(1)) -  x(sub.in(2));
-        case ToFloatNode toflt -> (double)x(toflt.in(1));
-        case XorNode     xor   -> x(xor.in(1)) ^  x(xor.in(2));
+        case ShlNode      shl  -> x(shl.in(1)) << x(shl.in(2));
+        case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
+        case StoreNode    st   -> store(st);
+        case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
+        case ToFloatNode  toflt-> (double)x(toflt.in(1));
+        case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
         };
     }
