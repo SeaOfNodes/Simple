@@ -1006,7 +1006,7 @@ public class Parser {
             String name = _lexer.matchId();
             if( name!=null ) {
                 ScopeMinNode.Var n = _scope.lookup(name);
-                if( n != null ) {
+                if( n != null && !(n.type() instanceof TypeMemPtr) ) {
                     if( n._final )
                         throw error("Cannot reassign final '"+n._name+"'");
                     Node expr = n.type() instanceof TypeFloat
@@ -1597,6 +1597,7 @@ public class Parser {
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
             char ch1 = (char)_input[_position+1];
             if(               ch1 == '=' ) { _position += 2; return ch0; }
+            if( isIdLetter((char)_input[_position+2]) ) return 0;
             if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
             if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
             return 0;
@@ -1605,7 +1606,11 @@ public class Parser {
         public RuntimeException error( String errorMessage ) {
             // file:line:charoff err
             //String msg = "src:"+_line_number+":"+(_position-_line_start)+" "+errorMessage;
-            return new RuntimeException(errorMessage);
+            return new ParserException(errorMessage);
         }
+
+    }
+    public static class ParserException extends RuntimeException {
+        ParserException(String msg) { super(msg); }
     }
 }

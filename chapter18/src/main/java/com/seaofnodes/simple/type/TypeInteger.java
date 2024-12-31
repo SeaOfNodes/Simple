@@ -113,11 +113,12 @@ public class TypeInteger extends Type {
 
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
+        if( this==ZERO ) return null;                  // No sane answer
         if( _min==0 ) return make(1,Math.max(_max,1)); // specifically good on BOOL
         if( _max==0 ) return make(_min,-1);
         return this;
     }
-    @Override public Type makeZero() { return TypeInteger.ZERO; }
+    @Override public Type makeZero() { return ZERO; }
     @Override public TypeInteger glb() { return BOT; }
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max); }
     @Override public boolean eq( Type t ) {

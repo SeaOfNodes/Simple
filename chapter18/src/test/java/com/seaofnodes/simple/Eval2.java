@@ -32,7 +32,7 @@ public abstract class Eval2 {
 
         // Evaluate until we return or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
-        SB sb = null; //new SB(); // TRACE
+        SB sb = null; // new SB(); // TRACE
         IdentityHashMap visit = new IdentityHashMap();
         while( true ) {
             // Compute input path on Phis for this Region,
@@ -49,8 +49,17 @@ public abstract class Eval2 {
                     phiCache[i] = isArg(phi) ? arg : val(phi.in(path));
                 else break;
             // Parallel assign; might assign before read, so read from cache
-            for( int j=0; j < i; j++ )
-                DATA[C.out(j)._nid] = phiCache[j];
+            for( int j=0; j < i; j++ ) {
+                Node n = C.out(j);
+                DATA[n._nid] = phiCache[j];
+                if( sb!=null ) {
+                    IRPrinter.printLine(n,sb).unchar();
+                    _print( n._type, DATA[n._nid], sb.p('\t'), visit );
+                    System.out.println(sb);
+                    sb.clear();
+                    visit.clear();
+                }
+            }
             // Now compute the rest of the nodes
             for( ; i < C.nOuts(); i++ )
                 step(C.out(i), sb, visit);

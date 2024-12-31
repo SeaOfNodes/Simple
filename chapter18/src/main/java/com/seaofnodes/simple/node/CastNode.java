@@ -22,6 +22,7 @@ public class CastNode extends Node {
     public String uniqueName() { return "Cast_" + _nid; }
 
     @Override public boolean isPinned() { return true; }
+    @Override public boolean isConst() { return true; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -37,4 +38,13 @@ public class CastNode extends Node {
     public Node idealize() {
         return in(1)._type.isa(_t) ? in(1) : null;
     }
+
+    @Override
+    boolean eq(Node n) {
+        CastNode cast = (CastNode)n; // Contract
+        return _t==cast._t;
+    }
+
+    @Override
+    int hash() { return _t.hashCode(); }
 }

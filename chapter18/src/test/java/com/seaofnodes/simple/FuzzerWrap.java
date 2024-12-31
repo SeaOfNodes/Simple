@@ -28,7 +28,7 @@ public class FuzzerWrap {
         Random R = new Random(System.currentTimeMillis());
         var fuzzer = new Fuzzer();
         for (int i=0; i<100; i++)
-            fuzzer.fuzzPeeps(R.nextLong());
+            fuzzer.fuzzPeeps( R.nextLong());
         assertTrue(fuzzer.noExceptions());
     }
 

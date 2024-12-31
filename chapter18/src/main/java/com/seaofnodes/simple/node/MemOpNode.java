@@ -48,6 +48,7 @@ public abstract class MemOpNode extends Node {
         Type ptr = ptr()._type;
         // Already an error, but better error messages come from elsewhere
         if( ptr == Type.BOTTOM ) return null;
+        if( ptr.isHigh() ) return null; // Assume it will fall to not-null
         // Better be a not-nil TMP
         if( ptr instanceof TypeMemPtr tmp && tmp.notNull() )
             return null;

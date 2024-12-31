@@ -53,29 +53,38 @@ public class LoopNode extends RegionNode {
         for( Node use : _outputs )
             if( use instanceof PhiNode )
                 iff.addDef(use);
-        CProjNode t = new CProjNode(iff,0,"True" );
-        CProjNode f = new CProjNode(iff,1,"False");
+        CProjNode t = new CProjNode(iff,0,"True" ).init();
+        CProjNode f = new CProjNode(iff,1,"False").init();
         setDef(2,f);
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
         ReturnNode ret = fun.ret();
-        if( ret.ctrl()._type == Type.XCONTROL ) {
-            ret.setDef(0,t);
-            ret.setDef(1,top);
-            ret.setDef(2,top);
-        } else {
-            RegionNode ctrl = ret.ctrl() instanceof RegionNode r ? r : new RegionNode(null,ret.ctrl());
-            PhiNode    mem  = ret.mem () instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.mem ());
-            PhiNode    expr = ret.expr() instanceof PhiNode phi && phi.in(0)==ctrl ? phi : new PhiNode(ctrl,ret.expr());
-            if( ret.ctrl()!=ctrl ) ret.setDef(0,ctrl);
-            if( ret.mem ()!=mem  ) ret.setDef(1,mem );
-            if( ret.expr()!=expr ) ret.setDef(2,expr).peepholeOpt();
+        Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
+        if( ctrl._type != Type.XCONTROL ) {
+            // Perfect aligned exit?
+            if( !(ctrl instanceof RegionNode r &&
+                  mem  instanceof PhiNode pmem && pmem.region()==r &&
+                  expr instanceof PhiNode prez && prez.region()==r ) ) {
+                // Nope, insert an aligned exit layer
+                ctrl = new RegionNode(null,ctrl).init();
+                mem  = new    PhiNode((RegionNode)ctrl,mem ).init();
+                expr = new    PhiNode((RegionNode)ctrl,expr).init();
+            }
+            // Append new Never exit
             ctrl.addDef(t  );
             mem .addDef(top);
             expr.addDef(top);
+        } else {
+            ctrl = t;
+            mem  = top;
+            expr = top;
         }
+        ret.setDef(0,ctrl);
+        ret.setDef(1,mem );
+        ret.setDef(2,expr);
+
         return stop;
     }
 }

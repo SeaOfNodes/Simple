@@ -299,8 +299,8 @@ if(0) {
     while(0) if(arg) continue;
     int v0=0;
     while(1) {
-        int arg=-arg;
-        v0=arg;
+        int v2=-arg;
+        v0=v2;
     }
 }
    """);

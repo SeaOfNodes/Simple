@@ -79,6 +79,7 @@ public class TypeFloat extends Type {
         return isConstant() ? this : make(-_sz,0); // Constants are a self-dual
     }
 
+    @Override public Type makeZero() { return FZERO; }
     @Override public Type glb() { return F64; }
 
     @Override
@@ -86,7 +87,8 @@ public class TypeFloat extends Type {
     @Override
     public boolean eq( Type t ) {
         TypeFloat i = (TypeFloat)t; // Contract
-        return _con==i._con && _sz==i._sz;
+        // Allow NaN to check for equality
+        return _sz==i._sz && Double.doubleToLongBits(_con)==Double.doubleToLongBits(i._con);
     }
 
 }

@@ -109,6 +109,8 @@ public abstract class CFGNode extends Node {
         for( Node use : _outputs ) {
             if( !(use instanceof CFGNode usecfg) ) continue;
             if( usecfg instanceof XCtrlNode ) continue;
+            if( usecfg._type == Type.XCONTROL ) continue; // Dead, only possible if peeps disabled
+            if( usecfg._type == TypeTuple.IF_NEITHER ) continue; // Dead again
             // Child visited but not post-visited?
             if( !post.get(usecfg._nid) ) {
                 // Must be a backedge to a LoopNode then

@@ -66,7 +66,7 @@ public class CodeGen {
         // Type check
         String err = _stop.walk( Node::err );
         if( err != null )
-            throw new RuntimeException(err);
+            throw new Parser.ParserException(err);
         return this;
     }
 
