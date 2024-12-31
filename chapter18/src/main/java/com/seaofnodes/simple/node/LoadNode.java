@@ -70,7 +70,7 @@ public class LoadNode extends MemOpNode {
         while( true ) {
             switch( mem ) {
             case StoreNode st:
-                if( ptr == st.ptr() && off() == st.off() )
+                if( ptr == st.ptr().addDep(this) && off() == st.off() )
                     return castRO(st.val()); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
@@ -79,7 +79,10 @@ public class LoadNode extends MemOpNode {
                 // Pointers cannot overlap
                 mem = st.mem(); // Proved never equal
                 break;
-            case PhiNode phi:      break outer;  // Assume related
+            case PhiNode phi:
+                // Assume related
+                phi.addDep(this);
+                break outer;
             case ConstantNode top: break outer;  // Assume shortly dead
             case ProjNode mproj:
                 if( mproj.in(0) instanceof NewNode nnn1 ) {

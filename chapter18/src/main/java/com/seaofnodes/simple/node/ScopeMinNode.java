@@ -45,7 +45,7 @@ public class ScopeMinNode extends Node {
 
 
     // If being used by a Scope, this is "in progress" from the Parser.
-    // Otherwise its a memory merge
+    // Otherwise, it's a memory merge
     boolean inProgress() { return _inProgress; }
 
     @Override public String label() { return "ALLMEM"; }
@@ -60,7 +60,7 @@ public class ScopeMinNode extends Node {
             Node n = in(j);
             while( n instanceof ScopeNode loop ) {
                 sb.append("Lazy_");
-                n = loop.in(j);
+                n = loop.mem(j);
             }
             if( n==null ) sb.append("___ ");
             else n._print0(sb, visited).append(" ");

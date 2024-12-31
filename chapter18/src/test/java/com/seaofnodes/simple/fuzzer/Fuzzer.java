@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.fuzzer;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Eval2;
 import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.StopNode;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Random;
@@ -56,8 +56,7 @@ public class Fuzzer {
 
     private static boolean neq(Object a, Object b) {
         if (Objects.equals(a, b)) return false;
-        // Deep compare?
-        throw Utils.TODO();
+        return true;
     }
 
     /**
@@ -69,7 +68,7 @@ public class Fuzzer {
     private static void checkGraphs(CodeGen code1, CodeGen code2, long in) {
         var r1 = Eval2.eval(code1, in, EVAL_TIMEOUT);
         var r2 = Eval2.eval(code2, in, EVAL_TIMEOUT);
-        if( r1 == null || r2 == null ) return;
+        if( r1 == null || r2 == null ) return; // Timeout test invalid
         if( neq(r1, r2) )
             throw new RuntimeException("Different calculations values " + r1 + " vs " + r2);
     }
@@ -90,7 +89,7 @@ public class Fuzzer {
                 FuzzerUtils.parse(script, true);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
-                    if (!valid || e1.getClass() == RuntimeException.class) return;
+                    if (!valid || e1.getClass() == Parser.ParserException.class) return;
                 } else {
                     e1.addSuppressed(e2);
                 }

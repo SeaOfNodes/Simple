@@ -288,7 +288,7 @@ public class ScopeNode extends ScopeMinNode {
         assert ctrl instanceof CFGNode;
         _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
         // add pred & its cast to the normal input list, with special Vars
-        if( ctrl._type == Type.XCONTROL || pred==null || pred.isDead() )
+        if( pred==null || pred.isDead() )
             return;           // Dead, do not add any guards
         // Invert the If conditional
         if( invert )
@@ -296,7 +296,8 @@ public class ScopeNode extends ScopeMinNode {
         // This is a zero/null test.
         // Compute the positive test type.
         Type tnz = pred._type.nonZero();
-        _addGuard(tnz,ctrl,pred);
+        if( tnz!=null )
+            _addGuard(tnz,ctrl,pred);
 
         // Compute the negative test type.
         if( pred instanceof NotNode not ) {
@@ -308,7 +309,7 @@ public class ScopeNode extends ScopeMinNode {
 
     private void _addGuard(Type guard, Node ctrl, Node pred) {
         Type tcast = guard.join(pred._type);
-        if( tcast != pred._type ) {
+        if( tcast != pred._type && !tcast.isHigh() ) {
             Node cast = new CastNode(tcast,ctrl,pred.keep()).peephole().keep();
             _guards.add(pred);
             _guards.add(cast);
@@ -357,12 +358,11 @@ public class ScopeNode extends ScopeMinNode {
     }
 
 
-    private Node replace( Node old, Node cast ) {
+    private void replace( Node old, Node cast ) {
         assert old!=null && old!=cast;
         for( int i=0; i<nIns(); i++ )
             if( in(i)==old )
                 setDef(i,cast);
-        return cast;
     }
 
 }

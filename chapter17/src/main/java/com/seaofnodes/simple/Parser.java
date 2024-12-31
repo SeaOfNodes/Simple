@@ -1420,7 +1420,7 @@ public class Parser {
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
             char ch1 = (char)_input[_position+1];
             if(               ch1 == '=' ) { _position += 2; return ch0; }
-            if( Character.isDigit(_input[_position+2]) ) return 0;
+            if( isIdLetter((char)_input[_position+2]) ) return 0;
             if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
             if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
             return 0;

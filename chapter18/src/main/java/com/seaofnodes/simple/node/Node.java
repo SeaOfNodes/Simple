@@ -341,7 +341,7 @@ public abstract class Node {
 
         // Replace constant computations from non-constants with a constant
         // node.  If peeps are disabled, still allow high Phis to collapse;
-        // they typically come from dead Regions and we want the Region to
+        // they typically come from dead Regions, and we want the Region to
         // collapse, which requires the Phis to die first.
         if( _type.isHighOrConst() && !isConst() && (!_disablePeephole || _type.isHigh()) )
             return ConstantNode.make(_type).peepholeOpt();
@@ -420,6 +420,7 @@ public abstract class Node {
         return old;
     }
 
+    public <N extends Node> N init() { _type = compute(); return (N)this; }
 
     /**
      * This function rewrites the current Node into a more "idealized" form.

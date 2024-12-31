@@ -126,4 +126,10 @@ public class Chapter04Test {
         assertEquals("return (-arg);", code.print());
     }
 
+    @Test
+    public void testBug5() {
+        Parser parser = new Parser("return arg--2;");
+        StopNode ret = parser.parse();
+        assertEquals("return (arg--2);", ret.print());
+    }
 }

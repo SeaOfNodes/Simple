@@ -11,9 +11,9 @@ public class Chapter18Test {
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("""
-return 0;
+                                   return 0;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse(true).opto().typeCheck().GCM();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }

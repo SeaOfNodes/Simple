@@ -38,7 +38,8 @@ public class Field extends Type {
     @Override public boolean isFinal() { return _final && _type.isFinal(); }
 
     public static final Field TEST = make("test",Type.NIL,-2,false);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); }
+    public static final Field TEST2= make("test",Type.NIL,-2,true);
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST2); }
 
     @Override Field xmeet( Type that ) {
         Field fld = (Field)that; // Invariant
