@@ -589,9 +589,7 @@ public abstract class Node {
     // Swap inputs without letting either input go dead during the swap.
     Node swap12() {
         unlock();               // Hash is order dependent
-        Node tmp = in(1);
-        _inputs.set(1,in(2));
-        _inputs.set(2,tmp);
+        _inputs.swap(1,2);
         return this;
     }
 
@@ -618,7 +616,7 @@ public abstract class Node {
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
     // Report any post-optimize errors
-    public String err() { return null; }
+    public Parser.ParseException err() { return null; }
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

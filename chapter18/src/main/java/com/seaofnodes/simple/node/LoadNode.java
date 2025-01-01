@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -19,8 +19,8 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(name, alias, glb, mem, ptr, off);
+    public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
+        super(loc, name, alias, glb, mem, ptr, off);
     }
 
     // GraphVis DOT code (must be valid Java identifiers) and debugger labels
@@ -128,7 +128,7 @@ public class LoadNode extends MemOpNode {
 
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
-        return new LoadNode(_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+        return new LoadNode(_loc,_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {

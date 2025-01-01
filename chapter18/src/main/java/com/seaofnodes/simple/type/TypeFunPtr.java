@@ -72,7 +72,7 @@ public class TypeFunPtr extends TypeNil {
     // RHS is NIL
     @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_sig,_ret,_fidxs); }
 
-    @Override public TypeFunPtr glb() { return make(_nil,_sig,_ret,-1); }
+    @Override public TypeFunPtr glb() { return make(_nil,_sig,_ret,_fidxs); }
 
     @Override public boolean isConstant() { return _nil==2 && Long.bitCount(_fidxs)==1; }
 

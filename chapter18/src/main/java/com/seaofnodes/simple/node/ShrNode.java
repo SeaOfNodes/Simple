@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
 public class ShrNode extends LogicalNode {
-    public ShrNode(Node lhs, Node rhs) { super(lhs, rhs); }
+    public ShrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "Shr"; }
     @Override public String op() { return ">>>"; }
@@ -41,5 +42,5 @@ public class ShrNode extends LogicalNode {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new ShrNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new ShrNode(_loc,lhs,rhs); }
 }

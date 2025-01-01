@@ -11,7 +11,7 @@ public class Chapter18Test {
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("""
-                                   return 0;
+return 0;
 """);
         code.parse(true).opto().typeCheck().GCM();
         assertEquals("return 0;", code._stop.toString());
@@ -75,5 +75,17 @@ return sq(2)+sq(3);
         code.parse().opto();
         assertEquals("Stop[ return (sq( 3)+sq( 2)); return (Parm_x(sq,int,3,2)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 0));
+    }
+
+    @Ignore @Test
+    public void testFcn2() {
+        CodeGen code = new CodeGen("val fact = { int x -> x < 1 ? 1 : x*fact(x-1); }; return fact(arg);");
+        code.parse().opto();
+        assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
+        assertEquals( "1", Eval2.eval(code, 0));
+        assertEquals( "1", Eval2.eval(code, 1));
+        assertEquals( "2", Eval2.eval(code, 2));
+        assertEquals( "6", Eval2.eval(code, 3));
+        assertEquals("24", Eval2.eval(code, 4));
     }
 }

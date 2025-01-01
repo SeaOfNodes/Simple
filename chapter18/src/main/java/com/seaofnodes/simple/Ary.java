@@ -67,20 +67,6 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return tmp;
     }
 
-    ///** Element removal, using '=='.  Does not preserve order.
-    // *  @param e element to be removed
-    // *  @return element removed */
-    //public E del( E e ) {
-    //    for( int i=0; i<_len; i++ ) {
-    //        E tmp = _es[i];
-    //        if( tmp==e ) {
-    //            _es[i]=_es[--_len];
-    //            return tmp;
-    //        }
-    //    }
-    //    return null;
-    //}
-
     /** Slow, linear-time, element removal.  Preserves order.
      *  @param i element to be removed
      *  @return element removed */
@@ -116,6 +102,16 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         Arrays.fill(_es,len,_es.length,null);
         return this;
     }
+
+    public void swap( int i, int j ) {
+        range_check(i);
+        range_check(j);
+        if( i==j ) return;
+        E tmp = _es[i];
+        _es[i] = _es[j];
+        _es[j] = tmp;
+    }
+
 
     /** @param c Collection to be added */
     public boolean addAll( Collection<? extends E> c ) {

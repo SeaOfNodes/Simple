@@ -9,7 +9,7 @@ import java.util.BitSet;
 import java.util.HashSet;
 
 public class LoopNode extends RegionNode {
-    public LoopNode( Node entry ) { super(null,entry,null); }
+    public LoopNode( Parser.Lexer loc, Node entry ) { super(loc,null,entry,null); }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }
@@ -68,7 +68,7 @@ public class LoopNode extends RegionNode {
                   mem  instanceof PhiNode pmem && pmem.region()==r &&
                   expr instanceof PhiNode prez && prez.region()==r ) ) {
                 // Nope, insert an aligned exit layer
-                ctrl = new RegionNode(null,ctrl).init();
+                ctrl = new RegionNode(_loc,null,ctrl).init();
                 mem  = new    PhiNode((RegionNode)ctrl,mem ).init();
                 expr = new    PhiNode((RegionNode)ctrl,expr).init();
             }

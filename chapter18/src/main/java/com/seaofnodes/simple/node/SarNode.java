@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
 public class SarNode extends LogicalNode {
-    public SarNode(Node lhs, Node rhs) { super(lhs, rhs); }
+    public SarNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "Sar"; }
     @Override public String op() { return ">>"; }
@@ -45,5 +46,5 @@ public class SarNode extends LogicalNode {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new SarNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new SarNode(_loc,lhs,rhs); }
 }

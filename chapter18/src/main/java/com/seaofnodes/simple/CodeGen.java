@@ -66,9 +66,9 @@ public class CodeGen {
         _phase = Phase.TypeCheck;
 
         // Type check
-        String err = _stop.walk( Node::err );
+        Parser.ParseException err = _stop.walk( Node::err );
         if( err != null )
-            throw new Parser.ParserException(err);
+            throw err;
         return this;
     }
 
