@@ -1,12 +1,13 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 import java.util.BitSet;
 
 public class AndNode extends LogicalNode {
-    public AndNode(Node lhs, Node rhs) { super(lhs, rhs); }
+    public AndNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "And"; }
     @Override public String op() { return "&"; }
@@ -53,5 +54,5 @@ public class AndNode extends LogicalNode {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new AndNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new AndNode(_loc,lhs,rhs); }
 }

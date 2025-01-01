@@ -32,7 +32,7 @@ public class Chapter01Test {
     @Test
     public void testBad1() {
         try {
-            new CodeGen("ret").parse();
+            new CodeGen("ret;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'ret'",e.getMessage());
@@ -74,7 +74,7 @@ public class Chapter01Test {
     @Test
     public void testBad6() {
         try {
-            new CodeGen("return100").parse();
+            new CodeGen("return100;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'return100'",e.getMessage());

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
@@ -13,7 +14,7 @@ public class FunNode extends RegionNode {
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
 
-    public FunNode( StartNode start, TypeFunPtr sig ) { super(null,start); _sig=sig; }
+    public FunNode( Parser.Lexer loc, StartNode start, TypeFunPtr sig ) { super(loc,null,start); _sig=sig; }
 
     @Override
     public String label() { return _sig._name; }
@@ -64,6 +65,11 @@ public class FunNode extends RegionNode {
         if( unknownCallers() ) return null;
         return super.idealize();
     }
+
+    // Bypass Region idom, always assume depth == 1, one more than Start
+    @Override public int idepth() { return (_idepth=1); }
+    // Bypass Region idom, always assume idom is Start
+    @Override public CFGNode idom(Node dep) { return cfg(1); }
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return in(1) instanceof StartNode; }

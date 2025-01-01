@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
@@ -17,10 +18,12 @@ import java.util.BitSet;
 public class ReturnNode extends CFGNode {
 
     public final FunNode _fun;
+    public final Parser.Lexer _loc;
 
-    public ReturnNode(Node ctrl, Node mem, Node data, FunNode fun) {
+    public ReturnNode(Node ctrl, Node mem, Node data, FunNode fun, Parser.Lexer loc) {
         super(ctrl, mem, data);
         _fun = fun;
+        _loc = loc;
     }
 
     public Node ctrl() { return in(0); }
@@ -108,15 +111,15 @@ public class ReturnNode extends CFGNode {
         rez.addDef(null);
     }
 
-    @Override public String err() {
-        return mt==Type.BOTTOM ? mixerr(ti,tf,tp,tn) : null;
+    @Override public Parser.ParseException err() {
+        return mt==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_loc) : null;
     }
 
-    static String mixerr( boolean ti, boolean tf, boolean tp, boolean tn ) {
+    static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {
         SB sb = new SB().p("No common type amongst ");
         if( ti ) sb.p("int and ");
         if( tf ) sb.p("f64 and ");
         if( tp || tn ) sb.p("reference and ");
-        return sb.unchar(5).toString();
+        return Parser.error(sb.unchar(5).toString(),loc);
     }
 }

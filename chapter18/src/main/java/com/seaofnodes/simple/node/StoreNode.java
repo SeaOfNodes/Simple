@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
 
@@ -20,8 +21,8 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(name, alias, glb, mem, ptr, off, value);
+    public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
+        super(loc, name, alias, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -111,13 +112,13 @@ public class StoreNode extends MemOpNode {
     }
 
     @Override
-    public String err() {
-        String err = super.err();
+    public Parser.ParseException err() {
+        Parser.ParseException err = super.err();
         if( err != null ) return err;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         if( tmp._obj.field(_name)._final )
-            return "Cannot modify final field '"+_name+"'";
+            return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
-        return _init || t.isa(_declaredType) ? null : "Cannot store "+t+" into field "+_declaredType+" "+_name;
+        return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
     }
 }

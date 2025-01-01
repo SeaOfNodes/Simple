@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.fuzzer;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Eval2;
 import com.seaofnodes.simple.CodeGen;
@@ -89,7 +88,7 @@ public class Fuzzer {
                 FuzzerUtils.parse(script, true);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
-                    if (!valid || e1.getClass() == Parser.ParserException.class) return;
+                    if (!valid || e1.getClass() == Parser.ParseException.class) return;
                 } else {
                     e1.addSuppressed(e2);
                 }

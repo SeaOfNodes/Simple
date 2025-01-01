@@ -16,15 +16,17 @@ public class ScopeMinNode extends Node {
     /** The tracked fields are now complex enough to deserve a array-of-structs layout
      */
     public static class Var {
-        public final int _idx;       // index in containing scope
         public final String _name;   // Declared name
+        public int _idx;             // index in containing scope
         private Type _type;          // Declared type
-        public final boolean _final; // Final field
-        public Var(int idx, String name, Type type, boolean xfinal) {
+        public boolean _final;       // Final field
+        public Parser.Lexer _loc;    // Source location
+        public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc) {
             _idx = idx;
             _name = name;
             _type = type;
             _final = xfinal;
+            _loc = loc;
         }
         public Type type() {
             if( !_type.isFRef() ) return _type;
@@ -36,6 +38,19 @@ public class ScopeMinNode extends Node {
             Type t = type();
             return t instanceof TypeMemPtr ? t : t.glb();
         }
+
+        // Forward reference variables (not types) can only be a bottom
+        // function pointer.
+        public boolean isFRef() { return type()==TypeFunPtr.BOT; }
+
+        public boolean defFRef( Type type, boolean xfinal, Parser.Lexer loc ) {
+            assert isFRef();
+            _type = type;
+            _final = xfinal;
+            _loc = loc;
+            return true;
+        }
+
         @Override public String toString() {
             return _type.toString()+(_final ? " ": " !")+_name;
         }

@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -181,7 +179,7 @@ public class PhiNode extends Node {
     }
 
     @Override
-    public String err() {
+    public Parser.ParseException err() {
         if( _type != Type.BOTTOM ) return null;
 
         // BOTTOM means we mixed e.g. int and ptr
@@ -199,6 +197,6 @@ public class PhiNode extends Node {
             tp |= t instanceof TypeMemPtr  x;
             tn |= t==Type.NIL;
         }
-        return ReturnNode.mixerr(ti,tf,tp,tn);
+        return ReturnNode.mixerr(ti,tf,tp,tn, ((RegionNode)region())._loc);
     }
 }

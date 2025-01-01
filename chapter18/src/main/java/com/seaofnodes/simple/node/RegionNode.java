@@ -10,8 +10,11 @@ import java.util.BitSet;
 import java.util.HashSet;
 
 public class RegionNode extends CFGNode {
+    // Source location for late discovered errors
+    public Parser.Lexer _loc;
 
-    public RegionNode(Node... nodes) { super(nodes); }
+    public RegionNode(Node... nodes) { this(null,nodes); }
+    public RegionNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
 
     @Override
     public String label() { return "Region"; }
@@ -110,12 +113,9 @@ public class RegionNode extends CFGNode {
     }
 
     // True if last input is null
-    public boolean inProgress() {
-        return nIns()>1 && in(nIns()-1) == null;
-    }
+    public boolean inProgress() { return nIns()>1 && in(nIns()-1) == null; }
 
     // Never equal if inProgress
-    @Override boolean eq( Node n ) {
-        return !inProgress();
-    }
+    @Override boolean eq( Node n ) { return !inProgress(); }
+
 }

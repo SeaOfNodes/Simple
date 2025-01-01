@@ -142,10 +142,10 @@ return a;
     @Test
     public void testHalfDef() {
         try {
-            new Parser("if( arg==1 ) int b=2; return b;").parse();
+            new CodeGen("if( arg==1 ) int b=2; return b;").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
+            assertEquals("Cannot define a 'b' on one arm of an if",e.getMessage());
         }
     }
 
@@ -162,10 +162,10 @@ return a;
     @Test
     public void testRegress1() {
         try {
-            new Parser("if(arg==2) int a=1; else int b=2; return a;").parse();
+            new CodeGen("if(arg==2) int a=1; else int b=2; return a;").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Cannot define a new name on one arm of an if",e.getMessage());
+            assertEquals("Cannot define a 'a' on one arm of an if",e.getMessage());
         }
     }
 
@@ -203,7 +203,7 @@ return a;
     @Test
     public void testKeyword3() {
         try {
-            new Parser("int a=1; ififif(arg)inta=2;return a;").parse();
+            new CodeGen("int a=1; ififif(arg);a=2;return a;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Undefined name 'ififif'",e.getMessage());

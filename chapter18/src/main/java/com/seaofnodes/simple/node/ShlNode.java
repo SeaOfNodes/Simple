@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
 public class ShlNode extends LogicalNode {
-    public ShlNode(Node lhs, Node rhs) { super(lhs, rhs); }
+    public ShlNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
 
     @Override public String label() { return "Shl"; }
     @Override public String op() { return "<<"; }
@@ -41,7 +41,7 @@ public class ShlNode extends LogicalNode {
             if( lhs instanceof AddNode add && add.addDep(this).in(2)._type instanceof TypeInteger c && c.isConstant() ) {
                 long sum = c.value() << shl.value();
                 if( Integer.MIN_VALUE <= sum  && sum <= Integer.MAX_VALUE )
-                    return new AddNode( new ShlNode(add.in(1),rhs).peephole(), Parser.con(sum) );
+                    return new AddNode(new ShlNode(_loc,add.in(1),rhs).peephole(), Parser.con(sum) );
             }
         }
 
@@ -49,5 +49,5 @@ public class ShlNode extends LogicalNode {
 
         return null;
     }
-    @Override Node copy(Node lhs, Node rhs) { return new ShlNode(lhs,rhs); }
+    @Override Node copy(Node lhs, Node rhs) { return new ShlNode(_loc,lhs,rhs); }
 }

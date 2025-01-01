@@ -89,13 +89,35 @@ public class ScopeNode extends ScopeMinNode {
         _lexSize.push(_vars.size());
         _inCons.push(inCon);
     }
+
+    // Pop a lexical scope
     public void pop() {
         assert _lexSize._len==_inCons._len;
+        promote();
         int n = _lexSize.pop();
         _inCons.pop();
         popUntil(n);
         _vars.setLen(n);
     }
+
+
+    // Look for forward references in the last lexical scope and promote to the
+    // next outer lexical scope.  At the last scope declare them an error.
+    public void promote() {
+        int n = _lexSize.last();
+        for( int i=n; i<nIns(); i++ ) {
+            Var v = _vars.at(i);
+            if( !v.isFRef() ) continue;
+            if( _lexSize._len==1 )
+                throw Parser.error("Undefined name '" + v._name + "'",v._loc);
+            _vars.swap(n,i);
+            _inputs.swap(n,i);
+            v._idx = n;
+            n++;
+            _lexSize.set(_lexSize._len-1,n);
+        }
+    }
+
 
     public boolean inCon() { return _inCons.last(); }
 
@@ -104,7 +126,7 @@ public class ScopeNode extends ScopeMinNode {
     // typically hits many dozens of variables.
     int find( String name ) {
         for( int i=_vars.size()-1; i>=0; i-- )
-            if( _vars.get(i)._name.equals(name) )
+            if( _vars.at(i)._name.equals(name) )
                 return i;
         return -1;
     }
@@ -112,13 +134,23 @@ public class ScopeNode extends ScopeMinNode {
     /**
      * Create a new variable name in the current scope
      */
-    public boolean define( String name, Type declaredType, boolean xfinal, Node init ) {
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
         assert _lexSize.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
         if( _lexSize._len > 0 )
-            for( int i=_vars.size()-1; i>=_lexSize.last(); i-- )
-                if( _vars.get(i)._name.equals(name) )
-                    return false;   // Double define
-        _vars.add(new Var(nIns(),name,declaredType,xfinal));
+            for( int i=_vars.size()-1; i>=_lexSize.last(); i-- ) {
+                Var n = _vars.at(i);
+                if( n._name.equals(name) ) {
+                    if( !n.isFRef() ) return false;       // Double define
+                    n.defFRef(declaredType,xfinal,loc);   // Declare full correct type, final, source location
+                    FRefNode fref = (FRefNode)in(n._idx); // Get forward ref
+                    setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
+                }
+            }
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc);
+        _vars.add(v);
+        // Creating a forward reference
+        if( init==Parser.XCTRL )
+            init = new FRefNode(v).peephole();
         addDef(init);
         return true;
     }
@@ -228,8 +260,8 @@ public class ScopeNode extends ScopeMinNode {
      * @param that The ScopeNode to be merged into this
      * @return A new node representing the merge point
      */
-    public RegionNode mergeScopes(ScopeNode that) {
-        RegionNode r = ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
+    public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
+        RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
         mem()._merge(that.mem(),r);
         this ._merge(that      ,r);
         that.kill();            // Kill merged scope
@@ -248,6 +280,20 @@ public class ScopeNode extends ScopeMinNode {
                 setDef(i, new PhiNode(v._name, v.type(), r, lhs, rhs).peephole());
             }
     }
+
+    // Balance arms of an IF.  Extra lonely defs are thrown: "if(pred) int x;".
+    // Forward refs are copied to the other side, "as if" they were there all along.
+    public void balanceIf( ScopeNode scope ) {
+        for( int i = nIns(); i < scope.nIns(); i++ ) {
+            ScopeMinNode.Var n = scope._vars.at(i);
+            if( n.isFRef() ) {  // RHS has forward refs
+                _vars.add(n);   // Copy to LHS
+                addDef(scope.in(i));
+            } else
+                throw Parser.error("Cannot define a '"+n._name+"' on one arm of an if",n._loc);
+        }
+    }
+
 
     // peephole the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
@@ -319,7 +365,7 @@ public class ScopeNode extends ScopeMinNode {
 
 
     // Remove matching pred/cast pairs from this guarded region.
-    public void removeGuards( Node ctrl ) {
+    public ScopeNode removeGuards( Node ctrl ) {
         assert ctrl instanceof CFGNode;
         // 0,1 or 2 guards
         while( true ) {
@@ -329,6 +375,7 @@ public class ScopeNode extends ScopeMinNode {
             g            .unkill(); // Pop/kill cast
             _guards.pop().unkill(); // Pop/kill pred
         }
+        return this;
     }
 
     // If we find a guarded instance of pred, replace with the upcasted version
