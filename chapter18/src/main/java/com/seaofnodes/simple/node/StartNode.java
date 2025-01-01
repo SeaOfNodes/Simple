@@ -37,7 +37,7 @@ public class StartNode extends LoopNode implements MultiNode {
         // Find "main", its the start.
         CFGNode C = null;
         for( Node use : _outputs )
-            if( use instanceof FunNode fun && fun._sig==TypeFunPtr.MAIN )
+            if( use instanceof FunNode fun && fun.sig().isa(TypeFunPtr.MAIN) )
                 { assert C==null; C = fun; }
         return C;
     }

@@ -60,12 +60,4 @@ public class StopNode extends CFGNode {
             d = Math.max(d,((ReturnNode)ret).idepth()+1);
         return _idepth=d;
     }
-
-    // Add a new function exit point.  Validates Parsers function borders, then
-    // hands off to the guaranteed return.
-    public void addReturn(Node ctrl, Node mem, Node rez, FunNode fun) {
-        ReturnNode ret = (ReturnNode)_inputs.last();
-        assert ret.fun()==fun && ret.inProgress();
-        ret.addReturn(ctrl,mem,rez);
-    }
 }

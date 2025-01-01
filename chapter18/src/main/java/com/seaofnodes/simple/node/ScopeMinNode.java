@@ -53,7 +53,7 @@ public class ScopeMinNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("MEM[ ");
+        sb.append(_inProgress ? "Merge[" : "MEM[ ");
         for( int j=2; j<nIns(); j++ ) {
             sb.append(j);
             sb.append(":");

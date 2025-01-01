@@ -21,7 +21,7 @@ public class CallNode extends CFGNode {
         String fname = null;
         Node fptr = fptr();
         if( fptr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-            fname = CodeGen.CODE._linker.get(tfp)._name;
+            fname = tfp._name;
         if( fname==null ) fptr._print0(sb,visited);
         else sb.append(fname);
         sb.append("( ");
@@ -36,13 +36,31 @@ public class CallNode extends CFGNode {
     // Args mapped 1-to-1 on inputs
     Node arg(int idx) { return in(idx); }
     // args from input 2 to last
-    Node fptr() { return _inputs.last(); }
+    public Node fptr() { return _inputs.last(); }
 
     // Find the Call End from the Call
-    CallEndNode cend() {
+    public CallEndNode cend() {
         // Always in use slot 0
-        return (CallEndNode)out(0);
+        if( nOuts()>0 && out(0) instanceof CallEndNode cend ) {
+            assert _cend()==cend;
+            return cend;
+        } else {
+            assert _cend()==null;
+            return null;
+        }
     }
+    private CallEndNode _cend() {
+        CallEndNode cend=null;
+        for( Node n : _outputs )
+            if( n instanceof CallEndNode cend0 )
+                { assert cend == null; cend = cend0; }
+        return cend;
+    }
+
+    // Get the one control following; error to call with more than one e.g. an
+    // IfNode or other multi-way branch.
+    @Override public CFGNode uctrl() { return cend(); }
+
 
     @Override
     public Type compute() {
@@ -51,6 +69,9 @@ public class CallNode extends CFGNode {
 
     @Override
     public Node idealize() {
+        CallEndNode cend = cend();
+        if( cend==null ) return null; // Still building
+
         // Link: call calls target function.  Linking makes the target FunNode
         // point to this Call, and all his Parms point to the call arguments;
         // also the CallEnd points to the Return.
@@ -58,11 +79,12 @@ public class CallNode extends CFGNode {
             // If fidxs is negative, then infinite unknown functions
             long fidxs = tfp.fidxs();
             if( fidxs > 0 ) {
+                // Wipe out the return which matching in the linker table
                 // Walk the (63 max) bits and link
                 for( ; fidxs!=0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
                     int fidx = Long.numberOfTrailingZeros(fidxs);
                     TypeFunPtr tfp0 = tfp.makeFrom(fidx);
-                    FunNode fun = CodeGen.CODE._linker.get(tfp0);
+                    FunNode fun = CodeGen.CODE.link(tfp0);
                     if( fun!=null && !fun._folding && !linked(fun) )
                         link(fun);
                 }

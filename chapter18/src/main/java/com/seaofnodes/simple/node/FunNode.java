@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 
@@ -9,14 +10,13 @@ public class FunNode extends RegionNode {
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     boolean _folding;
 
-    public final TypeFunPtr _sig; // Initial signature
-    public String _name;        // Debug label, optional
-    private ReturnNode _ret;     // Return pointer
+    private TypeFunPtr _sig;    // Initial signature
+    private ReturnNode _ret;    // Return pointer
 
-    public FunNode( StartNode start, TypeFunPtr sig, String name ) { super(null,start); _sig=sig; _name=name; }
+    public FunNode( StartNode start, TypeFunPtr sig ) { super(null,start); _sig=sig; }
 
     @Override
-    public String label() { return _name; }
+    public String label() { return _sig._name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.
@@ -28,8 +28,19 @@ public class FunNode extends RegionNode {
         return null;
     }
 
+    // Cannot create the Return and Fun at the same time; one has to be first.
+    // So setting the return requires a second step.
     public void setRet(ReturnNode ret) { _ret=ret; }
     ReturnNode ret() { assert _ret!=null; return _ret; }
+
+    // Signature can improve over time
+    public TypeFunPtr sig() { return _sig; }
+    void setSig( TypeFunPtr sig ) {
+        assert sig.isa(_sig);
+        if( _sig != sig )
+            IterPeeps.add(this);
+        _sig = sig;
+    }
 
     @Override
     public Type compute() {
@@ -58,4 +69,7 @@ public class FunNode extends RegionNode {
     public boolean unknownCallers() { return in(1) instanceof StartNode; }
 
     @Override public boolean inProgress() { return unknownCallers(); }
+
+    // Add a new function exit point.
+    public void addReturn(Node ctrl, Node mem, Node rez) {  _ret.addReturn(ctrl,mem,rez);  }
 }

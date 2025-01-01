@@ -344,7 +344,7 @@ public class Evaluator {
                 assert block != null;
                 for (; i < block.nodes().length; i++) {
                     if (!(block.nodes()[i] instanceof PhiNode phi)) break;
-                    var val = region instanceof FunNode fun && fun._name.equals("main") && ((ParmNode)phi)._idx==2 && exit==1
+                    var val = region instanceof FunNode fun && "main".equals(fun.sig()._name) && ((ParmNode)phi)._idx==2 && exit==1
                             ? parameter
                             : val(phi.in(exit));
                     phiCache.add(val);

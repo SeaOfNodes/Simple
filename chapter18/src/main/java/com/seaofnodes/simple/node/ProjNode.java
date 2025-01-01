@@ -24,7 +24,12 @@ public class ProjNode extends Node implements MultiUse {
     @Override public int idx() { return _idx; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        if( _label != null )  return sb.append(_label);
+        if( in(0) instanceof CallEndNode cend && cend.call()!=null )
+            return cend.call()._print0(sb,visited);
+        return sb.append("LONELY PROJ");
+    }
 
     @Override public CFGNode cfg0() {
         return in(0) instanceof CFGNode cfg ? cfg : in(0).cfg0();
