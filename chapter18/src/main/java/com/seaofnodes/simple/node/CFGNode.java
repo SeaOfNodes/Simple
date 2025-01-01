@@ -95,22 +95,23 @@ public abstract class CFGNode extends Node {
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
         _bltWalk(2,null,stop, new BitSet());
     }
-    private int _bltWalk(int pre, FunNode fun, StopNode stop, BitSet post) {
+    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg && !(usecfg instanceof XCtrlNode) )
+            if( use instanceof CFGNode usecfg && !skip(usecfg) )
                 pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
         for( Node use : _outputs ) {
             if( !(use instanceof CFGNode usecfg) ) continue;
-            if( usecfg instanceof XCtrlNode ) continue;
-            if( usecfg._type == Type.XCONTROL ) continue; // Dead, only possible if peeps disabled
-            if( usecfg._type == TypeTuple.IF_NEITHER ) continue; // Dead again
+            if( skip(usecfg) ) continue;
+            if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
+                usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
+                continue;
             // Child visited but not post-visited?
             if( !post.get(usecfg._nid) ) {
                 // Must be a backedge to a LoopNode then
@@ -143,4 +144,11 @@ public abstract class CFGNode extends Node {
         post.set(_nid);
         return pre;
     }
+
+    boolean skip(CFGNode usecfg) {
+        // Only walk control users that are alive.
+        // Do not walk from a Call to linked Fun's.
+        return usecfg instanceof XCtrlNode || (this instanceof CallNode && usecfg instanceof FunNode);
+    }
+
 }

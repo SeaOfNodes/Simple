@@ -51,17 +51,29 @@ return x2;
         assertEquals("null", Eval2.eval(code, 0 ) );
     }
 
-    @Ignore @Test
+    @Test
     public void testFcn0() {
         CodeGen code = new CodeGen("""
 {int -> int}? sq = { int x ->
-    x*x
+    x*x;
 };
 return sq;
 """);
         code.parse().opto();
-        assertEquals("return fcn;", code._stop.toString());
-        assertEquals("1", Eval2.eval(code, 0));
+        assertEquals("Stop[ return { sq}; return (Parm_x(sq,int)*x); ]", code._stop.toString());
+        assertEquals("{ sq}", Eval2.eval(code, 3));
     }
 
+    @Test
+    public void testFcn1() {
+        CodeGen code = new CodeGen("""
+var sq = { int x ->
+    x*x;
+};
+return sq(2)+sq(3);
+""");
+        code.parse().opto();
+        assertEquals("Stop[ return (sq( 3)+sq( 2)); return (Parm_x(sq,int,3,2)*x); ]", code._stop.toString());
+        assertEquals("13", Eval2.eval(code, 0));
+    }
 }

@@ -503,12 +503,12 @@ public class Scheduler {
     /**
      * Find the CFG output of a node
      * @param node The node
-     * @return THe CFG output of the node.
+     * @return The CFG output of the node.
      */
     private static CFGNode findSingleCFGOut(Node node) {
         if (node instanceof StartNode) {
             for(var n:node._outputs)
-                if (n instanceof FunNode fun && fun._name.equals("main"))
+                if (n instanceof FunNode fun && "main".equals(fun.sig()._name) )
                    return fun;
             return null;
         }

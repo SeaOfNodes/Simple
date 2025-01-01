@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -31,13 +32,6 @@ public class IRPrinter {
         return sb.p("\n");
     }
 
-    private static SB nodeId(SB sb, Node n) {
-        sb.p("%%%d".formatted(n._nid));
-        if (n instanceof ProjNode proj) {
-            sb.p(".").p(proj._idx);
-        }
-        return sb;
-    }
 
     public static String prettyPrint(Node node, int depth) {
         return CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Schedule.ordinal()
@@ -61,14 +55,24 @@ public class IRPrinter {
             Node n = rpos.get(i);
             if( n instanceof CFGNode || n.isMultiHead() ) {
                 if( !gap ) sb.p("\n"); // Blank before multihead
+                if( n instanceof FunNode fun ) {
+                    TypeFunPtr sig = fun.sig();
+                    sig.print(sb.p("--- ").p(sig._name==null ? "" : sig._name).p(" "),false).p("----------------------\n");
+                }
                 printLine( n, sb );         // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
                     if( !t.isMultiTail() ) { i++; break; }
                     printLine( t, sb );
                 }
-                sb.p("\n"); // Blank after multitail
-                gap = true;
+                if( n instanceof ReturnNode ret ) {
+                    TypeFunPtr sig = ret.fun().sig();
+                    sig.print(sb.p("--- ").p(sig._name==null ? "" : sig._name).p(" "),false).p("----------------------\n");
+                }
+                if( !(n instanceof CallNode) ) {
+                    sb.p("\n"); // Blank after multitail
+                    gap = true;
+                }
             } else {
                 printLine( n, sb );
                 gap = false;
@@ -87,15 +91,20 @@ public class IRPrinter {
         // First walk the CFG, then everything
         if( n instanceof CFGNode ) {
             for( Node use : n._outputs )
-                if( use instanceof CFGNode && use.nOuts() >= 1 &&
-                    !(use._outputs.get( 0 ) instanceof LoopNode) )
+                // Follow CFG, not across call/function borders, and not around backedges
+                if( use instanceof CFGNode && !(n instanceof CallNode && use instanceof FunNode) &&
+                    use.nOuts() >= 1 &&  !(use._outputs.get(0) instanceof LoopNode) )
                     postOrd(use, n, rpos,visit,bfs);
             for( Node use : n._outputs )
-                if( use instanceof CFGNode )
+                // Follow CFG, not across call/function borders
+                if( use instanceof CFGNode && !(n instanceof CallNode && use instanceof FunNode) )
                     postOrd(use,n,rpos,visit,bfs);
         }
+        // Follow all outputs
         for( Node use : n._outputs )
-            if( use != null )
+            if( use != null &&
+                !(n instanceof CallNode && use instanceof FunNode) &&
+                (n instanceof FunNode || !(use instanceof ParmNode)) )
                 postOrd(use, n, rpos,visit,bfs);
         // Post-order
         rpos.add(n);
@@ -247,7 +256,9 @@ public class IRPrinter {
                 !(node instanceof LoopNode loop && loop.back()==def) &&
                 // Don't walk into or out of functions
                 !(node instanceof CallEndNode && def instanceof ReturnNode) &&
-                !(node instanceof FunNode && def instanceof CallNode) )
+                !(node instanceof FunNode && def instanceof CallNode) &&
+                !(node instanceof ParmNode && !(def instanceof FunNode))
+            )
                 _walk(ds,ns,def,d-1);
     }
 

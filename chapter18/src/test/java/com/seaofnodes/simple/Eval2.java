@@ -4,6 +4,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.node.*;
 
 import java.util.Arrays;
+import java.util.Stack;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 
@@ -29,6 +30,9 @@ public abstract class Eval2 {
 
         // Phi cache; size is limited to number of Phis at a merge point
         Object[] phiCache = new Object[256];
+
+        Stack<CallEndNode> stack = new Stack<>();
+
 
         // Evaluate until we return or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
@@ -68,27 +72,46 @@ public abstract class Eval2 {
             prior = C;
             C = C.uctrl();      // Next unique control target
             switch( prior ) {
-            case  FunNode fun :    if( loopCnt++ > timeout ) return null;  break; // Timeout
-            case LoopNode loop:    if( loopCnt++ > timeout ) return null;  break; // Timeout
-            case IfNode iff:       C = iff.cproj( val(iff.pred())==null || (val(iff.pred()) instanceof Long x && x==0L)  ? 1 : 0);  break;
-            case RegionNode r:     break;
+            case CallNode  call :  C = call(code,call,stack); break;
+            case CallEndNode cend: break;
             case CProjNode cproj:  break;
-                // TODO: Need a Call-stack here
-            case ReturnNode ret:   return prettyPrint(ret.expr()._type,val(ret.expr()));
+            case FunNode   fun  :  if( loopCnt++ > timeout ) return null;  break; // Timeout
+            case IfNode    iff  :  Object p = val(iff.pred()); C = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
+            case LoopNode  loop :  if( loopCnt++ > timeout ) return null;  break; // Timeout
+            case RegionNode r   :  break;
+            case ReturnNode ret :
+                Node expr = ret.expr();
+                if( stack.isEmpty() )
+                    return prettyPrint(expr._type,val(expr));
+                DATA[ret._nid] = val(expr);
+                C = stack.pop();
+                DATA[C._nid] = DATA[ret._nid];
+                break;
             default:               throw Utils.TODO();
             }
         }
+    }
 
+
+    // Make a call.
+    private static CFGNode call( CodeGen code, CallNode call, Stack<CallEndNode> stack ) {
+        stack.push(call.cend());
+        // TODO: Stack and unstack all DATA boxes readable by recursive functions
+        return code.link(tfp(call.fptr()));
+    }
+
+    private static String exit(ReturnNode ret) {
+        return prettyPrint(ret.expr()._type,val(ret.expr()));
     }
 
     private static boolean isArg( PhiNode phi ) {
         // Arg#2 into main.
         // TODO: Needs some love for recursive main
-        return phi instanceof ParmNode parm && parm.fun()._sig==TypeFunPtr.MAIN && parm._idx==2;
+        return phi instanceof ParmNode parm && parm.fun().sig().isa(TypeFunPtr.MAIN) && parm._idx==2;
     }
 
     // Take a worklist step: one data op from the current Control is updated.
-    private static void step(Node n, SB sb, IdentityHashMap visit) {
+    private static void step(Node n, SB sb, IdentityHashMap<Object,Object> visit) {
         // Only data nodes
         if( n instanceof CFGNode )  return;
         // Compute new value
@@ -150,13 +173,19 @@ public abstract class Eval2 {
     static long   x( Node n ) { return DATA[n._nid]==null ? 0 : (Long)  DATA[n._nid];  }
     // Fetch and unbox as primitive double
     static double d( Node n ) { return DATA[n._nid]==null ? 0 : (Double)DATA[n._nid];  }
+    // Fetch and unbox a TypeFunPtr
+    static TypeFunPtr tfp(Node n) { return (TypeFunPtr)DATA[n._nid]; }
     // Java box ints and floats.  Other things can just be null or some informative string
     private static Object con( Type t ) {
         if( t instanceof TypeInteger i )
             return i.isConstant() ? (Long)i.value() : "INT";
         if( t instanceof TypeFloat f )
             return f.isConstant() ? (Double)f.value() : "FLT";
-        //
+        if( t instanceof TypeMemPtr tmp )
+            throw Utils.TODO();
+        if( t instanceof TypeFunPtr tfp )
+            { assert tfp.isConstant(); return tfp; }
+        // Things like Type.NIL, or TypeMem
         return null;
     }
 
@@ -223,8 +252,8 @@ public abstract class Eval2 {
 
 
     // Use type to print x as a string
-    static String prettyPrint( Type t, Object x ) { return _print(t,x,new SB(), new IdentityHashMap()).toString(); }
-    static SB _print( Type t, Object x, SB sb, IdentityHashMap visit ) {
+    static String prettyPrint( Type t, Object x ) { return _print(t,x,new SB(), new IdentityHashMap<>()).toString(); }
+    static SB _print( Type t, Object x, SB sb, IdentityHashMap<Object,Object> visit ) {
         if( x instanceof String s ) return sb.p(s);
         if( x == null ) return sb.p("null");
         return switch( t ) {
@@ -261,6 +290,7 @@ public abstract class Eval2 {
             }
             yield sb;
         }
+        case TypeFunPtr tfp -> sb.p(x.toString());
         case TypeMem mem -> sb.p("$mem");
         case TypeTuple tt -> {
             if( tt._types.length>1 && tt._types[1] instanceof TypeMemPtr )

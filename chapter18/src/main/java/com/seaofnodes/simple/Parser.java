@@ -150,32 +150,15 @@ public class Parser {
     public StopNode parse() { return parse(false); }
     public StopNode parse(boolean show) {
         _xScopes.push(_scope);
-        //// Enter a new scope for the initial control and arguments
-        //_scope.push();
-        //Node ctrl = new CProjNode(START, 0, ScopeNode.CTRL).peephole();
-        //Node pmem = new  ProjNode(START, 1, ScopeNode.MEM0).peephole();
-        //Node arg  = new  ProjNode(START, 2, ScopeNode.ARG0).peephole();
-        //ScopeMinNode mem = new ScopeMinNode();
-        //mem.addDef(null);
-        //mem.addDef(pmem);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null);
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null);
-        //
-        //// Call main
-        //CallNode main = (CallNode)new CallNode(ctrl,pmem,arg,con(TypeFunPtr.MAIN)).peephole();
-        //// Call End
-        //CallEndNode cend = (CallEndNode)new CallEndNode(main).peephole();
-        //STOP.addDef(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
-        //STOP.addDef(new  ProjNode(cend,1,ScopeNode.MEM0).peephole());
-        //STOP.addDef(new  ProjNode(cend,2,ScopeNode.ARG0).peephole());
+
+        ctrl(XCTRL);
+        _scope.mem(new ScopeMinNode(false));
 
         // Parse whole program, as-if function header "{ int arg -> body }"
-        ReturnNode ret = parseFunctionBody("main",TypeFunPtr.MAIN,"arg");
-        CodeGen.CODE._linker.put(TypeFunPtr.MAIN,ret.fun());
-        //main.peephole();
-        //if( cend.peephole() != null )
-        //    IterPeeps.addAll(cend._outputs);
+        ReturnNode ret = parseFunctionBody(TypeFunPtr.MAIN,"arg");
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
@@ -194,9 +177,12 @@ public class Parser {
     /**
      *  Parses a function body, assuming the header is parsed.
      */
-    private ReturnNode parseFunctionBody(String name, TypeFunPtr sig, String... ids) {
-        sig.setName(name);
-        FunNode fun = _fun = (FunNode)peep(new FunNode(START,sig,name));
+    private ReturnNode parseFunctionBody(TypeFunPtr sig, String... ids) {
+        Node oldctrl = ctrl().keep();
+        Node oldmem  = _scope.mem().keep();
+        FunNode oldfun  = _fun;
+
+        FunNode fun = _fun = (FunNode)peep(new FunNode(START,sig));
 
         // Build a multi-exit return point for all function returns
         RegionNode r = new RegionNode(null,null);
@@ -232,11 +218,7 @@ public class Parser {
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )
-            STOP.addReturn(ctrl(), _scope.mem().merge(), last, fun);
-
-        // Function scope ends
-        _scope.pop();
-        _fun = null;
+            fun.addReturn(ctrl(), _scope.mem().merge(), last);
 
         // Pop off the inProgress node on the multi-exit Region merge
         assert r.inProgress();
@@ -249,7 +231,23 @@ public class Parser {
         ret.setDef(1,rmem.peephole());
         ret.setDef(2,rrez.peephole());
         ret.setDef(0,r.peephole());
-        return (ReturnNode)ret.peephole();
+        ret = (ReturnNode)ret.peephole();
+
+        // Function scope ends
+        _scope.pop();
+        _fun = oldfun;
+        // Reset control and memory to pre-function parsing days
+        ctrl(oldctrl.unkeep());
+        _scope.mem(oldmem.unkeep());
+
+        // Once function body is complete, install in linker table.  Linker
+        // matches on declared args and exact fidx, and ignores the return
+        // (because the fidx will only match the exact single function).  The
+        // normal TFP interning ALSO matches on return, so wipe out the return
+        // for this arg+fidx only match.
+        CodeGen.CODE.link(fun);
+
+        return ret;
     }
 
     /**
@@ -582,7 +580,7 @@ public class Parser {
         var expr = require(parseAsgn(), ";");
         // Need default memory, since it can be lazy, need to force
         // a non-lazy Phi
-        STOP.addReturn(ctrl(), _scope.mem().merge(), expr, _fun);
+        _fun.addReturn(ctrl(), _scope.mem().merge(), expr);
         ctrl(XCTRL);            // Kill control
         return expr;
     }
@@ -694,6 +692,8 @@ public class Parser {
                     throw error("a not-null/non-zero expression");
                 t = expr._type.glb();
             }
+            if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
+                tfp.setName(name);
 
         } else {
             if( inferType && !_scope.inCon() )
@@ -1039,7 +1039,7 @@ public class Parser {
         if( matchx("null" ) ) return NIL;
         if( match ("("    ) ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
-        if( match ("{"    ) ) return func();
+        if( match ("{"    ) ) return require(func(),"}");
         // Expect an identifier now
         ScopeMinNode.Var n = requireLookupId("an identifier or expression");
         Node rvalue = _scope.in(n);
@@ -1191,25 +1191,17 @@ public class Parser {
      *     expr ('.' IDENTIFIER)* [ = expr ]
      *     expr #
      *     expr ('[' expr ']')* = [ = expr ]
+     *     expr '(' [args,]* ')'
      * </pre>
      */
     private Node parsePostfix(Node expr) {
-        String name = null;
+        String name;
         if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
         else if( match("[") ) name = "[]";
+        else if( match("(") ) return require(functionCall(expr),")");
         else return expr;       // No postfix
 
-        // Happens when parsing known dead code, which often has other typing
-        // issues.  Since the code is dead, possibly due to inlining, lets not
-        // spoil the user experience with error messages.
-        //if( ctrl()._type==Type.XCONTROL ) {
-        //    if( expr.isUnused() ) expr.kill(); // Losing last use of expr
-        //    // Exit out via parsing the trailing expression
-        //    return matchOpx( '=', '=' ) ? parseAsgn() : parsePostfix( con( Type.TOP ) );
-        //}
-
-        //
         if( expr._type==Type.NIL )
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
@@ -1298,7 +1290,7 @@ public class Parser {
     }
 
     /**
-     * Parse a function; the leading '{' is already parsed.
+     * Parse a function body; the caller will parse the surrounding "{}"
      *
      * <pre>
      *     { [type arg,]* -> expr }
@@ -1306,7 +1298,6 @@ public class Parser {
      * </pre>
      */
     private Node func() {
-        int old = pos();        // Record lexer position
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
         while( true ) {
@@ -1320,7 +1311,53 @@ public class Parser {
         require("->");
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = TypeFunPtr.makeFun(TypeTuple.make(ts.asAry()),Type.BOTTOM);
-        return parseFunctionBody(null,tfp,ids.asAry());
+        ReturnNode ret = parseFunctionBody(tfp,ids.asAry());
+        return con(ret._fun.sig());
+    }
+
+    /**
+     *  Parse function call arguments; caller will parse the surrounding "()"
+     * <pre>
+     *   ( arg* )
+     * </pre>
+     */
+    private Node functionCall(Node expr) {
+        if( expr._type == Type.NIL )
+            throw error("Calling a null function pointer");
+        if( !(expr._type instanceof TypeFunPtr tfp) )
+            throw error("Expected a function but got "+expr._type.str());
+        expr.keep();            // Keep while parsing args
+
+        Ary<Node> args = new Ary<Node>(Node.class);
+        args.push(null);        // Space for ctrl,mem
+        args.push(null);
+        while( !peek(')') ) {
+            Node arg = parseAsgn();
+            if( arg==null ) break;
+            args.push(arg.keep());
+            if( !match(",") ) break;
+        }
+        // Control & memory after parsing args
+        args.set(0,ctrl().keep());
+        args.set(1,_scope.mem().merge().keep());
+        args.push(expr);        // Function pointer
+        // Unkeep them all
+        for( Node arg : args )
+            arg.unkeep();
+        // Into the call
+        CallNode call = (CallNode)new CallNode(args.asAry()).peephole();
+
+        // Post-call setup
+        CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
+        // Control from CallEnd
+        ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
+        // Memory from CallEnd
+        ScopeMinNode mem = new ScopeMinNode(true);
+        mem.addDef(null);       // Alias#0
+        mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
+        _scope.mem(mem);
+        // Call result
+        return new ProjNode(cend,2,null).peephole();
     }
 
     /**

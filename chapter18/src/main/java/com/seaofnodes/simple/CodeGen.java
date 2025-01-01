@@ -20,8 +20,10 @@ public class CodeGen {
     public  StopNode _stop ;
 
 
-    // "Linker" mapping from constant TypeFunPtrs to heads of function
-    public final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+    // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
+    // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
+    // the return is not part of the match).
+    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
 
 
     // Last created CodeGen as a global, for easier debugging prints
@@ -87,13 +89,23 @@ public class CodeGen {
         return this;
     }
 
-     public CodeGen localSched() {
+    // Local (basic block) scheduler phase, a classic list scheduler
+    public CodeGen localSched() {
         assert _phase == Phase.Schedule;
         _phase = Phase.LocalSched;
         ListScheduler.sched(this);
         return this;
      }
 
+    // Reverse from a constant function pointer to the IR function being called
+    public FunNode link( TypeFunPtr tfp ) {
+        assert tfp.isConstant();
+        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+    }
+
+    public void link(FunNode fun) {
+        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+    }
 
     // Testing shortcuts
     Node ctrl() { return _stop.ret().ctrl(); }

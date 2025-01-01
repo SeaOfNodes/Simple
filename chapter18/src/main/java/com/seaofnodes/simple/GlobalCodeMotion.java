@@ -24,7 +24,7 @@ public abstract class GlobalCodeMotion {
     private static void schedEarly(StartNode start) {
         ArrayList<CFGNode> rpo = new ArrayList<>();
         BitSet visit = new BitSet();
-        _rpo_cfg(start, visit, rpo);
+        _rpo_cfg(null, start, visit, rpo);
         // Reverse Post-Order on CFG
         for( int j=rpo.size()-1; j>=0; j-- ) {
             CFGNode cfg = rpo.get(j);
@@ -39,12 +39,14 @@ public abstract class GlobalCodeMotion {
     }
 
     // Post-Order of CFG
-    private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
-        if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
+    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
+        if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
+        if( def instanceof CallNode && cfg instanceof FunNode )
+            return;           // Ignore linked function calls
         visit.set(cfg._nid);
-        for( Node use : cfg._outputs )
-            _rpo_cfg(use,visit,rpo);
+        for( Node useuse : cfg._outputs )
+            _rpo_cfg(cfg,useuse,visit,rpo);
         rpo.add(cfg);
     }
 

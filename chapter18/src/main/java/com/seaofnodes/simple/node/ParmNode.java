@@ -22,9 +22,9 @@ public class ParmNode extends PhiNode {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( fun()._name.equals("main") && _label.equals("arg") )
+        if( "main".equals(fun().sig()._name) && _label.equals("arg") )
             return sb.append("arg");
-        sb.append(_label).append("(");
+        sb.append("Parm_").append(_label).append("(");
         for( Node in : _inputs ) {
             if (in == null) sb.append("____");
             else in._print0(sb, visited);

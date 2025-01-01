@@ -3,8 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
 /**
@@ -19,6 +18,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public String label() { return "CallEnd"; }
+    @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
 
     CallNode call() { return (CallNode)in(0); }
@@ -36,10 +36,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Type compute() {
-        for( Node n : _inputs )
-            if( n!=null && n._type==Type.CONTROL )
-                return Type.CONTROL;
-        return Type.XCONTROL;
+        Type ret = call().fptr()._type instanceof TypeFunPtr tfp ? tfp.ret() : Type.BOTTOM;
+        return TypeTuple.make(call()._type,TypeMem.BOT,ret);
     }
 
     @Override

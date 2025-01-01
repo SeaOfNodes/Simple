@@ -37,8 +37,9 @@ public class TypeFunPtr extends TypeNil {
 
     static TypeFunPtr make( byte nil, TypeTuple sig, Type ret, long fidxs ) { return new TypeFunPtr(nil,sig,ret,fidxs).intern(); }
     public static TypeFunPtr make( boolean nil, TypeTuple sig, Type ret ) { return make((byte)(nil ? 3 : 2),sig,ret,-1); }
-    @Override TypeFunPtr makeFrom( byte nil ) { return nil==_nil ? this : make(nil,_sig,_ret,_fidxs); }
-    public TypeFunPtr makeFrom( int fidx ) { return make(_nil,_sig,_ret,1L<<fidx); }
+    @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil   ? this : make( nil,_sig,_ret,   _fidxs).setName(_name); }
+    public TypeFunPtr makeFrom( int fidx ) { return 1L<<fidx==_fidxs ? this : make(_nil,_sig,_ret,1L<<fidx ).setName(_name); }
+    public TypeFunPtr makeFrom( Type ret ) { return     ret ==_ret   ? this : make(_nil,_sig, ret,   _fidxs).setName(_name); }
 
     // Compute "function indices": FIDX
     private static final HashMap<TypeTuple,Integer> FIDXS = new HashMap<>();
@@ -56,7 +57,7 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr BOT   = make((byte)3,TypeTuple.BOT,Type.BOTTOM,-1);
     public static TypeFunPtr TEST  = make((byte)2,TypeTuple.TEST,TypeInteger.BOT,1);
     public static TypeFunPtr TEST0 = make((byte)3,TypeTuple.TEST,TypeInteger.BOT,3);
-    public static TypeFunPtr MAIN  = makeFun(TypeTuple.MAIN,Type.BOTTOM);
+    public static TypeFunPtr MAIN  = makeFun(TypeTuple.MAIN,Type.BOTTOM).setName("main");
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); }
 
     @Override
@@ -71,7 +72,7 @@ public class TypeFunPtr extends TypeNil {
     // RHS is NIL
     @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_sig,_ret,_fidxs); }
 
-    @Override public TypeFunPtr glb() { throw Utils.TODO(); }
+    @Override public TypeFunPtr glb() { return make(_nil,_sig,_ret,-1); }
 
     @Override public boolean isConstant() { return _nil==2 && Long.bitCount(_fidxs)==1; }
 
@@ -79,6 +80,7 @@ public class TypeFunPtr extends TypeNil {
 
     public Type arg(int i) { return _sig._types[i]; }
     public long fidxs() { return _fidxs; }
+    public Type ret() { return _ret; }
 
     @Override
     int hash() { return Utils.fold(_sig.hashCode() ^ _ret.hashCode() ^ _fidxs ^ super.hash()); }
@@ -89,19 +91,22 @@ public class TypeFunPtr extends TypeNil {
         return _sig == ptr._sig  && _ret == ptr._ret && _fidxs == ptr._fidxs && super.eq(ptr);
     }
 
-    public void setName(String name) {
+    public TypeFunPtr setName(String name) {
+        if( name==null ) return this;
         assert _name==null || _name.equals(name);
         assert _fidxs > 0 && Long.bitCount(_fidxs) == 1;
         _name = name;
+        return this;
     }
 
     @Override public String str() { return print(new SB()).toString(); }
-    @Override public SB  print(SB sb) { return _print(sb,false); }
-    @Override public SB gprint(SB sb) { return _print(sb,true ); }
+    @Override public SB  print(SB sb) { return _print(sb,false,true); }
+    public SB print(SB sb, boolean n) { return _print(sb,false,n); }
+    @Override public SB gprint(SB sb) { return _print(sb,true ,true); }
     private static SB _print(SB sb, boolean g, Type t) { return g ? t.gprint(sb) : t.print(sb); }
-    private SB _print(SB sb, boolean g) {
+    private SB _print(SB sb, boolean g, boolean n) {
         sb.p(x()).p("{ ");
-        if( _name!=null ) sb.p(_name);
+        if( n && _name!=null ) sb.p(_name);
         else {
             for( Type t : _sig._types )
                 _print(sb,g,t).p(" ");

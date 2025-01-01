@@ -38,6 +38,9 @@ public class ReturnNode extends CFGNode {
         return sb.append(";");
     }
 
+    // No one unique control follows; can be many call end sites
+    @Override public CFGNode uctrl() { return null; }
+
     @Override
     public Type compute() {
         if( inProgress() ) return TypeTuple.RET; // In progress
@@ -46,6 +49,14 @@ public class ReturnNode extends CFGNode {
 
     @Override public Node idealize() {
         if( inProgress() ) return null;
+
+        // Upgrade signature based on return type
+        Type ret = expr()._type;
+        TypeFunPtr fcn = _fun.sig();
+        assert ret.isa(fcn.ret());
+        if( ret != fcn.ret() )
+            _fun.setSig(fcn.makeFrom(ret));
+
         // If dead (cant be reached; infinite loop), kill the exit values
         if( ctrl()._type==Type.XCONTROL &&
             !(mem() instanceof ConstantNode && expr() instanceof ConstantNode) ) {
@@ -54,6 +65,7 @@ public class ReturnNode extends CFGNode {
             setDef(2,top);
             return this;
         }
+
         return null;
     }
 
@@ -104,8 +116,7 @@ public class ReturnNode extends CFGNode {
         SB sb = new SB().p("No common type amongst ");
         if( ti ) sb.p("int and ");
         if( tf ) sb.p("f64 and ");
-        if( tp ) sb.p("reference and ");
-        if( !tp && tn ) sb.p("nil and ");
+        if( tp || tn ) sb.p("reference and ");
         return sb.unchar(5).toString();
     }
 }
