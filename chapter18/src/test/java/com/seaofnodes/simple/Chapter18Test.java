@@ -79,7 +79,7 @@ return sq(2)+sq(3);
 
     @Ignore @Test
     public void testFcn2() {
-        CodeGen code = new CodeGen("val fact = { int x -> x < 1 ? 1 : x*fact(x-1); }; return fact(arg);");
+        CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto();
         assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
