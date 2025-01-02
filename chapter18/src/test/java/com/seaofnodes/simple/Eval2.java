@@ -3,16 +3,14 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.node.*;
 
-import java.util.Arrays;
-import java.util.Stack;
-import java.util.IdentityHashMap;
-import java.util.Objects;
+import java.util.*;
 
 public abstract class Eval2 {
 
     private static Object[] DATA;
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
+        SB trace = null; // new SB(); // TRACE
         if( code._phase.ordinal() < CodeGen.Phase.TypeCheck .ordinal() )  code.typeCheck();
         if( code._phase.ordinal() < CodeGen.Phase.Schedule  .ordinal() )  code.GCM();
         if( code._phase.ordinal() < CodeGen.Phase.LocalSched.ordinal() )  code.localSched();
@@ -28,76 +26,86 @@ public abstract class Eval2 {
         // Start at the START
         CFGNode C = code._start, prior = null;
 
-        // Phi cache; size is limited to number of Phis at a merge point
-        Object[] phiCache = new Object[256];
+        // Function call support
+        Stack<CallEndNode> cends = new Stack<>();
+        Stack<    FunNode> funs  = new Stack<>();
 
-        Stack<CallEndNode> stack = new Stack<>();
-
-
+        // ------------
         // Evaluate until we return or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
-        SB sb = null; // new SB(); // TRACE
-        IdentityHashMap visit = new IdentityHashMap();
         while( true ) {
-            // Compute input path on Phis for this Region,
-            // or path is invalid for non-Region
-            int path = C instanceof RegionNode r ? r._inputs.find( prior ) : -1;
-
             // Run the worklist dry, computing data nodes under control of C
-            if( sb!=null ) { IRPrinter.printLine(C,sb.p("--- ")); System.out.print(sb); sb.clear();  }
+            traceCtrl(C,trace);
 
-            // Parallel assign Phis.  First parallel read and cache
-            int i;
-            for( i = 0; i < C.nOuts(); i++ )
-                if( C.out(i) instanceof PhiNode phi )
-                    phiCache[i] = isArg(phi) ? arg : val(phi.in(path));
-                else break;
-            // Parallel assign; might assign before read, so read from cache
-            for( int j=0; j < i; j++ ) {
-                Node n = C.out(j);
-                DATA[n._nid] = phiCache[j];
-                if( sb!=null ) {
-                    IRPrinter.printLine(n,sb).unchar();
-                    _print( n._type, DATA[n._nid], sb.p('\t'), visit );
-                    System.out.println(sb);
-                    sb.clear();
-                    visit.clear();
-                }
-            }
+            // Parallel assign Phis
+            int i = parallelAssignPhis(C,prior,arg,trace);
+
             // Now compute the rest of the nodes
             for( ; i < C.nOuts(); i++ )
-                step(C.out(i), sb, visit);
+                step(C.out(i), trace);
 
             // Find the next control target
             prior = C;
             C = C.uctrl();      // Next unique control target
             switch( prior ) {
-            case CallNode  call :  C = call(code,call,stack); break;
+            case CallNode  call :  C = call(code,call,cends,funs); break;
+            case IfNode    iff  :  Object p = val(iff.pred()); C = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
+            case ReturnNode ret :  if( cends.isEmpty() ) return exit(ret); else C = ret(ret,cends,funs); break;
+            case FunNode   fun  :  if( loopCnt++ > timeout ) return null;  break; // Timeout
+            case LoopNode  loop :  if( loopCnt++ > timeout ) return null;  break; // Timeout
             case CallEndNode cend: break;
             case CProjNode cproj:  break;
-            case FunNode   fun  :  if( loopCnt++ > timeout ) return null;  break; // Timeout
-            case IfNode    iff  :  Object p = val(iff.pred()); C = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
-            case LoopNode  loop :  if( loopCnt++ > timeout ) return null;  break; // Timeout
             case RegionNode r   :  break;
-            case ReturnNode ret :
-                Node expr = ret.expr();
-                if( stack.isEmpty() )
-                    return prettyPrint(expr._type,val(expr));
-                DATA[ret._nid] = val(expr);
-                C = stack.pop();
-                DATA[C._nid] = DATA[ret._nid];
-                break;
             default:               throw Utils.TODO();
             }
         }
     }
 
 
+    // Phi cache; size is limited to number of Phis at a merge point
+    private static final Object[] PHICACHE = new Object[256];
+    static int parallelAssignPhis(CFGNode C, CFGNode prior, long arg, SB trace) {
+        // Compute input path on Phis for this Region,
+        // or path is invalid for non-Region
+        int path = C instanceof RegionNode r ? r._inputs.find( prior ) : -1;
+
+        // Parallel assign Phis.  First parallel read and cache
+        int i;
+        for( i = 0; i < C.nOuts(); i++ )
+            if( C.out(i) instanceof PhiNode phi )
+                PHICACHE[i] = isArg(phi) ? arg : val(phi.in(path));
+            else break;
+        // Parallel assign; might assign before read, so read from cache
+        for( int j=0; j < i; j++ ) {
+            Node n = C.out(j);
+            DATA[n._nid] = PHICACHE[j];
+            traceData(n,trace);
+        }
+        // Return point in basic block past last Phi
+        return i;
+    }
+
     // Make a call.
-    private static CFGNode call( CodeGen code, CallNode call, Stack<CallEndNode> stack ) {
-        stack.push(call.cend());
-        // TODO: Stack and unstack all DATA boxes readable by recursive functions
-        return code.link(tfp(call.fptr()));
+    private static CFGNode call( CodeGen code, CallNode call, Stack<CallEndNode> cends, Stack<FunNode> funs ) {
+        cends.push(call.cend());
+        FunNode fun = code.link(tfp(call.fptr()));
+        for( FunNode fun1 : funs )
+            if( fun1==fun ) {
+                BitSet body = fun.body();
+                // TODO: Stack and unstack all DATA boxes readable by recursive functions
+                throw Utils.TODO(); // Recursuive save
+            }
+        funs.push(fun);
+
+        return fun;
+    }
+
+    private static CFGNode ret(ReturnNode ret, Stack<CallEndNode> cends, Stack<FunNode> funs) {
+        DATA[ret._nid] = val(ret.expr());
+        CFGNode C = cends.pop();
+        funs.pop();
+        DATA[C._nid] = DATA[ret._nid];
+        return C;
     }
 
     private static String exit(ReturnNode ret) {
@@ -111,23 +119,16 @@ public abstract class Eval2 {
     }
 
     // Take a worklist step: one data op from the current Control is updated.
-    private static void step(Node n, SB sb, IdentityHashMap<Object,Object> visit) {
+    private static void step(Node n, SB trace) {
         // Only data nodes
         if( n instanceof CFGNode )  return;
         // Compute new value
         DATA[n._nid] = compute(n);
-        // Trace
-        if( sb!=null ) {
-            IRPrinter.printLine(n,sb).unchar();
-            _print( n._type, DATA[n._nid], sb.p('\t'), visit );
-            System.out.println(sb);
-            sb.clear();
-            visit.clear();
-        }
+        traceData(n,trace);
         // Also do any following projections, which are not in the local schedule otherwise
         if( n instanceof MultiNode )
             for( Node use : n._outputs )
-                step(use,sb,visit);
+                step(use,trace);
     }
 
     // From here down shamelessly copied from Evaluator, written by @Xmilia
@@ -251,7 +252,28 @@ public abstract class Eval2 {
     }
 
 
-    // Use type to print x as a string
+    // ------------------------------------------------------------------------
+    private static final IdentityHashMap VISIT = new IdentityHashMap();
+
+
+    static void traceCtrl( Node C, SB sb ) {
+        if( sb==null ) return;
+        IRPrinter.printLine(C,sb.p("--- "));
+        System.out.print(sb);
+        sb.clear();
+    }
+    static void traceData( Node n, SB sb ) {
+        if( sb==null ) return;
+        IRPrinter.printLine(n,sb).unchar();
+        _print( n._type, DATA[n._nid], sb.p('\t'), VISIT );
+        System.out.println(sb);
+        sb.clear();
+        VISIT.clear();
+    }
+
+    // Use type to print x as a string.  Uses a new VISIT table so the debugger
+    // doesn't try to reuse VISIT if stopping mid-print.  The trace code reuses
+    // VISIT endlessly for some minor speed hope
     static String prettyPrint( Type t, Object x ) { return _print(t,x,new SB(), new IdentityHashMap<>()).toString(); }
     static SB _print( Type t, Object x, SB sb, IdentityHashMap<Object,Object> visit ) {
         if( x instanceof String s ) return sb.p(s);
