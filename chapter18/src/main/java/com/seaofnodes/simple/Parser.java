@@ -844,7 +844,7 @@ public class Parser {
         Type t0 = type();       // Either return or first arg
         if( t0==null ) return posT(old); // Not a function
         if( match("}") )                 // No-arg function { -> type }
-            throw Utils.TODO();
+            return TypeFunPtr.make(match("?"),TypeTuple.BOT,t0);
         Ary<Type> ts = new Ary<>(Type.class);
         ts.push(t0);            // First argument
         while( true ) {
@@ -1113,6 +1113,8 @@ public class Parser {
         if( t==null ) throw error("Expected a type");
         // Parse ary[ length_expr ]
         if( match("[") ) {
+            if( !t.makeZero().isa(t) )
+                throw error("Cannot allocate a non-nullable, since arrays always zero/null fill");
             Node len = parseAsgn();
             if( !(len._type instanceof TypeInteger) )
                 throw error("Cannot allocate an array with length "+len._type);

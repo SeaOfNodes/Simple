@@ -330,7 +330,7 @@ public abstract class Eval2 {
             } else if (elem instanceof TypeFloat) {
                 Arrays.fill( ary, 0D );
             } else {
-                assert elem instanceof TypeMemPtr;
+                assert elem instanceof TypeMemPtr || elem instanceof TypeFunPtr;
             }
             return ary;
         }

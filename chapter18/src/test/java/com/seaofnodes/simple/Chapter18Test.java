@@ -77,7 +77,8 @@ return sq(arg)+sq(3);
         assertEquals("13", Eval2.eval(code, 2));
     }
 
-    @Ignore @Test
+    // Recursive factorial test
+    @Test
     public void testFcn2() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto();
@@ -88,4 +89,35 @@ return sq(arg)+sq(3);
         assertEquals( "6", Eval2.eval(code, 3));
         assertEquals("24", Eval2.eval(code, 4));
     }
+
+
+
+    @Ignore @Test
+    public void testFcn3() {
+        CodeGen code = new CodeGen(
+"""
+val counter = { ->
+    int cnt;
+    val rez = new {int}?[2];
+    rez[0] = { ->   cnt; };
+    rez[1] = { -> ++cnt; };
+    return rez;
+};
+val A = counter();
+val B = counter();
+int[] rez = new int[5];
+rez[0] = A[0](); // Value of counter A
+rez[1] = A[1](); // Increment counter A
+rez[2] = B[0](); // Value of counter B
+B[1]();          // Increment B
+B[1]();          // Increment B
+rez[3] = B[0](); // Value of counter B
+rez[4] = A[0]() * 10 + B[0]();
+return rez;
+""");
+        code.parse().opto();
+        assertEquals("Stop[ return (const)[int]; return (const)[{ -> int #ALL}?]; return 0; return 1; ]", code._stop.toString());
+        assertEquals("13", Eval2.eval(code, 0));
+    }
+
 }
