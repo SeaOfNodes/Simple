@@ -109,7 +109,7 @@ public class CallNode extends CFGNode {
         fun.addDef(this);
         for( Node use : fun._outputs )
             if( use instanceof ParmNode parm )
-                parm.addDef(arg(parm._idx));
+                parm.addDef(parm._idx==0 ? cend() : arg(parm._idx));
         // Call end points to function return
         cend().addDef(fun.ret());
         assert linked(fun);

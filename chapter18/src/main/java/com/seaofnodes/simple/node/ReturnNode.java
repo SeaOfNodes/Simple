@@ -18,17 +18,16 @@ import java.util.BitSet;
 public class ReturnNode extends CFGNode {
 
     public final FunNode _fun;
-    public final Parser.Lexer _loc;
 
-    public ReturnNode(Node ctrl, Node mem, Node data, FunNode fun, Parser.Lexer loc) {
-        super(ctrl, mem, data);
+    public ReturnNode(Node ctrl, Node mem, Node data, Node rpc, FunNode fun ) {
+        super(ctrl, mem, data, rpc);
         _fun = fun;
-        _loc = loc;
     }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
     public Node expr() { return in(2); }
+    public Node rpc () { return in(3); }
     public FunNode fun() { return _fun; }
 
     @Override
@@ -81,7 +80,7 @@ public class ReturnNode extends CFGNode {
     private boolean ti=false, tf=false, tp=false, tn=false;
 
     // Add a return exit to the current parsing function
-    void addReturn(Node ctrl, Node rmem, Node expr) {
+    void addReturn( Node ctrl, Node rmem, Node expr ) {
         assert inProgress();
 
         // Gather parse-time return types for error reporting
@@ -112,7 +111,7 @@ public class ReturnNode extends CFGNode {
     }
 
     @Override public Parser.ParseException err() {
-        return mt==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_loc) : null;
+        return mt==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
     }
 
     static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {

@@ -190,12 +190,14 @@ public class Parser {
         // the exact single function).
         CodeGen.CODE.link(fun);
 
+        Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).peephole();
+
         // Build a multi-exit return point for all function returns
         RegionNode r = new RegionNode((Node)null,null);
         assert r.inProgress();
         PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null);
         PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null);
-        ReturnNode ret = new ReturnNode(r, rmem, rrez, fun, fun._loc);
+        ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun);
         fun.setRet(ret);
         assert ret.inProgress();
         STOP.addDef(ret);

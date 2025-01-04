@@ -2,55 +2,171 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.node.*;
-
 import java.util.*;
 
 public abstract class Eval2 {
 
-    private static Object[] DATA;
+    // A mapping from Node ID to evaluation data Object.
+    // Data Objsts are a boxed Long or Double; or an Object[] of fields, which
+    // themselves are just more Objects.
+    private static class Frame {
+        private static int UID=1;
+
+        private final IdentityHashMap<Node,Object> _data;
+        private Frame _prior;   // Prior frame in this sequence, means when making a new frame we can find old stuff
+        private int _refcnt;    // TODO: Use this in a sentence (free/recycle unused stack frames)
+        final int _uid = UID++; // Debugging aid
+        Frame(Frame prior) {
+            _prior = prior;
+            if( prior!=null ) prior._refcnt++;
+            _data = new IdentityHashMap<>();
+            _refcnt = 1;
+        }
+
+        // Dec ref count
+        void dec() {
+            assert _refcnt>0;
+            if( --_refcnt == 0 ) {
+                Frame prior = _prior;
+                _prior = null;
+                _data.clear();
+                // TODO: FREE LIST?
+                if( prior!=null )
+                    prior.dec();
+            }
+        }
+
+        // Put a mapping from Node->Object
+        Node put(Node n, Object d) {
+            assert d!=null;
+            return put0(n,d);
+        }
+        // Put a mapping from Node->Object?
+        Node put0(Node n, Object d) {
+            assert _refcnt>0;
+            _data.put(n,d);
+            return n;
+        }
+        // Get a mapped Node, perhaps using the prior stack frame crawl
+        Object get(Node n) {
+            assert _refcnt>0;
+            Object d = _data.get(n);
+            return d != null ? d
+                : _prior == null ? null
+                : _prior.get(n);
+        }
+
+        // Short debugging print
+        public String p() {
+            return "#"+_uid + (_prior==null ? "" : " >> " + _prior.p());
+        }
+        // Long debugging print
+        @Override public String toString() {
+            String s = "";
+            if( _prior != null ) s+= _prior+" << ";
+            s += "#"+_uid+"[ ";
+            for( Node n : _data.keySet() )
+                s += n + ":" + _data.get(n) + ",";
+            s += "]";
+
+            return s;
+        }
+    }
+
+    // Classic Closure; an environment (stack of frames) and an execution point
+    private static class Closure {
+        // Where to return too; either a CallEnd or a Function
+        final CFGNode _cc;
+
+        // Stack frame at the execution point.  Includes Closures which
+        // recursively include other stack frames
+        private Frame _frame;
+
+        Closure(CFGNode cc, Frame frame) {
+            _cc = cc;           // One of Fun, CallEnd or Stop (null)
+            _frame = frame;
+            assert _frame._refcnt >=0;
+            _frame._refcnt++;
+        }
+
+        FunNode fun() { return (FunNode)_cc; }
+        CallEndNode cend() { return (CallEndNode)_cc; }
+        boolean isStop() { return _cc instanceof StopNode; } // or Stop
+
+        //
+        void pushFrame() {
+            _frame = new Frame(_frame);
+            _frame._refcnt++;
+        }
+
+        @Override public String toString() {
+            return _cc.toString();
+        }
+    }
+
+    // CodeGen has the linker tables
+    public static CodeGen CODE;
+
+    // Current active Frame, to avoid having to pass it everywhere
+    public static Frame F;
+
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
-        SB trace = null; // new SB(); // TRACE
+        SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
+        // Force local scheduling phase
         if( code._phase.ordinal() < CodeGen.Phase.TypeCheck .ordinal() )  code.typeCheck();
         if( code._phase.ordinal() < CodeGen.Phase.Schedule  .ordinal() )  code.GCM();
         if( code._phase.ordinal() < CodeGen.Phase.LocalSched.ordinal() )  code.localSched();
-
+        // Set global, so don't have to pass everywhere
+        CODE = code;
 
         // Timer for when we run too long.  Ticks once per backedge or function call
         int loopCnt = 0;
 
         // Current value for each Node; boxed Long or Double; or an Object[] of
         // fields, which themselves are just more Objects.
-        DATA = new Object[Node.UID()];
+        F = new Frame(null);
 
         // Start at the START
-        CFGNode C = code._start, prior = null;
+        CFGNode BB = code._start, prior = null;
+        // Return from main hits Stop
+        F.put(BB,new Closure(code._stop,F));
 
-        // Function call support
-        Stack<CallEndNode> cends = new Stack<>();
-        Stack<    FunNode> funs  = new Stack<>();
+        // Set incoming arg into main
+        FunNode main = (FunNode)code._start.uctrl();
+        assert main.sig().isa(TypeFunPtr.MAIN);
+        for( Node use : main._outputs )
+            if( use instanceof ParmNode parm && parm._idx==2 ) {
+                parm.setDef(1,new ConstantNode( TypeInteger.constant( arg ) ).init() );
+                F.put( parm.in(1), arg );
+            }
+
 
         // ------------
-        // Evaluate until we return or timeout.  Each outer loop step computes
+        // Evaluate until we exit or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
         while( true ) {
-            // Run the worklist dry, computing data nodes under control of C
-            traceCtrl(C,trace);
+            traceCtrl(BB,trace);
+            if( trace!=null ) System.out.println(F.p());
 
             // Parallel assign Phis
-            int i = parallelAssignPhis(C,prior,arg,trace);
+            int i = BB instanceof RegionNode r
+                    ? parallelAssignPhis(r,prior,arg,trace)
+                    : 0;
 
-            // Now compute the rest of the nodes
-            for( ; i < C.nOuts(); i++ )
-                step(C.out(i), trace);
+            // Compute the data nodes until BB control
+            for( ; i < BB.nOuts(); i++ )
+                if( !(BB.out(i) instanceof CFGNode) )
+                    step(BB.out(i), trace);
 
             // Find the next control target
-            prior = C;
-            C = C.uctrl();      // Next unique control target
+            prior = BB;
+            BB = BB.uctrl();      // Next unique control target
             switch( prior ) {
-            case CallNode  call :  C = call(code,call,cends,funs); break;
-            case IfNode    iff  :  Object p = val(iff.pred()); C = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
-            case ReturnNode ret :  if( cends.isEmpty() ) return exit(ret); else C = ret(ret,cends,funs); break;
+            case StartNode start:  F = new Frame(F); break; // Frame for the call to main, as-if Called
+            case CallNode  call :  BB = call(call); break;
+            case IfNode    iff  :  Object p = val(iff.pred()); BB = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
+            case ReturnNode ret :  if( clj(ret.rpc()).isStop() ) return exit(ret); else BB = ret(ret); break;
             case FunNode   fun  :  if( loopCnt++ > timeout ) return null;  break; // Timeout
             case LoopNode  loop :  if( loopCnt++ > timeout ) return null;  break; // Timeout
             case CallEndNode cend: break;
@@ -64,66 +180,64 @@ public abstract class Eval2 {
 
     // Phi cache; size is limited to number of Phis at a merge point
     private static final Object[] PHICACHE = new Object[256];
-    static int parallelAssignPhis(CFGNode C, CFGNode prior, long arg, SB trace) {
-        // Compute input path on Phis for this Region,
-        // or path is invalid for non-Region
-        int path = C instanceof RegionNode r ? r._inputs.find( prior ) : -1;
+    static int parallelAssignPhis(RegionNode r, CFGNode prior, long arg, SB trace) {
+
+        // Compute input path on Phis for this Region
+        int path = r._inputs.find( prior );
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
-        for( i = 0; i < C.nOuts(); i++ )
-            if( C.out(i) instanceof PhiNode phi )
-                PHICACHE[i] = isArg(phi) ? arg : val(phi.in(path));
+        for( i = 0; i < r.nOuts(); i++ )
+            if( r.out(i) instanceof PhiNode phi )
+                // Parameters read from prior frame, Phis from local frame
+                PHICACHE[i] = (r instanceof FunNode ? F._prior : F)
+                    .get( (phi instanceof ParmNode parm && parm._idx==0)
+                          // RPC reads the Call directly
+                          ? phi.region().in(path)
+                          // Phis read from path input
+                          : phi.in(path));
             else break;
         // Parallel assign; might assign before read, so read from cache
-        for( int j=0; j < i; j++ ) {
-            Node n = C.out(j);
-            DATA[n._nid] = PHICACHE[j];
-            traceData(n,trace);
-        }
+        for( int j=0; j < i; j++ )
+            traceData(F.put0(r.out(j),PHICACHE[j]),trace);
         // Return point in basic block past last Phi
         return i;
     }
 
     // Make a call.
-    private static CFGNode call( CodeGen code, CallNode call, Stack<CallEndNode> cends, Stack<FunNode> funs ) {
-        cends.push(call.cend());
-        FunNode fun = code.link(tfp(call.fptr()));
-        for( FunNode fun1 : funs )
-            if( fun1==fun ) {
-                BitSet body = fun.body();
-                // TODO: Stack and unstack all DATA boxes readable by recursive functions
-                throw Utils.TODO(); // Recursuive save
-            }
-        funs.push(fun);
-
-        return fun;
+    private static CFGNode call( CallNode call ) {
+        // Set up the Return PC and return frame (which is just the current frame).
+        // Really making a Continuation, but it's just a Closure
+        Closure cont = new Closure(call.cend(),F);
+        // Set the return continuation into the current frame RPC
+        F.put(call, cont );
+        // Next Frame to use
+        F = new Frame(F);
+        // Target function and environment
+        return CODE.link(tfp(call.fptr()));
     }
 
-    private static CFGNode ret(ReturnNode ret, Stack<CallEndNode> cends, Stack<FunNode> funs) {
-        DATA[ret._nid] = val(ret.expr());
-        CFGNode C = cends.pop();
-        funs.pop();
-        DATA[C._nid] = DATA[ret._nid];
-        return C;
+    private static CFGNode ret( ReturnNode ret ) {
+        // Fetch return expression value and continuation from current frame
+        Object rez = val(ret.expr());
+        Closure cont = clj(ret.rpc());
+        // Lower Frame reference count; might delete frame
+        F.dec();                // Lower ref count
+        // Install replacement Frame; set return result over the CallEnd
+        F = cont._frame;
+        F.put(cont._cc,rez);    // Set return value into CallEnd
+        return cont._cc;        // Return CallEnd as the new control
     }
 
-    private static String exit(ReturnNode ret) {
+    private static String exit( ReturnNode ret ) {
         return prettyPrint(ret.expr()._type,val(ret.expr()));
-    }
-
-    private static boolean isArg( PhiNode phi ) {
-        // Arg#2 into main.
-        // TODO: Needs some love for recursive main
-        return phi instanceof ParmNode parm && parm.fun().sig().isa(TypeFunPtr.MAIN) && parm._idx==2;
     }
 
     // Take a worklist step: one data op from the current Control is updated.
     private static void step(Node n, SB trace) {
-        // Only data nodes
-        if( n instanceof CFGNode )  return;
+        if( n instanceof PhiNode ) return;
         // Compute new value
-        DATA[n._nid] = compute(n);
+        F.put0(n,compute(n));
         traceData(n,trace);
         // Also do any following projections, which are not in the local schedule otherwise
         if( n instanceof MultiNode )
@@ -168,26 +282,27 @@ public abstract class Eval2 {
         };
     }
 
-    // Fetch without unboxing
-    static Object val( Node n ) { return DATA[n._nid]; }
+    // Fetch without unboxing, searching up-Frame
+    static Object val( Node n ) { return F.get(n); }
     // Fetch and unbox as primitive long
-    static long   x( Node n ) { return DATA[n._nid]==null ? 0 : (Long)  DATA[n._nid];  }
+    static long   x( Node n ) { Object d = F.get(n); return d==null ? 0 : (Long)  F.get(n);  }
     // Fetch and unbox as primitive double
-    static double d( Node n ) { return DATA[n._nid]==null ? 0 : (Double)DATA[n._nid];  }
-    // Fetch and unbox a TypeFunPtr
-    static TypeFunPtr tfp(Node n) { return (TypeFunPtr)DATA[n._nid]; }
+    static double d( Node n ) { Object d = F.get(n); return d==null ? 0 : (Double)F.get(n);  }
+    // Fetch and unbox a function constant
+    static TypeFunPtr tfp(Node n) { return (TypeFunPtr)F.get(n); }
+    // Fetch and unbox a closure
+    static Closure clj(Node n) { return (Closure)F.get(n); }
+
     // Java box ints and floats.  Other things can just be null or some informative string
     private static Object con( Type t ) {
-        if( t instanceof TypeInteger i )
-            return i.isConstant() ? (Long)i.value() : "INT";
-        if( t instanceof TypeFloat f )
-            return f.isConstant() ? (Double)f.value() : "FLT";
-        if( t instanceof TypeMemPtr tmp )
-            throw Utils.TODO();
-        if( t instanceof TypeFunPtr tfp )
-            { assert tfp.isConstant(); return tfp; }
-        // Things like Type.NIL, or TypeMem
-        return null;
+        return switch ( t ) {
+        case TypeInteger i -> i.isConstant() ? (Long  )i.value() : "INT";
+        case TypeFloat   f -> f.isConstant() ? (Double)f.value() : "FLT";
+        case TypeMemPtr tmp -> throw Utils.TODO();
+        case TypeFunPtr tfp -> tfp;
+        case TypeMem mem -> "MEM";
+        default -> null;
+        };
     }
 
     // Convert array size to array element count
@@ -217,8 +332,6 @@ public abstract class Eval2 {
             } else {
                 assert elem instanceof TypeMemPtr;
             }
-            // Length value
-            //body[0] = vall(alloc.in(2+2));
             return ary;
         }
 
@@ -253,19 +366,19 @@ public abstract class Eval2 {
 
 
     // ------------------------------------------------------------------------
-    private static final IdentityHashMap VISIT = new IdentityHashMap();
+    private static final IdentityHashMap<Object,Object> VISIT = new IdentityHashMap<>();
 
 
-    static void traceCtrl( Node C, SB sb ) {
+    static void traceCtrl( CFGNode BB, SB sb ) {
         if( sb==null ) return;
-        IRPrinter.printLine(C,sb.p("--- "));
+        IRPrinter.printLine(BB,sb.p("--- "));
         System.out.print(sb);
         sb.clear();
     }
     static void traceData( Node n, SB sb ) {
         if( sb==null ) return;
         IRPrinter.printLine(n,sb).unchar();
-        _print( n._type, DATA[n._nid], sb.p('\t'), VISIT );
+        _print( n._type, F.get(n), sb.p('\t'), VISIT );
         System.out.println(sb);
         sb.clear();
         VISIT.clear();
@@ -313,6 +426,7 @@ public abstract class Eval2 {
             yield sb;
         }
         case TypeFunPtr tfp -> sb.p(x.toString());
+        case TypeRPC rpc -> sb.p(x.toString());
         case TypeMem mem -> sb.p("$mem");
         case TypeTuple tt -> {
             if( tt._types.length>1 && tt._types[1] instanceof TypeMemPtr )

@@ -44,6 +44,7 @@ public class Type {
     static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
     static final byte TSTRUCT =14; // Structs; tuples with named fields
     static final byte TFLD    =15; // Named fields in structs
+    static final byte TRPC    =16; // Return Program Control (Return PC or RPC)
 
     public final byte _type;
 
@@ -73,6 +74,7 @@ public class Type {
         Field.gather(ts);
         TypeStruct.gather(ts);
         TypeTuple.gather(ts);
+        TypeRPC.gather(ts);
         int sz = ts.size();
         for( int i = 0; i < sz; i++ )
             ts.add(ts.get(i).dual());

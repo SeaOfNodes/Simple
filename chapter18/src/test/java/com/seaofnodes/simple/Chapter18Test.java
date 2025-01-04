@@ -70,11 +70,11 @@ return sq;
 var sq = { int x ->
     x*x;
 };
-return sq(2)+sq(3);
+return sq(arg)+sq(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (sq( 3)+sq( 2)); return (Parm_x(sq,int,3,2)*x); ]", code._stop.toString());
-        assertEquals("13", Eval2.eval(code, 0));
+        assertEquals("Stop[ return (sq( 3)+sq( arg)); return (Parm_x(sq,int,3,arg)*x); ]", code._stop.toString());
+        assertEquals("13", Eval2.eval(code, 2));
     }
 
     @Ignore @Test
