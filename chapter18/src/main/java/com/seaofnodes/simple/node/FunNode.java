@@ -1,10 +1,12 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import java.util.BitSet;
 
 public class FunNode extends RegionNode {
 
@@ -27,6 +29,14 @@ public class FunNode extends RegionNode {
                 (cfg instanceof RegionNode || cfg.cfg0()==this) )
                 return cfg;
         return null;
+    }
+
+    public ParmNode rpc() {
+        ParmNode rpc = null;
+        for( Node n : _outputs )
+            if( n instanceof ParmNode parm && parm._idx==0 )
+                { assert rpc==null; rpc=parm; }
+        return rpc;
     }
 
     // Cannot create the Return and Fun at the same time; one has to be first.
@@ -78,4 +88,44 @@ public class FunNode extends RegionNode {
 
     // Add a new function exit point.
     public void addReturn(Node ctrl, Node mem, Node rez) {  _ret.addReturn(ctrl,mem,rez);  }
+
+    // Build the function body
+    public BitSet body() {
+
+        // Reverse up (stop to start) CFG only, collect bitmap.
+        BitSet cfgs = new BitSet();
+        cfgs.set(_nid);
+        walkUp(ret(),cfgs );
+
+        // Top down (start to stop) all flavors.  CFG limit to bitmap.
+        // If data use bottoms out in wrong CFG, returns false - but tries all outputs.
+        // If any output hits an in-CFG use (e.g. phi), then keep node.
+        BitSet body = new BitSet();
+        walkDown(this, cfgs, body, new BitSet());
+        return body;
+    }
+
+    private static void walkUp(CFGNode n, BitSet cfgs) {
+        if( cfgs.get(n._nid) ) return;
+        cfgs.set(n._nid);
+        if( n instanceof RegionNode r )
+            for( int i=1; i<n.nIns(); i++ )
+                walkUp(n.cfg(i),cfgs);
+        else walkUp(n.cfg0(),cfgs);
+    }
+
+    private static boolean walkDown( Node n, BitSet cfgs, BitSet body, BitSet visit ) {
+        if( visit.get(n._nid) ) return body.get(n._nid);
+        visit.set(n._nid);
+
+        if( n instanceof CFGNode && !cfgs.get(n._nid) )
+            return false;
+        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) )
+            return false;
+        boolean in = n.in(0)!=null || n instanceof CFGNode;
+        for( Node use : n._outputs )
+            in |= walkDown(use,cfgs,body,visit);
+        if( in ) body.set(n._nid);
+        return in;
+    }
 }
