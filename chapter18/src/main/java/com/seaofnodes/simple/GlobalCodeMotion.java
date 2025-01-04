@@ -192,6 +192,10 @@ public abstract class GlobalCodeMotion {
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
                 break;
+            case CallNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+                break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
                 // No anti-dep edges but may raise the LCA.

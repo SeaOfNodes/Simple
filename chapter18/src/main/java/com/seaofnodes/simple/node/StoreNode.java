@@ -116,7 +116,7 @@ public class StoreNode extends MemOpNode {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( tmp._obj.field(_name)._final )
+        if( tmp._obj.field(_name)._final && !"[]".equals(_name) )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
         return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);

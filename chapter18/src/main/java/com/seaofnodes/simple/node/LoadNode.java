@@ -84,17 +84,21 @@ public class LoadNode extends MemOpNode {
                 phi.addDep(this);
                 break outer;
             case ConstantNode top: break outer;  // Assume shortly dead
-            case ProjNode mproj:
-                if( mproj.in(0) instanceof NewNode nnn1 ) {
+
+            case ProjNode mproj: // Memory projection
+                switch( mproj.in(0) ) {
+                case NewNode nnn1:
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
                         return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.in(_alias);// Bypass unrelated New
                     break;
-                } else if( mproj.in(0) instanceof StartNode ) {
-                    break outer;
-                } else throw Utils.TODO();
+                case StartNode  start: break outer;
+                case CallEndNode cend: break outer; // TODO: Bypass no-alias call
+                default: throw Utils.TODO();
+                }
+                break;
             default:
                 throw Utils.TODO();
             }
