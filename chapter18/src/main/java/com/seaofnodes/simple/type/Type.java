@@ -229,4 +229,8 @@ public class Type {
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }
+
+    public static void reset() {
+        TypeFunPtr.reset();
+    }
 }

@@ -81,7 +81,7 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for (Node n : all) {
-            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeMinNode || n==Parser.XCTRL)
+            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n==Parser.XCTRL)
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             if( _separateControlCluster &&  doCtrl && !(n instanceof CFGNode) ) continue;
             if( _separateControlCluster && !doCtrl &&  (n instanceof CFGNode) ) continue;
@@ -163,7 +163,7 @@ public class GraphVisualizer {
             sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             // Special for memory ScopeMinNode
             if( level==0 ) {
-                ScopeMinNode n = scope.mem();
+                MemMergeNode n = scope.mem();
                 sb.append("\t\t").append(n.uniqueName()).append(" [label=\"").append(n.glabel()).append("\"];\n");
             }
             sb.append("\t\t").append(scopeName).append(" [label=<\n");

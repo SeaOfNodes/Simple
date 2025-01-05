@@ -132,18 +132,9 @@ public abstract class Eval2 {
         // Return from main hits Stop
         F.put(BB,new Closure(code._stop,F));
 
-        // Set incoming arg into main
-        FunNode main = (FunNode)code._start.uctrl();
-        assert main.sig().isa(TypeFunPtr.MAIN);
-        for( Node use : main._outputs )
-            if( use instanceof ParmNode parm && parm._idx==2 ) {
-                parm.setDef(1,new ConstantNode( TypeInteger.constant( arg ) ).init() );
-                F.put( parm.in(1), arg );
-            }
-
 
         // ------------
-        // Evaluate until we exit or timeout.  Each outer loop step computes
+        // Evaluate until exit or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
         while( true ) {
             traceCtrl(BB,trace);
@@ -184,25 +175,33 @@ public abstract class Eval2 {
 
         // Compute input path on Phis for this Region
         int path = r._inputs.find( prior );
+        // Parameters read from prior frame, Phis from local frame
+        Frame frame = (r instanceof FunNode ? F._prior : F);
+        boolean isMain = r instanceof FunNode fun && fun.sig().isa(TypeFunPtr.MAIN);
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
-        for( i = 0; i < r.nOuts(); i++ )
-            if( r.out(i) instanceof PhiNode phi )
-                // Parameters read from prior frame, Phis from local frame
-                PHICACHE[i] = (r instanceof FunNode ? F._prior : F)
-                    .get( (phi instanceof ParmNode parm && parm._idx==0)
-                          // RPC reads the Call directly
-                          ? phi.region().in(path)
-                          // Phis read from path input
-                          : phi.in(path));
-            else break;
+        for( i = 0; i < r.nOuts(); i++ ) {
+            if( !(r.out(i) instanceof PhiNode phi) ) break;
+            if( isMain && phi instanceof ParmNode parm && parm._idx==2 )
+                PHICACHE[i] = arg; // Reading the initial arguments to main()
+            else {
+                Node n = phi instanceof ParmNode parm
+                    // RPC reads the Call directly;
+                    // Parms may not be linked, so read call args directly
+                    ? (parm._idx==0 ? prior : prior.in(parm._idx))
+                    // Phis read from path input
+                    :  phi.in(path);
+                PHICACHE[i] = frame.get(n);
+            }
+        }
         // Parallel assign; might assign before read, so read from cache
         for( int j=0; j < i; j++ )
             traceData(F.put0(r.out(j),PHICACHE[j]),trace);
         // Return point in basic block past last Phi
         return i;
     }
+
 
     // Make a call.
     private static CFGNode call( CallNode call ) {
@@ -271,7 +270,7 @@ public abstract class Eval2 {
         case ProjNode     proj -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
         case SarNode      sar  -> x(sar.in(1)) >> x(sar.in(2));
-        case ScopeMinNode merge-> "$mem";
+        case MemMergeNode merge-> "$mem";
         case ShlNode      shl  -> x(shl.in(1)) << x(shl.in(2));
         case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
         case StoreNode    st   -> store(st);

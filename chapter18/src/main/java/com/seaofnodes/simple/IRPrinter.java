@@ -18,7 +18,7 @@ public class IRPrinter {
         for( Node def : n._inputs )
             sb.p(def==null ? "____" : "%4d".formatted(def._nid))
                 // Lazy Phi indicator
-                .p(n instanceof ScopeMinNode && def instanceof ScopeMinNode ? "^" : " ");
+                .p(n instanceof MemMergeNode && def instanceof MemMergeNode ? "^" : " ");
         for( int i = n._inputs.size(); i<4; i++ )
             sb.p("     ");
         sb.p(" [[  ");

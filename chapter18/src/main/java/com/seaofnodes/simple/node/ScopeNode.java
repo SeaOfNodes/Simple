@@ -6,9 +6,9 @@ import java.util.*;
 
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
- * stack of hashmaps.
+ * stack of variables.
  */
-public class ScopeNode extends ScopeMinNode {
+public class ScopeNode extends MemMergeNode {
 
     /**
      * The control is a name that binds to the currently active control
@@ -21,11 +21,12 @@ public class ScopeNode extends ScopeMinNode {
     // All active/live variables in all nested scopes, all run together
     public final Ary<Var> _vars;
 
-    // Since of each nested lexical scope
+    // Size of each nested lexical scope
     public final Ary<Integer> _lexSize;
 
-    // True if parsing inside of a constructor
-    public final Ary<Boolean> _inCons;
+    // Lexical scope is one of normal Block, constructor or function
+    public enum Kind { Block, Constructor, Function };
+    public final Ary<Kind> _kinds;
 
     // Extra guards; tested predicates and casted results
     private final Ary<Node> _guards;
@@ -35,7 +36,7 @@ public class ScopeNode extends ScopeMinNode {
         super(true);
         _vars   = new Ary<>(Var    .class);
         _lexSize= new Ary<>(Integer.class);
-        _inCons = new Ary<>(Boolean.class);
+        _kinds  = new Ary<>(Kind   .class);
         _guards = new Ary<>(Node   .class);
     }
 
@@ -68,7 +69,7 @@ public class ScopeNode extends ScopeMinNode {
 
 
     public Node ctrl() { return in(0); }
-    public ScopeMinNode mem() { return (ScopeMinNode)in(1); }
+    public MemMergeNode mem() { return (MemMergeNode)in(1); }
 
     /**
      * The ctrl of a ScopeNode is always bound to the currently active
@@ -83,19 +84,18 @@ public class ScopeNode extends ScopeMinNode {
     public <N extends Node> N ctrl(N n) { return setDef(0,n); }
     public Node mem(Node n) { return setDef(1,n); }
 
-    public void push() { push(false); }
-    public void push(boolean inCon) {
-        assert _lexSize._len==_inCons._len;
+    public void push(Kind kind) {
+        assert _lexSize._len==_kinds._len;
         _lexSize.push(_vars.size());
-        _inCons.push(inCon);
+        _kinds  .push(kind);
     }
 
     // Pop a lexical scope
     public void pop() {
-        assert _lexSize._len==_inCons._len;
+        assert _lexSize._len==_kinds._len;
         promote();
         int n = _lexSize.pop();
-        _inCons.pop();
+        _kinds.pop();
         popUntil(n);
         _vars.setLen(n);
     }
@@ -119,7 +119,16 @@ public class ScopeNode extends ScopeMinNode {
     }
 
 
-    public boolean inCon() { return _inCons.last(); }
+    public boolean inCon() { return _kinds.last() == Kind.Constructor; }
+
+    // Is v outside any current function scope?
+    public boolean outOfFunction( Var v ) {
+        for( int i=_lexSize._len-1; i>=0 && v._idx<_lexSize.at(i); i-- )
+            if( _kinds.at(i)==Kind.Function )
+                return true;
+        return false;
+    }
+
 
     // Find name in reverse, return an index into _vars or -1.  Linear scan
     // instead of hashtable, but probably doesn't matter until the scan
@@ -141,8 +150,9 @@ public class ScopeNode extends ScopeMinNode {
                 Var n = _vars.at(i);
                 if( n._name.equals(name) ) {
                     if( !n.isFRef() ) return false;       // Double define
-                    n.defFRef(declaredType,xfinal,loc);   // Declare full correct type, final, source location
                     FRefNode fref = (FRefNode)in(n._idx); // Get forward ref
+                    if( !xfinal || !declaredType.isConstant() ) throw fref.err();  // Must be a final constant
+                    n.defFRef(declaredType,xfinal,loc);   // Declare full correct type, final, source location
                     setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
                 }
             }
@@ -185,7 +195,7 @@ public class ScopeNode extends ScopeMinNode {
         update(_vars.at(idx),n);
     }
 
-    public Var update( ScopeNode.Var v, Node st ) {
+    public Var update( Var v, Node st ) {
         Node old = in(v._idx);
         if( old instanceof ScopeNode loop ) {
             // Lazy Phi!
@@ -225,7 +235,7 @@ public class ScopeNode extends ScopeMinNode {
         // 3) Ensure that the order of defs is the same to allow easy merging
         dup._vars   .addAll(_vars   );
         dup._lexSize.addAll(_lexSize);
-        dup._inCons .addAll(_inCons );
+        dup._kinds  .addAll(_kinds  );
         dup._guards .addAll(_guards );
         // The dup'd guards all need dup'd keepers, to keep proper accounting
         // when later removing all guards
@@ -235,7 +245,7 @@ public class ScopeNode extends ScopeMinNode {
         dup.addDef(ctrl());     // Control input is just copied
 
         // Memory input is a shallow copy
-        ScopeMinNode memdup = new ScopeMinNode(true), mem = mem();
+        MemMergeNode memdup = new MemMergeNode(true), mem = mem();
         memdup.addDef(null);
         memdup.addDef(loop ? this : mem.in(1));
         for( int i=2; i<mem.nIns(); i++ )
@@ -285,7 +295,7 @@ public class ScopeNode extends ScopeMinNode {
     // Forward refs are copied to the other side, "as if" they were there all along.
     public void balanceIf( ScopeNode scope ) {
         for( int i = nIns(); i < scope.nIns(); i++ ) {
-            ScopeMinNode.Var n = scope._vars.at(i);
+            Var n = scope._vars.at(i);
             if( n.isFRef() ) {  // RHS has forward refs
                 _vars.add(n);   // Copy to LHS
                 addDef(scope.in(i));

@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.io.IOException;
@@ -132,7 +131,7 @@ public class JSViewer implements AutoCloseable {
         // Just the Nodes first, in a cluster no edges
         sb.i().p("subgraph cluster_Nodes {\n").ii(); // Magic "cluster_" in the subgraph name
         for (Node n : all) {
-            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeMinNode || n==Parser.XCTRL )
+            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n==Parser.XCTRL )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.i().p(n.uniqueName()).p(" [ ");
             if( n instanceof MultiNode ) {
@@ -194,7 +193,7 @@ public class JSViewer implements AutoCloseable {
             sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             int lexStart=scope._lexSize.at(level);
             // Special for memory ScopeMinNode
-            ScopeMinNode n = scope.nIns()>1 ? scope.mem() : null;
+            MemMergeNode n = scope.nIns()>1 ? scope.mem() : null;
             if( level==0 && n!=null && n.nIns()>2 ) {
                 sb.i().p("<TR>");
                 for( int m=2; m<n.nIns(); m++ )
@@ -276,7 +275,7 @@ public class JSViewer implements AutoCloseable {
                 n instanceof CProjNode ||
                 // ScopeNodes are done separately
                 n instanceof ScopeNode ||
-                n instanceof ScopeMinNode
+                n instanceof MemMergeNode
                 )
                 continue;
             if( n.isDead() )
@@ -351,7 +350,7 @@ public class JSViewer implements AutoCloseable {
 
         // Memory
         if( scope.nIns()>1 ) {
-            ScopeMinNode n = scope.mem();
+            MemMergeNode n = scope.mem();
             for( int i=2; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
                 while( def instanceof ScopeNode lazy )

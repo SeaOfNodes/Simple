@@ -104,6 +104,7 @@ public class Parser {
     public Parser(String source, TypeInteger arg) {
         Node.reset();
         IterPeeps.reset();
+        Type.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
@@ -155,10 +156,10 @@ public class Parser {
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
 
         ctrl(XCTRL);
-        _scope.mem(new ScopeMinNode(false));
+        _scope.mem(new MemMergeNode(false));
 
         // Parse whole program, as-if function header "{ int arg -> body }"
-        ReturnNode ret = parseFunctionBody(TypeFunPtr.MAIN,loc(),"arg");
+        parseFunctionBody(TypeFunPtr.MAIN,loc(),"arg");
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
@@ -205,10 +206,10 @@ public class Parser {
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
         // external calls.
-        _scope.push();
+        _scope.push(ScopeNode.Kind.Function);
         ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
-        ScopeMinNode mem = new ScopeMinNode(true);
+        MemMergeNode mem = new MemMergeNode(true);
         mem.addDef(null);       // Alias#0
         mem.addDef(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole()); // All aliases
         _scope.mem(mem);
@@ -261,9 +262,9 @@ public class Parser {
      * Does not parse the opening or closing '{}'
      * @return a {@link Node} or {@code null}
      */
-    private Node parseBlock(boolean inCon) {
+    private Node parseBlock(ScopeNode.Kind kind) {
         // Enter a new scope
-        _scope.push(inCon);
+        _scope.push(kind);
         Node last = ZERO;
         while (!peek('}') && !_lexer.isEOF())
             last = parseStatement();
@@ -295,7 +296,7 @@ public class Parser {
         // Break ambiguity around leading function types and starting a block
         else if (peek('{') && !isTypeFun() ) {
             match("{");
-            return require(parseBlock(false),"}");
+            return require(parseBlock(ScopeNode.Kind.Block),"}");
         }
         // Declaration or normal assignment/expression
         else return parseDeclarationStatement();
@@ -331,7 +332,7 @@ public class Parser {
         //     }
         // }
         require("(");
-        _scope.push();          // Scope for the index variables
+        _scope.push(ScopeNode.Kind.Block); // Scope for the index variables
         if( !match(";") )       // Can be empty init "for(;test;next) body"
             parseDeclarationStatement(); // Non-empty init
         Node rez = parseLooping(true);
@@ -614,7 +615,7 @@ public class Parser {
         Node expr = parseAsgn();
 
         // Final variable to update
-        ScopeMinNode.Var def = _scope.lookup(name);
+        Var def = _scope.lookup(name);
         if( def==null )
             throw error("Undefined name '" + name + "'");
 
@@ -647,9 +648,7 @@ public class Parser {
         expr = zsMask(expr,t);
         // Type is sane
         if( !expr._type.isa(t) )
-            throw expr instanceof FRefNode fref
-                ? fref.err()
-                : error("Type " + expr._type.str() + " is not of declared type " + t.str());
+            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
     }
 
@@ -720,10 +719,11 @@ public class Parser {
 
         // Lift expression, based on type
         Node lift = liftExpr(expr, t, xfinal);
+
         if( xfinal && t instanceof TypeMemPtr tmp )
             t = tmp.makeRO();
 
-        // Define a new name,
+        // Define a new name
         if( !_scope.define(name,t,xfinal,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
         return lift;
@@ -746,7 +746,7 @@ public class Parser {
             throw error("struct '" + typeName + "' cannot be redefined");
 
         // A Block scope parse, and inspect the scope afterward for fields.
-        _scope.push(true);
+        _scope.push(ScopeNode.Kind.Constructor);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement();
@@ -758,7 +758,7 @@ public class Parser {
         Field[] fs = new Field[varlen-lexlen];
         for( int i=lexlen; i<varlen; i++ ) {
             s.addDef(_scope.in(i));
-            ScopeMinNode.Var v = _scope._vars.at(i);
+            Var v = _scope._vars.at(i);
             fs[i-lexlen] = Field.make(v._name,v.type(),ALIAS++,v._final);
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
@@ -814,6 +814,8 @@ public class Parser {
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = pos();
         String id = _lexer.matchId();
+        if( !(peek(',') || peek(';')) )
+            return posT(old1);
         pos(old2);              // Reset lexer to reparse
         if( id==null || _scope.lookup(id)!=null )
             return posT(old1);  // Reset lexer to reparse
@@ -1015,7 +1017,7 @@ public class Parser {
             int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
             String name = _lexer.matchId();
             if( name!=null ) {
-                ScopeMinNode.Var n = _scope.lookup(name);
+                Var n = _scope.lookup(name);
                 if( n != null && !(n.type() instanceof TypeMemPtr) ) {
                     if( n._final )
                         throw error("Cannot reassign final '"+n._name+"'");
@@ -1051,10 +1053,11 @@ public class Parser {
         if( matchx("new"  ) ) return alloc();
         if( match ("{"    ) ) return require(func(),"}");
         // Expect an identifier now
-        ScopeMinNode.Var n = requireLookupId();
+        Var n = requireLookupId();
         Node rvalue = _scope.in(n);
         if( rvalue._type == Type.BOTTOM )
-            throw error("Cannot read uninitialized field '"+n._name+"'");
+            if( rvalue instanceof FRefNode ) return rvalue;
+            else throw error("Cannot read uninitialized field '"+n._name+"'");
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
         if( ch==0  ) return rvalue;
@@ -1091,16 +1094,20 @@ public class Parser {
     }
 
     // Expect an ID here.  If not found, assume a forward reference function
-    ScopeMinNode.Var requireLookupId() {
+    Var requireLookupId() {
         String id = _lexer.matchId();
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
-        ScopeMinNode.Var n = _scope.lookup(id);
+        Var n = _scope.lookup(id);
         // If missing, assume a forward reference
         if( n==null ) {
-            _scope.define(id, TypeFunPtr.BOT, false, XCTRL, loc());
+            _scope.define(id, FRefNode.FREF_TYPE, true, XCTRL, loc());
             n = _scope.lookup(id);
-            //throw error("Undefined name '" + id + "'");
+        } else {
+            // Lookup worked on an out-of-function value.  No closures, so this
+            // has to be a final constant.
+            if( _scope.outOfFunction(n) && !(n._final && _scope.in(n._idx)._type.isConstant()) )
+                throw error("Variable '"+n._name+"' is out of function scope and must be a final constant");
         }
         return n;
     }
@@ -1138,13 +1145,12 @@ public class Parser {
         if( hasConstructor ) {
             idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
-            _scope.push();
+            _scope.push(ScopeNode.Kind.Block);
             Lexer loc = loc();
             for( int i=0; i<fs.length; i++ )
                 _scope.define(fs[i]._fname, fs[i]._type, fs[i]._final, s.in(i)._type==Type.TOP ? con(Type.BOTTOM) : s.in(i), loc);
             // Parse the constructor body
-            parseBlock(true);
-            require("}");
+            require(parseBlock(ScopeNode.Kind.Constructor),"}");
             init = _scope._inputs;
         }
         // Check that all fields are initialized
@@ -1261,7 +1267,7 @@ public class Parser {
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
-        Node load = new LoadNode(loc(),name, f._alias, tf.glb(), memAlias(f._alias), expr.keep(), off);
+        Node load = new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr.keep(), off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
@@ -1344,7 +1350,7 @@ public class Parser {
     private Node functionCall(Node expr) {
         if( expr._type == Type.NIL )
             throw error("Calling a null function pointer");
-        if( !(expr._type instanceof TypeFunPtr tfp) )
+        if( !expr._type.isa(TypeFunPtr.BOT) )
             throw error("Expected a function but got "+expr._type.glb().str());
         expr.keep();            // Keep while parsing args
 
@@ -1372,7 +1378,7 @@ public class Parser {
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
-        ScopeMinNode mem = new ScopeMinNode(true);
+        MemMergeNode mem = new MemMergeNode(true);
         mem.addDef(null);       // Alias#0
         mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
         _scope.mem(mem);

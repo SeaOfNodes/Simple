@@ -206,7 +206,7 @@ public abstract class GlobalCodeMotion {
             case NewNode st: break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
-            case ScopeMinNode ret: break; // Mem uses now on ScopeMin
+            case MemMergeNode ret: break; // Mem uses now on ScopeMin
             case NeverNode never: break;
             default: throw Utils.TODO();
             }

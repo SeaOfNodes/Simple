@@ -4,8 +4,6 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.util.*;
 
 public class Evaluator {
@@ -307,7 +305,7 @@ public class Evaluator {
             case NewNode      alloc -> alloc(alloc);
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
-            case ScopeMinNode mem   -> null;
+            case MemMergeNode mem   -> null;
             case ReadOnlyNode ro    -> val(ro.in(1));
             case CallNode     call  -> Utils.TODO(); // should not reach here, go the IfNode route
             default                 -> throw new AssertionError("Unexpected node " + node);
