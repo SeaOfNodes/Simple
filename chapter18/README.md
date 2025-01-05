@@ -1,17 +1,61 @@
 # Chapter 18: Functions
 
-Some thinking on function syntax:
 
-Function Types:
+I hardly know where to begin!  So many things changed here, mostly as indirect
+consequences of supporting functions.
+
+Highlights of the changes:
+
+- Function types, and a rework of the type lattice diagrams.
+- A distiguished `null` which can be used for both functions and struct pointers.
+- Functions themselves can be parsed and evaluated; recursive functions are supported.
+- Function calls are allowed, call sites can link and functions inlined.
+- The top-level is now a call to function `main`, and this changed most tests.
+- A top-level compile driver, which enforces optimization steps.
+- A local scheduler.
+- A new evaluator which relies on at least code motion, both global and local.
+- A graphic animated viewer for peepholes.
+
+Functions are *not* closures in this chapter; that brings about far more
+changes and subtle complexities than sensible for such a large chapter.
+
+
+
+## Function Types
+
 ```
 { argtype, argtype, ... -> rettype }
 ```
 
-Leading `{` character denotes the start of a function or function type.
+A leading `{` character denotes the start of a function or function type, then
+a list of argument types, and arrow `->` and the return type.
 
-Functions are normal variables and assigned the same way:
+Functions themselves are normal variables and assigned the same way:
 
-```functiontype var = function-typed-expr```
+`functiontype fcn = function-typed-expr`
+
+and function typed variables can be inferred, so `val` and `var` on the left
+hand side is fine.
+
+`val sq = { int x -> x*x; }`
+
+Internally, functions have a `TypeTuple` for the arguments, a return `Type`,
+and a *function index* spelled as a `fidx` in the code.  Function indices are
+unique small dense integers, one per unique function.  They will be mapped
+1-to-1 to the final code address of the generated function code.
+
+Function pointers can refer to more than one function with the same signature,
+and the `TypeFunPtr` tracks this as a bit set with the same tuple for signature
+and return.
+
+Function types can be `null` just like references.
+
+Functions cannot return `void`, but they can return `null` and have their
+return value ignored.  A syntactic sugar for this may be added in the future.
+
+
+
+## Functions
 
 Functions themselves using the same syntax with as types, but filled in:
 
@@ -47,64 +91,112 @@ optional.  This allows any section of code to be "thunked" by wrapping it in
 Called:
 `just5() // Returns 5`
 
+Functions are always anonymous.  When finally assigned to a variable, they will
+pick up the variable name for debugging and display purposes, but this has no
+semantics meaning.  Here is a function variable referring to more than one
+anonymous function; the resulting function either doubles or squares:
 
-Functions can be declared inside `struct`s, and will take a hidden `self`
-argument to allow access to the struct members - basically the function becomes
-a method.
+`val fcn = arg ? { int x -> x+x; } : { int x -> x*x; };`
 
-Also new this chapter, fields with a leading underscore `_` are private fields,
-and only accessible to 'self'.
+`fcn(3) // Prints either 6 or 9, depending on arg`
 
-```cpp
-struct String {
-  u8[] _chars; // Private, not nullable, final, must be initialized in constructor
-  
-  // Functions declared inside of a struct become instance methods
-  // and have access to the struct members.
-  val len = { -> _chars#; }
+Functions can be recursive:
+```
+val fact = { int n -> 
+  n <=1 ? n : n*fact(n-1); 
+}; 
+return fact(4); // Returns 4! or 24`
+```
 
-  val at = { idx -> _chars[idx]; }
-  
-  // 'self' keyword returns an instance of itself.
-  val append = { String? str ->
-    // Appending a null appends nothing
-    if( !str ) return self;
-    
-    // Manual array copy _chars to cs
-    u8[] cs = new u8[_chars# + str.len()];
-    for( int i=0; i<_chars#; i++ )
-      cs[i] = _chars[i];
-      
-    // Manual array copy str._chars to cs
-    for( int i=0; i<str.len(); i++ )
-      cs[_chars#+i] = str.at(i);
-
-    // Append returns a new String
-    return new String { _chars=cs; };
-  }
-
-
+You can early return as normal out of functions:
+```
+val find = { int[] xs, int x ->
+  for( int i=0; i<xs#; i++ )
+    if( xs[i] == x )
+      return i;
+  return -1;
 };
-
+return find;
 ```
 
-With some syntax sugar from the parser we can produce `Hello, Cliff`
-with method calls.
-```
-String name  = "Cliff";
-String greet = "Hello";
-return greet.append(", ").append(name);
-```
+Unlike prior chapters, all the `return`s from a single function are gathered
+together into a single `ReturnNode` point, and they must all be of the same
+general type.
 
-There's only a little special syntax going on here with method calls.  The
-normal field lookup is used for `greet.append`, yielding a function-typed
-value.  Since it was loaded from the field, the function is **pre-bound**
-(curried) to the `self` it was loaded from.
+When looking at the returned IR, the `StopNode` now reports one return for each
+function, including `main`: 
+`Stop[ return find; return Phi(Region,int,-1); ]`
 
-`{int->u8} atCliff = name.at; // The "at" for Cliff; function does not take a String anymore`
 
-`var       atHello = greet.at;`
+### Calls
 
-`atCliff[0]; // Returns 'C'`
+Calls have the usual syntax: `fcn(3)`.  Internally a `CallNode` takes in
+Control, Memory, all the normal arguments, and a hidden last argument which is
+the function pointer.  For calls to named functions this last argument will be
+a `ConstantNode` of the named function type, but in general it can be the
+result of any function-typed expression.
 
-`atHello[0]; // Returns 'H'`
+After a `Call` is a `CallEndNode`, internally abbreviated as `cend`.  The
+`CallEnd` will take the `Call` as an input, and also every *linked* function:
+functions the call-site *knows* it will call.  This will be expanded later to
+be a conservative approximation to the *Call Graph*, with each `CallEnd`
+*linked* to ever function it *may* call; if a function is not linked it can not
+be called from here.  This requires a global analysis (fast, cheap,
+incremental, and global), not in this chapter.  So for the moment we only
+link exact constant functions.
+
+If a call site is linked to a single function, and that single function is only
+called by this one call site (its function pointer is only used here, obvious
+from GVN) then the function inlines in the IR.
+
+`CallEnd`s are followed by projections for Control, Memory and the return value.
+
+
+
+## CodeGen - The Compile Driver
+
+There is now a top-level compile driver that enforces a phase ordering, and
+allows multiple compilations; the Fuzzer uses this to compare various generated
+programs.  The phases are:
+
+- Parse - Convert program text to Simple IR
+- Opto - General optimizations; for now iterate peepholes.
+- TypeCheck - Error checking after all types have propagated.  This mostly
+  reports on failed null checks.
+- Schedule - Global Code Motion scheduler.  After this phase, all nodes belong
+  in some basic block, with the normal suspect CFGNodes being basic blocks.
+- LocalSched - a local scheduler.  Its completely naive, except it enforces
+  some required rules: Phis appear at block heads, branchs at block exits.
+  There's room in the algorithm for a much more sophisticated list scheduler.
+  The `Eval2` evaluator requires this information.
+- RegAlloc - Not implemented (yet).  
+
+Several globals moved from the Parser to CodeGen, and probably several others
+ought to move here.  
+
+There is a very nice `toString()` here; hovering over the `code` variable in
+the debug winow will pretty-print the IR "as if" globally scheduled, and the
+code becomes very readable.
+
+
+
+## Eval2 - A new Evaluator
+
+There is now a second evaluator that uses the scheduling information to
+evaluate in a very straightforward way.  Essentially the normal IR nodes are
+treated like a special "machine instruction set" with infinite registers, and a
+globally correct schedule.  This evaluator supports functions and calls (and
+recursive calls).
+
+
+## Graph Visualizer
+
+Run as `make view` or `java JSViewer`, type your program in the text box, click
+outside the box and then use the arrow keys to view IR generator both forwards
+and backwards.  
+
+Nodes are color coded according to type, same as the lattice diagrams.  Nodes
+are shaped according to node function as well.  At the bottom are `ScopeNode`s,
+which only exist for the Parser but are actual Nodes and have `use->def` edges
+into the IR.
+
