@@ -7,9 +7,10 @@ consequences of supporting functions.
 Highlights of the changes:
 
 - Function types, and a rework of the type lattice diagrams.
-- A distiguished `null` which can be used for both functions and struct pointers.
+- Return Program Counter types, or Return PC or RPC for short.
+- A distiguished `null` which can be used for functions, RPCs and struct pointers.
 - Functions themselves can be parsed and evaluated; recursive functions are supported.
-- Function calls are allowed, call sites can link and functions inlined.
+- Function calls work, call sites can link, and functions can be inlined.
 - The top-level is now a call to function `main`, and this changed most tests.
 - A top-level compile driver, which enforces optimization steps.
 - A local scheduler.
@@ -19,9 +20,11 @@ Highlights of the changes:
 Functions are *not* closures in this chapter; that brings about far more
 changes and subtle complexities than sensible for such a large chapter.
 
+Functions can only refer to out of scope variables if they are some final
+constant.  This generally includes e.g. recursive function pointers.
 
 
-## Function Types
+## Function and RPC Types
 
 ```
 { argtype, argtype, ... -> rettype }
@@ -30,18 +33,18 @@ changes and subtle complexities than sensible for such a large chapter.
 A leading `{` character denotes the start of a function or function type, then
 a list of argument types, and arrow `->` and the return type.
 
-Functions themselves are normal variables and assigned the same way:
+Functions variables are normal variables and assigned the same way:
 
-`functiontype fcn = function-typed-expr`
+`functiontype fcn = function-typed-expr;`
 
 and function typed variables can be inferred, so `val` and `var` on the left
-hand side is fine.
+hand side is fine:
 
-`val sq = { int x -> x*x; }`
+`val sq = { int x -> x*x; };`
 
 Internally, functions have a `TypeTuple` for the arguments, a return `Type`,
 and a *function index* spelled as a `fidx` in the code.  Function indices are
-unique small dense integers, one per unique function.  They will be mapped
+unique small dense integers, one per unique function.  They are mapped
 1-to-1 to the final code address of the generated function code.
 
 Function pointers can refer to more than one function with the same signature,
@@ -51,13 +54,27 @@ and return.
 Function types can be `null` just like references.
 
 Functions cannot return `void`, but they can return `null` and have their
-return value ignored.  A syntactic sugar for this may be added in the future.
+return value ignored.  A syntactic sugar for null returns may be added in the future.
+
+
+### Return Program Counters
+
+Just like functions have a unique `function index` mapped one to one with
+function start addresses, call sites generate a unique `return program
+counter`, one per unique call site.  These are required for the evaluator to return
+from functions without itself relying on the implementing language's
+(e.g. Java) stack.  This is the type for such values and `TypeRPC` is very
+similar to a `TypeFunPtr` except that the signature doesn't matter.
+
+In spirit this is part of a `continuation` and would be required to do IR
+analysis of a hypothetical `call/cc` operation.  That is outside our current
+scope, so for now these are only used in the evaluator.
 
 
 
 ## Functions
 
-Functions themselves using the same syntax with as types, but filled in:
+Functions themselves using the same syntax with as function types, but filled in:
 
 ```
 { int x, int y ->
@@ -86,6 +103,7 @@ optional.  This allows any section of code to be "thunked" by wrapping it in
 `{}`.
 
 `just5 = { -> 5 } // With    arrow`
+
 `just5 = {    5 } // Without arrow`
 
 Called:
@@ -105,23 +123,31 @@ Functions can be recursive:
 val fact = { int n -> 
   n <=1 ? n : n*fact(n-1); 
 }; 
-return fact(4); // Returns 4! or 24`
+return fact(4); // Returns 4! or 24
 ```
 
 You can early return as normal out of functions:
 ```
-val find = { int[] xs, int x ->
-  for( int i=0; i<xs#; i++ )
-    if( xs[i] == x )
-      return i;
-  return -1;
+val find = { int[] es, int e ->
+  for( int i=0; i<es#; i++ )
+    if( es[i] == e )
+      return i;  // Found matching element, return the index
+  return -1;     // Return -1 for not-found
 };
 return find;
 ```
 
-Unlike prior chapters, all the `return`s from a single function are gathered
+`FunNodes` define functions, have a pointer to the one `ReturnNode` (which
+itself has a back pointer to the `Fun`), extend a `RegionNode` and are followed
+by `ParmNodes` which themselves extend `PhiNodes`.  All `Calls` which reach a
+`Fun` merge all their arguments into the `Parms`; there is an extra `Parm` for
+memory and for the return point back to the `CallEnd`: a RPC.  So a `Fun` is
+basically a fancy merge point, merging all calls that reach here.
+
+Unlike prior chapters, all the `returns` from a single function are gathered
 together into a single `ReturnNode` point, and they must all be of the same
-general type.
+general type.  `Returns` take in a Control, a Memory, a return value, and the
+`RPC` that was handed to the function when called.
 
 When looking at the returned IR, the `StopNode` now reports one return for each
 function, including `main`: 
@@ -135,6 +161,9 @@ Control, Memory, all the normal arguments, and a hidden last argument which is
 the function pointer.  For calls to named functions this last argument will be
 a `ConstantNode` of the named function type, but in general it can be the
 result of any function-typed expression.
+
+The call arguments passed to the matching `ParmNode`s in the function, 
+with the `Call`s constant `RPC` being passed to the matching RPC `Parm`.
 
 After a `Call` is a `CallEndNode`, internally abbreviated as `cend`.  The
 `CallEnd` will take the `Call` as an input, and also every *linked* function:
@@ -159,17 +188,17 @@ There is now a top-level compile driver that enforces a phase ordering, and
 allows multiple compilations; the Fuzzer uses this to compare various generated
 programs.  The phases are:
 
-- Parse - Convert program text to Simple IR
-- Opto - General optimizations; for now iterate peepholes.
-- TypeCheck - Error checking after all types have propagated.  This mostly
+- *Parse* - Convert program text to Simple IR
+- *Opto* - General optimizations; for now iterate peepholes.
+- *TypeCheck* - Error checking after all types have propagated.  This mostly
   reports on failed null checks.
-- Schedule - Global Code Motion scheduler.  After this phase, all nodes belong
+- *Schedule* - Global Code Motion scheduler.  After this phase, all nodes belong
   in some basic block, with the normal suspect CFGNodes being basic blocks.
-- LocalSched - a local scheduler.  Its completely naive, except it enforces
+- *LocalSched* - a local scheduler.  Its completely naive, except it enforces
   some required rules: Phis appear at block heads, branchs at block exits.
   There's room in the algorithm for a much more sophisticated list scheduler.
   The `Eval2` evaluator requires this information.
-- RegAlloc - Not implemented (yet).  
+- *RegAlloc* - Not implemented (yet).  
 
 Several globals moved from the Parser to CodeGen, and probably several others
 ought to move here.  
