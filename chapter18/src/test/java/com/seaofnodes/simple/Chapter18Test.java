@@ -1,26 +1,27 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
 import org.junit.Test;
-import org.junit.Ignore;
-
 import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
+import org.junit.Ignore;
 
 public class Chapter18Test {
 
     @Test
     public void testJig() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 return 0;
 """);
-        code.parse(true).opto().typeCheck().GCM();
+        code.parse(false).opto().typeCheck().GCM();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
     public void testPhiParalleAssign() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 int a = 1;
 int b = 2;
 while(arg--) {
@@ -42,7 +43,8 @@ return a;
     // ---------------------------------------------------------------
     @Test
     public void testType0() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 {int -> int}? x2 = null; // null function ptr
 return x2;
 """);
@@ -53,7 +55,8 @@ return x2;
 
     @Test
     public void testFcn0() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 {int -> int}? sq = { int x ->
     x*x;
 };
@@ -66,7 +69,8 @@ return sq;
 
     @Test
     public void testFcn1() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 var sq = { int x ->
     x*x;
 };
@@ -77,9 +81,48 @@ return sq(arg)+sq(3);
         assertEquals("13", Eval2.eval(code, 2));
     }
 
-    // Recursive factorial test
+    // Function scope test
     @Test
     public void testFcn2() {
+        CodeGen code = new CodeGen(
+"""
+int cnt=1;
+return { -> cnt; };
+""");
+        try { code.parse().opto(); fail(); }
+        catch( Exception e ) { assertEquals("Variable 'cnt' is out of function scope and must be a final constant",e.getMessage()); }
+    }
+
+    // Function scope test
+    @Test
+    public void testFcn3() {
+        CodeGen code = new CodeGen(
+"""
+val cnt=2;
+return { -> cnt; }();
+""");
+        code.parse().opto();
+        assertEquals("return 2;", code._stop.toString());
+        assertEquals("2", Eval2.eval(code, 0));
+    }
+
+    // Function variables
+    @Test
+    public void testFcn4() {
+        CodeGen code = new CodeGen(
+"""
+var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
+return fcn(3);
+""");
+        code.parse().opto();
+        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x(null,int)*x); return (Parm_x(null,int)*2); ]", code._stop.toString());
+        assertEquals("6", Eval2.eval(code, 0));
+        assertEquals("9", Eval2.eval(code, 1));
+    }
+
+    // Recursive factorial test
+    @Test
+    public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto();
         assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
@@ -90,34 +133,21 @@ return sq(arg)+sq(3);
         assertEquals("24", Eval2.eval(code, 4));
     }
 
-
-
+    // Mutual recursion.  Fails without SCCP to lift the recursive return types.
     @Ignore @Test
-    public void testFcn3() {
+    public void testFcn6() {
         CodeGen code = new CodeGen(
 """
-val counter = { ->
-    int cnt;
-    val rez = new {int}?[2];
-    rez[0] = { ->   cnt; };
-    rez[1] = { -> ++cnt; };
-    return rez;
-};
-val A = counter();
-val B = counter();
-int[] rez = new int[5];
-rez[0] = A[0](); // Value of counter A
-rez[1] = A[1](); // Increment counter A
-rez[2] = B[0](); // Value of counter B
-B[1]();          // Increment B
-B[1]();          // Increment B
-rez[3] = B[0](); // Value of counter B
-rez[4] = A[0]() * 10 + B[0]();
-return rez;
+val is_even = { int x -> x ? is_odd (x-1) : true ; };
+val is_odd  = { int x -> x ? is_even(x-1) : false; };
+return is_even(arg);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (const)[int]; return (const)[{ -> int #ALL}?]; return 0; return 1; ]", code._stop.toString());
-        assertEquals("13", Eval2.eval(code, 0));
+        assertEquals("Stop[ return is_even( arg); return Phi(Region,Phi(Region,is_even( ((Parm_x(is_even,int,arg,Sub)-1)-1)),0),1); ]", code._stop.toString());
+        assertEquals("1", Eval2.eval(code, 0));
+        assertEquals("0", Eval2.eval(code, 1));
+        assertEquals("1", Eval2.eval(code, 2));
+        assertEquals("0", Eval2.eval(code, 3));
     }
 
 }

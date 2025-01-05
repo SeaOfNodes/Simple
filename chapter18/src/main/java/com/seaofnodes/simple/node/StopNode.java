@@ -47,7 +47,7 @@ public class StopNode extends CFGNode {
     public Node idealize() {
         int len = nIns();
         for( int i=0; i<nIns(); i++ )
-            if( ((ReturnNode)in(i)).fun()==null )
+            if( ((ReturnNode)in(i)).fun().isDead() )
                 delDef(i--);
         if( len != nIns() ) return this;
         return null;

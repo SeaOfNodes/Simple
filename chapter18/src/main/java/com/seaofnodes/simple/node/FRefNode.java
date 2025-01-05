@@ -1,35 +1,25 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.BitSet;
 
 /**
- * A Constant node represents a constant value.  At present, the only constants
- * that we allow are integer literals; therefore Constants contain an integer
- * value.  As we add other types of constants, we will refactor how we represent
- * Constants.
- * <p>
- * Constants have no semantic inputs. However, we set Start as an input to
- * Constants to enable a forward graph walk.  This edge carries no semantic
- * meaning, and it is present <em>solely</em> to allow visitation.
- * <p>
- * The Constant's value is the value stored in it.
+ *  A Forward Reference.  Its any final constant, including functions.  When
+ *  the Def finally appears its plugged into the forward reference, which then
+ *  peepholes to the Def.
  */
 public class FRefNode extends ConstantNode {
-    public final ScopeMinNode.Var _n;
-    public FRefNode(ScopeMinNode.Var n) { super(TypeFunPtr.BOT); _n = n; }
+    public static final Type FREF_TYPE = Type.TOP;
+    public final Var _n;
+    public FRefNode( Var n ) { super(FREF_TYPE); _n = n; }
 
-    @Override
-    public String label() { return "FRef"+_n; }
+    @Override public String label() { return "FRef"+_n; }
 
-    @Override
-    public String uniqueName() { return "FRef_" + _nid; }
+    @Override public String uniqueName() { return "FRef_" + _nid; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append("FRef_").append(_n);
     }
 

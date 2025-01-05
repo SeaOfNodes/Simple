@@ -2,61 +2,25 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
-
 import static com.seaofnodes.simple.Utils.TODO;
 
-/* */
-public class ScopeMinNode extends Node {
+/**
+ *  Memory Merge - a merge of many aliases into a "fat memory".  All aliases
+ *  are here, but most will be lazy - take the default fat memory.
+ */
+public class MemMergeNode extends Node {
 
+    /*
+     *  In-Progress means this is being used by the Parser to track memory
+     *  aliases.  No optimizations are allowed.  When no longer "in progress"
+     *  normal peeps work.
+     */
     public final boolean _inProgress;
 
-    /** The tracked fields are now complex enough to deserve a array-of-structs layout
-     */
-    public static class Var {
-        public final String _name;   // Declared name
-        public int _idx;             // index in containing scope
-        private Type _type;          // Declared type
-        public boolean _final;       // Final field
-        public Parser.Lexer _loc;    // Source location
-        public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc) {
-            _idx = idx;
-            _name = name;
-            _type = type;
-            _final = xfinal;
-            _loc = loc;
-        }
-        public Type type() {
-            if( !_type.isFRef() ) return _type;
-            // Update self to no longer use the forward ref type
-            Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
-            return (_type=_type.meet(def));
-        }
-        public Type lazyGLB() {
-            Type t = type();
-            return t instanceof TypeMemPtr ? t : t.glb();
-        }
-
-        // Forward reference variables (not types) can only be a bottom
-        // function pointer.
-        public boolean isFRef() { return type()==TypeFunPtr.BOT; }
-
-        public boolean defFRef( Type type, boolean xfinal, Parser.Lexer loc ) {
-            assert isFRef();
-            _type = type;
-            _final = xfinal;
-            _loc = loc;
-            return true;
-        }
-
-        @Override public String toString() {
-            return _type.toString()+(_final ? " ": " !")+_name;
-        }
-    }
-
-    public ScopeMinNode(boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
+    public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
 
 
     // If being used by a Scope, this is "in progress" from the Parser.
@@ -88,7 +52,7 @@ public class ScopeMinNode extends Node {
     // not related to the parser in any way.
     public Node merge() {
         // Force default memory to not be lazy
-        ScopeMinNode merge = new ScopeMinNode(false);
+        MemMergeNode merge = new MemMergeNode(false);
         for( Node n : _inputs )
             merge.addDef(n);
         merge._mem(1,null);
@@ -127,7 +91,7 @@ public class ScopeMinNode extends Node {
         // then it must be START.proj(1)
         Node old = alias(alias);
         if( old instanceof ScopeNode loop ) {
-            ScopeMinNode loopmem = loop.mem();
+            MemMergeNode loopmem = loop.mem();
             Node memdef = loopmem.alias(alias);
             // Lazy phi!
             old = memdef instanceof PhiNode phi && loop.ctrl()==phi.region()
@@ -144,7 +108,7 @@ public class ScopeMinNode extends Node {
     }
 
 
-    void _merge(ScopeMinNode that, RegionNode r) {
+    void _merge( MemMergeNode that, RegionNode r) {
         int len = Math.max(nIns(),that.nIns());
         for( int i = 2; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
@@ -158,7 +122,7 @@ public class ScopeMinNode extends Node {
     }
 
     // Fill in the backedge of any inserted Phis
-    void _endLoopMem( ScopeNode scope, ScopeMinNode back, ScopeMinNode exit ) {
+    void _endLoopMem( ScopeNode scope, MemMergeNode back, MemMergeNode exit ) {
         Node exit_def = exit.alias(1);
         for( int i=1; i<back.nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {

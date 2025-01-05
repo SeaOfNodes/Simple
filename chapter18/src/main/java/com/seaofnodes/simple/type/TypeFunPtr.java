@@ -124,4 +124,12 @@ public class TypeFunPtr extends TypeNil {
     // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) { int fidxs = Long.numberOfTrailingZeros(fidxs); ... }
     public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
 
+    public static void reset() {
+        FIDXS.clear();
+        FIDXS.put(MAIN._sig,1);
+        for( Type t : INTERN.keySet() )
+            if( t instanceof TypeFunPtr tfp && tfp!=MAIN)
+                tfp._name = null;
+    }
+
 }
