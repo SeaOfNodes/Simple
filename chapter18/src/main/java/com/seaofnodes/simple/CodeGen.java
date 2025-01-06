@@ -42,6 +42,7 @@ public class CodeGen {
         Node._disablePeephole = disable;
         _stop = P.parse();
         _start = Parser.START;   // Capture global start
+        JSViewer.show();
         P = null;                // No longer parsing
         return this;
     }

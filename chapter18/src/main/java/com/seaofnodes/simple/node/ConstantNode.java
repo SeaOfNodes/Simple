@@ -31,8 +31,8 @@ public class ConstantNode extends Node {
         return new ConstantNode(type);
     }
 
-    @Override
-    public String label() { return "#"+_con; }
+    @Override public String  label() { return "#"+_con; }
+    @Override public String glabel() { return _con.gprint(new SB().p("#")).toString(); }
 
     @Override
     public String uniqueName() { return "Con_" + _nid; }

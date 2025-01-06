@@ -47,7 +47,7 @@ digraph Lattice {
     INT_CON0 -> INT_CON1 -> INT_CON [style=invis];
 
     // ----------------------
-    // Integers
+    // Floats
     FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
     FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
 

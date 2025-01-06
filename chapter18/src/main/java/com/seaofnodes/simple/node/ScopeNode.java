@@ -160,7 +160,7 @@ public class ScopeNode extends MemMergeNode {
         _vars.add(v);
         // Creating a forward reference
         if( init==Parser.XCTRL )
-            init = new FRefNode(v).peephole();
+            init = new FRefNode(v).init();
         addDef(init);
         return true;
     }

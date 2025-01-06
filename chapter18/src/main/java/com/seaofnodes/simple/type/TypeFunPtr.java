@@ -110,7 +110,7 @@ public class TypeFunPtr extends TypeNil {
         else {
             for( Type t : _sig._types )
                 _print(sb,g,t).p(" ");
-            _print(sb.p("-> "),g,_ret).p(" #");
+            _print(sb.p(g ? "&rarr; " : "-> "),g,_ret).p(" #");
             long fidxs = isHigh() ? ~_fidxs : _fidxs;
             String fidx = fidxs==0 ? ""
                 : Long.bitCount(fidxs) == 1 ? ""+Long.numberOfTrailingZeros(fidxs)
