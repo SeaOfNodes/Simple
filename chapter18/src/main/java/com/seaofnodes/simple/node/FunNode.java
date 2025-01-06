@@ -19,7 +19,7 @@ public class FunNode extends RegionNode {
     public FunNode( Parser.Lexer loc, StartNode start, TypeFunPtr sig ) { super(loc,null,start); _sig=sig; }
 
     @Override
-    public String label() { return _sig._name; }
+    public String label() { return _sig._name == null ? "$fun" : _sig._name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.

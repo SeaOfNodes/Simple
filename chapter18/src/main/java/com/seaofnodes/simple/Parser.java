@@ -170,7 +170,6 @@ public class Parser {
             init.unkeep().kill();
         INITS.clear();
         STOP.peephole();
-        JSViewer.show();
         if( show ) showGraph();
         return STOP;
     }
@@ -194,11 +193,11 @@ public class Parser {
         Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).peephole();
 
         // Build a multi-exit return point for all function returns
-        RegionNode r = new RegionNode((Node)null,null);
+        RegionNode r = new RegionNode((Node)null,null).init();
         assert r.inProgress();
-        PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null);
-        PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null);
-        ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun);
+        PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null).init();
+        PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null).init();
+        ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun).init();
         fun.setRet(ret);
         assert ret.inProgress();
         STOP.addDef(ret);

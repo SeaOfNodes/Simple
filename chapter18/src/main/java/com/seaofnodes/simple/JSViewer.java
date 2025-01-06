@@ -24,7 +24,7 @@ public class JSViewer implements AutoCloseable {
     static CodeGen CODE;        //
 
     JSViewer() throws Exception {
-        // Launch server; hand shake
+        // Launch server; handshake
         SERVER = new SimpleWebSocket(Paths.get("docs/index.html").toUri(),12345) ;
     }
 
@@ -35,7 +35,7 @@ public class JSViewer implements AutoCloseable {
             switch( src ) {
             case null: return;
             case "null": return;
-            case "+": break;    // Client requests more frames, but we send them all anyways
+            case "+": break;    // Client requests more frames, but we send them all anyway
             default:
                 System.out.println(src);
                 try {
@@ -69,6 +69,9 @@ public class JSViewer implements AutoCloseable {
     public static void show() { if( SERVER!=null && SHOW ) _show(); }
     private static void _show() {
         boolean midParse = CODE.P!=null;
+        // Skip util we at least get the Parse object made
+        if( !midParse && (CODE._phase==null || CODE._phase == CodeGen.Phase.Parse) )
+            return;
         Stack<ScopeNode> xScopes = midParse ? CODE.P._xScopes : null;
 
         Collection<Node> all = GraphVisualizer.findAll(xScopes, CODE._stop, midParse ? CODE.P._scope: null);
@@ -130,11 +133,11 @@ public class JSViewer implements AutoCloseable {
     private static void nodes(SB sb, Collection<Node> all) {
         // Just the Nodes first, in a cluster no edges
         sb.i().p("subgraph cluster_Nodes {\n").ii(); // Magic "cluster_" in the subgraph name
-        for (Node n : all) {
-            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n==Parser.XCTRL )
+        for( Node n : all ) {
+            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             sb.i().p(n.uniqueName()).p(" [ ");
-            if( n instanceof MultiNode ) {
+            if( n instanceof MultiNode && !(n instanceof StartNode) ) {
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.    p("shape=plaintext label=<\n").ii();
                 sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
@@ -184,14 +187,15 @@ public class JSViewer implements AutoCloseable {
     private static void scope( SB sb, ScopeNode scope ) {
         sb.i().p("node [shape=plaintext];\n");
         int last = scope.nIns();
-        int max = scope._lexSize.size();
+        int max = scope._lexSize.size()+1; // One more than lexsize
         for( int i = 0; i < max; i++ ) {
             int level = max-i-1;
             String scopeName = makeScopeName(scope, level);
             sb.i().p("subgraph cluster_").p(scopeName).p(" {\n").ii(); // Magic "cluster_" in the subgraph name
             sb.i().p(scopeName).p(" [label=<\n").ii();
             sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
-            int lexStart=scope._lexSize.at(level);
+            int lexStart = level==0 ? 0 : scope._lexSize.at(level-1);
+
             // Special for memory ScopeMinNode
             MemMergeNode n = scope.nIns()>1 ? scope.mem() : null;
             if( level==0 && n!=null && n.nIns()>2 ) {
@@ -200,10 +204,12 @@ public class JSViewer implements AutoCloseable {
                     cell(sb,"#"+m,n.alias(m),"m"+m);
                 sb.p("</TR>\n"); // End scope level
             }
+
             // Scope variables, empty if none
             if( lexStart<last ) {
                 sb.i().p("<TR>\n");
                 for( int j=lexStart; j<last; j++ ) {
+                    if( scope.in(j)==null ) continue;
                     var v = scope._vars.at(j);
                     cell(sb.i(),v._name,scope.in(j),makePortName(scopeName, v._name)).nl();
                 }
@@ -223,27 +229,48 @@ public class JSViewer implements AutoCloseable {
 
     // Append a cell, with color
     private static SB cell(SB sb, String text, Node n, String port) {
-        boolean dark=false;
         sb.p("<TD");
-        if( n instanceof CFGNode    ) sb.p(" BGCOLOR=\"yellow\"");
-        if( n instanceof NewNode    ) sb.p(" BGCOLOR=\"lightgreen\"");
-        if( n instanceof StructNode ) sb.p(" BGCOLOR=\"lightgreen\"");
-        if( n.isMem() )             { sb.p(" BGCOLOR=\"blue\""); dark=true; }
-        if( n._type instanceof TypeMemPtr ) { sb.p(" BGCOLOR=\"green\""); dark=true; }
-        if( n._type instanceof TypeInteger )  sb.p(" BGCOLOR=\"lightblue\"");
+        String color = color(n);
+        sb.p(" BGCOLOR=\"").p(color).p("\"");
         if( port!=null )  sb.p(" PORT=\"").p(port).p("\"");
-        return colorcell(sb.p(">"),text,n,dark).p("</TD>");
+        return colorcell(sb.p(">"),text,n,dark(color)).p("</TD>");
     }
     private static SB node(SB sb, String text, Node n) {
-        boolean dark=false;
-        if( n instanceof CFGNode )   sb.p("style=filled fillcolor=yellow shape=box ");
-        if( n instanceof PhiNode )   sb.p("style=filled fillcolor=lightyellow ");
-        if( n instanceof StructNode) sb.p("style=filled fillcolor=lightgreen ");
-        if( n.isMem()            ) { sb.p("style=filled fillcolor=blue "); dark=true; }
-        if( n._type instanceof TypeMemPtr ) { sb.p("style=filled fillcolor=green "); dark=true; }
-        if( n._type instanceof TypeInteger )  sb.p("style=filled fillcolor=lightblue ");
-        return colorcell(sb.p("label=<"),text,n,dark).p(">");
+        String color = color(n);
+        sb.p("style=filled fillcolor=").p(color).p(" ");
+        String shape = switch( n ) {
+        case FunNode fun -> "shape=box peripheries=2";
+        case CFGNode cfg -> "shape=box";
+        default -> "";
+        };
+        sb.p(shape).p(" ");
+        return colorcell(sb.p("label=<"),text,n,dark(color)).p(">");
     }
+
+    private static String color(Node n) {
+        return switch( n ) {
+        case CFGNode cfg  -> "yellow";
+        case NewNode nnn  -> "lightgreen";
+        case StructNode s -> "lightgreen";
+        default -> typeColor(n._type);
+        };
+    }
+    private static String typeColor(Type t) {
+        return t==null ? "white" : switch( t ) {
+        case TypeMem    mem -> "blue";
+        case TypeMemPtr tmp -> "green";
+        case TypeFunPtr tfp -> "orange";
+        case TypeRPC    rpc -> "antiquewhite";
+        case TypeInteger ti -> "lightblue";
+        case TypeFloat   tf -> "aqua";
+        case Type tn -> tn==Type.NIL ? "lightgray" : "red";
+        };
+    }
+    private static final String[] DARKS = new String[]{"blue","green","black"};
+    private static boolean dark(String color) { return Utils.find(DARKS,color) != -1; }
+
+
+
     // Called with an open div
     private static SB colorcell(SB sb, String text, Node n, boolean dark) {
         if( dark ) sb.p("<font color=\"white\">");
@@ -313,19 +340,14 @@ public class JSViewer implements AutoCloseable {
             if( (n.iskeep() || n.isUnused()) && scopeName != null ) {
                 sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ style=dashed color=grey];\n");
             }
+            // Force functions above return
+            if( n instanceof ReturnNode ret && ret.inProgress() && !ret.fun().isDead() )
+                sb.i().p(ret.ctrl().uniqueName()).p(" -> ").p(ret.fun().uniqueName()).p("[style=invis]\n");
         }
     }
 
     private static void nodeEdgeColor(SB sb, Type t) {
-        String color = switch( t ) {
-        case TypeMem mem -> "blue";
-        case TypeMemPtr ptr -> "green";
-        case TypeInteger ti -> "lightblue";
-        // control edges are colored red
-        default -> (t==Type.CONTROL || t==Type.XCONTROL) ? "red" : null;
-        };
-        if( color!=null )
-            sb.p(" color=").p(color);
+        sb.p(" color=").p(typeColor(t));
     }
 
     // Walk the scope edges
@@ -333,14 +355,14 @@ public class JSViewer implements AutoCloseable {
         sb.i().p("edge [style=dashed color=cornflowerblue];\n");
         int level=0;
         for( var v : scope._vars ) {
-            if( v._idx==1 ) continue; // Memory done seperately
+            if( v._idx==1 ) continue; // Memory done separately
             Node def = scope.in(v._idx);
             while( def instanceof ScopeNode lazy )
                 def = lazy.in(v._idx);
             if( def==null ) continue;
             while( level < scope._lexSize.size() && v._idx >= scope._lexSize.at(level) )
                 level++;
-            String scopeName = makeScopeName(scope, level-1);
+            String scopeName = makeScopeName(scope, level);
             sb.i()
                 .p(scopeName).p(":")
                 .p('"').p(makePortName(scopeName, v._name)).p('"') // wrap port name with quotes because $ctrl is not valid unquoted
