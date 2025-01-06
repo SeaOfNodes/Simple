@@ -8,13 +8,13 @@ Highlights of the changes:
 
 - Function types, and a rework of the type lattice diagrams.
 - Return Program Counter types, or Return PC or RPC for short.
-- A distiguished `null` which can be used for functions, RPCs and struct pointers.
+- A distinguished `null` which can be used for functions, RPCs and struct pointers.
 - Functions themselves can be parsed and evaluated; recursive functions are supported.
 - Function calls work, call sites can link, and functions can be inlined.
 - The top-level is now a call to function `main`, and this changed most tests.
 - A top-level compile driver, which enforces optimization steps.
 - A local scheduler.
-- A new evaluator which relies on at least code motion, both global and local.
+- A new evaluator which relies on at code motion, both global and local.
 - A graphic animated viewer for peepholes.
 
 Functions are *not* closures in this chapter; that brings about far more
