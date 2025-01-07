@@ -37,9 +37,9 @@ public class TypeFunPtr extends TypeNil {
 
     static TypeFunPtr make( byte nil, TypeTuple sig, Type ret, long fidxs ) { return new TypeFunPtr(nil,sig,ret,fidxs).intern(); }
     public static TypeFunPtr make( boolean nil, TypeTuple sig, Type ret ) { return make((byte)(nil ? 3 : 2),sig,ret,-1); }
-    @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil   ? this : make( nil,_sig,_ret,   _fidxs).setName(_name); }
-    public TypeFunPtr makeFrom( int fidx ) { return 1L<<fidx==_fidxs ? this : make(_nil,_sig,_ret,1L<<fidx ).setName(_name); }
-    public TypeFunPtr makeFrom( Type ret ) { return     ret ==_ret   ? this : make(_nil,_sig, ret,   _fidxs).setName(_name); }
+    @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil   ? this : make(  nil,_sig,_ret,   _fidxs).setName(_name); }
+    public TypeFunPtr makeFrom( Type ret ) { return     ret ==_ret   ? this : make( _nil,_sig, ret,   _fidxs).setName(_name); }
+    public TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _sig,_ret,1L<<fidx ).setName(_name); }
 
     // Compute "function indices": FIDX
     private static final HashMap<TypeTuple,Integer> FIDXS = new HashMap<>();

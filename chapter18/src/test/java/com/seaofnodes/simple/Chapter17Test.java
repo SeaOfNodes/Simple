@@ -279,6 +279,21 @@ return new A {
         catch( Exception e ) { assertEquals("'A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
     }
 
+    @Test
+    public void testVar16() {
+        CodeGen code = new CodeGen(
+"""
+struct S{};
+val x = 1;
+val s = new S{x = 2;};
+return x;
+"""
+);
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+    }
+
+
     // ---------------------------------------------------------------
     @Test
     public void testTrinary0() {

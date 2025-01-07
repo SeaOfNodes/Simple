@@ -263,6 +263,7 @@ public abstract class Eval2 {
         case LoadNode     ld   -> load(ld);
         case MinusFNode   mnf  -> - d(mnf.in(1));
         case MinusNode    sub  -> - x(sub.in(1));
+        case MulFNode     mlf  -> d(mlf.in(1)) *  d(mlf.in(2));
         case MulNode      mul  -> x(mul.in(1)) *  x(mul.in(2));
         case NewNode      alloc-> alloc(alloc);
         case NotNode      not  -> x(not.in(1)) == 0 ? 1L : 0L;
@@ -297,7 +298,7 @@ public abstract class Eval2 {
         return switch ( t ) {
         case TypeInteger i -> i.isConstant() ? (Long  )i.value() : "INT";
         case TypeFloat   f -> f.isConstant() ? (Double)f.value() : "FLT";
-        case TypeMemPtr tmp -> throw Utils.TODO();
+        case TypeMemPtr tmp -> tmp;
         case TypeFunPtr tfp -> tfp;
         case TypeMem mem -> "MEM";
         default -> null;

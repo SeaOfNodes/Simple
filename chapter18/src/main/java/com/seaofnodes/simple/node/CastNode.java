@@ -2,8 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.IterPeeps;
-
 import java.util.BitSet;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.

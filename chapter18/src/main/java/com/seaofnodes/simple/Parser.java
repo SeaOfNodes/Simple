@@ -217,7 +217,6 @@ public class Parser {
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
-            assert t==t.glb();  // Expect args declared type not be lifted
             _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
@@ -625,7 +624,9 @@ public class Parser {
         // TOP fields are for late-initialized fields; these have never
         // been written to, and this must be the final write.  Other writes
         // outside the constructor need to check the final bit.
-        if( _scope.in(def._idx)._type!=Type.TOP && def._final && !_scope.inCon() )
+        if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
+            // Inside a constructor, final assign is OK, outside nope
+            !(_scope.inCon() && def._idx >= _scope._lexSize.last()) )
             throw error("Cannot reassign final '"+name+"'");
 
         // Lift expression, based on type
@@ -1281,8 +1282,10 @@ public class Parser {
         if( matchx("++") || matchx("--") ) {
             if( f._final && !f._fname.equals("[]") )
                 throw error("Cannot reassign final '"+f._fname+"'");
-            Node inc = peep(new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)));
-            Node val = zsMask(inc,tf);
+            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
+            Node val = f._type instanceof TypeFloat
+                ?        peep(new AddFNode(load,con(TypeFloat.constant(delta))))
+                : zsMask(peep(new  AddNode(load,con(delta))),f._type);
             Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off, val, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
