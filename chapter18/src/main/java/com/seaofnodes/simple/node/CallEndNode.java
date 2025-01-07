@@ -48,21 +48,27 @@ public class CallEndNode extends CFGNode implements MultiNode {
         if( !_folding && nIns()==2 ) {
             CallNode call = call();
             Node fptr = call.fptr();
-            if( fptr.nOuts() == 1 ) { // Only user is this call
+            if( fptr.nOuts() == 1 && // Only user is this call
+                // Function is being called, and its not-null
+                fptr._type instanceof TypeFunPtr tfp && tfp.notNull()) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
-                assert fun.nIns()==3; // Expecting Start, and the Call
-                assert fun.in(1) instanceof StartNode && fun.in(2)==call;
+                // Expecting Start, and the Call
+                if( fun.nIns()==3 ) {
+                    assert fun.in(1) instanceof StartNode && fun.in(2)==call;
 
-                // Trivial inline: rewrite
-                _folding = true;
-                // Rewrite Fun so the normal RegionNode ideal collapses
-                fun._folding = true;
-                fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
-                fun.setDef(2,call.ctrl());  // Bypass the Call;
-                fun.ret().setDef(3,null);   // Return is folding also
-                IterPeeps.addAll(fun._outputs);
-                return this;
+                    // Trivial inline: rewrite
+                    _folding = true;
+                    // Rewrite Fun so the normal RegionNode ideal collapses
+                    fun._folding = true;
+                    fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
+                    fun.setDef(2,call.ctrl());  // Bypass the Call;
+                    fun.ret().setDef(3,null);   // Return is folding also
+                    IterPeeps.addAll(fun._outputs);
+                    return this;
+                } else {
+                    fun.addDep(this);
+                }
             } else { // Function ptr has multiple users (so maybe multiple call sites)
                 fptr.addDep(this);
             }

@@ -11,13 +11,14 @@ public class Chapter18Test {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-struct S { int i; };
-val newS = { int x -> return new S { i=x; }; };
-return newS(1).i;
+if( arg ? f : g ) return 1;
+val f = {->1};
+val g = {->2};
+return 2;
 """);
-        code.parse(false).opto().typeCheck().GCM();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  0));
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("return 0.0f;", code._stop.toString());
+        assertEquals("0.0", Eval2.eval(code,  0));
     }
 
     @Test
@@ -143,8 +144,8 @@ struct S { int i; };
 val newS = { int x -> return new S { i=x; }; };
 return newS(1).i;
 """);
-        code.parse(false).opto().typeCheck().GCM();
-        assertEquals("Stop[ return .i; return S; ]", code._stop.toString());
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("return 1;", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
@@ -166,6 +167,32 @@ return 1;
         catch( Exception e ) { assertEquals("No active loop for a break or continue",e.getMessage()); }
     }
 
+    // Calling and inlining a null function
+    @Test
+    public void testErr2() {
+        CodeGen code = new CodeGen(
+"""
+{int -> int}? i2i = { int i -> return i; };
+for(;;) {
+    if (i2i(2) == arg) break;
+    i2i = null;
+}
+""");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Might be null calling { int -> int #1}?",e.getMessage()); }
+    }
+
+
+    @Test
+    public void testErr3() {
+        CodeGen code = new CodeGen(
+"""
+val f = { int i, int j -> return i+j; };
+return f();
+""");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Expecting 2 arguments, but found 0",e.getMessage()); }
+    }
 
     // Mutual recursion.  Fails without SCCP to lift the recursive return types.
     @Ignore @Test

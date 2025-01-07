@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
@@ -37,9 +38,11 @@ public class CallNode extends CFGNode {
 
     Node ctrl() { return in(0); }
     Node mem () { return in(1); }
-    // Args mapped 1-to-1 on inputs
+    // Args mapped 1-to-1 on inputs, so conceptually start at 2
     Node arg(int idx) { return in(idx); }
-    // args from input 2 to last
+    // Same arg accounting as TFPs, although the numbering starts at 2
+    int nargs() { return nIns()-3; } // Minus control, memory, fptr
+    // args from input 2 to last; last is function input
     public Node fptr() { return _inputs.last(); }
 
     // Find the Call End from the Call
@@ -79,7 +82,7 @@ public class CallNode extends CFGNode {
         // Link: call calls target function.  Linking makes the target FunNode
         // point to this Call, and all his Parms point to the call arguments;
         // also the CallEnd points to the Return.
-        if( fptr()._type instanceof TypeFunPtr tfp ) {
+        if( fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
             // If fidxs is negative, then infinite unknown functions
             long fidxs = tfp.fidxs();
             if( fidxs > 0 ) {
@@ -115,7 +118,7 @@ public class CallNode extends CFGNode {
             if( use instanceof ParmNode parm )
                 parm.addDef(parm._idx==0 ? cend() : arg(parm._idx));
         // Call end points to function return
-        cend().addDef(fun.ret());
+        IterPeeps.add(cend()).addDef(fun.ret());
         assert linked(fun);
     }
 
@@ -125,6 +128,9 @@ public class CallNode extends CFGNode {
             throw Utils.TODO();
         if( !tfp.notNull() )
             return Parser.error( "Might be null calling "+tfp, _loc);
+        if( nargs() != tfp.nargs() )
+            return Parser.error( "Expecting "+tfp.nargs()+" arguments, but found "+nargs(), _loc);
+
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
             if( !arg(i+2)._type.isa(tfp.arg(i)) )

@@ -84,7 +84,6 @@ public class LoadNode extends MemOpNode {
                 phi.addDep(this);
                 break outer;
             case ConstantNode top: break outer;  // Assume shortly dead
-
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
@@ -99,6 +98,8 @@ public class LoadNode extends MemOpNode {
                 default: throw Utils.TODO();
                 }
                 break;
+            case MemMergeNode merge:  mem = merge.alias(_alias);  break;
+
             default:
                 throw Utils.TODO();
             }
