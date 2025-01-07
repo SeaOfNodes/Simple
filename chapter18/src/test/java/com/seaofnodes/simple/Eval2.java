@@ -224,7 +224,7 @@ public abstract class Eval2 {
         F.dec();                // Lower ref count
         // Install replacement Frame; set return result over the CallEnd
         F = cont._frame;
-        F.put(cont._cc,rez);    // Set return value into CallEnd
+        F.put0(cont._cc,rez);   // Set return value into CallEnd
         return cont._cc;        // Return CallEnd as the new control
     }
 

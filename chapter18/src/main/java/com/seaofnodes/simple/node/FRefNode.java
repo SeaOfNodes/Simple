@@ -11,7 +11,7 @@ import java.util.BitSet;
  *  peepholes to the Def.
  */
 public class FRefNode extends ConstantNode {
-    public static final Type FREF_TYPE = Type.TOP;
+    public static final Type FREF_TYPE = Type.BOTTOM;
     public final Var _n;
     public FRefNode( Var n ) { super(FREF_TYPE); _n = n; }
 

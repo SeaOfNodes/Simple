@@ -63,7 +63,7 @@ public class TypeFunPtr extends TypeNil {
     @Override
     Type xmeet(Type t) {
         TypeFunPtr that = (TypeFunPtr) t;
-        return TypeFunPtr.make(xmeet0(that),(TypeTuple)_sig.meet(that._sig), _ret.meet(that._ret),_fidxs | that._fidxs);
+        return TypeFunPtr.make(xmeet0(that),(TypeTuple)_sig.meet(that._sig), _ret.meet(that._ret), _fidxs | that._fidxs);
     }
 
     @Override
@@ -94,8 +94,9 @@ public class TypeFunPtr extends TypeNil {
 
     public TypeFunPtr setName(String name) {
         if( name==null ) return this;
-        assert _name==null || _name.equals(name);
         assert _fidxs > 0 && Long.bitCount(_fidxs) == 1;
+        // Name can be set to different things, just for debug
+        //assert _name==null || _name.equals(name);
         _name = name;
         return this;
     }
@@ -109,9 +110,11 @@ public class TypeFunPtr extends TypeNil {
         sb.p(x()).p("{ ");
         if( n && _name!=null ) sb.p(_name);
         else {
-            for( Type t : _sig._types )
-                _print(sb,g,t).p(" ");
+            if( _sig._types!=null )
+                for( Type t : _sig._types )
+                    _print(sb,g,t).p(" ");
             _print(sb.p(g ? "&rarr; " : "-> "),g,_ret).p(" #");
+            if( isHigh() ) sb.p("~");
             long fidxs = isHigh() ? ~_fidxs : _fidxs;
             String fidx = fidxs==0 ? ""
                 : Long.bitCount(fidxs) == 1 ? ""+Long.numberOfTrailingZeros(fidxs)

@@ -11,14 +11,29 @@ public class Chapter18Test {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-if( arg ? f : g ) return 1;
-val f = {->1};
-val g = {->2};
-return 2;
+return 0;
 """);
         code.parse().opto().typeCheck().GCM();
-        assertEquals("return 0.0f;", code._stop.toString());
-        assertEquals("0.0", Eval2.eval(code,  0));
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  0));
+    }
+
+    @Test
+    public void testJig2() {
+        CodeGen code = new CodeGen(
+"""
+struct S { S? next; };
+val f = { int dep, S s ->
+    if (dep-- == 0) return s;
+    S? v = f(dep, s);
+    return v ? v.next : null;
+};
+return f(1, new S);
+""");
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("Stop[ return f( 1,S); return Phi(Region,Parm_s(f,*S {*S? !next; },S,s),Phi(Region,.next,null)); ]", code._stop.toString());
+        assertEquals("null", Eval2.eval(code,  0));
+        assertEquals("null", Eval2.eval(code,  1));
     }
 
     @Test
@@ -149,6 +164,22 @@ return newS(1).i;
         assertEquals("1", Eval2.eval(code,  0));
     }
 
+    // Double forward reference
+    @Test
+    public void testFcn7() {
+        CodeGen code = new CodeGen(
+"""
+if( arg ? f : g ) return 1;
+val f = {->1;};
+val g = {->2;};
+return 2;
+""");
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("Stop[ return 1; return 1; return 2; ]", code._stop.toString());
+        assertEquals("1", Eval2.eval(code,  0));
+    }
+
+
     // Function break
     @Test
     public void testErr1() {
@@ -209,6 +240,25 @@ return is_even(arg);
         assertEquals("0", Eval2.eval(code, 1));
         assertEquals("1", Eval2.eval(code, 2));
         assertEquals("0", Eval2.eval(code, 3));
+    }
+
+    // Forward ref to 'x' means that
+    @Ignore @Test
+    public void testForwardRef1() {
+        CodeGen code = new CodeGen(
+"""
+struct S {
+    { int } f = { -> return x(); };
+};
+val x = { -> return 1; };
+S? s = null;
+for(;;) {
+    if (s) return s.f;
+}
+""");
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
 }
