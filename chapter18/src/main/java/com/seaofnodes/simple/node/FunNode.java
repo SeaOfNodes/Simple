@@ -1,9 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.BitSet;
@@ -73,7 +70,9 @@ public class FunNode extends RegionNode {
         // If no default/unknown caller, use the normal RegionNode ideal rules
         // to collapse
         if( unknownCallers() ) return null;
-        return super.idealize();
+        Node progress = super.idealize();
+        if( progress!=null ) IterPeeps.add( CodeGen.CODE._stop);
+        return progress;
     }
 
     // Bypass Region idom, always assume depth == 1, one more than Start
