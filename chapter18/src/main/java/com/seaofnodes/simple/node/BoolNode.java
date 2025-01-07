@@ -33,11 +33,11 @@ abstract public class BoolNode extends Node {
         Type t1 = in(1)._type;
         Type t2 = in(2)._type;
         // Exactly equals?
+        if( t1.isHigh() || t2.isHigh() )
+            return BOOL.dual();
         if( in(1)==in(2) )
             // LT fails, both EQ and LE succeed
             return this instanceof LT ? TypeInteger.FALSE : TypeInteger.TRUE;
-        if( t1.isHigh() || t2.isHigh() )
-            return BOOL.dual();
         if( t1 instanceof TypeInteger i1 &&
             t2 instanceof TypeInteger i2 )
             return doOp(i1,i2);
