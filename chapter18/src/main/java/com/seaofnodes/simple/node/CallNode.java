@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
@@ -11,7 +12,10 @@ import java.util.BitSet;
  */
 public class CallNode extends CFGNode {
 
-    public CallNode(Node... nodes) { super(nodes); }
+    // Source location for late reported errors
+    public final Parser.Lexer _loc;
+
+    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
 
     @Override
     public String label() { return "Call"; }
@@ -113,6 +117,20 @@ public class CallNode extends CFGNode {
         // Call end points to function return
         cend().addDef(fun.ret());
         assert linked(fun);
+    }
+
+    @Override
+    public Parser.ParseException err() {
+        if( !(fptr()._type instanceof TypeFunPtr tfp) )
+            throw Utils.TODO();
+        if( !tfp.notNull() )
+            return Parser.error( "Might be null calling "+tfp, _loc);
+        // Check for args
+        for( int i=0; i<tfp.nargs(); i++ )
+            if( !arg(i+2)._type.isa(tfp.arg(i)) )
+                return Parser.error( "Argument #"+i+" isa "+arg(i+2)._type+", but must be a "+tfp.arg(i), _loc);
+
+        return null;
     }
 
 }

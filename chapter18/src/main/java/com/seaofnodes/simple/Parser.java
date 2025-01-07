@@ -182,6 +182,8 @@ public class Parser {
         Node oldctrl = ctrl().keep();
         Node oldmem  = _scope.mem().keep();
         FunNode oldfun  = _fun;
+        ScopeNode breakScope = _breakScope; _breakScope = null;
+        ScopeNode continueScope = _continueScope; _continueScope = null;
 
         FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),START,sig));
         // Once the function header is available, install in linker table -
@@ -245,6 +247,8 @@ public class Parser {
         // Function scope ends
         _scope.pop();
         _fun = oldfun;
+        _breakScope = breakScope;
+        _continueScope = continueScope;
         // Reset control and memory to pre-function parsing days
         ctrl(oldctrl.unkeep());
         _scope.mem(oldmem.unkeep());
@@ -1021,7 +1025,7 @@ public class Parser {
                     if( n._final )
                         throw error("Cannot reassign final '"+n._name+"'");
                     Node expr = n.type() instanceof TypeFloat
-                        ?        peep(new AddFNode(_scope.in(n),con(TypeFloat.constant(-1))))
+                        ?        peep(new AddFNode(_scope.in(n),con(TypeFloat.constant(delta))))
                         : zsMask(peep(new  AddNode(_scope.in(n),con(delta))),n.type());
                     _scope.update(n,expr);
                     return expr;
@@ -1222,7 +1226,7 @@ public class Parser {
         if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
         else if( match("[") ) name = "[]";
-        else if( match("(") ) return require(functionCall(expr),")");
+        else if( match("(") ) return parsePostfix(require(functionCall(expr),")"));
         else return expr;       // No postfix
 
         if( expr._type==Type.NIL )
@@ -1370,7 +1374,7 @@ public class Parser {
         for( Node arg : args )
             arg.unkeep();
         // Into the call
-        CallNode call = (CallNode)new CallNode(args.asAry()).peephole();
+        CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
 
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();

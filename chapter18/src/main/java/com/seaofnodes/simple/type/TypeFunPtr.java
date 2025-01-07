@@ -81,6 +81,7 @@ public class TypeFunPtr extends TypeNil {
     public Type arg(int i) { return _sig._types[i]; }
     public long fidxs() { return _fidxs; }
     public Type ret() { return _ret; }
+    public int nargs() { return _sig._types.length; }
 
     @Override
     int hash() { return Utils.fold(_sig.hashCode() ^ _ret.hashCode() ^ _fidxs ^ super.hash()); }

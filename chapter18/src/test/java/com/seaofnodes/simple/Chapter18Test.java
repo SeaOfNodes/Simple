@@ -11,7 +11,9 @@ public class Chapter18Test {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-return 0;
+struct S { int i; };
+val newS = { int x -> return new S { i=x; }; };
+return newS(1).i;
 """);
         code.parse(false).opto().typeCheck().GCM();
         assertEquals("return 0;", code._stop.toString());
@@ -115,7 +117,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x(null,int)*x); return (Parm_x(null,int)*2); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int)*x); return (Parm_x($fun,int)*2); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -133,9 +135,41 @@ return fcn(3);
         assertEquals("24", Eval2.eval(code, 4));
     }
 
+    @Test
+    public void testFcn6() {
+        CodeGen code = new CodeGen(
+"""
+struct S { int i; };
+val newS = { int x -> return new S { i=x; }; };
+return newS(1).i;
+""");
+        code.parse(false).opto().typeCheck().GCM();
+        assertEquals("Stop[ return .i; return S; ]", code._stop.toString());
+        assertEquals("1", Eval2.eval(code,  0));
+    }
+
+    // Function break
+    @Test
+    public void testErr1() {
+        CodeGen code = new CodeGen(
+"""
+for(;;) {
+    val f = { ->
+        break;
+    };
+    f();
+    return 2;
+}
+return 1;
+""");
+        try { code.parse().opto(); fail(); }
+        catch( Exception e ) { assertEquals("No active loop for a break or continue",e.getMessage()); }
+    }
+
+
     // Mutual recursion.  Fails without SCCP to lift the recursive return types.
     @Ignore @Test
-    public void testFcn6() {
+    public void testFcnMutRec() {
         CodeGen code = new CodeGen(
 """
 val is_even = { int x -> x ? is_odd (x-1) : true ; };
