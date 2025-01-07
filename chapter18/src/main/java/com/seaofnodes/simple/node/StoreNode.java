@@ -43,6 +43,7 @@ public class StoreNode extends MemOpNode {
     public Type compute() {
         Type val = val()._type;
         TypeMem mem = (TypeMem)mem()._type; // Invariant
+        if( mem == TypeMem.TOP ) return TypeMem.TOP;
         Type t = Type.BOTTOM;               // No idea on field contents
         // Same alias, lift val to the declared type and then meet into other fields
         if( mem._alias == _alias ) {

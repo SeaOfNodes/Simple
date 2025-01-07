@@ -651,7 +651,7 @@ public class Parser {
         // Auto-narrow wide ints to narrow ints
         expr = zsMask(expr,t);
         // Type is sane
-        if( !expr._type.isa(t) )
+        if( expr._type!=Type.BOTTOM && !expr._type.isa(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
     }
@@ -711,14 +711,16 @@ public class Parser {
             if( inferType && !_scope.inCon() )
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
-            expr = t instanceof TypeMemPtr tn
+            expr = switch( t ) {
                 // Nullable pointers get a NIL; not-null get a TOP which
                 // signals that they *must* be initialized in the constructor.
-                ? (tn.nullable() ? NIL : con(Type.TOP))
-                // Bottom signals type inference: they must be initialized in
-                // the constructor and that's when we'll discover the type.
-                // Otherwise, its an Integer and use 0.
-                : (t==Type.BOTTOM ? con(t) : (t instanceof TypeInteger ? ZERO : con(TypeFloat.FZERO)));
+            case TypeNil tn -> tn.nullable() ? NIL : con(Type.TOP);
+            case TypeInteger ti -> ZERO;
+            case TypeFloat tf -> con(TypeFloat.FZERO);
+            // Bottom signals type inference: they must be initialized in
+            // the constructor and that's when we'll discover the type.
+            case Type tt -> { assert tt==Type.BOTTOM; yield con(tt); }
+            };
         }
 
         // Lift expression, based on type
@@ -727,6 +729,10 @@ public class Parser {
         if( xfinal && t instanceof TypeMemPtr tmp )
             t = tmp.makeRO();
 
+        // Lift type to the declaration.  This will report as an error later if
+        // we cannot lift the type.
+        if( !lift._type.isa(t) )
+            lift = peep(new CastNode(t,null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
@@ -1356,7 +1362,7 @@ public class Parser {
     private Node functionCall(Node expr) {
         if( expr._type == Type.NIL )
             throw error("Calling a null function pointer");
-        if( !expr._type.isa(TypeFunPtr.BOT) )
+        if( !(expr instanceof FRefNode) && !expr._type.isa(TypeFunPtr.BOT) )
             throw error("Expected a function but got "+expr._type.glb().str());
         expr.keep();            // Keep while parsing args
 

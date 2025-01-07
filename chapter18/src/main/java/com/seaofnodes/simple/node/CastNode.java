@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
@@ -45,4 +47,12 @@ public class CastNode extends Node {
 
     @Override
     int hash() { return _t.hashCode(); }
+
+    @Override
+    public Parser.ParseException err() {
+        // Has a condition to test, so OK
+        if( in(0) != null ) return null;
+        // No condition to test, so this must optimize away
+        throw Utils.TODO();
+    }
 }
