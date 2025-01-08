@@ -93,8 +93,8 @@ public class StoreNode extends MemOpNode {
             err()==null ) {
             nnn.setDef(nnn.findAlias(_alias),val());
             // Must retype the NewNode
-            nnn  ._type = nnn.  compute();
-            mem()._type = mem().compute();
+            nnn  .setType(nnn  .compute());
+            mem().setType(mem().compute());
             return mem();
         }
 

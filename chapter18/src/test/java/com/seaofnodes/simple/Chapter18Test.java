@@ -225,6 +225,26 @@ return f();
         catch( Exception e ) { assertEquals("Expecting 2 arguments, but found 0",e.getMessage()); }
     }
 
+
+    @Test
+    public void testErr4() {
+        CodeGen code = new CodeGen(
+"""
+struct S {
+    {int} f = { -> x(); return 0; }; // Do not let fref x be a field
+};
+val x = { -> return 1; };
+S? s = null;
+for(;;) {
+    if (s) return s.x;
+}
+""");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*S'",e.getMessage()); }
+    }
+
+
+
     // Mutual recursion.  Fails without SCCP to lift the recursive return types.
     @Ignore @Test
     public void testFcnMutRec() {

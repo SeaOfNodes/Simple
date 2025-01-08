@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.FRefNode;
 import com.seaofnodes.simple.type.*;
 
 
@@ -14,13 +13,18 @@ public class Var {
     private Type _type;          // Declared type
     public boolean _final;       // Final field
     public Parser.Lexer _loc;    // Source location
+    public boolean _fref;        // Forward ref
 
-    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc) {
+    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc ) {
+        this(idx,name,type,xfinal,loc,false);
+    }
+    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc, boolean fref) {
         _idx = idx;
         _name = name;
         _type = type;
         _final = xfinal;
         _loc = loc;
+        _fref = fref;
     }
     public Type type() {
         if( !_type.isFRef() ) return _type;
@@ -33,16 +37,16 @@ public class Var {
         return t instanceof TypeMemPtr ? t : t.glb();
     }
 
-    // Forward reference variables (not types) can only be a bottom
-    // function pointer.
-    public boolean isFRef() { return type()== FRefNode.FREF_TYPE; }
+    // Forward reference variables (not types) must be BOTTOM and
+    // distinct from inferred variables
+    public boolean isFRef() { return _fref; }
 
-    public boolean defFRef( Type type, boolean xfinal, Parser.Lexer loc ) {
+    public void defFRef( Type type, boolean xfinal, Parser.Lexer loc ) {
         assert isFRef() && xfinal;
         _type = type;
         _final = true;
         _loc = loc;
-        return true;
+        _fref = false;
     }
 
     @Override public String toString() {

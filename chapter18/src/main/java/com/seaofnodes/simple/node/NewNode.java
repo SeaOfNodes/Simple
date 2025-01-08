@@ -26,7 +26,7 @@ public class NewNode extends Node implements MultiNode {
         assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
         for( int i=0; i<_len; i++ ) {
             // Memory slices for all fields.
-            assert nodes[2+     i]._type.isa(TypeMem.BOT);
+            assert nodes[2+         i]._type.isa(TypeMem.BOT);
             // Value  slices for all fields.
             assert nodes[2 + _len + i]._type != null;
         }
@@ -59,7 +59,7 @@ public class NewNode extends Node implements MultiNode {
         ts[1] = _ptr;
         for( int i=0; i<fs.length; i++ ) {
             Type mt = in(i+2)._type;
-            TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)in(i+2)._type;
+            TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
             Type tfld = in(2+_len+i)._type.meet(mem._t);
             ts[i+2] = TypeMem.make(fs[i]._alias,tfld);
         }

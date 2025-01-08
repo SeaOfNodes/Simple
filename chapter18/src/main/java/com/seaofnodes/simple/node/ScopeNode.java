@@ -156,7 +156,7 @@ public class ScopeNode extends MemMergeNode {
                     setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
                 }
             }
-        Var v = new Var(nIns(),name,declaredType,xfinal,loc);
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==Parser.XCTRL);
         _vars.add(v);
         // Creating a forward reference
         if( init==Parser.XCTRL )
