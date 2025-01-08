@@ -765,13 +765,14 @@ public class Parser {
         int lexlen = _scope._lexSize.last();
         int varlen = _scope._vars._len;
         StructNode s = new StructNode();
-        Field[] fs = new Field[varlen-lexlen];
+        Ary<Field> fs = new Ary<>(Field.class);
         for( int i=lexlen; i<varlen; i++ ) {
             s.addDef(_scope.in(i));
             Var v = _scope._vars.at(i);
-            fs[i-lexlen] = Field.make(v._name,v.type(),ALIAS++,v._final);
+            if( !v.isFRef() )  // Promote to outer scope, not defined here
+                fs.push(Field.make(v._name,v.type(),ALIAS++,v._final));
         }
-        TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
+        TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
         TYPES.put(typeName, TypeMemPtr.make(ts));
         INITS.put(typeName,s.peephole().keep());
         // Done with struct/block scope
