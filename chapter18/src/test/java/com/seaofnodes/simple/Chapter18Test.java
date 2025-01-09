@@ -13,7 +13,7 @@ public class Chapter18Test {
 """
 return 0;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -179,6 +179,24 @@ return 2;
         assertEquals("1", Eval2.eval(code,  0));
     }
 
+    @Test
+    public void testFcn8() {
+        CodeGen code = new CodeGen(
+"""
+{int -> int}? i2i = null;
+var id = {{int->int} f-> return f;};
+for(;;) {
+    if (i2i) return i2i(arg);
+    var x = {int i-> return i;};
+    arg = x(3);
+    i2i = id(x);
+}
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("Stop[ return x( Phi(Loop,arg,x( 3))); return Parm_i(x,int,3,Phi_arg); ]", code._stop.toString());
+        assertEquals("3", Eval2.eval(code,  0));
+    }
+
 
     // Function break
     @Test
@@ -203,7 +221,7 @@ return 1;
     public void testErr2() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = { int i -> return i; };
+{int -> int}? !i2i = { int i -> return i; };
 for(;;) {
     if (i2i(2) == arg) break;
     i2i = null;

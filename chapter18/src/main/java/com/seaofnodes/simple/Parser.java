@@ -694,10 +694,16 @@ public class Parser {
         Node expr;
         if( match("=") ) {
             expr = parseAsgn();
-            // `val` is always final
+            // TOP means val and val is always final
             xfinal = (t==Type.TOP) ||
-                // var is always not-final, final if no Bang AND TMP since primitives are not-final by default
-                (t!=Type.BOTTOM && !hasBang && (t instanceof TypeMemPtr));
+                // BOTTOM is var and var is always not-final
+                (t!=Type.BOTTOM &&
+                 // no Bang AND
+                 !hasBang &&
+                 // not-null (expecting null to be set to not-null)
+                 expr._type != Type.NIL &&
+                 // Pointers are final by default; int/flt are not-final by default.
+                 (t instanceof TypeNil));
             // var/val, then type comes from expression
             if( inferType ) {
                 if( expr._type==Type.NIL )
