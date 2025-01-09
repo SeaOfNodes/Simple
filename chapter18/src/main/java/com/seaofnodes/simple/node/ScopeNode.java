@@ -209,6 +209,7 @@ public class ScopeNode extends MemMergeNode {
                 : loop.setDef(v._idx,new PhiNode(v._name, v.lazyGLB(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
+        assert !v._final || st==null;
         if( st!=null ) setDef(v._idx,st); // Set new value
         return v;
     }
@@ -258,7 +259,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=2; i<nIns(); i++ )
             // For lazy phis on loops we use a sentinel
             // that will trigger phi creation on update
-            dup.addDef(loop ? this : in(i));
+            dup.addDef(loop && !_vars.at(i)._final ? this : in(i));
         return dup;
     }
 
@@ -327,6 +328,8 @@ public class ScopeNode extends MemMergeNode {
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
         for( int i=2; i<nIns(); i++ ) {
+            if( _vars.at(i)._final ) continue; // Final vars did not get modified in the loop
+            if( _vars.at(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
             if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;
