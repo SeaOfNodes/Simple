@@ -830,6 +830,7 @@ public class Parser {
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = pos();
+        match("!");
         String id = _lexer.matchId();
         if( !(peek(',') || peek(';')) )
             return posT(old1);
