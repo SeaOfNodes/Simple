@@ -18,7 +18,36 @@ return 3.14;
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
+    @Test
+    public void OwnForwardRef() {
+        // get back to this
+        Parser parser = new Parser (
+                """
+                        struct Person {
+                          String name;       
+                          int age;
+                          FamilyTree tree;  
+                           }
+                       """
+        );
+        StopNode stop = parser.parse().iterate(false);
 
+    }
+    @Test
+    public void OwnFromForwardRef() {
+        Parser parser = new Parser (
+                """
+                        struct Person {
+                          String name;       
+                          int age;
+                          FamilyTree? tree;  
+                           }
+                         Person p = new Person;
+                         p.tree.la = null;
+                       """
+        );
+        StopNode stop = parser.parse().iterate(false);
+    }
     @Test
     public void testLinkedList0() {
         Parser parser = new Parser(
@@ -38,6 +67,17 @@ return head.next.i;
         catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
     }
 
+    @Test
+    public void testCannotStoreNull() {
+        Parser parser = new Parser(
+                """
+                  struct N { N next; int i; }
+                          N n = new N;
+                          n.next = null; // <<-- Compile error, cannot store null into not-null field
+                          return n.next;
+                """);
+        StopNode stop = parser.parse().iterate(false);
+    }
     @Test
     public void testLinkedList1() {
         Parser parser = new Parser(
