@@ -31,7 +31,7 @@ constant.  This generally includes e.g. recursive function pointers.
 ```
 
 A leading `{` character denotes the start of a function or function type, then
-a list of argument types, and arrow `->` and the return type.
+a list of argument types, and an arrow `->` and the return type.
 
 Functions variables are normal variables and assigned the same way:
 
@@ -54,7 +54,7 @@ and return.
 Function types can be `null` just like references.
 
 Functions cannot return `void`, but they can return `null` and have their
-return value ignored.  A syntactic sugar for null returns may be added in the future.
+return value ignored.  A syntactic sugar for void returns may be added in the future.
 
 
 ### Return Program Counters
@@ -66,7 +66,7 @@ from functions without itself relying on the implementing language's
 (e.g. Java) stack.  This is the type for such values and `TypeRPC` is very
 similar to a `TypeFunPtr` except that the signature doesn't matter.
 
-In spirit this is part of a `continuation` and would be required to do IR
+In spirit, this is part of a `continuation` and would be required to do IR
 analysis of a hypothetical `call/cc` operation.  That is outside our current
 scope, so for now these are only used in the evaluator.
 
