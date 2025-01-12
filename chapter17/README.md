@@ -1,11 +1,33 @@
 # Chapter 17: Syntax Sugar
 
 
+1. [Pre/Post-increment](#prepost-increment)
+2. [Operator assignment](#operator-assignment)
+3. [var/val](#var--val)
+   - [Example(1)](#example1)
+   - [Example(2)](#example2)
+4. [Mutability](#mutability)
+5. [Reference immutability](#reference-variables-with-an-initializer-are-deeply-immutable)
+6. [Trinary](#trinary)
+7. [For Loops](#for-loops)
+
+
 ## Pre/Post-increment
 
-Allow `arg++` and `arg--` with the usual meanings; the value is updated and the
-expression is the pre-update value.  Greedy match is used so `arg---arg` parses
-as `(arg--)-arg`.
+Allow `arg++`, `arg--`, `++arg`, and `--arg` with the usual meanings:
+
+- Post-Increment (`arg++`): The value is updated after the expression is evaluated, and the expression evaluates to the pre-update value.
+
+
+- Post-Decrement (`arg--`): The value is updated after the expression is evaluated, and the expression evaluates to the pre-update value.
+
+
+- Pre-Increment (`++arg`): The value is updated before the expression is evaluated, and the expression evaluates to the post-update value.
+
+
+- Pre-Decrement (`--arg`): The value is updated before the expression is evaluated, and the expression evaluates to the post-update value.
+
+Greedy match is used so `arg---arg` parses as `(arg--) - arg`.
 
 Also allows `s.fld++` and `ary[idx]++`, and their `--` variants.
 
@@ -14,10 +36,16 @@ Allow pre-increment for identifiers only, for now: `--pc`.
 
 ## Operator assignment
 
-Along the same lines as post-increment, we now allow `op=` assignment
+Along the same lines as post-increment, we now allow `op=` assignment(compund assignemnt)
 with semantics similar to other languages.
 
-`x += y`
+- `x += y`
+
+- `x -= y`
+
+- `x *= y`
+
+- `x /= y`
 
 
 ## var & val
@@ -37,7 +65,29 @@ infers as
 
 `S s? = new S;`
 
+#### **Example(1)**:
+```java
+var a = 1; // infers as TypeInteger.BOT
+return a; 
+```
+The type inferring happens here:
+```java
+// var/val, then type comes from expression
+if( inferType )
+    t = expr._type.glb();
+```
+`var` allows modyfing the value, while `val` does not.
 
+#### **Example(2)**:
+```java
+val a = 1; 
+a = 2; // Error: Cannot assign to final 'a'
+return a;
+```
+```java 
+if( _scope.in(def._idx)._type!=Type.TOP && def._final && !_scope.inCon() )
+throw error("Cannot reassign final '"+name+"'");
+```
 ## Mutability
 
 Typed primitive fields are always mutable.  Typed reference fields without an
@@ -76,7 +126,6 @@ Leading `!` makes mutable:
 through other references.
 
 `val s = new S; s.x++; // Error, val so s.x is immutable`
-
 
 
 ### Reference variables with an initializer are deeply immutable
@@ -133,4 +182,3 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return i; // ERROR: Undefined name 'i'
 ```
-
