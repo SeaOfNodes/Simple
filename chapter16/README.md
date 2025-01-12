@@ -1,5 +1,12 @@
 # Chapter 16: Constructors and Final fields
 
+# Table of Contents
+
+1. [Constructors](#constructors)
+2. [Initialization code](#initialization-code)
+3. [Final fields](#final-fields)
+4. [Multiple Decls](#multiple-declarations-of-the-same-type)
+
 In this chapter, we add constructors and final fields.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter16) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter15...linear-chapter16) it to the previous chapter.
@@ -41,8 +48,8 @@ allocation.  They do not start with the default value, although the
 initialization can be to the default.
 
 ```
-struct Person { u8[] name; }
-return new Person; // ERROR: not-null field 'name' not initalized
+struct Person { u8[] name; };
+return new Person; // ERROR: 'Person' is not fully initialized, field 'name' needs to be set in a constructor
 ```
 
 
@@ -91,18 +98,18 @@ x = 3;       // ERROR: cannot re-assign a final field
 ```
 
 ```
-struct Person { u8[]? !name; }
+struct Person { u8[]? !name; };
 return new Person { name = null; }; // OK: final name is assigned
 ```
 
 ```
-struct Point { int !x; int !y; int !z; }
-return new Point { x=arg; y=z; z=x; } // ERROR: final field z used before initialized
+struct Point { int !x; int !y; int !z; };
+return new Point { x=arg; y=z; z=x; }; // ERROR:  'Point' is not fully initialized, field 'y' needs to be set in a constructor
 ```
 
 ```
-struct Point { int x; int y; int z; } // Fields not-final, default to 0
-return new Point { x=arg; y=z; z=x; } // Ok: x=arg, y=0, z=arg
+struct Point { int x; int y; int z; }; // Fields not-final, default to 0
+return new Point { x=arg; y=z; z=x; }; // Ok: x=arg, y=0, z=arg
 ```
 
 
@@ -113,7 +120,7 @@ is commonly seen in other languages:
 
 ```
 int x,y; // Two int variables declared
-struct Point { int x,y,z; } // Three fields declared
+struct Point { int x,y,z; }; // Three fields declared
 ```
 
 ```
