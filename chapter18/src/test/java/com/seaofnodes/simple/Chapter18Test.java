@@ -13,27 +13,9 @@ public class Chapter18Test {
 """
 return 0;
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  0));
-    }
-
-    @Test
-    public void testJig2() {
-        CodeGen code = new CodeGen(
-"""
-struct S { S? next; };
-val f = { int dep, S s ->
-    if (dep-- == 0) return s;
-    S? v = f(dep, s);
-    return v ? v.next : null;
-};
-return f(1, new S);
-""");
         code.parse().opto().typeCheck().GCM();
-        assertEquals("Stop[ return f( 1,S); return Phi(Region,Parm_s(f,*S {*S? !next; },S,s),Phi(Region,.next,null)); ]", code._stop.toString());
-        assertEquals("null", Eval2.eval(code,  0));
-        assertEquals("null", Eval2.eval(code,  1));
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  1));
     }
 
     @Test

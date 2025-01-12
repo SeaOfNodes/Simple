@@ -191,6 +191,9 @@ public class Type {
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
 
+    // True if this "isa" t up to named structures
+    public boolean shallowISA( Type t ) { return isa(t); }
+
     public Type nonZero() { return TypePtr.NPTR; }
 
     // Make a zero version of this type, 0 for integers and null for pointers.

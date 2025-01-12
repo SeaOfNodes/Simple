@@ -178,4 +178,70 @@ return p1.pi.i + 1;
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 
+    @Test
+    public void testCoRecur2() {
+        CodeGen code = new CodeGen(
+"""
+struct A { L? a; T? b; F? c; };  A? !a = new A;
+struct B { M? a; U? b; G? c; };  B? !b = new B;
+struct C { N? a; V? b; H? c; };  C? !c = new C;
+struct D { O? a; W? b; I? c; };  D? !d = new D;
+struct E { P? a; X? b; J? c; };  E? !e = new E;
+struct F { Q? a; Y? b; K? c; };  F? !f = new F;
+struct G { R? a; Z? b; L? c; };  G? !g = new G;
+struct H { S? a; A? b; M? c; };  H? !h = new H;
+struct I { T? a; B? b; N? c; };  I? !i = new I;
+struct J { U? a; C? b; O? c; };  J? !j = new J;
+struct K { V? a; D? b; P? c; };  K? !k = new K;
+struct L { W? a; E? b; Q? c; };  L? !l = new L;
+struct M { X? a; F? b; R? c; };  M? !m = new M;
+struct N { Y? a; G? b; S? c; };  N? !n = new N;
+struct O { Z? a; H? b; T? c; };  O? !o = new O;
+struct P { A? a; I? b; U? c; };  P? !p = new P;
+struct Q { B? a; J? b; V? c; };  Q? !q = new Q;
+struct R { C? a; K? b; W? c; };  R? !r = new R;
+struct S { D? a; L? b; X? c; };  S? !s = new S;
+struct T { E? a; M? b; Y? c; };  T? !t = new T;
+struct U { F? a; N? b; Z? c; };  U? !u = new U;
+struct V { G? a; O? b; A? c; };  V? !v = new V;
+struct W { H? a; P? b; B? c; };  W? !w = new W;
+struct X { I? a; Q? b; C? c; };  X? !x = new X;
+struct Y { J? a; R? b; D? c; };  Y? !y = new Y;
+struct Z { K? a; S? b; E? c; };  Z? !z = new Z;
+
+a.a=l;  a.b=t; a.c=f;
+b.a=m;  b.b=u; b.c=g;
+c.a=n;  c.b=v; c.c=h;
+d.a=o;  d.b=w; d.c=i;
+e.a=p;  e.b=x; e.c=j;
+f.a=q;  f.b=y; f.c=k;
+g.a=r;  g.b=z; g.c=l;
+h.a=s;  h.b=a; h.c=m;
+i.a=t;  i.b=b; i.c=n;
+j.a=u;  j.b=c; j.c=o;
+k.a=v;  k.b=d; k.c=p;
+l.a=w;  l.b=e; l.c=q;
+m.a=x;  m.b=f; m.c=r;
+n.a=y;  n.b=g; n.c=s;
+o.a=z;  o.b=h; o.c=t;
+p.a=a;  p.b=i; p.c=u;
+q.a=b;  q.b=j; q.c=v;
+r.a=c;  r.b=k; r.c=w;
+s.a=d;  s.b=l; s.c=x;
+t.a=e;  t.b=m; t.c=y;
+u.a=f;  u.b=n; u.c=z;
+v.a=g;  v.b=o; v.c=a;
+w.a=h;  w.b=p; w.c=b;
+x.a=i;  x.b=q; x.c=c;
+y.a=j;  y.b=r; y.c=d;
+z.a=k;  z.b=s; z.c=e;
+
+return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
+
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("return R;", code._stop.toString());
+        assertEquals("R{a=C{a=N{a=Y{a=J{a=U{a=F{a=Q{a=B{a=M{a=X{a=I{a=T{a=E{a=P{a=A{a=L{a=W{a=H{a=S{a=D{a=O{a=Z{a=K{a=V{a=G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
+    }
+
 }

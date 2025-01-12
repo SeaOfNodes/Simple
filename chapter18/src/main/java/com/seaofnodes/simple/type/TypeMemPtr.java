@@ -64,6 +64,18 @@ public class TypeMemPtr extends TypeNil {
         return _nil==3 ? this : make((byte)3,_obj);
     }
 
+
+    // True if this "isa" t up to named structures
+    @Override public boolean shallowISA( Type t ) {
+        if( !(t instanceof TypeMemPtr that) ) return false;
+        if( this==that ) return true;
+        if( xmeet0(that)!=that._nil ) return false;
+        if( _obj==that._obj ) return true;
+        if( _obj._name.equals(that._obj._name) )
+            return true;        // Shallow, do not follow matching names, just assume ok
+        throw Utils.TODO(); // return _obj.shallowISA(that._obj);
+    }
+
     @Override public TypeMemPtr glb() { return make((byte)3,_obj.glb()); }
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
