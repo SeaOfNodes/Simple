@@ -651,7 +651,7 @@ public class Parser {
         // Auto-narrow wide ints to narrow ints
         expr = zsMask(expr,t);
         // Type is sane
-        if( expr._type!=Type.BOTTOM && !expr._type.isa(t) )
+        if( expr._type!=Type.BOTTOM && !expr._type.shallowISA(t) )
             throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
         return expr;
     }
@@ -835,7 +835,7 @@ public class Parser {
         if( !(peek(',') || peek(';')) )
             return posT(old1);
         pos(old2);              // Reset lexer to reparse
-        if( id==null || _scope.lookup(id)!=null )
+        if( id==null )
             return posT(old1);  // Reset lexer to reparse
         // Yes a forward ref, so declare it
         TYPES.put(tname,t1);
