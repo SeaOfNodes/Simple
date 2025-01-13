@@ -24,7 +24,7 @@ public class TypeFunPtr extends TypeNil {
     // Cheesy easy implementation for a small set; 1 bit per unique function
     // within the TypeTuple.  Can be upgraded to a BitSet for larger classes of
     // functions.  Negative means "these 63 concrete bits plus infinite unknown more"
-    private final long _fidxs; // 63 unique functions per signature
+    public final long _fidxs; // 63 unique functions per signature
     public String _name; // Optional debug function name; only for named single function
 
     private TypeFunPtr(byte nil, TypeTuple sig, Type ret, long fidxs) {
@@ -69,12 +69,13 @@ public class TypeFunPtr extends TypeNil {
     @Override
     public TypeFunPtr dual() { return TypeFunPtr.make(dual0(), _sig.dual(), _ret.dual(), ~_fidxs); }
 
-    // RHS is NIL
+    // RHS is NIL; do not deep-dual when crossing the centerline
     @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_sig,_ret,_fidxs); }
 
-    @Override public TypeFunPtr glb() { return make(_nil,_sig,_ret,_fidxs); }
+    @Override public TypeFunPtr glb() { return make((byte)3,_sig,_ret,-1L); }
 
-    @Override public boolean isConstant() { return _nil==2 && Long.bitCount(_fidxs)==1; }
+    @Override public boolean isHigh    () { return _nil <= 1 || (_nil==2 && _fidxs==0); }
+    @Override public boolean isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }
 
     @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
 

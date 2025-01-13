@@ -86,7 +86,7 @@ public class RegionNode extends CFGNode {
         return 0;               // All inputs alive
     }
 
-    private boolean hasPhi() {
+    boolean hasPhi() {
         for( Node phi : _outputs )
             if( phi instanceof PhiNode )
                 return true;

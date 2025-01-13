@@ -26,8 +26,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("cend( ");
-        if( call()==null ) sb.append("---, ");
-        else sb.append("Call, ");
+        sb.append( in(0) instanceof CallNode ? "Call, " : "----, ");
         for( int i=1; i<nIns()-1; i++ )
             in(i)._print0(sb,visited).append(",");
         sb.setLength(sb.length()-1);
@@ -36,8 +35,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Type compute() {
-        Type ret = call().fptr()._type instanceof TypeFunPtr tfp ? tfp.ret() : Type.BOTTOM;
-        return TypeTuple.make(call()._type,TypeMem.BOT,ret);
+        if( !(in(0) instanceof CallNode call) )
+            return TypeTuple.RET.dual();
+        Type ret = call.fptr().addDep(this)._type instanceof TypeFunPtr tfp ? tfp.ret() : Type.BOTTOM;
+        return TypeTuple.make(call._type,TypeMem.BOT,ret);
     }
 
     @Override
