@@ -92,9 +92,10 @@ public class StoreNode extends MemOpNode {
             // Folding away a broken store
             err()==null ) {
             nnn.setDef(nnn.findAlias(_alias),val());
-            // Must retype the NewNode
-            nnn  .setType(nnn  .compute());
-            mem().setType(mem().compute());
+            // Must *retype* the NewNode, this is not monotonic in isolation
+            // but is monotonic counting from this Store to the New.
+            nnn  ._type = nnn  .compute();
+            mem()._type = mem().compute();
             return mem();
         }
 

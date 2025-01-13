@@ -192,8 +192,8 @@ for(;;) {
 }
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ ]", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  0));
+        assertEquals("return Top;", code._stop.toString());
+        assertEquals(null, Eval2.eval(code,  0));
     }
 
     // Function break
