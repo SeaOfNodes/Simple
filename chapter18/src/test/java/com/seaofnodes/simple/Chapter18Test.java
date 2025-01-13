@@ -115,7 +115,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int)*x); return (Parm_x($fun,int)*2); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)*2); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -179,6 +179,22 @@ for(;;) {
         assertEquals("3", Eval2.eval(code,  0));
     }
 
+
+    @Test
+    public void testFcn9() {
+        CodeGen code = new CodeGen(
+"""
+{int -> int}? i2i = null;
+for(;;) {
+    if (i2i) return i2i(arg);
+    var x = {int i-> return i;};
+    arg = x(3);
+}
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("Stop[ ]", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  0));
+    }
 
     // Function break
     @Test

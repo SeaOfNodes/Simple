@@ -45,12 +45,14 @@ public class ReturnNode extends CFGNode {
 
     @Override
     public Type compute() {
-        if( inProgress() ) return TypeTuple.RET; // In progress
+        if( inProgress () ) return TypeTuple.RET; // In progress
+        if( _fun.isDead() ) return TypeTuple.RET.dual(); // Dead another way
         return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
     }
 
     @Override public Node idealize() {
-        if( inProgress() ) return null;
+        if( inProgress () ) return null;
+        if( _fun.isDead() ) return null;
 
         // Upgrade signature based on return type
         Type ret = expr()._type;

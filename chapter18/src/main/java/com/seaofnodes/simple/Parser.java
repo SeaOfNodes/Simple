@@ -708,7 +708,8 @@ public class Parser {
             if( inferType ) {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
-                t = expr._type.glb();
+                t = expr._type;
+                if( !xfinal ) t = t.glb();  // Widen if not final
             }
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
                 tfp.setName(name);
