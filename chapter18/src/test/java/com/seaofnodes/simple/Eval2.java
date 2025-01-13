@@ -137,6 +137,7 @@ public abstract class Eval2 {
         // Evaluate until exit or timeout.  Each outer loop step computes
         // all data nodes under some new Control.
         while( true ) {
+            assert BB!=null;
             traceCtrl(BB,trace);
             if( trace!=null ) System.out.println(F.p());
 
@@ -165,6 +166,7 @@ public abstract class Eval2 {
             case RegionNode r   :  break;
             default:               throw Utils.TODO();
             }
+            assert !BB.isDead();
         }
     }
 

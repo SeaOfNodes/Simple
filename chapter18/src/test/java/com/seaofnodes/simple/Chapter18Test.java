@@ -13,9 +13,9 @@ public class Chapter18Test {
 """
 return 0;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return 0;", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  1));
+        assertEquals("0", Eval2.eval(code,  2));
     }
 
     @Test
@@ -297,4 +297,20 @@ for(;;) {
         assertEquals("0", Eval2.eval(code,  0));
     }
 
+    // Inline hidden called more than once
+    @Test
+    public void testInline() {
+        CodeGen code = new CodeGen(
+"""
+{int->int}?! i2i = {int i->return i;};
+{{int->int}->{int->int}}! f2f = {{int->int} f->return f;};
+val o = i2i;
+if (arg) i2i = null;
+if (i2i) return i2i(arg);
+return f2f(o)(1);
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("Stop[ return Phi(Region,o( arg),o( 1)); return Parm_i(o,int,arg,1); ]", code._stop.toString());
+        assertEquals("1", Eval2.eval(code,  2));
+    }
 }
