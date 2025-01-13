@@ -50,6 +50,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
             CallNode call = call();
             Node fptr = call.fptr();
             if( fptr.nOuts() == 1 && // Only user is this call
+                fptr instanceof ConstantNode &&
                 // Function is being called, and its not-null
                 fptr._type instanceof TypeFunPtr tfp && tfp.notNull()) {
                 ReturnNode ret = (ReturnNode)in(1);
