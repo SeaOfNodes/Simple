@@ -68,13 +68,18 @@ public class RegionNode extends CFGNode {
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
-        if( !_disablePeephole &&
-            !hasPhi() &&       // No Phi users, just a control user
+        if( !_disablePeephole && // Optional
+            !hasPhi() &&         // No Phi users, just a control user
             in(1) instanceof CProjNode p1 &&
             in(2) instanceof CProjNode p2 &&
             p1.in(0).addDep(this)==p2.in(0).addDep(this) &&
-            p1.in(0) instanceof IfNode iff )
-            return iff.ctrl();
+            p1.in(0) instanceof IfNode iff ) {
+            // Replace with the iff.ctrl directly
+            if( nIns()==3 ) return iff.ctrl();
+            // Just delete the path for fat Regions
+            setDef(1,iff.ctrl());
+            return delDef(2);
+        }
 
         return null;
     }
