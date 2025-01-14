@@ -278,6 +278,7 @@ public abstract class Eval2 {
         case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
         case StoreNode    st   -> store(st);
         case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
+        case SubFNode     sbf  -> d(sbf.in(1)) -  d(sbf.in(2));
         case ToFloatNode  toflt-> (double)x(toflt.in(1));
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
