@@ -1123,10 +1123,14 @@ public class Parser {
             _scope.define(id, FRefNode.FREF_TYPE, true, XCTRL, loc());
             n = _scope.lookup(id);
         } else {
-            // Lookup worked on an out-of-function value.  No closures, so this
-            // has to be a final constant.
-            if( _scope.outOfFunction(n) && !(n._final && _scope.in(n._idx)._type.isConstant()) )
-                throw error("Variable '"+n._name+"' is out of function scope and must be a final constant");
+            // Lookup worked on an out-of-function value.
+            if( _scope.outOfFunction(n) ) {
+                // No closures, so this has to be a final constant (which
+                // includes forward refs)
+                Node def = _scope.in(n._idx);
+                if( !(def instanceof FRefNode) && !(n._final && def._type.isConstant()) )
+                    throw error("Variable '"+n._name+"' is out of function scope and must be a final constant");
+            }
         }
         return n;
     }

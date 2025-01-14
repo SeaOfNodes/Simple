@@ -71,7 +71,10 @@ public class FunNode extends RegionNode {
         // to collapse
         if( unknownCallers() ) return null;
         Node progress = super.idealize();
-        if( progress!=null ) IterPeeps.add( CodeGen.CODE._stop);
+        if( progress!=null ) {
+            IterPeeps.add( CodeGen.CODE._stop);
+            IterPeeps.add( _ret );
+        }
         return progress;
     }
 
