@@ -117,6 +117,8 @@ public class ReturnNode extends CFGNode {
     }
 
     static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {
+        if( !ti && !tf && !tp && !tn )
+            return Parser.error("No defined return type", loc);
         SB sb = new SB().p("No common type amongst ");
         if( ti ) sb.p("int and ");
         if( tf ) sb.p("f64 and ");

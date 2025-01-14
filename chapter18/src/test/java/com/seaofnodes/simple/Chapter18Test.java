@@ -259,6 +259,18 @@ for(;;) {
         catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*S'",e.getMessage()); }
     }
 
+    @Test
+    public void testErr5() {
+        CodeGen code = new CodeGen(
+"""
+val g = { ->
+    g();
+};
+return 0;
+""");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("No defined return type",e.getMessage()); }
+    }
 
 
     // Mutual recursion.  Fails without SCCP to lift the recursive return types.
