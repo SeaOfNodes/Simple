@@ -23,23 +23,6 @@ public class LoopNode extends RegionNode {
         return entry()._type;
     }
 
-    @Override
-    public Node idealize() {
-        if( inProgress() ) return null;
-        // Dead infinite loops with NO control flow out stick around - as a
-        // dead infinite loop, to signal that control stops and spins here.
-        if( nIns()==2 && !hasPhi() && !hasCFG() )
-            return null;
-        return super.idealize();
-    }
-
-    private boolean hasCFG() {
-        for( Node phi : _outputs )
-            if( phi instanceof CFGNode )
-                return true;
-        return false;
-    }
-
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)

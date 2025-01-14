@@ -1301,6 +1301,7 @@ public class Parser {
         if( matchx("++") || matchx("--") ) {
             if( f._final && !f._fname.equals("[]") )
                 throw error("Cannot reassign final '"+f._fname+"'");
+            load.keep();
             int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
             Node val = f._type instanceof TypeFloat
                 ?        peep(new AddFNode(load,con(TypeFloat.constant(delta))))
@@ -1311,6 +1312,7 @@ public class Parser {
             // done via the type system.
             if( base.isAry() )  st.setDef(0,ctrl());
             memAlias(f._alias, peep(st));
+            load.unkeep();
             // And use the original loaded value as the result
         } else expr.unkill();
         off.unkill();
