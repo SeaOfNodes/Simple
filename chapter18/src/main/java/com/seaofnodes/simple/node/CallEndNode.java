@@ -50,24 +50,31 @@ public class CallEndNode extends CFGNode implements MultiNode {
             CallNode call = call();
             Node fptr = call.fptr();
             if( fptr.nOuts() == 1 && // Only user is this call
-                fptr instanceof ConstantNode &&
+                fptr instanceof ConstantNode && // We have an immediate call
                 // Function is being called, and its not-null
-                fptr._type instanceof TypeFunPtr tfp && tfp.notNull()) {
+                fptr._type instanceof TypeFunPtr tfp && tfp.notNull() &&
+                // Arguments are correct
+                call.err()==null ) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
                 // Expecting Start, and the Call
                 if( fun.nIns()==3 ) {
                     assert fun.in(1) instanceof StartNode && fun.in(2)==call;
-
-                    // Trivial inline: rewrite
-                    _folding = true;
-                    // Rewrite Fun so the normal RegionNode ideal collapses
-                    fun._folding = true;
-                    fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
-                    fun.setDef(2,call.ctrl());  // Bypass the Call;
-                    fun.ret().setDef(3,null);   // Return is folding also
-                    IterPeeps.addAll(fun._outputs);
-                    return this;
+                    // Disallow self-recursive inlining (loop unrolling by another name)
+                    CFGNode idom = call;
+                    while( !(idom instanceof FunNode fun2) )
+                        idom = idom.idom();
+                    if( idom != fun ) {
+                        // Trivial inline: rewrite
+                        _folding = true;
+                        // Rewrite Fun so the normal RegionNode ideal collapses
+                        fun._folding = true;
+                        fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
+                        fun.setDef(2,call.ctrl());  // Bypass the Call;
+                        fun.ret().setDef(3,null);   // Return is folding also
+                        IterPeeps.addAll(fun._outputs);
+                        return this;
+                    }
                 } else {
                     fun.addDep(this);
                 }

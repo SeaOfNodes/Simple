@@ -92,7 +92,7 @@ bar.x = 3;         // Ok, bar is mutable
 
 struct Foo { Bar !bar; int y; }
 Foo !foo = new Foo;
-foo.bar = barl     // Ok bar is mutable
+foo.bar = bar;     // Ok bar is mutable
 foo.bar.x++;       // Ok foo and foo.bar and foo.bar.x are all mutable
 
 val xfoo = foo;    // Throw away mutability
