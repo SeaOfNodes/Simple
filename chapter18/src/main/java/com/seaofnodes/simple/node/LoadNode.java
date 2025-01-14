@@ -166,8 +166,9 @@ public class LoadNode extends MemOpNode {
     private boolean profit(PhiNode phi, int idx) {
         Node px = phi.in(idx);
         if( px==null ) return false;
-        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) { px.addDep(this); return true; }
-        if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) { px.addDep(this); return true; }
+        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) return true;
+        if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) return true;
+        px.addDep(this);
         return false;
     }
 

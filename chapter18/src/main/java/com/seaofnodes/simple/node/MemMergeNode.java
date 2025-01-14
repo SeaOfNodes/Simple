@@ -113,8 +113,7 @@ public class MemMergeNode extends Node {
         for( int i = 2; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
-                // by name as it will trigger a phi creation
-                //Var v = _vars.at(i);
+                // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
                 alias(i, new PhiNode(Parser.memName(i), lhs._type.glb().meet(rhs._type.glb()), r, lhs, rhs).peephole());
@@ -124,7 +123,7 @@ public class MemMergeNode extends Node {
     // Fill in the backedge of any inserted Phis
     void _endLoopMem( ScopeNode scope, MemMergeNode back, MemMergeNode exit ) {
         Node exit_def = exit.alias(1);
-        for( int i=1; i<back.nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
                 assert phi.in(2)==null;
                 phi.setDef(2,back.in(i)==scope ? phi : back.in(i)); // Fill backedge
