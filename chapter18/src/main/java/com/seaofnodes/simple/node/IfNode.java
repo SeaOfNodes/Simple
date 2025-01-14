@@ -34,6 +34,7 @@ public class IfNode extends CFGNode implements MultiNode {
         // If the If node is not reachable then neither is any following Proj
         if (ctrl()._type != Type.CONTROL && ctrl()._type != Type.BOTTOM )
             return TypeTuple.IF_NEITHER;
+        if( _disablePeephole ) return TypeTuple.IF_BOTH;
         Node pred = pred();
         Type t = pred._type;
         // High types mean NEITHER side is reachable.
