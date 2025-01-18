@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-
 import java.util.*;
 
 /**
@@ -715,7 +714,10 @@ public class Parser {
                 tfp.setName(name);
 
         } else {
-            if( inferType && !_scope.inCon() )
+            // Need an expression to infer the type.
+            // Also, if not-null then need an initializing expression.
+            // Allowed in a class def, because type/init will happen in the constructor.
+            if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inCon() )
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
             expr = switch( t ) {
@@ -1080,22 +1082,29 @@ public class Parser {
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
         if( ch==0  ) return rvalue;
+        Node op = opAssign(ch,rvalue,n._final,n.type(),n._name);
+        _scope.update(n,op);
+        return postfix(ch) ? rvalue.unkeep() : op;
+    }
 
-        // the rvalue is an l-value now; it will be updated
-        Node lhs = rvalue.keep();
-        if( n._final )
-            throw error("Cannot reassign final '"+n._name+"'");
-        // RHS of the update
+    // Check for assign-update, "x += e0".
+    // Returns "x + e0"; the caller assigns value.
+    // if ch is postfix, then lhs is kept and caller will unkeep and return it.
+    private Node opAssign(char ch, Node lhs, boolean xfinal, Type t, String name ) {
+        if( xfinal )
+            throw error("Cannot reassign final '"+name+"'");
+        // RHS of the update.
+        lhs.keep();             // Alive across parseAsgn
         Node rhs =
             (byte)ch ==  1 ? con( 1) : // var++
             (byte)ch == -1 ? con(-1) : // var--
-            parseAsgn();         // var op= rhs
-        // Widen RHS int to a RHS float
-        rhs = widenInt(rhs,n.type());
-        // Complain a RHS float into a LHS int
-        if( !(rhs._type instanceof TypeInteger) && !rhs._type.isa(n.type()) )
-            throw error("Type " + rhs._type.str() + " is not of declared type " + n.type().str());
-
+            parseAsgn();               // var op= rhs
+        if( !postfix(ch) ) lhs.unkeep();   // Allow to die in next peep
+        // 4 cases:
+        // int + int ==>> narrow int
+        // int + flt ==>> error, caller must fail assigning flt into int
+        // flt + int ==>> use float op, wrap toFloat()
+        // flt + flt ==>> use float op
         Node op = switch(ch) {
         case 1, (char)-1,
              '+' -> new AddNode(lhs,rhs);
@@ -1104,13 +1113,11 @@ public class Parser {
         case '/' -> new DivNode(lhs,rhs);
         default  -> throw Utils.TODO();
         };
-
-        op = zsMask(peep(op.widen()),n.type());
-        _scope.update(n,op);
-        // Return pre-value (x+=1) or post-value (x++)
-        lhs.unkeep();
-        return (byte)ch== 1 || (byte)ch== -1 ? lhs : op;
+        // Convert to float ops, or narrow int types; error if not declared type.
+        // Also, if postfix LHS is still keep()
+        return liftExpr(peep(op.widen()),t,false);
     }
+
 
     // Expect an ID here.  If not found, assume a forward reference function
     Var requireLookupId() {
@@ -1235,10 +1242,11 @@ public class Parser {
      * lookup or a postfix operator like '#'
      *
      * <pre>
-     *     expr ('.' IDENTIFIER)* [ = expr ]
-     *     expr #
-     *     expr ('[' expr ']')* = [ = expr ]
-     *     expr '(' [args,]* ')'
+     *     expr ('.' FIELD)* [ = expr ]       // Field reference
+     *     expr '#'                           // Postfix unary read operator
+     *     expr ['++' | '--' ]                // Postfix unary write operator
+     *     expr ('[' expr ']')* = [ = expr ]  // Array reference
+     *     expr '(' [args,]* ')'              // Function call
      * </pre>
      */
     private Node parsePostfix(Node expr) {
@@ -1297,22 +1305,17 @@ public class Parser {
         if( base.isAry() ) load.setDef(0,ctrl());
         load = peep(load);
 
-        // ary[idx]++ or ptr.fld++
-        if( matchx("++") || matchx("--") ) {
-            if( f._final && !f._fname.equals("[]") )
-                throw error("Cannot reassign final '"+f._fname+"'");
-            load.keep();
-            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
-            Node val = f._type instanceof TypeFloat
-                ?        peep(new AddFNode(load,con(TypeFloat.constant(delta))))
-                : zsMask(peep(new  AddNode(load,con(delta))),f._type);
-            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off, val, false);
+        // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
+        char ch = _lexer.matchOperAssign();
+        if( ch!=0 ) {
+            Node op = opAssign(ch,load,f._final,tf,name);
+            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off, op, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
             // done via the type system.
             if( base.isAry() )  st.setDef(0,ctrl());
             memAlias(f._alias, peep(st));
-            load.unkeep();
+            load = postfix(ch) ? load.unkeep() : op;
             // And use the original loaded value as the result
         } else expr.unkill();
         off.unkill();
@@ -1440,6 +1443,11 @@ public class Parser {
     // Return true and do NOT skip if 'ch' is next
     private boolean peek(char ch) { return _lexer.peek(ch); }
     private boolean peekIsId() { return _lexer.peekIsId(); }
+
+    // ch is +/- 1, means oper++ or oper-- means postfix
+    private static boolean postfix(char ch) {
+        return (byte)ch== 1 || (byte)ch== -1;
+    }
 
     public int pos() { return _lexer._position; }
     private int pos(int pos) {
@@ -1704,7 +1712,6 @@ public class Parser {
             if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
             return 0;
         }
-
     }
 
     ParseException errorSyntax(String syntax) { return _errorSyntax("expected "+syntax);  }
