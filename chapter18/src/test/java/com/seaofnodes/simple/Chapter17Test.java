@@ -8,11 +8,11 @@ public class Chapter17Test {
 
     @Test
     public void testJig() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 int i = 0;
 i=i=1;
 return i;
-                                   //return 3.14;
 """);
         code.parse().opto();
         assertEquals("return 1;", code.print());
@@ -157,14 +157,14 @@ return s.x;
     }
 
     @Test public void testVar4() {
-        CodeGen code = new CodeGen("struct S{int x;}; S s; s=new S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct S{int x;}; S? s; s=new S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.parse().opto();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar5() {
-        CodeGen code = new CodeGen("struct S{int x;}; S s; s=new S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct S{int x;}; S? s; s=new S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.parse().opto();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
@@ -293,6 +293,24 @@ return x;
         catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
+    @Test
+    public void testVar17() {
+        CodeGen code = new CodeGen(
+"""
+struct Person {
+    bool focused;
+};
+val focus = { Person p ->
+    p.focused = true;
+};
+Person me; // Person !me = new Person;
+focus(me);
+return me;
+"""
+);
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+    }
 
     // ---------------------------------------------------------------
     @Test

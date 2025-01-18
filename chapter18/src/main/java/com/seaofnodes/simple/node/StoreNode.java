@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
-
 import java.util.BitSet;
 
 /**
@@ -96,6 +96,7 @@ public class StoreNode extends MemOpNode {
             // but is monotonic counting from this Store to the New.
             nnn  ._type = nnn  .compute();
             mem()._type = mem().compute();
+            IterPeeps.addAll(nnn._outputs);
             return mem();
         }
 
