@@ -124,7 +124,7 @@ return fcn(3);
     @Test
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));

@@ -34,30 +34,10 @@ public class RegionNode extends CFGNode {
     @Override
     public Node idealize() {
         if( inProgress() ) return null;
-        // Delete dead paths into a Region
-        int path = findDeadInput();
-        if( path != 0 &&
-            // Do not delete the entry path of a loop (ok to remove the back
-            // edge and make the loop a single-entry Region which folds away
-            // the Loop).  Folding the entry path confused the loop structure,
-            // moving the backedge to the entry point.
-            !(this instanceof LoopNode loop && loop.entry()==in(path)) ) {
-            // Cannot use the obvious output iterator here, because a Phi
-            // deleting an input might recursively delete *itself*.  This
-            // shuffles the output array, and we might miss iterating an
-            // unrelated Phi. So on rare occasions we repeat the loop to get
-            // all the Phis.
-            int nouts = 0;
-            while( nouts != nOuts() ) {
-                nouts = nOuts();
-                for( int i=0; i<nOuts(); i++ )
-                    if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() ) {
-                        phi.delDef(path);
-                        CodeGen.CODE.addAll(phi._outputs);
-                    }
-            }
-            return isDead() ? Parser.XCTRL : delDef(path);
-        }
+
+        Node progress = deadPath();
+        if( progress!=null ) return progress;
+
         // If down to a single input, become that input
         if( nIns()==2 && !hasPhi() )
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
@@ -77,6 +57,31 @@ public class RegionNode extends CFGNode {
 
         return null;
     }
+
+    Node deadPath() {
+        // Delete dead paths into a Region
+        int path = findDeadInput();
+        if( path==0 ) return null;
+        // Do not delete the entry path of a loop (ok to remove the back edge
+        // and make the loop a single-entry Region which folds away the Loop).
+        // Folding the entry path confused the loop structure, moving the
+        // backedge to the entry point.
+        if( this instanceof LoopNode loop && loop.entry()==in(path) )
+            return null;
+        // Cannot use the obvious output iterator here, because a Phi deleting
+        // an input might recursively delete *itself*.  This shuffles the
+        // output array, and we might miss iterating an unrelated Phi. So on
+        // rare occasions we repeat the loop to get all the Phis.
+        int nouts = 0;
+        while( nouts != nOuts() ) {
+            nouts = nOuts();
+            for( int i=0; i<nOuts(); i++ )
+                if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
+                    CodeGen.CODE.addAll(phi.delDef(path)._outputs);
+        }
+        return isDead() ? Parser.XCTRL : delDef(path);
+    }
+
 
     private int findDeadInput() {
         for( int i=1; i<nIns(); i++ )

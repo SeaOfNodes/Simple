@@ -44,8 +44,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
         // Trivial inlining: call site calls a single function; single function
         // is only called by this call site.
-        if( !_folding && nIns()==2 ) {
-            CallNode call = call();
+        if( !_folding && nIns()==2 && in(0) instanceof CallNode call ) {
             Node fptr = call.fptr();
             if( fptr.nOuts() == 1 && // Only user is this call
                 fptr instanceof ConstantNode && // We have an immediate call

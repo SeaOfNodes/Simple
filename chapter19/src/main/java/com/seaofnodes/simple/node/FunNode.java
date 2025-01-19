@@ -60,6 +60,15 @@ public class FunNode extends RegionNode {
 
     @Override
     public Node idealize() {
+
+        // Some linked path dies
+        Node progress = deadPath();
+        if( progress!=null ) {
+            if( nIns()==3 && in(2) instanceof CallNode call )
+                CODE.add(call.cend()); // If Start and one call, check for inline
+            return progress;
+        }
+
         // When can we assume no callers?  Or no other callers (except main)?
         // In a partial compilation, we assume Start gets access to any/all
         // top-level public structures and recursively what they point to.
@@ -68,16 +77,18 @@ public class FunNode extends RegionNode {
         // In a total compilation, we can start from Start and keep things
         // more contained.
 
-
         // If no default/unknown caller, use the normal RegionNode ideal rules
         // to collapse
         if( unknownCallers() ) return null;
-        Node progress = super.idealize();
-        if( progress!=null ) {
-            CODE.add( CODE._stop);
-            CODE.add( _ret );
+
+        // If down to a single input, become that input
+        if( nIns()==2 && !hasPhi() ) {
+            CODE.add( CODE._stop ); // Stop will remove dead path
+            CODE.add( _ret );       // Return will compute to TOP control
+            return in(1); // Collapse if no Phis; 1-input Phis will collapse on their own
         }
-        return progress;
+
+        return null;
     }
 
     // Bypass Region idom, always assume depth == 1, one more than Start

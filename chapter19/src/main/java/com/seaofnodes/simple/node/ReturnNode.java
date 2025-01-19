@@ -113,7 +113,7 @@ public class ReturnNode extends CFGNode {
     }
 
     @Override public Parser.ParseException err() {
-        return mt==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
+        return expr()._type/*mt*/==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
     }
 
     static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {
