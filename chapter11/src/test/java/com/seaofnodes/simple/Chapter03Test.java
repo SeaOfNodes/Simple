@@ -56,6 +56,16 @@ public class Chapter03Test {
     }
 
     @Test
+    public void testRedeclareVar() {
+        try {
+            new Parser("int a=1; int b=2; int c=0; int b=3; c=a+b;").parse();
+            fail();
+        } catch( RuntimeException e ) {
+            assertEquals("Redefining name 'b'",e.getMessage());
+        }
+    }
+
+    @Test
     public void testBad1() {
         try {
             new Parser("int a=1; int b=2; int c=0; { int b=3; c=a+b;").parse();
