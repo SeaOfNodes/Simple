@@ -325,4 +325,21 @@ return f2f(o)(1);
         assertEquals("Stop[ return Phi(Region,o( arg),o( 1)); return Parm_i(o,int,arg,1); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
+
+    @Test
+    public void testOperField() {
+        CodeGen code = new CodeGen(
+"""
+struct Person {
+    int coffee_count;
+};
+Person !p = new Person;
+p.coffee_count += 1;
+return p.coffee_count;
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("return 1;", code._stop.toString());
+        assertEquals("1", Eval2.eval(code,  2));
+    }
+
 }
