@@ -56,4 +56,4 @@ The Simple language will be styled after a subset of C or Java
 * [Chapter 16](chapter16/README.md): Constructors
 * [Chapter 17](chapter17/README.md): Mutability & Syntax Sugar: `var`, `val`, `x+=y`, `for(init;test;next)body`
 * [Chapter 18](chapter18/README.md): Functions and calls.
-* Chapter 19: Code gen to X86-64.
+* [Chapter 19](chapter19/README.md): Instruction selection and portable compilation
