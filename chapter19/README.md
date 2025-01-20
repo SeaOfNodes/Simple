@@ -1,5 +1,6 @@
 # Chapter 19: Instruction Selection and Portable Compilation
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) it to the previous chapter.
 
 ## Clean up CodeGen compile driver
 
