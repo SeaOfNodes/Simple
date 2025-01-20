@@ -5,6 +5,7 @@ import com.sun.source.util.TreeScanner;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class AstVisitor extends TreeScanner<Void, Void> {
     final HashMap<String, TestClass> results = new HashMap<>();
@@ -64,16 +65,20 @@ class AstVisitor extends TreeScanner<Void, Void> {
                 };
             }
             if (methodSelect.endsWith("assertEquals")) {
-                if (inCatch) {
-                    if (args.size() != 2)
-                        throw new RuntimeException("Unexpected number of arguments " + node);
-                    if (args.get(1).toString().contains("e.getMessage()")) {
-                        current.parseErrorMessage = (String) literal(args.get(0));
+                if (inCatch ) {
+                    // chapter15.testBad3 used catch for the evaluator, not the parse error
+                    if (current.assertStopEquals == null) {
+                        if (args.size() != 2)
+                            throw new RuntimeException("Unexpected number of arguments " + node);
+                        if (args.get(1).toString().contains("e.getMessage()")) {
+                            current.parseErrorMessage = (String) literal(args.get(0));
+                        }
                     }
                 } else {
                     if (args.size() != 2)
                         throw new RuntimeException("Unexpected number of arguments " + node);
                     if (args.get(1).toString().contains("evaluate(")) {
+                        var stringify = new AtomicBoolean();
                         // visit evaluate(..) or evaluate(..).toString()
                         var eval = args.get(1).accept(new TreeScanner<MethodInvocationTree, Void>() {
                             @Override
@@ -83,6 +88,8 @@ class AstVisitor extends TreeScanner<Void, Void> {
 
                             @Override
                             public MethodInvocationTree visitMethodInvocation(MethodInvocationTree n, Void unused1) {
+                                if (n.getMethodSelect().toString().endsWith(".toString"))
+                                    stringify.set(true);
                                 if (n.getMethodSelect().toString().endsWith(".evaluate"))
                                     return n;
                                 return super.visitMethodInvocation(n, unused1);
@@ -91,10 +98,10 @@ class AstVisitor extends TreeScanner<Void, Void> {
 
                         Object result = literal(args.get(0));
                         var evalArgs = eval.getArguments();
-                        if (evalArgs.size() != 2 || !evalArgs.get(0).toString().equals("stop"))
+                        if ((evalArgs.size() != 1 && evalArgs.size() != 2) || !evalArgs.get(0).toString().equals("stop"))
                             throw new IllegalArgumentException("Unexpected eval arguments " + node);
-                        long parameter = Long.parseLong(literal(evalArgs.get(1)).toString());
-                        current.evaluations.add(new TestMethod.Evaluation(result, parameter));
+                        Long parameter = evalArgs.size() > 1 ? Long.parseLong(literal(evalArgs.get(1)).toString()) : null;
+                        current.evaluations.add(new TestMethod.Evaluation(result, parameter, stringify.get()));
                     } else if (args.get(1).toString().endsWith(".toString()") || args.get(1).toString().endsWith(".print()")) {
                         if (current.assertStopEquals == null) {
                             // Assume the first one prints the stop node. Ignore assertions from evaluator:
@@ -123,7 +130,7 @@ class AstVisitor extends TreeScanner<Void, Void> {
     @Override
     public Void visitNewClass(NewClassTree node, Void unused) {
         if (current != null) {
-            if (node.getIdentifier().toString().equals("Parser")) {
+            if (node.getIdentifier().toString().matches("Parser|CodeGen")) {
                 var args = node.getArguments();
                 switch (args.size()) {
                     case 1 -> {

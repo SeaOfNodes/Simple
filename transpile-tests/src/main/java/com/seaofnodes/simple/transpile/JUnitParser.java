@@ -29,6 +29,10 @@ public class JUnitParser {
         for (File file : inputs) {
             var chapter = file.getName();
             if (chapter.matches("chapter\\d+")) {
+                if (Integer.parseInt(chapter.substring("chapter".length())) >= 18) {
+                    System.out.println("TODO: parse " + chapter);
+                    continue;
+                }
                 chapters.put(chapter, parseChapter(file.toPath()));
             }
         }
@@ -60,8 +64,7 @@ public class JUnitParser {
 
         var visitor = new AstVisitor();
         for (var tree : task.parse()) {
-            try { tree.accept(visitor, null); }
-            catch( IllegalArgumentException iae ) {}
+            tree.accept(visitor, null);
         }
 
         var testClasses = new ArrayList<>(visitor.results.values());

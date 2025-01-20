@@ -34,6 +34,6 @@ public class TestMethod {
     /**
      * result is a literal value
      **/
-    public record Evaluation(Object result, long parameter) {
+    public record Evaluation(Object result, Long parameter, boolean stringify) {
     }
 }
