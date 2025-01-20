@@ -82,7 +82,8 @@ return new Buffer;
 
 ## Final fields
 
-Final fields are declared with a `!` before the name:
+Final fields are declared with a `!` before the name.
+This decision is revisited in the next chapter.
 
 ```
 int !x = 17; // Final field x

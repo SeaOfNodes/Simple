@@ -46,10 +46,11 @@ infers as
 
 Typed primitive fields are always mutable.  Typed reference fields without an
 initializer must be mutable to get a value.  Initialized reference variables
-are *immutable* by default and can be made mutable with a leading `!`.  `var`
-and `val` keep their current sense and can be used to make any field mutable or
-immutable.  Fields are always mutable during construction, but will become
-immutable at the end of either constructor.
+are immutable by default and can be made mutable with a leading `!`.  Contrast
+this with what [chapter16](https://github.com/SeaOfNodes/Simple/tree/chapter16)
+did with `!`.  `var` and `val` keep their current sense and can be used to make
+any field mutable or immutable.  Fields are always mutable during construction,
+but will become immutable at the end of either constructor.
 
 `int x; x=3; x++; // OK, primitive so mutable`
 

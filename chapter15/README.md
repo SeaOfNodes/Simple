@@ -168,7 +168,7 @@ This means the IR for:
   becomes `Load(mem,x,Add(Shl(i,3),16))`
   
   
-  `x[i+1]` becomes `16/*base*/ + ((i+1) << 3/*scale*)` becomes
+  `x[i+1]` becomes `16/*base*/ + ((i+1) << 3/*scale*/)` becomes
   `Load(mem,x,Add(Shl(i,3),24))`
 
 Notice the `idx+1` folds the `+1` into the base math.
