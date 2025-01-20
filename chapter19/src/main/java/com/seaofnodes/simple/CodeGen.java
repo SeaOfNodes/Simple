@@ -4,6 +4,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class CodeGen {
     // Last created CodeGen as a global; used all over to avoid passing about a
@@ -11,18 +12,26 @@ public class CodeGen {
     public static CodeGen CODE;
 
     public enum Phase {
-        Parse, Opto, TypeCheck, Schedule, LocalSched, RegAlloc;
+        Parse,                  // Parse ASCII text into Sea-of-Nodes IR
+        Opto,                   // Run ideal optimizations
+        TypeCheck,              // Last check for bad programs
+        InstructionSelection,   // Convert to target hardware nodes
+        Schedule,               // Global schedule (code motion) nodes
+        LocalSched,             // Local schedule
+        RegAlloc;               // Register allocation
     }
     public Phase _phase;
 
+    // ---------------------------
     // Compilation source code
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
 
+    // ---------------------------
     /**
-     * A counter, for unique node id generation.  Starting with value 1, to
-     * avoid bugs confusing node ID 0 with uninitialized values.
+     *  A counter, for unique node id generation.  Starting with value 1, to
+     *  avoid bugs confusing node ID 0 with uninitialized values.
      */
     private int _uid = 1;
     public int UID() { return _uid; }
@@ -37,8 +46,8 @@ public class CodeGen {
     public final BitSet _wvisit = new BitSet();
 
     // Start and stop; end points of the generated IR
-    public final StartNode _start;
-    public final StopNode _stop;
+    public StartNode _start;
+    public StopNode _stop;
 
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.
@@ -65,6 +74,7 @@ public class CodeGen {
     // Parser object
     public final Parser P;
 
+    // ---------------------------
     // Iterator peepholes.
     public final IterPeeps _iter;
     // Stop tracking deps while assertin
@@ -75,8 +85,12 @@ public class CodeGen {
     public void iterCnt() { if( !_midAssert ) _iter_cnt++; }
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
 
+    // ---------------------------
+    // Code generation CPU target
+    Machine _mach;
 
-    public CodeGen( String src ) { this(src,TypeInteger.BOT, 123L ); }
+    // ---------------------------
+    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {
         CODE = this;
         _phase = null;
@@ -89,6 +103,7 @@ public class CodeGen {
         P = new Parser(this,arg);
     }
 
+    // Parse ASCII text into Sea-of-Nodes IR
     public CodeGen parse() {
         assert _phase == null;
         _phase = Phase.Parse;
@@ -98,23 +113,26 @@ public class CodeGen {
         return this;
     }
 
+    // Run ideal optimizations
     public CodeGen opto() {
         assert _phase == Phase.Parse;
         _phase = Phase.Opto;
 
-        // Optimization
+        // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
 
         // TODO:
         // Optimistic
+        // TODO:
+        // loop unroll, peel, RCE, etc
         return this;
     }
 
+    // Last check for bad programs
     public CodeGen typeCheck() {
         // Demand phase Opto for cleaning up dead control flow at least,
-        // required for the following GCM.  Note that peeps can be disabled,
-        // but still the dead CFG will get cleaned.
-        assert _phase == Phase.Opto;
+        // required for the following GCM.
+        assert _phase.ordinal() <= Phase.Opto.ordinal();
         _phase = Phase.TypeCheck;
 
         // Type check
@@ -124,10 +142,56 @@ public class CodeGen {
         return this;
     }
 
+    // Convert to target hardware nodes
+    public CodeGen instSelect( String cpu ) {
+        assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
+        _phase = Phase.InstructionSelection;
 
+        // Look for CPU in fixed named place:
+        //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
+        String clzFile = "com.seaofnodes.simple.node.cpus."+cpu+"."+cpu;
+        try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor().newInstance(); }
+        catch( Exception e ) { throw new RuntimeException(e); }
+
+        // Convert to machine ops
+        _uid = 1;               // All new machine nodes reset numbering
+        var map = new IdentityHashMap<Node,Node>();
+        _stop  = ( StopNode)_instSelect( _stop, map );
+        _start = (StartNode) map.get(_start);
+        _instOuts(_stop,new BitSet());
+
+        return this;
+    }
+    private Node _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
+        Node x = map.get(n);
+        if( x !=null ) return x; // Been there, done that
+        // Updates forward edges only.
+        n._outputs.clear();
+        // Walk all inputs and map to machine nodes.
+        for( int i=0; i<n._inputs._len; i++ )
+            if( n.in(i) != null )
+                n._inputs.set(i,_instSelect(n._inputs.at(i),map));
+        // Now, with all machine inputs ready, produce a machine node from n
+        x = _mach.instSelect(n);
+        map.put(n,x);
+        return x;
+    }
+
+    private void _instOuts( Node n, BitSet visit ) {
+        if( visit.get(n._nid) ) return;
+        visit.set(n._nid);
+        for( Node in : n._inputs )
+            if( in!=null ) {
+                in._outputs.push(n);
+                _instOuts(in,visit);
+            }
+    }
+
+
+    // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase == Phase.TypeCheck;
+        assert _phase.ordinal() <= Phase.InstructionSelection.ordinal();
         _phase = Phase.Schedule;
 
         // Build the loop tree, fix never-exit loops
@@ -135,8 +199,6 @@ public class CodeGen {
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
 
-        // TODO:
-        // loop unroll, peel, RCE, etc
         GlobalCodeMotion.buildCFG(this);
         return this;
     }

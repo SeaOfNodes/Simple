@@ -59,6 +59,18 @@ public abstract class Node {
                 n.addUse( this );
     }
 
+    // Make a Node using the existing arrays of nodes.
+    // Used by any pass rewriting all Node classes but not the edges.
+    Node( Node n ) {
+        assert CodeGen.CODE._phase == CodeGen.Phase.InstructionSelection;
+        _nid = CODE.getUID(); // allocate unique dense ID
+        _inputs  = n._inputs;
+        _outputs = n._outputs;
+        _type = n._type;
+        _deps = null;
+        _hash = 0;
+    }
+
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 

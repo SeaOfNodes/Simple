@@ -13,6 +13,7 @@ public class ParmNode extends PhiNode {
         super(label,declaredType,inputs);
         _idx = idx;
     }
+    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._declaredType); _idx = parm._idx; }
 
     @Override public String label() { return MemOpNode.mlabel(_label); }
 

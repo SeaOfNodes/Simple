@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 
-public class IRPrinter {
+public abstract class IRPrinter {
 
     // Print a node on 1 line, columnar aligned, as:
     // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE

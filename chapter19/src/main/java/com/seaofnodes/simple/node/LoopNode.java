@@ -10,6 +10,7 @@ import java.util.HashSet;
 
 public class LoopNode extends RegionNode {
     public LoopNode( Parser.Lexer loc, Node entry ) { super(loc,null,entry,null); }
+    public LoopNode( LoopNode loop ) { super(loop,null); }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }

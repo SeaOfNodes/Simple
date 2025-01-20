@@ -15,7 +15,7 @@ public class ProjNode extends Node implements MultiUse {
     public final String _label;
 
     public ProjNode(Node ctrl, int idx, String label) {
-        super(ctrl);
+        super(new Node[]{ctrl});
         _idx = idx;
         _label = label;
     }

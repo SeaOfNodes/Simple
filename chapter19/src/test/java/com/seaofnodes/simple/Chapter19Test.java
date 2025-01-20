@@ -17,4 +17,17 @@ return 0;
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
+
+
+    @Test
+    public void testBasic() {
+        CodeGen code = new CodeGen(
+"""
+return 0;
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  2));
+    }
+
 }

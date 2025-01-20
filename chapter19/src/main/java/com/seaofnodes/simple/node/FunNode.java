@@ -14,7 +14,8 @@ public class FunNode extends RegionNode {
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
 
-    public FunNode( Parser.Lexer loc, StartNode start, TypeFunPtr sig ) { super(loc,null,start); _sig=sig; }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) { super(loc,nodes); _sig = sig; }
+    public FunNode( FunNode fun ) { super( fun, fun._loc ); _sig = fun.sig(); }
 
     @Override
     public String label() { return _sig._name == null ? "$fun" : _sig._name; }

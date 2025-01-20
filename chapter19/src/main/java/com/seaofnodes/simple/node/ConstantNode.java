@@ -21,9 +21,10 @@ import java.util.BitSet;
 public class ConstantNode extends Node {
     public final Type _con;
     public ConstantNode( Type type ) {
-        super(CodeGen.CODE._start);
+        super(new Node[]{CodeGen.CODE._start});
         _con = type;
     }
+    public ConstantNode( ConstantNode con ) { super(con);  _con = con._type;  }
 
     public static Node make( Type type ) {
         if( type==Type. CONTROL ) return new CtrlNode();

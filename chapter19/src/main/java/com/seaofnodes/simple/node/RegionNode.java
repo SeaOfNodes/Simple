@@ -8,8 +8,8 @@ public class RegionNode extends CFGNode {
     // Source location for late discovered errors
     public Parser.Lexer _loc;
 
-    public RegionNode(Node... nodes) { this(null,nodes); }
-    public RegionNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
+    public RegionNode(Parser.Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
+    public RegionNode(RegionNode r, Parser.Lexer loc) { super(r); _loc = loc; }
 
     @Override
     public String label() { return "Region"; }

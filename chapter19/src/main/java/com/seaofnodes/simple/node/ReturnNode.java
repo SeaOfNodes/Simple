@@ -23,6 +23,7 @@ public class ReturnNode extends CFGNode {
         super(ctrl, mem, data, rpc);
         _fun = fun;
     }
+    public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }

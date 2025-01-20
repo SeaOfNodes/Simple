@@ -165,7 +165,7 @@ public class Parser {
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),_code._start,sig));
+        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -175,7 +175,7 @@ public class Parser {
         Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).peephole();
 
         // Build a multi-exit return point for all function returns
-        RegionNode r = new RegionNode((Node)null,null).init();
+        RegionNode r = new RegionNode((Lexer)null,null,null).init();
         assert r.inProgress();
         PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null).init();
         PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null).init();

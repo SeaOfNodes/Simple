@@ -19,7 +19,8 @@ public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
+    public StartNode(Type arg) { super((Parser.Lexer)null,null); _arg = arg; _type = compute(); }
+    public StartNode(StartNode start) { super(start); _arg = start._arg; }
 
     @Override public String label() { return "Start"; }
 
