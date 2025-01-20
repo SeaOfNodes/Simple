@@ -23,6 +23,7 @@ changes and subtle complexities than sensible for such a large chapter.
 Functions can only refer to out of scope variables if they are some final
 constant.  This generally includes e.g. recursive function pointers.
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17...linear-chapter18) it to the previous chapter.
 
 ## Function and RPC Types
 
@@ -54,14 +55,15 @@ and return.
 Function types can be `null` just like references.
 
 Functions cannot return `void`, but they can return `null` and have their
-return value ignored.  A syntactic sugar for void returns may be added in the future.
+return value ignored.  A syntactic sugar for void returns may be added in the
+future.
 
 
 ### Return Program Counters
 
-Just like functions have a unique `function index` mapped one to one with
-function start addresses, call sites generate a unique `return program
-counter`, one per unique call site.  These are required for the evaluator to return
+Just like functions have a unique "function index" mapped one to one with
+function start addresses, call sites generate a unique "return program
+counter", one per unique call site.  These are required for the evaluator to return
 from functions without itself relying on the implementing language's
 (e.g. Java) stack.  This is the type for such values and `TypeRPC` is very
 similar to a `TypeFunPtr` except that the signature doesn't matter.
@@ -71,14 +73,13 @@ analysis of a hypothetical `call/cc` operation.  That is outside our current
 scope, so for now these are only used in the evaluator.
 
 
-
 ## Functions
 
 Functions themselves using the same syntax with as function types, but filled in:
 
 ```
-{ int x, int y ->
-  sqrt(x*x+y*y);
+{ flt x, flt y ->  // Signature
+  sqrt(x*x+y*y);   // Body
 }
 ```
 
@@ -186,7 +187,7 @@ from GVN) then the function inlines in the IR.
 
 There is now a top-level compile driver that enforces a phase ordering, and
 allows multiple compilations; the Fuzzer uses this to compare various generated
-programs.  The phases are:
+programs.  The phases (for now) are:
 
 - *Parse* - Convert program text to Simple IR
 - *Opto* - General optimizations; for now iterate peepholes.
@@ -198,15 +199,14 @@ programs.  The phases are:
   some required rules: Phis appear at block heads, branchs at block exits.
   There's room in the algorithm for a much more sophisticated list scheduler.
   The `Eval2` evaluator requires this information.
-- *RegAlloc* - Not implemented (yet).  
+- *RegAlloc* - Not implemented (yet).
 
 Several globals moved from the Parser to CodeGen, and probably several others
-ought to move here.  
+ought to move here.
 
 There is a very nice `toString()` here; hovering over the `code` variable in
 the debug winow will pretty-print the IR "as if" globally scheduled, and the
 code becomes very readable.
-
 
 
 ## Eval2 - A new Evaluator
@@ -222,7 +222,7 @@ recursive calls).
 
 Run as `make view` or `java JSViewer`, type your program in the text box, click
 outside the box and then use the arrow keys to view IR generator both forwards
-and backwards.  
+and backwards.
 
 Nodes are color coded according to type, same as the lattice diagrams.  Nodes
 are shaped according to node function as well.  At the bottom are `ScopeNode`s,

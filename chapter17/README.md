@@ -1,5 +1,8 @@
 # Chapter 17: Syntax Sugar
 
+In this chapter we introduce a number of convenient syntax sugars and mutability concepts.
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter17) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter16...linear-chapter17) it to the previous chapter.
 
 ## Pre/Post-increment
 
@@ -27,9 +30,10 @@ value), whose type will be inferred from the required initalizing expression.
 
 `val` is the same as `var`, except it is a "value" (not mutable).
 
-The inferred value is the `glb` of the peephole type, which means `var` and
-`val` will not infer types like `u8` or `f32`, instead inferring `int` and
-`flt` respectively.  Reference types will always infer as nullable, so e.g. 
+The inferred value is the Greatest Lower Bound `glb` type of the peephole type,
+which means `var` and `val` will not infer types like `u8` or `f32`, instead
+inferring `int` and `flt` respectively.  Reference types will always infer as
+nullable, so e.g.
 
 `var s = new S;` 
 
@@ -42,8 +46,8 @@ infers as
 
 Typed primitive fields are always mutable.  Typed reference fields without an
 initializer must be mutable to get a value.  Initialized reference variables
-are immutable by default and can be made mutable with a leading `!`.  `var` and
-`val` keep their current sense and can be used to make any field mutable or
+are *immutable* by default and can be made mutable with a leading `!`.  `var`
+and `val` keep their current sense and can be used to make any field mutable or
 immutable.  Fields are always mutable during construction, but will become
 immutable at the end of either constructor.
 
@@ -68,15 +72,14 @@ Leading `!` makes mutable:
 
 `S !s = new S; s.x++; // Ok, has '!' so mutable`
 
-'var' is variable:
+`var` is variable, i.e. mutable:
 
 `var s = new S; s.x++; // Ok, has var so mutable`
 
-'val' is a "value": not mutable through this reference, but may be mutable
+`val` is a "value": not mutable through this reference, but may be mutable
 through other references.
 
 `val s = new S; s.x++; // Error, val so s.x is immutable`
-
 
 
 ### Reference variables with an initializer are deeply immutable
@@ -87,20 +90,20 @@ reference can exist.  This works for `val` and normal type declarations: `val s
 
 ```cpp
 struct Bar { int x; }
-Bar !bar = new Bar;
-bar.x = 3;         // Ok, bar is mutable
+Bar !bar = new Bar; // '!' so bar is mutable
+bar.x = 3;          // Ok, bar is mutable
 
 struct Foo { Bar !bar; int y; }
-Foo !foo = new Foo;
-foo.bar = bar;     // Ok bar is mutable
-foo.bar.x++;       // Ok foo and foo.bar and foo.bar.x are all mutable
+Foo !foo = new Foo; // '!' so foo is mutable
+foo.bar = bar;      // Ok foo is mutable
+foo.bar.x++;        // Ok foo and foo.bar and foo.bar.x are all mutable
 
-val xfoo = foo;    // Throw away mutability
-xfoo.bar.x++;      // Error, cannot mutate through xfoo
+val xfoo = foo;     // Throw away mutability deeply on foo
+xfoo.bar.x++;       // Error, cannot mutate through xfoo
 
-print(xfoo.bar.x); // Ok to read through xfoo, prints 4
-foo.bar.x++;       // Bumps to 5
-print(xfoo.bar.x); // Ok to read through xfoo, prints 5
+print(xfoo.bar.x);  // Ok to read through xfoo, prints 4
+foo.bar.x++;        // Bumps to 5
+print(xfoo.bar.x);  // Ok to read through xfoo, prints 5
 ```
 
 ## Trinary
