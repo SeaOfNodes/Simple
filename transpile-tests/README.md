@@ -3,7 +3,7 @@
 This module may be helpful if you want to create an implementation of Simple in another language.
 It can parse the JUnit tests to automatically translate most of the boilerplate.
 Some manual tweaks will still be required though, because only common patterns are detected
-(e.g. 01: testSimpleProgram, testZero; 04: testVarArg; 08: testRegress5; 09: testMeet, ...)
+(e.g. 01: testSimpleProgram, testZero; 04: testVarArg; 08: testRegress5; 09: testMeet, 15: sieveOEratosthenes, 17: sieveOfEratosthenes, ...)
 
 ## Usage
 

@@ -75,7 +75,10 @@ public class RustPrinter {
             out.println("use crate::sea_of_nodes::ir_printer::pretty_print_llvm;");
         }
         if (tests.stream().anyMatch(t -> !t.evaluations.isEmpty())) {
-            out.println("use crate::sea_of_nodes::tests::evaluator::{evaluate, Object};");
+            out.println("use crate::sea_of_nodes::tests::evaluator::evaluate;");
+        }
+        if (tests.stream().flatMap(t -> t.evaluations.stream()).anyMatch(e -> !e.stringify())) {
+            out.println("use crate::sea_of_nodes::tests::evaluator::Object;");
         }
 
         for (TestMethod test : tests) {
@@ -100,8 +103,8 @@ public class RustPrinter {
                 out.println("let mut parser = Parser::new(" + string(test.parserInput) + ", &types);");
             } else {
                 out.printf("let mut parser = Parser::new_with_arg(%s, &types, %s);\n", string(test.parserInput), switch (test.parserArg) {
-                    case TestMethod.Arg.IntBot ignored -> "types.ty_int_bot";
-                    case TestMethod.Arg.IntTop ignored -> "types.ty_int_top";
+                    case TestMethod.Arg.IntBot ignored -> "types.int_bot";
+                    case TestMethod.Arg.IntTop ignored -> "types.int_top";
                     case TestMethod.Arg.IntConstant c -> "types.get_int(" + c.value() + ")";
                 });
             }
@@ -145,7 +148,9 @@ public class RustPrinter {
                     default ->
                             throw new RuntimeException("unexpected evaluation result: " + evaluation.result().getClass());
                 };
-                out.println("assert_eq!(" + result + ", evaluate(&parser.nodes, stop, Some(" + evaluation.parameter() + "), None).1);");
+                var parameter = evaluation.parameter() != null ? "Some(" + evaluation.parameter() + ")" : "None";
+                var x = evaluation.stringify() ? ".to_string()" : ".object";
+                out.println("assert_eq!(" + result + ", evaluate(&parser.nodes, stop, " + parameter + ", None)" + x + ");");
             }
         } else {
             out.println("todo!();");
