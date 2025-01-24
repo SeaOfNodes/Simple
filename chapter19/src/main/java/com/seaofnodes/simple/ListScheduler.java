@@ -9,6 +9,8 @@ public abstract class ListScheduler {
 
     private static final BitSet VISIT = new BitSet();
     private static int[] BCNTS;
+
+    // Classic list scheduler
     public static void sched( CodeGen code ) {
         assert VISIT.isEmpty();
         BCNTS = new int[CodeGen.CODE.UID()];
@@ -26,7 +28,7 @@ public abstract class ListScheduler {
                 walk(c,visit);
     }
 
-    // Local schedule this one CFG
+    // List schedule this one basic block
     static void local( CFGNode bb ) {
         if( !bb.blockHead() || bb instanceof StopNode ) return;
         Node[] uses = bb._outputs._es;
@@ -72,7 +74,7 @@ public abstract class ListScheduler {
                     for( Node useuse : use._outputs )
                         ready = ready(bb,useuse,ready);
                 } else
-                    ready = ready(bb, use,ready);
+                    ready = ready(bb,use,ready);
         }
     }
 
