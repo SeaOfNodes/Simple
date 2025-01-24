@@ -179,7 +179,6 @@ for(;;) {
         assertEquals("3", Eval2.eval(code,  0));
     }
 
-
     @Test
     public void testFcn9() {
         CodeGen code = new CodeGen(
@@ -194,6 +193,31 @@ for(;;) {
         code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return Top;", code._stop.toString());
         assertEquals(null, Eval2.eval(code,  0));
+    }
+
+
+    @Test
+    public void testFcn10() {
+        CodeGen code = new CodeGen(
+"""
+struct Person {
+  int age;
+};
+
+val fcn = { Person?[] ps, int x ->
+  val tmp = ps[x];
+  if( ps[x] )
+    ps[x].age++;
+};
+
+var ps = new Person?[2];
+ps[0] = new Person;
+ps[1] = new Person;
+fcn(ps,1);
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     // Function break

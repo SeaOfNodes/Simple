@@ -151,6 +151,10 @@ if( iss[arg] )
         rez = iss[arg][2].y;
 return rez;
 """);
+        //code.parse().opto().typeCheck();
+        //assertEquals("return Phi(Region,Phi(Region,.y,1.2),1.2);", code.print());
+        //assertEquals("3.14", Eval2.eval(code,  0));
+        //assertEquals("3.14", Eval2.eval(code, 10)); // Fails AIOOBE in Eval2, no range checks
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'y'",e.getMessage()); }
     }

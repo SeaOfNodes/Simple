@@ -816,7 +816,7 @@ public class Parser {
         int old2 = pos();
         match("!");
         String id = _lexer.matchId();
-        if( !(peek(',') || peek(';')) )
+        if( !(peek(',') || peek(';') || match("->")) )
             return posT(old1);
         pos(old2);              // Reset lexer to reparse
         if( id==null )
