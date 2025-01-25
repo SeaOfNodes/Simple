@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.RegMask;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
@@ -34,8 +32,9 @@ public class RetX86 extends ReturnNode implements MachNode {
     // indentation, leading address or block labels not printed here.
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"
-    @Override public void asm(SB sb, String comment) {
-        throw Utils.TODO();
+    @Override public void asm(CodeGen code, SB sb) {
+        sb.p(code.reg(in(2)));
     }
 
+    @Override public String op() { return "ret"; }
 }

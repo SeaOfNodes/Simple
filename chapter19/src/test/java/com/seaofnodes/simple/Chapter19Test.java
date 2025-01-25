@@ -64,14 +64,24 @@ hashCode(s);
     }
 
     @Test
-    public void testBasic() {
+    public void testBasic0() {
         CodeGen code = new CodeGen(
 """
 return 0;
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
         assertEquals("return 0;", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  2));
     }
 
+    @Test
+    public void testBasic1() {
+        CodeGen code = new CodeGen(
+"""
+return arg+1;
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (addi,arg);", code._stop.toString());
+    }
 }

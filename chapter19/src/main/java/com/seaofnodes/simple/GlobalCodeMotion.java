@@ -11,7 +11,7 @@ public abstract class GlobalCodeMotion {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( CodeGen code ) {
-        ArrayList<CFGNode> rpo = new ArrayList<>();
+        Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         _rpo_cfg(null, code._start, code._wvisit, rpo);
         // Reverse in-place
         for( int i=0; i< rpo.size()>>1; i++ ) {
@@ -29,7 +29,7 @@ public abstract class GlobalCodeMotion {
     }
 
     // Post-Order of CFG
-    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
+    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
         if( def instanceof CallNode && cfg instanceof FunNode )

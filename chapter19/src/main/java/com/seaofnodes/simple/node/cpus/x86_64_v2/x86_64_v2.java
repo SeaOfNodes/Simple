@@ -30,6 +30,7 @@ public class x86_64_v2 extends Machine {
         return switch(idx) {
         case 0 -> 0;            // Control: no register
         case 1 -> 1;            // Memory : no register
+        case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
         default -> throw Utils.TODO();
         };
     }
@@ -52,6 +53,7 @@ public class x86_64_v2 extends Machine {
     // Instruction selection
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
+        case AddNode      add   -> add(add);
         case ConstantNode con   -> con(con);
         case FunNode      fun   -> new FunX86(fun);
         case ParmNode     parm  -> new ParmX86(parm);
@@ -73,5 +75,12 @@ public class x86_64_v2 extends Machine {
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con._type);
         };
+    }
+
+
+    private Node add( AddNode add ) {
+        if( add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new AddIX86(add, ti);
+        throw Utils.TODO();
     }
 }

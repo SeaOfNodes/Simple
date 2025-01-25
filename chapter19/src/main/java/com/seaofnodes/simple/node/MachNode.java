@@ -28,15 +28,19 @@ public interface MachNode {
 
     // Returns either 0 for not-two-adr or the updated input; for projections
     // this is their Multi's updated input.
-    default public int twoAddress( ) { return 0; }
+    default int twoAddress( ) { return 0; }
 
     // Instructions cheaper to recreate than to spill, such as loading small constants
-    default public boolean isClone() { return false; }
+    default boolean isClone() { return false; }
     // Encoding is appended into the byte array; size is returned
     abstract public int encoding(ByteArrayOutputStream bytes);
+
     // Human readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.
-    // Just something like "ld4\tR17=[R18+12] // Load array base".
-    // General form: "op\tdst=src+src"
-    abstract public void asm(SB sb, String comment);
+    // Just something like "R17=[R18+12] // Load array base".
+    // General form: "dst=src+src".
+    default void asm(CodeGen code, SB sb) { throw Utils.TODO(); }
+
+    // Human readable opcode; e.g. "ld4" or "call".
+    default String op() { throw Utils.TODO(); }
 }

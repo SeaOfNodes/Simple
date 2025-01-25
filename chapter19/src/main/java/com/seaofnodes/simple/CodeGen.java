@@ -2,7 +2,6 @@
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -176,27 +175,31 @@ public class CodeGen {
         // Convert to machine ops
         _uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
-        _stop  = ( StopNode)_instSelect( _stop, map );
-        _start = (StartNode) map.get(_start);
+        _instSelect( _stop, map );
+        _stop  = ( StopNode)map.get(_stop );
+        _start = (StartNode)map.get(_start);
         _instOuts(_stop,new BitSet());
         return this;
     }
 
     // Walk all ideal nodes, recursively mapping ideal to machine nodes, then
     // make a machine node for "this".
-    private Node _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
+    private void _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
+        if( n==null ) return;
         Node x = map.get(n);
-        if( x !=null ) return x; // Been there, done that
+        if( x !=null ) return; // Been there, done that
         // Updates forward edges only.
         n._outputs.clear();
         // Walk all inputs and map to machine nodes.
-        for( int i=0; i<n._inputs._len; i++ )
-            if( n.in(i) != null )
-                n._inputs.set(i,_instSelect(n._inputs.at(i),map));
-        // Now, with all machine inputs ready, produce a machine node from n
+        for( Node def : n._inputs )
+            _instSelect(def,map);
+        // With all machine inputs ready, produce a machine node from n
         x = _mach.instSelect(n);
+        // Walk all inputs again, and replace ideal with machine inputs
+        for( int i=0; i<x.nIns(); i++ )
+            if( x.in(i)!=null )
+                x._inputs.set(i,map.get(x.in(i)));
         map.put(n,x);
-        return x;
     }
 
     // Walk all machine Nodes, and set their output edges
@@ -213,7 +216,7 @@ public class CodeGen {
 
     // ---------------------------
     // Control Flow Graph in RPO order.
-    ArrayList<CFGNode> _cfg = new ArrayList<>();
+    Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
@@ -240,15 +243,24 @@ public class CodeGen {
 
 
     // ---------------------------
+    public String reg(Node n) {
+        if( _phase == Phase.RegAlloc ) throw Utils.TODO();
+        return "N"+String.valueOf(n._nid);
+    }
+
+
+    // ---------------------------
+    SB asm(SB sb) { return ASMPrinter.print(sb,this); }
+    String asm() { return asm(new SB()).toString(); }
+
+
     // Testing shortcuts
     Node ctrl() { return _stop.ret().ctrl(); }
     Node expr() { return _stop.ret().expr(); }
     String print() { return _stop.print(); }
 
     // Debugging helper
-    @Override public String toString() {
-        return _stop.p(9999);
-    }
+    @Override public String toString() { return _stop.p(9999); }
 
     // Debugging helper
     public Node f(int idx) { return _stop.find(idx); }
