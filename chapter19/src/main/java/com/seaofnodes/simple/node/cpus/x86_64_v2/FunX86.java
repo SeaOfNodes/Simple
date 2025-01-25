@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.FunNode;
@@ -13,12 +14,12 @@ public class FunX86 extends FunNode implements MachNode {
     }
 
     // Register mask allowed on input i.  0 for no register.
-    @Override public long regmap(int i) { return 0; }
+    @Override public RegMask regmap(int i) { return RegMask.EMPTY; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public long outregmap() { return 0; }
+    @Override public RegMask outregmap() { return RegMask.EMPTY; }
     // Multi-reg-defining machine op; idx comes from Proj.
-    // Sometimes these Projs have no uses, and just exist to kill a register.
-    @Override public long outregmap(int idx) {
+    // This is the normal calling convention.
+    @Override public RegMask outregmap(int idx) {
         throw Utils.TODO();
     }
 

@@ -11,31 +11,21 @@ public abstract class GlobalCodeMotion {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( CodeGen code ) {
-        schedEarly(code._start);
-        schedLate(code);
-    }
-
-
-    // ------------------------------------------------------------------------
-    // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
-    // (except at loops).  Since defs are visited first - and hoisted as early
-    // as possible, when we come to a use we place it just after its deepest
-    // input.
-    private static void schedEarly(StartNode start) {
         ArrayList<CFGNode> rpo = new ArrayList<>();
-        BitSet visit = new BitSet();
-        _rpo_cfg(null, start, visit, rpo);
-        // Reverse Post-Order on CFG
-        for( int j=rpo.size()-1; j>=0; j-- ) {
-            CFGNode cfg = rpo.get(j);
-            cfg.loopDepth();
-            for( Node n : cfg._inputs )
-                _schedEarly(n,visit);
-            if( cfg instanceof RegionNode )
-                for( Node phi : cfg._outputs )
-                    if( phi instanceof PhiNode )
-                        _schedEarly(phi,visit);
+        _rpo_cfg(null, code._start, code._wvisit, rpo);
+        // Reverse in-place
+        for( int i=0; i< rpo.size()>>1; i++ ) {
+            int j = rpo.size()-1-i;
+            CFGNode tmp = rpo.get(i);
+            rpo.set(i, rpo.get(j));
+            rpo.set(j, tmp);
         }
+        // Set global CFG
+        code._cfg = rpo;
+
+        schedEarly(code);
+        code._wvisit.clear();
+        schedLate (code);
     }
 
     // Post-Order of CFG
@@ -48,6 +38,24 @@ public abstract class GlobalCodeMotion {
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
         rpo.add(cfg);
+    }
+
+    // ------------------------------------------------------------------------
+    // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
+    // (except at loops).  Since defs are visited first - and hoisted as early
+    // as possible, when we come to a use we place it just after its deepest
+    // input.
+    private static void schedEarly(CodeGen code) {
+        // Reverse Post-Order on CFG
+        for( CFGNode cfg : code._cfg ) {
+            cfg.loopDepth();
+            for( Node n : cfg._inputs )
+                _schedEarly(n,code._wvisit);
+            if( cfg instanceof RegionNode )
+                for( Node phi : cfg._outputs )
+                    if( phi instanceof PhiNode )
+                        _schedEarly(phi,code._wvisit);
+        }
     }
 
     private static void _schedEarly(Node n, BitSet visit) {

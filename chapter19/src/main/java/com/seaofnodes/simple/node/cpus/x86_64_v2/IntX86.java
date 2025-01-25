@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -14,19 +15,16 @@ public class IntX86 extends ConstantNode implements MachNode {
     }
 
     // Register mask allowed on input i.  0 for no register.
-    @Override public long regmap(int i) { return 0; }
-    // Register mask allowed as a result.  0 for no register.
-    @Override public long outregmap() {
-        //return 0;
-        throw Utils.TODO();
-    }
+    @Override public RegMask regmap(int i) { return RegMask.EMPTY; }
+    // General int registers
+    @Override public RegMask outregmap() { return x86_64_v2.RMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();
     }
 
-    // Human readable form appended to the SB.  Things like the encoding,
+    // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"

@@ -2,6 +2,7 @@
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -28,6 +29,22 @@ public class CodeGen {
     // Compile-time known initial argument type
     public final TypeInteger _arg;
 
+
+    // ---------------------------
+    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
+    public CodeGen( String src, TypeInteger arg, long workListSeed ) {
+        CODE = this;
+        _phase = null;
+
+        _start = new StartNode(arg);
+        _stop = new StopNode(src);
+        _src = src;
+        _arg = arg;
+        _iter = new IterPeeps(workListSeed);
+        P = new Parser(this,arg);
+    }
+
+
     // ---------------------------
     /**
      *  A counter, for unique node id generation.  Starting with value 1, to
@@ -47,7 +64,7 @@ public class CodeGen {
 
     // Start and stop; end points of the generated IR
     public StartNode _start;
-    public StopNode _stop;
+    public StopNode  _stop;
 
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.
@@ -65,6 +82,17 @@ public class CodeGen {
     }
     // Signature for MAIN
     public TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM).setName("main");
+    // Reverse from a constant function pointer to the IR function being called
+    public FunNode link( TypeFunPtr tfp ) {
+        assert tfp.isConstant();
+        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+    }
+
+    // Insert linker mapping from constant function signature to the function
+    // being called.
+    public void link(FunNode fun) {
+        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+    }
 
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
@@ -73,6 +101,17 @@ public class CodeGen {
 
     // Parser object
     public final Parser P;
+
+    // Parse ASCII text into Sea-of-Nodes IR
+    public CodeGen parse() {
+        assert _phase == null;
+        _phase = Phase.Parse;
+
+        P.parse();
+        JSViewer.show();
+        return this;
+    }
+
 
     // ---------------------------
     // Iterator peepholes.
@@ -84,34 +123,6 @@ public class CodeGen {
     // Stat gathering
     public void iterCnt() { if( !_midAssert ) _iter_cnt++; }
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
-
-    // ---------------------------
-    // Code generation CPU target
-    Machine _mach;
-
-    // ---------------------------
-    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
-    public CodeGen( String src, TypeInteger arg, long workListSeed ) {
-        CODE = this;
-        _phase = null;
-
-        _start = new StartNode(arg);
-        _stop = new StopNode(src);
-        _src = src;
-        _arg = arg;
-        _iter = new IterPeeps(workListSeed);
-        P = new Parser(this,arg);
-    }
-
-    // Parse ASCII text into Sea-of-Nodes IR
-    public CodeGen parse() {
-        assert _phase == null;
-        _phase = Phase.Parse;
-
-        P.parse();
-        JSViewer.show();
-        return this;
-    }
 
     // Run ideal optimizations
     public CodeGen opto() {
@@ -127,7 +138,11 @@ public class CodeGen {
         // loop unroll, peel, RCE, etc
         return this;
     }
+    public <N extends Node> N add( N n ) { return (N)_iter.add(n); }
+    public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
 
+
+    // ---------------------------
     // Last check for bad programs
     public CodeGen typeCheck() {
         // Demand phase Opto for cleaning up dead control flow at least,
@@ -141,6 +156,11 @@ public class CodeGen {
             throw err;
         return this;
     }
+
+
+    // ---------------------------
+    // Code generation CPU target
+    public Machine _mach;
 
     // Convert to target hardware nodes
     public CodeGen instSelect( String cpu ) {
@@ -159,9 +179,11 @@ public class CodeGen {
         _stop  = ( StopNode)_instSelect( _stop, map );
         _start = (StartNode) map.get(_start);
         _instOuts(_stop,new BitSet());
-
         return this;
     }
+
+    // Walk all ideal nodes, recursively mapping ideal to machine nodes, then
+    // make a machine node for "this".
     private Node _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
         Node x = map.get(n);
         if( x !=null ) return x; // Been there, done that
@@ -177,6 +199,7 @@ public class CodeGen {
         return x;
     }
 
+    // Walk all machine Nodes, and set their output edges
     private void _instOuts( Node n, BitSet visit ) {
         if( visit.get(n._nid) ) return;
         visit.set(n._nid);
@@ -188,6 +211,10 @@ public class CodeGen {
     }
 
 
+    // ---------------------------
+    // Control Flow Graph in RPO order.
+    ArrayList<CFGNode> _cfg = new ArrayList<>();
+
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
@@ -196,13 +223,13 @@ public class CodeGen {
 
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree(_stop);
+        GlobalCodeMotion.buildCFG(this);
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
-
-        GlobalCodeMotion.buildCFG(this);
         return this;
     }
 
+    // ---------------------------
     // Local (basic block) scheduler phase, a classic list scheduler
     public CodeGen localSched() {
         assert _phase == Phase.Schedule;
@@ -211,21 +238,8 @@ public class CodeGen {
         return this;
      }
 
-    // Reverse from a constant function pointer to the IR function being called
-    public FunNode link( TypeFunPtr tfp ) {
-        assert tfp.isConstant();
-        return _linker.get(tfp.makeFrom(Type.BOTTOM));
-    }
 
-    public void link(FunNode fun) {
-        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
-    }
-
-
-    public <N extends Node> N add( N n ) { return (N)_iter.add(n); }
-    public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
-
-
+    // ---------------------------
     // Testing shortcuts
     Node ctrl() { return _stop.ret().ctrl(); }
     Node expr() { return _stop.ret().expr(); }

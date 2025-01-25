@@ -42,8 +42,7 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
     }
     /** @return remove and return last element */
     public E pop( ) {
-        range_check(0);
-        return _es[--_len];
+        return _len==0 ? null : _es[--_len];
     }
     @Override public E removeLast() { return pop(); }
 
@@ -103,13 +102,14 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return this;
     }
 
-    public void swap( int i, int j ) {
+    public E swap( int i, int j ) {
         range_check(i);
         range_check(j);
-        if( i==j ) return;
         E tmp = _es[i];
+        if( i==j ) return tmp;
         _es[i] = _es[j];
         _es[j] = tmp;
+        return tmp;
     }
 
 

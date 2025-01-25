@@ -149,11 +149,13 @@ public class JSViewer implements AutoCloseable {
                 sb.i().p("<TR>");
                 n._outputs.sort((x,y) -> x instanceof ProjNode xp && y instanceof ProjNode yp ? (xp._idx - yp._idx) : ((x==null ? 99999 : x._nid) - (y==null ? 99999 : y._nid)));
                 boolean empty_row=true;
-                for( Node use : n._outputs )
-                    if( use instanceof MultiUse muse ) {
-                        cell(sb,use.glabel(),use,"p"+muse.idx());
+                for( Node use : n._outputs ) {
+                    int idx = idx(n);
+                    if( idx != -1 ) {
+                        cell(sb,use.glabel(),use,"p"+idx);
                         empty_row=false;
                     }
+                }
                 // At least one cell on row
                 if( empty_row )  sb.p("<TD></TD>");
                 sb.    p("</TR>").p("\n");
@@ -386,9 +388,15 @@ public class JSViewer implements AutoCloseable {
 
     }
 
+    // (C)Projection index or -1
+    private static int idx(Node n) {
+        return n instanceof ProjNode p ? p._idx : (n instanceof CProjNode cp ? cp._idx : -1);
+    }
+
     private static SB defPort(SB sb, Node def) {
-        return def instanceof MultiUse muse
-            ? sb.p(def.in(0).uniqueName()).p(":p").p(muse.idx())
+        int idx = idx(def);
+        return idx != -1
+            ? sb.p(def.in(0).uniqueName()).p(":p").p(idx)
             : sb.p(def.uniqueName());
     }
 }

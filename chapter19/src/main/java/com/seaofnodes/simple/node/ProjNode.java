@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 
 import java.util.BitSet;
 
-public class ProjNode extends Node implements MultiUse {
+public class ProjNode extends Node {
 
     // Which slice of the incoming multipart value
     public final int _idx;
@@ -21,7 +21,6 @@ public class ProjNode extends Node implements MultiUse {
     }
 
     @Override public String label() { return _label; }
-    @Override public int idx() { return _idx; }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {

@@ -476,6 +476,7 @@ public abstract class Node {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( CODE._midAssert ) return this;
+        if( dep == null ) return this;
         if( _deps==null ) _deps = new Ary<>(Node.class);
         if( _deps   .find(dep) != -1 ) return this; // Already on list
         if( _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
