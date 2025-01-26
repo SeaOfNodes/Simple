@@ -16,6 +16,8 @@ public class x86_64_v2 extends Machine {
 
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
+    // No RSP in the *write* general set.
+    public static RegMask WMASK = new RegMask(0b1111111111101111);
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
@@ -61,11 +63,11 @@ public class x86_64_v2 extends Machine {
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case FunNode      fun   -> new FunX86(fun);
-        case ShlNode      shl   -> shl(shl);
         case IfNode       iff   -> jmp(iff);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
         case ReturnNode   ret   -> new RetX86(ret,(FunX86)ret.rpc().in(0));
+        case ShlNode      shl   -> shl(shl);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
         case SubNode      sub   -> sub(sub);
