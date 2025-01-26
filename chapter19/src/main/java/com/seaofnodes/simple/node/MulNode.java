@@ -55,8 +55,17 @@ public class MulNode extends Node {
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so
             // become machine-specific.
-            if( (c & (c-1))==0 )
-                return new ShlNode(null,lhs,new ConstantNode(TypeInteger.constant(Long.numberOfTrailingZeros(c))).peephole());
+            if( (c & (c-1)) == 0 )
+                return new ShlNode(null,lhs,con(Long.numberOfTrailingZeros(c)));
+            // 2**n + 1, e.g. 9
+            long d = c-1;
+            if( (d & (d-1)) == 0 )
+                return new AddNode(new ShlNode(null,lhs,con(Long.numberOfTrailingZeros(d))).peephole(),lhs);
+            // 2**n - 1, e.g. 31
+            long e = c+1;
+            if( (e & (e-1)) == 0 )
+                return new SubNode(new ShlNode(null,lhs,con(Long.numberOfTrailingZeros(e))).peephole(),lhs);
+
         }
 
         // Do we have ((x * (phi cons)) * con) ?

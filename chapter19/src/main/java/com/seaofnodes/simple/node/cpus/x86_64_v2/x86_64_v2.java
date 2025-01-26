@@ -91,9 +91,9 @@ public class x86_64_v2 extends Machine {
 
 
     private Node add( AddNode add ) {
-        if( add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new AddIX86(add, ti);
-        throw Utils.TODO();
+        return add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new AddIX86(add, ti)
+            : new  AddX86(add);
     }
 
     private Node sub( SubNode sub ) {

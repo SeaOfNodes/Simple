@@ -59,7 +59,7 @@ s.cs[1] = 108; // l
 hashCode(s);
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,(.[]+(Phi_hash*31)))); return Phi(Region,1,0,0,1); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return Phi(Region,1,0,0,1); ]", code._stop.toString());
         assertEquals("-2449306563677080489", Eval2.eval(code,  2));
     }
 
@@ -117,7 +117,7 @@ return a;
         assertEquals("return Phi(Region,(addi,arg),(addi,arg));", code.print());
     }
 
-    @Ignore @Test
+    @Test
     public void testIfMerge2() {
         CodeGen code = new CodeGen(
 """
@@ -130,6 +130,6 @@ else
 return a+b;""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return ((Phi(Region,(arg<<1),arg)+arg)+Phi(Region,4,5));", code.print());
+        assertEquals("return (add,(add,Phi(Region,(shli,arg),arg),arg),Phi(Region,4,5));", code.print());
     }
 }

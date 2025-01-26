@@ -60,7 +60,7 @@ public class IfNode extends CFGNode implements MultiNode {
         if( !pred()._type.isHighOrConst() )
             for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
                 if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof CProjNode prj ) {
-                    setDef(1,new ConstantNode(TypeInteger.constant(prj._idx==0?1:0)).peephole());
+                    setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }
         return null;

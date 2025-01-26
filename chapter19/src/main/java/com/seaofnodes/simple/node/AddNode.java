@@ -53,7 +53,7 @@ public class AddNode extends Node {
 
         // Add of same to a multiply by 2
         if( lhs==rhs )
-            return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)).peephole());
+            return new MulNode(lhs,con(2));
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
 
