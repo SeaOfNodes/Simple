@@ -92,6 +92,13 @@ hashCode(s);
         assertEquals("return (set==,(cmp,arg));", code._stop.toString());
     }
 
+    @Test
+    public void testBasic4() {
+        CodeGen code = new CodeGen("return arg<<1;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (shli,arg);", code._stop.toString());
+    }
+
 
     @Test
     public void testIfStmt() {
