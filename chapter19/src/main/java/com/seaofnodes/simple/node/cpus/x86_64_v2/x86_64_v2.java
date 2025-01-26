@@ -61,6 +61,7 @@ public class x86_64_v2 extends Machine {
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case FunNode      fun   -> new FunX86(fun);
+        case ShlNode      shl   -> shl(shl);
         case IfNode       iff   -> jmp(iff);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
@@ -96,6 +97,13 @@ public class x86_64_v2 extends Machine {
     private Node sub( SubNode sub ) {
         if( sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AddIX86(sub, TypeInteger.constant(-ti.value()));
+        throw Utils.TODO();
+    }
+
+    private Node shl( ShlNode shl ) {
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            return new ShlIX86(shl, ti);
+        }
         throw Utils.TODO();
     }
 
