@@ -6,10 +6,14 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-// Compare immediate.  Sets flags.
+// Jump on flags, uses flags
 public class JmpX86 extends IfNode implements MachNode {
     final String _bop;
-    JmpX86( IfNode iff, MachConcreteNode pred, String bop ) { super(iff.in(0),pred); _bop = bop; }
+    JmpX86( IfNode iff, MachConcreteNode pred, String bop ) {
+        super(iff);
+        _inputs.set(1,pred); // Skip a prior SetX86, use the cmp directly
+        _bop = bop;
+    }
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
@@ -27,4 +31,7 @@ public class JmpX86 extends IfNode implements MachNode {
 
     @Override public String op() { return "j"+_bop; }
 
+    @Override public String comment() {
+        return "L"+cproj(1)._nid+", L"+cproj(0)._nid;
+    }
 }

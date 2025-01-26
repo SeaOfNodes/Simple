@@ -84,6 +84,9 @@ public abstract class Node {
     // Graphical label, e.g. "+" or "Region" or "=="
     public String glabel() { return label(); }
 
+    // Extra fun stuff, for assembly printing.  Jump labels, parser locations,
+    // variable types, etc.
+    public String comment() { return null; }
 
     // ------------------------------------------------------------------------
 

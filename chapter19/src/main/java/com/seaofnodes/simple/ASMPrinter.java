@@ -37,7 +37,7 @@ public abstract class ASMPrinter {
 
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         CFGNode bb = code._cfg.at(cfgidx);
-        if( bb != fun )
+        if( bb != fun && !(bb instanceof IfNode) )
             sb.p("L").p(bb._nid).p(":").nl();
 
         for( Node n : bb._outputs )
@@ -47,7 +47,34 @@ public abstract class ASMPrinter {
     }
 
     static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n) {
-        if( n instanceof PhiNode ) return iadr;
+        final int encWidth = 8;
+        final int opWidth = 5;
+        final int argWidth = 20;
+
+        if( n instanceof  CProjNode ) return iadr;
+
+        // Phis are useful before (and during) reg alloc
+        if( n instanceof PhiNode phi ) {
+            if( phi._label.charAt(0)=='$') return iadr; // Nothing for the hidden ones
+            sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ");
+            sb.p("N").p(n._nid);
+            if( !(n instanceof ParmNode) ) {
+                sb.p(" = phi( ");
+                for( int i=1; i<n.nIns(); i++ )
+                    sb.p("N").p(n.in(i)._nid).p(",");
+                sb.unchar().p(" )");
+            }
+            sb.nl();
+            return iadr;
+        }
+
+        // All blocks ending in a Region will need to either fall into or jump
+        // to this block.  Until the post-reg-alloc block layout cleanup, we
+        // need to assume a jump.  There's no real hardware op here, yet.
+        if( n instanceof RegionNode ) {
+            sb.hex4(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,"L"+n._nid).nl();
+            return iadr;
+        }
 
         // ADDR ENCODING  Op--- dst = src op src       // Comment
         // 1234 abcdefgh  ld4   RAX = [Rbase + off]    // Comment
@@ -55,19 +82,16 @@ public abstract class ASMPrinter {
         sb.p(" ");
 
         // Encoding
-        final int encWidth = 8;
         int size = 1;           // TODO: Fake encoding size
         iadr += size;
         sb.fix(encWidth,"??");
         sb.p("  ");
 
         // Op; generally "ld4" or "call"
-        final int opWidth = 5;
         sb.fix(opWidth, n instanceof MachNode mach ? mach.op() : n.label());
         sb.p(" ");
 
         // General asm args
-        final int argWidth = 20;
         if( n instanceof MachNode mach ) {
             int old = sb.len();
             mach.asm(code,sb);
@@ -86,6 +110,8 @@ public abstract class ASMPrinter {
         sb.p(" ");
 
         // Comment
+        String comment = n.comment();
+        if( comment!=null ) sb.p("// ").p(comment);
 
         sb.nl();
         return iadr;

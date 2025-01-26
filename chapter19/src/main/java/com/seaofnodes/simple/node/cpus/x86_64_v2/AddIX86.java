@@ -29,7 +29,7 @@ public class AddIX86 extends MachConcreteNode implements MachNode {
 
     // General form: "addi  dst += #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" += #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + #");
         _ti.print(sb);
     }
 

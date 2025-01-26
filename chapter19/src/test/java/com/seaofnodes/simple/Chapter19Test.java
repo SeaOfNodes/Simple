@@ -107,7 +107,7 @@ return a;
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return Phi(Region,(arg+2),(arg-3));", code.print());
+        assertEquals("return Phi(Region,(addi,arg),(addi,arg));", code.print());
     }
 
 }
