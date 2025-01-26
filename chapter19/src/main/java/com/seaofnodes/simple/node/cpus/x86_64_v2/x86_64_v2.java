@@ -85,6 +85,7 @@ public class x86_64_v2 extends Machine {
         case DivFNode     divf  -> divf(divf);
         case DivNode      div   -> div(div);
         case FunNode      fun   -> new FunX86(fun);
+        case ShlNode      shl   -> shl(shl);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
         case NewNode      nnn   -> new NewX86(nnn);
@@ -210,6 +211,11 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO();
     }
 
+    private Node shl( ShlNode shl ) {
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShlIX86(shl, ti);
+        throw Utils.TODO();
+    }
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.

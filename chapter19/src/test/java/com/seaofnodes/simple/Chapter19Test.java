@@ -115,7 +115,7 @@ hashCode(s);""");
 
     @Test
     public void testBasic8() {
-        CodeGen code = new CodeGen("return arg * 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        CodeGen code = new CodeGen("return arg * 6;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
         assertEquals("return (shli,arg);", code._stop.toString());
     }
@@ -168,7 +168,6 @@ hashCode(s);""");
         System.out.println(code.asm());
         assertEquals("return (divss,(fildi));", code._stop.toString());
     }
-
 
     @Test
     public void testIfStmt() {
