@@ -58,8 +58,9 @@ public class CodeGen {
     public  int getALIAS() { return _alias++; }
 
 
-    // Popular visit bitset, declared here so it gets reused all over
-    public final BitSet _wvisit = new BitSet();
+    // Popular visit bitset, declared here, so it gets reused all over
+    public final BitSet _visit = new BitSet();
+    public BitSet visit() { assert _visit.isEmpty(); return _visit; }
 
     // Start and stop; end points of the generated IR
     public StartNode _start;
@@ -178,28 +179,25 @@ public class CodeGen {
         _instSelect( _stop, map );
         _stop  = ( StopNode)map.get(_stop );
         _start = (StartNode)map.get(_start);
-        _instOuts(_stop,new BitSet());
+        _instOuts(_stop,visit());
+        _visit.clear();
         return this;
     }
 
     // Walk all ideal nodes, recursively mapping ideal to machine nodes, then
     // make a machine node for "this".
-    private void _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
-        if( n==null ) return;
+    private Node _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
+        if( n==null ) return null;
         Node x = map.get(n);
-        if( x !=null ) return; // Been there, done that
+        if( x !=null ) return x; // Been there, done that
+        // Walk all inputs, and replace ideal with machine inputs
+        for( int i=0; i < n.nIns(); i++ )
+            n._inputs.set(i, _instSelect(n.in(i),map) );
+        // With all machine inputs ready, produce a machine node from n
+        map.put(n, x=_mach.instSelect(n) );
         // Updates forward edges only.
         n._outputs.clear();
-        // Walk all inputs and map to machine nodes.
-        for( Node def : n._inputs )
-            _instSelect(def,map);
-        // With all machine inputs ready, produce a machine node from n
-        x = _mach.instSelect(n);
-        // Walk all inputs again, and replace ideal with machine inputs
-        for( int i=0; i<x.nIns(); i++ )
-            if( x.in(i)!=null )
-                x._inputs.set(i,map.get(x.in(i)));
-        map.put(n,x);
+        return x;
     }
 
     // Walk all machine Nodes, and set their output edges

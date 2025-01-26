@@ -12,9 +12,12 @@ public class x86_64_v2 extends Machine {
 
     public static int RAX =  0, RCX =  1, RDX =  2, RBX =  3, RSP =  4, RBP =  5, RSI =  6, RDI =  7;
     public static int R08 =  8, R09 =  9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
+    public static int FLAGS = 16;
 
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
+
+    public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
     // Return single int/ptr register
     public static RegMask RET_MASK = new RegMask(RAX);
@@ -54,12 +57,18 @@ public class x86_64_v2 extends Machine {
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
         case AddNode      add   -> add(add);
+        case BoolNode     bool  -> cmp(bool);
+        case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case FunNode      fun   -> new FunX86(fun);
+        case IfNode       iff   -> jmp(iff);
         case ParmNode     parm  -> new ParmX86(parm);
+        case PhiNode      phi   -> new PhiNode(phi);
         case ReturnNode   ret   -> new RetX86(ret,(FunX86)ret.rpc().in(0));
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
+        case SubNode      sub   -> sub(sub);
+        case RegionNode   region-> new RegionNode(region);
         default -> throw Utils.TODO();
         };
     }
@@ -81,6 +90,26 @@ public class x86_64_v2 extends Machine {
     private Node add( AddNode add ) {
         if( add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AddIX86(add, ti);
+        throw Utils.TODO();
+    }
+
+    private Node sub( SubNode sub ) {
+        if( sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new AddIX86(sub, TypeInteger.constant(-ti.value()));
+        throw Utils.TODO();
+    }
+
+    // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
+    // Ideal If reading from a setz will skip it and use the "cmp" instead.
+    private Node cmp( BoolNode bool ) {
+        if( bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new SetX86(new CmpIX86(bool, ti),bool.op());
+        throw Utils.TODO();
+    }
+
+    private Node jmp( IfNode iff ) {
+        if( iff.in(1) instanceof SetX86 set && set.in(1) instanceof CmpIX86 cmp )
+            return new JmpX86(iff,cmp,set._bop);
         throw Utils.TODO();
     }
 }

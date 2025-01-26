@@ -19,6 +19,7 @@ public class CProjNode extends CFGNode {
         _idx = idx;
         _label = label;
     }
+    public CProjNode(CProjNode c) { super(c); _idx = c._idx; _label = c._label; }
 
     @Override public String label() { return _label; }
 

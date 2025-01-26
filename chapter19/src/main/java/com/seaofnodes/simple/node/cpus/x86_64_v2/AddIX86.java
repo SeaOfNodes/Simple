@@ -11,7 +11,7 @@ import java.lang.StringBuilder;
 // Return
 public class AddIX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    AddIX86( AddNode add, TypeInteger ti ) { super(add); _inputs.pop(); _ti = ti; }
+    AddIX86( Node add, TypeInteger ti ) { super(add); _inputs.pop(); _ti = ti; }
 
     // Register mask allowed on input i.
     // This is the normal calling convention
@@ -27,9 +27,6 @@ public class AddIX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // Human-readable form appended to the SB.  Things like the encoding,
-    // indentation, leading address or block labels not printed here.
-    // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "addi  dst += #imm"
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" += #");

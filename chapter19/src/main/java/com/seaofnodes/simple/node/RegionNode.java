@@ -10,6 +10,7 @@ public class RegionNode extends CFGNode {
 
     public RegionNode(Parser.Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
     public RegionNode(RegionNode r, Parser.Lexer loc) { super(r); _loc = loc; }
+    public RegionNode(RegionNode r) { super(r); _loc = r._loc; }
 
     @Override
     public String label() { return "Region"; }

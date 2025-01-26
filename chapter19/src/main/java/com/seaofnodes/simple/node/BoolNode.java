@@ -13,7 +13,7 @@ abstract public class BoolNode extends Node {
         super(null, lhs, rhs);
     }
 
-    abstract String op();       // String opcode name
+    abstract public String op(); // String opcode name
 
     @Override
     public String label() { return getClass().getSimpleName(); }
@@ -82,7 +82,7 @@ abstract public class BoolNode extends Node {
 
     public static class EQ extends BoolNode {
         public EQ(Node lhs, Node rhs) { super(lhs,rhs); }
-        String op() { return "=="; }
+        public String op() { return "=="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
             if( i1._max < i2._min || i1._min > i2._max ) return FALSE;
@@ -93,7 +93,7 @@ abstract public class BoolNode extends Node {
     }
     public static class LT extends BoolNode {
         public LT(Node lhs, Node rhs) { super(lhs,rhs); }
-        String op() { return "<" ; }
+        public String op() { return "<" ; }
         public String glabel() { return "&lt;"; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <  i2._min ) return TRUE;
@@ -105,7 +105,7 @@ abstract public class BoolNode extends Node {
     }
     public static class LE extends BoolNode {
         public LE(Node lhs, Node rhs) { super(lhs,rhs); }
-        String op() { return "<="; }
+        public String op() { return "<="; }
         public String glabel() { return "&lt;="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <= i2._min ) return TRUE;

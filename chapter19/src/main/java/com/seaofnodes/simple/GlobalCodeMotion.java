@@ -12,7 +12,7 @@ public abstract class GlobalCodeMotion {
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( CodeGen code ) {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
-        _rpo_cfg(null, code._start, code._wvisit, rpo);
+        _rpo_cfg(null, code._start, code.visit(), rpo);
         // Reverse in-place
         for( int i=0; i< rpo.size()>>1; i++ ) {
             int j = rpo.size()-1-i;
@@ -24,7 +24,7 @@ public abstract class GlobalCodeMotion {
         code._cfg = rpo;
 
         schedEarly(code);
-        code._wvisit.clear();
+        code._visit.clear();
         schedLate (code);
     }
 
@@ -50,11 +50,11 @@ public abstract class GlobalCodeMotion {
         for( CFGNode cfg : code._cfg ) {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
-                _schedEarly(n,code._wvisit);
+                _schedEarly(n,code._visit );
             if( cfg instanceof RegionNode )
                 for( Node phi : cfg._outputs )
                     if( phi instanceof PhiNode )
-                        _schedEarly(phi,code._wvisit);
+                        _schedEarly(phi,code._visit );
         }
     }
 

@@ -49,7 +49,7 @@ public abstract class Node {
     public Type _type;
 
 
-    protected Node(Node... inputs) {
+    Node(Node... inputs) {
         _nid = CODE.getUID(); // allocate unique dense ID
         _inputs = new Ary<>(Node.class);
         Collections.addAll(_inputs,inputs);
@@ -609,15 +609,15 @@ public abstract class Node {
     // Utility to walk the entire graph applying a function; return the first
     // not-null result.
     final public <E> E walk( Function<Node,E> pred ) {
-        assert CODE._wvisit.isEmpty();
+        assert CODE._visit.isEmpty();
         E rez = _walk(pred);
-        CODE._wvisit.clear();
+        CODE._visit.clear();
         return rez;
     }
 
     private <E> E _walk( Function<Node,E> pred ) {
-        if( CODE._wvisit.get(_nid) ) return null; // Been there, done that
-        CODE._wvisit.set(_nid);
+        if( CODE._visit.get(_nid) ) return null; // Been there, done that
+        CODE._visit.set(_nid);
         E x = pred.apply(this);
         if( x != null ) return x;
         for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;

@@ -30,17 +30,16 @@ public class IntX86 extends ConstantNode implements MachNode {
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        if( _con == Type.NIL || _con == TypeInteger.ZERO ) {
-            String reg = code.reg(this);
+        String reg = code.reg(this);
+        if( _con == Type.NIL || _con == TypeInteger.ZERO )
             sb.p(reg).p(",").p(reg);
-            return;
-        }
-        throw Utils.TODO();
+        else
+            _con.print(sb.p(reg).p(" #"));
     }
 
     @Override public String op() {
         if( _con == Type.NIL || _con == TypeInteger.ZERO )
             return "xor";
-        throw Utils.TODO();
+        return "ldi";           // Some fancier encoding
     }
 }
