@@ -110,4 +110,19 @@ return a;
         assertEquals("return Phi(Region,(addi,arg),(addi,arg));", code.print());
     }
 
+    @Ignore @Test
+    public void testIfMerge2() {
+        CodeGen code = new CodeGen(
+"""
+int a=arg+1;
+int b=arg+2;
+if( arg==1 )
+    b=b+a;
+else
+    a=b+1;
+return a+b;""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return ((Phi(Region,(arg<<1),arg)+arg)+Phi(Region,4,5));", code.print());
+    }
 }

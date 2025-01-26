@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-
 import java.util.BitSet;
 
 public class MulNode extends Node {
@@ -41,14 +41,23 @@ public class MulNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        // Mul of 1.  We do not check for (1*x) because this will already
-        // canonicalize to (x*1)
-        if ( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==1 )
-            return lhs;
-
         // Move constants to RHS: con*arg becomes arg*con
         if ( t1.isConstant() && !t2.isConstant() )
             return swap12();
+
+        // Multiply by constant
+        if ( t2.isConstant() && t2 instanceof TypeInteger i ) {
+            // Mul of 1.  We do not check for (1*x) because this will already
+            // canonicalize to (x*1)
+            long c = i.value();
+            if( c==1 )  return lhs;
+            if( c==0 )  return Parser.ZERO;
+            // Mul by a power of 2, +/-1.  Bit patterns more complex than this
+            // are unlikely to win on an X86 vs the normal "imul", and so
+            // become machine-specific.
+            if( (c & (c-1))==0 )
+                return new ShlNode(null,lhs,new ConstantNode(TypeInteger.constant(Long.numberOfTrailingZeros(c))).peephole());
+        }
 
         // Do we have ((x * (phi cons)) * con) ?
         // Do we have ((x * (phi cons)) * (phi cons)) ?
