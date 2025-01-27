@@ -149,6 +149,28 @@ hashCode(s);""");
     }
 
     @Test
+    public void testBasic13() {
+        CodeGen code = new CodeGen("return arg - 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (subss,(fildi));", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic14() {
+        CodeGen code = new CodeGen("return arg * 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (mulss,(fildi));", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic15() {
+        CodeGen code = new CodeGen("return arg / 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (divss,(fildi));", code._stop.toString());
+    }
+
+
+    @Test
     public void testIfStmt() {
         CodeGen code = new CodeGen(
 """

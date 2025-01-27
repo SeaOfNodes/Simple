@@ -12,9 +12,9 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 import java.io.ByteArrayOutputStream;
 
-public class AddFIX86 extends MachConcreteNode implements MachNode {
+public class SubFIX86 extends MachConcreteNode implements MachNode {
     TypeFloat _tf;
-    AddFIX86(Node add, TypeFloat tf) { super(add);  _inputs.pop(); _tf = tf; }
+    SubFIX86(Node sub, TypeFloat tf) { super(sub);  _inputs.pop(); _tf = tf; }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.XMASK; }
@@ -28,14 +28,14 @@ public class AddFIX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // General form: "addss  | addsd  dst += src"
+    // General form: "subss  | subsd  dst -= src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" - #");
         _tf.print(sb);
     }
 
     @Override public String op() {
-        if(_tf._sz == 64) return "addsd";
-        return "addss";
+        if(_tf._sz == 64) return "subsd";
+        return "subss";
     }
 }

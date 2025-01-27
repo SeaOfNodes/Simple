@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+
 import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
@@ -12,9 +13,9 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 import java.io.ByteArrayOutputStream;
 
-public class AddFIX86 extends MachConcreteNode implements MachNode {
+public class MulFIX86 extends MachConcreteNode implements MachNode {
     TypeFloat _tf;
-    AddFIX86(Node add, TypeFloat tf) { super(add);  _inputs.pop(); _tf = tf; }
+    MulFIX86(Node mul, TypeFloat tf) { super(mul);  _inputs.pop(); _tf = tf; }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.XMASK; }
@@ -28,14 +29,14 @@ public class AddFIX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // General form: "addss  | addsd  dst += src"
+    // General form: "mulss  | mulsd  dst *= src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * #");
         _tf.print(sb);
     }
 
     @Override public String op() {
-        if(_tf._sz == 64) return "addsd";
-        return "addss";
+        if(_tf._sz == 64) return "mulsd";
+        return "mulss";
     }
 }
