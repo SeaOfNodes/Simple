@@ -76,15 +76,14 @@ public class x86_64_v2 extends Machine {
     // Instruction selection
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
-        case AddNode      add   -> add(add);
         case AddFNode     addf  -> addf(addf);
-        case MulFNode     mulf  -> mulf(mulf);
-        case DivFNode     divf  -> divf(divf);
-        case SubFNode     subf  -> subf(subf);
-        case ToFloatNode  tfn   -> fild(tfn);
+        case AddNode      add   -> add(add);
+        case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
+        case DivFNode     divf  -> divf(divf);
+        case DivNode      div   -> div(div);
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
@@ -96,14 +95,17 @@ public class x86_64_v2 extends Machine {
         case MulNode      mul   -> mul(mul);
         case DivNode      div   -> div(div);
         case ShlNode      shl   -> shl(shl);
-        case SarNode      sar   -> sar(sar);
-        case ShrNode      shr   -> shr(shr);
-        case AndNode      and   -> and(and);
+        case MulFNode     mulf  -> mulf(mulf);
         case OrNode       or   ->  or(or);
-        case XorNode      xor   -> xor(xor);
+        case SarNode      sar   -> sar(sar);
+        case ShlNode      shl   -> shl(shl);
+        case ShrNode      shr   -> shr(shr);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
+        case SubFNode     subf  -> subf(subf);
         case SubNode      sub   -> sub(sub);
+        case ToFloatNode  tfn   -> fild(tfn);
+        case XorNode      xor   -> xor(xor);
 
         case LoopNode     loop  -> new LoopNode(loop);
         case RegionNode   region-> new RegionNode(region);
@@ -181,26 +183,18 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node addf(AddFNode addf) {
-        if( addf.in(2) instanceof ConstantNode con && con._con instanceof TypeFloat tf)
-            return new AddFIX86(addf, tf);
         throw Utils.TODO();
     }
 
     private Node mulf(MulFNode mulf) {
-        if( mulf.in(2) instanceof ConstantNode con && con._con instanceof TypeFloat tf)
-            return new MulFIX86(mulf, tf);
         throw Utils.TODO();
     }
 
     private Node divf(DivFNode divf) {
-        if( divf.in(2) instanceof ConstantNode con && con._con instanceof TypeFloat tf)
-            return new DivFIX86(divf, tf);
         throw Utils.TODO();
     }
 
     private Node subf(SubFNode subf) {
-        if( subf.in(2) instanceof ConstantNode con && con._con instanceof TypeFloat tf)
-            return new SubFIX86(subf, tf);
         throw Utils.TODO();
     }
 

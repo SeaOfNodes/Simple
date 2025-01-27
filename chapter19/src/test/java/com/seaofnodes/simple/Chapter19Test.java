@@ -117,7 +117,7 @@ hashCode(s);""");
     public void testBasic8() {
         CodeGen code = new CodeGen("return arg * 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return (muli,arg);", code._stop.toString());
+        assertEquals("return (shli,arg);", code._stop.toString());
     }
 
     @Test

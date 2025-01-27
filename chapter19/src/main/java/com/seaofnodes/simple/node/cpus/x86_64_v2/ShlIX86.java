@@ -6,7 +6,6 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
-import java.lang.StringBuilder;
 
 public class ShlIX86 extends MachConcreteNode implements MachNode{
     final TypeInteger _ti;
