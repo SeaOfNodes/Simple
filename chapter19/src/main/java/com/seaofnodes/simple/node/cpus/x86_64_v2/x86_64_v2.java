@@ -85,8 +85,6 @@ public class x86_64_v2 extends Machine {
         case DivFNode     divf  -> divf(divf);
         case DivNode      div   -> div(div);
         case FunNode      fun   -> new FunX86(fun);
-        case ShlNode      shl   -> shl(shl);
-        case SarNode      sar   -> sar(sar);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
         case NewNode      nnn   -> new NewX86(nnn);
