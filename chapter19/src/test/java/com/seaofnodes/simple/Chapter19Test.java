@@ -132,4 +132,17 @@ return a+b;""");
         System.out.println(code.asm());
         assertEquals("return (add,(add,Phi(Region,(shli,arg),arg),arg),Phi(Region,4,5));", code.print());
     }
+
+    @Ignore @Test
+    public void testLoop() {
+        CodeGen code = new CodeGen(
+"""
+int sum=0;
+for( int i=0; i<arg; i++ )
+    sum += i;
+return sum;""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(addi,Phi_i))));", code.print());
+    }
 }

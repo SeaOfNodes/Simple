@@ -66,11 +66,13 @@ public class x86_64_v2 extends Machine {
         case IfNode       iff   -> jmp(iff);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
-        case ReturnNode   ret   -> new RetX86(ret,(FunX86)ret.rpc().in(0));
+        case ReturnNode   ret   -> new RetX86(ret,ret.fun());
         case ShlNode      shl   -> shl(shl);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
         case SubNode      sub   -> sub(sub);
+
+        case LoopNode     loop  -> new LoopNode(loop);
         case RegionNode   region-> new RegionNode(region);
         default -> throw Utils.TODO();
         };
@@ -112,14 +114,15 @@ public class x86_64_v2 extends Machine {
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
     private Node cmp( BoolNode bool ) {
-        if( bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new SetX86(new CmpIX86(bool, ti),bool.op());
-        throw Utils.TODO();
+        MachConcreteNode cmp = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new CmpIX86(bool, ti)
+            : new  CmpX86(bool);
+        return new SetX86(cmp,bool.op());
     }
 
     private Node jmp( IfNode iff ) {
-        if( iff.in(1) instanceof SetX86 set && set.in(1) instanceof CmpIX86 cmp )
-            return new JmpX86(iff,cmp,set._bop);
+        if( iff.in(1) instanceof BoolNode bool )
+            return new JmpX86(iff,bool);
         throw Utils.TODO();
     }
 }

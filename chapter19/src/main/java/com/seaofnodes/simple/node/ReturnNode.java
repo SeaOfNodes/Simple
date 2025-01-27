@@ -17,7 +17,7 @@ import java.util.BitSet;
  */
 public class ReturnNode extends CFGNode {
 
-    public final FunNode _fun;
+    public FunNode _fun;
 
     public ReturnNode(Node ctrl, Node mem, Node data, Node rpc, FunNode fun ) {
         super(ctrl, mem, data, rpc);

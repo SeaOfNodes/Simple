@@ -22,7 +22,12 @@ import java.util.HashSet;
 public abstract class CFGNode extends Node {
 
     public CFGNode(Node...   nodes) { super(nodes); }
-    public CFGNode(CFGNode cfg) { super(cfg); }
+    public CFGNode(CFGNode cfg) {
+        super(cfg);
+        _idepth = cfg._idepth;
+        _ltree = cfg._ltree;
+        _pre = cfg._pre;
+    }
 
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 

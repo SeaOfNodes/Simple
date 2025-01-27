@@ -1,13 +1,21 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 // Return
 public class RetX86 extends ReturnNode implements MachNode {
-    RetX86( ReturnNode ret, FunX86 fun ) { super(ret, fun); fun.setRet(this); }
+    RetX86( ReturnNode ret, FunNode fun ) { super(ret, fun); fun.setRet(this); }
+
+    // Correct Nodes outside the normal edges
+    @Override public void postSelect() {
+        FunNode fun = (FunNode)rpc().in(0);
+        _fun = fun;
+        fun.setRet(this);
+    }
 
     // Register mask allowed on input i.
     // This is the normal calling convention
