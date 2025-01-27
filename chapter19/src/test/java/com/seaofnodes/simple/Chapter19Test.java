@@ -99,6 +99,12 @@ hashCode(s);
         assertEquals("return (shli,arg);", code._stop.toString());
     }
 
+    @Test
+    public void testBasic5() {
+        CodeGen code = new CodeGen("return arg >> 1;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();;
+        System.out.println(code.asm());
+        assertEquals("return (sari,arg);", code._stop.toString());
+    }
 
     @Test
     public void testIfStmt() {
