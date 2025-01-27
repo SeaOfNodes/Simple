@@ -86,6 +86,7 @@ public class x86_64_v2 extends Machine {
         case DivNode      div   -> div(div);
         case FunNode      fun   -> new FunX86(fun);
         case ShlNode      shl   -> shl(shl);
+        case SarNode      sar   -> sar(sar);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
         case NewNode      nnn   -> new NewX86(nnn);
@@ -196,6 +197,12 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node subf(SubFNode subf) {
+        throw Utils.TODO();
+    }
+
+    private Node sar( SarNode sar ) {
+        if(sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new SarX86(sar, ti);
         throw Utils.TODO();
     }
 

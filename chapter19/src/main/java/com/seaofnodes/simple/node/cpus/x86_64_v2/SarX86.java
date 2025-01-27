@@ -17,7 +17,7 @@ public class SarX86 extends MachConcreteNode implements MachNode {
     // This is the normal calling convention
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.RMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
+    @Override public RegMask outregmap() { return x86_64_v2.RMASK; }
 
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
