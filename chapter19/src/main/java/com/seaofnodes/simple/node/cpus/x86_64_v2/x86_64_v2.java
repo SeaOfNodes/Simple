@@ -6,6 +6,8 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
+import java.rmi.server.UID;
+
 public class x86_64_v2 extends Machine {
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "x86_64_v2"; }
@@ -14,10 +16,16 @@ public class x86_64_v2 extends Machine {
     public static int R08 =  8, R09 =  9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
     public static int FLAGS = 16;
 
+    public static int XMM0 = 0, XMM1 = 1, XMM2 = 2, XMM3 = 3, XMM4 = 4, XMM5 = 5, XMM6 = 6, XMM7 = 7;
+    public static int XMM8 = 8, XMM9 = 9, XMM10 = 10, XMM11 = 11, XMM12 = 12, XMM13 = 13, XMM14 = 14;
+    public static int XMM15 = 15;
+
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
     // No RSP in the *write* general set.
     public static RegMask WMASK = new RegMask(0b1111111111101111);
+    // Xmm register mask
+    public static RegMask XMASK = new RegMask(0b111111111110111);
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
@@ -59,6 +67,8 @@ public class x86_64_v2 extends Machine {
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
         case AddNode      add   -> add(add);
+        case AddFNode     addf  -> addf(addf);
+        case ToFloatNode  tfn   -> fild(tfn);
         case BoolNode     bool  -> cmp(bool);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
@@ -87,7 +97,7 @@ public class x86_64_v2 extends Machine {
     private Node con( ConstantNode con ) {
         return switch( con._type ) {
         case TypeInteger ti  -> new IntX86(con);
-        case TypeFloat   tf  -> throw Utils.TODO();
+        case TypeFloat   tf  -> new FltIX86(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeFunPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
@@ -102,6 +112,12 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO();
     }
 
+    private Node fild(ToFloatNode tfn) {
+        if(tfn.in(1)._type instanceof TypeInteger ti) {
+            return new FildIX86(tfn, ti);
+        }
+        throw Utils.TODO();
+    }
     private Node xor(XorNode xor) {
         if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new XorIX86(xor, ti);
@@ -143,6 +159,12 @@ public class x86_64_v2 extends Machine {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
 
+        throw Utils.TODO();
+    }
+
+    private Node addf(AddFNode addf) {
+        if( addf.in(2) instanceof ConstantNode con && con._con instanceof TypeFloat tf)
+            return new AddFIX86(addf, tf);
         throw Utils.TODO();
     }
 
