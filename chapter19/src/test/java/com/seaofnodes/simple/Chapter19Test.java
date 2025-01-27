@@ -149,6 +149,13 @@ hashCode(s);
     }
 
     @Test
+    public void testBasic12() {
+        CodeGen code = new CodeGen("return arg + 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (addss,(fildi));", code._stop.toString());
+    }
+
+    @Test
     public void testIfStmt() {
         CodeGen code = new CodeGen(
 """
