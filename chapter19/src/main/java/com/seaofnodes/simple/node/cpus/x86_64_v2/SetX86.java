@@ -17,7 +17,7 @@ public class SetX86 extends MachConcreteNode implements MachNode {
     }
 
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
-    @Override public RegMask outregmap() { return x86_64_v2.RMASK; }
+    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

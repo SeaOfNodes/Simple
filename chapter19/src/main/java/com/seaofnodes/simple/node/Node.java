@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
+import com.seaofnodes.simple.type.TypeInteger;
 import java.util.*;
 import java.util.function.Function;
 import static com.seaofnodes.simple.CodeGen.CODE;
@@ -608,6 +609,8 @@ public abstract class Node {
     // Report any post-optimize errors
     public Parser.ParseException err() { return null; }
 
+    // Common integer constants
+    public static ConstantNode con(long x) { return (ConstantNode)(new ConstantNode(TypeInteger.constant(x)).peephole()); }
 
     // Utility to walk the entire graph applying a function; return the first
     // not-null result.
