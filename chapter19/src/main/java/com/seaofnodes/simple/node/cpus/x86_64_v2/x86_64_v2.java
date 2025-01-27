@@ -73,8 +73,6 @@ public class x86_64_v2 extends Machine {
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case FunNode      fun   -> new FunX86(fun);
-        case ShlNode      shl   -> shl(shl);
-        case SarNode      sar   -> sar(sar);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
         case NewNode      nnn   -> new NewX86(nnn);
@@ -83,6 +81,7 @@ public class x86_64_v2 extends Machine {
         case ProjNode     prj   -> prj(prj);
         case ReturnNode   ret   -> new RetX86(ret,ret.fun());
         case ShlNode      shl   -> shl(shl);
+        case SarNode      sar   -> sar(sar);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
         case SubNode      sub   -> sub(sub);
