@@ -80,8 +80,14 @@ public class x86_64_v2 extends Machine {
         case PhiNode      phi   -> new PhiNode(phi);
         case ProjNode     prj   -> prj(prj);
         case ReturnNode   ret   -> new RetX86(ret,ret.fun());
+        case MulNode      mul   -> mul(mul);
+        case DivNode      div   -> div(div);
         case ShlNode      shl   -> shl(shl);
         case SarNode      sar   -> sar(sar);
+        case ShrNode      shr   -> shr(shr);
+        case AndNode      and   -> and(and);
+        case OrNode       or   ->  or(or);
+        case XorNode      xor   -> xor(xor);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
         case SubNode      sub   -> sub(sub);
@@ -105,10 +111,53 @@ public class x86_64_v2 extends Machine {
         };
     }
 
+    private Node or(OrNode or) {
+        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new OrIX86(or, ti);
+        throw Utils.TODO();
+    }
+
+    private Node xor(XorNode xor) {
+        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new XorIX86(xor, ti);
+        throw Utils.TODO();
+    }
+
+    private Node and(AndNode and) {
+        if(and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new AndIX86(and, ti);
+        throw Utils.TODO();
+    }
 
     private Node sar( SarNode sar ) {
         if(sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new SarX86(sar, ti);
+        throw Utils.TODO();
+    }
+
+    private Node shl( ShlNode shl ) {
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShlIX86(shl, ti);
+
+        throw Utils.TODO();
+    }
+
+    private Node mul(MulNode mul) {
+        if(mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new MulX86(mul, ti);
+        throw Utils.TODO();
+    }
+
+    private Node div(DivNode div) {
+        if(div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new DivX86(div, ti);
+
+        throw Utils.TODO();
+    }
+    private Node shr(ShrNode shr) {
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShrIX86(shr, ti);
+
         throw Utils.TODO();
     }
 
@@ -124,12 +173,6 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO();
     }
 
-    private Node shl( ShlNode shl ) {
-        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
-            return new ShlIX86(shl, ti);
-        }
-        throw Utils.TODO();
-    }
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.

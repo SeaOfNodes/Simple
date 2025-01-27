@@ -100,6 +100,48 @@ hashCode(s);""");
     }
 
     @Test
+    public void testBasic6() {
+        CodeGen code = new CodeGen("return arg >>> 1;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (shri,arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic7() {
+        CodeGen code = new CodeGen("return arg / 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (divi,arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic8() {
+        CodeGen code = new CodeGen("return arg * 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (muli,arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic9() {
+        CodeGen code = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (andi,arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic10() {
+        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (ori,arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic11() {
+        CodeGen code = new CodeGen("return arg ^ 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (xori,arg);", code._stop.toString());
+    }
+
+    @Test
     public void testIfStmt() {
         CodeGen code = new CodeGen(
 """

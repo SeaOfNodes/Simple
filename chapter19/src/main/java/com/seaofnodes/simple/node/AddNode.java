@@ -4,6 +4,8 @@ import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 
+import static com.seaofnodes.simple.Parser.con;
+
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
@@ -25,12 +27,12 @@ public class AddNode extends Node {
         if( t1.isHigh() || t2.isHigh() )
             return TypeInteger.TOP;
         if( t1 instanceof TypeInteger i1 &&
-            t2 instanceof TypeInteger i2 ) {
+                t2 instanceof TypeInteger i2 ) {
             if (i1.isConstant() && i2.isConstant())
                 return TypeInteger.constant(i1.value()+i2.value());
             // Fold ranges like {0-1} + {2-3} into {2-4}.
             if( !overflow(i1._min,i2._min) &&
-                !overflow(i1._max,i2._max) )
+                    !overflow(i1._max,i2._max) )
                 return TypeInteger.make(i1._min+i2._min,i1._max+i2._max);
         }
         return TypeInteger.BOT;
