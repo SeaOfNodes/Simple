@@ -79,6 +79,8 @@ public class x86_64_v2 extends Machine {
         case AddFNode     addf  -> addf(addf);
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
+        case AddFNode     addf  -> addf(addf);
+        case ToFloatNode  tfn   -> fild(tfn);
         case BoolNode     bool  -> cmp(bool);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
@@ -99,13 +101,11 @@ public class x86_64_v2 extends Machine {
         case OrNode       or   ->  or(or);
         case SarNode      sar   -> sar(sar);
         case ShrNode      shr   -> shr(shr);
-        case AndNode      and   -> and(and);
         case OrNode       or   ->  or(or);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
         case SubFNode     subf  -> subf(subf);
         case SubNode      sub   -> sub(sub);
-        case ToFloatNode  tfn   -> fild(tfn);
         case XorNode      xor   -> xor(xor);
 
         case LoopNode     loop  -> new LoopNode(loop);
@@ -195,6 +195,12 @@ public class x86_64_v2 extends Machine {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
 
+        throw Utils.TODO();
+    }
+
+    private Node addf(AddFNode addf) {
+        if( addf.in(2) instanceof ConstantNode con && con._con instanceof TypeFloat tf)
+            return new AddFIX86(addf, tf);
         throw Utils.TODO();
     }
 
