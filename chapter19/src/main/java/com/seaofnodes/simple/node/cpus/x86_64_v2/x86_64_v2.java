@@ -81,6 +81,8 @@ public class x86_64_v2 extends Machine {
         case OrNode       or   ->  or(or);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
+        case MulNode      mul   -> mul(mul);
+        case DivNode      div   -> div(div);
         case ReturnNode   ret   -> new RetX86(ret,(FunX86)ret.rpc().in(0));
         case SarNode      sar   -> sar(sar);
         case ShlNode      shl   -> shl(shl);
