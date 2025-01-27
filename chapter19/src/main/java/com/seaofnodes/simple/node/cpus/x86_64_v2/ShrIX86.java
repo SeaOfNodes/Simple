@@ -35,4 +35,3 @@ public class ShrIX86 extends MachConcreteNode implements MachNode{
 
     @Override public String op() { return "shri"; }
 }
-

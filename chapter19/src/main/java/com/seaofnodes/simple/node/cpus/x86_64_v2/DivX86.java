@@ -27,7 +27,6 @@ public class DivX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // General form
     // General form: "divi  dst /= #imm"
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / #");
