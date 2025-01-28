@@ -6,19 +6,16 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.rmi.server.UID;
-
 public class x86_64_v2 extends Machine {
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "x86_64_v2"; }
 
     public static int RAX =  0, RCX =  1, RDX =  2, RBX =  3, RSP =  4, RBP =  5, RSI =  6, RDI =  7;
     public static int R08 =  8, R09 =  9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
-    public static int FLAGS = 16;
+    public static int FLAGS = 32;
 
-    public static int XMM0 = 0, XMM1 = 1, XMM2 = 2, XMM3 = 3, XMM4 = 4, XMM5 = 5, XMM6 = 6, XMM7 = 7;
-    public static int XMM8 = 8, XMM9 = 9, XMM10 = 10, XMM11 = 11, XMM12 = 12, XMM13 = 13, XMM14 = 14;
-    public static int XMM15 = 15;
+    public static int XMM0  = 16, XMM1  = 17, XMM2  = 18, XMM3  = 19, XMM4  = 20, XMM5  = 21, XMM6  = 22, XMM7  = 23;
+    public static int XMM8  = 24, XMM9  = 25, XMM10 = 26, XMM11 = 27, XMM12 = 28, XMM13 = 29, XMM14 = 30, XMM15 = 31;
 
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
@@ -91,7 +88,7 @@ public class x86_64_v2 extends Machine {
         case StopNode     stop  -> new StopNode(stop);
         case SubFNode     subf  -> subf(subf);
         case SubNode      sub   -> sub(sub);
-        case ToFloatNode  tfn   -> fild(tfn);
+        case ToFloatNode  tfn   -> i2f8(tfn);
         case XorNode      xor   -> xor(xor);
         case RegionNode   region-> new RegionNode(region);
         default -> throw Utils.TODO();
@@ -102,7 +99,7 @@ public class x86_64_v2 extends Machine {
     private Node con( ConstantNode con ) {
         return switch( con._type ) {
         case TypeInteger ti  -> new IntX86(con);
-        case TypeFloat   tf  -> new FltIX86(con);
+        case TypeFloat   tf  -> new FltX86(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeFunPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
@@ -117,9 +114,9 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO();
     }
 
-    private Node fild(ToFloatNode tfn) {
+    private Node i2f8(ToFloatNode tfn) {
         if(tfn.in(1)._type instanceof TypeInteger ti) {
-            return new FildIX86(tfn, ti);
+            return new I2f8X86(tfn, ti);
         }
         throw Utils.TODO();
     }
@@ -149,17 +146,17 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node mul(MulNode mul) {
-        if(mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new MulX86(mul, ti);
-        throw Utils.TODO();
+        return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new MulIX86(mul, ti)
+            : new MulX86(mul);
     }
 
     private Node div(DivNode div) {
-        if(div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new DivX86(div, ti);
-
-        throw Utils.TODO();
+        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new DivIX86(div, ti)
+            : new DivX86(div);
     }
+
     private Node shr(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
@@ -168,19 +165,19 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node addf(AddFNode addf) {
-        throw Utils.TODO();
+        return new AddFX86(addf);
     }
 
     private Node mulf(MulFNode mulf) {
-        throw Utils.TODO();
+        return new MulFX86(mulf);
     }
 
     private Node divf(DivFNode divf) {
-        throw Utils.TODO();
+        return new DivFX86(divf);
     }
 
     private Node subf(SubFNode subf) {
-        throw Utils.TODO();
+        return new SubFX86(subf);
     }
 
     private Node add( AddNode add ) {
@@ -190,9 +187,9 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node sub( SubNode sub ) {
-        if( sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new AddIX86(sub, TypeInteger.constant(-ti.value()));
-        throw Utils.TODO();
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new AddIX86(sub, TypeInteger.constant(-ti.value()))
+            : new SubX86(sub);
     }
 
 

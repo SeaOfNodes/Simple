@@ -6,14 +6,12 @@ import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
 
 import java.io.ByteArrayOutputStream;
 
-public class FltIX86 extends ConstantNode implements MachNode {
+public class FltX86 extends ConstantNode implements MachNode {
 
-    FltIX86( ConstantNode con ) {
+    FltX86(ConstantNode con ) {
         super(con);
     }
 

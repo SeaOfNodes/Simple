@@ -152,30 +152,64 @@ hashCode(s);
     public void testBasic12() {
         CodeGen code = new CodeGen("return arg + 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return (addss,(fildi));", code._stop.toString());
+        assertEquals("return (addf,(i2f8));", code._stop.toString());
     }
 
     @Test
     public void testBasic13() {
         CodeGen code = new CodeGen("return arg - 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return (subss,(fildi));", code._stop.toString());
+        assertEquals("return (subf,(i2f8));", code._stop.toString());
     }
 
     @Test
     public void testBasic14() {
         CodeGen code = new CodeGen("return arg * 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return (mulss,(fildi));", code._stop.toString());
+        assertEquals("return (mulf,(i2f8));", code._stop.toString());
     }
 
     @Test
     public void testBasic15() {
         CodeGen code = new CodeGen("return arg / 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         System.out.println(code.asm());
-        assertEquals("return (divss,(fildi));", code._stop.toString());
+        assertEquals("return (divf,(i2f8));", code._stop.toString());
     }
 
+    @Test
+    public void testBasic16() {
+        CodeGen code = new CodeGen(
+                """
+                int arg1 =  arg + 1;
+                return arg1 / arg;
+                """);
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (div,(addi,arg),arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic17() {
+        CodeGen code = new CodeGen(
+                """
+                int arg1 =  arg + 1;
+                return arg1 * arg;
+                """);
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (mul,(addi,arg),arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testToFloat() {
+        CodeGen code = new CodeGen("""
+                int a = arg;
+                return a + 2.0;
+                """
+                ).parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        System.out.println(code.asm());
+        assertEquals("return (addf,(i2f8));", code._stop.toString());
+    }
 
     @Test
     public void testIfStmt() {
