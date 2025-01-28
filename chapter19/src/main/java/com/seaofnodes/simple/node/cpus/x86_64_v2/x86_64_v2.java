@@ -195,15 +195,18 @@ public class x86_64_v2 extends Machine {
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
+    // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
+    // Ideal If reading from a setz will skip it and use the "cmp" instead.
     private Node cmp( BoolNode bool ) {
-        if( bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new SetX86(new CmpIX86(bool, ti),bool.op());
-        throw Utils.TODO();
+        MachConcreteNode cmp = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+                ? new CmpIX86(bool, ti)
+                : new  CmpX86(bool);
+        return new SetX86(cmp,bool.op());
     }
 
     private Node jmp( IfNode iff ) {
-        if( iff.in(1) instanceof SetX86 set && set.in(1) instanceof CmpIX86 cmp )
-            return new JmpX86(iff,cmp,set._bop);
+        if( iff.in(1) instanceof BoolNode bool )
+            return new JmpX86(iff,bool);
         throw Utils.TODO();
     }
 }
