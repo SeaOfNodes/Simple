@@ -8,6 +8,9 @@ public interface MachNode {
     // Easy access to the abstract Machine
     default Machine machine() { return CodeGen.CODE._mach; }
 
+    // Run a post-instruction-selection action
+    default void postSelect() { }
+
     // Register mask allowed on input i.  0 for no register.
     abstract public RegMask regmap(int i);
     // Register mask allowed as a result.  0 for no register.

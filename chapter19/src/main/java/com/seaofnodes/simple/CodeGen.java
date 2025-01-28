@@ -190,11 +190,24 @@ public class CodeGen {
         if( n==null ) return null;
         Node x = map.get(n);
         if( x !=null ) return x; // Been there, done that
-        // Walk all inputs, and replace ideal with machine inputs
-        for( int i=0; i < n.nIns(); i++ )
-            n._inputs.set(i, _instSelect(n.in(i),map) );
-        // With all machine inputs ready, produce a machine node from n
+
+        // If n is a MachConcrete, then its part of a multi-node expansion.
+        // It does not need instruction selection (already selected!)
+        // but it does need its inputs walked.
+        if( n instanceof MachConcreteNode ) {
+            for( int i=0; i < n.nIns(); i++ )
+                n._inputs.set(i, _instSelect(n.in(i),map) );
+            return n;
+        }
+
+        // Produce a machine node from n; map it to flag as done so stops cycles.
         map.put(n, x=_mach.instSelect(n) );
+        // Walk machine op and replace inputs with mapped inputs
+        for( int i=0; i < x.nIns(); i++ )
+            x._inputs.set(i, _instSelect(x.in(i),map) );
+        if( x instanceof MachNode mach )
+            mach.postSelect();  // Post selection action
+
         // Updates forward edges only.
         n._outputs.clear();
         return x;
