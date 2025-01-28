@@ -5,8 +5,8 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-public class DivX86 extends MachConcreteNode implements MachNode {
-    DivX86( Node div ) { super(div); }
+public class SubX86 extends MachConcreteNode implements MachNode {
+    SubX86( Node sub ) { super(sub); }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.RMASK; }
@@ -20,10 +20,10 @@ public class DivX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // General form: "div  dst /= src"
+    // General form: "sub  dst -= src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / ").p(code.reg(in(2)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" - ").p(code.reg(in(2)));
     }
 
-    @Override public String op() { return "div"; }
+    @Override public String op() { return "sub"; }
 }

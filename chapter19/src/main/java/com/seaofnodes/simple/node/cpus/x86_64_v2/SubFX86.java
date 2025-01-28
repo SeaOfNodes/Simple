@@ -5,13 +5,18 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-public class DivX86 extends MachConcreteNode implements MachNode {
-    DivX86( Node div ) { super(div); }
+public class SubFX86 extends MachConcreteNode implements MachNode {
+    Node debug;
+
+    SubFX86( Node subf) {
+        super(subf);
+        debug = _inputs.last();
+        _inputs.pop();}
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.RMASK; }
+    @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.XMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
+    @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
 
@@ -20,10 +25,14 @@ public class DivX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // General form: "div  dst /= src"
-    @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / ").p(code.reg(in(2)));
+    @Override public String comment() {
+        return debug.print();
     }
 
-    @Override public String op() { return "div"; }
+    // General form: "subf  dst -= src"
+    @Override public void asm(CodeGen code, SB sb) {
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+    }
+
+    @Override public String op() { return "subf"; }
 }
