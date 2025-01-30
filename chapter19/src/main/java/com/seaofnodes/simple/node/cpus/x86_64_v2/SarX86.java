@@ -6,10 +6,12 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
+import java.lang.StringBuilder;
 
-public class ShlIX86 extends MachConcreteNode implements MachNode{
+
+public class SarX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    ShlIX86(Node shl, TypeInteger ti) {super(shl); _inputs.pop(); _ti = ti;}
+    SarX86(Node sar, TypeInteger ti) {super(sar); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention
@@ -26,11 +28,11 @@ public class ShlIX86 extends MachConcreteNode implements MachNode{
     }
 
     // General form
-    // General form: "shli  dst << #imm"
+    // General form: "sari  dst << #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" << #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >> #");
         _ti.print(sb);
     }
 
-    @Override public String op() { return "shli"; }
+    @Override public String op() { return "sari"; }
 }

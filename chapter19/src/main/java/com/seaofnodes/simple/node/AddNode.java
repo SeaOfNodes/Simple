@@ -4,6 +4,8 @@ import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 
+import static com.seaofnodes.simple.Parser.con;
+
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 

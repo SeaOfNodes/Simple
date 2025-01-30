@@ -15,6 +15,7 @@ public class JmpX86 extends IfNode implements MachNode {
     }
 
     @Override public String label() { return op(); }
+
     @Override public void postSelect() {
         Node set = in(1);
         Node cmp = set.in(1);
