@@ -40,6 +40,6 @@ public class IntX86 extends ConstantNode implements MachNode {
     @Override public String op() {
         if( _con == Type.NIL || _con == TypeInteger.ZERO )
             return "xor";
-        return "fld";           // Some fancier encoding
+        return "ldi";           // Some fancier encoding
     }
 }

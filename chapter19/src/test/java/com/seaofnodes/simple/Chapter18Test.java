@@ -76,7 +76,7 @@ var sq = { int x ->
 };
 return sq(arg)+sq(3);
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("Stop[ return (sq( 3)+sq( arg)); return (Parm_x(sq,int,3,arg)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }

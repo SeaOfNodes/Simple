@@ -256,7 +256,7 @@ public class CodeGen {
     // ---------------------------
     public String reg(Node n) {
         if( _phase == Phase.RegAlloc ) throw Utils.TODO();
-        return "N"+String.valueOf(n._nid);
+        return "N"+ n._nid;
     }
 
 

@@ -38,7 +38,7 @@ public interface MachNode {
     // Encoding is appended into the byte array; size is returned
     abstract public int encoding(ByteArrayOutputStream bytes);
 
-    // Human readable form appended to the SB.  Things like the encoding,
+    // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.
     // Just something like "R17=[R18+12] // Load array base".
     // General form: "dst=src+src".

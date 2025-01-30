@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.RegMask;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
@@ -30,6 +29,11 @@ public class NewX86 extends NewNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();
+    }
+
+    // General form: "alloc #bytes"
+    @Override public void asm(CodeGen code, SB sb) {
+        sb.p(code.reg(size()));
     }
 
     @Override public String op() { return "alloc"; }

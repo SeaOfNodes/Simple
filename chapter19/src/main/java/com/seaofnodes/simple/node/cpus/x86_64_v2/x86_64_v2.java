@@ -79,8 +79,8 @@ public class x86_64_v2 extends Machine {
         case BoolNode     bool  -> cmp(bool);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
-        case DivFNode     divf  -> divf(divf);
-        case DivNode      div   -> div(div);
+        case DivFNode     divf  -> new DivFX86(divf);
+        case DivNode      div   -> new DivX86(div);
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
@@ -109,11 +109,35 @@ public class x86_64_v2 extends Machine {
     }
 
 
+    // Attempt a full LEA-style break down.
     private Node add( AddNode add ) {
-        return add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new AddIX86(add, ti)
-            : new  AddX86(add);
+        Node lhs = add.in(1);
+        Node rhs = add.in(2);
+        if( !(rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff) )
+            return _lea(add,lhs,rhs,0);
+
+        // ((base + (idx << scale)) + off)
+        if( lhs instanceof AddNode ladd )
+            return _lea(add,ladd.in(1),ladd.in(2),toff.value());
+
+        // lhs + rhs1
+        return new AddIX86(add, toff);
     }
+
+    private Node _lea( Node add, Node base, Node idx, long off ) {
+        int scale = 1;
+        if( base instanceof ShlNode && !(idx instanceof ShlNode) ) throw Utils.TODO(); // Bug in canonicalization, should on RHS
+        if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
+            shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
+            idx = shift.in(1);
+            scale = 1 << ((int)tscale.value());
+        }
+        // (base + idx) + off
+        return off==0 && scale==1
+            ? new AddX86(add)
+            : new LeaX86(add,base,idx,scale,off);
+    }
+
 
     private Node addf(AddFNode addf) {
         return new AddFX86(addf);
@@ -144,16 +168,6 @@ public class x86_64_v2 extends Machine {
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con);
         };
-    }
-
-    private Node div(DivNode div) {
-        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new DivIX86(div, ti)
-            : new DivX86(div);
-    }
-
-    private Node divf(DivFNode divf) {
-        return new DivFX86(divf);
     }
 
     private Node i2f8(ToFloatNode tfn) {

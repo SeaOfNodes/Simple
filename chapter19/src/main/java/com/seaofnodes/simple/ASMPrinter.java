@@ -3,6 +3,8 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeRPC;
 
 public abstract class ASMPrinter {
 
@@ -37,11 +39,12 @@ public abstract class ASMPrinter {
 
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         CFGNode bb = code._cfg.at(cfgidx);
-        if( bb != fun && !(bb instanceof IfNode) )
+        if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode ))
             sb.p("L").p(bb._nid).p(":").nl();
 
         for( Node n : bb._outputs )
-            iadr = doInst(iadr, sb,code,fun,bb,n);
+            if( !(bb instanceof CallNode) || n instanceof CallEndNode )
+                iadr = doInst(iadr, sb,code,fun,bb,n);
 
         return iadr;
     }
@@ -49,15 +52,15 @@ public abstract class ASMPrinter {
     static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n) {
         final int encWidth = 8;
         final int opWidth = 5;
-        final int argWidth = 20;
+        final int argWidth = 25;
 
         if( n instanceof  CProjNode ) return iadr;
 
         // Phis are useful before (and during) reg alloc
         if( n instanceof PhiNode phi ) {
-            if( phi._label.charAt(0)=='$') return iadr; // Nothing for the hidden ones
+            if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) return iadr; // Nothing for the hidden ones
             sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ");
-            sb.p("N").p(n._nid);
+            sb.p(code.reg(n));
             if( !(n instanceof ParmNode) ) {
                 sb.p(" = phi( ");
                 for( int i=1; i<n.nIns(); i++ )
@@ -71,8 +74,16 @@ public abstract class ASMPrinter {
         // All blocks ending in a Region will need to either fall into or jump
         // to this block.  Until the post-reg-alloc block layout cleanup, we
         // need to assume a jump.  There's no real hardware op here, yet.
-        if( n instanceof RegionNode ) {
+        if( n instanceof RegionNode && !(n instanceof FunNode) ) {
             sb.hex4(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,"L"+n._nid).nl();
+            return iadr;
+        }
+
+        // ProjNodes following a multi (e.g. Call or New results),
+        // get indent slightly and just print their index & node#
+        if( n instanceof ProjNode proj ) {
+            if( proj._type instanceof TypeMem ) return iadr; // Nothing for the hidden ones
+            sb.fix(4," ").p(" ").fix(encWidth,"").p("    ").fix(opWidth,proj._label==null ? "---" : proj._label).p(" ").p(code.reg(n)).nl();
             return iadr;
         }
 
@@ -97,8 +108,9 @@ public abstract class ASMPrinter {
             mach.asm(code,sb);
             sb.fix(argWidth-(sb.len()-old),""); // Pad out
 
-        } else {
+        } else if( !(n._type instanceof TypeMem) ) {
             // Room for some inputs
+            sb.fix(5, n._nid+":" );
             int off = 0;
             for( int i=0; i<n.nIns(); i++ ) {
                 sb.fix(5, n.in(i) == null ? "___" : String.valueOf(n.in(i)._nid));
@@ -114,6 +126,15 @@ public abstract class ASMPrinter {
         if( comment!=null ) sb.p("// ").p(comment);
 
         sb.nl();
+
+        // MultiNodes are immediately followed by projection(s)
+        if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
+            for( Node proj : n._outputs ) {
+                assert proj instanceof ProjNode;
+                doInst(iadr,sb,code,fun,bb,proj);
+            }
+        }
+
         return iadr;
     }
 }

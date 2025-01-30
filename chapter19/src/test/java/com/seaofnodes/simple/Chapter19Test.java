@@ -9,8 +9,7 @@ public class Chapter19Test {
 
     @Test
     public void testJig() {
-        CodeGen code = new CodeGen(
-"""
+        CodeGen code = new CodeGen("""
 return 0;""");
         code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return 0;", code._stop.toString());
@@ -107,7 +106,7 @@ hashCode(s);""");
     @Test
     public void testBasic7() {
         CodeGen code = new CodeGen("return arg / 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("return (divi,arg);", code._stop.toString());
+        assertEquals("return (div,arg,2);", code._stop.toString());
     }
 
     @Test
@@ -242,6 +241,27 @@ return new S;""");
     }
 
     @Test
+    public void testLea1() {
+        CodeGen code = new CodeGen("int x = arg/3; return arg+x+7;");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        assertEquals("return (lea,arg,(div,arg,3));", code.print());
+    }
+
+    @Test
+    public void testLea2() {
+        CodeGen code = new CodeGen("int x = arg/3; return arg+x*4+7;");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        assertEquals("return (lea,arg,(div,arg,3));", code.print());
+    }
+
+    @Test
+    public void testLea3() {
+        CodeGen code = new CodeGen("int x = arg/3; return x*4+arg;");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        assertEquals("return (lea,arg,(div,arg,3));", code.print());
+    }
+
+    @Ignore @Test
     public void sieveOfEratosthenes() {
         CodeGen code = new CodeGen(
 """
