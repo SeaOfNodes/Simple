@@ -34,14 +34,14 @@ public class Chapter04Test {
     public void testAddAddMul() {
         CodeGen code = new CodeGen("return arg+0+arg;");
         code.parse();
-        assertEquals("return (arg<<1);", code.print());
+        assertEquals("return (arg*2);", code.print());
     }
 
     @Test
     public void testPeephole3() {
         CodeGen code = new CodeGen("return 1+arg+2+arg+3; ");
         code.parse();
-        assertEquals("return ((arg<<1)+6);", code.print());
+        assertEquals("return ((arg*2)+6);", code.print());
     }
 
     @Test
