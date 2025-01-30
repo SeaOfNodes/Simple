@@ -9,9 +9,9 @@ import java.io.ByteArrayOutputStream;
 // Jump on flags, uses flags
 public class JmpX86 extends IfNode implements MachNode {
     final String _bop;
-    JmpX86( IfNode iff, BoolNode bool ) {
+    JmpX86( IfNode iff, String bop ) {
         super(iff);
-        _bop = bool.op();
+        _bop = bop;
     }
 
     @Override public String label() { return op(); }

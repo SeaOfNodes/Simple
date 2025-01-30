@@ -161,10 +161,9 @@ hashCode(s);""");
     @Test
     public void testBasic16() {
         CodeGen code = new CodeGen(
-                """
-                int arg1 =  arg + 1;
-                return arg1 / arg;
-                """);
+"""
+int arg1 =  arg + 1;
+return arg1 / arg;""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         assertEquals("return (div,(addi,arg),arg);", code._stop.toString());
     }
@@ -172,10 +171,10 @@ hashCode(s);""");
     @Test
     public void testBasic17() {
         CodeGen code = new CodeGen(
-                """
-                int arg1 =  arg + 1;
-                return arg1 * arg;
-                """);
+"""
+int arg1 =  arg + 1;
+return arg1 * arg;
+""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         assertEquals("return (mul,(addi,arg),arg);", code._stop.toString());
     }
@@ -241,4 +240,36 @@ return new S;""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         assertEquals("return S;", code.print());
     }
+
+    @Test
+    public void sieveOfEratosthenes() {
+        CodeGen code = new CodeGen(
+"""
+var ary = new bool[arg], primes = new int[arg];
+var nprimes=0, p=0;
+// Find primes while p^2 < arg
+for( p=2; p*p < arg; p++ ) {
+    // skip marked non-primes
+    while( ary[p] ) p++;
+    // p is now a prime
+    primes[nprimes++] = p;
+    // Mark out the rest non-primes
+    for( int i = p + p; i < ary#; i += p )
+        ary[i] = true;
+}
+// Now just collect the remaining primes, no more marking
+for( ; p < arg; p++ )
+    if( !ary[p] )
+        primes[nprimes++] = p;
+// Copy/shrink the result array
+var !rez = new int[nprimes];
+for( int j=0; j<nprimes; j++ )
+    rez[j] = primes[j];
+return rez;
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        assertEquals("return [int];", code.print());
+        assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+    }
+
 }

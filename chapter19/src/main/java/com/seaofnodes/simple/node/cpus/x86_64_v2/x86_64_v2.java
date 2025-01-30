@@ -109,6 +109,31 @@ public class x86_64_v2 extends Machine {
     }
 
 
+    private Node add( AddNode add ) {
+        return add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new AddIX86(add, ti)
+            : new  AddX86(add);
+    }
+
+    private Node addf(AddFNode addf) {
+        return new AddFX86(addf);
+    }
+
+    private Node and(AndNode and) {
+        if(and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new AndIX86(and, ti);
+        throw Utils.TODO();
+    }
+
+    // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
+    // Ideal If reading from a setz will skip it and use the "cmp" instead.
+    private Node cmp( BoolNode bool ) {
+        MachConcreteNode cmp = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new CmpIX86(bool, ti)
+            : new  CmpX86(bool);
+        return new SetX86(cmp,bool.op());
+    }
+
     private Node con( ConstantNode con ) {
         return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
@@ -121,10 +146,14 @@ public class x86_64_v2 extends Machine {
         };
     }
 
-    private Node or(OrNode or) {
-        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new OrIX86(or, ti);
-        throw Utils.TODO();
+    private Node div(DivNode div) {
+        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new DivIX86(div, ti)
+            : new DivX86(div);
+    }
+
+    private Node divf(DivFNode divf) {
+        return new DivFX86(divf);
     }
 
     private Node i2f8(ToFloatNode tfn) {
@@ -132,29 +161,9 @@ public class x86_64_v2 extends Machine {
             return new I2f8X86(tfn, ti);
         throw Utils.TODO();
     }
-    private Node xor(XorNode xor) {
-        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new XorIX86(xor, ti);
-        throw Utils.TODO();
-    }
 
-    private Node and(AndNode and) {
-        if(and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new AndIX86(and, ti);
-        throw Utils.TODO();
-    }
-
-    private Node sar( SarNode sar ) {
-        if(sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SarX86(sar, ti);
-        throw Utils.TODO();
-    }
-
-    private Node shl( ShlNode shl ) {
-        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new ShlIX86(shl, ti);
-
-        throw Utils.TODO();
+    private Node jmp( IfNode iff ) {
+        return new JmpX86(iff, iff.in(1) instanceof BoolNode bool ? bool.op() : "==");
     }
 
     private Node mul(MulNode mul) {
@@ -163,62 +172,13 @@ public class x86_64_v2 extends Machine {
             : new MulX86(mul);
     }
 
-    private Node div(DivNode div) {
-        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new DivIX86(div, ti)
-            : new DivX86(div);
-    }
-
-    private Node shr(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new ShrIX86(shr, ti);
-
-        throw Utils.TODO();
-    }
-
-    private Node addf(AddFNode addf) {
-        return new AddFX86(addf);
-    }
-
     private Node mulf(MulFNode mulf) {
         return new MulFX86(mulf);
     }
 
-    private Node divf(DivFNode divf) {
-        return new DivFX86(divf);
-    }
-
-    private Node subf(SubFNode subf) {
-        return new SubFX86(subf);
-    }
-
-    private Node add( AddNode add ) {
-        return add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new AddIX86(add, ti)
-            : new  AddX86(add);
-    }
-
-    private Node sub( SubNode sub ) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new AddIX86(sub, TypeInteger.constant(-ti.value()))
-            : new SubX86(sub);
-    }
-
-
-    // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
-    // Ideal If reading from a setz will skip it and use the "cmp" instead.
-    // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
-    // Ideal If reading from a setz will skip it and use the "cmp" instead.
-    private Node cmp( BoolNode bool ) {
-        MachConcreteNode cmp = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new CmpIX86(bool, ti)
-            : new  CmpX86(bool);
-        return new SetX86(cmp,bool.op());
-    }
-
-    private Node jmp( IfNode iff ) {
-        if( iff.in(1) instanceof BoolNode bool )
-            return new JmpX86(iff,bool);
+    private Node or(OrNode or) {
+        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new OrIX86(or, ti);
         throw Utils.TODO();
     }
 
@@ -235,4 +195,41 @@ public class x86_64_v2 extends Machine {
         }
         return new ProjX86(prj);
     }
+
+    private Node sar( SarNode sar ) {
+        if(sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new SarX86(sar, ti);
+        throw Utils.TODO();
+    }
+
+    private Node shl( ShlNode shl ) {
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShlIX86(shl, ti);
+
+        throw Utils.TODO();
+    }
+
+    private Node shr(ShrNode shr) {
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShrIX86(shr, ti);
+
+        throw Utils.TODO();
+    }
+
+    private Node subf(SubFNode subf) {
+        return new SubFX86(subf);
+    }
+
+    private Node sub( SubNode sub ) {
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new AddIX86(sub, TypeInteger.constant(-ti.value()))
+            : new SubX86(sub);
+    }
+
+    private Node xor(XorNode xor) {
+        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new XorIX86(xor, ti);
+        throw Utils.TODO();
+    }
+
 }
