@@ -76,11 +76,6 @@ public class x86_64_v2 extends Machine {
         case AddFNode     addf  -> addf(addf);
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
-        case AddFNode     addf  -> addf(addf);
-        case MulFNode     mulf  -> mulf(mulf);
-        case DivFNode     divf  -> divf(divf);
-        case SubFNode     subf  -> subf(subf);
-        case ToFloatNode  tfn   -> fild(tfn);
         case BoolNode     bool  -> cmp(bool);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
@@ -89,19 +84,17 @@ public class x86_64_v2 extends Machine {
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
         case MemMergeNode mem   -> new MemMergeNode(mem);
+        case MulFNode     mulf  -> mulf(mulf);
+        case MulNode      mul   -> mul(mul);
         case NewNode      nnn   -> new NewX86(nnn);
+        case OrNode       or   ->  or(or);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
         case ProjNode     prj   -> prj(prj);
         case ReturnNode   ret   -> new RetX86(ret,ret.fun());
-        case MulNode      mul   -> mul(mul);
-        case DivNode      div   -> div(div);
-        case ShlNode      shl   -> shl(shl);
-        case MulFNode     mulf  -> mulf(mulf);
-        case OrNode       or   ->  or(or);
         case SarNode      sar   -> sar(sar);
+        case ShlNode      shl   -> shl(shl);
         case ShrNode      shr   -> shr(shr);
-        case OrNode       or   ->  or(or);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
         case SubFNode     subf  -> subf(subf);
@@ -134,9 +127,9 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO();
     }
 
-    private Node fild(ToFloatNode tfn) {
+    private Node i2f8(ToFloatNode tfn) {
         if( tfn.in(1)._type instanceof TypeInteger ti)
-            return new FildIX86(tfn, ti);
+            return new I2f8X86(tfn, ti);
         throw Utils.TODO();
     }
     private Node xor(XorNode xor) {
@@ -148,22 +141,6 @@ public class x86_64_v2 extends Machine {
     private Node and(AndNode and) {
         if(and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new AndIX86(and, ti);
-        throw Utils.TODO();
-    }
-
-    private Node addf(AddFNode addf) {
-        throw Utils.TODO();
-    }
-
-    private Node mulf(MulFNode mulf) {
-        throw Utils.TODO();
-    }
-
-    private Node divf(DivFNode divf) {
-        throw Utils.TODO();
-    }
-
-    private Node subf(SubFNode subf) {
         throw Utils.TODO();
     }
 

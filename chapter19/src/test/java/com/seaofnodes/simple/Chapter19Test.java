@@ -95,77 +95,66 @@ hashCode(s);""");
     @Test
     public void testBasic5() {
         CodeGen code = new CodeGen("return arg >> 1;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();;
-        System.out.println(code.asm());
         assertEquals("return (sari,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic6() {
         CodeGen code = new CodeGen("return arg >>> 1;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (shri,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic7() {
         CodeGen code = new CodeGen("return arg / 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (divi,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic8() {
         CodeGen code = new CodeGen("return arg * 6;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (muli,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic9() {
         CodeGen code = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (andi,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic10() {
         CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (ori,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic11() {
         CodeGen code = new CodeGen("return arg ^ 2;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (xori,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic12() {
         CodeGen code = new CodeGen("return arg + 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (addf,(i2f8));", code._stop.toString());
     }
 
     @Test
     public void testBasic13() {
         CodeGen code = new CodeGen("return arg - 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (subf,(i2f8));", code._stop.toString());
     }
 
     @Test
     public void testBasic14() {
         CodeGen code = new CodeGen("return arg * 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (mulf,(i2f8));", code._stop.toString());
     }
 
     @Test
     public void testBasic15() {
         CodeGen code = new CodeGen("return arg / 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (divf,(i2f8));", code._stop.toString());
     }
 
@@ -177,7 +166,6 @@ hashCode(s);""");
                 return arg1 / arg;
                 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (div,(addi,arg),arg);", code._stop.toString());
     }
 
@@ -189,7 +177,6 @@ hashCode(s);""");
                 return arg1 * arg;
                 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (mul,(addi,arg),arg);", code._stop.toString());
     }
 
@@ -200,7 +187,6 @@ hashCode(s);""");
                 return a + 2.0;
                 """
                 ).parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        System.out.println(code.asm());
         assertEquals("return (addf,(i2f8));", code._stop.toString());
     }
 
