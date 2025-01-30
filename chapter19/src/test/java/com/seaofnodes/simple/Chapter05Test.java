@@ -64,7 +64,7 @@ else
     b=a+1;
 return a+b;""");
         code.parse().opto();
-        assertEquals("return ((arg*2)+Phi(Region,2,3));", code.print());
+        assertEquals("return ((arg<<1)+Phi(Region,2,3));", code.print());
     }
 
     @Test
@@ -79,7 +79,7 @@ else
     a=b+1;
 return a+b;""");
         code.parse().opto();
-        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", code.print());
+        assertEquals("return ((Phi(Region,(arg<<1),arg)+arg)+Phi(Region,4,5));", code.print());
     }
 
     @Test
