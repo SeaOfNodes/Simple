@@ -18,6 +18,7 @@ public class MemMergeNode extends Node {
     public final boolean _inProgress;
 
     public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
+    public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
 
 
     // If being used by a Scope, this is "in progress" from the Parser.

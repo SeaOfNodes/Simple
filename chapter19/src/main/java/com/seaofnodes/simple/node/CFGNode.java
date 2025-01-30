@@ -107,8 +107,8 @@ public abstract class CFGNode extends Node {
         _pre = pre++;
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg && !skip(usecfg) )
-                pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
+            if( use instanceof CFGNode usecfg && !skip( usecfg ) )
+                pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post );
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;

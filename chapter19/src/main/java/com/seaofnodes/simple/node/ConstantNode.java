@@ -22,7 +22,7 @@ public class ConstantNode extends Node {
     public final Type _con;
     public ConstantNode( Type type ) {
         super(new Node[]{CodeGen.CODE._start});
-        _con = type;
+        _con = _type = type;
     }
     public ConstantNode( ConstantNode con ) { super(con);  _con = con._type;  }
 

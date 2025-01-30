@@ -339,7 +339,7 @@ public abstract class Node {
         // they typically come from dead Regions, and we want the Region to
         // collapse, which requires the Phis to die first.
         if( _type.isHighOrConst() && !isConst() )
-            return ConstantNode.make(_type).peepholeOpt();
+            return ConstantNode.make(_type).peephole();
 
         // Global Value Numbering
         if( _hash==0 ) {

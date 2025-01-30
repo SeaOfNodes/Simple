@@ -10,6 +10,7 @@ import java.util.BitSet;
 public abstract class MachConcreteNode extends Node implements MachNode{
     private static final Node[] CTRL = new Node[1];
     public MachConcreteNode(Node node) { super(node); }
+    public MachConcreteNode(Node[]nodes) { super(nodes); }
     public MachConcreteNode(MachConcreteNode mach) { super(CTRL); }
 
     @Override public String label() { return op(); }

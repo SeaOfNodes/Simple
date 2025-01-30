@@ -24,6 +24,10 @@ public class x86_64_v2 extends Machine {
     // Return single int/ptr register
     public static RegMask RET_MASK = new RegMask(RAX);
 
+    public static RegMask RDI_MASK = new RegMask(1L<<RDI);
+
+
+
     // Human-readable name for a register number, e.g. "RAX"
     @Override public String reg( int reg ) {
         throw Utils.TODO();
@@ -39,6 +43,12 @@ public class x86_64_v2 extends Machine {
         default -> throw Utils.TODO();
         };
     }
+    public static RegMask[] CALLINMASK = new RegMask[] {
+        null,
+        null,
+        RDI_MASK,
+    };
+    @Override public RegMask callInMask( int idx ) { return CALLINMASK[idx]; }
 
     // Create a split op; any register to any register, including stack slots
     @Override public Node split() {
@@ -64,8 +74,11 @@ public class x86_64_v2 extends Machine {
         case ConstantNode con   -> con(con);
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
+        case MemMergeNode mem   -> new MemMergeNode(mem);
+        case NewNode      nnn   -> new NewX86(nnn);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
+        case ProjNode     prj   -> prj(prj);
         case ReturnNode   ret   -> new RetX86(ret,ret.fun());
         case ShlNode      shl   -> shl(shl);
         case StartNode    start -> new StartNode(start);
@@ -80,14 +93,14 @@ public class x86_64_v2 extends Machine {
 
 
     private Node con( ConstantNode con ) {
-        return switch( con._type ) {
+        return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> throw Utils.TODO();
         case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeFunPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> new ConstantNode(con._type);
+        case Type t -> new ConstantNode(con);
         };
     }
 
@@ -124,5 +137,19 @@ public class x86_64_v2 extends Machine {
         if( iff.in(1) instanceof BoolNode bool )
             return new JmpX86(iff,bool);
         throw Utils.TODO();
+    }
+
+    private Node prj( ProjNode prj ) {
+        if( prj.in(0) instanceof NewNode nnn && prj._type instanceof TypeMemPtr ) {
+            for( int i=0; i< nnn._len; i++ ) {
+                Type init = nnn.init(i)._type;
+                if( init != init.makeZero() )
+                    throw Utils.TODO(); // Insert a Store
+            }
+            // Delete all initial values, already folded into stores
+            for( int i=0; i< nnn._len; i++ )
+                nnn._inputs.pop();
+        }
+        return new ProjX86(prj);
     }
 }

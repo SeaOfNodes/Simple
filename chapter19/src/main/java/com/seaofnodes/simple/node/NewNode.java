@@ -32,9 +32,12 @@ public class NewNode extends Node implements MultiNode {
         }
     }
 
-    @Override public String label() {
-        return "new_"+glabel();
-    }
+    public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
+
+    public Node mem (int idx) { return in(idx+2); }
+    public Node init(int idx) { return in(idx+2+_len); }
+
+    @Override public String label() { return "new_"+glabel(); }
     @Override public String glabel() {
         return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str();
     }
@@ -45,8 +48,15 @@ public class NewNode extends Node implements MultiNode {
         return sb.append(_ptr._obj.str());
     }
 
+
+    // 0 - ctrl
+    // 1 - byte size
+    // 2-len+2 - aliases, one per field
+    // len+2 - 2*len+2 - initial values, one per field
+    public Node size() { return in(1); }
+
     // Find matching alias input
-    int findAlias(int alias) {
+    public int findAlias(int alias) {
         return 2+_ptr._obj.findAlias(alias)+_len;
     }
 

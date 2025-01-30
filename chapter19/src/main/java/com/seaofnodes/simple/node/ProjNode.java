@@ -19,6 +19,7 @@ public class ProjNode extends Node {
         _idx = idx;
         _label = label;
     }
+    public ProjNode(ProjNode p) { super(p); _idx = p._idx; _label = p._label; }
 
     @Override public String label() { return _label; }
 
