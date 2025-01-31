@@ -113,15 +113,14 @@ public class x86_64_v2 extends Machine {
     private Node add( AddNode add ) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( !(rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff) )
-            return _lea(add,lhs,rhs,0);
+        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff )
+            return lhs instanceof AddNode ladd
+                // ((base + (idx << scale)) + off)
+                ? _lea(add,ladd.in(1),ladd.in(2),toff.value())
+                // lhs + rhs1
+                : new AddIX86(add, toff);
 
-        // ((base + (idx << scale)) + off)
-        if( lhs instanceof AddNode ladd )
-            return _lea(add,ladd.in(1),ladd.in(2),toff.value());
-
-        // lhs + rhs1
-        return new AddIX86(add, toff);
+        return _lea(add,lhs,rhs,0);
     }
 
     private Node _lea( Node add, Node base, Node idx, long off ) {
