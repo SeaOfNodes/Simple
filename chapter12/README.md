@@ -1,5 +1,9 @@
 # Chapter 12: Floats
 
+# Table of Contents
+
+1. [Float](#floats)
+
 In this chapter, we add a floating point type and values.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter12) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter11...linear-chapter12) it to the previous chapter.

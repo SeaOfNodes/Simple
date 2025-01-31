@@ -1,5 +1,15 @@
 # Chapter 15: Arrays
 
+# Table of Contents
+
+1. [Parser changes](#parser)
+2. [TypeArray is TypeStruct](#type-array-is-typestruct)
+4. [New Address Math](#new-address-math)
+5. [Struct Layout](#struct-layout)
+6. [Some Simple Address Math Peeps](#some-simple-address-math-peeps)
+7. [Discussion](#discussion)
+
+
 At long last we introduce arrays!  These require more complex addressing math,
 which in turn means we need to change how Loads and Stores do addressing - 
 with true field *offsets* instead of field *names*.  This means we also 

@@ -1,8 +1,15 @@
 # Chapter 17: Syntax Sugar
 
-In this chapter we introduce a number of convenient syntax sugars and mutability concepts.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter17) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter16...linear-chapter17) it to the previous chapter.
+1. [Pre/Post-increment](#prepost-increment)
+2. [Operator assignment](#operator-assignment)
+3. [var/val](#var--val)
+    - [Example(1)](#example1)
+    - [Example(2)](#example2)
+4. [Mutability](#mutability)
+5. [Reference immutability](#reference-variables-with-an-initializer-are-deeply-immutable)
+6. [Trinary](#trinary)
+7. [For Loops](#for-loops)
 
 ## Pre/Post-increment
 
@@ -35,7 +42,7 @@ which means `var` and `val` will not infer types like `u8` or `f32`, instead
 inferring `int` and `flt` respectively.  Reference types will always infer as
 nullable, so e.g.
 
-`var s = new S;` 
+`var s = new S;`
 
 infers as
 

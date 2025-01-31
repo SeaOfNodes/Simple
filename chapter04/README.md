@@ -1,5 +1,23 @@
 # Chapter 4: External Argument and Comparisons
 
+# Table of Contents
+
+1. [Extensions to Intermediate Representation](#extensions-to-intermediate-representation)
+2. [Projection Nodes](#projection-nodes)
+3. [Visualisation](#visualisation)
+5. [Initial values](#initial-values)
+6. [When Is Control Not-Null?](#when-is-control-not-null)
+5. [Note Regarding Visualizations](#note-regarding-visualizations)
+6. [Changes to Type System](#changes-to-type-system)
+7. [Tuple Types](#tuple-types)
+8. [$ctrl name binding](#ctrl-name-binding)
+9. [More Peephole Optimizations](#more-peephole-optimizations)
+10. [Peephole Walkthrough](#peephole-walkthrough)
+11. [Dead Code Elimination(DCE)](#dead-code-eliminationdce)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter04) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter03...linear-chapter04) it to the previous chapter.
+
+
 In this chapter we extend the language grammar with following features:
 
 * The program receives a single argument named `arg` of integer type from external environment.
@@ -10,7 +28,7 @@ In this chapter we extend the language grammar with following features:
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter04) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter03...linear-chapter04) it to the previous chapter.
+
 
 ## Extensions to Intermediate Representation
 
