@@ -1,5 +1,22 @@
 # Chapter 8: Lazy Phis, Break, Continue, and Evaluator
 
+# Table of Contents
+
+1. [Lazy Phi Creation](#lazy-phi-creation)
+2. [Continue statement](#continue-statement)
+3. [Break statement](#break-statement)
+4. [Parser Considerations ](#parser-considerations)
+5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
+6. [Examples](#examples)
+   -[Example 1](#example-1)
+   -[Example 2](#example-2)
+   -[Example 3](#example-3)
+
+7. [Sea of Nodes Graph Evaluator](#sea-of-nodes-graph-evaluator)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter08) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter07...linear-chapter08) it to the previous chapter.
+
+
 In this chapter:
 
 * We move from eager to lazy `Phi` creation in loops.
@@ -8,7 +25,6 @@ In this chapter:
 
 Here is the [complete language grammar](docs/08-grammar.md) for this chapter.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter08) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter07...linear-chapter08) it to the previous chapter.
 
 ## Lazy Phi Creation
 

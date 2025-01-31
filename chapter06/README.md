@@ -1,8 +1,18 @@
 # Chapter 6: Peepholes for If
 
-In this chapter we do not add new language features. Our goal is to add peephole optimization to `if` statements.
+# Table of Contents
+
+1. [Type System Revision](#type-system-revision)
+2. [Peephole of `if`](#peephole-of-if)
+3. [`Region` and `Phi`](#Region-and-Phi)
+4. [Discussion](#discussion)
+5. [Expanding Peephole Beyond Constant Expressions](#expanding-peephole-beyond-constant-expressions)
+6. [Dominators](#dominators)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter06) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter05...linear-chapter06) it to the previous chapter.
+
+In this chapter we do not add new language features. Our goal is to add peephole optimization to `if` statements.
+
 
 ## Type System Revision
 
