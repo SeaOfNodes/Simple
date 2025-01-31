@@ -1,5 +1,20 @@
 # Chapter 9: Global Value Numbering and Iterative Peepholes
 
+# Table of Contents
+
+1. [Engineering Peepholes](#engineering-peepholes)
+2. [Global Value Numbering](#global-value-numbering)
+3. [Post-Parse Iterative Peepholes](#post-parse-iterative-peepholes)
+4. [Distant Neighbors](#distant-neighbors)
+5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
+6. [Other Concerns](#other-concerns)
+7. [Common SubExpressions via GVN](#common-subexpressions-via-gvn)
+    - [Example 1](#example-1)
+    - [Example 2](#example-2)
+8. [Post Parse Iterative Optimizations](#post-parse-iterative-optimizations)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter09) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter08...linear-chapter09) it to the previous chapter.
+
 In this chapter:
 
 * We add Global Value Numbering (Common Subexpression Elimination)
@@ -7,7 +22,6 @@ In this chapter:
 
 No language changes in this chapter, just adding optimizations.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter09) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter08...linear-chapter09) it to the previous chapter.
 
 ## Engineering Peepholes
 

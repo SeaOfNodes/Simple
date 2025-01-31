@@ -1,8 +1,14 @@
 # Chapter 18: Functions
 
+
+# Table of Contents
+1. [FunctionTypes](#function-types)
+2. [Var](#with-var)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17...linear-chapter18) it to the previous chapter.
 Some thinking on function syntax:
 
-Function Types:
+## Function Types:
 ```
 { argtype, argtype, ... -> rettype }
 ```
@@ -29,7 +35,7 @@ Used in a declaration statement:
 }
 ```
 
-With `var`:
+## With `var`:
 ```
 var dist = { flt x, flt y -> sqrt(x*x*,y*y); }
 ```

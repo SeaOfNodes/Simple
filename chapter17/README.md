@@ -1,5 +1,6 @@
 # Chapter 17: Syntax Sugar
 
+# Table of Contents
 
 1. [Pre/Post-increment](#prepost-increment)
 2. [Operator assignment](#operator-assignment)
@@ -11,6 +12,7 @@
 6. [Trinary](#trinary)
 7. [For Loops](#for-loops)
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter17) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter16...linear-chapter17) it to the previous chapter.
 
 ## Pre/Post-increment
 
