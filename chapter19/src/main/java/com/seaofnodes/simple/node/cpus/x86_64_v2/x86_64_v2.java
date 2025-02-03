@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Machine;
 import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.Utils;
@@ -30,30 +31,140 @@ public class x86_64_v2 extends Machine {
     public static RegMask RET_MASK = new RegMask(RAX);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
+    public static RegMask RCX_MASK = new RegMask(1L<<RCX);
+    public static RegMask RDX_MASK = new RegMask(1L<<RDX);
+    public static RegMask R08_MASK = new RegMask(1L<<R08);
+    public static RegMask R09_MASK = new RegMask(1L<<R09);
+    public static RegMask RSI_MASK = new RegMask(1L<<RSI);
 
+    // Calling conv metadata
+    public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
+    public int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
 
-
+    public int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
+    public int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
     // Human-readable name for a register number, e.g. "RAX"
     @Override public String reg( int reg ) {
-        throw Utils.TODO();
+
+        return switch (reg) {
+            case 0 -> "rax";
+            case 1 -> "rcx";
+            case 2 -> "rdx";
+            case 3 -> "rbx";
+            case 4 -> "rsp";
+            case 5 -> "rbp";
+            case 6 -> "rsi";
+            case 7 -> "rdi";
+            case 8 -> "r8";
+            case 9 -> "r9";
+            case 10 -> "r10";
+            case 11 -> "r11";
+            case 12 -> "r12";
+            case 13 -> "r13";
+            case 14 -> "r14";
+            case 15 -> "15";
+            case 16 -> "xmm0";
+            case 17 -> "xmm1";
+            case 18 -> "xmm2";
+            case 19 -> "xmm3";
+            case 20 -> "xmm4";
+            case 21 -> "xmm5";
+            case 22 -> "xmm6";
+            case 23 -> "xmm7";
+            case 24 -> "xmm8";
+            case 25 -> "xmm9";
+            case 26 -> "xmm10";
+            case 27 -> "xmm11";
+            case 28 -> "xmm12";
+            case 29 -> "xmm13";
+            case 30 -> "xmm14";
+            case 31 -> "xmm15";
+            default -> "";
+        };
     }
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     @Override public int callInArg( int idx ) {
-        return switch(idx) {
-        case 0 -> 0;            // Control: no register
-        case 1 -> 1;            // Memory : no register
-        case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        default -> throw Utils.TODO();
+        return switch (CodeGen.CODE._callingConv) {
+            case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
+            case CodeGen.CallingConv.Win64 -> callInArgWin64(idx);
         };
     }
-    public static RegMask[] CALLINMASK = new RegMask[] {
+
+    // WIN64(param passing)
+    public static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
+        null,
+        null,
+        RCX_MASK,
+        RDX_MASK,
+        R08_MASK,
+        R09_MASK,
+        null,
+        null
+    };
+
+    public int callInArgWin64( int idx ) {
+        return switch(idx) {
+            case 0 -> 0;            // Control: no register
+            case 1 -> 1;            // Memory : no register
+            case 2 -> RCX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 3 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 4 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 5 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 6 -> 0;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 7 -> 0;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            default -> throw Utils.TODO();
+        };
+    }
+
+    // caller saved(win64)
+    public static final long WIN64_ABI_CALLER_SAVED =
+        (1L << RAX) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11);
+
+    // callee saved(win64)
+    public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
+
+    // SystemV(param passing)
+    public static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
         null,
         null,
         RDI_MASK,
+        RSI_MASK,
+        RDX_MASK,
+        RCX_MASK,
+        R08_MASK,
+        R09_MASK
     };
-    @Override public RegMask callInMask( int idx ) { return CALLINMASK[idx]; }
+
+    public int callInArgSystemV( int idx ) {
+        return switch(idx) {
+            case 0 -> 0;            // Control: no register
+            case 1 -> 1;            // Memory : no register
+            case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 3 -> RSI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 4 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 5 -> RCX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 6 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 7 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            default -> throw Utils.TODO();
+        };
+    }
+
+    // caller saved(systemv)
+    // caller saved(win64)
+    public static final long SYSTEMV_ABI_CALLER_SAVED =
+        (1L << RAX) | (1L << RDI) | (1L << RSI) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) << (1L << R10) << (1L << R11);
+    // callee saved(systemv)
+    public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
+
+
+    @Override public RegMask callInMask( int idx ) {
+        return switch (CodeGen.CODE._callingConv) {
+            case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
+            case CodeGen.CallingConv.Win64 -> CALLINMASK_WIN64[idx];
+        };
+    }
 
     // Create a split op; any register to any register, including stack slots
     @Override public Node split() {
@@ -167,7 +278,7 @@ public class x86_64_v2 extends Machine {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
-        case TypeFunPtr  tmp -> throw Utils.TODO();
+        case TypeFunPtr  tmp -> throw Utils.TODO(); // Todo: Extend on this
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con);

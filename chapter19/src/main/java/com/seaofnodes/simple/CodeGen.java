@@ -20,6 +20,10 @@ public class CodeGen {
         LocalSched,             // Local schedule
         RegAlloc;               // Register allocation
     }
+    public enum CallingConv {
+        Win64,
+        SystemV
+    }
     public Phase _phase;
 
     // ---------------------------
@@ -27,14 +31,14 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
-
+    public CallingConv _callingConv;
 
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {
         CODE = this;
         _phase = null;
-
+        _callingConv = null;
         _start = new StartNode(arg);
         _stop = new StopNode(src);
         _src = src;
@@ -162,9 +166,18 @@ public class CodeGen {
     public Machine _mach;
 
     // Convert to target hardware nodes
-    public CodeGen instSelect( String cpu ) {
+    public CodeGen instSelect( String cpu, String callingConv ) {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
         _phase = Phase.InstructionSelection;
+
+        switch(callingConv) {
+            case "SystemV" :
+                _callingConv = CallingConv.SystemV;
+                break;
+            case "Win64":
+                _callingConv = CallingConv.Win64;
+                break;
+        }
 
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
