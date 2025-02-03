@@ -47,25 +47,32 @@ public class LoadNode extends MemOpNode {
     @Override
     public Node idealize() {
         Node ptr = ptr();
+        Node mem = mem();
 
         // Simple Load-after-Store on same address.
-        if( mem() instanceof StoreNode st &&
+        if( mem instanceof StoreNode st &&
             ptr == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             return st.val();
         }
 
         // Simple Load-after-New on same address.
-        if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
+        if( mem instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
             ptr == nnn.proj(1) ) // Must check same object
-            return nnn.in(nnn.findAlias(_alias)); // Load from New init
+            return zero(nnn);   // Load zero from new
+
+        // Uplift control to a prior dominating load.
+        for( Node memuse : mem._outputs )
+            // Find a prior load, has same mem,ptr,off but higher ctrl
+            if( memuse != this && memuse instanceof LoadNode ld && ptr==ld.ptr() && off()==ld.off() &&
+                cfg0()!=null && cfg0()._idom(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
+                return ld;
 
         // Load-after-Store on same address, but bypassing provably unrelated
         // stores.  This is a more complex superset of the above two peeps.
         // "Provably unrelated" is really weak.
         if( ptr instanceof ReadOnlyNode ro )
             ptr = ro.in(1);
-        Node mem = mem();
         outer:
         while( true ) {
             switch( mem ) {
@@ -88,7 +95,7 @@ public class LoadNode extends MemOpNode {
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
+                        return zero(nnn1);
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.in(_alias);// Bypass unrelated New
@@ -129,6 +136,13 @@ public class LoadNode extends MemOpNode {
         }
 
         return null;
+    }
+
+    // Load a flavored zero from a New
+    private Node zero(NewNode nnn) {
+        TypeStruct ts = nnn._ptr._obj;
+        Type zero = ts._fields[ts.findAlias(_alias)]._type.makeZero();
+        return castRO(new ConstantNode(zero).peephole());
     }
 
     private Node ld( int idx ) {

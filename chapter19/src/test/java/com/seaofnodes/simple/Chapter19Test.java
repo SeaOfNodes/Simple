@@ -10,8 +10,9 @@ public class Chapter19Test {
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("""
-return 0;""");
-        code.parse().opto().typeCheck().GCM().localSched();
+return 0;
+""");
+        code.parse().opto().typeCheck();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
@@ -231,7 +232,7 @@ return sum;""");
     }
 
     @Test
-    public void testAlloc() {
+    public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
 struct S { int a; S? c; };
@@ -259,6 +260,14 @@ return new S;""");
         CodeGen code = new CodeGen("int x = arg/3; return x*4+arg;");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         assertEquals("return (lea,arg,(div,arg,3));", code.print());
+    }
+
+    @Test
+    public void testAlloc2() {
+        CodeGen code = new CodeGen("int[] xs = new int[3]; xs[arg]=1; return xs[arg&1];");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        code.asm();
+        assertEquals("return .[];", code.print());
     }
 
     @Ignore @Test

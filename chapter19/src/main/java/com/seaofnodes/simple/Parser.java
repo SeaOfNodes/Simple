@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -1185,20 +1186,29 @@ public class Parser {
         if( fs==null )
             throw error("Unknown struct type '" + obj._name + "'");
         int len = fs.length;
-        Node[] ns = new Node[2+len+len];
+        Node[] ns = new Node[2+len];
         ns[0] = ctrl();         // Control in slot 0
         // Total allocated length in bytes
         ns[1] = size;
         // Memory aliases for every field
         for( int i = 0; i < len; i++ )
-            ns[2    +i] = memAlias(fs[i]._alias);
-        // Initial values for every field
-        for( int i = 0; i < len; i++ )
-            ns[2+len+i] = init.get(i+idx);
-        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
+            ns[2+i] = memAlias(fs[i]._alias);
+        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole().keep();
         for( int i = 0; i < len; i++ )
             memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
-        return new ProjNode(nnn,1,obj._name).peephole();
+        Node ptr = new ProjNode(nnn.unkeep(),1,obj._name).peephole().keep();
+
+        // Initial nonzero values for every field
+        for( int i = 0; i < len; i++ ) {
+            Node val = init.get( i + idx );
+            if( val._type != val._type.makeZero() ) {
+                Node mem = memAlias(fs[i]._alias);
+                Node st = new StoreNode(loc(),fs[i]._fname,fs[i]._alias,fs[i]._type,mem,ptr,con(obj.offset(i)),val,true).peephole();
+                memAlias(fs[i]._alias,st);
+            }
+        }
+
+        return ptr.unkeep();
     }
 
     private static final Ary<Node> ALTMP = new Ary<>(Node.class);

@@ -341,7 +341,7 @@ public abstract class Eval2 {
         int num = type._fields.length;
         Object[] ptr = new Object[num];
         for( int i=0; i<num; i++ )
-            ptr[i] = val(alloc.in(2+i+num));
+            ptr[i] = con(type._fields[i]._type.makeZero());
         return ptr;
     }
 
@@ -357,6 +357,8 @@ public abstract class Eval2 {
     }
 
     private static Object store( StoreNode st ) {
+        if( st._name.equals("#") )
+            return "$mem";      // Eval stores the length in the java object[], no need to set it now
         TypeMemPtr tmp = (TypeMemPtr)st.ptr()._type;
         Object[] fs = (Object[])val(st.ptr());
         int idx = tmp._obj.isAry()

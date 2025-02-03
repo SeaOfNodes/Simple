@@ -55,7 +55,7 @@ public class AddNode extends Node {
 
         // Add of same to a multiply by 2
         if( lhs==rhs )
-            return new MulNode(lhs,con(2));
+            return new ShlNode(null,lhs,con(1));
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
 

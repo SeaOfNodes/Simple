@@ -4,6 +4,8 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import java.lang.StringBuilder;
+import java.util.BitSet;
 
 /**
  * Convenience common base for Load and Store.
@@ -29,6 +31,13 @@ public abstract class MemOpNode extends Node {
         this(loc,name, alias, glb, mem, ptr, off);
         addDef(value);
     }
+    public MemOpNode( Node mach, String name, int alias, Type t, Parser.Lexer loc ) {
+        super(mach);
+        _name = name;
+        _alias = alias;
+        _declaredType = t;
+        _loc = loc;
+    }
 
     //
     static String mlabel(String name) { return name.equals("[]") ? "ary" : (name.equals("#") ? "len" : name); }
@@ -37,6 +46,10 @@ public abstract class MemOpNode extends Node {
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
     public Node off() { return in(3); }
+
+    @Override StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
+    public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
+
 
     @Override
     boolean eq(Node n) {
