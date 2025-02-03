@@ -96,9 +96,9 @@ public class LoadNode extends MemOpNode {
                 case NewNode nnn1:
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
                         return zero(nnn1);
-                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
+                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode) )
                         break outer; // Cannot tell, ptr not related to New
-                    mem = nnn1.in(_alias);// Bypass unrelated New
+                    mem = nnn1.in(nnn1.findAlias(_alias));// Bypass unrelated New
                     break;
                 case StartNode  start: break outer;
                 case CallEndNode cend: break outer; // TODO: Bypass no-alias call

@@ -44,6 +44,11 @@ public class NewNode extends Node implements MultiNode {
         return sb.append(_ptr._obj.str());
     }
 
+    int findAlias(int alias) {
+        int idx = _ptr._obj.findAlias(alias);
+        assert idx!= -1;        // Error, caller should be calling
+        return idx+2;           // Skip ctrl, size
+    }
 
     // 0 - ctrl
     // 1 - byte size

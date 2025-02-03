@@ -1391,6 +1391,14 @@ public class Parser {
         // Unkeep them all
         for( Node arg : args )
             arg.unkeep();
+        // Dead into the call?  Skip all the node gen
+        if( ctrl()._type == Type.XCONTROL ) {
+            for( Node arg : args )
+                if( arg.isUnused() )
+                    arg.kill();
+            return con(Type.TOP);
+        }
+
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
 

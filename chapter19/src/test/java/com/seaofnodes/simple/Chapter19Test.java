@@ -264,7 +264,7 @@ return new S;""");
 
     @Test
     public void testAlloc2() {
-        CodeGen code = new CodeGen("int[] xs = new int[3]; xs[arg]=1; return xs[arg&1];");
+        CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         code.asm();
         assertEquals("return .[];", code.print());
