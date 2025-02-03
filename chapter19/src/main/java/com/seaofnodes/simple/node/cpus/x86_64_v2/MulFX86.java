@@ -2,15 +2,16 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class MulFX86 extends MachConcreteNode implements MachNode {
-    Node debug;
+    Node _mulf;
     MulFX86( Node mulf) {
         super(mulf);
-        debug = _inputs.last();
-        _inputs.pop();
+        _debug = _inputs.last();
+        _mulf = mulf;
     }
 
     // Register mask allowed on input i.
@@ -26,7 +27,7 @@ public class MulFX86 extends MachConcreteNode implements MachNode {
     }
 
     @Override public String comment() {
-        return debug.print();
+        return _debug.print();
     }
 
     // General form: "mulf  dst *= src"
@@ -34,5 +35,9 @@ public class MulFX86 extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
     }
 
-    @Override public String op() { return "mulf"; }
+    @Override public String op() {
+        TypeFloat type = (TypeFloat)(_mulf._type);
+        if(type._sz == 64) return "mulsd";
+        return "mulss";
+    }
 }

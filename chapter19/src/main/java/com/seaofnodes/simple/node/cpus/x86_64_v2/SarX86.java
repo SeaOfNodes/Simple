@@ -11,11 +11,13 @@ import java.lang.StringBuilder;
 
 public class SarX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    SarX86(Node sar, TypeInteger ti) {super(sar); _inputs.pop(); _ti = ti;}
+    SarX86(Node sar, TypeInteger ti) {super(sar); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.RMASK; }
+    @Override public RegMask regmap(int i) {
+        // assert i==1;
+        return x86_64_v2.RMASK; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 

@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class AddX86 extends MachConcreteNode implements MachNode {
-    AddX86( Node add ) { super(add); }
+    AddX86( Node add ) { super(add);  _single = true;}
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.RMASK; }

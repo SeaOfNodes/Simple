@@ -77,6 +77,8 @@ public class x86_64_v2 extends Machine {
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
+        case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
+        case CallNode     call  -> new CallX86(call);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
@@ -158,6 +160,9 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node con( ConstantNode con ) {
+        if(con._con instanceof TypeInteger ) {
+            System.out.print("Here");
+        }
         return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);

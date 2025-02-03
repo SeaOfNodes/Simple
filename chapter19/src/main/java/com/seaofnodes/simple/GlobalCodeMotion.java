@@ -2,6 +2,7 @@
 
 import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 
@@ -66,18 +67,40 @@ public abstract class GlobalCodeMotion {
         // Pinned, this never walks the backedge of Phis (and thus spins around
         // a data-only loop), eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
-        for( Node def : n._inputs )
+        for( Node def : n._inputs ) {
+            if(def != null && def._nid == 35) {
+                System.out.print("Here");
+            }
             if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,visit);
+        }
+
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
+            if(n instanceof AddFX86) {
+                System.out.print("Here");
+            }
+            if(n instanceof DivFX86) {
+                System.out.print("Here");
+            }
+            // Starts messing up things
+            if(n instanceof I2f8X86) {
+                System.out.print("Here");
+            }
+            if(n instanceof ParmNode) {
+                System.out.print("Here");
+            }
             // Schedule at deepest input
             CFGNode early = CodeGen.CODE._start; // Maximally early, lowest idepth
             if( n.in(0) instanceof CFGNode cfg ) early = cfg;
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
-            n.setDef(0,early);              // First place this can go
+            n.setDef(0,early);
+            if(n._nid == 36) {
+                System.out.print("Here");
+            }
+            // 35 should schedule to LoopNode as well
         }
     }
 

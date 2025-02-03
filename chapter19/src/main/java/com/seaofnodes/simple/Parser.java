@@ -668,7 +668,6 @@ public class Parser {
         boolean hasBang = match("!");
         Lexer loc = loc();
         String name = requireId();
-
         // Optional initializing expression follows
         boolean xfinal = false;
         Node expr;

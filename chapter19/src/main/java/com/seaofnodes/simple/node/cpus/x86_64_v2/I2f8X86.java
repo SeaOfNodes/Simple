@@ -7,7 +7,12 @@ import java.io.ByteArrayOutputStream;
 
 public class I2f8X86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    I2f8X86(Node i2f8, TypeInteger ti ) { super(i2f8); _inputs.pop(); _ti = ti; }
+    I2f8X86(Node i2f8, TypeInteger ti ) {
+        super(i2f8);
+//        _inputs.pop();
+        _debug = _inputs.last();
+        _ti = ti;
+    }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }

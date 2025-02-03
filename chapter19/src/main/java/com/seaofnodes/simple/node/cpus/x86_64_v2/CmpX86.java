@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class CmpX86 extends MachConcreteNode implements MachNode {
-    CmpX86( Node add ) { super(add); }
+    CmpX86( Node cmp ) { super(cmp); }
 
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }

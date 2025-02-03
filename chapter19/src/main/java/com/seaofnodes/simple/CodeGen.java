@@ -150,7 +150,6 @@ public class CodeGen {
         assert _phase.ordinal() <= Phase.Opto.ordinal();
         _phase = Phase.TypeCheck;
 
-        // Type check
         Parser.ParseException err = _stop.walk( Node::err );
         if( err != null )
             throw err;

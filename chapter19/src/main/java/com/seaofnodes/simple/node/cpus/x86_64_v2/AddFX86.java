@@ -2,16 +2,17 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeFloat;
+
 import java.io.ByteArrayOutputStream;
 
 public class AddFX86 extends MachConcreteNode implements MachNode {
-    Node debug;
-
+    Node _addf;
     AddFX86( Node addf) {
         super(addf);
-        debug = _inputs.last();
-        _inputs.pop(); }
+        _debug = _inputs.last();
+        _addf = addf;
+    }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.XMASK; }
@@ -26,7 +27,7 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
     }
 
     @Override public String comment() {
-        return debug.print();
+        return _debug.print();
     }
 
     // General form: "addf  dst += src"
@@ -34,5 +35,9 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
     }
 
-    @Override public String op() { return "addf"; }
+    @Override public String op() {
+        TypeFloat type = (TypeFloat)(_addf._type);
+        if(type._sz == 64) return "addsd";
+        return "addss";
+    }
 }

@@ -2,16 +2,17 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class DivFX86 extends MachConcreteNode implements MachNode {
-    Node debug;
+    Node _divf;
     DivFX86( Node divf) {
         super(divf);
-        debug = _inputs.last();
-        _inputs.pop();
-        }
+        _debug = _inputs.last();
+        _divf = divf;
+    }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.XMASK; }
@@ -26,7 +27,7 @@ public class DivFX86 extends MachConcreteNode implements MachNode {
     }
 
     @Override public String comment() {
-        return debug.print();
+        return _debug.print();
     }
 
     // General form: "divf  dst /= src"
@@ -34,5 +35,9 @@ public class DivFX86 extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
     }
 
-    @Override public String op() { return "divf"; }
+    @Override public String op() {
+        TypeFloat type = (TypeFloat)(_divf._type);
+        if(type._sz == 64) return "divsd";
+        return "divss";
+    }
 }
