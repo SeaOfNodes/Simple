@@ -1,5 +1,18 @@
 # Chapter 2: Arithmetic
 
+
+# Table of Contents
+
+1. [Extensions to Intermediate Representation](#extensions-to-intermediate-representation)
+2. [Peephole Optimizations](#peephole-optimizations)
+3. [Constant Folding and Constant Propagation](#constant-folding-and-constant-propagation)
+4. [Nodes Pre Peephole Optimization](#nodes-pre-peephole-optimization)
+5. [Post-peephole](#post-peephole)
+6. [Demonstration](#demonstration)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter02) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter01...linear-chapter02) it to the previous chapter.
+
+
 In this chapter we extend the language grammar to include arithmetic operations such as addition, subtraction,
 multiplication, division, and unary minus. This allows us to write statements such as:
 
@@ -8,8 +21,6 @@ return 1 + 2 * 3 + -5;
 ```
 
 Here is the [complete language grammar](docs/02-grammar.md) for this chapter.
-
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter02) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter01...linear-chapter02) it to the previous chapter.
 
 ## Extensions to Intermediate Representation
 

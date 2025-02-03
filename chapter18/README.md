@@ -1,6 +1,15 @@
 # Chapter 18: Functions
 
 
+# Table of Contents
+1. [FunctionTypes](#function-and-rpc-types)
+2. [Return Program Counters](#return-program-counters)
+3. [Functions](#functions)
+4. [CodeGen - The Compile Driver](#codegen---the-compile-driver)
+5. [Graph Visualizer](#graph-visualizer)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17...linear-chapter18) it to the previous chapter.
+
 I hardly know where to begin!  So many things changed here, mostly as indirect
 consequences of supporting functions.
 
@@ -23,7 +32,6 @@ changes and subtle complexities than sensible for such a large chapter.
 Functions can only refer to out of scope variables if they are some final
 constant.  This generally includes e.g. recursive function pointers.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17...linear-chapter18) it to the previous chapter.
 
 ## Function and RPC Types
 
@@ -151,7 +159,7 @@ general type.  `Returns` take in a Control, a Memory, a return value, and the
 `RPC` that was handed to the function when called.
 
 When looking at the returned IR, the `StopNode` now reports one return for each
-function, including `main`: 
+function, including `main`:
 `Stop[ return find; return Phi(Region,int,-1); ]`
 
 
@@ -163,7 +171,7 @@ the function pointer.  For calls to named functions this last argument will be
 a `ConstantNode` of the named function type, but in general it can be the
 result of any function-typed expression.
 
-The call arguments passed to the matching `ParmNode`s in the function, 
+The call arguments passed to the matching `ParmNode`s in the function,
 with the `Call`s constant `RPC` being passed to the matching RPC `Parm`.
 
 After a `Call` is a `CallEndNode`, internally abbreviated as `cend`.  The
@@ -228,4 +236,3 @@ Nodes are color coded according to type, same as the lattice diagrams.  Nodes
 are shaped according to node function as well.  At the bottom are `ScopeNode`s,
 which only exist for the Parser but are actual Nodes and have `use->def` edges
 into the IR.
-
