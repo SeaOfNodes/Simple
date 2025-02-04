@@ -13,6 +13,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     private boolean _folding;
 
     public CallEndNode(CallNode call) { super(new Node[]{call}); }
+    public CallEndNode(CallEndNode cend) { super(cend); }
 
     @Override
     public String label() { return "CallEnd"; }

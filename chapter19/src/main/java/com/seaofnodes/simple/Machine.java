@@ -14,7 +14,7 @@ abstract public class Machine {
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     public abstract int callInArg( int idx );
-    public abstract RegMask callInMask( int idx );
+//    public abstract  RegMask callInMask( int idx );
     // Create a split op; any register to any register, including stack slots
     public abstract Node split();
     // Return a MachNode unconditional branch

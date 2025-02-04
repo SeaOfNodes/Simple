@@ -14,7 +14,7 @@ import java.io.ByteArrayOutputStream;
 public class XorIX86  extends MachConcreteNode implements MachNode {
 
     final TypeInteger _ti;
-    XorIX86(Node xor, TypeInteger ti) {super(xor); _ti = ti;}
+    XorIX86(Node xor, TypeInteger ti) {super(xor); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

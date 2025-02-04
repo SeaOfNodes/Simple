@@ -10,7 +10,7 @@ import java.lang.StringBuilder;
 
 public class ShrIX86 extends MachConcreteNode implements MachNode{
     final TypeInteger _ti;
-    ShrIX86(Node shr, TypeInteger ti) {super(shr); _ti = ti;}
+    ShrIX86(Node shr, TypeInteger ti) {super(shr); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

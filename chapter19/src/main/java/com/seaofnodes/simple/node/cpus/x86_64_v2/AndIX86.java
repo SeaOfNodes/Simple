@@ -12,6 +12,7 @@ public class AndIX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
     AndIX86(Node and, TypeInteger ti) {
     super(and);
+    _inputs.pop();
     _ti = ti;
     }
 

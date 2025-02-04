@@ -65,8 +65,8 @@ public abstract class Node {
     Node( Node n ) {
         assert CodeGen.CODE._phase == CodeGen.Phase.InstructionSelection;
         _nid = CODE.getUID(); // allocate unique dense ID
-        _inputs  = n._inputs;
-        _outputs = n._outputs;
+        _inputs  = new Ary<>(n._inputs.asAry());
+        _outputs = new Ary<>(Node.class);
         _type = n._type;
         _deps = null;
         _hash = 0;

@@ -6,8 +6,6 @@ import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
 
-import javax.swing.plaf.synth.Region;
-
 public abstract class ASMPrinter {
 
     public static SB print(SB sb, CodeGen code) {
@@ -41,19 +39,19 @@ public abstract class ASMPrinter {
 
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         CFGNode bb = code._cfg.at(cfgidx);
-        if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode ))
+        if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p("L").p(bb._nid).p(":").nl();
 
-        for( Node n : bb._outputs )
-            if( !(bb instanceof CallNode) || n instanceof CallEndNode)
-                iadr = doInst(iadr, sb, code, fun, bb, n);
+        if( !(bb instanceof CallNode) )
+            for( Node n : bb._outputs )
+                iadr = doInst(iadr, sb,code,fun,bb,n);
 
         return iadr;
     }
 
     static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n) {
         final int encWidth = 8;
-        final int opWidth = 6;
+        final int opWidth = 5;
         final int argWidth = 25;
 
         if( n instanceof  CProjNode ) return iadr;

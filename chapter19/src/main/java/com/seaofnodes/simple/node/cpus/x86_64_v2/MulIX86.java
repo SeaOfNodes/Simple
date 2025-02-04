@@ -7,7 +7,7 @@ import java.io.ByteArrayOutputStream;
 
 public class MulIX86 extends MachConcreteNode  implements MachNode {
     final TypeInteger _ti;
-    MulIX86(Node mul, TypeInteger ti) {super(mul); _ti = ti;}
+    MulIX86(Node mul, TypeInteger ti) {super(mul); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

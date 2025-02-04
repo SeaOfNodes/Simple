@@ -24,18 +24,14 @@ public class NewNode extends Node implements MultiNode {
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
         // Malloc-length in slot 1
         assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
-        for( int i=0; i<_len; i++ ) {
+        for( int i=0; i<_len; i++ )
             // Memory slices for all fields.
-            assert nodes[2+         i]._type.isa(TypeMem.BOT);
-            // Value  slices for all fields.
-            assert nodes[2 + _len + i]._type != null;
-        }
+            assert nodes[2+i]._type.isa(TypeMem.BOT);
     }
 
     public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
 
     public Node mem (int idx) { return in(idx+2); }
-    public Node init(int idx) { return in(idx+2+_len); }
 
     @Override public String label() { return "new_"+glabel(); }
     @Override public String glabel() {
@@ -48,18 +44,17 @@ public class NewNode extends Node implements MultiNode {
         return sb.append(_ptr._obj.str());
     }
 
+    int findAlias(int alias) {
+        int idx = _ptr._obj.findAlias(alias);
+        assert idx!= -1;        // Error, caller should be calling
+        return idx+2;           // Skip ctrl, size
+    }
 
     // 0 - ctrl
     // 1 - byte size
     // 2-len+2 - aliases, one per field
     // len+2 - 2*len+2 - initial values, one per field
     public Node size() { return in(1); }
-
-    // Find matching alias input
-    public int findAlias(int alias) {
-        return 2+_ptr._obj.findAlias(alias)+_len;
-    }
-
 
     @Override
     public TypeTuple compute() {
@@ -70,8 +65,9 @@ public class NewNode extends Node implements MultiNode {
         for( int i=0; i<fs.length; i++ ) {
             Type mt = in(i+2)._type;
             TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
-            Type tfld = in(2+_len+i)._type.meet(mem._t);
-            ts[i+2] = TypeMem.make(fs[i]._alias,tfld);
+            Type tfld = mem._t.meet(mem._t.makeZero());
+            Type tfld2 = tfld.join(fs[i]._type);
+            ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
         }
         return TypeTuple.make(ts);
     }

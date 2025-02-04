@@ -159,7 +159,7 @@ public class x86_64_v2 extends Machine {
     public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
 
-    @Override public RegMask callInMask( int idx ) {
+    public static RegMask callInMask( int idx ) {
         return switch (CodeGen.CODE._callingConv) {
             case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
             case CodeGen.CallingConv.Win64 -> CALLINMASK_WIN64[idx];
@@ -184,33 +184,36 @@ public class x86_64_v2 extends Machine {
     // Instruction selection
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
-        case AddFNode     addf  -> addf(addf);
+        case AddFNode     addf  -> new AddFX86(addf);
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
         case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
-        case CallNode     call  -> new CallX86(call);
+        case CallNode     call  -> call(call);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
         case DivNode      div   -> new DivX86(div);
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
+        case LoadNode     ld    -> ld(ld);
         case MemMergeNode mem   -> new MemMergeNode(mem);
-        case MulFNode     mulf  -> mulf(mulf);
+        case MulFNode     mulf  -> new MulFX86(mulf);
         case MulNode      mul   -> mul(mul);
         case NewNode      nnn   -> new NewX86(nnn);
         case OrNode       or   ->  or(or);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);
         case ProjNode     prj   -> prj(prj);
+        case ReadOnlyNode read  -> new ReadOnlyNode(read);
         case ReturnNode   ret   -> new RetX86(ret,ret.fun());
         case SarNode      sar   -> sar(sar);
         case ShlNode      shl   -> shl(shl);
         case ShrNode      shr   -> shr(shr);
         case StartNode    start -> new StartNode(start);
         case StopNode     stop  -> new StopNode(stop);
-        case SubFNode     subf  -> subf(subf);
+        case StoreNode    st    -> st(st);
+        case SubFNode     subf  -> new SubFX86(subf);
         case SubNode      sub   -> sub(sub);
         case ToFloatNode  tfn   -> i2f8(tfn);
         case XorNode      xor   -> xor(xor);
@@ -224,16 +227,22 @@ public class x86_64_v2 extends Machine {
 
     // Attempt a full LEA-style break down.
     private Node add( AddNode add ) {
-        Node lhs = add.in(1);
-        Node rhs = add.in(2);
+        return _address(add,add.in(1),add.in(2));
+    }
+
+    // Attempt a full LEA-style break down.
+    // Returns one of AddX86, AddIX86, LeaX86, or LHS
+    private Node _address( Node n, Node lhs, Node rhs ) {
         if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff )
             return lhs instanceof AddNode ladd
                 // ((base + (idx << scale)) + off)
-                ? _lea(add,ladd.in(1),ladd.in(2),toff.value())
+                ? _lea(n,ladd.in(1),ladd.in(2),toff.value())
                 // lhs + rhs1
-                : new AddIX86(add, toff);
+                : (toff.value()==0
+                   ? n          // n+0
+                   : new AddIX86(n, toff));
 
-        return _lea(add,lhs,rhs,0);
+        return _lea(n,lhs,rhs,0);
     }
 
     private Node _lea( Node add, Node base, Node idx, long off ) {
@@ -250,15 +259,16 @@ public class x86_64_v2 extends Machine {
             : new LeaX86(add,base,idx,scale,off);
     }
 
-
-    private Node addf(AddFNode addf) {
-        return new AddFX86(addf);
-    }
-
     private Node and(AndNode and) {
         if(and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new AndIX86(and, ti);
         throw Utils.TODO();
+    }
+
+    private Node call(CallNode call) {
+        if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
+            return new CallX86(call, tfp);
+        return new CallRX86( call );
     }
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
@@ -271,14 +281,11 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if(con._con instanceof TypeInteger ) {
-            System.out.print("Here");
-        }
         return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
-        case TypeFunPtr  tmp -> throw Utils.TODO(); // Todo: Extend on this
+        case TypeFunPtr  tmp -> new TFPX86(con);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con);
@@ -286,13 +293,17 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node i2f8(ToFloatNode tfn) {
-        if( tfn.in(1)._type instanceof TypeInteger ti)
-            return new I2f8X86(tfn, ti);
-        throw Utils.TODO();
+        assert tfn.in(1)._type instanceof TypeInteger ti;
+        return new I2f8X86(tfn);
     }
 
     private Node jmp( IfNode iff ) {
         return new JmpX86(iff, iff.in(1) instanceof BoolNode bool ? bool.op() : "==");
+    }
+
+    private Node ld( LoadNode ld ) {
+        address(ld);
+        return new LoadX86(ld,ld.ptr(),idx,off,scale);
     }
 
     private Node mul(MulNode mul) {
@@ -301,32 +312,18 @@ public class x86_64_v2 extends Machine {
             : new MulX86(mul);
     }
 
-    private Node mulf(MulFNode mulf) {
-        return new MulFX86(mulf);
-    }
-
     private Node or(OrNode or) {
-        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new OrIX86(or, ti);
         throw Utils.TODO();
     }
 
     private Node prj( ProjNode prj ) {
-        if( prj.in(0) instanceof NewNode nnn && prj._type instanceof TypeMemPtr ) {
-            for( int i=0; i< nnn._len; i++ ) {
-                Type init = nnn.init(i)._type;
-                if( init != init.makeZero() )
-                    throw Utils.TODO(); // Insert a Store
-            }
-            // Delete all initial values, already folded into stores
-            for( int i=0; i< nnn._len; i++ )
-                nnn._inputs.pop();
-        }
         return new ProjX86(prj);
     }
 
     private Node sar( SarNode sar ) {
-        if(sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new SarX86(sar, ti);
         throw Utils.TODO();
     }
@@ -334,19 +331,25 @@ public class x86_64_v2 extends Machine {
     private Node shl( ShlNode shl ) {
         if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShlIX86(shl, ti);
-
         throw Utils.TODO();
     }
 
     private Node shr(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
-
         throw Utils.TODO();
     }
 
-    private Node subf(SubFNode subf) {
-        return new SubFX86(subf);
+    private Node st( StoreNode st ) {
+        address(st);
+        Node val = st.val();
+        int imm = 0;
+        if( val instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            val = null;
+            imm = (int)ti.value();
+            assert imm == ti.value(); // In 32-bit range
+        }
+        return new StoreX86(st,st.ptr(),idx,off,scale,imm,val);
     }
 
     private Node sub( SubNode sub ) {
@@ -359,6 +362,39 @@ public class x86_64_v2 extends Machine {
         if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new XorIX86(xor, ti);
         throw Utils.TODO();
+    }
+
+
+    // Gather X86 addressing mode bits prior to constructing.  This is a
+    // builder pattern, but saving the bits in a *local* *global* here to keep
+    // mess contained.
+    private static int off, scale;
+    private static Node idx;
+    private void address( MemOpNode mop ) {
+        off = 0;                // Reset
+        scale = 0;
+        idx = null;
+        Node base = mop.ptr();
+        // Skip/throw-away a ReadOnly, only used to typecheck
+        if( base instanceof ReadOnlyNode read ) base = read.in(1);
+        assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
+        if( mop.off() instanceof AddNode add && add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            off = (int)ti.value();
+            assert off == ti.value(); // In 32-bit range
+            idx = add.in(1);
+            if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
+                shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
+                idx = shift.in(1);
+                scale = (int)tscale.value();
+            }
+        } else {
+            if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+                off = (int)ti.value();
+                assert off == ti.value(); // In 32-bit range
+            } else {
+                idx = mop.off();
+            }
+        }
     }
 
 }

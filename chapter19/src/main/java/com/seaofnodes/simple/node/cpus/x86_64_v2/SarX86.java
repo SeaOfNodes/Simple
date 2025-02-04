@@ -11,7 +11,7 @@ import java.lang.StringBuilder;
 
 public class SarX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    SarX86(Node sar, TypeInteger ti) {super(sar); _ti = ti;}
+    SarX86(Node sar, TypeInteger ti) {super(sar); _inputs.pop();  _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

@@ -6,18 +6,14 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
 
-public class CallX86 extends CallNode implements MachNode {
-    final TypeFunPtr _tfp;
-    CallX86( CallNode call, TypeFunPtr tfp ) {
-        super(call);
-        _inputs.pop(); // Pop constant target
-        assert tfp.isConstant();
-        _tfp = tfp;
-    }
+public class CallRX86 extends CallNode implements MachNode {
+    CallRX86( CallNode call ) { super(call); }
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return x86_64_v2.callInMask(i); // Normal argument
+        return i==_inputs._len
+            ? x86_64_v2.WMASK          // Function call target
+            : x86_64_v2.callInMask(i); // Normal argument
     }
     @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
 
@@ -27,9 +23,9 @@ public class CallX86 extends CallNode implements MachNode {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(_tfp._name);
+        sb.p(code.reg(fptr()));
     }
 
-    @Override public String op() { return "call"; }
+    @Override public String op() { return "callr"; }
 
 }

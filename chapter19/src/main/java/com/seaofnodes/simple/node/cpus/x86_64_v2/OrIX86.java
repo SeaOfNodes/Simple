@@ -14,7 +14,7 @@ import java.io.ByteArrayOutputStream;
 public class OrIX86  extends MachConcreteNode implements MachNode {
 
     final TypeInteger _ti;
-    OrIX86(Node or, TypeInteger ti) {super(or);  _ti = ti;}
+    OrIX86(Node or, TypeInteger ti) {super(or);  _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

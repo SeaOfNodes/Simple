@@ -14,7 +14,6 @@ public class SetX86 extends MachConcreteNode implements MachNode {
     // Constructor expects input is an X86 and not an Ideal node.
     SetX86( MachConcreteNode cmp, String bop ) {
         super(cmp);
-        _single = true; // dont do popping stuff
         _inputs.push(cmp);
         _bop = bop;
     }

@@ -20,8 +20,8 @@ public class JmpX86 extends IfNode implements MachNode {
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
-        assert set instanceof SetX86 && (cmp instanceof CmpX86 || cmp instanceof CmpIX86);
-        _inputs.set(1,cmp);
+        if( set instanceof SetX86 && (cmp instanceof CmpX86 || cmp instanceof CmpIX86) )
+            _inputs.set(1,cmp);
     }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
     @Override public RegMask outregmap() { return RegMask.EMPTY; }

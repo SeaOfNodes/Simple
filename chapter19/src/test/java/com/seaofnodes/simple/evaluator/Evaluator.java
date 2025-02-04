@@ -202,8 +202,12 @@ public class Evaluator {
             body[0] = vall(alloc.in(2+2));
         } else {
             body = new Object[num = type._fields.length];
-            for (int i=0; i<num; i++)
-                body[i] = val(alloc.in(2+i+num));
+            for( int i=0; i<num; i++ )
+                body[i] = switch( alloc._ptr._obj._fields[i]._type ) {
+                case TypeInteger ti -> 0L;
+                case TypeFloat tf -> 0;
+                default -> null;
+                };
         }
         Object[] mems = new Object[type._fields.length+2];
         // mems[0] is control

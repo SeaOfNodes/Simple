@@ -70,34 +70,6 @@ public class StoreNode extends MemOpNode {
             setDef(1,st.mem());
             return this;
         }
-
-        // Simple store-after-new on same address.  Should pick up
-        // an init-store being stomped by a first user store.
-        if( mem() instanceof ProjNode st  && st .in(0) instanceof NewNode nnn &&
-            ptr() instanceof ProjNode ptr && ptr.in(0) == nnn &&
-            ptr()._type instanceof TypeMemPtr tmp && // No bother if weird dead pointers
-            // Cannot fold a store of a single element over the array body initializer value
-            !(tmp._obj.isAry() && tmp._obj._fields[1]._alias==_alias) &&
-            // Very sad strong cutout: val has to be legal to hoist to a New
-            // input, which means it cannot depend on the New.  Many, many
-            // things are legal here but difficult to check without doing a
-            // full dominator check.  Example failure:
-            // "struct C { C? c; }; C self = new C { c=self; }"
-            val()._type.isHighOrConst() &&
-            // Must have exactly one use of "this" or you get weird
-            // non-serializable memory effects in the worse case.
-            checkOnlyUse(st) &&
-            // Folding away a broken store
-            err()==null ) {
-            nnn.setDef(nnn.findAlias(_alias),val());
-            // Must *retype* the NewNode, this is not monotonic in isolation
-            // but is monotonic counting from this Store to the New.
-            nnn  ._type = nnn  .compute();
-            mem()._type = mem().compute();
-            CodeGen.CODE.addAll(nnn._outputs);
-            return mem();
-        }
-
         return null;
     }
 
@@ -117,7 +89,7 @@ public class StoreNode extends MemOpNode {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( tmp._obj.field(_name)._final && !"[]".equals(_name) )
+        if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
         return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);

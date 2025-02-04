@@ -9,6 +9,7 @@ public class AddIX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
     AddIX86( Node add, TypeInteger ti ) {
         super(add);
+        _inputs.pop();
          _ti = ti;
     }
 
@@ -32,5 +33,7 @@ public class AddIX86 extends MachConcreteNode implements MachNode {
         _ti.print(sb);
     }
 
-    @Override public String op() { return "addi"; }
+    @Override public String op() {
+        return _ti.value() == 1  ? "inc" : (_ti.value() == -1 ? "dec" : "addi");
+    }
 }

@@ -2,22 +2,16 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class DivFX86 extends MachConcreteNode implements MachNode {
-    Node _divf;
-    DivFX86( Node divf) {
-        super(divf);
-        _debug = _inputs.last();
-        _divf = divf;
-    }
+    DivFX86( Node divf) { super(divf); }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.XMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
+    @Override public RegMask outregmap() {  return x86_64_v2.XMASK; }
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
 
@@ -26,18 +20,14 @@ public class DivFX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    @Override public String comment() {
-        return _debug.print();
-    }
 
     // General form: "divf  dst /= src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / ").p(code.reg(in(2)));
     }
 
     @Override public String op() {
-        TypeFloat type = (TypeFloat)(_divf._type);
-        if(type._sz == 64) return "divsd";
-        return "divss";
+        // 8 bytes = 64 bits
+        return "divf";
     }
 }

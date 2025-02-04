@@ -9,7 +9,7 @@ import java.util.BitSet;
 
 public class ShlIX86 extends MachConcreteNode implements MachNode{
     final TypeInteger _ti;
-    ShlIX86(Node shl, TypeInteger ti) {super(shl); _ti = ti;}
+    ShlIX86(Node shl, TypeInteger ti) {super(shl); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

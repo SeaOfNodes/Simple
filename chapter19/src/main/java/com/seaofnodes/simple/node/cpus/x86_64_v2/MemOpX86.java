@@ -1,0 +1,67 @@
+package com.seaofnodes.simple.node.cpus.x86_64_v2;
+
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+import java.io.ByteArrayOutputStream;
+import java.lang.StringBuilder;
+import java.util.BitSet;
+
+// Generic X86 memory operand base.
+// inputs:
+//   ctrl     - will appear for possibly RCE (i.e. array ops)
+//   mem      - memory dependence edge
+//   base     - Basic object pointer
+//   idx/null - Scaled index offset, or null if none
+//   val/null - Value to store, as part of a op-to-mem or op-from-mem.  Null for loads, or if an immediate is being used
+// Constants:
+//   offset   - offset added to base.  Can be zero.
+//   scale    - scale on index; only 0,1,2,4,8 allowed, 0 is only when index is null
+//   imm      - immediate value to store or op-to-mem, and only when val is null
+public abstract class MemOpX86 extends MemOpNode implements MachNode {
+    final int _off;             // Limit 32 bits
+    final int _scale;           // Limit 0,1,2,3
+    final int _imm;             // Limit 32 bits
+    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
+    MemOpX86( Node op, String name, int alias, Type t, Parser.Lexer loc, Node base, Node idx, int off, int scale, int imm ) {
+        super(op,name,alias,t,loc);
+        assert op.in(1)._type instanceof TypeMem;
+        assert base._type instanceof TypeMemPtr && !(base instanceof AddNode);
+        assert (idx==null && scale==0) || (idx!=null && 0<= scale && scale<=3);
+
+        if( ptr() != base )
+            throw Utils.TODO();
+        _inputs.set(3,idx);
+        _off = off;
+        _scale = scale;
+        _imm = imm;
+    }
+
+    // Store-based flavors have a value edge
+    MemOpX86( Node op, String name, int alias, Type t, Parser.Lexer loc, Node base, Node idx, int off, int scale, int imm, Node val ) {
+        this(op,name,alias,t,loc,base,idx,off,scale,imm);
+        _inputs.set(4,val);
+    }
+
+    Node idx() { return in(3); }
+    Node val() { return in(4); }
+
+    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+
+    @Override public String label() { return op(); }
+    @Override public Type compute() { throw Utils.TODO(); }
+    @Override public Node idealize() { throw Utils.TODO(); }
+
+    // Register mask allowed on input i.
+    @Override public RegMask regmap(int i) {
+        if( i==1 ) return RegMask.EMPTY;    // Memory
+        if( i==2 ) return x86_64_v2.RMASK;  // base
+        if( i==3 ) return x86_64_v2.RMASK;  // index
+        if( i==4 ) return x86_64_v2.RMASK;  // value
+        throw Utils.TODO();
+    }
+    // Register mask allowed as a result.  0 for no register.
+    @Override public RegMask outregmap() { throw Utils.TODO(); }
+
+    @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }
+}
