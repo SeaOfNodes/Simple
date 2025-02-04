@@ -12,7 +12,7 @@ public class LoadX86 extends MemOpX86 {
         super(ld,ld._name,ld._alias,ld._declaredType,ld._loc, base, idx, off, scale, 0);
     }
 
-    @Override public String op() { return "ldX"; }
+    @Override public String op() { return "ld"+_sz; }
 
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }

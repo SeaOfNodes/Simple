@@ -12,7 +12,7 @@ public class StoreX86 extends MemOpX86 {
         super(st,st._name,st._alias,st._declaredType,st._loc, base, idx, off, scale, imm, val);
     }
 
-    @Override public String op() { return "stX"; }
+    @Override public String op() { return "st"+_sz; }
 
     @Override public StringBuilder _printMach(StringBuilder sb, BitSet visited) {
         return sb.append(".").append(_name).append("=").append(val()==null ? _imm : val()).append(";");

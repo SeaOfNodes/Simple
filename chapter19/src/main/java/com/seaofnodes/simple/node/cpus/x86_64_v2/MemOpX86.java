@@ -22,7 +22,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     final int _off;             // Limit 32 bits
     final int _scale;           // Limit 0,1,2,3
     final int _imm;             // Limit 32 bits
-
+    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
     MemOpX86( Node op, String name, int alias, Type t, Parser.Lexer loc, Node base, Node idx, int off, int scale, int imm ) {
         super(op,name,alias,t,loc);
         assert op.in(1)._type instanceof TypeMem;
