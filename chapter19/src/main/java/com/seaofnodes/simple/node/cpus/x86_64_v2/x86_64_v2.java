@@ -116,6 +116,10 @@ public class x86_64_v2 extends Machine {
 
     // Attempt a full LEA-style break down.
     private Node add( AddNode add ) {
+        if( add.in(1) instanceof LoadNode ld && ld.nOuts()==1 ) {
+            address(ld);
+            return new AddMemX86(add,ld,ld.ptr(),idx,off,scale, 0, add.in(2));
+        }
         return _address(add,add.in(1),add.in(2));
     }
 

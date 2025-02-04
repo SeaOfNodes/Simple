@@ -52,7 +52,7 @@ public abstract class ASMPrinter {
     static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n) {
         final int encWidth = 8;
         final int opWidth = 5;
-        final int argWidth = 25;
+        final int argWidth = 30;
 
         if( n instanceof  CProjNode ) return iadr;
 

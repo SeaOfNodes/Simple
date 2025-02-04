@@ -23,24 +23,29 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     final int _scale;           // Limit 0,1,2,3
     final int _imm;             // Limit 32 bits
     final char _sz = (char)('0'+(1<<_declaredType.log_size()));
-    MemOpX86( Node op, String name, int alias, Type t, Parser.Lexer loc, Node base, Node idx, int off, int scale, int imm ) {
-        super(op,name,alias,t,loc);
-        assert op.in(1)._type instanceof TypeMem;
+    MemOpX86( Node op, MemOpNode mop, Node base, Node idx, int off, int scale, int imm ) {
+        super(op,mop);
         assert base._type instanceof TypeMemPtr && !(base instanceof AddNode);
         assert (idx==null && scale==0) || (idx!=null && 0<= scale && scale<=3);
 
-        if( ptr() != base )
-            throw Utils.TODO();
-        _inputs.set(3,idx);
+        // Copy memory parts from eg the LoadNode over the opcode, e.g. an Add
+        if( op != mop ) {
+            _inputs.set(0,mop.in(0)); // Control from mem op
+            _inputs.set(1,mop.in(1)); // Memory  from mem op
+            _inputs.set(2,base);      // Base handed in
+        }
+
+        assert ptr() == base;
+        _inputs.setX(3,idx);
         _off = off;
         _scale = scale;
         _imm = imm;
     }
 
     // Store-based flavors have a value edge
-    MemOpX86( Node op, String name, int alias, Type t, Parser.Lexer loc, Node base, Node idx, int off, int scale, int imm, Node val ) {
-        this(op,name,alias,t,loc,base,idx,off,scale,imm);
-        _inputs.set(4,val);
+    MemOpX86( Node op, MemOpNode mop, Node base, Node idx, int off, int scale, int imm, Node val ) {
+        this(op,mop,base,idx,off,scale,imm);
+        _inputs.setX(4,val);
     }
 
     Node idx() { return in(3); }

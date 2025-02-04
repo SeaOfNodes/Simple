@@ -31,12 +31,12 @@ public abstract class MemOpNode extends Node {
         this(loc,name, alias, glb, mem, ptr, off);
         addDef(value);
     }
-    public MemOpNode( Node mach, String name, int alias, Type t, Parser.Lexer loc ) {
+    public MemOpNode( Node mach, MemOpNode mop ) {
         super(mach);
-        _name = name;
-        _alias = alias;
-        _declaredType = t;
-        _loc = loc;
+        _name  = mop._name;
+        _alias = mop._alias;
+        _declaredType = mop._declaredType;
+        _loc = mop._loc;
     }
 
     //

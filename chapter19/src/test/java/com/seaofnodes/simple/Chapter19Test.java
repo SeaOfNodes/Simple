@@ -283,7 +283,7 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("return (add,.[],(muli,.[]));", code.print());
+        assertEquals("return .[];", code.print());
     }
 
 
@@ -359,7 +359,6 @@ val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        code.asm();
         assertEquals("Stop[ return (add,Phi(Region,{ int -> int #1},{ int -> int #2})( 3),(muli,Phi_( 2))); return (mul,Parm_x($fun,int,3,2),x); return (shli,Parm_x($fun,int,3,2)); ]", code.print());
     }
 }

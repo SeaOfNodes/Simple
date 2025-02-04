@@ -92,6 +92,22 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return old;
     }
 
+    /** Set existing element
+     *  @param i element to set
+     *  @param e value to set
+     *  @return old value
+     *  @exception AIOOBE if !(0 <= i < _len)
+     */
+    public E setX( int i, E e ) {
+        if( i >= _len ) {
+            while( i >= _es.length ) _es = Arrays.copyOf( _es, _es.length << 1 );
+            _len = i+1;
+        }
+        E old = _es[i];
+        _es[i] = e;
+        return old;
+    }
+
     public Ary<E> setLen( int len ) {
         if( len > _len )
             while( len>= _es.length ) _es = Arrays.copyOf(_es,_es.length<<1);
