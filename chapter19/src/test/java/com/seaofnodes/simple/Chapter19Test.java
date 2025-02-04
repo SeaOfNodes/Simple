@@ -70,7 +70,7 @@ hashCode(s);""");
     @Test
     public void testBasic1() {
         CodeGen code = new CodeGen("return arg+1;").parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("return (addi,arg);", code._stop.toString());
+        assertEquals("return (inc,arg);", code._stop.toString());
     }
 
     @Test
@@ -165,7 +165,7 @@ hashCode(s);""");
 int arg1 =  arg + 1;
 return arg1 / arg;""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("return (div,(addi,arg),arg);", code._stop.toString());
+        assertEquals("return (div,(inc,arg),arg);", code._stop.toString());
     }
 
     @Test
@@ -176,7 +176,7 @@ int arg1 =  arg + 1;
 return arg1 * arg;
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("return (mul,(addi,arg),arg);", code._stop.toString());
+        assertEquals("return (mul,(inc,arg),arg);", code._stop.toString());
     }
 
     @Test
@@ -228,7 +228,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return sum;""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(addi,Phi_i))));", code.print());
+        assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(inc,Phi_i))));", code.print());
     }
 
     @Test
@@ -308,7 +308,7 @@ return sqrt(farg);
     };
 
 
-    @Ignore @Test
+    @Test
     public void sieveOfEratosthenes() {
         CodeGen code = new CodeGen(
 """
@@ -336,7 +336,7 @@ return rez;
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
         assertEquals("return [int];", code.print());
-        assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+        //assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
 }

@@ -1655,7 +1655,6 @@ public class Parser {
         private String parseNumberString() {
             int old = _position;
             int len = Math.abs(isLongOrDouble());
-            _position += len;
             return new String(_input,old,len);
         }
 
