@@ -229,7 +229,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return sum;""");
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(addi,Phi_i))));", code.print());
+        assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(inc,Phi_i))));", code.print());
     }
 
     @Test

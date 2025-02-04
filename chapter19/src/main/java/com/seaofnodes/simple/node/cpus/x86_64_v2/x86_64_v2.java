@@ -94,14 +94,14 @@ public class x86_64_v2 extends Machine {
 
     // WIN64(param passing)
     public static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
-        null,
-        null,
+        RegMask.EMPTY,
+        RegMask.EMPTY,
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
         R09_MASK,
-        null,
-        null
+        RegMask.EMPTY,
+        RegMask.EMPTY
     };
 
     public int callInArgWin64( int idx ) {
@@ -127,8 +127,8 @@ public class x86_64_v2 extends Machine {
 
     // SystemV(param passing)
     public static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
-        null,
-        null,
+        RegMask.EMPTY,
+        RegMask.EMPTY,
         RDI_MASK,
         RSI_MASK,
         RDX_MASK,
