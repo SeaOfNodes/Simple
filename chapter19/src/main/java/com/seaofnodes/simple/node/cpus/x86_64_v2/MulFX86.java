@@ -6,12 +6,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class MulFX86 extends MachConcreteNode implements MachNode {
-    Node debug;
-    MulFX86( Node mulf) {
-        super(mulf);
-        debug = _inputs.last();
-        _inputs.pop();
-    }
+    MulFX86( Node mulf) { super(mulf); }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.XMASK; }
@@ -25,13 +20,9 @@ public class MulFX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    @Override public String comment() {
-        return debug.print();
-    }
-
     // General form: "mulf  dst *= src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * ").p(code.reg(in(2)));
     }
 
     @Override public String op() { return "mulf"; }

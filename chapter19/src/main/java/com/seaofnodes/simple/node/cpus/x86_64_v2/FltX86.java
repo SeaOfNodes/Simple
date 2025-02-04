@@ -10,10 +10,7 @@ import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 public class FltX86 extends ConstantNode implements MachNode {
-
-    FltX86(ConstantNode con ) {
-        super(con);
-    }
+    FltX86(ConstantNode con ) { super(con); }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return RegMask.EMPTY; }
@@ -30,8 +27,7 @@ public class FltX86 extends ConstantNode implements MachNode {
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        String reg = code.reg(this);
-        _con.print(sb.p(reg).p(" #"));
+        _con.print(sb.p(code.reg(this)).p(" #"));
     }
 
     @Override public String op() {

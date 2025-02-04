@@ -174,9 +174,8 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node i2f8(ToFloatNode tfn) {
-        if( tfn.in(1)._type instanceof TypeInteger ti)
-            return new I2f8X86(tfn, ti);
-        throw Utils.TODO();
+        assert tfn.in(1)._type instanceof TypeInteger ti;
+        return new I2f8X86(tfn);
     }
 
     private Node jmp( IfNode iff ) {
