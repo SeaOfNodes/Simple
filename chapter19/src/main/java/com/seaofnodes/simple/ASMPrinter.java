@@ -39,11 +39,11 @@ public abstract class ASMPrinter {
 
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         CFGNode bb = code._cfg.at(cfgidx);
-        if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode ))
+        if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p("L").p(bb._nid).p(":").nl();
 
-        for( Node n : bb._outputs )
-            if( !(bb instanceof CallNode) || n instanceof CallEndNode )
+        if( !(bb instanceof CallNode) )
+            for( Node n : bb._outputs )
                 iadr = doInst(iadr, sb,code,fun,bb,n);
 
         return iadr;

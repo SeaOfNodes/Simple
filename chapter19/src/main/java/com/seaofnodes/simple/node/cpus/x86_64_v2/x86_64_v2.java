@@ -49,8 +49,8 @@ public class x86_64_v2 extends Machine {
         };
     }
     public static RegMask[] CALLINMASK = new RegMask[] {
-        null,
-        null,
+        RegMask.EMPTY,
+        RegMask.EMPTY,
         RDI_MASK,
     };
     @Override public RegMask callInMask( int idx ) { return CALLINMASK[idx]; }
@@ -77,6 +77,8 @@ public class x86_64_v2 extends Machine {
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
+        case CallNode     call  -> call(call);
+        case CallEndNode  cend  -> new CallEndNode(cend);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
@@ -152,6 +154,12 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO();
     }
 
+    private Node call(CallNode call) {
+        if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
+            return new CallX86(call, tfp);
+        return new CallRX86( call );
+    }
+
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
     private Node cmp( BoolNode bool ) {
@@ -166,7 +174,7 @@ public class x86_64_v2 extends Machine {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
-        case TypeFunPtr  tmp -> throw Utils.TODO();
+        case TypeFunPtr  tmp -> new TFPX86(con);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con);

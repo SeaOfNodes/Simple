@@ -17,6 +17,7 @@ public class CallNode extends CFGNode {
     public final Parser.Lexer _loc;
 
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
+    public CallNode(CallNode call) { super(call); _loc = call._loc; }
 
     @Override
     public String label() { return "Call"; }

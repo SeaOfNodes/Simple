@@ -339,4 +339,27 @@ return rez;
         //assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
+
+    @Test
+    public void testFcn1() {
+        CodeGen code = new CodeGen(
+"""
+val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
+return fcn(2)*10 + fcn(3);
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        assertEquals("Stop[ return (add,Phi(Region,{ int -> int #1},{ int -> int #2})( 3),(muli,Phi_( 2))); return (mul,Parm_x($fun,int,3,2),x); return (shli,Parm_x($fun,int,3,2)); ]", code.print());
+    }
+
+    @Test
+    public void testFcn2() {
+        CodeGen code = new CodeGen(
+"""
+val sq = { int x -> x*x; };
+return sq(arg) + sq(3);
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
+        code.asm();
+        assertEquals("Stop[ return (add,Phi(Region,{ int -> int #1},{ int -> int #2})( 3),(muli,Phi_( 2))); return (mul,Parm_x($fun,int,3,2),x); return (shli,Parm_x($fun,int,3,2)); ]", code.print());
+    }
 }
