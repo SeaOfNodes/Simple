@@ -31,7 +31,11 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
 
     // General form: "lea  dst = base + 4*idx + 12"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + ").p(code.reg(in(2))).p("*").p(_scale).p(" + #").p(_offset);
+        sb.p(code.reg(this)).p(" = ");
+        if( in(1) != null )
+            sb.p(code.reg(in(1))).p(" + ");
+        sb.p(code.reg(in(2))).p("*").p(_scale);
+        if( _offset!=0 ) sb.p(" + #").p(_offset);
     }
 
     @Override public String op() { return "lea"; }

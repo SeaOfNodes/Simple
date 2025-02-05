@@ -23,15 +23,7 @@ public class StoreX86 extends MemOpX86 {
 
     // General form: "stN  [base + idx<<2 + 12],val"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p("[").p(code.reg(ptr()));
-        if( idx() != null ) {
-            sb.p("+").p(code.reg(idx()));
-            if( _scale != 0 )
-                sb.p("<<").p(_scale);
-        }
-        if( _off != 0 )
-            sb.p("+").p(_off);
-        sb.p("],");
+        asm_address(code,sb).p(",");
         if( val()==null ) sb.p("#").p(_imm);
         else sb.p(code.reg(val()));
     }

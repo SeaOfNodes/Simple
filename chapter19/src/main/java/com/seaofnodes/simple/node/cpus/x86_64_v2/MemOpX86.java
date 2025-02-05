@@ -69,4 +69,19 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     @Override public RegMask outregmap() { throw Utils.TODO(); }
 
     @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }
+
+
+    // "[base + idx<<2 + 12]"
+    SB asm_address(CodeGen code, SB sb) {
+        sb.p("[").p(code.reg(ptr()));
+        if( idx() != null ) {
+            sb.p("+").p(code.reg(idx()));
+            if( _scale != 0 )
+                sb.p("<<").p(_scale);
+        }
+        if( _off != 0 )
+            sb.p("+").p(_off);
+        return sb.p("]");
+    }
+
 }

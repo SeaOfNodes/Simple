@@ -8,11 +8,9 @@ import java.util.BitSet;
 // Generic machine-specific class, has a few Node implementations that have to
 // exist (abstract) but are not useful past the optimizer.
 public abstract class MachConcreteNode extends Node implements MachNode{
-    private static final Node[] CTRL = new Node[1];
 
     public MachConcreteNode(Node node) { super(node); }
     public MachConcreteNode(Node[]nodes) { super(nodes); }
-    public MachConcreteNode(MachConcreteNode mach) { super(CTRL);  }
 
     @Override public String label() { return op(); }
     @Override public Type compute () { throw Utils.TODO(); }

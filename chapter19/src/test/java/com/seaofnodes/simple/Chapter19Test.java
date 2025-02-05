@@ -270,6 +270,13 @@ return new S;""");
     }
 
     @Test
+    public void testAlloc3() {
+        CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1]+3;");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return .[];", code.print());
+    }
+
+    @Test
     public void testArray1() {
         CodeGen code = new CodeGen(
 """
