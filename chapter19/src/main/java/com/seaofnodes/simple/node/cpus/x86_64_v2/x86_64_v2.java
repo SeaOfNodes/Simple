@@ -59,7 +59,7 @@ public class x86_64_v2 extends Machine {
     static int callInArg( int idx ) {
         return switch( CodeGen.CODE._callingConv ) {
         case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
-        case CodeGen.CallingConv.Win64 -> callInArgWin64(idx);
+        case CodeGen.CallingConv.Win64   -> callInArgWin64  (idx);
         };
     }
 
@@ -74,20 +74,17 @@ public class x86_64_v2 extends Machine {
         RegMask.EMPTY,
         RegMask.EMPTY
     };
-
-    static int callInArgWin64( int idx ) {
-        return switch(idx) {
-            case 0 -> 0;            // Control: no register
-            case 1 -> 1;            // Memory : no register
-            case 2 -> RCX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 3 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 4 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 5 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 6 -> 0;            // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 7 -> 0;            // Arg#2 in simple, arg#0 or #1 in other ABIs
-            default -> throw Utils.TODO();
-        };
-    }
+    static int[] CALLINARG_WIN64 = new int[] {
+        0,   // Control, no register
+        0,   // Memory, no register
+        RCX, //
+        RDX,
+        R08,
+        R09,
+        0,
+        0,
+    };
+    static int callInArgWin64( int idx ) { return CALLINARG_WIN64[idx]; }
 
     // caller saved(win64)
     public static final long WIN64_ABI_CALLER_SAVED =
@@ -107,20 +104,17 @@ public class x86_64_v2 extends Machine {
         R08_MASK,
         R09_MASK
     };
-
-    static int callInArgSystemV( int idx ) {
-        return switch(idx) {
-        case 0 -> 0;            // Control: no register
-        case 1 -> 1;            // Memory : no register
-        case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        case 3 -> RSI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        case 4 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        case 5 -> RCX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        case 6 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        case 7 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        default -> throw Utils.TODO();
-        };
-    }
+    static int[] CALLINARG_SYSTEMV = new int[] {
+        0,   // Control, no register
+        0,   // Memory, no register
+        RDI,
+        RSI,
+        RDX,
+        RCX,
+        R08,
+        R09,
+    };
+    static int callInArgSystemV( int idx ) { return CALLINARG_SYSTEMV[idx]; }
 
     // caller saved(systemv)
     // caller saved(win64)
