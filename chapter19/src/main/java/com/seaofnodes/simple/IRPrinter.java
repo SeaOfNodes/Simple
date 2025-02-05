@@ -55,10 +55,8 @@ public abstract class IRPrinter {
             Node n = rpos.get(i);
             if( n instanceof CFGNode || n.isMultiHead() ) {
                 if( !gap ) sb.p("\n"); // Blank before multihead
-                if( n instanceof FunNode fun ) {
-                    TypeFunPtr sig = fun.sig();
-                    sig.print(sb.p("--- ").p(sig._name==null ? "" : sig._name).p(" "),false).p("----------------------\n");
-                }
+                if( n instanceof FunNode fun )
+                    fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" "),false).p("----------------------\n");
                 printLine( n, sb );         // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
@@ -66,8 +64,8 @@ public abstract class IRPrinter {
                     printLine( t, sb );
                 }
                 if( n instanceof ReturnNode ret ) {
-                    TypeFunPtr sig = ret.fun().sig();
-                    sig.print(sb.p("--- ").p(sig._name==null ? "" : sig._name).p(" "),false).p("----------------------\n");
+                    FunNode fun = ret.fun();
+                    fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" "),false).p("----------------------\n");
                 }
                 if( !(n instanceof CallNode) ) {
                     sb.p("\n"); // Blank after multitail

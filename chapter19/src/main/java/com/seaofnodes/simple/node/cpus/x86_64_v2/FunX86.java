@@ -7,10 +7,7 @@ import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 public class FunX86 extends FunNode implements MachNode {
-
-    FunX86( FunNode fun ) {
-        super(fun);
-    }
+    FunX86( FunNode fun ) { super(fun); }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return RegMask.EMPTY; }

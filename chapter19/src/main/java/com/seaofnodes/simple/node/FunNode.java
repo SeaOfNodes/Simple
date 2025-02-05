@@ -14,11 +14,13 @@ public class FunNode extends RegionNode {
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
 
+    public String _name;        // Debug name
+
     public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) { super(loc,nodes); _sig = sig; }
-    public FunNode( FunNode fun ) { super( fun, fun._loc ); _sig = fun.sig(); }
+    public FunNode( FunNode fun ) { super( fun, fun._loc ); _sig = fun.sig(); _name = fun._name; }
 
     @Override
-    public String label() { return _sig._name == null ? "$fun" : _sig._name; }
+    public String label() { return _name == null ? "$fun" : _name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.

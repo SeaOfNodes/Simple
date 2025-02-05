@@ -81,7 +81,7 @@ public class CodeGen {
         return TypeFunPtr.make((byte)2,sig,ret, 1L<<fidx );
     }
     // Signature for MAIN
-    public TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM).setName("main");
+    public TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();

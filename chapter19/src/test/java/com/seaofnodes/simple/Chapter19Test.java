@@ -359,6 +359,6 @@ val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2").GCM().localSched();
-        assertEquals("Stop[ return (add,Phi(Region,{ int -> int #1},{ int -> int #2})( 3),(muli,Phi_( 2))); return (mul,Parm_x($fun,int,3,2),x); return (shli,Parm_x($fun,int,3,2)); ]", code.print());
+        assertEquals("Stop[ return (add,sq(),sq()); return (mul,Parm_x(sq,int,3,arg),x); ]", code.print());
     }
 }
