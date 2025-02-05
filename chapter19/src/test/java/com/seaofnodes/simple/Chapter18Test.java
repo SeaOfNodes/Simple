@@ -64,7 +64,7 @@ return sq;
 """);
         code.parse().opto();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,int)*x); ]", code._stop.toString());
-        assertEquals("{ sq}", Eval2.eval(code, 3));
+        assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -115,7 +115,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Region,{ sq},{ int -> int #2})( 3); return (Parm_x(sq,int,3)*x); return (Parm_x($fun,int,3)<<1); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }

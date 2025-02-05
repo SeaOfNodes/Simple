@@ -142,6 +142,7 @@ public class Parser {
 
         // Parse whole program, as-if function header "{ int arg -> body }"
         parseFunctionBody(_code._main,loc(),"arg");
+        _code.link(_code._main)._name = "main";
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
@@ -692,7 +693,7 @@ public class Parser {
                 if( !xfinal ) t = t.glb();  // Widen if not final
             }
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-                tfp.setName(name);
+                _code.link(tfp)._name = name;
 
         } else {
             // Need an expression to infer the type.

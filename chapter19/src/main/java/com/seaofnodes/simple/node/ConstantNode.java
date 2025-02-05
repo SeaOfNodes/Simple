@@ -4,6 +4,7 @@ import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.BitSet;
 
 /**
@@ -18,6 +19,7 @@ import java.util.BitSet;
  * <p>
  * The Constant's value is the value stored in it.
  */
+
 public class ConstantNode extends Node {
     public final Type _con;
     public ConstantNode( Type type ) {
@@ -40,6 +42,11 @@ public class ConstantNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        if( _con instanceof TypeFunPtr tfp ) {
+            FunNode fun = CodeGen.CODE.link(tfp);
+            if( fun._name != null )
+                return sb.append("{ ").append(fun._name).append("}");
+        }
         return sb.append(_con.print(new SB()));
     }
 

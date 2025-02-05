@@ -83,7 +83,7 @@ hashCode(s);""");
     @Test
     public void testBasic3() {
         CodeGen code = new CodeGen("return arg==1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (set==,(cmp));", code._stop.toString());
+        assertEquals("return (set==,(cmp,arg));", code._stop.toString());
     }
 
     @Test
@@ -95,7 +95,6 @@ hashCode(s);""");
     @Test
     public void testBasic5() {
         CodeGen code = new CodeGen("return arg >> 1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        ;
         assertEquals("return (sari,arg);", code._stop.toString());
     }
 
@@ -108,7 +107,7 @@ hashCode(s);""");
     @Test
     public void testBasic7() {
         CodeGen code = new CodeGen("return arg / 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (div,arg);", code._stop.toString());
+        assertEquals("return (div,arg, 2);", code._stop.toString());
     }
 
     @Test
@@ -245,25 +244,22 @@ return new S;""");
     @Test
     public void testLea1() {
         CodeGen code = new CodeGen("int x = arg/3; return arg+x+7;");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        System.out.print(code.asm());
-        // not enough context?
-        assertEquals("return (lea,arg);", code.print());
+        code.parse().opto().typeCheck().instSelect("x86_64_v2",  "SystemV").GCM().localSched();
+        assertEquals("return (lea,arg,(div,arg,3));", code.print());
     }
 
     @Test
     public void testLea2() {
         CodeGen code = new CodeGen("int x = arg/3; return arg+x*4+7;");
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        // more context?
-        assertEquals("return (lea,arg);", code.print());
+        assertEquals("return (lea,arg,(div,arg,3));", code.print());
     }
 
     @Test
     public void testLea3() {
         CodeGen code = new CodeGen("int x = arg/3; return x*4+arg;");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (lea,arg);", code.print());
+        code.parse().opto().typeCheck().instSelect("x86_64_v2",  "SystemV").GCM().localSched();
+        assertEquals("return (lea,arg,(div,arg,3));", code.print());
     }
 
     @Test
@@ -287,7 +283,7 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (add,.[],(muli,.[]));", code.print());
+        assertEquals("return .[];", code.print());
     }
 
 
@@ -363,7 +359,6 @@ val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        code.asm();
-        assertEquals("Stop[ return (add,Phi(Region,{ int -> int #1},{ int -> int #2})( 3),(muli,Phi_( 2))); return (mul,Parm_x($fun,int,3,2),x); return (shli,Parm_x($fun,int,3,2)); ]", code.print());
+        assertEquals("Stop[ return (add,sq(),sq()); return (mul,Parm_x(sq,int,3,arg),x); ]", code.print());
     }
 }

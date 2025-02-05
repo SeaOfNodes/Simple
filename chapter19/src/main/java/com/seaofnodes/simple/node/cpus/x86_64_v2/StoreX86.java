@@ -9,7 +9,7 @@ import java.util.BitSet;
 
 public class StoreX86 extends MemOpX86 {
     StoreX86( StoreNode st, Node base, Node idx, int off, int scale, int imm, Node val ) {
-        super(st,st._name,st._alias,st._declaredType,st._loc, base, idx, off, scale, imm, val);
+        super(st,st, base, idx, off, scale, imm, val);
     }
 
     @Override public String op() { return "st"+_sz; }

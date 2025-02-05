@@ -22,13 +22,9 @@ public class CallNode extends CFGNode {
     @Override
     public String label() { return "Call"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        String fname = null;
-        Node fptr = fptr();
-        if( fptr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-            fname = tfp._name;
-        if( fname==null ) fptr._print0(sb,visited);
+    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        String fname = name();
+        if( fname == null ) fptr()._print0(sb,visited);
         else sb.append(fname);
         sb.append("( ");
         for( int i=2; i<nIns()-1; i++ )
@@ -36,6 +32,13 @@ public class CallNode extends CFGNode {
         sb.setLength(sb.length()-1);
         return sb.append(")");
     }
+    public String name() {
+        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() )
+            return CodeGen.CODE.link(tfp)._name;
+        return null;
+    }
+
+
 
     Node ctrl() { return in(0); }
     Node mem () { return in(1); }
