@@ -107,7 +107,7 @@ hashCode(s);""");
     @Test
     public void testBasic7() {
         CodeGen code = new CodeGen("return arg / 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (div,arg, 2);", code._stop.toString());
+        assertEquals("return (div,arg,2);", code._stop.toString());
     }
 
     @Test
