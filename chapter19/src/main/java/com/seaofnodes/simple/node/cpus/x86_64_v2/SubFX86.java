@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class SubFX86 extends MachConcreteNode implements MachNode {

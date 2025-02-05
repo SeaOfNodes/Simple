@@ -69,6 +69,7 @@ public abstract class GlobalCodeMotion {
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,visit);
+
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
             // Schedule at deepest input
@@ -77,7 +78,7 @@ public abstract class GlobalCodeMotion {
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
-            n.setDef(0,early);              // First place this can go
+            n.setDef(0,early);
         }
     }
 

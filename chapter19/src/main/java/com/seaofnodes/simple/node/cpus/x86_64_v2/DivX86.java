@@ -9,7 +9,9 @@ public class DivX86 extends MachConcreteNode implements MachNode {
     DivX86( Node div ) { super(div); }
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.RMASK; }
+    @Override public RegMask regmap(int i) {
+        assert i==1 || i==2;
+        return x86_64_v2.RMASK; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     // Output is same register as input#1

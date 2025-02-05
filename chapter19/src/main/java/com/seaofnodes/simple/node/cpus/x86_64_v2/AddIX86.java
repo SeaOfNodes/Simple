@@ -7,10 +7,16 @@ import java.io.ByteArrayOutputStream;
 
 public class AddIX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    AddIX86( Node add, TypeInteger ti ) { super(add); _inputs.pop(); _ti = ti; }
+    AddIX86( Node add, TypeInteger ti ) {
+        super(add);
+        _inputs.pop();
+         _ti = ti;
+    }
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }
+    @Override public RegMask regmap(int i) {
+        // assert i== i;
+        return x86_64_v2.WMASK; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     // Output is same register as input#1

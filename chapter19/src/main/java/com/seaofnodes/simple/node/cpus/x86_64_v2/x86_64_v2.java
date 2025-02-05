@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Machine;
 import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.Utils;
@@ -30,30 +31,105 @@ public class x86_64_v2 extends Machine {
     public static RegMask RET_MASK = new RegMask(RAX);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
+    public static RegMask RCX_MASK = new RegMask(1L<<RCX);
+    public static RegMask RDX_MASK = new RegMask(1L<<RDX);
+    public static RegMask R08_MASK = new RegMask(1L<<R08);
+    public static RegMask R09_MASK = new RegMask(1L<<R09);
+    public static RegMask RSI_MASK = new RegMask(1L<<RSI);
 
+    // Calling conv metadata
+    public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
+    public int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
 
+    public int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
+    public int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
+    // Human-readable name for a register number, e.g. "RAX".
+    // Hard crash for bad register number, fix yer bugs!
+    public static final String[] REGS = new String[] {
+        "rax" , "rcx" , "rdx"  , "rbx"  , "rsp"  , "rbp"  , "rsi"  , "rdi"  ,
+        "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
+        "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
+        "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+    };
+    @Override public String reg( int reg ) { return REGS[reg]; }
 
-    // Human-readable name for a register number, e.g. "RAX"
-    @Override public String reg( int reg ) {
-        throw Utils.TODO();
-    }
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
-    @Override public int callInArg( int idx ) {
-        return switch(idx) {
-        case 0 -> 0;            // Control: no register
-        case 1 -> 1;            // Memory : no register
-        case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-        default -> throw Utils.TODO();
+    static int callInArg( int idx ) {
+        return switch( CodeGen.CODE._callingConv ) {
+        case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
+        case CodeGen.CallingConv.Win64   -> callInArgWin64  (idx);
         };
     }
-    public static RegMask[] CALLINMASK = new RegMask[] {
+
+    // WIN64(param passing)
+    static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
+        RegMask.EMPTY,
+        RegMask.EMPTY,
+        RCX_MASK,
+        RDX_MASK,
+        R08_MASK,
+        R09_MASK,
+        RegMask.EMPTY,
+        RegMask.EMPTY
+    };
+    static int[] CALLINARG_WIN64 = new int[] {
+        0,   // Control, no register
+        0,   // Memory, no register
+        RCX, //
+        RDX,
+        R08,
+        R09,
+        0,
+        0,
+    };
+    static int callInArgWin64( int idx ) { return CALLINARG_WIN64[idx]; }
+
+    // caller saved(win64)
+    public static final long WIN64_ABI_CALLER_SAVED =
+        (1L << RAX) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11);
+
+    // callee saved(win64)
+    public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
+
+    // SystemV(param passing)
+    static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
         RegMask.EMPTY,
         RegMask.EMPTY,
         RDI_MASK,
+        RSI_MASK,
+        RDX_MASK,
+        RCX_MASK,
+        R08_MASK,
+        R09_MASK
     };
-    @Override public RegMask callInMask( int idx ) { return CALLINMASK[idx]; }
+    static int[] CALLINARG_SYSTEMV = new int[] {
+        0,   // Control, no register
+        0,   // Memory, no register
+        RDI,
+        RSI,
+        RDX,
+        RCX,
+        R08,
+        R09,
+    };
+    static int callInArgSystemV( int idx ) { return CALLINARG_SYSTEMV[idx]; }
+
+    // caller saved(systemv)
+    // caller saved(win64)
+    public static final long SYSTEMV_ABI_CALLER_SAVED =
+        (1L << RAX) | (1L << RDI) | (1L << RSI) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) << (1L << R10) << (1L << R11);
+    // callee saved(systemv)
+    public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
+
+
+    static RegMask callInMask( int idx ) {
+        return switch( CodeGen.CODE._callingConv ) {
+        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
+        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64  [idx];
+        };
+    }
 
     // Create a split op; any register to any register, including stack slots
     @Override public Node split() {
@@ -77,8 +153,8 @@ public class x86_64_v2 extends Machine {
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
+        case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
         case CallNode     call  -> call(call);
-        case CallEndNode  cend  -> new CallEndNode(cend);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);

@@ -7,6 +7,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 // Compare immediate.  Sets flags.
+// Corresponds to the x86 instruction "sete && setne".
+// Use result of comparison without jump.
 public class SetX86 extends MachConcreteNode implements MachNode {
     final String _bop;          // One of <,<=,==
     // Constructor expects input is an X86 and not an Ideal node.

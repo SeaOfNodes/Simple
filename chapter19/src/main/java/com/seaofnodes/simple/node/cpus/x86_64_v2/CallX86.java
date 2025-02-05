@@ -20,7 +20,7 @@ public class CallX86 extends CallNode implements MachNode {
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return x86_64_v2.CALLINMASK[i]; // Normal argument
+        return x86_64_v2.callInMask(i); // Normal argument
     }
     @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
 
@@ -32,8 +32,7 @@ public class CallX86 extends CallNode implements MachNode {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        //sb.p(_tfp._name);
-        throw Utils.TODO();
+        sb.p(_name);
     }
 
     @Override public String op() { return "call"; }
