@@ -170,14 +170,11 @@ public class CodeGen {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
         _phase = Phase.InstructionSelection;
 
-        switch(callingConv) {
-            case "SystemV" :
-                _callingConv = CallingConv.SystemV;
-                break;
-            case "Win64":
-                _callingConv = CallingConv.Win64;
-                break;
-        }
+        _callingConv = switch(callingConv) {
+        case "SystemV" -> CallingConv.SystemV;
+        case "Win64"   -> CallingConv.Win64;
+        default -> throw Utils.TODO(); // Unknown calling convention
+        };
 
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"

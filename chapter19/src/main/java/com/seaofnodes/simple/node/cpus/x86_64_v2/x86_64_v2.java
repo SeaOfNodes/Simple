@@ -86,9 +86,9 @@ public class x86_64_v2 extends Machine {
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     @Override public int callInArg( int idx ) {
-        return switch (CodeGen.CODE._callingConv) {
-            case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
-            case CodeGen.CallingConv.Win64 -> callInArgWin64(idx);
+        return switch( CodeGen.CODE._callingConv ) {
+        case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
+        case CodeGen.CallingConv.Win64 -> callInArgWin64(idx);
         };
     }
 
@@ -161,8 +161,8 @@ public class x86_64_v2 extends Machine {
 
     public static RegMask callInMask( int idx ) {
         return switch (CodeGen.CODE._callingConv) {
-            case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
-            case CodeGen.CallingConv.Win64 -> CALLINMASK_WIN64[idx];
+        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
+        case CodeGen.CallingConv.Win64 -> CALLINMASK_WIN64[idx];
         };
     }
 
