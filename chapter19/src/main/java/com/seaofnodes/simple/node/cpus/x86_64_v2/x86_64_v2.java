@@ -149,7 +149,7 @@ public class x86_64_v2 extends Machine {
     // Instruction selection
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
-        case AddFNode     addf  -> new AddFX86(addf);
+        case AddFNode     addf  -> addf(addf);
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
@@ -216,6 +216,18 @@ public class x86_64_v2 extends Machine {
         }
         return _lea(add,lhs,rhs,0);
     }
+
+
+    private Node addf( AddFNode addf ) {
+        if( addf.in(1) instanceof LoadNode ld && ld.nOuts()==1 )
+            return new AddFMemX86(addf,address(ld),ld.ptr(),idx,off,scale, addf.in(2));
+
+        if( addf.in(2) instanceof LoadNode ld && ld.nOuts()==1 )
+            throw Utils.TODO(); // Swap load sides
+
+        return new AddFX86(addf);
+    }
+
 
     private Node _lea( Node add, Node base, Node idx, long off ) {
         int scale = 1;

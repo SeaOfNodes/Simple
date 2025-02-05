@@ -383,7 +383,7 @@ public class Parser {
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
-        Node expr = parseStatement().keep();       // Parse loop body
+        parseStatement();       // Parse loop body
         _scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
@@ -423,7 +423,7 @@ public class Parser {
         _xScopes.pop();
         _xScopes.push(exit);
         _scope = exit;
-        return peep(expr.unkeep());
+        return ZERO;
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
@@ -1252,8 +1252,9 @@ public class Parser {
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error("Expected reference but got " + expr._type.str());
+        if( !(expr._type instanceof TypeMemPtr ptr) ) {
+            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
+        }
 
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);

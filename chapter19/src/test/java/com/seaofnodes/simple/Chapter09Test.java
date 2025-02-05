@@ -255,7 +255,7 @@ while(0==1) while(v0)
         v0=1+v0;
 """);
         code.parse().opto();
-        assertEquals("return ~int;", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
