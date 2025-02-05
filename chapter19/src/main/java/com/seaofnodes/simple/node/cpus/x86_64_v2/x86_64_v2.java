@@ -43,49 +43,20 @@ public class x86_64_v2 extends Machine {
 
     public int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
     public int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
-    // Human-readable name for a register number, e.g. "RAX"
-    @Override public String reg( int reg ) {
+    // Human-readable name for a register number, e.g. "RAX".
+    // Hard crash for bad register number, fix yer bugs!
+    public static final String[] REGS = new String[] {
+        "rax" , "rcx" , "rdx"  , "rbx"  , "rsp"  , "rbp"  , "rsi"  , "rdi"  ,
+        "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
+        "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
+        "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+    };
+    @Override public String reg( int reg ) { return REGS[reg]; }
 
-        return switch (reg) {
-            case 0 -> "rax";
-            case 1 -> "rcx";
-            case 2 -> "rdx";
-            case 3 -> "rbx";
-            case 4 -> "rsp";
-            case 5 -> "rbp";
-            case 6 -> "rsi";
-            case 7 -> "rdi";
-            case 8 -> "r8";
-            case 9 -> "r9";
-            case 10 -> "r10";
-            case 11 -> "r11";
-            case 12 -> "r12";
-            case 13 -> "r13";
-            case 14 -> "r14";
-            case 15 -> "15";
-            case 16 -> "xmm0";
-            case 17 -> "xmm1";
-            case 18 -> "xmm2";
-            case 19 -> "xmm3";
-            case 20 -> "xmm4";
-            case 21 -> "xmm5";
-            case 22 -> "xmm6";
-            case 23 -> "xmm7";
-            case 24 -> "xmm8";
-            case 25 -> "xmm9";
-            case 26 -> "xmm10";
-            case 27 -> "xmm11";
-            case 28 -> "xmm12";
-            case 29 -> "xmm13";
-            case 30 -> "xmm14";
-            case 31 -> "xmm15";
-            default -> "";
-        };
-    }
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
-    @Override public int callInArg( int idx ) {
+    static int callInArg( int idx ) {
         return switch( CodeGen.CODE._callingConv ) {
         case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
         case CodeGen.CallingConv.Win64 -> callInArgWin64(idx);
@@ -93,7 +64,7 @@ public class x86_64_v2 extends Machine {
     }
 
     // WIN64(param passing)
-    public static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
+    static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
         RegMask.EMPTY,
         RegMask.EMPTY,
         RCX_MASK,
@@ -104,7 +75,7 @@ public class x86_64_v2 extends Machine {
         RegMask.EMPTY
     };
 
-    public int callInArgWin64( int idx ) {
+    static int callInArgWin64( int idx ) {
         return switch(idx) {
             case 0 -> 0;            // Control: no register
             case 1 -> 1;            // Memory : no register
@@ -112,8 +83,8 @@ public class x86_64_v2 extends Machine {
             case 3 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
             case 4 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
             case 5 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 6 -> 0;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 7 -> 0;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 6 -> 0;            // Arg#2 in simple, arg#0 or #1 in other ABIs
+            case 7 -> 0;            // Arg#2 in simple, arg#0 or #1 in other ABIs
             default -> throw Utils.TODO();
         };
     }
@@ -126,7 +97,7 @@ public class x86_64_v2 extends Machine {
     public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
 
     // SystemV(param passing)
-    public static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
+    static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
         RegMask.EMPTY,
         RegMask.EMPTY,
         RDI_MASK,
@@ -137,17 +108,17 @@ public class x86_64_v2 extends Machine {
         R09_MASK
     };
 
-    public int callInArgSystemV( int idx ) {
+    static int callInArgSystemV( int idx ) {
         return switch(idx) {
-            case 0 -> 0;            // Control: no register
-            case 1 -> 1;            // Memory : no register
-            case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 3 -> RSI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 4 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 5 -> RCX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 6 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            case 7 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
-            default -> throw Utils.TODO();
+        case 0 -> 0;            // Control: no register
+        case 1 -> 1;            // Memory : no register
+        case 2 -> RDI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+        case 3 -> RSI;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+        case 4 -> RDX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+        case 5 -> RCX;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+        case 6 -> R08;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+        case 7 -> R09;          // Arg#2 in simple, arg#0 or #1 in other ABIs
+        default -> throw Utils.TODO();
         };
     }
 
@@ -159,10 +130,10 @@ public class x86_64_v2 extends Machine {
     public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
 
-    public static RegMask callInMask( int idx ) {
-        return switch (CodeGen.CODE._callingConv) {
+    static RegMask callInMask( int idx ) {
+        return switch( CodeGen.CODE._callingConv ) {
         case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
-        case CodeGen.CallingConv.Win64 -> CALLINMASK_WIN64[idx];
+        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64  [idx];
         };
     }
 

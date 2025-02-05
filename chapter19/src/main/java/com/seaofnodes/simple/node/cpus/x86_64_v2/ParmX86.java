@@ -8,11 +8,10 @@ import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 public class ParmX86 extends ParmNode implements MachNode {
-
     final RegMask _rmask;
     ParmX86( ParmNode parm ) {
         super(parm);
-        _rmask = new RegMask(machine().callInArg(_idx));
+        _rmask = x86_64_v2.callInMask(_idx);
     }
 
     // Register mask allowed on input i.  0 for no register.
