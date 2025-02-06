@@ -1,12 +1,12 @@
-# Chapter 19: Instruction Selection and Portable Compilation
+Ch# Chapter 19: Instruction Selection and Portable Compilation
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) it to the previous chapter.
 
 
 ## Portable Compilation
 
-A new abstract `Machine` class is added, one per unique CPU port.  `Machines`
-define a name for the port, names for all registers, and how to generate
+A new abstract `Machine` class is added, one per unique CPU port.  `Machine`
+defines a name for the port, names for all registers, and how to generate
 machine Nodes from *ideal* Nodes.  `Machine` also allows generating *split* ops
 and *jumps*, both used by the machine independent compiler parts during
 code-gen.
@@ -33,7 +33,7 @@ function unit information for a better local schedule.
 ## Clean up CodeGen compile driver
 
 More static globals move into the CodeGen object, which is passed around at all
-the top level drivers.  Its not passed into the Node constructors, hence not
+the top level drivers.  It's not passed into the Node constructors, hence not
 into the idealize() calls, which remains the majority of cases needing a static
 global.  In short the compiler gets a lot more functional, and a big step
 towards concurrent or multi-threaded compilation.
@@ -62,14 +62,14 @@ really "bind up" the set of allowed registers.
 ## An X86_64_V2 port, with SystemV or Win64 calling conventions
 
 In the `node/cpus/x86_64_v2` directory is a `x86_64_v2.java` port to an X86 64
-bit V2.  This port supports 16 64-bit GPRs, 32 64-bit XMM registers and the X86
-flags.  There is a pattern matcher for matching X86 ops from idealized Simple
+V2.  This port supports 16 64-bit GPRs, 32 XMM registers and the X86 flags.
+There is a pattern matcher for matching X86 ops from idealized Simple
 Sea-of-Nodes.  Except for the addressing modes pattern matcher matches nearly
 one-for-one X86 ops from ideal nodes.
 
 ### Normal instruction selection
 
-The CodeGen instSelect phase walks the ideal graph, and maintains a mapping
+The instSelect phase walks the ideal graph, and maintains a mapping
 from ideal-to-machine ops.  It does a greedy pattern match, first come first
 match.  Ops without any special behavior simply do the local lookup e.g. an
 `Mul` exactly matches to an X86 `MulX86` directly.  The RHS of most matches can

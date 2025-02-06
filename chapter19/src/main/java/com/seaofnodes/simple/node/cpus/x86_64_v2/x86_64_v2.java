@@ -23,7 +23,7 @@ public class x86_64_v2 extends Machine {
     // No RSP in the *write* general set.
     public static RegMask WMASK = new RegMask(0b1111111111101111);
     // Xmm register mask
-    public static RegMask XMASK = new RegMask(0b111111111110111);
+    public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
