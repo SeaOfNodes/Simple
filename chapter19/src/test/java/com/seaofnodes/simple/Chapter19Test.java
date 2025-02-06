@@ -318,7 +318,7 @@ for( int i=0; i<A#; i++ )
 return A[1];
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return 0;", code.print());
+        assertEquals("return .[];", code.print());
     }
 
     @Test
