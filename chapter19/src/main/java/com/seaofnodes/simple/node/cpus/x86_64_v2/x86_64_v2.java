@@ -280,8 +280,8 @@ public class x86_64_v2 extends Machine {
         return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
-        case TypeMemPtr  tmp -> throw Utils.TODO();
-        case TypeFunPtr  tmp -> new TFPX86(con);
+        case TypeFunPtr  tfp -> new TFPX86(con);
+        case TypeMemPtr  tmp -> new ConstantNode(con);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con);
