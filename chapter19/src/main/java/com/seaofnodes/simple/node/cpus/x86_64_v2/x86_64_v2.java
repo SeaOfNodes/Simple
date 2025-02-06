@@ -341,6 +341,21 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node st( StoreNode st ) {
+        // Look for "*ptr op= val"
+        Node op = st.val();
+        if( op instanceof AddNode ) {
+            if( op.in(1) instanceof LoadNode ld &&
+                ld.in(0)==st.in(0) &&
+                ld.mem()==st.mem() &&
+                ld.ptr()==st.ptr() &&
+                ld.off()==st.off() ) {
+                if( op instanceof AddNode ) {
+                    return new MemAddX86(address(st),st.ptr(),idx,off,scale,imm(op.in(2)),val);
+                }
+                throw Utils.TODO();
+            }
+        }
+
         return new StoreX86(address(st),st.ptr(),idx,off,scale,imm(st.val()),val);
     }
 

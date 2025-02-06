@@ -309,6 +309,19 @@ for( int i=0; i<A#; i++ )
     }
 
     @Test
+    public void testArray3() {
+        CodeGen code = new CodeGen(
+"""
+byte[] !A = new byte[arg];
+for( int i=0; i<A#; i++ )
+    A[i]++;
+return A[1];
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return 0;", code.print());
+    }
+
+    @Test
     public void testNewton() {
         CodeGen code = new CodeGen(
 """
