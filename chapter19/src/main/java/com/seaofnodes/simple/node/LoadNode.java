@@ -53,7 +53,7 @@ public class LoadNode extends MemOpNode {
         if( mem instanceof StoreNode st &&
             ptr == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
-            return st.val();
+            return extend(st.val());
         }
 
         // Simple Load-after-New on same address.
@@ -78,7 +78,7 @@ public class LoadNode extends MemOpNode {
             switch( mem ) {
             case StoreNode st:
                 if( ptr == st.ptr().addDep(this) && off() == st.off() )
-                    return castRO(st.val()); // Proved equal
+                    return extend(castRO(st.val())); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
                     !neverAlias(ptr,st.ptr()) )                   // And might alias
@@ -191,5 +191,20 @@ public class LoadNode extends MemOpNode {
         if( ptr()._type.isFinal() && !rez._type.isFinal() )
             return new ReadOnlyNode(rez).peephole();
         return rez;
+    }
+
+    // When a load bypasses a store, the store might truncate bits - and the
+    // load will need to zero/sign-extend.
+    private Node extend(Node val) {
+        if( !(_declaredType instanceof TypeInteger ti) ) return val;
+        if( ti._min==0 )        // Unsigned
+            return new AndNode(null,val,con(ti._max));
+        // Signed extension
+        int shift = Long.numberOfLeadingZeros(ti._max)-1;
+        Node shf = con(shift);
+        if( shf._type==TypeInteger.ZERO )
+            return val;
+        //return peep(new SarNode(null,peep(new ShlNode(null,val,shf.keep())),shf.unkeep()));
+        throw Utils.TODO();
     }
 }

@@ -835,7 +835,7 @@ public class Parser {
         Type ta = TYPES.get(tname);
         if( ta != null ) return (TypeMemPtr)ta;
         // Need make an array type.
-        TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,_code.getALIAS(),t,_code.getALIAS());
+        TypeStruct ts = TypeStruct.makeAry(TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
