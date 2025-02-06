@@ -174,12 +174,12 @@ public abstract class IRPrinter {
     private static String _prettyPrintScheduled( Node node, int depth ) {
         // Backwards DFS walk to depth.
         HashMap<Integer,Integer> ds = new HashMap<>();
-        ArrayList<Node> ns = new ArrayList<>();
+        Ary<Node> ns = new Ary<>(Node.class);
         _walk(ds,ns,node,depth);
         // Remove data projections, these are force-printed behind their multinode head
         for( int i=0; i<ns.size(); i++ ) {
             if( ns.get(i) instanceof ProjNode proj && !(proj.in(0) instanceof CFGNode) ) {
-                Utils.del(ns,i--);
+                ns.del(i--);
                 ds.remove(proj._nid);
             }
         }
@@ -190,11 +190,11 @@ public abstract class IRPrinter {
             CFGNode blk = null;
             for( Node n : ns ) {
                 CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : n.cfg0();
-                if( blk==null || cfg.idepth() < blk.idepth() || (blk instanceof FunNode && !(cfg instanceof FunNode)))
+                if( blk==null || cfg.idepth() < blk.idepth() )
                     blk = cfg;
             }
             Integer d = ds.remove(blk._nid);
-            ns.remove(blk);
+            ns.del(ns.find(blk));
 
             // Print block header
             sb.p("%-13.13s".formatted(label(blk)+":"));
@@ -242,7 +242,7 @@ public abstract class IRPrinter {
         return sb.toString();
     }
 
-    private static void _walk( HashMap<Integer,Integer> ds, ArrayList<Node> ns, Node node, int d ) {
+    private static void _walk( HashMap<Integer,Integer> ds, Ary<Node> ns, Node node, int d ) {
         Integer nd = ds.get(node._nid);
         if( nd!=null && d <= nd ) return; // Been there, done that
         Integer old = ds.put(node._nid,d) ;
@@ -268,11 +268,12 @@ public abstract class IRPrinter {
         if( !blk.blockHead() ) blk = blk.cfg(0);
         sb.p( "%-9.9s ".formatted( label( blk ) ) );
     }
-    static void printLine( Node n, SB sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
+    static void printLine( Node n, SB sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, Ary<Node> ns ) {
         printLine( n, sb );
         if( i != -1 ) bns.del(i);
         ds.remove(n._nid);
-        ns.remove(n);
+        int idx = ns.find(n);
+        if( idx!=-1 ) ns.del(idx);
     }
 
 }

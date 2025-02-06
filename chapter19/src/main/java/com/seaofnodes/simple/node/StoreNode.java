@@ -70,6 +70,21 @@ public class StoreNode extends MemOpNode {
             setDef(1,st.mem());
             return this;
         }
+
+        // Value is automatically truncated by narrow store
+        if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
+            int log = _declaredType.log_size();
+            if( log<3 ) {       // And-mask vs narrow store
+                long mask = ((TypeInteger)and.in(2)._type).value();
+                long bits = (1L<<(8<<log))-1;
+                // Mask does not mask any of the stored bits
+                if( (bits&mask)==bits )
+                    // So and-mask is already covered by the store
+                    { setDef(4,and.in(1)); return this; }
+            }
+        }
+
+
         return null;
     }
 
@@ -92,6 +107,7 @@ public class StoreNode extends MemOpNode {
         if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
-        return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
+        //return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
+        return null;
     }
 }

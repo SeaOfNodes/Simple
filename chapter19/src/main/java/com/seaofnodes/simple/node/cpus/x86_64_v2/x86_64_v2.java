@@ -266,10 +266,10 @@ public class x86_64_v2 extends Machine {
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
         if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
-            return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val);
+            return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val,false);
 
         if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
-            throw Utils.TODO(); // Swap load sides
+            return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(lhs),val,true);
 
         return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
             ? new CmpIX86(bool, ti)

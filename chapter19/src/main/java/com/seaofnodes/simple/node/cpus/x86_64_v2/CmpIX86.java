@@ -35,7 +35,7 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
         String dst = code.reg(this);
         if( dst!="FLAGS" )  sb.p(dst).p(" = ");
         sb.p(code.reg(in(1)));
-        if( _imm != 0 ) sb.p(", #");
+        if( _imm != 0 ) sb.p(", #").p(_imm);
     }
 
     @Override public String op() { return _imm==0 ? "test" : "cmp"; }
