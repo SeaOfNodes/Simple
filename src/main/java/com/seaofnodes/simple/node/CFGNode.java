@@ -1,13 +1,13 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.Utils;
-
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 
 /** Control Flow Graph Nodes
  * <p>
@@ -22,7 +22,14 @@ import java.util.HashMap;
  */
 public abstract class CFGNode extends Node {
 
-    public CFGNode(Node... nodes) { super(nodes); }
+    public CFGNode(Node...   nodes) { super(nodes); }
+    public CFGNode(CFGNode cfg) {
+        super(cfg);
+        _idepth = cfg._idepth;
+        _idepthVersion = cfg._idepthVersion;
+        _ltree = cfg._ltree;
+        _pre = cfg._pre;
+    }
 
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
@@ -100,11 +107,9 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start contains the function bodies at depth 0; real loops add depth.
-    private static final BitSet POST = new BitSet();
-
     public void buildLoopTree(StopNode stop) {
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        BitSet post = POST;
+        BitSet post = CodeGen.CODE.visit();
         _bltWalk(2,null,stop, post);
         post.clear();
     }
@@ -122,8 +127,8 @@ public abstract class CFGNode extends Node {
         }
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg && !skip(usecfg) )
-                pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
+            if( use instanceof CFGNode usecfg && !skip( usecfg ) )
+                pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post );
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;

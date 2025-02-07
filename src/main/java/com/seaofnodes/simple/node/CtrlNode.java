@@ -2,11 +2,12 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
 public class CtrlNode extends CFGNode {
-    public CtrlNode() { super(Parser.START); }
+    public CtrlNode() { super(CodeGen.CODE._start); }
     @Override public String label() { return "Ctrl"; }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p("Cctrl"); }
     @Override public boolean isConst() { return true; }

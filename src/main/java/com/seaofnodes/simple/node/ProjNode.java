@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
 
 
-public class ProjNode extends Node implements MultiUse {
+public class ProjNode extends Node {
 
     // Which slice of the incoming multipart value
     public final int _idx;
@@ -16,13 +16,13 @@ public class ProjNode extends Node implements MultiUse {
     public final String _label;
 
     public ProjNode(Node ctrl, int idx, String label) {
-        super(ctrl);
+        super(new Node[]{ctrl});
         _idx = idx;
         _label = label;
     }
+    public ProjNode(ProjNode p) { super(p); _idx = p._idx; _label = p._label; }
 
     @Override public String label() { return _label; }
-    @Override public int idx() { return _idx; }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

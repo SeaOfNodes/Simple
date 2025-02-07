@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 import java.util.HashSet;
@@ -9,8 +10,9 @@ public class IfNode extends CFGNode implements MultiNode {
 
     public IfNode(Node ctrl, Node pred) {
         super(ctrl, pred);
-        IterPeeps.add(this);    // Because idoms are complex, just add it
+        CodeGen.CODE.add(this); // Because idoms are complex, just add it
     }
+    public IfNode(IfNode iff) { super(iff); }
 
     @Override
     public String label() { return "If"; }
@@ -54,7 +56,7 @@ public class IfNode extends CFGNode implements MultiNode {
         if( !pred()._type.isHighOrConst() )
             for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
                 if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof CProjNode prj ) {
-                    setDef(1,new ConstantNode(TypeInteger.constant(prj._idx==0?1:0)).peephole());
+                    setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }
         return null;

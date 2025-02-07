@@ -35,10 +35,10 @@ public final class IRPrinter extends IRAdapter<Node> {
         if( n instanceof CProjNode p ) return p._idx;
         return n._nid;
     }
-    @Override public String functionName(Node n) { return n.label(); }
+    @Override public String functionName(Node n) { return ((FunNode)n)._name==null ? "" : ((FunNode)n)._name; }
     @Override public String signature(Node n) {
         FunNode fun=(FunNode)n;
-        return fun.sig().str();
+        return (fun._name==null ? "" : fun._name)+" "+fun.sig().str();
     }
 
     public static String prettyPrint(Node n, int depth) { return PRINT.prettyPrint(n,depth); }
