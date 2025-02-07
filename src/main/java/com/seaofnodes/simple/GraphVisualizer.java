@@ -22,7 +22,7 @@ public class GraphVisualizer {
     public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
     public GraphVisualizer() { this(false); }
 
-    public String generateDotOutput(Parser parse) { return generateDotOutput(parse.STOP,parse._scope,parse._xScopes); }
+    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._code._stop,parse._scope,parse._xScopes); }
     public String generateDotOutput(StopNode stop, Node scope, Stack<ScopeNode> xScopes) {
 
         // Since the graph has cycles, we need to create a flat list of all the
