@@ -1,14 +1,12 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.RegMask;
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.node.ProjNode;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.ProjNode;
 import java.io.ByteArrayOutputStream;
 
 public class ProjX86 extends ProjNode implements MachNode {
-
     ProjX86( ProjNode p ) { super(p); }
 
     // Register mask allowed on input i.  0 for no register.
@@ -20,6 +18,6 @@ public class ProjX86 extends ProjNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        return 0;
     }
 }

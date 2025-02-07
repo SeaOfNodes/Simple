@@ -29,6 +29,10 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         range_check(i);
         return _es[i];
     }
+    public E atX( int i ) {
+        if( i >= _len ) return null;
+        return _es[i];
+    }
 
     /** @return last element */
     public E last( ) { return at(_len-1); }
@@ -75,6 +79,17 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         System.arraycopy(_es,i+1,_es,i,(--_len)-i);
         return e;
     }
+
+    /** Slow, linear-time, element insertion.  Preserves order.
+     *  @param i where to insert
+     *  @return element inserted */
+    public E insert( E e, int i ) {
+        setLen(_len+1);
+        System.arraycopy(_es,i,_es,i+1,_len-i);
+        _es[i] = e;
+        return e;
+    }
+
 
     /** Remove all elements */
     public void clear( ) { _len=0; }
@@ -157,10 +172,6 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
 
     /** @return compact array version */
     public E[] asAry() { return Arrays.copyOf(_es,_len); }
-
-    /** Sorts in-place
-     *  @param c Comparator to sort by */
-    public void sort_update(Comparator<? super E> c ) { Arrays.sort(_es, 0, _len, c);  }
 
     /** Find the first matching element using ==, or -1 if none.  Note that
      *  most del calls shuffle the list, so the first element might be random.

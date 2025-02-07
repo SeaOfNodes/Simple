@@ -2,7 +2,7 @@ package com.seaofnodes.simple.fuzzer;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Eval2;
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 import java.util.Objects;

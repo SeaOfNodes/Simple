@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -15,6 +17,8 @@ public class MulFX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
+    // Ok to swap arguments
+    @Override public boolean commutes() { return true; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

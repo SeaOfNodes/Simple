@@ -1,8 +1,8 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -174,7 +174,7 @@ while(v1) break;
 return v1;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,(((1<<arg)&1)&Shl),0);", code.print());
+        assertEquals("return (Phi(Loop,((1<<arg)&1),0)&Phi(Loop,Shl,4294967295));", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
