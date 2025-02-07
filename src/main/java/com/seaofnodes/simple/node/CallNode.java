@@ -17,17 +17,14 @@ public class CallNode extends CFGNode {
     public final Parser.Lexer _loc;
 
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
+    public CallNode(CallNode call) { super(call); _loc = call._loc; }
 
     @Override
     public String label() { return "Call"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        String fname = null;
-        Node fptr = fptr();
-        if( fptr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-            fname = tfp._name;
-        if( fname==null ) fptr._print0(sb,visited);
+    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        String fname = name();
+        if( fname == null ) fptr()._print0(sb,visited);
         else sb.append(fname);
         sb.append("( ");
         for( int i=2; i<nIns()-1; i++ )
@@ -35,6 +32,13 @@ public class CallNode extends CFGNode {
         sb.setLength(sb.length()-1);
         return sb.append(")");
     }
+    public String name() {
+        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() )
+            return CodeGen.CODE.link(tfp)._name;
+        return null;
+    }
+
+
 
     Node ctrl() { return in(0); }
     Node mem () { return in(1); }
@@ -44,6 +48,8 @@ public class CallNode extends CFGNode {
     int nargs() { return nIns()-3; } // Minus control, memory, fptr
     // args from input 2 to last; last is function input
     public Node fptr() { return _inputs.last(); }
+    // Error if not a TFP
+    public TypeFunPtr tfp() { return (TypeFunPtr)fptr()._type; }
 
     // Find the Call End from the Call
     public CallEndNode cend() {
@@ -118,7 +124,7 @@ public class CallNode extends CFGNode {
             if( use instanceof ParmNode parm )
                 parm.addDef(parm._idx==0 ? cend() : arg(parm._idx));
         // Call end points to function return
-        IterPeeps.add(cend()).addDef(fun.ret());
+        CodeGen.CODE.add(cend()).addDef(fun.ret());
         assert linked(fun);
     }
 
