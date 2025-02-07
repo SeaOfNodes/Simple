@@ -17,12 +17,13 @@ import java.util.BitSet;
  */
 public class ReturnNode extends CFGNode {
 
-    public final FunNode _fun;
+    public FunNode _fun;
 
     public ReturnNode(Node ctrl, Node mem, Node data, Node rpc, FunNode fun ) {
         super(ctrl, mem, data, rpc);
         _fun = fun;
     }
+    public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
