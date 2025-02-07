@@ -1,8 +1,8 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.graph.GraphObserver;
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.CodeGen.Phase;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 import org.junit.Test;
@@ -33,9 +33,9 @@ public class PhaseTest {
 
     @Test public void testResumeMachineCompilation() {
         CodeGen staged = new CodeGen(SRC).driver(Phase.TypeCheck);
-        staged.driver(Phase.InstructionSelection,"x86_64_v2","SystemV");
-        staged.driver(Phase.LocalSched,"x86_64_v2","SystemV");
-        assertEquals(Phase.LocalSched,staged._phase);
+        staged.driver(Phase.InstSelect,"x86_64_v2","SystemV");
+        staged.driver(Phase.RegAlloc,"x86_64_v2","SystemV");
+        assertEquals(Phase.RegAlloc,staged._phase);
         assertNotNull(staged._mach);
     }
 }

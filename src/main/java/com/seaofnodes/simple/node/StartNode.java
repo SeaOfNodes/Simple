@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 import java.util.HashSet;
@@ -14,7 +14,7 @@ public class StartNode extends LoopNode implements MultiNode {
     final Type _arg;
 
     public StartNode(Type arg) { super((Parser.Lexer)null,null); _arg = arg; _type = compute(); }
-    public StartNode(StartNode start) { super(start); _arg = start._arg; }
+    public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
 
     @Override public String label() { return "Start"; }
 
@@ -22,7 +22,6 @@ public class StartNode extends LoopNode implements MultiNode {
         return p.p(label());
     }
 
-    @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
     @Override public CFGNode cfg0() { return null; }
 

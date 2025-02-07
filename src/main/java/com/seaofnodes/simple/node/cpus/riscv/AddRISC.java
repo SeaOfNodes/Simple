@@ -1,25 +1,20 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-
 public class AddRISC extends MachConcreteNode implements MachNode {
-
     AddRISC( Node add) {super(add); }
+    @Override public String op() { return "add"; }
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) {
-        assert i== 1 || i == 2 || i == 3;
-         return riscv.RMASK;
-    }
+    @Override public RegMask regmap(int i) { return riscv.RMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.RMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 0; }
+    @Override public RegMask outregmap() { return riscv.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -31,6 +26,4 @@ public class AddRISC extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + ").p(code.reg(in(2)));
     }
 
-    @Override public String op() {
-        return "add";}
 }

@@ -1,9 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.node.CallNode;
+import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 public class CallRX86 extends CallNode implements MachNode {
@@ -15,17 +17,24 @@ public class CallRX86 extends CallNode implements MachNode {
             ? x86_64_v2.WMASK          // Function call target
             : x86_64_v2.callInMask(tfp(),i); // Normal argument
     }
-    @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        bytes.write(0xe8);
+        int beforeSize = bytes.size();
+        // address
+        //TODO: relocs
+        bytes.write(0x00);
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(fptr()));
+        sb.p(code.reg(fptr())).p("  ");
+        for( int i=0; i<nargs(); i++ )
+            sb.p(code.reg(arg(i))).p("  ");
+        sb.unchar(2);
     }
 
     @Override public String op() { return "callr"; }
-
 }

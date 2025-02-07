@@ -2,12 +2,12 @@ package com.seaofnodes.simple.print;
 
 import com.seaofnodes.graph.GraphCapture;
 import com.seaofnodes.graph.GraphViewer;
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.Node;
 import java.util.ArrayList;
 import java.io.IOException;
 
-/** Chapter 19's compilation context; capture and event bookkeeping are shared. */
+/** Chapter 20's compilation context; capture and event bookkeeping are shared. */
 public class SimpleGraphObserver extends GraphCapture<Node> {
     private CodeGen _code;
     public SimpleGraphObserver() { super(new SimpleGraphAdapter()); }

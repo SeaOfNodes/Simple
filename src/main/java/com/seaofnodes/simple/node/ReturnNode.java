@@ -30,7 +30,8 @@ public class ReturnNode extends CFGNode {
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         p.p("return ");
-        p.n(expr());
+        if( expr()==null ) p.p("----");
+        else p.n(expr());
         return p.p(";");
     }
 
@@ -40,7 +41,7 @@ public class ReturnNode extends CFGNode {
     @Override
     public Type compute() {
         if( inProgress () ) return TypeTuple.RET; // In progress
-        if( _fun.isDead() ) return TypeTuple.RET.dual(); // Dead another way
+        // Inlining can delete the entry while callers still use this return.
         return TypeTuple.make(ctrl()._type,TypeMem.BOT,expr()._type);
     }
 
