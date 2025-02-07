@@ -202,8 +202,12 @@ public class Evaluator {
             body[0] = vall(alloc.in(2+2));
         } else {
             body = new Object[num = type._fields.length];
-            for (int i=0; i<num; i++)
-                body[i] = val(alloc.in(2+i+num));
+            for( int i=0; i<num; i++ )
+                body[i] = switch( alloc._ptr._obj._fields[i]._type ) {
+                case TypeInteger ti -> 0L;
+                case TypeFloat tf -> 0;
+                default -> null;
+                };
         }
         Object[] mems = new Object[type._fields.length+2];
         // mems[0] is control
@@ -342,7 +346,7 @@ public class Evaluator {
                 assert block != null;
                 for (; i < block.nodes().length; i++) {
                     if (!(block.nodes()[i] instanceof PhiNode phi)) break;
-                    var val = region instanceof FunNode fun && "main".equals(fun.sig()._name) && ((ParmNode)phi)._idx==2 && exit==1
+                    var val = region instanceof FunNode fun && "main".equals(fun._name) && ((ParmNode)phi)._idx==2 && exit==1
                             ? parameter
                             : val(phi.in(exit));
                     phiCache.add(val);
