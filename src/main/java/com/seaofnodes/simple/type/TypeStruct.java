@@ -186,6 +186,7 @@ public class TypeStruct extends Type {
         if( this==TOP ) return sb.p("StructTop");
         sb.p(_name);
         if( _fields == null ) return sb; // Forward reference struct, just print the name
+        if( isAry() ) return sb; // Skip printing generic array fields
         sb.p(" {");
         for( Field f : _fields )
             f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");

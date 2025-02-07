@@ -1,9 +1,11 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class Main {
+    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
     // Compile and run a simple program
     public static void main( String[] args ) throws Exception {
         // First arg is file, 2nd+ args are program args

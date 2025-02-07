@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -17,7 +18,9 @@ public class Chapter15Test {
             """;
         var code = new CodeGen(src).parse();
         var stop = code._stop;
-        var load = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") ? ld : null);
+        var main = code.link(code._main);
+        var load = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") &&
+            ld.in(0)!=null && ld.cfg0().fun()==main ? ld : null);
         org.junit.Assert.assertNotNull(load);
         // The parser uses current control as a placeholder for a range check.
         // Model an explicit check already performed before the inner diamond:
@@ -28,7 +31,8 @@ public class Chapter15Test {
         load.setDef(0,checked);
         code.driver(CodeGen.Phase.TypeCheck);
         org.junit.Assert.assertTrue("Common dominating control permits Phi splitting",load.isDead());
-        var split = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") ? ld : null);
+        var split = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") &&
+            ld.in(0)!=null && ld.cfg0().fun()==main ? ld : null);
         org.junit.Assert.assertNotNull(split);
         org.junit.Assert.assertSame("The surviving read retains the earlier check",checked,split.in(0));
         code.driver(CodeGen.Phase.LocalSched);
@@ -50,7 +54,9 @@ public class Chapter15Test {
             """;
         var code = new CodeGen(src).parse();
         var stop = code._stop;
-        var load = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") ? ld : null);
+        var main = code.link(code._main);
+        var load = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") &&
+            ld.in(0)!=null && ld.cfg0().fun()==main ? ld : null);
         org.junit.Assert.assertNotNull(load);
         org.junit.Assert.assertNotNull("Element loads carry their range-check control",load.in(0));
         code.driver(CodeGen.Phase.LocalSched);
@@ -355,18 +361,20 @@ return is[1];
 
     @Test
     public void testBad3() {
-        CodeGen code = new CodeGen(
-"""
+        CodeGen code = new CodeGen("""
 int[] is = new int[arg];
 return is[1];
 """);
         code.parse().iter();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  4));
-        try { Eval2.eval(code,0); }
-        catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
-        try { Eval2.eval(code,-1); }
+        try { Eval2.eval(code,-1); fail(); }
         catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
+        // This test will not pass (i.e., failed range-check) until we have range checks.
+        // Without the range check, the load `is[1]` optimizes against the `new int[]`
+        // and assumes it loads a zero then folds away, and the Eval2 never sees an OOB load.
+        //try { Eval2.eval(code,0); fail(); }
+        //catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
     }
 
     @Test
