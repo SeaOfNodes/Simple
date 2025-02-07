@@ -10,6 +10,7 @@ import com.seaofnodes.simple.type.TypeMemPtr;
  */
 public class ReadOnlyNode extends Node {
     public ReadOnlyNode( Node n ) { super(null,n); }
+    public ReadOnlyNode( ReadOnlyNode n ) { super(n); }
     @Override public String label() { return "ReadOnly"; }
 
     @Override protected String format() { return "(const)%1"; }
