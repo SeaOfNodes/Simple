@@ -21,6 +21,8 @@ public class SchedulingScratchTest {
         // Each fresh compilation reuses node IDs and the scheduler's scratch.
         for( int round=0; round<3; round++ ) {
             CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+            // A small graph after many earlier node allocations.
+            if( round==0 ) code._uid += 100_000;
             assertEquals("6",Eval2.eval(code,0));
             assertEquals("0",Eval2.eval(code,1));
             assertEquals("8",Eval2.eval(code,2));

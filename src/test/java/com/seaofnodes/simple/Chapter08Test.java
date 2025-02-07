@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -146,7 +145,7 @@ return arg;
     @Test
     public void testBreakOutsideLoop() {
         try {
-            new Parser("""
+            new CodeGen("""
 if(arg <= 10) {
     break;
     arg = arg + 1;

@@ -10,12 +10,36 @@ public abstract class GlobalCodeMotion {
     // Arrange that the existing isCFG() Nodes form a valid CFG.  The
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
-    public static void buildCFG( StartNode start, StopNode stop ) {
-        schedEarly(start);
-        breakUpGlobalConstants(start);
-        schedLate(stop);
+    public static void buildCFG( CodeGen code ) {
+        Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
+        _rpo_cfg(null, code._start, code.visit(), rpo);
+        // Reverse in-place
+        for( int i=0; i< rpo.size()>>1; i++ ) {
+            int j = rpo.size()-1-i;
+            CFGNode tmp = rpo.get(i);
+            rpo.set(i, rpo.get(j));
+            rpo.set(j, tmp);
+        }
+        // Set global CFG
+        code._cfg = rpo;
+
+        schedEarly(code);
+        breakUpGlobalConstants(code._start);
+        code._visit.clear();
+        schedLate (code);
     }
 
+    // Post-Order of CFG
+    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
+        if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
+            return;             // Been there, done that
+        if( def instanceof CallNode && cfg instanceof FunNode )
+            return;           // Ignore linked function calls
+        visit.set(cfg._nid);
+        for( Node useuse : cfg._outputs )
+            _rpo_cfg(cfg,useuse,visit,rpo);
+        rpo.add(cfg);
+    }
 
     // After early scheduling, every global chain member has Start in slot 0.
     // Give each function one private copy of the entire dependency graph.
@@ -24,7 +48,7 @@ public abstract class GlobalCodeMotion {
         var cons = new ArrayList<Node>();
         for( Node con : start._outputs )
             if( con!=null && !(con instanceof CFGNode) &&
-                con.isConst() ) {
+                (con.isConst() || (con instanceof MachNode mach && mach.outregmap()!=null)) ) {
                 globals.put(con,true);
                 cons.add(con.keep()); // Preserve original inputs while rewiring users.
             }
@@ -72,36 +96,20 @@ public abstract class GlobalCodeMotion {
     // (except at loops).  Since defs are visited first - and hoisted as early
     // as possible, when we come to a use we place it just after its deepest
     // input.
-    private static void schedEarly(StartNode start) {
-        ArrayList<CFGNode> rpo = new ArrayList<>();
-        BitSet visit = new BitSet();
-        _rpo_cfg(null, start, visit, rpo);
+    private static void schedEarly(CodeGen code) {
         // Reverse Post-Order on CFG
-        for( int j=rpo.size()-1; j>=0; j-- ) {
-            CFGNode cfg = rpo.get(j);
+        for( CFGNode cfg : code._cfg ) {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
-                _schedEarly(n,visit);
+                _schedEarly(n,code._visit );
             // In dead infinite loops, entire code blocks may be unreachable
             // from below.  Reach down from the CFG to their Phis so their
             // inputs are scheduled too.
             if( cfg instanceof RegionNode )
                 for( Node phi : cfg._outputs )
                     if( phi instanceof PhiNode )
-                        _schedEarly(phi,visit);
+                        _schedEarly(phi,code._visit );
         }
-    }
-
-    // Post-Order of CFG
-    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
-        if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
-            return;             // Been there, done that
-        if( def instanceof CallNode && cfg instanceof FunNode )
-            return;           // Ignore linked function calls
-        visit.set(cfg._nid);
-        for( Node useuse : cfg._outputs )
-            _rpo_cfg(cfg,useuse,visit,rpo);
-        rpo.add(cfg);
     }
 
     private static void _schedEarly(Node n, BitSet visit) {
@@ -113,20 +121,19 @@ public abstract class GlobalCodeMotion {
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,visit);
+
         // An existing edge 0 already supplies control (or a Phi/Proj binding).
         if( n.in(0)==null ) {
             // Schedule at deepest input
-            CFGNode early = Parser.START; // Maximally early, lowest idepth
+            CFGNode early = CodeGen.CODE._start; // Maximally early, lowest idepth
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
-            n.setDef(0,early);              // First place this can go
+            n.setDef(0,early);
         }
     }
 
     // ------------------------------------------------------------------------
-    private static final BitSet WAKE_VISIT = new BitSet();
-
     // Scheduling is not recursive. Retain scratch capacity between schedules,
     // but release graph references and reset only the entries we used.
     private static CFGNode[] LATE = new CFGNode[1];
@@ -136,16 +143,17 @@ public abstract class GlobalCodeMotion {
     private static final ArrayList<Node> PLACED = new ArrayList<>();
     private static final WorkList<Node> WORK = new WorkList<>();
 
-    private static void schedLate( StopNode stop) {
+    private static void schedLate( CodeGen code ) {
         assert TOUCHED.isEmpty() && PLACED.isEmpty() && WORK.isEmpty();
-        if( Node.UID() > LATE.length ) {
-            int len = Math.max(Node.UID(),LATE.length<<1);
+        if( code.UID() > LATE.length ) {
+            int len = Math.max(code.UID(),LATE.length<<1);
             LATE = new CFGNode[len];
             ANTI = new int[len];
         }
         WORK.clear();
         // Breadth-first scheduling
-        breadth(stop,PLACED,LATE,ANTI,WAKE_VISIT);
+        // Early scheduling has released the shared visit bits.
+        breadth(code._stop,PLACED,LATE,ANTI,code.visit());
 
         // Copy the best placement choice into the control slot
         for( Node n : PLACED )
@@ -177,7 +185,7 @@ public abstract class GlobalCodeMotion {
                         continue outer; // Nope, await all uses done
 
                 // Loads need their memory inputs' uses also done
-                if( n instanceof LoadNode ld )
+                if( n instanceof MemOpNode ld && !ld.isMem() )
                     for( Node memuse : ld.antiDeps() )
                         if( late[memuse._nid]==null )
                             continue outer;
@@ -213,7 +221,7 @@ public abstract class GlobalCodeMotion {
               lca = use_block(n,use, late).domLCA(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
-        if( n instanceof LoadNode load )
+        if( n instanceof MemOpNode load && !load.isMem() )
             lca = find_anti_dep(lca,load,early,late,anti);
 
         // Walk up from the LCA to the early, looking for best place.  This is
@@ -257,13 +265,13 @@ public abstract class GlobalCodeMotion {
         if( visit.get(def._nid) ) return;
         visit.set(def._nid);
         for( Node out : def._outputs )
-            if( out instanceof LoadNode ld && late[ld._nid]==null ) work.push(ld);
+            if( out instanceof MemOpNode ld && !ld.isMem() && late[ld._nid]==null ) work.push(ld);
         if( def instanceof MemMergeNode )
             for( int i=1; i<def.nIns(); i++ )
                 if( def.in(i)!=null ) wakeLoads(def.in(i),late,work,visit);
     }
 
-    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late, int[] anti) {
+    private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
         CFGNode marked = lca;
@@ -272,7 +280,7 @@ public abstract class GlobalCodeMotion {
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.antiDeps() ) {
             switch( mem ) {
-            case StoreNode st:
+            case MemOpNode st:
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
@@ -302,7 +310,7 @@ public abstract class GlobalCodeMotion {
     }
 
     //
-    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
+    private static CFGNode anti_dep( MemOpNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
         // Another Phi input need not be dominated by this memory definition.
         // Include its depth, and retain the sentinel for an entry's null idom.
         for( ; stblk != defblk.idom() && stblk.idepth() >= defblk.idepth(); stblk = stblk.idom() ) {

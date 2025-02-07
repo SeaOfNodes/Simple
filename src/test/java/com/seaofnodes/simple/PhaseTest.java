@@ -30,4 +30,12 @@ public class PhaseTest {
         assertEquals("Parse Iter TypeCheck LoopTree Schedule LocalSched",String.join(" ",phases));
         assertEquals("45",Eval2.eval(code,10));
     }
+
+    @Test public void testResumeMachineCompilation() {
+        CodeGen staged = new CodeGen(SRC).driver(Phase.TypeCheck);
+        staged.driver(Phase.InstructionSelection,"x86_64_v2","SystemV");
+        staged.driver(Phase.LocalSched,"x86_64_v2","SystemV");
+        assertEquals(Phase.LocalSched,staged._phase);
+        assertNotNull(staged._mach);
+    }
 }

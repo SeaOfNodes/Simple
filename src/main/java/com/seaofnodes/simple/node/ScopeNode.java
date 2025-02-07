@@ -271,7 +271,7 @@ public class ScopeNode extends Node {
         RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
         _merge(that,r);
         that.kill();            // Kill merged scope
-        IterPeeps.add(r);
+        CodeGen.CODE.add(r);
         return r.unkeep();
     }
 
@@ -336,7 +336,7 @@ public class ScopeNode extends Node {
             if( in(i) instanceof PhiNode phi ) {
                 // Do an eager useless-phi removal
                 Node in = phi.peephole();
-                IterPeeps.addAll(phi._outputs);
+                CodeGen.CODE.addAll(phi._outputs);
                 phi.moveDepsToWorklist();
                 if( in != phi ) {
                     if( !phi.iskeep() ) // Keeping phi around for parser elsewhere
@@ -370,7 +370,7 @@ public class ScopeNode extends Node {
         }
         // Invert the If conditional
         if( invert )
-            pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
+            pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
         // This is a zero/null test.
         // Compute the positive test type.
         Type tnz = pred._type.nonZero();
