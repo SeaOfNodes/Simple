@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -31,7 +33,7 @@ public class SetX86 extends MachConcreteNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this));
         String src = code.reg(in(1));
-        if( src!="FLAGS" )  sb.p(" = ").p(src);
+        if( src!="flags" )  sb.p(" = ").p(src);
     }
 
     @Override public String op() { return "set"+_bop; }
