@@ -1,11 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Var;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
-import static com.seaofnodes.simple.Utils.TODO;
 
 /**
  *  Memory Merge - a merge of many aliases into a "fat memory".  All aliases
@@ -21,6 +18,7 @@ public class MemMergeNode extends Node {
     public final boolean _inProgress;
 
     public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
+    public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
 
 
     // If being used by a Scope, this is "in progress" from the Parser.
@@ -139,7 +137,7 @@ public class MemMergeNode extends Node {
             if( in(i) instanceof PhiNode phi ) {
                 // Do an eager useless-phi removal
                 Node in = phi.peephole();
-                IterPeeps.addAll(phi._outputs);
+                CodeGen.CODE.addAll(phi._outputs);
                 phi.moveDepsToWorklist();
                 if( in != phi ) {
                     if( !phi.iskeep() ) // Keeping phi around for parser elsewhere

@@ -29,8 +29,8 @@ public class Chapter03Test {
     @Test
     public void testVarScopeNoPeephole() {
         CodeGen code = new CodeGen("int a=1; int b=2; int !c=0; { int b=3; c=a+b;  } return c; ");
-        code.parse(true);
-        assertEquals("return (1+3);", code.print());
+        code.parse();           // Peepholes always run now
+        assertEquals("return 4;", code.print());
     }
 
     @Test
@@ -53,7 +53,7 @@ public class Chapter03Test {
     @Test
     public void testRedeclareVar() {
         try {
-            new Parser("int a=1; int b=2; int c=0; int b=3; c=a+b;").parse();
+            new CodeGen("int a=1; int b=2; int c=0; int b=3; c=a+b;").parse();
             fail();
         } catch( RuntimeException e ) {
             assertEquals("Redefining name 'b'",e.getMessage());

@@ -140,7 +140,7 @@ struct S { int x; flt y; };
 S !s = new S; s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
-S?[]?[] iss = new S?[]?[2];
+S?[]?[] !iss = new S?[]?[2];
 iss[0] = new S?[7];
 iss[0][2] = s;
 
@@ -149,10 +149,12 @@ flt rez = 1.2;
 if( iss[arg] )
     if( iss[arg][2] )
         rez = iss[arg][2].y;
-return rez;
-""");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'y'",e.getMessage()); }
+return rez;""");
+        code.parse().opto().typeCheck();
+        assertEquals("return Phi(Region,Phi(Region,.y,1.2),1.2);", code.print());
+        assertEquals("3.14", Eval2.eval(code,  0));
+        try { Eval2.eval(code, 10); fail(); } // Fails AIOOBE in Eval2, no range checks
+        catch( Exception e ) { assertEquals("Index 10 out of bounds for length 2",e.getMessage()); }
     }
 
     @Test

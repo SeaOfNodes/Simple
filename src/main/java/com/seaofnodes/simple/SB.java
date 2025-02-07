@@ -29,6 +29,23 @@ public final class SB {
   public SB p( int    s ) { _sb.append(s); return this; }
   public SB p( long   s ) { _sb.append(s); return this; }
   public SB p( boolean s) { _sb.append(s); return this; }
+  // 4 hex digits
+  public SB hex4(int s) {
+    assert (s>>4*4)==0; // Fits in 16 bits
+    for( int i=0; i<4; i++ ) {
+      int digit = (s>>((3-i)*4)) & 0xf;
+      _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
+    }
+    return this;
+  }
+  // Fixed width field
+  public SB fix( int sz, String s ) {
+    assert sz >=0;
+    for( int i=0; i<sz; i++ )
+      _sb.append( i < s.length() ? s.charAt(i) : ' ');
+    return this;
+  }
+
   // Not spelled "p" on purpose: too easy to accidentally say "p(1.0)" and
   // suddenly call the autoboxed version.
   public SB pobj( Object s ) { _sb.append(s.toString()); return this; }

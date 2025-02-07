@@ -34,14 +34,14 @@ public class Chapter04Test {
     public void testAddAddMul() {
         CodeGen code = new CodeGen("return arg+0+arg;");
         code.parse();
-        assertEquals("return (arg*2);", code.print());
+        assertEquals("return (arg<<1);", code.print());
     }
 
     @Test
     public void testPeephole3() {
         CodeGen code = new CodeGen("return 1+arg+2+arg+3; ");
         code.parse();
-        assertEquals("return ((arg*2)+6);", code.print());
+        assertEquals("return ((arg<<1)+6);", code.print());
     }
 
     @Test
@@ -62,8 +62,7 @@ public class Chapter04Test {
     // Adding functions means `main` does not constant fold the incoming arg value
     @Ignore @Test
     public void testConstantArg() {
-        CodeGen code = new CodeGen("return arg; ", TypeInteger.constant(2));
-        code.parse();
+        CodeGen code = new CodeGen("return arg; ", TypeInteger.constant(2), 123L).parse();
         assertEquals("return 2;", code.expr().in(1).toString());
     }
 
@@ -111,12 +110,8 @@ public class Chapter04Test {
 
     @Test
     public void testBug3() {
-        try {
-            new Parser("inta=1; return a;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Undefined name 'inta'",e.getMessage());
-        }
+        try { new CodeGen("inta=1; return a;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Undefined name 'inta'",e.getMessage()); }
     }
 
     @Test
@@ -128,8 +123,8 @@ public class Chapter04Test {
 
     @Test
     public void testBug5() {
-        Parser parser = new Parser("return arg--2;");
-        StopNode ret = parser.parse();
-        assertEquals("return (arg--2);", ret.print());
+        CodeGen code = new CodeGen("return arg--2;");
+        code.parse();
+        assertEquals("return (arg--2);", code.print());
     }
 }

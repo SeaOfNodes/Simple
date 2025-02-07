@@ -25,7 +25,6 @@ public class TypeFunPtr extends TypeNil {
     // within the TypeTuple.  Can be upgraded to a BitSet for larger classes of
     // functions.  Negative means "these 63 concrete bits plus infinite unknown more"
     public final long _fidxs; // 63 unique functions per signature
-    public String _name; // Optional debug function name; only for named single function
 
     private TypeFunPtr(byte nil, TypeTuple sig, Type ret, long fidxs) {
         super(TFUNPTR,nil);
@@ -35,30 +34,16 @@ public class TypeFunPtr extends TypeNil {
         _fidxs = fidxs;
     }
 
-    static TypeFunPtr make( byte nil, TypeTuple sig, Type ret, long fidxs ) { return new TypeFunPtr(nil,sig,ret,fidxs).intern(); }
+    public static TypeFunPtr make( byte nil, TypeTuple sig, Type ret, long fidxs ) { return new TypeFunPtr(nil,sig,ret,fidxs).intern(); }
     public static TypeFunPtr make( boolean nil, TypeTuple sig, Type ret ) { return make((byte)(nil ? 3 : 2),sig,ret,-1); }
-    @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil   ? this : make(  nil,_sig,_ret,   _fidxs).setName(_name); }
-    public TypeFunPtr makeFrom( Type ret ) { return     ret ==_ret   ? this : make( _nil,_sig, ret,   _fidxs).setName(_name); }
-    public TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _sig,_ret,1L<<fidx ).setName(_name); }
-
-    // Compute "function indices": FIDX
-    private static final HashMap<TypeTuple,Integer> FIDXS = new HashMap<>();
-    private static int nextFIDX(TypeTuple sig) {
-        Integer i = FIDXS.get(sig);
-        int fidx = i==null ? 0 : i;
-        FIDXS.put(sig,fidx+1);  // Track count per sig
-        assert fidx<64;         // TODO: need a larger FIDX space
-        return fidx;            // Return
-    }
-    public static TypeFunPtr makeFun( TypeTuple sig, Type ret ) {
-        return make((byte)2,sig,ret,1L<<nextFIDX(sig));
-    }
+    @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil   ? this : make(  nil,_sig,_ret,   _fidxs); }
+    public TypeFunPtr makeFrom( Type ret ) { return     ret ==_ret   ? this : make( _nil,_sig, ret,   _fidxs); }
+    public TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _sig,_ret,1L<<fidx ); }
 
     public static TypeFunPtr BOT   = make((byte)3,TypeTuple.BOT,Type.BOTTOM,-1);
     public static TypeFunPtr TEST  = make((byte)2,TypeTuple.TEST,TypeInteger.BOT,1);
     public static TypeFunPtr TEST0 = make((byte)3,TypeTuple.TEST,TypeInteger.BOT,3);
-    public static TypeFunPtr MAIN  = makeFun(TypeTuple.MAIN,Type.BOTTOM).setName("main");
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); }
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); }
 
     @Override
     Type xmeet(Type t) {
@@ -93,15 +78,6 @@ public class TypeFunPtr extends TypeNil {
         return _sig == ptr._sig  && _ret == ptr._ret && _fidxs == ptr._fidxs && super.eq(ptr);
     }
 
-    public TypeFunPtr setName(String name) {
-        if( name==null ) return this;
-        assert _fidxs > 0 && Long.bitCount(_fidxs) == 1;
-        // Name can be set to different things, just for debug
-        //assert _name==null || _name.equals(name);
-        _name = name;
-        return this;
-    }
-
     @Override public String str() { return print(new SB()).toString(); }
     @Override public SB  print(SB sb) { return _print(sb,false,true); }
     public SB print(SB sb, boolean n) { return _print(sb,false,n); }
@@ -109,32 +85,20 @@ public class TypeFunPtr extends TypeNil {
     private static SB _print(SB sb, boolean g, Type t) { return g ? t.gprint(sb) : t.print(sb); }
     private SB _print(SB sb, boolean g, boolean n) {
         sb.p(x()).p("{ ");
-        if( n && _name!=null ) sb.p(_name);
-        else {
-            if( _sig._types!=null )
-                for( Type t : _sig._types )
-                    _print(sb,g,t).p(" ");
-            _print(sb.p(g ? "&rarr; " : "-> "),g,_ret).p(" #");
-            if( isHigh() ) sb.p("~");
-            long fidxs = isHigh() ? ~_fidxs : _fidxs;
-            String fidx = fidxs==0 ? ""
-                : Long.bitCount(fidxs) == 1 ? ""+Long.numberOfTrailingZeros(fidxs)
-                : fidxs == -1 ? "ALL"
-                : "b"+Long.toBinaryString(fidxs); // Just some function bits
-            sb.p(fidx);
-        }
-        return sb.p("}").p(q());
+        if( _sig._types!=null )
+            for( Type t : _sig._types )
+                _print(sb,g,t).p(" ");
+        _print(sb.p(g ? "&rarr; " : "-> "),g,_ret).p(" #");
+        if( isHigh() ) sb.p("~");
+        long fidxs = isHigh() ? ~_fidxs : _fidxs;
+        String fidx = fidxs==0 ? ""
+            : Long.bitCount(fidxs) == 1 ? ""+Long.numberOfTrailingZeros(fidxs)
+            : fidxs == -1 ? "ALL"
+            : "b"+Long.toBinaryString(fidxs); // Just some function bits
+        return sb.p(fidx).p("}").p(q());
     }
 
     // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) { int fidxs = Long.numberOfTrailingZeros(fidxs); ... }
     public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
-
-    public static void reset() {
-        FIDXS.clear();
-        FIDXS.put(MAIN._sig,1);
-        for( Type t : INTERN.keySet() )
-            if( t instanceof TypeFunPtr tfp && tfp!=MAIN)
-                tfp._name = null;
-    }
 
 }

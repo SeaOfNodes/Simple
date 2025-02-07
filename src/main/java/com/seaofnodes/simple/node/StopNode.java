@@ -13,6 +13,7 @@ public class StopNode extends CFGNode {
         _src = src;
         _type = compute();
     }
+    public StopNode(StopNode stop) { super(stop);  _src = stop._src; }
 
     @Override
     public String label() {

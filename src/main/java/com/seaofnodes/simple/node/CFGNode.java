@@ -1,12 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.Utils;
-
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 
 /** Control Flow Graph Nodes
  * <p>
@@ -21,7 +21,13 @@ import java.util.HashMap;
  */
 public abstract class CFGNode extends Node {
 
-    public CFGNode(Node... nodes) { super(nodes); }
+    public CFGNode(Node...   nodes) { super(nodes); }
+    public CFGNode(CFGNode cfg) {
+        super(cfg);
+        _idepth = cfg._idepth;
+        _ltree = cfg._ltree;
+        _pre = cfg._pre;
+    }
 
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
@@ -101,8 +107,8 @@ public abstract class CFGNode extends Node {
         _pre = pre++;
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg && !skip(usecfg) )
-                pre = usecfg._bltWalk(pre,use instanceof FunNode fuse ? fuse : fun,stop,post);
+            if( use instanceof CFGNode usecfg && !skip( usecfg ) )
+                pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post );
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
