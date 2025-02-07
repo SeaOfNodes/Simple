@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import org.junit.Test;
 import static org.junit.Assert.*;
