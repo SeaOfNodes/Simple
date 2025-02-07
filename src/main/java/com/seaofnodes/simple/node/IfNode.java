@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
@@ -18,12 +18,10 @@ public class IfNode extends CFGNode implements MultiNode {
     public String label() { return "If"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("if( ");
         return in(1)._print0(sb, visited).append(" )");
     }
-
-    @Override public boolean isMultiHead() { return true; }
 
     public Node ctrl() { return in(0); }
     public Node pred() { return in(1); }

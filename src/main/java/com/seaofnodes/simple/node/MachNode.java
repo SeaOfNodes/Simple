@@ -1,6 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import java.io.ByteArrayOutputStream;
 
 public interface MachNode {
@@ -12,12 +15,15 @@ public interface MachNode {
     default void postSelect() { }
 
     // Register mask allowed on input i.  0 for no register.
-    abstract public RegMask regmap(int i);
+    RegMask regmap( int i );
     // Register mask allowed as a result.  0 for no register.
-    abstract public RegMask outregmap();
+    RegMask outregmap();
     // Multi-reg-defining machine op; idx comes from Proj.
     // Sometimes these Projs have no uses, and just exist to kill a register.
     default RegMask outregmap(int idx) { throw Utils.TODO(); }
+
+    // Set of killed registers
+    default RegMask killmap() { return null; }
 
     // If this op updates the same register as input 'idx', e.g. many X86 "R1 +=
     // R2" style ops.  This forces the output live range to equal the input live
@@ -32,11 +38,17 @@ public interface MachNode {
     // Returns either 0 for not-two-adr or the updated input; for projections
     // this is their Multi's updated input.
     default int twoAddress( ) { return 0; }
+    // Ok to switch arguments
+    default boolean commutes() { return false; }
 
     // Instructions cheaper to recreate than to spill, such as loading small constants
     default boolean isClone() { return false; }
+
+    // Make a clone of a cheap instruction
+    default Node copy() { return null; }
+
     // Encoding is appended into the byte array; size is returned
-    abstract public int encoding(ByteArrayOutputStream bytes);
+    int encoding(ByteArrayOutputStream bytes);
 
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.

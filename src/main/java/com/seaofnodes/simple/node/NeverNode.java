@@ -13,7 +13,7 @@ public class NeverNode extends IfNode {
 
     @Override public String label() { return "Never"; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append("Never"); }
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append("Never"); }
 
     @Override public Type compute() { return TypeTuple.IF_BOTH; }
 

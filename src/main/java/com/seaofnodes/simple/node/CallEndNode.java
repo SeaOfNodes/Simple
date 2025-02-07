@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -11,13 +12,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     private boolean _folding;
+    public final TypeRPC _rpc;
 
-    public CallEndNode(CallNode call) { super(new Node[]{call}); }
-    public CallEndNode(CallEndNode cend) { super(cend); }
+    public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
+    public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
 
-    @Override
-    public String label() { return "CallEnd"; }
-    @Override public boolean isMultiHead() { return true; }
+    @Override public String label() { return "CallEnd"; }
     @Override public boolean blockHead() { return true; }
 
     public CallNode call() { return (CallNode)in(0); }
@@ -36,7 +36,17 @@ public class CallEndNode extends CFGNode implements MultiNode {
     public Type compute() {
         if( !(in(0) instanceof CallNode call) )
             return TypeTuple.RET.dual();
-        Type ret = call.fptr().addDep(this)._type instanceof TypeFunPtr tfp ? tfp.ret() : Type.BOTTOM;
+        Type ret = Type.BOTTOM;
+        TypeMem mem = TypeMem.BOT;
+        if( call.fptr().addDep(this)._type instanceof TypeFunPtr tfp ) {
+            ret = tfp.ret();
+            // Here, if I can figure out I've found *all* callers, then I can meet
+            // across the linked returns and join with the function return type.
+            if( tfp.isConstant() && nIns()>1 ) {
+                assert nIns()==2;     // Linked exactly once for a constant
+                ret = ((TypeTuple)in(1)._type).ret(); // Return type
+            }
+        }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);
     }
 
