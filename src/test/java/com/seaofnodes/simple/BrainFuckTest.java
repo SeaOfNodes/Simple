@@ -62,7 +62,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        code.driver(CodeGen.Phase.Schedule);
+        code.driver(CodeGen.Phase.LocalSched);
         assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
 }
