@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -300,18 +301,20 @@ return is[1];
 
     @Test
     public void testBad3() {
-        CodeGen code = new CodeGen(
-"""
+        CodeGen code = new CodeGen("""
 int[] is = new int[arg];
 return is[1];
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  4));
-        try { Eval2.eval(code,0); }
-        catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
-        try { Eval2.eval(code,-1); }
+        try { Eval2.eval(code,-1); fail(); }
         catch( NegativeArraySizeException e ) { assertEquals("-1",e.getMessage()); }
+        // This test will not pass (i.e., failed range-check) until we have range checks.
+        // Without the range check, the load `is[1]` optimizes against the `new int[]`
+        // and assumes it loads a zero then folds away, and the Eval2 never sees an OOB load.
+        //try { Eval2.eval(code,0); fail(); }
+        //catch( ArrayIndexOutOfBoundsException e ) { assertEquals("Array index 1 out of bounds for array length 0",e.getMessage()); }
     }
 
     @Test

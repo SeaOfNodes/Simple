@@ -2,8 +2,8 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.RegMask;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.CallEndNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFloat;
@@ -14,16 +14,14 @@ public class CallEndX86 extends CallEndNode implements MachNode {
     final TypeFunPtr _tfp;
     CallEndX86( CallEndNode cend ) {
         super(cend);
-        _tfp = (TypeFunPtr)cend.call().fptr()._type;
+        _tfp = (TypeFunPtr)(cend.call().fptr()._type);
     }
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) { return null; }
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
-    @Override public RegMask outregmap(int idx) {
-        if( idx != 2 ) return null;
-        return _tfp._ret instanceof TypeFloat ? x86_64_v2.RET_FMASK : x86_64_v2.RET_MASK;
-    }
+    @Override public RegMask outregmap() { return null; }
+    @Override public RegMask outregmap(int idx) { return idx == 2 ? x86_64_v2.retMask(_tfp,2) : null; }
+    @Override public RegMask killmap() { return x86_64_v2.x86CallerSave(); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

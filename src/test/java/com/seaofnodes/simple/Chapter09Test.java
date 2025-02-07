@@ -1,6 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.evaluator.Evaluator;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Assert;

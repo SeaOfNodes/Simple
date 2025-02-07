@@ -2,9 +2,9 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
 
@@ -16,7 +16,11 @@ public class StoreX86 extends MemOpX86 {
     @Override public String op() { return "st"+_sz; }
 
     @Override protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) {
-        return p.p(".").p(_name).p("=").p(val()==null ? _imm : val()).p(";");
+        Node val = val();
+        p.p(".").p(_name).p("=");
+        if( val==null ) p.p(_imm);
+        else p.n(val);
+        return p.p(";");
     }
 
     // Register mask allowed as a result.  0 for no register.

@@ -1,9 +1,9 @@
 package com.seaofnodes.simple;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.print.IRPrinter;
 
 
 import org.junit.Test;
-
-
 import static org.junit.Assert.assertEquals;
 
 public class Chapter11Test {
