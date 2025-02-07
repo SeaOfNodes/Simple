@@ -4,6 +4,7 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.BitSet;
+import static com.seaofnodes.simple.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
 
@@ -13,10 +14,13 @@ public class FunNode extends RegionNode {
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
 
-    public FunNode( Parser.Lexer loc, StartNode start, TypeFunPtr sig ) { super(loc,null,start); _sig=sig; }
+    public String _name;        // Debug name
+
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) { super(loc,nodes); _sig = sig; }
+    public FunNode( FunNode fun ) { super( fun, fun._loc ); _sig = fun.sig(); _name = fun._name; }
 
     @Override
-    public String label() { return _sig._name == null ? "$fun" : _sig._name; }
+    public String label() { return _name == null ? "$fun" : _name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.
@@ -45,9 +49,10 @@ public class FunNode extends RegionNode {
     public TypeFunPtr sig() { return _sig; }
     void setSig( TypeFunPtr sig ) {
         assert sig.isa(_sig);
-        if( _sig != sig )
-            IterPeeps.add(this);
-        _sig = sig;
+        if( _sig != sig ) {
+            CODE.add(this);
+            _sig = sig;
+        }
     }
 
     @Override
@@ -58,6 +63,15 @@ public class FunNode extends RegionNode {
 
     @Override
     public Node idealize() {
+
+        // Some linked path dies
+        Node progress = deadPath();
+        if( progress!=null ) {
+            if( nIns()==3 && in(2) instanceof CallNode call )
+                CODE.add(call.cend()); // If Start and one call, check for inline
+            return progress;
+        }
+
         // When can we assume no callers?  Or no other callers (except main)?
         // In a partial compilation, we assume Start gets access to any/all
         // top-level public structures and recursively what they point to.
@@ -66,16 +80,18 @@ public class FunNode extends RegionNode {
         // In a total compilation, we can start from Start and keep things
         // more contained.
 
-
         // If no default/unknown caller, use the normal RegionNode ideal rules
         // to collapse
         if( unknownCallers() ) return null;
-        Node progress = super.idealize();
-        if( progress!=null ) {
-            IterPeeps.add( CodeGen.CODE._stop);
-            IterPeeps.add( _ret );
+
+        // If down to a single input, become that input
+        if( nIns()==2 && !hasPhi() ) {
+            CODE.add( CODE._stop ); // Stop will remove dead path
+            CODE.add( _ret );       // Return will compute to TOP control
+            return in(1); // Collapse if no Phis; 1-input Phis will collapse on their own
         }
-        return progress;
+
+        return null;
     }
 
     // Bypass Region idom, always assume depth == 1, one more than Start

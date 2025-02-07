@@ -37,7 +37,7 @@ return arg++;
 return arg+++arg++;
 """);
         code.parse().opto();
-        assertEquals("return ((arg*2)+1);", code.print());
+        assertEquals("return ((arg<<1)+1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
@@ -48,7 +48,7 @@ return arg+++arg++;
 return -arg---arg--;
 """);
         code.parse().opto();
-        assertEquals("return (-((arg*2)+-1));", code.print());
+        assertEquals("return (-((arg<<1)+-1));", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
@@ -342,7 +342,7 @@ var b = arg ? new Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,((.x*2)+1),-1);", code.print());
+        assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
     }
@@ -355,7 +355,7 @@ var b = arg ? new Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,((.x*2)+1),-1);", code.print());
+        assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
     }

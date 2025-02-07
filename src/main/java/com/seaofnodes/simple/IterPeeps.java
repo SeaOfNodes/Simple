@@ -42,27 +42,25 @@ import java.util.Random;
  *   progressOnList(stop);`</li>
  * </ul>
  */
-public abstract class IterPeeps {
+public class IterPeeps {
 
-    private static final WorkList<Node> WORK = new WorkList<>();
+    private final WorkList<Node> _work;
 
-    public static <N extends Node> N add( N n ) {
-        return (N)WORK.push(n);
-    }
+    IterPeeps( long seed ) { _work = new WorkList<>(seed); }
 
-    public static void addAll( Ary<Node> ary ) {
-        WORK.addAll(ary);
-    }
+    public <N extends Node> N add( N n ) { return (N)_work.push(n); }
+
+    public void addAll( Ary<Node> ary ) { _work.addAll(ary); }
 
     /**
      * Iterate peepholes to a fixed point
      */
-    public static void iterate( StopNode stop) {
-        assert progressOnList(stop);
+    public void iterate( CodeGen code ) {
+        assert progressOnList(code);
         int cnt=0;
 
         Node n;
-        while( (n=WORK.pop()) != null ) {
+        while( (n=_work.pop()) != null ) {
             if( n.isDead() )  continue;
             cnt++;              // Useful for debugging, searching which peephole broke things
             Node x = n.peepholeOpt();
@@ -73,21 +71,21 @@ public abstract class IterPeeps {
                 // Changes require neighbors onto the worklist
                 if( x != n || !(x instanceof ConstantNode) ) {
                     // All outputs of n (changing node) not x (prior existing node).
-                    for( Node z : n._outputs ) WORK.push(z);
+                    for( Node z : n._outputs ) _work.push(z);
                     // Everybody gets a free "go again" in case they didn't get
                     // made in their final form.
-                    WORK.push(x);
+                    _work.push(x);
                     // If the result is not self, revisit all inputs (because
                     // there's a new user), and replace in the graph.
                     if( x != n ) {
-                        for( Node z : n. _inputs ) WORK.push(z);
+                        for( Node z : n. _inputs ) _work.push(z);
                         n.subsume(x);
                     }
                 }
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
-                assert progressOnList(stop); // Very expensive assert
+                assert progressOnList(code); // Very expensive assert
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
@@ -96,7 +94,7 @@ public abstract class IterPeeps {
     }
 
     // Visit ALL nodes and confirm the invariant:
-    //   Either you are on the WORK worklist OR running `iter()` makes no progress.
+    //   Either you are on the _work worklist OR running `iter()` makes no progress.
 
     // This invariant ensures that no progress is missed, i.e., when the
     // worklist is empty we have indeed done all that can be done.  To help
@@ -107,28 +105,20 @@ public abstract class IterPeeps {
     // neighbors and these should fail, but will then try to add dependencies
     // {@link #Node.addDep} which is a side effect in an assert.  The {@link
     // #midAssert} is used to stop this side effect.
-    private static boolean MID_ASSERT;
-    public static boolean midAssert() { return MID_ASSERT; }
-    private static boolean progressOnList(Node stop) {
-        MID_ASSERT = true;
-        int old_cnt = Node.ITER_CNT, old_nop = Node.ITER_NOP_CNT;
-        Node changed = stop.walk( n -> {
+    private boolean progressOnList(CodeGen code) {
+        code._midAssert = true;
+        Node changed = code._stop.walk( n -> {
                 Node m = n;
                 if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
-                    if( WORK.on(n) ) return null;
+                    if( _work.on(n) ) return null;
                     m = n.peepholeOpt();
                     if( m==null ) return null;
                 }
                 System.err.println("BREAK HERE FOR BUG");
                 return m;
             });
-        Node.ITER_CNT = old_cnt;  Node.ITER_NOP_CNT = old_nop;
-        MID_ASSERT = false;
+        code._midAssert = false;
         return changed==null;
-    }
-
-    public static void reset() {
-        WORK.clear();
     }
 
     /**
