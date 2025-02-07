@@ -8,7 +8,7 @@ import java.io.ByteArrayOutputStream;
 
 // Generic machine-specific class, has a few Node implementations that have to
 // exist (abstract) but are not useful past the optimizer.
-public abstract class MachConcreteNode extends Node implements MachNode{
+public abstract class MachConcreteNode extends Node implements MachNode {
 
     public MachConcreteNode(Node node) { super(node); }
     public MachConcreteNode(Node[]nodes) { super(nodes); }

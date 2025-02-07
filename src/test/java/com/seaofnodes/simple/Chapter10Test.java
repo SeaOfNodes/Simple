@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
 import com.seaofnodes.simple.node.*;
 import java.util.BitSet;
