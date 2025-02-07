@@ -57,4 +57,4 @@ The Simple language will be styled after a subset of C or Java
 * [Chapter 17](docs/chapter17/README.md): Mutability & Syntax Sugar: `var`, `val`, `x+=y`, `for(init;test;next)body`
 * [Chapter 18](docs/chapter18/README.md): Functions and calls.
 * [Chapter 19](docs/chapter19/README.md): Instruction selection and portable compilation
-* Chapter 20: Graph Coloring Register Allocation
+* [Chapter 20](docs/chapter20/README.md): Graph Coloring Register Allocation
