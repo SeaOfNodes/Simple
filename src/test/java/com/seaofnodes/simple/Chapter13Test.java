@@ -181,7 +181,7 @@ return new S1.s=new S2;
 struct I {int i;};
 struct P { I? pi; };
 P !p1 = new P;
-P p2 = new P;
+P !p2 = new P;
 p2.pi = new I;
 p2.pi.i = 2;
 if (arg) p1 = new P;
