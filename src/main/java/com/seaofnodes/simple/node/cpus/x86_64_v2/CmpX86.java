@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-// Compare. Sets flags.(RFLAGS)
 public class CmpX86 extends MachConcreteNode implements MachNode {
     CmpX86( Node cmp ) { super(cmp); }
 
@@ -17,7 +18,7 @@ public class CmpX86 extends MachConcreteNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // General form: "cmp  reg1, reg2"
+    // General form: "add  dst += src"
     @Override public void asm(CodeGen code, SB sb) {
         String dst = code.reg(this);
         if( dst!="FLAGS" )  sb.p(dst).p(" = ");

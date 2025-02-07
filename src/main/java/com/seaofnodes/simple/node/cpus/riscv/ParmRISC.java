@@ -1,22 +1,23 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.node.ParmNode;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.ParmNode;
 import java.io.ByteArrayOutputStream;
 
-public class ParmRISC extends ParmNode implements MachNode{
+public class ParmRISC extends ParmNode implements MachNode {
     final RegMask _rmask;
     ParmRISC(ParmNode parm) {
         super(parm);
         // Assume int
-        _rmask = riscv.callInMaskInt(_idx);
+        _rmask = riscv.callInMask(fun().sig(),_idx);
     }
 
     // Register mask allowed on input i.  0 for no register.
-    @Override public RegMask regmap(int i) { return null; }
+    @Override public RegMask regmap(int i) { return _rmask; }
     // Register mask allowed as a result.  Calling convention register
     @Override public RegMask outregmap() { return _rmask; }
 

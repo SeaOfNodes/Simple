@@ -1,12 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.print.IRPrinter;
+import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.*;
 import java.util.function.Function;
-import static com.seaofnodes.simple.CodeGen.CODE;
+import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -63,11 +66,11 @@ public abstract class Node {
     // Make a Node using the existing arrays of nodes.
     // Used by any pass rewriting all Node classes but not the edges.
     Node( Node n ) {
-        assert CodeGen.CODE._phase == CodeGen.Phase.InstructionSelection;
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstSelect.ordinal();
         _nid = CODE.getUID(); // allocate unique dense ID
-        _inputs  = new Ary<>(n._inputs.asAry());
+        _inputs  = new Ary<>(n==null ? new Node[0] : n._inputs.asAry());
         _outputs = new Ary<>(Node.class);
-        _type = n._type;
+        _type = n==null ? Type.BOTTOM : n._type;
         _deps = null;
         _hash = 0;
     }
@@ -108,7 +111,7 @@ public abstract class Node {
 
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
-    final StringBuilder _print0(StringBuilder sb, BitSet visited) {
+    public final StringBuilder _print0(StringBuilder sb, BitSet visited) {
         if (visited.get(_nid) && !(this instanceof ConstantNode) )
             return sb.append(label());
         visited.set(_nid);
@@ -121,9 +124,7 @@ public abstract class Node {
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
-    public boolean isMultiHead() { return false; }
-    public boolean isMultiTail() { return false; }
-    public boolean isConst    () { return false; }
+    public boolean isConst() { return false; }
 
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
@@ -181,12 +182,16 @@ public abstract class Node {
         // Return new_def for easy flow-coding
         return new_def;
     }
+    public <N extends Node> N setDefX(int idx, N new_def ) {
+        while( nIns() <= idx ) addDef(null);
+        return setDef(idx,new_def);
+    }
 
     // Remove the numbered input, compressing the inputs in-place.  This
     // shuffles the order deterministically - which is suitable for Region and
     // Phi, but not for every Node.  If the def goes dead, it is recursively
     // killed, which may include 'this' Node.
-    Node delDef(int idx) {
+    public Node delDef(int idx) {
         unlock();
         Node old_def = in(idx);
         _inputs.del(idx);
@@ -293,6 +298,74 @@ public abstract class Node {
             CODE.addAll(n._outputs);
         }
         kill();
+    }
+
+    // Replace uses of `def` with `this`, and insert `this` immediately after
+    // `def` in the basic block.
+    public void insertAfter( Node def, boolean must ) {
+        CFGNode cfg = def.cfg0();
+        int i = cfg._outputs.find(def)+1;
+        if( cfg instanceof CallEndNode ) {
+            cfg = cfg.uctrl();  i=0;
+        } else if( def.in(0) instanceof MultiNode ) {
+            assert i==0;
+            i = cfg._outputs.find(def.in(0))+1;
+        }
+
+        while( cfg.out(i) instanceof PhiNode || cfg.out(i) instanceof CalleeSaveNode )  i++;
+        cfg._outputs.insert(this,i);
+        _inputs.set(0,cfg);
+        for( int j=def.nOuts()-1; j>=0; j-- ) {
+            // Can we avoid a split of a split?  'this' split is used by
+            // another split in the same block.
+            if( !must && def.out(j) instanceof SplitNode split && def.out(j).cfg0()==cfg &&
+                !split._kind.contains("self") )
+                continue;
+            Node use = def._outputs.del(j);
+            use.unlock();
+            int idx = use._inputs.find(def);
+            use._inputs.set(idx,this);
+            addUse(use);
+        }
+        if( nIns()>1 ) setDef(1,def);
+    }
+
+    // Insert this in front of use.in(uidx) with this, and insert this
+    // immediately before use in the basic block.
+    public void insertBefore( Node use, int uidx ) {
+        CFGNode cfg = use.cfg0();
+        int i;
+        if( use instanceof PhiNode phi ) {
+            cfg = phi.region().cfg(uidx);
+            i = cfg.nOuts()-1;
+        } else {
+            i = cfg._outputs.find(use);
+        }
+        cfg._outputs.insert(this,i);
+        _inputs.set(0,cfg);
+        if( _inputs._len > 1 && this instanceof SplitNode )
+            setDefOrdered(1,use.in(uidx));
+        use.setDefOrdered(uidx,this);
+    }
+
+    public void setDefOrdered(int idx, Node def) {
+        // If old is dying, remove from CFG ordered
+        Node old = in(idx);
+        if( old!=null && old.nOuts()==1 ) {
+            CFGNode cfg = old.cfg0();
+            if( cfg!=null ) {
+                cfg._outputs.remove(cfg._outputs.find(old));
+                old._inputs.set(0,null);
+            }
+        }
+        setDef(idx,def);
+    }
+
+    public void removeSplit() {
+        CFGNode cfg = cfg0();
+        cfg._outputs.remove(cfg._outputs.find(this));
+        _inputs.set(0,null);
+        if( _inputs._len > 1 ) subsume(in(1));
     }
 
     // ------------------------------------------------------------------------
@@ -578,7 +651,7 @@ public abstract class Node {
     // Peephole utilities
 
     // Swap inputs without letting either input go dead during the swap.
-    Node swap12() {
+    public Node swap12() {
         unlock();               // Hash is order dependent
         _inputs.swap(1,2);
         return this;
@@ -634,7 +707,14 @@ public abstract class Node {
     /**
      * Debugging utility to find a Node by index
      */
-    public Node find(int nid) {
-        return walk( n -> n._nid==nid ? n : null );
+    public Node find(int nid) { return _find(nid, new BitSet()); }
+    private Node _find(int nid, BitSet bs) {
+        if( bs.get(_nid) ) return null; // Been there, done that
+        bs.set(_nid);
+        if( _nid==nid ) return this;
+        Node x;
+        for( Node def : _inputs  )  if( def != null && (x = def._find(nid,bs)) != null ) return x;
+        for( Node use : _outputs )  if( use != null && (x = use._find(nid,bs)) != null ) return x;
+        return null;
     }
 }

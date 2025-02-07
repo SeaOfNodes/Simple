@@ -1,6 +1,8 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import java.text.ParseException;
 import java.util.*;
@@ -1413,7 +1415,7 @@ public class Parser {
         mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
         _scope.mem(mem);
         // Call result
-        return new ProjNode(cend,2,null).peephole();
+        return new ProjNode(cend,2,"#2").peephole();
     }
 
     /**
