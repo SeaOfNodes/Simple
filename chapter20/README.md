@@ -63,17 +63,55 @@ Coloring proceeds in rounds:
 - Build the Inteference Graph: every live range which is alive at the same time
   as any other, now *interferes* or conflicts.  This is built using a live-ness
   pass, which is a backwards pass over the CFG, and can require more than one
-  pass according to loop nesting depth.
+  pass according to loop nesting depth.  The data structure here is generally a
+  2-D bitset, triangulated to cut its size in half.
   
-- Color the interfernce graph.  Nodes in the graph which strictly low degree
-  (more available registers than neighbors) will guaranteed get a color.  These
-  can be removed from the graph - since upon reversal they will guaranteed get
-  a register (color) because they have so few neighbors.  Removal these trivial 
+- Color the interference graph.  Nodes in the graph which are strictly low
+  degree (more available registers than neighbors) will guaranteed get a color.
+  These can be removed from the graph - since they will guaranteed get a
+  register (color) because they have so few neighbors.  Removing these trivial
   nodes makes more nodes go trivial, and this process repeats until either we
-  run out (and are guaranteed a coloring) or we find a high-degree clique: a set
-  
+  run out (and are guaranteed a coloring) or we find a high-degree clique: a
+  set of mutual interferences where none of them are guaranteed a color.  In
+  this we pull an "at risk" live range out; this one might not color.  Once the
+  graph is emptied, we reverse and re-insert the live ranges in reverse order,
+  coloring as we go.  All the trivial live ranges will color; the at-risk ones
+  may or may not.
+
+- If every live range got a color, then Register Allocation is done.  If not,
+  we enter a round of splitting.  Live ranges which did not color are now split
+  via a series of heuristics into lots of small live ranges.  Splitting has a
+  tension: too much and you got a lot of spills (and a generally poor
+  allocation).  Too little, and you remain uncolorable - and do not make
+  progress towards an allocation.  Once we're done splitting, we start a new
+  round of coloring (Building the Live Ranges, then the Interference Graph,
+  then Coloring).
 
 
+## Registers and Register Masks
 
+Registers are the thing that Register Allocation is all about!  They are
+represented as a small dense integer, starting up from 0, and the numbering
+generally follows from the hardware encodings.  So for an X86_64, RAX will be
+register 0, RCX register 1 and so on up to the 16 GPRs.  The XMM registers at
+16 and go up to 32.  Register numbers must be unique; this is how the register
+allocator tracks them.
 
-## Registers
+A collection of registers live in a Register Mask.  For smaller and simpler
+machines it suffices to make such masks an i64 or i128 (64 or 128 bit
+integers), and this presentation is by far the better way to go... if all
+register allocations can fit in this bit limitation.  The allocator will need
+bits for stack-based parameters and for splits which cannot get a register.
+For a 32-register machine like the X86, add 1 for flags - gives 33 registers.
+Using a Java `long` has 64 bits, leaving 31 for spills and stack passing.  This
+is adequate for nearly all allocations; only the largest allocations will run
+this out.  However, if we move to a chip with 64 registers we'll immediately
+run out, and need at least a 128 bit mask.  Since you cannot *return* a 128
+bit value directly in Java, Simple will pick up a `RegMask` class object.
+
+Many of the register masks are immutable; e.g. allowed registers for particular
+opcodes, or describing registers for calling conventions.  Other masks
+represent mutable bitsets, with the allocator routinely masking off bits when
+accumulating a set of constraints.  To help keep these uses apart, the
+`RegMask` class includes mutable and immutable mask objects.
+
