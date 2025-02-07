@@ -64,7 +64,7 @@ return sq;
 """);
         code.parse().opto();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,int)*x); ]", code._stop.toString());
-        assertEquals("{ sq}", Eval2.eval(code, 3));
+        assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -76,7 +76,7 @@ var sq = { int x ->
 };
 return sq(arg)+sq(3);
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("Stop[ return (sq( 3)+sq( arg)); return (Parm_x(sq,int,3,arg)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
@@ -115,7 +115,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)*2); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -124,7 +124,7 @@ return fcn(3);
     @Test
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
@@ -179,7 +179,6 @@ for(;;) {
         assertEquals("3", Eval2.eval(code,  0));
     }
 
-
     @Test
     public void testFcn9() {
         CodeGen code = new CodeGen(
@@ -194,6 +193,31 @@ for(;;) {
         code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return Top;", code._stop.toString());
         assertEquals(null, Eval2.eval(code,  0));
+    }
+
+
+    @Test
+    public void testFcn10() {
+        CodeGen code = new CodeGen(
+"""
+struct Person {
+  int age;
+};
+
+val fcn = { Person?[] ps, int x ->
+  val tmp = ps[x];
+  if( ps[x] )
+    ps[x].age++;
+};
+
+var ps = new Person?[2];
+ps[0] = new Person;
+ps[1] = new Person;
+fcn(ps,1);
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     // Function break

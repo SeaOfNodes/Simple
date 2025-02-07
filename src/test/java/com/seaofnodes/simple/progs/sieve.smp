@@ -1,0 +1,32 @@
+
+int[] !ary = new int[arg], !primes = new int[arg];
+int nprimes = 0, p=2;
+// Find primes while p^2 < arg
+while( p*p < arg ) {
+    // skip marked non-primes
+    while( ary[p]==1 ) p = p + 1;
+    // p is now a prime
+    primes[nprimes] = p;  nprimes = nprimes + 1;
+    // Mark out the rest non-primes
+    int i = p + p;
+    while( i < ary# ) {
+        ary[i] = 1;
+        i = i + p;
+    }
+    p = p + 1;
+}
+// Now just collect the remaining primes, no more marking
+while( p < arg ) {
+    if( ary[p] == 0 ) {
+        primes[nprimes] = p;  nprimes = nprimes + 1;
+    }
+    p = p + 1;
+}
+// Copy/shrink the result array
+int[] !rez = new int[nprimes];
+int j = 0;
+while( j < nprimes ) {
+    rez[j] = primes[j];
+    j = j + 1;
+}
+return rez;

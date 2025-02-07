@@ -54,7 +54,7 @@ public class AddNode extends Node {
 
         // Add of same to a multiply by 2
         if( lhs==rhs )
-            return new MulNode(lhs,new ConstantNode(TypeInteger.constant(2)).peephole());
+            return new ShlNode(null,lhs,con(1));
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
 
@@ -127,6 +127,7 @@ public class AddNode extends Node {
             lphi = pcon(lhs.in(2),op); // Will rotate with the Phi push
         }
         if( lphi==null ) return null;
+        if( lphi.region().nIns() <=2 ) return null; // Phi is collapsing
 
         // RHS is a constant or a Phi of constants
         if( !(rhs instanceof ConstantNode) && pcon(rhs,op)==null )

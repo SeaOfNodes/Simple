@@ -13,6 +13,7 @@ public class ParmNode extends PhiNode {
         super(label,declaredType,inputs);
         _idx = idx;
     }
+    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._declaredType); _idx = parm._idx; }
 
     @Override public String label() { return MemOpNode.mlabel(_label); }
 
@@ -22,7 +23,7 @@ public class ParmNode extends PhiNode {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( "main".equals(fun().sig()._name) && _label.equals("arg") )
+        if( "main".equals(fun()._name) && _label.equals("arg") )
             return sb.append("arg");
         sb.append("Parm_").append(_label).append("(");
         for( Node in : _inputs ) {

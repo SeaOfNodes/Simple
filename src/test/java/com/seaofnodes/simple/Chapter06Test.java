@@ -103,8 +103,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.constant(2));
-        code.parse().opto();
+""", TypeInteger.constant(2), 123L).parse().opto();
         assertEquals("return 5;", code.print());
     }
 
@@ -124,8 +123,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.constant(1));
-        code.parse().opto();
+""", TypeInteger.constant(1), 123L).parse().opto();
         assertEquals("return 3;", code.print());
     }
 
@@ -165,7 +163,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.constant(1));
+""", TypeInteger.constant(1), 123L);
         code.parse().opto();
         assertEquals("return 3;", code.print());
     }
@@ -186,7 +184,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.constant(3));
+""", TypeInteger.constant(3), 123L);
         code.parse().opto();
         assertEquals("return 4;", code.print());
     }
@@ -210,7 +208,8 @@ return a+b;
 
     @Test
     public void testDemo1True() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 arg=1;
 int a = 0;
 int b = 1;
@@ -220,14 +219,15 @@ if( arg ) {
     else b = 3;
 }
 return a+b;
-""", TypeInteger.constant(1));
+""", TypeInteger.constant(1), 123L);
         code.parse().opto();
         assertEquals("return 4;", code.print());
     }
 
     @Test
     public void testDemo1False() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 arg=0;
 int a = 0;
 int b = 1;
@@ -237,7 +237,7 @@ if( arg ) {
     else b = 3;
 }
 return a+b;
-""", TypeInteger.constant(0));
+""", TypeInteger.constant(0), 123L);
         code.parse().opto();
         assertEquals("return 1;", code.print());
     }
@@ -263,7 +263,8 @@ return a+b+c;
 
     @Test
     public void testDemo2True() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 arg=1;
 int a = 0;
 int b = 1;
@@ -275,14 +276,15 @@ if( arg ) {
     else b = 3;
 }
 return a+b+c;
-""", TypeInteger.constant(1));
+""", TypeInteger.constant(1), 123L);
         code.parse().opto();
         assertEquals("return 6;", code.print());
     }
 
     @Test
     public void testDemo2arg2() {
-        CodeGen code = new CodeGen("""
+        CodeGen code = new CodeGen(
+"""
 arg=2;
 int a = 0;
 int b = 1;
@@ -294,7 +296,7 @@ if( arg ) {
     else b = 3;
 }
 return a+b+c;
-""", TypeInteger.constant(2));
+""", TypeInteger.constant(2), 123L);
         code.parse().opto();
         assertEquals("return 5;", code.print());
     }

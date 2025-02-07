@@ -30,7 +30,6 @@ int i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        StopNode._disablePeephole = true;
         code.parse();//.opto();
         var eval = new Evaluator(code._stop);
         assertEquals(2L, eval.evaluate(1, 10));
