@@ -2,7 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
+
 import java.util.BitSet;
+
+import static com.seaofnodes.simple.Parser.con;
 
 public class AddNode extends Node {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
@@ -44,7 +47,8 @@ public class AddNode extends Node {
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
-        if( rhs.err()!=null ) return null;
+        if( rhs instanceof AddNode add && add.err()!=null )
+            return null;
         Type t2 = rhs._type;
 
         // Add of 0.  We do not check for (0+x) because this will already

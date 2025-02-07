@@ -40,7 +40,6 @@ public final class SB {
   }
   // Fixed width field
   public SB fix( int sz, String s ) {
-    assert sz >=0;
     for( int i=0; i<sz; i++ )
       _sb.append( i < s.length() ? s.charAt(i) : ' ');
     return this;

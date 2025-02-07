@@ -31,14 +31,9 @@ public class DivFNode extends Node {
 
     @Override
     public Node idealize() {
-        Node lhs = in(1);
-        Node rhs = in(2);
-        Type t1 = lhs._type;
-        Type t2 = rhs._type;
-
-        // Div of 1.  
-        if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==1 )
-            return lhs;
+        // Div of constant
+        if( in(2)._type instanceof TypeFloat f && f.isConstant() )
+            return new MulFNode(in(1),new ConstantNode(TypeFloat.constant(1.0/f.value())).peephole());
 
         return null;
     }

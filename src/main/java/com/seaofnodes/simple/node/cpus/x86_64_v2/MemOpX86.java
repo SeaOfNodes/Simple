@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
@@ -49,9 +51,11 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     }
 
     Node idx() { return in(3); }
-    Node val() { return in(4); }
+    Node val() { return in(4); } // Only for stores, including op-to-memory
 
-    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) {
+        return sb.append(".").append(_name);
+    }
 
     @Override public String label() { return op(); }
     @Override public Type compute() { throw Utils.TODO(); }
@@ -59,14 +63,12 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
-        if( i==1 ) return null;    // Memory
-        if( i==2 ) return x86_64_v2.RMASK;  // base
-        if( i==3 ) return x86_64_v2.RMASK;  // index
-        if( i==4 ) return x86_64_v2.RMASK;  // value
+        if( i==1 ) return null;               // Memory
+        if( i==2 ) return x86_64_v2.RMASK;    // base  in GPR
+        if( i==3 ) return x86_64_v2.RMASK;    // index in GPR
+        if( i==4 ) return x86_64_v2.MEM_MASK; // value in GPR or XMM
         throw Utils.TODO();
     }
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
 
     @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }
 

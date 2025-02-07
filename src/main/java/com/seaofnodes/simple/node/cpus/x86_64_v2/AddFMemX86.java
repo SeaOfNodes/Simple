@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 
 public class AddFMemX86 extends MemOpX86 {
@@ -12,10 +12,10 @@ public class AddFMemX86 extends MemOpX86 {
     }
 
     @Override public RegMask regmap(int i) {
-        if( i==1 ) return null;    // Memory
-        if( i==2 ) return x86_64_v2.RMASK;  // base
-        if( i==3 ) return x86_64_v2.RMASK;  // index
-        if( i==4 ) return x86_64_v2.XMASK;  // value
+        if( i==1 ) return null;            // Memory
+        if( i==2 ) return x86_64_v2.RMASK; // base
+        if( i==3 ) return x86_64_v2.RMASK; // index
+        if( i==4 ) return x86_64_v2.XMASK; // value
         throw Utils.TODO();
     }
 
