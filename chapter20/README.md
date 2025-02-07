@@ -31,11 +31,11 @@ I assume you (the reader) know *why* register allocation is required: machine
 registers are a high value finite resource, and as with all finite resources
 they need to be allocated well.
 
-Graph Coloring is one such allocation method; a *live-range graph* is built,
-with each *live range* requiring its own register.  Coloring the graph ensures
-every live range gets a unique register, especially when it overlaps or
-*interferes* with another live range.  Here the colors are actually the machine
-registers.  
+Graph Coloring is one such allocation method; an *live range interference
+graph* is built, with each *live range* requiring its own register.  Coloring
+the graph ensures every live range gets a unique register, specificially when
+it overlaps or *interferes* with another live range.  Here the colors are
+actually the machine registers.
 
 A successful coloring ends the allocation, and after some bookkeeping the
 program is ready for e.g. code emission.  A failed coloring requires spilling
@@ -50,21 +50,22 @@ Hence, much of the "high theory" will be used to drive the core coloring
 algorithm, but much of the "actual success" will depend on a large collection
 of splitting heuristics.
 
-Coloring proceeds in rounds:
+Coloring proceeds in rounds until we get a coloring:
 
 - Build the Live Ranges; live ranges require the same register for all
   instructions in the live range.  Phi functions will force unrelated def/use
   edges to become part of the same live range and this can drive large
-  interconnected live ranges which a lot of conflicts.  Some hardware ops
+  interconnected live ranges with a lot of conflicts.  Some hardware ops
   require the same register for both inputs and outputs (X86 is notorious here)
   which also makes fewer larger live ranges.  We'll be using the disjoint
   Union-Find algorithm to rapidly build up live ranges.
   
 - Build the Inteference Graph: every live range which is alive at the same time
-  as any other, now *interferes* or conflicts.  This is built using a live-ness
+  as any other, now *interferes* or conflicts.  This is built using a LIVE-ness
   pass, which is a backwards pass over the CFG, and can require more than one
   pass according to loop nesting depth.  The data structure here is generally a
-  2-D bitset, triangulated to cut its size in half.
+  2-D bitset, triangulated to cut its size in half.  As part of LIVE, we'll
+  also have a set of reaching defs per-block.
   
 - Color the interference graph.  Nodes in the graph which are strictly low
   degree (more available registers than neighbors) will guaranteed get a color.
@@ -73,12 +74,12 @@ Coloring proceeds in rounds:
   nodes makes more nodes go trivial, and this process repeats until either we
   run out (and are guaranteed a coloring) or we find a high-degree clique: a
   set of mutual interferences where none of them are guaranteed a color.  In
-  this we pull an "at risk" live range out; this one might not color.  Once the
-  graph is emptied, we reverse and re-insert the live ranges in reverse order,
-  coloring as we go.  All the trivial live ranges will color; the at-risk ones
-  may or may not.
+  this case we pull an "at risk" live range out; this one might not color.
+  Once the graph is emptied, we reverse and re-insert the live ranges, coloring
+  as we go.  All the trivial live ranges will color; the at-risk ones may or
+  may not.
 
-- If every live range got a color, then Register Allocation is done.  If not,
+- If every live range gets a color, then Register Allocation is done.  If not,
   we enter a round of splitting.  Live ranges which did not color are now split
   via a series of heuristics into lots of small live ranges.  Splitting has a
   tension: too much and you got a lot of spills (and a generally poor
@@ -109,9 +110,87 @@ this out.  However, if we move to a chip with 64 registers we'll immediately
 run out, and need at least a 128 bit mask.  Since you cannot *return* a 128
 bit value directly in Java, Simple will pick up a `RegMask` class object.
 
+One of the Click extensions is this notion of treating "stack slots" are Just
+Another Register.  They get colored like other registers, which in turn leads
+to very efficient use of the stack; C2 is known for having very small stack
+frames.  Another benefit is callee save registers will get split preferentially
+(they have very long lifetime and only 2 uses)... which the splits then end up
+coloring to the stack, building the call prolog & epilog naturally.  This
+allocator will not otherwise dedicate any effort to stack frame management; it
+will "fall out in the wash".
+
 Many of the register masks are immutable; e.g. allowed registers for particular
 opcodes, or describing registers for calling conventions.  Other masks
 represent mutable bitsets, with the allocator routinely masking off bits when
 accumulating a set of constraints.  To help keep these uses apart, the
 `RegMask` class includes mutable and immutable mask objects.
+
+
+## Live Ranges and Conflicts
+
+A live range is a set of nodes and edges which must get the same register.
+Live ranges form an interconnected web, with almost no limits on their shape.
+Live ranges also gather the set of register constraints from all their parts.
+This leads to a set of levels of conflicts within a live range.
+
+### Hard-Conflicts
+
+A live range can have a *hard confict*: conflicting register requirements,
+leading to no valid register choices.  The obvious case is an incoming
+parameter fixed in e.g. `rdx` but also required as an exit value in `rax`.  You
+can't pick both registers at once, so again a split is required.  During the
+build live ranges phase, every register constraint from every def and use are
+AND'd together; the `RegMask` might lose all valid registers, or remain with
+just a handful of register choices.
+
+Hard-conflicts are found while build live ranges, and will trigger a round of
+splitting before building the interference graph.
+
+### Avoiding conflicts
+
+Once of the Click extensions to the Briggs-Chaitin allocator is to take
+advantage of register constraints to lower the interference graph degree (which
+otherwise becomes an O(n^2) edge collection ).  If a live range LR1 is reduced
+to a single register (such as a call argument requiring `rdx`) and would
+otherwise conflict with another live range LR2 which has more choices - we
+remove `rdx` from the LR2's choices.  Without having `rdx`, LR1 and LR2 have no
+registers in common - and hence do not conflict.  We just don't add the
+interference graph edge between them.  Call argument restrictions are very
+common, and this kind of edge-removal can dramatically shrink the O(n^2) edge
+collection - and hence speedup allocation by a large constant factor.
+
+### Self-Conflicts
+
+A live-range can *self-conflict* be alive twice with 2 different values but
+require the same register.  This live range *must* split and thus picks up a
+copy from the split.  This happens with loop-carried dependencies as seen in
+e.g. a simple `fib` program:
+
+```java
+ int x=1, y=1;
+ while( true ) {
+   tmp = x + y;
+   y = x;
+   x = tmp;
+ };
+ 
+```
+
+In SoN SSA form:
+```java
+  int x0 = 1, y0 = 1;
+  while( true ) {
+    x1 = phi(x0,x2);
+    y1 = phi(y0,x1);
+    x2 = x1 + y1;
+  }
+```
+
+And then `x0,x1,x2,y0,y1` all form part of the same live range, since they are
+all joined by `Phis`.  However, `x1` and `y1` hold different values from
+different iterations of `fib`.  The SSA form does not have a copy, but the
+register-allocated form - just like the original code - DOES require a copy.
+
+Self-conflicts are found during building the interference graph, and will
+trigger a round of splits before attempting the coloring phase.
 
