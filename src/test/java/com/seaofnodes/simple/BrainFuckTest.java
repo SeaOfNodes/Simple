@@ -63,7 +63,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck()/*.instSelect("x86_64_v2", "SystemV")*/.GCM().localSched();
         assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
 }

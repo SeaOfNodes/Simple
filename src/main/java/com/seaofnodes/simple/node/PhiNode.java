@@ -13,9 +13,11 @@ public class PhiNode extends Node {
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
+    public PhiNode(PhiNode phi, String label, Type declaredType) { super(phi); _label = label; _declaredType = declaredType; }
+    public PhiNode(PhiNode phi) { super(phi); _label = phi._label; _declaredType = phi._declaredType;  }
 
     public PhiNode(RegionNode r, Node sample) {
-        super(r);
+        super(new Node[]{r});
         _label = "";
         _declaredType = sample._type;
         while( nIns() < r.nIns() )
@@ -73,9 +75,6 @@ public class PhiNode extends Node {
         Node live = singleUniqueInput();
         if (live != null)
             return live;
-        // No more fancy peeps
-        if( _disablePeephole )
-            return null;
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )

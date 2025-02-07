@@ -49,7 +49,8 @@ public class TypeStruct extends Type {
 
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
-        assert body instanceof TypeInteger || (body instanceof TypeNil tn && tn.nullable());
+        assert body instanceof TypeInteger || body instanceof TypeFloat || (body instanceof TypeNil tn && tn.nullable());
+        assert len.isa(TypeInteger.U32);
         return make("[" + body.str() + "]",
                     Field.make("#" ,len , lenAlias,true ),
                     Field.make("[]",body,bodyAlias,false));
@@ -61,7 +62,7 @@ public class TypeStruct extends Type {
     public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false) );
     private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false) );
 
-    private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeInteger.BOT,-2);
+    private static final TypeStruct ARY = makeAry(TypeInteger.U32,-1,TypeInteger.BOT,-2);
 
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); }
 
@@ -215,6 +216,11 @@ public class TypeStruct extends Type {
     private int[] offsets() {    // Field byte offsets
         // Compute a layout for a collection of fields
         assert _fields != null; // No forward refs
+
+        // Array layout is different: len,[pad],body...
+        if( isAry() )
+            return _offs = new int[]{ 0, _fields[1]._type.log_size() < 3 ? 4 : 8 };
+
         // Compute a layout
         int[] cnts = new int[4]; // Count of fields at log field size
         for( Field f : _fields )
