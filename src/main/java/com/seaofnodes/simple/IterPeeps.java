@@ -1,7 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
-
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Random;
@@ -46,7 +46,12 @@ public class IterPeeps {
 
     private final WorkList<Node> _work;
 
-    IterPeeps( long seed ) { _work = new WorkList<>(seed); }
+    private final WorkList<CallEndNode> _workInline;
+
+    public IterPeeps( long seed ) {
+        _work = new WorkList<>(seed);
+        _workInline = new WorkList<>(seed);
+    }
 
     public <N extends Node> N add( N n ) { return (N)_work.push(n); }
 
@@ -56,12 +61,24 @@ public class IterPeeps {
      * Iterate peepholes to a fixed point
      */
     public void iterate( CodeGen code ) {
+        while( true ) {
+            iteratePeeps(code);
+            CallEndNode cend;
+            while( (cend=_workInline.pop())!=null )
+                if( cend.inlineSmall() ) break;
+            if( cend==null ) return;
+        }
+    }
+
+    // Only try growing inlines once the shrinking peepholes reach a fixed point.
+    private void iteratePeeps( CodeGen code ) {
         assert progressOnList(code);
         int cnt=0;
 
         Node n;
         while( (n=_work.pop()) != null ) {
             if( n.isDead() )  continue;
+            if( n instanceof CallEndNode cend ) _workInline.push(cend);
             cnt++;              // Useful for debugging, searching which peephole broke things
             var obs = CodeGen.CODE._obs;
             if( obs != null ) obs.before(n);
@@ -141,7 +158,7 @@ public class IterPeeps {
         /* Useful stat - how many nodes are processed in the post parse iterative opt */
         private long _totalWork = 0;
 
-        WorkList() { this(123); }
+        public WorkList() { this(123); }
         WorkList(long seed) {
             _es = new Node[1];
             _len=0;
@@ -182,7 +199,7 @@ public class IterPeeps {
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty
          */
-        E pop() {
+        public E pop() {
             if( _len == 0 ) return null;
             int idx = _R.nextInt(_len);
             E x = (E)_es[idx];
