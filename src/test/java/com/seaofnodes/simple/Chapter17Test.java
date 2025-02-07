@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -10,11 +11,9 @@ public class Chapter17Test {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-int i = 0;
-i=i=1;
-return i;
+return 1;
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
