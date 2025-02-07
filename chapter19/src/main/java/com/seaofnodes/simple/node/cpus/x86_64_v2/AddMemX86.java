@@ -19,15 +19,7 @@ public class AddMemX86 extends MemOpX86 {
     // General form: "add  dst = src + [base + idx<<2 + 12]"
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ");
-        sb.p(code.reg(val())).p(" + ");
-        sb.p("[").p(code.reg(ptr()));
-        if( idx() != null ) {
-            sb.p("+").p(code.reg(idx()));
-            if( _scale != 0 )
-                sb.p("<<").p(_scale);
-        }
-        if( _off != 0 )
-            sb.p("+").p(_off);
-        sb.p("]");
+        sb.p(val()==null ? "#"+_imm : code.reg(val())).p(" + ");
+        asm_address(code,sb);
     }
 }

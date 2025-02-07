@@ -155,12 +155,12 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return this;
     }
 
-  /** @return compact array version */
-  public E[] asAry() { return Arrays.copyOf(_es,_len); }
+    /** @return compact array version */
+    public E[] asAry() { return Arrays.copyOf(_es,_len); }
 
-  /** Sorts in-place
-   *  @param c Comparator to sort by */
-  public void sort_update(Comparator<? super E> c ) { Arrays.sort(_es, 0, _len, c);  }
+    /** Sorts in-place
+     *  @param c Comparator to sort by */
+    public void sort_update(Comparator<? super E> c ) { Arrays.sort(_es, 0, _len, c);  }
 
     /** Find the first matching element using ==, or -1 if none.  Note that
      *  most del calls shuffle the list, so the first element might be random.

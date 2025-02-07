@@ -270,6 +270,13 @@ return new S;""");
     }
 
     @Test
+    public void testAlloc3() {
+        CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1]+3;");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return .[];", code.print());
+    }
+
+    @Test
     public void testArray1() {
         CodeGen code = new CodeGen(
 """
@@ -286,6 +293,33 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         assertEquals("return .[];", code.print());
     }
 
+    @Test
+    public void testArray2() {
+        CodeGen code = new CodeGen(
+"""
+flt[] !A = new flt[arg], !B = new flt[arg];
+// Fill [0,1,2,3,4,...]
+for( int i=0; i<A#; i++ )
+    A[i] = i;
+for( int i=0; i<A#; i++ )
+    B[i] += A[i];
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return 0;", code.print());
+    }
+
+    @Test
+    public void testArray3() {
+        CodeGen code = new CodeGen(
+"""
+byte[] !A = new byte[arg];
+for( int i=0; i<A#; i++ )
+    A[i]++;
+return A[1];
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return .[];", code.print());
+    }
 
     @Test
     public void testNewton() {

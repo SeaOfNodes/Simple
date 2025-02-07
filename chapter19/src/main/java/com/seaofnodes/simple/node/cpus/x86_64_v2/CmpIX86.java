@@ -8,13 +8,19 @@ import java.io.ByteArrayOutputStream;
 
 // Compare immediate.  Sets flags.
 public class CmpIX86 extends MachConcreteNode implements MachNode {
-    final TypeInteger _ti;
+    final int _imm;
     final String _bop;
     CmpIX86( BoolNode bool, TypeInteger ti ) {
         super(bool);
         _inputs.pop(); // Toss ideal ConstantNode away, embedded into machine op
         _bop = bool.op();       // One of <,<=,==
-        _ti = ti;
+        _imm = (int)ti.value();
+        assert _imm == ti.value();
+    }
+    CmpIX86( Node cmp, double ignore ) {
+        super(cmp);
+        _bop = "==";
+        _imm = 0;
     }
 
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.RMASK; }
@@ -28,9 +34,10 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         String dst = code.reg(this);
         if( dst!="FLAGS" )  sb.p(dst).p(" = ");
-        _ti.print(sb.p(code.reg(in(1))).p(", #"));
+        sb.p(code.reg(in(1)));
+        if( _imm != 0 ) sb.p(", #").p(_imm);
     }
 
-    @Override public String op() { return "cmp"; }
+    @Override public String op() { return _imm==0 ? "test" : "cmp"; }
 
 }

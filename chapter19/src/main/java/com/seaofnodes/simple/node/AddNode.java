@@ -128,6 +128,7 @@ public class AddNode extends Node {
             lphi = pcon(lhs.in(2),op); // Will rotate with the Phi push
         }
         if( lphi==null ) return null;
+        if( lphi.region().nIns() <=2 ) return null; // Phi is collapsing
 
         // RHS is a constant or a Phi of constants
         if( !(rhs instanceof ConstantNode) && pcon(rhs,op)==null )

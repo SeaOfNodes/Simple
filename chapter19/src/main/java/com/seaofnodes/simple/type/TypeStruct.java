@@ -50,7 +50,7 @@ public class TypeStruct extends Type {
     // Array
     public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
         assert body instanceof TypeInteger || body instanceof TypeFloat || (body instanceof TypeNil tn && tn.nullable());
-        assert len.isa(TypeInteger.BOT);
+        assert len.isa(TypeInteger.U32);
         return make("[" + body.str() + "]",
                     Field.make("#" ,len , lenAlias,true ),
                     Field.make("[]",body,bodyAlias,false));
@@ -62,7 +62,7 @@ public class TypeStruct extends Type {
     public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false) );
     private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false) );
 
-    private static final TypeStruct ARY = makeAry(TypeInteger.BOT,-1,TypeInteger.BOT,-2);
+    private static final TypeStruct ARY = makeAry(TypeInteger.U32,-1,TypeInteger.BOT,-2);
 
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); }
 

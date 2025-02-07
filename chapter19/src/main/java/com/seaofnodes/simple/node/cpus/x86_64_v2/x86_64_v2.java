@@ -23,7 +23,7 @@ public class x86_64_v2 extends Machine {
     // No RSP in the *write* general set.
     public static RegMask WMASK = new RegMask(0b1111111111101111);
     // Xmm register mask
-    public static RegMask XMASK = new RegMask(0b111111111110111);
+    public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
@@ -149,7 +149,7 @@ public class x86_64_v2 extends Machine {
     // Instruction selection
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
-        case AddFNode     addf  -> new AddFX86(addf);
+        case AddFNode     addf  -> addf(addf);
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
@@ -192,27 +192,42 @@ public class x86_64_v2 extends Machine {
 
     // Attempt a full LEA-style break down.
     private Node add( AddNode add ) {
-        if( add.in(1) instanceof LoadNode ld && ld.nOuts()==1 ) {
-            address(ld);
-            return new AddMemX86(add,ld,ld.ptr(),idx,off,scale, 0, add.in(2));
-        }
-        return _address(add,add.in(1),add.in(2));
-    }
+        Node lhs = add.in(1);
+        Node rhs = add.in(2);
+        if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
+            return new AddMemX86(add,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val);
 
-    // Attempt a full LEA-style break down.
-    // Returns one of AddX86, AddIX86, LeaX86, or LHS
-    private Node _address( Node n, Node lhs, Node rhs ) {
-        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff )
-            return lhs instanceof AddNode ladd
+        if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
+            throw Utils.TODO(); // Swap load sides
+
+        // Attempt a full LEA-style break down.
+        // Returns one of AddX86, AddIX86, LeaX86, or LHS
+        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+            if( lhs instanceof AddNode ladd )
                 // ((base + (idx << scale)) + off)
-                ? _lea(n,ladd.in(1),ladd.in(2),toff.value())
-                // lhs + rhs1
-                : (toff.value()==0
-                   ? n          // n+0
-                   : new AddIX86(n, toff));
+                return _lea(add,ladd.in(1),ladd.in(2),toff.value());
+            if( lhs instanceof ShlNode shift )
+                // (idx << scale) + off; no base
+                return _lea(add,null,shift,toff.value());
 
-        return _lea(n,lhs,rhs,0);
+            // lhs + rhs1
+            if( toff.value()==0 ) return add;
+            return new AddIX86(add, toff);
+        }
+        return _lea(add,lhs,rhs,0);
     }
+
+
+    private Node addf( AddFNode addf ) {
+        if( addf.in(1) instanceof LoadNode ld && ld.nOuts()==1 )
+            return new AddFMemX86(addf,address(ld),ld.ptr(),idx,off,scale, addf.in(2));
+
+        if( addf.in(2) instanceof LoadNode ld && ld.nOuts()==1 )
+            throw Utils.TODO(); // Swap load sides
+
+        return new AddFX86(addf);
+    }
+
 
     private Node _lea( Node add, Node base, Node idx, long off ) {
         int scale = 1;
@@ -228,8 +243,9 @@ public class x86_64_v2 extends Machine {
             : new LeaX86(add,base,idx,scale,off);
     }
 
+
     private Node and(AndNode and) {
-        if(and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AndIX86(and, ti);
         throw Utils.TODO();
     }
@@ -243,18 +259,29 @@ public class x86_64_v2 extends Machine {
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
     private Node cmp( BoolNode bool ) {
-        MachConcreteNode cmp = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+        Node cmp = _cmp(bool);
+        return new SetX86(cmp,bool.op());
+    }
+    private Node _cmp( BoolNode bool ) {
+        Node lhs = bool.in(1);
+        Node rhs = bool.in(2);
+        if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
+            return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val,false);
+
+        if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
+            return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(lhs),val,true);
+
+        return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
             ? new CmpIX86(bool, ti)
             : new  CmpX86(bool);
-        return new SetX86(cmp,bool.op());
     }
 
     private Node con( ConstantNode con ) {
         return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
-        case TypeMemPtr  tmp -> throw Utils.TODO();
-        case TypeFunPtr  tmp -> new TFPX86(con);
+        case TypeFunPtr  tfp -> new TFPX86(con);
+        case TypeMemPtr  tmp -> new ConstantNode(con);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> new ConstantNode(con);
@@ -267,12 +294,16 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node jmp( IfNode iff ) {
-        return new JmpX86(iff, iff.in(1) instanceof BoolNode bool ? bool.op() : "==");
+        // If/Bool combos will match to a Cmp/Set which sets flags.
+        // Most general arith ops will also set flags, which the Jmp needs directly.
+        // Loads do not set the flags, and will need an explicit TEST
+        if( !(iff.in(1) instanceof BoolNode) )
+            iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
+        return new JmpX86(iff, ((BoolNode)iff.in(1)).op());
     }
 
     private Node ld( LoadNode ld ) {
-        address(ld);
-        return new LoadX86(ld,ld.ptr(),idx,off,scale);
+        return new LoadX86(address(ld),ld.ptr(),idx,off,scale);
     }
 
     private Node mul(MulNode mul) {
@@ -310,15 +341,22 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node st( StoreNode st ) {
-        address(st);
-        Node val = st.val();
-        int imm = 0;
-        if( val instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
-            val = null;
-            imm = (int)ti.value();
-            assert imm == ti.value(); // In 32-bit range
+        // Look for "*ptr op= val"
+        Node op = st.val();
+        if( op instanceof AddNode ) {
+            if( op.in(1) instanceof LoadNode ld &&
+                ld.in(0)==st.in(0) &&
+                ld.mem()==st.mem() &&
+                ld.ptr()==st.ptr() &&
+                ld.off()==st.off() ) {
+                if( op instanceof AddNode ) {
+                    return new MemAddX86(address(st),st.ptr(),idx,off,scale,imm(op.in(2)),val);
+                }
+                throw Utils.TODO();
+            }
         }
-        return new StoreX86(st,st.ptr(),idx,off,scale,imm,val);
+
+        return new StoreX86(address(st),st.ptr(),idx,off,scale,imm(st.val()),val);
     }
 
     private Node sub( SubNode sub ) {
@@ -337,12 +375,11 @@ public class x86_64_v2 extends Machine {
     // Gather X86 addressing mode bits prior to constructing.  This is a
     // builder pattern, but saving the bits in a *local* *global* here to keep
     // mess contained.
-    private static int off, scale;
-    private static Node idx;
-    private void address( MemOpNode mop ) {
-        off = 0;                // Reset
-        scale = 0;
-        idx = null;
+    private static int off, scale, imm;
+    private static Node idx, val;
+    private <N extends MemOpNode> N address( N mop ) {
+        off = scale = imm = 0;  // Reset
+        idx = val = null;
         Node base = mop.ptr();
         // Skip/throw-away a ReadOnly, only used to typecheck
         if( base instanceof ReadOnlyNode read ) base = read.in(1);
@@ -364,6 +401,18 @@ public class x86_64_v2 extends Machine {
                 idx = mop.off();
             }
         }
+        return mop;
+    }
+    private int imm( Node xval ) {
+        assert val==null && imm==0;
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            val = null;
+            imm = (int)ti.value();
+            assert imm == ti.value(); // In 32-bit range
+        } else {
+            val = xval;
+        }
+        return imm;
     }
 
 }

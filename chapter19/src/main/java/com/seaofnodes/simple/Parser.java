@@ -383,7 +383,7 @@ public class Parser {
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
-        Node expr = parseStatement().keep();       // Parse loop body
+        parseStatement();       // Parse loop body
         _scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
@@ -423,7 +423,7 @@ public class Parser {
         _xScopes.pop();
         _xScopes.push(exit);
         _scope = exit;
-        return peep(expr.unkeep());
+        return ZERO;
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
@@ -835,7 +835,7 @@ public class Parser {
         Type ta = TYPES.get(tname);
         if( ta != null ) return (TypeMemPtr)ta;
         // Need make an array type.
-        TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,_code.getALIAS(),t,_code.getALIAS());
+        TypeStruct ts = TypeStruct.makeAry(TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
@@ -1252,8 +1252,9 @@ public class Parser {
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error("Expected reference but got " + expr._type.str());
+        if( !(expr._type instanceof TypeMemPtr ptr) ) {
+            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
+        }
 
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
@@ -1293,7 +1294,7 @@ public class Parser {
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
-        if( base.isAry() ) load.setDef(0,ctrl());
+        if( base.isAry() && !name.equals("#") ) load.setDef(0,ctrl());
         load = peep(load);
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"

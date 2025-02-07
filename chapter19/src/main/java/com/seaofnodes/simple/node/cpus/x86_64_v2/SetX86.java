@@ -12,8 +12,10 @@ import java.io.ByteArrayOutputStream;
 public class SetX86 extends MachConcreteNode implements MachNode {
     final String _bop;          // One of <,<=,==
     // Constructor expects input is an X86 and not an Ideal node.
-    SetX86( MachConcreteNode cmp, String bop ) {
+    SetX86( Node cmp, String bop ) {
         super(cmp);
+        _inputs.setLen(1);   // Pop the cmp inputs
+        // Replace with the matched cmp
         _inputs.push(cmp);
         _bop = bop;
     }
