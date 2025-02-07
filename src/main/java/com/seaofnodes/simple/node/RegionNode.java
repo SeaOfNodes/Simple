@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import java.util.*;
 
@@ -12,7 +13,7 @@ public class RegionNode extends CFGNode {
 
     public RegionNode(Parser.Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
     public RegionNode(RegionNode r, Parser.Lexer loc) { super(r); _loc = loc; }
-    public RegionNode(RegionNode r) { super(r); _loc = r._loc; }
+    public RegionNode(RegionNode r) { super(r); if( r!=null ) _loc = r._loc; }
 
     @Override
     public String label() { return "Region"; }
@@ -21,7 +22,6 @@ public class RegionNode extends CFGNode {
         return p.p(label());
     }
 
-    @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
 
     @Override

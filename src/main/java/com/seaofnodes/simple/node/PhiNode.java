@@ -41,7 +41,6 @@ public class PhiNode extends Node {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMultiTail() { return true; }
     @Override public boolean isMem() { return _declaredType instanceof TypeMem; }
 
     @Override
@@ -71,6 +70,11 @@ public class PhiNode extends Node {
         Node live = singleUniqueInput();
         if (live != null)
             return live;
+
+        // No bother if region is going to fold dead paths soon
+        for( int i=1; i<nIns(); i++ )
+            if( r.in(i)._type == Type.XCONTROL )
+                return null;
 
         // Phi(op(a,b,...),op(c,d,...)) -> op(Phi(a,c),Phi(b,d),...).
         Node down;
@@ -168,6 +172,9 @@ public class PhiNode extends Node {
         }
         // Factoring must not widen the result (e.g. correlated And operands).
         if( cp.compute().isa(compute()) ) return cp;
+        for( int i=1; i<nIns(); i++ )
+            for( int j=1; j<in(i).nIns(); j++ )
+                if( in(i).in(j)!=null ) in(i).in(j).addDep(this);
         cp.kill();
         return null;
     }
