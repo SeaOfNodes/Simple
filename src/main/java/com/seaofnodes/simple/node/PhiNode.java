@@ -44,7 +44,6 @@ public class PhiNode extends Node {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMultiTail() { return true; }
     @Override public boolean isMem() { return _declaredType instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
 
@@ -101,6 +100,10 @@ public class PhiNode extends Node {
             // Test not running backwards, which can happen for e.g. And's
             if( down.compute().isa(compute()) )
                 return down;
+            in(1).in(1).addDep(this);
+            in(1).in(2).addDep(this);
+            in(2).in(1).addDep(this);
+            in(2).in(2).addDep(this);
             down.kill();
         }
 
