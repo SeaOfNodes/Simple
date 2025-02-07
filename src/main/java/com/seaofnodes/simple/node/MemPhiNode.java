@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 
@@ -13,6 +13,8 @@ public class MemPhiNode extends PhiNode {
         assert alias > 1;
         _alias = alias;
     }
+
+    public MemPhiNode(MemPhiNode phi) { super(phi); _alias = phi._alias; }
 
     @Override public String label() { return "MemPhi_"+_alias; }
 
@@ -31,7 +33,7 @@ public class MemPhiNode extends PhiNode {
     @Override public Node idealize() {
         for( int i=1; i<nIns(); i++ )
             if( in(i) instanceof MemMergeNode mem ) {
-                setDef(i,IterPeeps.add(mem.alias(_alias)));
+                setDef(i,CodeGen.CODE.add(mem.alias(_alias)));
                 return this;
             }
         return super.idealize();

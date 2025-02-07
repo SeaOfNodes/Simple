@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import java.util.BitSet;
@@ -29,6 +29,8 @@ public class BulkMemPhiNode extends PhiNode {
 
     public boolean isSplit(int alias) { return _aliases.get(alias); }
 
+    public BulkMemPhiNode(BulkMemPhiNode phi) { super(phi); _aliases = phi._aliases; }
+
     @Override public String label() { return "BulkPhi"+_aliases; }
 
     @Override
@@ -49,7 +51,7 @@ public class BulkMemPhiNode extends PhiNode {
         // "Peek through" a MemMerge that covers this alias set on its default
         for( int i=1; i<nIns(); i++ )
             if( in(i) instanceof MemMergeNode mmm && canPeek(mmm) ) {
-                setDef(i,IterPeeps.add(mmm.in(1)));
+                setDef(i,CodeGen.CODE.add(mmm.in(1)));
                 return this;
             }
 
@@ -168,14 +170,14 @@ public class BulkMemPhiNode extends PhiNode {
         // set.  Queue the original memory inputs before bphi itself can peep
         // away and hide those neighbor relationships.
         for( int i=1; i<bphi.nIns(); i++ )
-            IterPeeps.add(bphi.in(i));
+            CodeGen.CODE.add(bphi.in(i));
         // Do not peephole bphi here, as BulkMemPhi can recursively start a
         // second bulk rewrite before this one has finished.  Let the worklist
         // discover any further splits
         bphi.setType(TypeMem.BOT);
         Node bulk = bphi;
-        IterPeeps.add(bulk);
-        IterPeeps.add(mem);
+        CodeGen.CODE.add(bulk);
+        CodeGen.CODE.add(mem);
         return aggregate(bulk,alias,mem);
     }
 
@@ -201,8 +203,8 @@ public class BulkMemPhiNode extends PhiNode {
         // Due to cycles, must set before calling peephole
         mphi.setType(TypeMem.make(alias,Type.BOTTOM));
         for( int i=1; i<nIns(); i++ )
-            mphi.addDef(IterPeeps.add(preciseInput(in(i),alias)));
-        return IterPeeps.add(mphi);
+            mphi.addDef(CodeGen.CODE.add(preciseInput(in(i),alias)));
+        return CodeGen.CODE.add(mphi);
     }
 
     MemPhiNode _findPhi(int alias) {

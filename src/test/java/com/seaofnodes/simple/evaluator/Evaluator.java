@@ -199,14 +199,17 @@ public class Evaluator {
                 assert elem instanceof TypeMemPtr;
             }
             // Length value
-            body[0] = vall(alloc.in(3));
+            body[0] = n;
         } else {
             body = new Object[num = type._fields.length];
-            for (int i=0; i<num; i++)
-                body[i] = val(alloc.in(3+i));
+            for( int i=0; i<num; i++ )
+                body[i] = switch( alloc._ptr._obj._fields[i]._type ) {
+                case TypeInteger ti -> 0L;
+                case TypeFloat tf -> 0D;
+                default -> null;
+                };
         }
         return new Object[]{new Obj(type,body),null};
-
     }
 
     private Object load(LoadNode load) {
@@ -339,7 +342,7 @@ public class Evaluator {
                 assert block != null;
                 for (; i < block.nodes().length; i++) {
                     if (!(block.nodes()[i] instanceof PhiNode phi)) break;
-                    var val = region instanceof FunNode fun && "main".equals(fun.sig()._name) && ((ParmNode)phi)._idx==2 && exit==1
+                    var val = region instanceof FunNode fun && "main".equals(fun._name) && ((ParmNode)phi)._idx==2 && exit==1
                             ? parameter
                             : val(phi.in(exit));
                     phiCache.add(val);

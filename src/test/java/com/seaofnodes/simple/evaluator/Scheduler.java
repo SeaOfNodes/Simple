@@ -508,7 +508,7 @@ public class Scheduler {
     private static CFGNode findSingleCFGOut(Node node) {
         if (node instanceof StartNode) {
             for(var n:node._outputs)
-                if (n instanceof FunNode fun && "main".equals(fun.sig()._name) )
+                if (n instanceof FunNode fun && "main".equals(fun._name) )
                    return fun;
             return null;
         }

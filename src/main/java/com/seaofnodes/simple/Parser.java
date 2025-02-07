@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -13,23 +14,12 @@ import java.util.*;
  */
 public class Parser {
 
-    /**
-     * A Global Static, unique to each compilation.  This is a public, so we
-     * can make constants everywhere without having to thread the StartNode
-     * through the entire parser and optimizer.
-     * <p>
-     * To make the compiler multithreaded, this field will have to move into a TLS.
-     */
-    public static StartNode START;
-
     public static ConstantNode ZERO; // Very common node, cached here
     public static ConstantNode NIL;  // Very common node, cached here
     public static XCtrlNode XCTRL;   // Very common node, cached here
 
-    // Next available memory alias number
-    static int ALIAS;
-
-    public StopNode STOP;
+    // Compile driver
+    public final CodeGen _code;
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
@@ -51,7 +41,7 @@ public class Parser {
     /**
      * List of keywords disallowed as identifiers
      */
-    private static final HashSet<String> KEYWORDS = new HashSet<>(){{
+    public static final HashSet<String> KEYWORDS = new HashSet<>(){{
             add("bool");
             add("break");
             add("byte");
@@ -98,21 +88,14 @@ public class Parser {
     public final HashMap<String, StructNode> INITS;
 
 
-    public Parser(String source) { this(source, TypeInteger.BOT); }
-
-    public Parser(String source, TypeInteger arg) {
-        Node.reset();
-        IterPeeps.reset();
-        Type.reset();
-        _lexer = new Lexer(source);
+    public Parser(CodeGen code, TypeInteger arg) {
+        _code = code;
+        _lexer = new Lexer(code._src);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
-        START = new StartNode(arg);
-        STOP = new StopNode(source);
         ZERO  = con(TypeInteger.ZERO).keep();
         NIL  = con(Type.NIL).keep();
         XCTRL= new XCtrlNode().peephole().keep();
-        ALIAS = 2; // alias 0 for the control, 1 for memory
         TYPES = defaultTypes();
         INITS = new HashMap<>();
     }
@@ -142,12 +125,12 @@ public class Parser {
     }
 
     // Debugging utility to find a Node by index
-    public static Node find(int nid) { return START.find(nid); }
+    public Node f(int nid) { return _code.f(nid); }
 
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
-    public StopNode parse() {
+    public void parse() {
         _xScopes.push(_scope);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
@@ -157,7 +140,8 @@ public class Parser {
         _scope.mem(con(TypeMem.BOT));
 
         // Parse whole program, as-if function header "{ int arg -> body }"
-        parseFunctionBody(TypeFunPtr.MAIN,loc(),"arg");
+        parseFunctionBody(_code._main,loc(),"arg");
+        _code.link(_code._main)._name = "main";
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
@@ -167,8 +151,7 @@ public class Parser {
         for( StructNode init : INITS.values() )
             init.unkeep().kill();
         INITS.clear();
-        STOP.peephole();
-        return STOP;
+        _code._stop.peephole();
     }
 
     /**
@@ -182,24 +165,24 @@ public class Parser {
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),START,sig));
+        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
         // the exact single function).
-        CodeGen.CODE.link(fun);
+        _code.link(fun);
 
         Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).peephole();
 
         // Build a multi-exit return point for all function returns
-        RegionNode r = new RegionNode((Node)null,null).init();
+        RegionNode r = new RegionNode((Lexer)null,null,null).init();
         assert r.inProgress();
         PhiNode rmem = new BulkMemPhiNode(ScopeNode.MEM0,r,null).init();
         PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null).init();
         ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun).init();
         fun.setRet(ret);
         assert ret.inProgress();
-        STOP.addDef(ret);
+        _code._stop.addDef(ret);
 
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
@@ -394,7 +377,7 @@ public class Parser {
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
-        Node expr = parseStatement().keep();       // Parse loop body
+        parseStatement();       // Parse loop body
         _scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
@@ -434,7 +417,7 @@ public class Parser {
         _xScopes.pop();
         _xScopes.push(exit);
         _scope = exit;
-        return peep(expr.unkeep());
+        return ZERO;
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
@@ -674,7 +657,6 @@ public class Parser {
         boolean hasBang = match("!");
         Lexer loc = loc();
         String name = requireId();
-
         // Optional initializing expression follows
         boolean xfinal = false;
         Node expr;
@@ -698,7 +680,7 @@ public class Parser {
                 if( !xfinal ) t = t.glb();  // Widen if not final
             }
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-                tfp.setName(name);
+                _code.link(tfp)._name = name;
 
         } else {
             // Need an expression to infer the type.
@@ -766,7 +748,7 @@ public class Parser {
             s.addDef(_scope.in(i));
             Var v = _scope._vars.at(i);
             if( !v.isFRef() )  // Promote to outer scope, not defined here
-                fs.push(Field.make(v._name,v.type(),ALIAS++,v._final));
+                fs.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
         TYPES.put(typeName, TypeMemPtr.make(ts));
@@ -822,7 +804,7 @@ public class Parser {
         int old2 = pos();
         match("!");
         String id = _lexer.matchId();
-        if( !(peek(',') || peek(';')) )
+        if( !(peek(',') || peek(';') || match("->")) )
             return posT(old1);
         pos(old2);              // Reset lexer to reparse
         if( id==null )
@@ -840,7 +822,7 @@ public class Parser {
         Type ta = TYPES.get(tname);
         if( ta != null ) return (TypeMemPtr)ta;
         // Need make an array type.
-        TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++);
+        TypeStruct ts = TypeStruct.makeAry(TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
@@ -1197,14 +1179,13 @@ public class Parser {
         if( fs==null )
             throw error("Unknown struct type '" + obj._name + "'");
         Node prior = mem().keep();
-        MemMergeNode input = new MemMergeNode(null);
+        MemMergeNode input = new MemMergeNode((Node)null);
         for( Field f : fs ) input.alias(f._alias,prior);
-        // Constructor values follow control, memory, and allocation size.
-        Node[] ns = new Node[3+fs.length];
+        // Allocation zeroes its fields; nonzero initializers become explicit Stores.
+        Node[] ns = new Node[3];
         ns[0] = ctrl();
         ns[1] = input.peephole();
         ns[2] = size;
-        for( int i=0; i<fs.length; i++ ) ns[3+i] = init.get(idx+i);
         Node nnn = new NewNode(TypeMemPtr.make(obj),ns).peephole().keep();
         Node ptr = new ProjNode(nnn,0,obj._name).peephole().keep();
         Node out = new ProjNode(nnn,1,"$mem").peephole().keep();
@@ -1214,6 +1195,14 @@ public class Parser {
         out.unkeep();
         nnn.unkeep();
         prior.unkeep();
+        for( int i=0; i<fs.length; i++ ) {
+            Node val = init.get(idx+i);
+            if( val._type != val._type.makeZero() ) {
+                Field f = fs[i];
+                Node st = new StoreNode(loc(),f._fname,f._alias,f._type,mem(),ptr,con(obj.offset(i)),val,true).peephole();
+                mem(new MemMergeNode(mem(),f._alias,st).peephole());
+            }
+        }
         return ptr.unkeep();
     }
 
@@ -1263,8 +1252,9 @@ public class Parser {
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error("Expected reference but got " + expr._type.str());
+        if( !(expr._type instanceof TypeMemPtr ptr) ) {
+            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
+        }
 
         // Sanity check field name for existing
         TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
@@ -1300,7 +1290,7 @@ public class Parser {
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
-        if( base.isAry() ) load.setDef(0,ctrl());
+        if( base.isAry() && !name.equals("#") ) load.setDef(0,ctrl());
         load = peep(load);
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
@@ -1359,7 +1349,7 @@ public class Parser {
         }
         require("->");
         // Make a concrete function type, with a fidx
-        TypeFunPtr tfp = TypeFunPtr.makeFun(TypeTuple.make(ts.asAry()),Type.BOTTOM);
+        TypeFunPtr tfp = _code.makeFun(TypeTuple.make(ts.asAry()),Type.BOTTOM);
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
         return con(ret._fun.sig());
     }
@@ -1393,6 +1383,14 @@ public class Parser {
         // Unkeep them all
         for( Node arg : args )
             arg.unkeep();
+        // Dead into the call?  Skip all the node gen
+        if( ctrl()._type == Type.XCONTROL ) {
+            for( Node arg : args )
+                if( arg.isUnused() )
+                    arg.kill();
+            return con(Type.TOP);
+        }
+
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
 
@@ -1646,7 +1644,6 @@ public class Parser {
         private String parseNumberString() {
             int old = _position;
             int len = Math.abs(isLongOrDouble());
-            _position += len;
             return new String(_input,old,len);
         }
 

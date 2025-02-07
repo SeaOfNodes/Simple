@@ -47,17 +47,11 @@ public class Chapter10bTest {
         assertEquals("S{x=1,y=2,z=3}",Eval2.eval(code,4));
     }
 
-    @Test public void testLateSliceWorklist() throws ReflectiveOperationException {
+    @Test public void testLateSliceWorklist() {
         // Seed 97 exposed a store selecting a bulk predecessor without queuing
         // it. Keep both the worklist assertion and the final heap check.
         for (int seed : new int[]{0,97,123,456}) {
-            var code = new CodeGen(Chapter10Test.NESTED_MEMORY).parse();
-            var field = IterPeeps.class.getDeclaredField("WORK");
-            field.setAccessible(true);
-            Object work = field.get(null);
-            field = work.getClass().getDeclaredField("_R");
-            field.setAccessible(true);
-            ((java.util.Random)field.get(work)).setSeed(seed);
+            var code = new CodeGen(Chapter10Test.NESTED_MEMORY,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse();
             code.opto();
             assertEquals("S{x=9,y=25,z=17}",Eval2.eval(code,4));
         }

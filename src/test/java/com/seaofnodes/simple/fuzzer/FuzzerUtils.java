@@ -4,6 +4,7 @@ import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.type.TypeInteger;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
@@ -47,32 +48,9 @@ class FuzzerUtils {
     }
 
     /**
-     * Copy of Node.WVISIST
-     * Used to clear as exceptions might happen in the walk and left this bitset not cleared
-     */
-    private static final BitSet NodeWalkVisit;
-    private static final java.util.Random WorkRandom;
-
-    /**
-     * Write access to Iterate.MID_ASSERT
-     * Exception could happen mid assert and left this at true. Used to reset to false prior to parsing.
-     */
-    private static final MethodHandle set_MID_ASSERT;
-
-    /**
      * Some problems might trigger debug output. Suppress this output with a null print stream during fuzzing.
      */
     public static final PrintStream NULL_PRINT_STREAM = new PrintStream(OutputStream.nullOutputStream());
-
-    static {
-        try {
-            NodeWalkVisit = getFieldValue(Node.class, "WVISIT");
-            WorkRandom = getFieldValue(getFieldValue(IterPeeps.class, "WORK"), "_R");
-            set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField( IterPeeps.class, "MID_ASSERT"));
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
 
     /**
      * Check that the messages are similar.
@@ -122,17 +100,9 @@ class FuzzerUtils {
         try {
             System.setErr(NULL_PRINT_STREAM);
             System.setOut(NULL_PRINT_STREAM);
-            try {
-                set_MID_ASSERT.invokeExact(false);
-            } catch (Throwable e) {
-                throw rethrow(e);
-            }
-            var code = new CodeGen(script);
-            code.parse();
-            WorkRandom.setSeed(workListSeed);
-            return code.opto().typeCheck().GCM().localSched();
+            var code = new CodeGen(script, TypeInteger.BOT, workListSeed);
+            return code.parse().opto().typeCheck().GCM().localSched();
         } finally {
-            NodeWalkVisit.clear();
             System.setErr(err);
             System.setOut(out);
         }

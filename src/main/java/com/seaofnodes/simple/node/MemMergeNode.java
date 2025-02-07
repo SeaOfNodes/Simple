@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 
@@ -10,6 +10,8 @@ import com.seaofnodes.simple.type.TypeMem;
  *  memory: absent aliases are not covered, rather than having unknown contents.
  */
 public class MemMergeNode extends Node {
+    public MemMergeNode(MemMergeNode mem) { super(mem); }
+
     public MemMergeNode(Node bulk) { super(null,bulk); _type = TypeMem.BOT; }
     public MemMergeNode(Node bulk, int alias, Node precise) {
         this(bulk);
@@ -30,7 +32,7 @@ public class MemMergeNode extends Node {
         setDef(alias,mem);
     }
 
-    // Scalar contents of one alias. New's field inputs supply the initialized type;
+    // Scalar contents of one alias. New zeroes the allocated fields;
     // join it with the incoming contents for all previously allocated objects.
     // Phis use their cached types, so this query does not recurse around loops.
     static Type contents(Node mem, int alias, Node dep) {
@@ -40,8 +42,7 @@ public class MemMergeNode extends Node {
         if( mem instanceof ProjNode proj && proj.in(0) instanceof NewNode nnn ) {
             assert proj._idx==1 && nnn.field(alias)!=null;
             nnn.addDep(dep);
-            Node init = nnn.in(nnn.findAlias(alias)).addDep(dep);
-            return contents(nnn.mem(),alias,dep).meet(init._type);
+            return contents(nnn.mem(),alias,dep).meet(nnn.field(alias)._type.makeZero());
         }
         // Function parameters and call results may contain arbitrary heap values.
         // Their bulk memory types do not imply empty or zero-filled storage.
@@ -68,7 +69,7 @@ public class MemMergeNode extends Node {
         for( int i=2; i<nIns(); i++ ) {
             if( in(i)!=null && in(i)==in(1) ) { setDef(i,null); progress=true; }
             if( in(i) instanceof MemMergeNode mem ) {
-                setDef(i,IterPeeps.add(mem.alias(i)));
+                setDef(i,CodeGen.CODE.add(mem.alias(i)));
                 progress=true;
             }
             if( in(i)!=null ) allDefault=false;
@@ -79,7 +80,7 @@ public class MemMergeNode extends Node {
             for( int i=2; i<mem.nIns(); i++ )
                 if( mem.in(i)!=null && (i>=nIns() || in(i)==null) )
                     alias(i,mem.in(i));
-            IterPeeps.add(mem.in(1));
+            CodeGen.CODE.add(mem.in(1));
             setDef(1,mem.in(1));
             return this;
         }
