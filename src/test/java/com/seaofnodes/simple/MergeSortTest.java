@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -8,7 +9,7 @@ public class MergeSortTest {
 
     @Test
     public void testMergeSort() {
-        CodeGen code = new CodeGen(
+        String src =
 """
 // based on the top-down version from https://en.wikipedia.org/wiki/Merge_sort
 
@@ -56,10 +57,11 @@ for (int i = 0; i < a#; i++)
 merge_sort(a, b, a#);
 
 return a;
-""");
-        code.parse().opto();
-        assertEquals("Stop[ return [int]; return 0; ]", code._stop.toString());
-        assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
+""";
+        Chapter20Test.testCPU(src,"x86_64_v2", "SystemV",46,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"riscv"    , "SystemV",36,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"arm"      , "SystemV",37,"Stop[ return mov(mov([int])); return 0; ]");
+//assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
     }
 
 }
