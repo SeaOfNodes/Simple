@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 
 public class MutabilityTest {
     private static void ok(String src, String result) {

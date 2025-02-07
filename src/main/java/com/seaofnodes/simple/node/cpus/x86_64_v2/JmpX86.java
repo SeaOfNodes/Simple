@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -20,7 +22,7 @@ public class JmpX86 extends IfNode implements MachNode {
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
-        if( set instanceof SetX86 && (cmp instanceof CmpX86 || cmp instanceof CmpIX86 || cmp instanceof CmpMemX86) )
+        if( set instanceof SetX86 && (cmp instanceof CmpX86 || cmp instanceof CmpIX86 || cmp instanceof CmpMemX86 || cmp instanceof CmpFX86) )
             _inputs.set(1,cmp);
         else
             throw Utils.TODO();
@@ -35,7 +37,7 @@ public class JmpX86 extends IfNode implements MachNode {
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
-        if( src!="FLAGS" )  sb.p(src);
+        if( src!="flags" )  sb.p(src);
     }
 
     @Override public String op() { return "j"+_bop; }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Ignore;
 import org.junit.Test;

@@ -2,9 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.*;
+import java.util.*;
 
 /** A default slice and explicit alias overrides. A null default means partial
  *  memory: absent aliases are not covered, rather than having unknown contents.
