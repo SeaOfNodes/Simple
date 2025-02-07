@@ -3,12 +3,13 @@ package com.seaofnodes.simple.fuzzer;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.ScopeNode;
 import com.seaofnodes.simple.type.TypeInteger;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
+import static com.seaofnodes.simple.Parser.KEYWORDS;
+
 
 /**
  * Generate a pseudo random script.
@@ -34,18 +35,6 @@ public class ScriptGenerator {
      * Valid characters for identifiers. The last 10 are not valid for the first character.
      */
     private static final String VAR_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789";
-    /**
-     * List of keywords not valid for identifiers.
-     */
-    private static final HashSet<String> KEYWORDS;
-
-    static {
-        try {
-            KEYWORDS = FuzzerUtils.getFieldValue(new Parser(""), "KEYWORDS");
-        } catch (Throwable e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
 
     /**
      * Flag for a statement that it does not pass on control flow to the next statement.
@@ -108,7 +97,6 @@ public class ScriptGenerator {
     private static final List<TypeInt> INTTYPES = new ArrayList<>();
 
     static {
-        new Parser("", TypeInteger.BOT);
         for( var e : Parser.defaultTypes().entrySet() ) {
             if( e.getValue() instanceof TypeInteger ) {
                 INTTYPES.add(new TypeInt(e.getKey()));

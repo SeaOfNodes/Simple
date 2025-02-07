@@ -56,7 +56,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第17a章](docs/chapter17a/README.ja.md)：束縛の可変性、参照の権限、深い読み取り専用ビュー。
 * [第17b章](docs/chapter17b/README.ja.md)：糖衣構文。`var`、`val`、`x+=y`、`for(init; test; next) body`。
 * [第18章](docs/chapter18/README.ja.md)：関数と呼び出し。
-* 第19章：命令選択と移植可能なコンパイル。
+* [第19章](docs/chapter19/README.ja.md)：命令選択と移植可能なコンパイル。
 * 第20章：グラフ彩色によるレジスタ割り当て。
 * 第21章：命令エンコーディングと ELF。
 * 第22章：Simple の Hello, World!

@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
 
-public class CProjNode extends CFGNode implements MultiUse {
+public class CProjNode extends CFGNode {
 
     // Which slice of the incoming multipart value
     public final int _idx;
@@ -20,9 +20,9 @@ public class CProjNode extends CFGNode implements MultiUse {
         _idx = idx;
         _label = label;
     }
+    public CProjNode(CProjNode c) { super(c); _idx = c._idx; _label = c._label; }
 
     @Override public String label() { return _label; }
-    @Override public int idx() { return _idx; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(_label); }
 
