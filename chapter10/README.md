@@ -1,5 +1,20 @@
 # Chapter 10: Structs and Memory
 
+
+# Table of Contents
+
+1. [Memory](#memory)
+2. [Alias Classes](#alias-classes)
+3. [Implementation of Alias Classes](#implementation-of-alias-classes)
+4. [Extensions to Intermediate Representation ](#extensions-to-intermediate-representation)
+5. [Enhanced Type Lattice](#enhanced-type-lattice)
+6. [Parser Enhancements](#parser-enhancements)
+7. [Null Pointer Analysis](#null-pointer-analysis)
+8. [Memory Operations Example](#memory-operations-example)
+9. [Additional Peephole Optimizations](#additional-peephole-optimizations)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter10) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter09...linear-chapter10) it to the previous chapter.
+
 In this chapter:
 
 * We add user defined struct types in the Simple language.
@@ -8,7 +23,6 @@ In this chapter:
 
 Here is the [complete language grammar](docs/10-grammar.md) for this chapter.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter10) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter09...linear-chapter10) it to the previous chapter.
 
 ## Memory
 
