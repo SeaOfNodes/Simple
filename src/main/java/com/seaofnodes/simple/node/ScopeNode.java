@@ -276,7 +276,7 @@ public class ScopeNode extends MemMergeNode {
         mem()._merge(that.mem(),r);
         this ._merge(that      ,r);
         that.kill();            // Kill merged scope
-        IterPeeps.add(r);
+        CodeGen.CODE.add(r);
         return r.unkeep();
     }
 
@@ -351,7 +351,7 @@ public class ScopeNode extends MemMergeNode {
             return;           // Dead, do not add any guards
         // Invert the If conditional
         if( invert )
-            pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
+            pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
         // This is a zero/null test.
         // Compute the positive test type.
         Type tnz = pred._type.nonZero();

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.Stack;
 import java.nio.file.Paths;
 import java.util.Collection;
+import static com.seaofnodes.simple.CodeGen.CODE;
 
 public class JSViewer implements AutoCloseable {
     // Display programs in an endless loop
@@ -21,7 +22,6 @@ public class JSViewer implements AutoCloseable {
     static SimpleWebSocket SERVER;
 
     static int N;               // Dot frames
-    static CodeGen CODE;        //
 
     JSViewer() throws Exception {
         // Launch server; handshake
@@ -41,13 +41,13 @@ public class JSViewer implements AutoCloseable {
                 try {
                     N=0;
                     // Use parser scope, xscope when building views
-                    CODE = new CodeGen(src);
+                    CodeGen code = new CodeGen(src);
                     SHOW = true;
                     show();
                     // Parse program, generating views at every parse point
-                    CODE.parse();
+                    code.parse();
                     // No longer user parse internal state when building views
-                    CODE.opto();
+                    code.opto();
 
                     // Catch and ignore Parser errors
                 } catch(RuntimeException re) {
@@ -68,10 +68,10 @@ public class JSViewer implements AutoCloseable {
 
     public static void show() { if( SERVER!=null && SHOW ) _show(); }
     private static void _show() {
-        boolean midParse = CODE.P!=null;
         // Skip util we at least get the Parse object made
-        if( !midParse && (CODE._phase==null || CODE._phase == CodeGen.Phase.Parse) )
+        if( CODE._phase==null || CODE._phase.ordinal() < CodeGen.Phase.Parse.ordinal() )
             return;
+        boolean midParse = CODE._phase == CodeGen.Phase.Parse;
         Stack<ScopeNode> xScopes = midParse ? CODE.P._xScopes : null;
 
         Collection<Node> all = GraphVisualizer.findAll(xScopes, CODE._stop, midParse ? CODE.P._scope: null);
@@ -149,11 +149,13 @@ public class JSViewer implements AutoCloseable {
                 sb.i().p("<TR>");
                 n._outputs.sort((x,y) -> x instanceof ProjNode xp && y instanceof ProjNode yp ? (xp._idx - yp._idx) : ((x==null ? 99999 : x._nid) - (y==null ? 99999 : y._nid)));
                 boolean empty_row=true;
-                for( Node use : n._outputs )
-                    if( use instanceof MultiUse muse ) {
-                        cell(sb,use.glabel(),use,"p"+muse.idx());
+                for( Node use : n._outputs ) {
+                    int idx = idx(n);
+                    if( idx != -1 ) {
+                        cell(sb,use.glabel(),use,"p"+idx);
                         empty_row=false;
                     }
+                }
                 // At least one cell on row
                 if( empty_row )  sb.p("<TD></TD>");
                 sb.    p("</TR>").p("\n");
@@ -386,9 +388,15 @@ public class JSViewer implements AutoCloseable {
 
     }
 
+    // (C)Projection index or -1
+    private static int idx(Node n) {
+        return n instanceof ProjNode p ? p._idx : (n instanceof CProjNode cp ? cp._idx : -1);
+    }
+
     private static SB defPort(SB sb, Node def) {
-        return def instanceof MultiUse muse
-            ? sb.p(def.in(0).uniqueName()).p(":p").p(muse.idx())
+        int idx = idx(def);
+        return idx != -1
+            ? sb.p(def.in(0).uniqueName()).p(":p").p(idx)
             : sb.p(def.uniqueName());
     }
 }
