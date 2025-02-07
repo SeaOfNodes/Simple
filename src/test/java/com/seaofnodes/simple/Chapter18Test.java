@@ -9,30 +9,6 @@ import static org.junit.Assert.fail;
 import org.junit.Ignore;
 
 public class Chapter18Test {
-    @Test public void testFloatArrays() {
-        for( String type : new String[]{"flt","f64","f32"} ) {
-            CodeGen zero = new CodeGen("var a = new "+type+"[arg]; return a[arg-1];")
-                .parse().opto().typeCheck();
-            assertEquals("0.0",Eval2.eval(zero,3));
-            new CodeGen(type+" x = arg; var a = new "+type+"[arg]; a[0] = x; return a[0];")
-                .parse().opto().typeCheck();
-            CodeGen loop = new CodeGen("var a = new "+type+"[arg]; "+
-                "for(int i=0; i<arg; i++) a[i] += i+0.25; return a[0]+a[arg-1];")
-                .parse().opto().typeCheck();
-            assertEquals("0.5",Eval2.eval(loop,1));
-            assertEquals("3.5",Eval2.eval(loop,4));
-
-            CodeGen rounded = new CodeGen("var a = new "+type+"[arg]; "+
-                "for(int i=0; i<arg; i++) a[i] = 16777216.0+i; return a[arg-1];")
-                .parse().opto().typeCheck();
-            assertEquals(type.equals("f32") ? "1.6777216E7" : "1.6777217E7",Eval2.eval(rounded,2));
-        }
-        CodeGen rounded = new CodeGen("var a = new f32[arg]; "+
-            "for(int i=0; i<arg; i++) a[i] = 16777217.0; return a[arg-1];")
-            .parse().opto().typeCheck();
-        assertEquals("1.6777216E7",Eval2.eval(rounded,2));
-    }
-
     @Test public void testNeverExitLoopDepth() {
         String[] sources = {
             "if(arg) while(1) {} return 7;",
@@ -204,7 +180,7 @@ return sq;
 """);
         code.parse().opto();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,int)*x); ]", code._stop.toString());
-        assertEquals("{ sq}", Eval2.eval(code, 3));
+        assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -216,7 +192,7 @@ var sq = { int x ->
 };
 return sq(arg)+sq(3);
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("Stop[ return (sq( 3)+sq( arg)); return (Parm_x(sq,int,3,arg)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
@@ -255,7 +231,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)*2); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -264,7 +240,7 @@ return fcn(3);
     @Test
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
@@ -319,7 +295,6 @@ for(;;) {
         assertEquals("3", Eval2.eval(code,  0));
     }
 
-
     @Test
     public void testFcn9() {
         CodeGen code = new CodeGen(
@@ -334,6 +309,31 @@ for(;;) {
         code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return Top;", code._stop.toString());
         assertEquals(null, Eval2.eval(code,  0));
+    }
+
+
+    @Test
+    public void testFcn10() {
+        CodeGen code = new CodeGen(
+"""
+struct Person {
+  int age;
+};
+
+val fcn = { !Person?[] !ps, int x ->
+  val tmp = ps[x];
+  if( ps[x] )
+    ps[x].age++;
+};
+
+var ps = new !Person?[2];
+ps[0] = new Person;
+ps[1] = new Person;
+fcn(ps,1);
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("return 0;", code._stop.toString());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     // Function break

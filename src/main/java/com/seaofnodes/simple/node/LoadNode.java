@@ -2,12 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
-import java.util.ArrayList;
 
 /**
  * Load represents extracting a value from inside a memory object,
@@ -65,29 +63,36 @@ public class LoadNode extends MemOpNode {
     @Override
     public Node idealize() {
         if( mem() instanceof MemMergeNode merge ) {
-            setDef(1,IterPeeps.add(merge.alias(_alias)));
+            setDef(1,CodeGen.CODE.add(merge.alias(_alias)));
             return this;
         }
         Node ptr = ptr();
+        Node mem = mem();
 
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
             _alias==st._alias && ptr == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
-            return castRO(st.val());
+            return extend(st.val());
         }
 
         // Simple Load-after-New on same address.
-        if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
+        if( mem instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
             ptr == nnn.proj(0) ) // Must check same object
-            return castRO(nnn.in(nnn.findAlias(_alias))); // Load from New init
+            return zero(nnn);   // Load zero from new
+
+        // Uplift control to a prior dominating load.
+        for( Node memuse : mem._outputs )
+            // Find a prior load, has same mem,ptr,off but higher ctrl
+            if( memuse != this && memuse instanceof LoadNode ld && ptr==ld.ptr() && off()==ld.off() &&
+                cfg0()!=null && cfg0().domLCA(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
+                return ld;
 
         // Load-after-Store on same address, but bypassing provably unrelated
         // stores.  This is a more complex superset of the above two peeps.
         // "Provably unrelated" is really weak.
         if( ptr instanceof ReadOnlyNode ro )
             ptr = ro.in(1);
-        Node mem = mem();
         outer:
         while( true ) {
             mem.addDep(this);
@@ -97,7 +102,7 @@ public class LoadNode extends MemOpNode {
                 break;
             case StoreNode st:
                 if( _alias==st._alias && ptr == st.ptr().addDep(this) && off() == st.off() )
-                    return castRO(st.val()); // Proved equal
+                    return extend(castRO(st.val())); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( _alias==st._alias && !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
                     !neverAlias(ptr,st.ptr()) )                   // And might alias
@@ -114,8 +119,8 @@ public class LoadNode extends MemOpNode {
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
-                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
+                        return zero(nnn1);
+                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.mem();// Bypass unrelated New
                     break;
@@ -154,6 +159,14 @@ public class LoadNode extends MemOpNode {
         }
 
         return null;
+    }
+
+    // Load a flavored zero from a New
+    private Node zero(NewNode nnn) {
+        TypeStruct ts = nnn._ptr._obj;
+        Type zero = ts._fields[ts.findAlias(_alias)]._type.makeZero();
+        assert zero.isa(_type); // Catch an uninitialized non-null field
+        return castRO(new ConstantNode(zero).peephole());
     }
 
     private Node ld( int idx ) {
@@ -206,29 +219,19 @@ public class LoadNode extends MemOpNode {
         return rez;
     }
 
-    // Memory writers which must follow this read. A packaging node is not a
-    // write, but can hide New's input, so follow this alias through aggregates.
-    public ArrayList<Node> antiDeps() {
-        ArrayList<Node> deps = new ArrayList<>();
-        antiDeps(mem(),deps,new BitSet());
-        return deps;
+    // When a load bypasses a store, the store might truncate bits - and the
+    // load will need to zero/sign-extend.
+    private Node extend(Node val) {
+        if( !(_declaredType instanceof TypeInteger ti) ) return val;
+        if( ti._min==0 )        // Unsigned
+            return new AndNode(null,val,con(ti._max));
+        // Signed extension
+        int shift = Long.numberOfLeadingZeros(ti._max)-1;
+        if( shift==0 )
+            return val;
+        Node shf = con(shift);
+        Node shl = new ShlNode(null,val,shf.keep()).peephole();
+        return new SarNode(null,shl,shf.unkeep());
     }
 
-    private void antiDeps(Node mem, ArrayList<Node> deps, BitSet visit) {
-        if( visit.get(mem._nid) ) return;
-        visit.set(mem._nid);
-        for( Node use : mem._outputs ) {
-            if( use instanceof MemMergeNode merge ) {
-                Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
-                if( (slice==mem) || (slice==null && merge.in(1)==mem) )
-                    antiDeps(merge,deps,visit);
-            } else if( use instanceof CallNode ||
-                       (use instanceof StoreNode st && st._alias==_alias) ||
-                       (use instanceof NewNode nnn && nnn.field(_alias)!=null) ||
-                       (use instanceof MemPhiNode phi && phi._alias==_alias) ||
-                       (use instanceof BulkMemPhiNode phi && !phi.isSplit(_alias)) ) {
-                if( !deps.contains(use) ) deps.add(use);
-            }
-        }
-    }
 }
