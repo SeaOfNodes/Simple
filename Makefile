@@ -1,5 +1,4 @@
 SHELL := /bin/bash
-# Shared packaging target; included after chapter source variables below.
 .DELETE_ON_ERROR:
 
 
@@ -55,7 +54,7 @@ endif
 default: $(default_targets)
 
 # Compile just the out-of-date files
-$(main_classes): build/classes/main/%class: $(SRC)/%java $(graph_javas)
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)
@@ -66,20 +65,32 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas)
 
 # Base launch line for JVM tests
-JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
+JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+# Report measured spill totals while retaining the tests' assertions.
+spill-stats: $(default_targets)
+	@$(JVM) com.seaofnodes.simple.SpillStats
+
 fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+# Build a Simple jar
+release:	build/release/simple.jar
+
+# Build a Simple jar
+build/release/simple.jar:	$(main_classes) $(test_classes)
+	@echo "jarring " $@ " because " $?
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 
-.PHONY: clean
+.PHONY: clean spill-stats
 clean:
 	rm -rf build
 	rm -f TAGS
@@ -101,8 +112,6 @@ lib/hamcrest-core-1.3.jar:
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
-
-include $(firstword $(wildcard ../build-support/chapter-release.mk build-support/chapter-release.mk))
 
 .PHONY: build
 build: $(main_classes)

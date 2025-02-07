@@ -37,7 +37,8 @@ public class ReturnNode extends CFGNode {
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("return ");
-        expr()._print0(sb, visited);
+        if( expr()==null ) sb.append("----");
+        else expr()._print0(sb, visited);
         return sb.append(";");
     }
 
@@ -47,7 +48,7 @@ public class ReturnNode extends CFGNode {
     @Override
     public Type compute() {
         if( inProgress () ) return TypeTuple.RET; // In progress
-        if( _fun.isDead() ) return TypeTuple.RET.dual(); // Dead another way
+        // Inlining can delete the entry while callers still use this return.
         return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
     }
 

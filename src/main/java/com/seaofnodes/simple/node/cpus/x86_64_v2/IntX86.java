@@ -1,8 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
@@ -10,15 +13,24 @@ import java.io.ByteArrayOutputStream;
 
 // Integer constants
 public class IntX86 extends ConstantNode implements MachNode {
+    IntX86( ConstantNode con ) { super(con); }
 
-    IntX86( ConstantNode con ) {
-        super(con);
+    @Override public String op() {
+        return _con == Type.NIL || _con == TypeInteger.ZERO ? "xor" : "ldi";
     }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
+
+    // Zero-set uses XOR kills flags
+    @Override public RegMask killmap() {
+        return _con == Type.NIL || _con == TypeInteger.ZERO ? x86_64_v2.FLAGS_MASK : null;
+    }
+
+    @Override public boolean isClone() { return true; }
+    @Override public Node copy() { return new IntX86(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -34,12 +46,6 @@ public class IntX86 extends ConstantNode implements MachNode {
         if( _con == Type.NIL || _con == TypeInteger.ZERO )
             sb.p(reg).p(",").p(reg);
         else
-            _con.print(sb.p(reg).p(" #"));
-    }
-
-    @Override public String op() {
-        if( _con == Type.NIL || _con == TypeInteger.ZERO )
-            return "xor";
-        return "ldi";           // Some fancier encoding
+            _con.print(sb.p(reg).p(" = #"));
     }
 }

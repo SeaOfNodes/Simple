@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.Type;
@@ -26,7 +26,8 @@ public class ConstantNode extends Node {
         super(new Node[]{CodeGen.CODE._start});
         _con = _type = type;
     }
-    public ConstantNode( ConstantNode con ) { super(con);  _con = con._type;  }
+    public ConstantNode( Node con, Type t ) { super(con);  _con = t;  }
+    public ConstantNode( ConstantNode con ) { this(con,con._type);  }
 
     public static Node make( Type type ) {
         if( type==Type. CONTROL ) return new CtrlNode();
@@ -48,7 +49,6 @@ public class ConstantNode extends Node {
         return sb.append(_con.print(new SB()));
     }
 
-    @Override public boolean isMultiTail() { return true; }
     @Override public boolean isConst() { return true; }
 
     @Override

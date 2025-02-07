@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
+
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
@@ -19,16 +20,27 @@ import java.util.HashSet;
  * <p>
  *  loop_depth is computed after optimization as part of scheduling.
  *
+ *  Start - Block head; has constants and trailing Funs
+ *  Region - Block head; has Phis.  Includes Fun and Parms.
+ *  CallEnd - Block head; followed by CProj and Proj; also linked RPC Parms
+ *  CProj - Block head
+ *
+ *  If - Block tail; followed by CProj same block
+ *  Call - Block tail; followed by CallEnd and linked Funs
+ *  New/intrinsic - If followed by CProj: block tail else mid-block; followed by Proj
+ *
  */
 public abstract class CFGNode extends Node {
 
     public CFGNode(Node...   nodes) { super(nodes); }
     public CFGNode(CFGNode cfg) {
         super(cfg);
-        _idepth = cfg._idepth;
-        _idepthVersion = cfg._idepthVersion;
-        _ltree = cfg._ltree;
-        _pre = cfg._pre;
+        if( cfg != null ) {
+            _idepth = cfg._idepth;
+            _idepthVersion = cfg._idepthVersion;
+            _ltree = cfg._ltree;
+            _pre = cfg._pre;
+        }
     }
 
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
@@ -83,6 +95,14 @@ public abstract class CFGNode extends Node {
             if( comp <= 0 ) rhs = (dep==null ? rhs : (CFGNode)rhs.addDep(dep)).idom();
         }
         return lhs;
+    }
+
+    // Find nearest enclosing FunNode
+    public FunNode fun() {
+        CFGNode cfg = this;
+        while( !(cfg instanceof FunNode fun) )
+            cfg = cfg.idom();
+        return fun;
     }
 
     // ------------------------------------------------------------------------
@@ -161,12 +181,11 @@ public abstract class CFGNode extends Node {
         return pre;
     }
 
-    boolean skip(CFGNode usecfg) {
+    private boolean skip(CFGNode usecfg) {
         // Only walk control users that are alive.
         // Do not walk from a Call to linked Fun's.
         return usecfg instanceof XCtrlNode ||
                 (this instanceof CallNode && usecfg instanceof FunNode) ||
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
     }
-
 }
