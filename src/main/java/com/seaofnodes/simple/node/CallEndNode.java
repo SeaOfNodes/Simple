@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -14,7 +12,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     private boolean _folding;
 
-    public CallEndNode(CallNode call) { super(call); }
+    public CallEndNode(CallNode call) { super(new Node[]{call}); }
+    public CallEndNode(CallEndNode cend) { super(cend); }
 
     @Override
     public String label() { return "CallEnd"; }
@@ -46,8 +45,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
         // Trivial inlining: call site calls a single function; single function
         // is only called by this call site.
-        if( !_folding && nIns()==2 ) {
-            CallNode call = call();
+        if( !_folding && nIns()==2 && in(0) instanceof CallNode call ) {
             Node fptr = call.fptr();
             if( fptr.nOuts() == 1 && // Only user is this call
                 fptr instanceof ConstantNode && // We have an immediate call
@@ -72,7 +70,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
                         fun.setDef(2,call.ctrl());  // Bypass the Call;
                         fun.ret().setDef(3,null);   // Return is folding also
-                        IterPeeps.addAll(fun._outputs);
+                        CodeGen.CODE.addAll(fun._outputs);
                         return this;
                     }
                 } else {

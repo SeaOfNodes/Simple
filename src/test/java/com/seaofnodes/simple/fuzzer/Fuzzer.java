@@ -82,10 +82,10 @@ public class Fuzzer {
     private static void runCheck(String script, boolean valid) {
         CodeGen code1;
         try {
-            code1 = FuzzerUtils.parse(script, false);
+            code1 = FuzzerUtils.parse(script, 123);
         } catch (RuntimeException e1) {
             try {
-                FuzzerUtils.parse(script, true);
+                FuzzerUtils.parse(script, 456);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
                     if (!valid || e1.getClass() == Parser.ParseException.class) return;
@@ -95,7 +95,7 @@ public class Fuzzer {
             }
             throw e1;
         }
-        CodeGen code2 = FuzzerUtils.parse(script, true);
+        CodeGen code2 = FuzzerUtils.parse(script, 456);
         checkGraphs(code1, code2, 0);
         checkGraphs(code1, code2, 1);
         checkGraphs(code1, code2, 10);
@@ -126,17 +126,16 @@ public class Fuzzer {
             var code = new CodeGen(sb.toString());
 
             code.parse();
-            int parse_peeps= Node.ITER_CNT;
-            int parse_nops = Node.ITER_NOP_CNT;
+            int nids = code.UID();
+            if( nids <= max_nids ) return max_nids; // Smaller, looking for trends as we grow
+            int parse_peeps= code._iter_cnt;
+            int parse_nops = code._iter_nop_cnt;
             double parse_nop_ratio = (double)parse_nops/parse_peeps;
-            int nids = Node.UID();
-            if( nids <= max_nids ) return max_nids;
-
             double parse_peeps_per_node = (double)parse_peeps/nids;
 
             code.opto();
-            int iter_peeps= Node.ITER_CNT;
-            int iter_nops = Node.ITER_NOP_CNT;
+            int iter_peeps= code._iter_cnt;
+            int iter_nops = code._iter_nop_cnt;
             double iter_nop_ratio = (double)iter_nops/iter_peeps;
             double iter_peeps_per_node = (double)iter_peeps/nids;
 

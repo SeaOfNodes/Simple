@@ -41,7 +41,7 @@ else {
 return x;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,(arg*2),(Mul+1));", code.print());
+        assertEquals("return Phi(Region,(arg<<1),(Shl+1));", code.print());
         Assert.assertEquals( "2", Eval2.eval(code,  1));
         Assert.assertEquals("23", Eval2.eval(code, 11));
     }
@@ -255,7 +255,7 @@ while(0==1) while(v0)
         v0=1+v0;
 """);
         code.parse().opto();
-        assertEquals("return ~int;", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
