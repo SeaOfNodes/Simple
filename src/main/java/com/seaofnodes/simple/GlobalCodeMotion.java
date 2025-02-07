@@ -10,36 +10,26 @@ public abstract class GlobalCodeMotion {
     // Arrange that the existing isCFG() Nodes form a valid CFG.  The
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
-    public static void buildCFG( StartNode start, StopNode stop ) {
-        schedEarly(start);
-        schedLate(stop);
-    }
-
-
-    // ------------------------------------------------------------------------
-    // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
-    // (except at loops).  Since defs are visited first - and hoisted as early
-    // as possible, when we come to a use we place it just after its deepest
-    // input.
-    private static void schedEarly(StartNode start) {
-        ArrayList<CFGNode> rpo = new ArrayList<>();
-        BitSet visit = new BitSet();
-        _rpo_cfg(null, start, visit, rpo);
-        // Reverse Post-Order on CFG
-        for( int j=rpo.size()-1; j>=0; j-- ) {
-            CFGNode cfg = rpo.get(j);
-            cfg.loopDepth();
-            for( Node n : cfg._inputs )
-                _schedEarly(n,visit);
-            if( cfg instanceof RegionNode )
-                for( Node phi : cfg._outputs )
-                    if( phi instanceof PhiNode )
-                        _schedEarly(phi,visit);
+    public static void buildCFG( CodeGen code ) {
+        Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
+        _rpo_cfg(null, code._start, code.visit(), rpo);
+        // Reverse in-place
+        for( int i=0; i< rpo.size()>>1; i++ ) {
+            int j = rpo.size()-1-i;
+            CFGNode tmp = rpo.get(i);
+            rpo.set(i, rpo.get(j));
+            rpo.set(j, tmp);
         }
+        // Set global CFG
+        code._cfg = rpo;
+
+        schedEarly(code);
+        code._visit.clear();
+        schedLate (code);
     }
 
     // Post-Order of CFG
-    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
+    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
         if( def instanceof CallNode && cfg instanceof FunNode )
@@ -48,6 +38,24 @@ public abstract class GlobalCodeMotion {
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
         rpo.add(cfg);
+    }
+
+    // ------------------------------------------------------------------------
+    // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses
+    // (except at loops).  Since defs are visited first - and hoisted as early
+    // as possible, when we come to a use we place it just after its deepest
+    // input.
+    private static void schedEarly(CodeGen code) {
+        // Reverse Post-Order on CFG
+        for( CFGNode cfg : code._cfg ) {
+            cfg.loopDepth();
+            for( Node n : cfg._inputs )
+                _schedEarly(n,code._visit );
+            if( cfg instanceof RegionNode )
+                for( Node phi : cfg._outputs )
+                    if( phi instanceof PhiNode )
+                        _schedEarly(phi,code._visit );
+        }
     }
 
     private static void _schedEarly(Node n, BitSet visit) {
@@ -61,24 +69,25 @@ public abstract class GlobalCodeMotion {
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,visit);
+
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
             // Schedule at deepest input
-            CFGNode early = Parser.START; // Maximally early, lowest idepth
+            CFGNode early = CodeGen.CODE._start; // Maximally early, lowest idepth
             if( n.in(0) instanceof CFGNode cfg ) early = cfg;
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
-            n.setDef(0,early);              // First place this can go
+            n.setDef(0,early);
         }
     }
 
     // ------------------------------------------------------------------------
-    private static void schedLate( StopNode stop) {
-        CFGNode[] late = new CFGNode[Node.UID()];
-        Node[] ns = new Node[Node.UID()];
+    private static void schedLate( CodeGen code ) {
+        CFGNode[] late = new CFGNode[code.UID()];
+        Node[] ns = new Node[code.UID()];
         // Breadth-first scheduling
-        breadth(stop,ns,late);
+        breadth(code._stop,ns,late);
 
         // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )

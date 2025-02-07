@@ -64,7 +64,7 @@ else
     b=a+1;
 return a+b;""");
         code.parse().opto();
-        assertEquals("return ((arg*2)+Phi(Region,2,3));", code.print());
+        assertEquals("return ((arg<<1)+Phi(Region,2,3));", code.print());
     }
 
     @Test
@@ -79,7 +79,7 @@ else
     a=b+1;
 return a+b;""");
         code.parse().opto();
-        assertEquals("return ((Phi(Region,(arg*2),arg)+arg)+Phi(Region,4,5));", code.print());
+        assertEquals("return ((Phi(Region,(arg<<1),arg)+arg)+Phi(Region,4,5));", code.print());
     }
 
     @Test
@@ -135,79 +135,51 @@ return a;
 
     @Test
     public void testTrue() {
-      StopNode stop = new Parser("return true;").parse();
-      assertEquals("return 1;",stop.ret().print());
+      CodeGen code = new CodeGen("return true;").parse();
+      assertEquals("return 1;",code.print());
     }
 
     @Test
     public void testHalfDef() {
-        try {
-            new CodeGen("if( arg==1 ) int b=2; return b;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Cannot define a 'b' on one arm of an if",e.getMessage());
-        }
+        try { new CodeGen("if( arg==1 ) int b=2; return b;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Cannot define a 'b' on one arm of an if",e.getMessage()); }
     }
 
     @Test
     public void testHalfDef2() {
-        try {
-            new Parser("if( arg==1 ) { int b=2; } else { int b=3; } return b;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Undefined name 'b'",e.getMessage());
-        }
+        try { new CodeGen("if( arg==1 ) { int b=2; } else { int b=3; } return b;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Undefined name 'b'",e.getMessage()); }
     }
 
     @Test
     public void testRegress1() {
-        try {
-            new CodeGen("if(arg==2) int a=1; else int b=2; return a;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Cannot define a 'a' on one arm of an if",e.getMessage());
-        }
+        try { new CodeGen("if(arg==2) int a=1; else int b=2; return a;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Cannot define a 'a' on one arm of an if",e.getMessage()); }
     }
 
 
     @Test
     public void testBadNum() {
-        try {
-            new Parser("return 1-;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage());
-        }
+        try { new CodeGen("return 1-;").parse();  fail(); }
+        catch( RuntimeException e ) { assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage()); }
     }
 
     @Test
     public void testKeyword1() {
-        try {
-            new Parser("int true=0; return true;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Expected an identifier, found 'true'",e.getMessage());
-        }
+        try { new CodeGen("int true=0; return true;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Expected an identifier, found 'true'",e.getMessage()); }
     }
 
     @Test
     public void testKeyword2() {
-        try {
-            new Parser("int else=arg; if(else) else=2; else else=1; return else;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Expected an identifier, found 'else'",e.getMessage());
-        }
+        try { new CodeGen("int else=arg; if(else) else=2; else else=1; return else;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Expected an identifier, found 'else'",e.getMessage()); }
     }
 
     @Test
     public void testKeyword3() {
-        try {
-            new CodeGen("int a=1; ififif(arg);a=2;return a;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Undefined name 'ififif'",e.getMessage());
-        }
+        try { new CodeGen("int a=1; ififif(arg);a=2;return a;").parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Undefined name 'ififif'",e.getMessage()); }
     }
 
 }

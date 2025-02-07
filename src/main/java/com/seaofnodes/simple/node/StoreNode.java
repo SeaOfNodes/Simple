@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -73,32 +71,19 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
-        // Simple store-after-new on same address.  Should pick up
-        // an init-store being stomped by a first user store.
-        if( mem() instanceof ProjNode st  && st .in(0) instanceof NewNode nnn &&
-            ptr() instanceof ProjNode ptr && ptr.in(0) == nnn &&
-            ptr()._type instanceof TypeMemPtr tmp && // No bother if weird dead pointers
-            // Cannot fold a store of a single element over the array body initializer value
-            !(tmp._obj.isAry() && tmp._obj._fields[1]._alias==_alias) &&
-            // Very sad strong cutout: val has to be legal to hoist to a New
-            // input, which means it cannot depend on the New.  Many, many
-            // things are legal here but difficult to check without doing a
-            // full dominator check.  Example failure:
-            // "struct C { C? c; }; C self = new C { c=self; }"
-            val()._type.isHighOrConst() &&
-            // Must have exactly one use of "this" or you get weird
-            // non-serializable memory effects in the worse case.
-            checkOnlyUse(st) &&
-            // Folding away a broken store
-            err()==null ) {
-            nnn.setDef(nnn.findAlias(_alias),val());
-            // Must *retype* the NewNode, this is not monotonic in isolation
-            // but is monotonic counting from this Store to the New.
-            nnn  ._type = nnn  .compute();
-            mem()._type = mem().compute();
-            IterPeeps.addAll(nnn._outputs);
-            return mem();
+        // Value is automatically truncated by narrow store
+        if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
+            int log = _declaredType.log_size();
+            if( log<3 ) {       // And-mask vs narrow store
+                long mask = ((TypeInteger)and.in(2)._type).value();
+                long bits = (1L<<(8<<log))-1;
+                // Mask does not mask any of the stored bits
+                if( (bits&mask)==bits )
+                    // So and-mask is already covered by the store
+                    { setDef(4,and.in(1)); return this; }
+            }
         }
+
 
         return null;
     }
@@ -119,9 +104,10 @@ public class StoreNode extends MemOpNode {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( tmp._obj.field(_name)._final && !"[]".equals(_name) )
+        if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         Type t = val()._type;
-        return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
+        //return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
+        return null;
     }
 }
