@@ -42,8 +42,7 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
     }
     /** @return remove and return last element */
     public E pop( ) {
-        range_check(0);
-        return _es[--_len];
+        return _len==0 ? null : _es[--_len];
     }
     @Override public E removeLast() { return pop(); }
 
@@ -93,6 +92,22 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return old;
     }
 
+    /** Set existing element
+     *  @param i element to set
+     *  @param e value to set
+     *  @return old value
+     *  @exception AIOOBE if !(0 <= i < _len)
+     */
+    public E setX( int i, E e ) {
+        if( i >= _len ) {
+            while( i >= _es.length ) _es = Arrays.copyOf( _es, _es.length << 1 );
+            _len = i+1;
+        }
+        E old = _es[i];
+        _es[i] = e;
+        return old;
+    }
+
     public Ary<E> setLen( int len ) {
         if( len > _len )
             while( len>= _es.length ) _es = Arrays.copyOf(_es,_es.length<<1);
@@ -103,13 +118,14 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return this;
     }
 
-    public void swap( int i, int j ) {
+    public E swap( int i, int j ) {
         range_check(i);
         range_check(j);
-        if( i==j ) return;
         E tmp = _es[i];
+        if( i==j ) return tmp;
         _es[i] = _es[j];
         _es[j] = tmp;
+        return tmp;
     }
 
 
@@ -139,12 +155,12 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return this;
     }
 
-  /** @return compact array version */
-  public E[] asAry() { return Arrays.copyOf(_es,_len); }
+    /** @return compact array version */
+    public E[] asAry() { return Arrays.copyOf(_es,_len); }
 
-  /** Sorts in-place
-   *  @param c Comparator to sort by */
-  public void sort_update(Comparator<? super E> c ) { Arrays.sort(_es, 0, _len, c);  }
+    /** Sorts in-place
+     *  @param c Comparator to sort by */
+    public void sort_update(Comparator<? super E> c ) { Arrays.sort(_es, 0, _len, c);  }
 
     /** Find the first matching element using ==, or -1 if none.  Note that
      *  most del calls shuffle the list, so the first element might be random.
