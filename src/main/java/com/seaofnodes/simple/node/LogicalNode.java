@@ -22,8 +22,8 @@ public abstract class LogicalNode extends Node {
 
     @Override public Parser.ParseException err() {
         if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return null;
-        if( !(in(1)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+op()+"' " + in(1)._type.glb(),_loc);
-        if( !(in(2)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+op()+"' " + in(2)._type.glb(), _loc);
+        if( !(in(1)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+op()+"' " + in(1)._type,_loc);
+        if( !(in(2)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+op()+"' " + in(2)._type,_loc);
         return null;
     }
 }

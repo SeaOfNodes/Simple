@@ -1,9 +1,10 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import static org.junit.Assert.fail;
-import org.junit.Ignore;
 
 public class Chapter18Test {
 
@@ -77,7 +78,7 @@ var sq = { int x ->
 return sq(arg)+sq(3);
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return (sq( 3)+sq( arg)); return (Parm_x(sq,int,3,arg)*x); ]", code._stop.toString());
+        assertEquals("Stop[ return (#2+#2); return (Parm_x(sq,int)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
 
@@ -115,7 +116,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Region,{ int -> int #1},{ int -> int #2})( 3); return (Parm_x($fun,int,3)*x); return (Parm_x($fun,int,3)<<1); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return (Parm_x($fun1,int,3)*x); return (Parm_x($fun2,int,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -125,7 +126,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return fact( arg); return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*fact( Sub))); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*#2)); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -175,7 +176,7 @@ for(;;) {
 }
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return x( Phi(Loop,arg,x( 3))); return Parm_i(x,int,3,Phi_arg); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return Parm_i(x,int); ]", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -346,7 +347,7 @@ if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,o( arg),o( 1)); return Parm_i(o,int,arg,1); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(o,int); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

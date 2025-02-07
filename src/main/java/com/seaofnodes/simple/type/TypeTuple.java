@@ -55,6 +55,8 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
+    public Type ret() { assert _types.length==3; return _types[2]; }
+
     @Override public String str() { return print(new SB()).toString(); }
 
     @Override public SB print(SB sb) {
