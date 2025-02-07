@@ -201,9 +201,9 @@ public class LoadNode extends MemOpNode {
             return new AndNode(null,val,con(ti._max));
         // Signed extension
         int shift = Long.numberOfLeadingZeros(ti._max)-1;
-        if( shift==0 )
-            return val;
         Node shf = con(shift);
+        if( shf._type==TypeInteger.ZERO )
+            return val;
         Node shl = new ShlNode(null,val,shf.keep()).peephole();
         return new SarNode(null,shl,shf.unkeep());
     }

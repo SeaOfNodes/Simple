@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
@@ -19,8 +19,7 @@ public class CallNode extends CFGNode {
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
 
-    @Override
-    public String label() { return "Call"; }
+    @Override public String label() { return "Call"; }
 
     @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
         String fname = name();
@@ -43,9 +42,9 @@ public class CallNode extends CFGNode {
     Node ctrl() { return in(0); }
     Node mem () { return in(1); }
     // Args mapped 1-to-1 on inputs, so conceptually start at 2
-    Node arg(int idx) { return in(idx); }
+    public Node arg(int idx) { return in(idx); }
     // Same arg accounting as TFPs, although the numbering starts at 2
-    int nargs() { return nIns()-3; } // Minus control, memory, fptr
+    public int nargs() { return nIns()-3; } // Minus control, memory, fptr
     // args from input 2 to last; last is function input
     public Node fptr() { return _inputs.last(); }
     // Error if not a TFP
@@ -122,10 +121,26 @@ public class CallNode extends CFGNode {
         fun.addDef(this);
         for( Node use : fun._outputs )
             if( use instanceof ParmNode parm )
-                parm.addDef(parm._idx==0 ? cend() : arg(parm._idx));
+                parm.addDef(parm._idx==0 ? new ConstantNode(cend()._rpc).peephole() : arg(parm._idx));
         // Call end points to function return
         CodeGen.CODE.add(cend()).addDef(fun.ret());
         assert linked(fun);
+    }
+
+    // Unlink all linked functions
+    public void unlink_all() {
+        for( int i=0; i<_outputs._len; i++ )
+            if( out(i) instanceof FunNode fun ) {
+                assert linked(fun);
+                int idx = fun._inputs.find(this);
+                for( Node use : fun._outputs )
+                    if( use instanceof ParmNode parm )
+                        use.delDef(idx);
+                fun.delDef(idx);
+                cend().delDef(cend()._inputs.find(fun.ret()));
+                assert !linked(fun);
+                i--;
+            }
     }
 
     @Override
