@@ -325,7 +325,7 @@ public class x86_64_v2 extends Machine {
     private Node and(AndNode and) {
         if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AndIX86(and, ti);
-        throw Utils.TODO();
+        return new AndX86(and);
     }
 
     private Node call(CallNode call) {
@@ -393,7 +393,7 @@ public class x86_64_v2 extends Machine {
     private Node or(OrNode or) {
         if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new OrIX86(or, ti);
-        throw Utils.TODO();
+        return new OrX86(or);
     }
 
     private Node prj( ProjNode prj ) {
@@ -402,20 +402,20 @@ public class x86_64_v2 extends Machine {
 
     private Node sar( SarNode sar ) {
         if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SarX86(sar, ti);
-        throw Utils.TODO();
+            return new SarIX86(sar, ti);
+        return new SarX86(sar);
     }
 
     private Node shl( ShlNode shl ) {
         if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShlIX86(shl, ti);
-        throw Utils.TODO();
+        return new ShlX86(shl);
     }
 
     private Node shr(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
-        throw Utils.TODO();
+        return new ShrX86(shr);
     }
 
     private Node st( StoreNode st ) {

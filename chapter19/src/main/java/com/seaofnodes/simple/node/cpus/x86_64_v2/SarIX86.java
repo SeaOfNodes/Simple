@@ -2,25 +2,20 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
 
-public class SarX86 extends MachConcreteNode implements MachNode{
-    SarX86(Node sar) {super(sar);}
+// Arithmetic Right Shift
+public class SarIX86 extends MachConcreteNode implements MachNode {
+    final TypeInteger _ti;
+    SarIX86(Node sar, TypeInteger ti) {super(sar); _inputs.pop();  _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention
-
-    // CL register must be used for input(2)
     @Override public RegMask regmap(int i) {
-        if(i == 1) return x86_64_v2.WMASK;
-        if(i == 2) return x86_64_v2.RCX_MASK;
-        throw Utils.TODO();
-    }
-
+        // assert i==1;
+        return x86_64_v2.RMASK; }
+    // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     // Output is same register as input#1
@@ -32,11 +27,11 @@ public class SarX86 extends MachConcreteNode implements MachNode{
     }
 
     // General form
-    // General form: "sar  dst >> src"
+    // General form: "sari  dst << #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >> #");
+        _ti.print(sb);
     }
 
-    @Override public String op() { return "sar"; }
-
+    @Override public String op() { return "sari"; }
 }
