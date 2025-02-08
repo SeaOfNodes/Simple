@@ -1,15 +1,15 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.Utils;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Stack;
-import static com.seaofnodes.simple.CodeGen.CODE;
+import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class JSViewer implements AutoCloseable {
     // Display programs in an endless loop

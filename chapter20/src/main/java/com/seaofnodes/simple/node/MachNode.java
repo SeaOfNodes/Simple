@@ -1,6 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import java.io.ByteArrayOutputStream;
 
 public interface MachNode {

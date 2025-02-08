@@ -1,5 +1,6 @@
- package com.seaofnodes.simple;
+ package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.MemOpX86;
 import com.seaofnodes.simple.print.ASMPrinter;
@@ -279,9 +280,9 @@ public class CodeGen {
 
 
     // Testing shortcuts
-    Node ctrl() { return _stop.ret().ctrl(); }
-    Node expr() { return _stop.ret().expr(); }
-    String print() { return _stop.print(); }
+    public Node ctrl() { return _stop.ret().ctrl(); }
+    public Node expr() { return _stop.ret().expr(); }
+    public String print() { return _stop.print(); }
 
     // Debugging helper
     @Override public String toString() { return _stop.p(9999); }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
 import java.util.Arrays;
@@ -46,7 +47,7 @@ public class IterPeeps {
 
     private final WorkList<Node> _work;
 
-    IterPeeps( long seed ) { _work = new WorkList<>(seed); }
+    public IterPeeps( long seed ) { _work = new WorkList<>(seed); }
 
     public <N extends Node> N add( N n ) { return (N)_work.push(n); }
 
@@ -136,7 +137,7 @@ public class IterPeeps {
         /* Useful stat - how many nodes are processed in the post parse iterative opt */
         private long _totalWork = 0;
 
-        WorkList() { this(123); }
+        public WorkList() { this(123); }
         WorkList(long seed) {
             _es = new Node[1];
             _len=0;
@@ -177,7 +178,7 @@ public class IterPeeps {
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty
          */
-        E pop() {
+        public E pop() {
             if( _len == 0 ) return null;
             int idx = _R.nextInt(_len);
             E x = (E)_es[idx];

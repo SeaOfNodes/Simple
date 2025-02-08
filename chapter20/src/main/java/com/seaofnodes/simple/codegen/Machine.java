@@ -1,6 +1,5 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.node.CFGNode;
 import com.seaofnodes.simple.node.IfNode;
 import com.seaofnodes.simple.node.Node;

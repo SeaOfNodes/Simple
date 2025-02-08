@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
@@ -9,7 +10,7 @@ import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.*;
 import java.util.function.Function;
-import static com.seaofnodes.simple.CodeGen.CODE;
+import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
