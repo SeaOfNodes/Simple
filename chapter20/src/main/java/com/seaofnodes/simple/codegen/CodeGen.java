@@ -268,6 +268,13 @@ public class CodeGen {
 
 
     // ---------------------------
+    // Register Allocation
+    public CodeGen regAlloc() {
+        assert _phase == Phase.LocalSched;
+        _phase = Phase.RegAlloc;
+        new RegAlloc(this).regAlloc();
+        return this;
+    }
     public String reg(Node n) {
         if( _phase == Phase.RegAlloc ) throw Utils.TODO();
         return "N"+ n._nid;
