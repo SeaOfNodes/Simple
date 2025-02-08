@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.node.*;
 import java.util.*;

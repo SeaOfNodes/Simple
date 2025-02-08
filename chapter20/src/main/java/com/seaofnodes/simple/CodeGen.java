@@ -2,6 +2,9 @@
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.MemOpX86;
+import com.seaofnodes.simple.print.ASMPrinter;
+import com.seaofnodes.simple.print.GraphVisualizer;
+import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -237,7 +240,7 @@ public class CodeGen {
 
     // ---------------------------
     // Control Flow Graph in RPO order.
-    Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
+    public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }

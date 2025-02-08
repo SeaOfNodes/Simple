@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.text.ParseException;

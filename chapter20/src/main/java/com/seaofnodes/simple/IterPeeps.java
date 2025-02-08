@@ -1,7 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-
+import com.seaofnodes.simple.print.JSViewer;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Random;
