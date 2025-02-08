@@ -39,5 +39,5 @@ public class SrlIRISC extends MachConcreteNode implements MachNode {
         _ti.print(sb);
     }
 
-    @Override public String op() { return "shrli"; }
+    @Override public String op() { return "srli"; }
 }

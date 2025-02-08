@@ -12,7 +12,7 @@ public class MulIX86 extends MachConcreteNode  implements MachNode {
     // Register mask allowed on input i.
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
-        // assert i==1;
+        assert i==1;
         return x86_64_v2.WMASK; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }

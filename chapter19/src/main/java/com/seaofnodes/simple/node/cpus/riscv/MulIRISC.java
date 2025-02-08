@@ -5,13 +5,18 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-public class SubFRISC extends MachConcreteNode implements MachNode{
-    SubFRISC(Node subf) {super(subf);}
+public class MulIRISC extends MachConcreteNode  implements MachNode {
+    final TypeInteger _ti;
+    MulIRISC(Node mul, TypeInteger ti) {super(mul); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.FMASK; }
+    // This is the normal calling convention
+    @Override public RegMask regmap(int i) {
+        return riscv.RMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.FMASK; }
+    @Override public RegMask outregmap() { return riscv.RMASK; }
+
+
     // Output is same register as input#1
     @Override public int twoAddress() { return 0; }
 
@@ -19,12 +24,12 @@ public class SubFRISC extends MachConcreteNode implements MachNode{
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();
     }
-
-    // Default on double precision for now(64 bits)
-    // General form: "fsub.d  rd = src1 - src2
+    // General form
+    // General form: "muli  dst * #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + ").p(code.reg(in(2)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * #");
+        _ti.print(sb);
     }
 
-    @Override public String op() { return "subf"; }
+    @Override public String op() { return "muli"; }
 }

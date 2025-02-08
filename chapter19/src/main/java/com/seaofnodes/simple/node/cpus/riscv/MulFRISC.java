@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class MulFRISC extends MachConcreteNode implements MachNode{
@@ -25,5 +24,7 @@ public class MulFRISC extends MachConcreteNode implements MachNode{
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + ").p(code.reg(in(2)));
     }
+
+    @Override public String op() { return "mulf"; }
 
 }

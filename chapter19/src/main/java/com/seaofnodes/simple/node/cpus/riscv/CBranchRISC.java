@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
@@ -16,8 +15,17 @@ public class CBranchRISC extends IfNode implements MachNode{
         _bop = bop;
     }
 
-    // TOdo: post Select
     @Override public String label() { return op(); }
+
+    @Override public void postSelect() {
+        Node set = in(1);
+        Node cmp = set.in(1);
+        // Bypass an expected Set and just reference the cmp directly
+        if( set instanceof SetRISC && (cmp instanceof CmpRISC || cmp instanceof CmpIRISC || cmp instanceof CmpMemRISC) )
+            _inputs.set(1,cmp);
+        else
+            throw Utils.TODO();
+    }
 
     @Override public RegMask regmap(int i) { assert i==1; return riscv.RMASK; }
     @Override public RegMask outregmap() { return RegMask.EMPTY; }

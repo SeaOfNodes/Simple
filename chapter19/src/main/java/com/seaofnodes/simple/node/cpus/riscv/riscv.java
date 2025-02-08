@@ -183,7 +183,7 @@ public class riscv extends Machine{
             case LoadNode ld -> ld(ld);
             case MemMergeNode mem -> new MemMergeNode(mem);
             case MulFNode mulf -> new MulFRISC(mulf);
-            case MulNode mul -> new MulRISC(mul);
+            case MulNode mul -> mul(mul);
             case NewNode nnn -> new NewRISC(nnn);
             case OrNode or -> or(or);
             case ParmNode parm -> new ParmRISC(parm);
@@ -209,12 +209,37 @@ public class riscv extends Machine{
     }
 
     private Node addf(AddFNode addf) {
-        // Todo: missing const
+        if( addf.in(1) instanceof LoadNode ld && ld.nOuts()==1 )
+            return new AddFMemRISC(addf,address(ld),ld.ptr(),idx,off,scale, addf.in(2));
+
+        if( addf.in(2) instanceof LoadNode ld && ld.nOuts()==1 )
+            throw Utils.TODO(); // Swap load sides
         return new AddFRISC(addf);
     }
 
     private Node add(AddNode add) {
-        // Todo: lea stuff is missing
+        Node lhs = add.in(1);
+        Node rhs = add.in(2);
+        if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
+            return new AddMemRISC(add,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val);
+
+        if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
+            throw Utils.TODO(); // Swap load sides
+
+        // Attempt a full LEA-style break down.
+        // Returns one of AddX86, AddIX86, LeaX86, or LHS
+        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+            if( lhs instanceof AddNode ladd )
+                // ((base + (idx << scale)) + off)
+                return _lea(add,ladd.in(1),ladd.in(2),toff.value());
+            if( lhs instanceof ShlNode shift )
+                // (idx << scale) + off; no base
+                return _lea(add,null,shift,toff.value());
+
+            // lhs + rhs1
+            if( toff.value()==0 ) return add;
+            return new AddIRISC(add, toff);
+        }
         return new AddRISC(add);
     }
 
@@ -238,6 +263,12 @@ public class riscv extends Machine{
     private Node _cmp(BoolNode bool) {
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
+
+        if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
+            return new CmpMemRISC(bool,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val,false);
+
+        if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
+            return new CmpMemRISC(bool,address(ld),ld.ptr(),idx,off,scale, imm(lhs),val,true);
 
         return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
@@ -372,6 +403,26 @@ public class riscv extends Machine{
             val = xval;
         }
         return imm;
+    }
+
+    private Node _lea( Node add, Node base, Node idx, long off ) {
+        int scale = 1;
+        if( base instanceof ShlNode && !(idx instanceof ShlNode) ) throw Utils.TODO(); // Bug in canonicalization, should on RHS
+        if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
+                shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
+            idx = shift.in(1);
+            scale = 1 << ((int)tscale.value());
+        }
+        // (base + idx) + off
+        return off==0 && scale==1
+                ? new AddRISC(add)
+                : new LeaRISC(add,base,idx,scale,off);
+    }
+
+    private Node mul(MulNode mul) {
+        return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+                ? new MulIRISC(mul, ti)
+                : new MulRISC(mul);
     }
 }
 

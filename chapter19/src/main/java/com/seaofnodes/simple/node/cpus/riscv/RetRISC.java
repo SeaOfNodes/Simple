@@ -37,5 +37,12 @@ public class RetRISC extends ReturnNode implements MachNode{
         sb.p(code.reg(in(2)));
     }
 
+    // Correct Nodes outside the normal edges
+    @Override public void postSelect() {
+        FunNode fun = (FunNode)rpc().in(0);
+        _fun = fun;
+        fun.setRet(this);
+    }
+
     @Override public String op() { return "ret"; }
 }

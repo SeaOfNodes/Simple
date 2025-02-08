@@ -21,7 +21,7 @@ import java.util.BitSet;
 //   scale    - scale on index; only 0,1,2,4,8 allowed, 0 is only when index is null
 //   imm      - immediate value to store or op-to-mem, and only when val is null
 
-public class MemOpRISC extends MemOpNode implements MachNode{
+public abstract class MemOpRISC extends MemOpNode implements MachNode{
     final int _off;             // Limit 32 bits
     final int _scale;           // Limit 0,1,2,3
     final int _imm;             // Limit 32 bits
@@ -46,7 +46,7 @@ public class MemOpRISC extends MemOpNode implements MachNode{
 
     // Store-based flavors have a value edge
     MemOpRISC(Node op, MemOpNode mop, Node base, Node idx, int off, int scale, int imm, Node val) {
-        this(op, mop, base, idx, off, scale, imm);
+        this(op,mop,base,idx,off,scale,imm);
         _inputs.setX(4, val);
     }
     Node idx() { return in(3); }
