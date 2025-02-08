@@ -4,7 +4,7 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.BitSet;
-import static com.seaofnodes.simple.CodeGen.CODE;
+import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
 

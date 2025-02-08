@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;

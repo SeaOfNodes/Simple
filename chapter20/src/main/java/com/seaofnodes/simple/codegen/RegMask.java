@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.codegen;
 
 import java.util.BitSet;
 

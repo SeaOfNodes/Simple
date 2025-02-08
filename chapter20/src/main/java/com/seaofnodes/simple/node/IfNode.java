@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
