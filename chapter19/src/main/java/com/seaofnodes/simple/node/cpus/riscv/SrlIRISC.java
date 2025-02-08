@@ -1,25 +1,28 @@
-package com.seaofnodes.simple.node.cpus.x86_64_v2;
+package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.lang.StringBuilder;
 
-// Logical Right Shift
-public class ShrIX86 extends MachConcreteNode implements MachNode{
+
+// Right Shift Logical Immediate
+public class SrlIRISC extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
-    ShrIX86(Node shr, TypeInteger ti) {super(shr); _inputs.pop(); _ti = ti;}
+    SrlIRISC(Node srl, TypeInteger ti) {super(srl); _inputs.pop();  _ti = ti;}
+
 
     // Register mask allowed on input i.
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
-        //assert i==1;
-        return x86_64_v2.RMASK; }
+        // assert i==1;
+        return riscv.RMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
+    @Override public RegMask outregmap() { return riscv.RMASK; }
 
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
@@ -30,11 +33,11 @@ public class ShrIX86 extends MachConcreteNode implements MachNode{
     }
 
     // General form
-    // General form: "shri  dst >>> #imm"
+    // General form: "srli  dst << #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >>> #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >> #");
         _ti.print(sb);
     }
 
-    @Override public String op() { return "shri"; }
+    @Override public String op() { return "shrli"; }
 }

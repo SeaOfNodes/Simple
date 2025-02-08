@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node.cpus.x86_64_v2;
+package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.RegMask;
@@ -11,19 +11,18 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.io.ByteArrayOutputStream;
 
-public class XorIX86 extends MachConcreteNode implements MachNode {
+// Right Shift Arithmetic
+public class SraRISC extends MachConcreteNode implements MachNode {
 
-    final TypeInteger _ti;
-    XorIX86(Node xor, TypeInteger ti) {super(xor); _inputs.pop(); _ti = ti;}
+    SraRISC(Node sra) {super(sra);}
 
     // Register mask allowed on input i.
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
-        //assert i==1;
-        return x86_64_v2.WMASK; }
+        // assert i==1;
+        return riscv.RMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
-
+    @Override public RegMask outregmap() { return riscv.RMASK; }
 
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
@@ -34,11 +33,10 @@ public class XorIX86 extends MachConcreteNode implements MachNode {
     }
 
     // General form
-    // General form: "ori  xori ^ #imm"
+    // General form: "sra rd, rs1, rs2"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" ^ #");
-        _ti.print(sb);
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
     }
 
-    @Override public String op() { return "xori"; }
+    @Override public String op() { return "sra"; }
 }

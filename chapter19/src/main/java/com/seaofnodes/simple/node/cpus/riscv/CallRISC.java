@@ -1,16 +1,14 @@
-package com.seaofnodes.simple.node.cpus.x86_64_v2;
+package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
 
-public class CallX86 extends CallNode implements MachNode {
+public class CallRISC extends CallNode implements MachNode{
     final TypeFunPtr _tfp;
     final String _name;
-    CallX86( CallNode call, TypeFunPtr tfp ) {
+    CallRISC( CallNode call, TypeFunPtr tfp ) {
         super(call);
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
@@ -20,9 +18,9 @@ public class CallX86 extends CallNode implements MachNode {
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return x86_64_v2.callInMaskInt(i); // Normal argument
+        return riscv.callInMaskInt(i); // Normal argument
     }
-    @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
+    @Override public RegMask outregmap() { return riscv.RET_MASK; }
 
     @Override public String name() { return _name; }
 
@@ -36,5 +34,4 @@ public class CallX86 extends CallNode implements MachNode {
     }
 
     @Override public String op() { return "call"; }
-
 }

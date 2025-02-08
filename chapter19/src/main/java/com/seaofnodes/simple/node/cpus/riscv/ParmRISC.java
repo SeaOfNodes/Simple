@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node.cpus.x86_64_v2;
+package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
@@ -7,12 +7,12 @@ import com.seaofnodes.simple.node.ParmNode;
 import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
-public class ParmX86 extends ParmNode implements MachNode {
+public class ParmRISC extends ParmNode implements MachNode{
     final RegMask _rmask;
-    ParmX86( ParmNode parm ) {
+    ParmRISC(ParmNode parm) {
         super(parm);
-        // default to int
-        _rmask = x86_64_v2.callInMaskInt(_idx);
+        // Assume int
+        _rmask = riscv.callInMaskInt(_idx);
     }
 
     // Register mask allowed on input i.  0 for no register.

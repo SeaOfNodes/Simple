@@ -8,7 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.lang.StringBuilder;
 
-
+// Arithmetic Right Shift
 public class SarX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
     SarX86(Node sar, TypeInteger ti) {super(sar); _inputs.pop();  _ti = ti;}
