@@ -24,7 +24,7 @@ abstract public class BuildLRG {
                             ? alloc.newLRG(n) // Define a new LRG for N
                             : alloc.lrg2(n,mach.twoAddress()); // Use the matching 2-adr input
                         // Record mask and mach
-                        if( !lrg.mach(mach).and(def_mask) )
+                        if( !lrg.machDef(mach).and(def_mask) )
                             alloc.failed(lrg); // Empty register mask, must split
                     }
                     // Now, look in the opposite direction. How are incoming

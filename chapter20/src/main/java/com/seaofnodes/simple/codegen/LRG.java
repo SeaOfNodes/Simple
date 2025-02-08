@@ -8,18 +8,21 @@ import com.seaofnodes.simple.node.MachNode;
 public class LRG {
 
     // Dense live range numbers
-    final int _lrg;
+    final short _lrg;
 
-    // A sample MachNode in the live range
+    // Count of defs
+    short _defCnt;
+
+    // A sample MachNode def in the live range
     MachNode _mach;
 
     // AND of all masks involved; null if none have been applied yet
     RegMask _mask;
 
-    LRG( int lrg ) { _lrg = lrg; }
+    LRG( short lrg ) { _lrg = lrg; }
 
     // Record any MachNode for spilling heuristics
-    LRG mach( MachNode mach ) { _mach = mach; return this; }
+    LRG machDef( MachNode mach ) { _mach = mach; _defCnt++; return this; }
 
     // Record intersection of all register masks.
     // True if still has registers

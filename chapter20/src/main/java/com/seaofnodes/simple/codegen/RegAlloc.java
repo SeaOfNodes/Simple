@@ -58,7 +58,7 @@ public class RegAlloc {
     // -----------------------
     // Map from Nodes to Live Ranges
     private final IdentityHashMap<Node,LRG> _lrgs = new IdentityHashMap<>();
-    int _lrg_num;
+    short _lrg_num;
 
     // Has a LRG defined
     boolean hasLRG( Node n ) { return _lrgs.containsKey(n);  }
@@ -108,11 +108,27 @@ public class RegAlloc {
             IFG.color(round,_code);        // If colorable
     }
 
+    // -----------------------
     // Split conflicted live ranges.
     void split() {
+
+        // In C2, all splits are handling in one pass over the program.  Here,
+        // in the name of clarity, we'll handle each failing live range
+        // independently... which generally requires a full pass over the
+        // program for each failing live range.  i.e., might be a lot of
+        // passes.
+        for( LRG lrg : FAILED )
+            split(lrg);
+    }
+
+    // Split this live range
+    void split( LRG lrg ) {
+
+
         throw Utils.TODO();
     }
 
+    // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
     private void postColor() {
         for( Node bb : _code._cfg ) { // For all ops
