@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.RegMask;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.ParmNode;
 import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
