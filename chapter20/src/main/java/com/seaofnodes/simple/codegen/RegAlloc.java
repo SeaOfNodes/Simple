@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.Node;
+import java.util.IdentityHashMap;
 
 /**
   * "Briggs/Chaitin/Click".
@@ -54,6 +55,32 @@ public class RegAlloc {
     // Live ranges with self-conflicts or no allowed registers
     final Ary<LRG> FAILED = new Ary<>(LRG.class);
 
+    // -----------------------
+    // Map from Nodes to Live Ranges
+    private final IdentityHashMap<Node,LRG> _lrgs = new IdentityHashMap<>();
+    int _lrg_num;
+
+    // Has a LRG defined
+    boolean hasLRG( Node n ) { return _lrgs.containsKey(n);  }
+
+    // Define a new LRG, and assign n
+    LRG newLRG( Node n ) {
+        LRG lrg = new LRG(_lrg_num++);
+        LRG old = _lrgs.put(n,lrg); assert old==null;
+        return lrg;
+    }
+
+    // LRG for n
+    LRG lrg( Node n ) { return _lrgs.get(n); }
+
+    // Find LRG for n.in(idx), and also map n to it
+    LRG lrg2( Node n, int idx ) {
+        LRG lrg = _lrgs.get(n.in(idx));
+        _lrgs.put(n,lrg);       // Another node to the same live range
+        return lrg;
+    }
+
+    // -----------------------
     RegAlloc( CodeGen code ) { _code = code; }
 
     public void regAlloc() {
@@ -69,9 +96,12 @@ public class RegAlloc {
 
     private boolean graphColor(int round) {
         FAILED.clear();
+        _lrgs.clear();
+        _lrg_num = 1;
+
         return
             // Build Live Ranges
-            BuildLRG.run(_code._cfg) &&  // if no hard register conflicts
+            BuildLRG.run(this) &&          // if no hard register conflicts
             // Build Interference Graph
             IFG.build(round,_code._cfg) && // If no self conflicts or uncolorable
             // Color attempt

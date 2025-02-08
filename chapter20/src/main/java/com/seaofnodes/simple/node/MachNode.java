@@ -15,9 +15,9 @@ public interface MachNode {
     default void postSelect() { }
 
     // Register mask allowed on input i.  0 for no register.
-    abstract public RegMask regmap(int i);
+    RegMask regmap( int i );
     // Register mask allowed as a result.  0 for no register.
-    abstract public RegMask outregmap();
+    RegMask outregmap();
     // Multi-reg-defining machine op; idx comes from Proj.
     // Sometimes these Projs have no uses, and just exist to kill a register.
     default RegMask outregmap(int idx) { throw Utils.TODO(); }
@@ -39,7 +39,7 @@ public interface MachNode {
     // Instructions cheaper to recreate than to spill, such as loading small constants
     default boolean isClone() { return false; }
     // Encoding is appended into the byte array; size is returned
-    abstract public int encoding(ByteArrayOutputStream bytes);
+    int encoding(ByteArrayOutputStream bytes);
 
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.

@@ -28,7 +28,7 @@ public class x86_64_v2 extends Machine {
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(RAX);
+    public static RegMask RET_MASK = new RegMask(1<<RAX);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
@@ -65,14 +65,14 @@ public class x86_64_v2 extends Machine {
 
     // WIN64(param passing)
     static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
-        RegMask.EMPTY,
-        RegMask.EMPTY,
+        null,
+        null,
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
         R09_MASK,
-        RegMask.EMPTY,
-        RegMask.EMPTY
+        null,
+        null
     };
     static int[] CALLINARG_WIN64 = new int[] {
         0,   // Control, no register
@@ -95,8 +95,8 @@ public class x86_64_v2 extends Machine {
 
     // SystemV(param passing)
     static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
-        RegMask.EMPTY,
-        RegMask.EMPTY,
+        null,
+        null,
         RDI_MASK,
         RSI_MASK,
         RDX_MASK,
@@ -277,6 +277,7 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node con( ConstantNode con ) {
+        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
