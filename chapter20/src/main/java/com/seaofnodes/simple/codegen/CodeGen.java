@@ -2,7 +2,6 @@
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.MemOpX86;
 import com.seaofnodes.simple.print.ASMPrinter;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.print.JSViewer;
@@ -205,10 +204,10 @@ public class CodeGen {
         Node x = map.get(n);
         if( x !=null ) return x; // Been there, done that
 
-        // If n is a MachConcrete, then its part of a multi-node expansion.
+        // If n is a MachNode already, then its part of a multi-node expansion.
         // It does not need instruction selection (already selected!)
         // but it does need its inputs walked.
-        if( n instanceof MachConcreteNode || n instanceof MemOpX86 ) {
+        if( n instanceof MachNode ) {
             for( int i=0; i < n.nIns(); i++ )
                 n._inputs.set(i, _instSelect(n.in(i),map) );
             return n;

@@ -16,7 +16,7 @@ public class NewX86 extends NewNode implements MachNode {
         // Size
         if( i==1 ) return x86_64_v2.RDI_MASK;
         // All the memory alias edges
-        return RegMask.EMPTY;
+        return null;
     }
     @Override public RegMask outregmap() { throw Utils.TODO(); }
 
@@ -25,7 +25,7 @@ public class NewX86 extends NewNode implements MachNode {
     @Override public RegMask outregmap(int i) {
         if( i == 1 ) return x86_64_v2.RET_MASK;
         // All the memory aliases edges
-        return RegMask.EMPTY;
+        return null;
     }
 
     // Encoding is appended into the byte array; size is returned
