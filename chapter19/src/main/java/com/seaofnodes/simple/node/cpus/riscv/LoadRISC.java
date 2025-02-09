@@ -1,25 +1,33 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.RegMask;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.node.LoadNode;
-import com.seaofnodes.simple.node.Node;
 
-public class LoadRISC extends MemOpRISC{
-    LoadRISC(LoadNode ld, Node base, Node idx, int off, int scale) {
-        super(ld, ld, base, idx, off, scale, 0);
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeInteger;
+import java.io.ByteArrayOutputStream;
+
+public class LoadRISC extends MachConcreteNode implements MachNode{
+    LoadRISC(LoadNode ld) {
+        super(ld);
     }
 
-    @Override public String op() { return "ld"+_sz; }
-
+    @Override public RegMask regmap(int i) {
+        return riscv.RMASK;
+    }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return riscv.RMASK; }
 
-    // General form: "ldN  dst,[base + idx<<2 + 12]"
+
+    // Encoding is appended into the byte array; size is returned
+    @Override public int encoding(ByteArrayOutputStream bytes) {
+        throw Utils.TODO();
+    }
+
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(",");
-        asm_address(code,sb);
+    }
+
+    @Override public String op() {
+        return "lw";
     }
 }
 

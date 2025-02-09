@@ -21,7 +21,7 @@ public class CBranchRISC extends IfNode implements MachNode{
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
-        if( set instanceof SetRISC && (cmp instanceof CmpRISC || cmp instanceof CmpIRISC || cmp instanceof CmpMemRISC) )
+        if( set instanceof SetRISC)
             _inputs.set(1,cmp);
         else
             throw Utils.TODO();

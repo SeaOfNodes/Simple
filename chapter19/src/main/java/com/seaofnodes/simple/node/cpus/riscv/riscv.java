@@ -209,34 +209,12 @@ public class riscv extends Machine{
     }
 
     private Node addf(AddFNode addf) {
-        if( addf.in(1) instanceof LoadNode ld && ld.nOuts()==1 )
-            return new AddFMemRISC(addf,address(ld),ld.ptr(),idx,off,scale, addf.in(2));
-
-        if( addf.in(2) instanceof LoadNode ld && ld.nOuts()==1 )
-            throw Utils.TODO(); // Swap load sides
         return new AddFRISC(addf);
     }
 
     private Node add(AddNode add) {
-        Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
-            return new AddMemRISC(add,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val);
-
-        if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
-            throw Utils.TODO(); // Swap load sides
-
-        // Attempt a full LEA-style break down.
-        // Returns one of AddX86, AddIX86, LeaX86, or LHS
         if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            if( lhs instanceof AddNode ladd )
-                // ((base + (idx << scale)) + off)
-                return _lea(add,ladd.in(1),ladd.in(2),toff.value());
-            if( lhs instanceof ShlNode shift )
-                // (idx << scale) + off; no base
-                return _lea(add,null,shift,toff.value());
-
-            // lhs + rhs1
             if( toff.value()==0 ) return add;
             return new AddIRISC(add, toff);
         }
@@ -261,14 +239,7 @@ public class riscv extends Machine{
     }
 
     private Node _cmp(BoolNode bool) {
-        Node lhs = bool.in(1);
         Node rhs = bool.in(2);
-
-        if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
-            return new CmpMemRISC(bool,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val,false);
-
-        if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
-            return new CmpMemRISC(bool,address(ld),ld.ptr(),idx,off,scale, imm(lhs),val,true);
 
         return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
@@ -285,35 +256,6 @@ public class riscv extends Machine{
             // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
             case Type t -> new ConstantNode(con);
         };
-    }
-
-    private static int off, scale, imm;
-    private static Node idx, val;
-    private <N extends MemOpNode> N address( N mop ) {
-        off = scale = imm = 0;  // Reset
-        idx = val = null;
-        Node base = mop.ptr();
-        // Skip/throw-away a ReadOnly, only used to typecheck
-        if( base instanceof ReadOnlyNode read ) base = read.in(1);
-        assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
-        if( mop.off() instanceof AddNode add && add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
-            off = (int)ti.value();
-            assert off == ti.value(); // In 32-bit range
-            idx = add.in(1);
-            if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
-                    shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
-                idx = shift.in(1);
-                scale = (int)tscale.value();
-            }
-        } else {
-            if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
-                off = (int)ti.value();
-                assert off == ti.value(); // In 32-bit range
-            } else {
-                idx = mop.off();
-            }
-        }
-        return mop;
     }
 
     private Node jmp( IfNode iff ) {
@@ -372,51 +314,11 @@ public class riscv extends Machine{
     }
 
     private Node ld(LoadNode ld) {
-        return new LoadRISC(address(ld), ld.ptr(), idx, off, scale);
+        return new LoadRISC(ld);
     }
 
     private Node st(StoreNode st) {
-        // Look for "*ptr op= val"
-        Node op = st.val();
-        if (op instanceof AddNode) {
-            if (op.in(1) instanceof LoadNode ld &&
-                    ld.in(0) == st.in(0) &&
-                    ld.mem() == st.mem() &&
-                    ld.ptr() == st.ptr() &&
-                    ld.off() == st.off()) {
-                if (op instanceof AddNode) {
-                    return new MemAddRISC(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
-                }
-                throw Utils.TODO();
-            }
-        }
-
-        return new StoreRISC(address(st), st.ptr(), idx, off, scale, imm(st.val()), val);
-    }
-    private int imm( Node xval ) {
-        assert val==null && imm==0;
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
-            val = null;
-            imm = (int)ti.value();
-            assert imm == ti.value(); // In 32-bit range
-        } else {
-            val = xval;
-        }
-        return imm;
-    }
-
-    private Node _lea( Node add, Node base, Node idx, long off ) {
-        int scale = 1;
-        if( base instanceof ShlNode && !(idx instanceof ShlNode) ) throw Utils.TODO(); // Bug in canonicalization, should on RHS
-        if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
-                shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
-            idx = shift.in(1);
-            scale = 1 << ((int)tscale.value());
-        }
-        // (base + idx) + off
-        return off==0 && scale==1
-                ? new AddRISC(add)
-                : new LeaRISC(add,base,idx,scale,off);
+        return new StoreRISC(st);
     }
 
     private Node mul(MulNode mul) {

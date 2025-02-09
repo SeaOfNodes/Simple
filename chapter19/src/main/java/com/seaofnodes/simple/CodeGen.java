@@ -1,7 +1,6 @@
  package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.MemOpRISC;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.MemOpX86;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
@@ -205,7 +204,7 @@ public class CodeGen {
         // If n is a MachConcrete, then its part of a multi-node expansion.
         // It does not need instruction selection (already selected!)
         // but it does need its inputs walked.
-        if( n instanceof MachConcreteNode || n instanceof MemOpX86 || n instanceof MemOpRISC) {
+        if( n instanceof MachConcreteNode || n instanceof MemOpX86) {
             for( int i=0; i < n.nIns(); i++ )
                 n._inputs.set(i, _instSelect(n.in(i),map) );
             return n;
