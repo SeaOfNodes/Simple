@@ -39,44 +39,23 @@ abstract public class BuildLRG {
                             }
                         }
 
-                } else {
-                    switch( n ) {
-                    case PhiNode phi:
-                        //    // All Phi inputs end up with the same LRG.
-                        //    // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
-                        //    // If any lrg is found, copy it forward, capturing the result if it changes
-                        //    // and copy that forward. Moves toward correctness.
-                        //    lrg = lrg(n);
-                        //    for( int i=1; i<n.len(); i++ )
-                        //        lrg = lrg==0 ? lrg(n.in(i)) : setLRG(n.in(i),lrg);
-                        //    // If none, make one.
-                        //    if( lrg==0 ) lrg = newLRG(-1L);
-                        //    // Pass 2: everybody uses the same LRG because all existing have been found
-                        //    if( lrg != n._lrg ) {
-                        //        tmp = setLRG(n,lrg); assert tmp==lrg;
-                        //        for( int i=1; i<n.len(); i++ )
-                        //            { tmp = setLRG(n.in(i),lrg); assert tmp==lrg; }
-                        //    }
-                        //    break;
-                        throw Utils.TODO();
-
-                    case StopNode     stop: break;
-                    case ConstantNode con : break;
-                    default:    throw Utils.TODO();
-                    }
+                } else if( n instanceof PhiNode phi ) {
+                    // All Phi inputs end up with the same LRG.
+                    // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
+                    LRG lrg = alloc.lrg(phi);
+                    if( lrg == null )
+                        for( int i=1; i<phi.nIns(); i++ )
+                            if( (lrg = alloc.lrg(phi.in(i))) != null )
+                                break;
+                    // If none, make one.
+                    if( lrg==null ) lrg = alloc.newLRG(n);
+                    // Pass 2: everybody uses the same LRG
+                    alloc.union(lrg,phi);
+                    for( int i=1; i<n.nIns(); i++ )
+                        alloc.union(lrg,n.in(i));
+                    if( lrg._mask.isEmpty() )
+                        alloc.failed(lrg);
                 }
-
-                // Multi-register defining
-                //if( n instanceof MultiNode )
-                //    for( Node use : n.outs() )
-                //        if( use instanceof ProjNode proj && proj.outregmap()!=0 ) {
-                //            assert proj._lrg==0;
-                //            int twidx = proj.twoAddress();
-                //            setLRG(proj, twidx == 0 ? newLRG(-1L) : lrg(n.in(twidx)));
-                //            andMask(proj,proj.outregmap());
-                //            MACHS.setX(proj._lrg,proj);
-                //        }
-
             }
 
         return alloc.FAILED.isEmpty();

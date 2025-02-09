@@ -10,6 +10,9 @@ public class LRG {
     // Dense live range numbers
     final short _lrg;
 
+    // U-F leader; null if leader
+    LRG _leader;
+
     // Count of single-register defs and uses
     short _1regDefCnt, _1regUseCnt;
 
@@ -21,6 +24,18 @@ public class LRG {
     RegMask _mask;
 
     LRG( short lrg ) { _lrg = lrg; }
+
+    LRG find() {
+        if( _leader==null )
+            return this;
+        throw Utils.TODO();
+    }
+
+    LRG union( LRG lrg ) {
+        if( lrg==null || lrg==this ) return this;
+        throw Utils.TODO();
+    }
+
 
     // Record any Mach def for spilling heuristics
     LRG machDef( MachNode def, boolean size1 ) {

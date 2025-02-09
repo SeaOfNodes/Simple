@@ -50,6 +50,7 @@ public class x86_64_v2 extends Machine {
         "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
         "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
         "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+        "flags",
     };
     @Override public String reg( int reg ) { return REGS[reg]; }
 
@@ -261,6 +262,12 @@ public class x86_64_v2 extends Machine {
         return new SetX86(cmp,bool.op());
     }
     private Node _cmp( BoolNode bool ) {
+        // Float variant
+        if( bool instanceof BoolNode.EQF ||
+            bool instanceof BoolNode.LTF ||
+            bool instanceof BoolNode.LEF )
+            return new CmpFX86(bool);
+
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
         if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
@@ -269,9 +276,11 @@ public class x86_64_v2 extends Machine {
         if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
             return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(lhs),val,true);
 
-        return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new CmpIX86(bool, ti)
-            : new  CmpX86(bool);
+        // Vs immediate
+        if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new CmpIX86(bool, ti);
+        // x vs y
+        return new CmpX86(bool);
     }
 
     private Node con( ConstantNode con ) {
