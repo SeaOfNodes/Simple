@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.node.CallNode;
+import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 public class CallRX86 extends CallNode implements MachNode {
@@ -17,7 +17,7 @@ public class CallRX86 extends CallNode implements MachNode {
             ? x86_64_v2.WMASK          // Function call target
             : x86_64_v2.callInMask(i); // Normal argument
     }
-    @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -29,5 +29,4 @@ public class CallRX86 extends CallNode implements MachNode {
     }
 
     @Override public String op() { return "callr"; }
-
 }
