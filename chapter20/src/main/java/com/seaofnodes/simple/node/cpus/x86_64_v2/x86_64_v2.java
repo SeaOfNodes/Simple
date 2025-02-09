@@ -29,6 +29,7 @@ public class x86_64_v2 extends Machine {
 
     // Return single int/ptr register
     public static RegMask RET_MASK = new RegMask(1<<RAX);
+    public static RegMask RET_FMASK = new RegMask(1<<XMM0);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
