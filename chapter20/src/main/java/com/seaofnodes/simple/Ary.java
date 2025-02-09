@@ -76,6 +76,17 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         return e;
     }
 
+    /** Slow, linear-time, element insertion.  Preserves order.
+     *  @param i where to insert
+     *  @return element inserted */
+    public E insert( E e, int i ) {
+        setLen(_len+1);
+        System.arraycopy(_es,i,_es,i+1,_len-i);
+        _es[i] = e;
+        return e;
+    }
+
+
     /** Remove all elements */
     public void clear( ) { _len=0; }
 

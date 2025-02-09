@@ -58,7 +58,7 @@ public class RegAlloc {
     // -----------------------
     // Map from Nodes to Live Ranges
     private final IdentityHashMap<Node,LRG> _lrgs = new IdentityHashMap<>();
-    int _lrg_num;
+    short _lrg_num;
 
     // Has a LRG defined
     boolean hasLRG( Node n ) { return _lrgs.containsKey(n);  }
@@ -78,6 +78,14 @@ public class RegAlloc {
         LRG lrg = _lrgs.get(n.in(idx));
         _lrgs.put(n,lrg);       // Another node to the same live range
         return lrg;
+    }
+
+
+    // Printable register number for node n
+    String reg( Node n ) {
+        LRG lrg = lrg(n);
+        if( lrg==null ) return null;
+        return "V"+lrg._lrg;
     }
 
     // -----------------------
@@ -108,11 +116,47 @@ public class RegAlloc {
             IFG.color(round,_code);        // If colorable
     }
 
+    // -----------------------
     // Split conflicted live ranges.
     void split() {
+
+        // In C2, all splits are handling in one pass over the program.  Here,
+        // in the name of clarity, we'll handle each failing live range
+        // independently... which generally requires a full pass over the
+        // program for each failing live range.  i.e., might be a lot of
+        // passes.
+        for( LRG lrg : FAILED )
+            split(lrg);
+    }
+
+    // Split this live range
+    boolean split( LRG lrg ) {
+
+        if( lrg._mask.isEmpty() )
+            return splitEmptyMask(lrg);
+
         throw Utils.TODO();
     }
 
+    // Split live range with an empty mask
+    boolean splitEmptyMask( LRG lrg ) {
+        // Live range has a single-def single-register, and/or a single-use
+        // single-register.  Split after the def and before the use.  Does not
+        // require a full pass.
+        if( lrg._1regDefCnt<=1 && lrg._1regUseCnt<=1 ) {
+            // Split just after def
+            if( lrg._1regDefCnt==1 )
+                _code._mach.split().insertAfter((Node)lrg._machDef);
+            // Split just before use
+            if( lrg._1regUseCnt==1 )
+                _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
+            return true;
+        }
+        // Needs a full pass to find all defs and all uses
+        throw Utils.TODO();
+    }
+
+    // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
     private void postColor() {
         for( Node bb : _code._cfg ) { // For all ops

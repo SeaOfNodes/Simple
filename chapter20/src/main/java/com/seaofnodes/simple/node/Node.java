@@ -299,6 +299,36 @@ public abstract class Node {
         kill();
     }
 
+    // Replace uses of `def` with `this`, and insert `this` immediately after
+    // `def` in the basic block.
+    public void insertAfter( Node def ) {
+        CFGNode cfg = def.cfg0();
+        int i = cfg._outputs.find(def)+1;
+        while( cfg.out(i).isMultiTail() ) i++;
+        cfg._outputs.insert(this,i);
+        _inputs.set(0,cfg);
+        while( def.nOuts() > 0 ) {
+            Node use = def._outputs.removeLast();
+            use.unlock();
+            int idx = use._inputs.find(def);
+            use._inputs.set(idx,this);
+            addUse(use);
+        }
+        setDef(1,def);
+    }
+
+    // Insert this in front of use.in(uidx) with this, and insert this
+    // immediately before use in the basic block.
+    public void insertBefore( Node use, int uidx ) {
+        CFGNode cfg = use.cfg0();
+        int i = cfg._outputs.find(use);
+        while( cfg.out(i).isMultiTail() ) i--;
+        cfg._outputs.insert(this,i);
+        _inputs.set(0,cfg);
+        setDef(1,use.in(uidx));
+        use.setDef(uidx,this);
+    }
+
     // ------------------------------------------------------------------------
     // Graph-based optimizations
 
