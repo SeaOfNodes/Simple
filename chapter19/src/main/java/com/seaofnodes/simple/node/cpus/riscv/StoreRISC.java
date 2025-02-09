@@ -14,9 +14,9 @@ import java.util.BitSet;
 
 
 // sw rs2,offset(rs1)
-public class StoreRISC extends MachConcreteNode implements MachNode {
+public class StoreRISC extends MemOpRISC {
     StoreRISC( StoreNode st) {
-        super(st);
+        super(st, st);
     }
 
     @Override public RegMask regmap(int i) {
@@ -36,5 +36,5 @@ public class StoreRISC extends MachConcreteNode implements MachNode {
 
     }
 
-    @Override public String op() { return "st"; }
+    @Override public String op() { return "st"+_sz; }
 }

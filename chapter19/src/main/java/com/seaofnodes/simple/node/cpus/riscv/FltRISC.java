@@ -18,7 +18,7 @@ public class FltRISC extends ConstantNode implements MachNode{
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
     // General int registers
-    @Override public RegMask outregmap() { return x86_64_v2.RMASK; }
+    @Override public RegMask outregmap() { return riscv.FMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -34,6 +34,6 @@ public class FltRISC extends ConstantNode implements MachNode{
     }
 
     @Override public String op() {
-        return "fld";           // Some fancier encoding
+        return "flw";           // Some fancier encoding
     }
 }

@@ -6,9 +6,9 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-public class LoadRISC extends MachConcreteNode implements MachNode{
+public class LoadRISC extends MemOpRISC{
     LoadRISC(LoadNode ld) {
-        super(ld);
+        super(ld, ld);
     }
 
     @Override public RegMask regmap(int i) {
@@ -27,7 +27,7 @@ public class LoadRISC extends MachConcreteNode implements MachNode{
     }
 
     @Override public String op() {
-        return "lw";
+        return "lw" +_sz;
     }
 }
 
