@@ -10,6 +10,7 @@ public class RegMask {
     final long _bits;
 
     private static final RegMask EMPTY = new RegMask(0);
+    public static final RegMask FULL = new RegMask(-1L);
 
     public RegMask(long x ) { _bits = x; }
     public RegMask(long[] xs) { /*_bits = BitSet.valueOf(           xs); */ throw Utils.TODO(); }

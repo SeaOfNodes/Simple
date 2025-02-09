@@ -10,19 +10,35 @@ public class LRG {
     // Dense live range numbers
     final short _lrg;
 
-    // Count of defs
-    short _defCnt;
+    // Count of single-register defs and uses
+    short _1regDefCnt, _1regUseCnt;
 
     // A sample MachNode def in the live range
-    MachNode _mach;
+    MachNode _machDef, _machUse;
+    short _uidx;                // _machUse input
 
     // AND of all masks involved; null if none have been applied yet
     RegMask _mask;
 
     LRG( short lrg ) { _lrg = lrg; }
 
-    // Record any MachNode for spilling heuristics
-    LRG machDef( MachNode mach ) { _mach = mach; _defCnt++; return this; }
+    // Record any Mach def for spilling heuristics
+    LRG machDef( MachNode def, boolean size1 ) {
+        if( _machDef==null || size1 )
+            _machDef = def;
+        if( size1 )
+            _1regDefCnt++;
+        return this;
+    }
+
+    // Record any Mach use for spilling heuristics
+    LRG machUse( MachNode use, short uidx, boolean size1 ) {
+        if( _machUse==null || size1 )
+            { _machUse = use; _uidx = uidx; }
+        if( size1 )
+            _1regUseCnt++;
+        return this;
+    }
 
     // Record intersection of all register masks.
     // True if still has registers
