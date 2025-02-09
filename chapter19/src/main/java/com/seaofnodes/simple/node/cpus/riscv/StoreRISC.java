@@ -25,7 +25,7 @@ public class StoreRISC extends MachConcreteNode implements MachNode {
 
 
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return RegMask.EMPTY; }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

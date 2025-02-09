@@ -56,8 +56,8 @@ public class riscv extends Machine{
 
     // Int arguments calling conv
     static RegMask[] CALLINMASK_RISCV_INT = new RegMask[] {
-        RegMask.EMPTY,
-        RegMask.EMPTY,
+        null,
+        null,
         A0_MASK,
         A1_MASK,
         A2_MASK,
@@ -91,8 +91,8 @@ public class riscv extends Machine{
 
     // Float arguments
     static RegMask[] CALLINMASK_RISCV_FLOAT = new RegMask[] {
-            RegMask.EMPTY,
-            RegMask.EMPTY,
+            null,
+            null,
             FA0_MASK,
             FA1_MASK,
             FA2_MASK,

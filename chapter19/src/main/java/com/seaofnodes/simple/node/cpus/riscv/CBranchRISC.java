@@ -28,7 +28,7 @@ public class CBranchRISC extends IfNode implements MachNode{
     }
 
     @Override public RegMask regmap(int i) { assert i==1; return riscv.RMASK; }
-    @Override public RegMask outregmap() { return RegMask.EMPTY; }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
 

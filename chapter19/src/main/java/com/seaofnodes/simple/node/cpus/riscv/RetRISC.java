@@ -14,15 +14,15 @@ public class RetRISC extends ReturnNode implements MachNode{
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
         return switch( i ) {
-            case 0 -> RegMask.EMPTY;
-            case 1 -> RegMask.EMPTY;
+            case 0 -> null;
+            case 1 -> null;
             case 2 -> riscv.RET_MASK;
-            case 3 -> RegMask.EMPTY; // RPC is always on stack
+            case 3 -> null; // RPC is always on stack
             default -> throw Utils.TODO();
         };
     }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return RegMask.EMPTY; }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

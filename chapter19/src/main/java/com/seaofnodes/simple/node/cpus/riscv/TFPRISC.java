@@ -14,7 +14,7 @@ import java.io.ByteArrayOutputStream;
 public class TFPRISC extends ConstantNode implements MachNode{
     TFPRISC(ConstantNode con) {super(con);}
     // Register mask allowed on input i.  0 for no register.
-    @Override public RegMask regmap(int i) { return RegMask.EMPTY; }
+    @Override public RegMask regmap(int i) { return null; }
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.RMASK; }
 
