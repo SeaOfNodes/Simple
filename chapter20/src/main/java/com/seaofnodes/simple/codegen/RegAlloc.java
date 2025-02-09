@@ -80,6 +80,14 @@ public class RegAlloc {
         return lrg;
     }
 
+
+    // Printable register number for node n
+    String reg( Node n ) {
+        LRG lrg = lrg(n);
+        if( lrg==null ) return null;
+        return "V"+lrg._lrg;
+    }
+
     // -----------------------
     RegAlloc( CodeGen code ) { _code = code; }
 
@@ -122,9 +130,29 @@ public class RegAlloc {
     }
 
     // Split this live range
-    void split( LRG lrg ) {
+    boolean split( LRG lrg ) {
 
+        if( lrg._mask.isEmpty() )
+            return splitEmptyMask(lrg);
 
+        throw Utils.TODO();
+    }
+
+    // Split live range with an empty mask
+    boolean splitEmptyMask( LRG lrg ) {
+        // Live range has a single-def single-register, and/or a single-use
+        // single-register.  Split after the def and before the use.  Does not
+        // require a full pass.
+        if( lrg._1regDefCnt<=1 && lrg._1regUseCnt<=1 ) {
+            // Split just after def
+            if( lrg._1regDefCnt==1 )
+                _code._mach.split().insertAfter((Node)lrg._machDef);
+            // Split just before use
+            if( lrg._1regUseCnt==1 )
+                _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
+            return true;
+        }
+        // Needs a full pass to find all defs and all uses
         throw Utils.TODO();
     }
 

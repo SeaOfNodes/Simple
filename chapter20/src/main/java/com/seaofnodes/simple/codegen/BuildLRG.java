@@ -24,7 +24,7 @@ abstract public class BuildLRG {
                             ? alloc.newLRG(n) // Define a new LRG for N
                             : alloc.lrg2(n,mach.twoAddress()); // Use the matching 2-adr input
                         // Record mask and mach
-                        if( !lrg.machDef(mach).and(def_mask) )
+                        if( !lrg.machDef(mach,def_mask.size1()).and(def_mask) )
                             alloc.failed(lrg); // Empty register mask, must split
                     }
                     // Now, look in the opposite direction. How are incoming
@@ -32,9 +32,11 @@ abstract public class BuildLRG {
                     for( int i=1; i<n.nIns(); i++ )
                         if( n.in(i)!=null ) {
                             LRG lrg = alloc.lrg(n.in(i));
-                            if( lrg != null ) // Anti-dep or other, no LRG
-                                if( !lrg.and(mach.regmap(i)) )
+                            if( lrg != null ) { // Anti-dep or other, no LRG
+                                RegMask use_mask = mach.regmap(i);
+                                if( !lrg.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
                                     alloc.failed(lrg); // Empty register mask, must split
+                            }
                         }
 
                 } else {
