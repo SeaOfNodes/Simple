@@ -12,8 +12,8 @@ public class riscv extends Machine{
 
     // Using ABI names instead of register names
     public static int ZERO =  0,  RA =  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
-    public static int s0   =  8,  s1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
-    public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  s6 = 22,  S7 = 23;
+    public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
+    public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
@@ -215,7 +215,6 @@ public class riscv extends Machine{
     private Node add(AddNode add) {
         Node rhs = add.in(2);
         if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            if( toff.value()==0 ) return add;
             return new AddIRISC(add, toff);
         }
         return new AddRISC(add);

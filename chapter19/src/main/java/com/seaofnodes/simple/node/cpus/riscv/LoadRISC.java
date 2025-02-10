@@ -12,7 +12,8 @@ public class LoadRISC extends MemOpRISC{
     }
 
     @Override public RegMask regmap(int i) {
-        return riscv.RMASK;
+        // wider mask, encode it differently, immediate handled with hard split(in RA)
+        return riscv.RMASK.or(riscv.FMASK);
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return riscv.RMASK; }
