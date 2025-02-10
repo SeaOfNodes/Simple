@@ -249,7 +249,7 @@ public class riscv extends Machine{
     private Node con( ConstantNode con ) {
         return switch( con._con ) {
             case TypeInteger ti  -> new IntRISC(con);
-            case TypeFloat   tf  -> new FltRISC(con);
+            case TypeFloat   tf  -> new IntRISC(con);
             case TypeFunPtr  tfp -> new TFPRISC(con);
             case TypeMemPtr  tmp -> new ConstantNode(con);
             case TypeNil     tn  -> throw Utils.TODO();
