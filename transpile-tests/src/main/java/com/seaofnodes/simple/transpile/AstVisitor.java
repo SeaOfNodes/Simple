@@ -65,11 +65,14 @@ class AstVisitor extends TreeScanner<Void, Void> {
                 };
             }
             if (methodSelect.endsWith("assertEquals")) {
-                if (inCatch) {
-                    if (args.size() != 2)
-                        throw new RuntimeException("Unexpected number of arguments " + node);
-                    if (args.get(1).toString().contains("e.getMessage()")) {
-                        current.parseErrorMessage = (String) literal(args.get(0));
+                if (inCatch ) {
+                    // chapter15.testBad3 used catch for the evaluator, not the parse error
+                    if (current.assertStopEquals == null) {
+                        if (args.size() != 2)
+                            throw new RuntimeException("Unexpected number of arguments " + node);
+                        if (args.get(1).toString().contains("e.getMessage()")) {
+                            current.parseErrorMessage = (String) literal(args.get(0));
+                        }
                     }
                 } else {
                     if (args.size() != 2)
