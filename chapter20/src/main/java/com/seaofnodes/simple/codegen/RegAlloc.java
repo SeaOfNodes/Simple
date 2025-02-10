@@ -71,13 +71,27 @@ public class RegAlloc {
     }
 
     // LRG for n
-    LRG lrg( Node n ) { return _lrgs.get(n); }
+    LRG lrg( Node n ) {
+        LRG lrg = _lrgs.get(n);
+        if( lrg==null ) return null;
+        LRG lrg2 = lrg.find();
+        if( lrg != lrg2 )
+            _lrgs.put(n,lrg2);
+        return lrg2;
+    }
 
     // Find LRG for n.in(idx), and also map n to it
     LRG lrg2( Node n, int idx ) {
-        LRG lrg = _lrgs.get(n.in(idx));
+        LRG lrg = lrg(n.in(idx));
         _lrgs.put(n,lrg);       // Another node to the same live range
         return lrg;
+    }
+
+    // Union any lrg for n with lrg and map to the union
+    void union( LRG lrg, Node n ) {
+        LRG lrgn = _lrgs.get(n);
+        LRG lrg3 = lrg.union(lrgn);
+        _lrgs.put(n,lrg3);
     }
 
 
@@ -111,7 +125,7 @@ public class RegAlloc {
             // Build Live Ranges
             BuildLRG.run(this) &&          // if no hard register conflicts
             // Build Interference Graph
-            IFG.build(round,_code._cfg) && // If no self conflicts or uncolorable
+            IFG.build(round,this) && // If no self conflicts or uncolorable
             // Color attempt
             IFG.color(round,_code);        // If colorable
     }
@@ -143,7 +157,7 @@ public class RegAlloc {
         // Live range has a single-def single-register, and/or a single-use
         // single-register.  Split after the def and before the use.  Does not
         // require a full pass.
-        if( lrg._1regDefCnt<=1 && lrg._1regUseCnt<=1 ) {
+        if( lrg._1regDefCnt<=1 && lrg._1regUseCnt<=1 && (lrg._1regDefCnt + lrg._1regUseCnt) > 0 ) {
             // Split just after def
             if( lrg._1regDefCnt==1 )
                 _code._mach.split().insertAfter((Node)lrg._machDef);

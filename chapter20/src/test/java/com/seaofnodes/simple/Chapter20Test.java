@@ -22,5 +22,24 @@ return 0;
         assertEquals("return (ori,arg);", code._stop.toString());
     }
 
+    @Test
+    public void testNewton() {
+        CodeGen code = new CodeGen(
+"""
+// Newtons approximation to the square root
+val sqrt = { flt x ->
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( next == guess ) return guess;
+        guess = next;
+    }
+};
+flt farg = arg;
+return sqrt(farg);
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("return Phi(Loop,(i2f8,arg),(divf,(addf,(divf,i2f8,Phi_guess),Phi_guess),2.0f));", code.print());
+    };
 
 }

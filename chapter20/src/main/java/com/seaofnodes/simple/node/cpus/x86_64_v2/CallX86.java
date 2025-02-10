@@ -1,13 +1,13 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.node.CallNode;
+import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
 
 public class CallX86 extends CallNode implements MachNode {
     final TypeFunPtr _tfp;
@@ -24,7 +24,7 @@ public class CallX86 extends CallNode implements MachNode {
     @Override public RegMask regmap(int i) {
         return x86_64_v2.callInMask(i); // Normal argument
     }
-    @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
+    @Override public RegMask outregmap() { return null; }
 
     @Override public String name() { return _name; }
 
