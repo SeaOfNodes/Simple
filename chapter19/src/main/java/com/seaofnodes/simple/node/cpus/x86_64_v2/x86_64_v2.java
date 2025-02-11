@@ -37,6 +37,15 @@ public class x86_64_v2 extends Machine {
     public static RegMask R09_MASK = new RegMask(1L<<R09);
     public static RegMask RSI_MASK = new RegMask(1L<<RSI);
 
+
+    public static RegMask XMM0_MASK = new RegMask(1L<<XMM0);
+    public static RegMask XMM1_MASK = new RegMask(1L<<XMM1);
+    public static RegMask XMM2_MASK = new RegMask(1L<<XMM2);
+    public static RegMask XMM3_MASK = new RegMask(1L<<XMM3);
+    public static RegMask XMM4_MASK = new RegMask(1L<<XMM4);
+    public static RegMask XMM5_MASK = new RegMask(1L<<XMM5);
+    public static RegMask XMM6_MASK = new RegMask(1L<<XMM6);
+    public static RegMask XMM7_MASK = new RegMask(1L<<XMM7);
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
     public int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
@@ -56,15 +65,21 @@ public class x86_64_v2 extends Machine {
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
-    static int callInArg( int idx ) {
+    static int callInArgInt( int idx ) {
         return switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
-        case CodeGen.CallingConv.Win64   -> callInArgWin64  (idx);
+        case CodeGen.CallingConv.SystemV -> callInArgSystemVInt(idx);
+        case CodeGen.CallingConv.Win64   -> callInArgWin64Int  (idx);
+        };
+    }
+    static int callInArgFloat(int idx) {
+        return switch(CodeGen.CODE._callingConv) {
+            case CodeGen.CallingConv.SystemV -> callInArgSystemVFloat(idx);
+            case CodeGen.CallingConv.Win64   -> callInArgWin64Float(idx);
         };
     }
 
     // WIN64(param passing)
-    static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
+    static RegMask[] CALLINMASK_WIN64_INT = new RegMask[] {
         RegMask.EMPTY,
         RegMask.EMPTY,
         RCX_MASK,
@@ -74,18 +89,43 @@ public class x86_64_v2 extends Machine {
         RegMask.EMPTY,
         RegMask.EMPTY
     };
-    static int[] CALLINARG_WIN64 = new int[] {
+
+    static RegMask[] CALLINMASK_WIN64_FLOAT = new RegMask[] {
+            RegMask.EMPTY,
+            RegMask.EMPTY,
+            XMM0_MASK,
+            XMM1_MASK,
+            XMM2_MASK,
+            XMM3_MASK,
+            RegMask.EMPTY,
+            RegMask.EMPTY
+    };
+
+    static int[] CALLINARG_WIN64_INT = new int[] {
         0,   // Control, no register
         0,   // Memory, no register
-        RCX, //
+        RCX,
         RDX,
         R08,
         R09,
         0,
         0,
     };
-    static int callInArgWin64( int idx ) { return CALLINARG_WIN64[idx]; }
 
+    static int[] CALLINARG_WIN64_FLOAT = new int[] {
+            0,   // Control, no register
+            0,   // Memory, no register
+            RCX,
+            RDX,
+            R08,
+            R09,
+            0,
+            0,
+    };
+
+
+    static int callInArgWin64Int( int idx ) { return CALLINARG_WIN64_INT[idx]; }
+    static int callInArgWin64Float(int idx) {return CALLINARG_WIN64_FLOAT[idx];}
     // caller saved(win64)
     public static final long WIN64_ABI_CALLER_SAVED =
         (1L << RAX) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11);
@@ -93,8 +133,9 @@ public class x86_64_v2 extends Machine {
     // callee saved(win64)
     public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
 
+
     // SystemV(param passing)
-    static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
+    static RegMask[] CALLINMASK_SYSTEMV_INT = new RegMask[] {
         RegMask.EMPTY,
         RegMask.EMPTY,
         RDI_MASK,
@@ -104,7 +145,21 @@ public class x86_64_v2 extends Machine {
         R08_MASK,
         R09_MASK
     };
-    static int[] CALLINARG_SYSTEMV = new int[] {
+
+    static RegMask[] CALLINMASK_SYSTEMV_FLOAT = new RegMask[] {
+            RegMask.EMPTY,
+            RegMask.EMPTY,
+            XMM0_MASK,
+            XMM1_MASK,
+            XMM2_MASK,
+            XMM3_MASK,
+            XMM4_MASK,
+            XMM5_MASK,
+            XMM6_MASK,
+            XMM7_MASK,
+    };
+
+    static int[] CALLINARG_SYSTEMV_INT = new int[] {
         0,   // Control, no register
         0,   // Memory, no register
         RDI,
@@ -114,8 +169,22 @@ public class x86_64_v2 extends Machine {
         R08,
         R09,
     };
-    static int callInArgSystemV( int idx ) { return CALLINARG_SYSTEMV[idx]; }
 
+    static int[] CALLINARG_SYSTEMV_FLOAT = new int[] {
+            0,   // Control, no register
+            0,   // Memory, no register
+            XMM0,
+            XMM1,
+            XMM2,
+            XMM3,
+            XMM4,
+            XMM5,
+            XMM6,
+            XMM7,
+    };
+
+    static int callInArgSystemVInt( int idx ) { return CALLINARG_SYSTEMV_INT[idx]; }
+    static int callInArgSystemVFloat(int idx) { return CALLINARG_SYSTEMV_FLOAT [idx]; }
     // caller saved(systemv)
     // caller saved(win64)
     public static final long SYSTEMV_ABI_CALLER_SAVED =
@@ -124,15 +193,23 @@ public class x86_64_v2 extends Machine {
     public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
 
-    static RegMask callInMask( int idx ) {
+    static RegMask callInMaskInt( int idx ) {
         return switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
-        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64  [idx];
+        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV_INT[idx];
+        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64_INT [idx];
+        };
+    }
+
+    static RegMask callInMaskFloat(int idx) {
+        return switch(CodeGen.CODE._callingConv) {
+            case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV_FLOAT[idx];
+            case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64_FLOAT[idx];
         };
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public Node split() {
+    @Override
+    public Node split() {
         throw Utils.TODO();
     }
 
@@ -247,7 +324,7 @@ public class x86_64_v2 extends Machine {
     private Node and(AndNode and) {
         if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AndIX86(and, ti);
-        throw Utils.TODO();
+        return new AndX86(and);
     }
 
     private Node call(CallNode call) {
@@ -315,7 +392,7 @@ public class x86_64_v2 extends Machine {
     private Node or(OrNode or) {
         if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new OrIX86(or, ti);
-        throw Utils.TODO();
+        return new OrX86(or);
     }
 
     private Node prj( ProjNode prj ) {
@@ -324,20 +401,20 @@ public class x86_64_v2 extends Machine {
 
     private Node sar( SarNode sar ) {
         if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SarX86(sar, ti);
-        throw Utils.TODO();
+            return new SarIX86(sar, ti);
+        return new SarX86(sar);
     }
 
     private Node shl( ShlNode shl ) {
         if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShlIX86(shl, ti);
-        throw Utils.TODO();
+        return new ShlX86(shl);
     }
 
     private Node shr(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
-        throw Utils.TODO();
+        return new ShrX86(shr);
     }
 
     private Node st( StoreNode st ) {
