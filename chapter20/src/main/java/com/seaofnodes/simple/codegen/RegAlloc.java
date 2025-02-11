@@ -2,7 +2,9 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.*;
+
+import java.util.BitSet;
 import java.util.IdentityHashMap;
 
 /**
@@ -52,8 +54,15 @@ public class RegAlloc {
     // Top-level program graph structure
     final CodeGen _code;
 
+    // -----------------------
     // Live ranges with self-conflicts or no allowed registers
-    final Ary<LRG> FAILED = new Ary<>(LRG.class);
+    private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
+    void fail( LRG lrg ) {
+        assert !lrg.unified();
+        _failed.put(lrg,"");
+    }
+    boolean success() { return _failed.isEmpty(); }
+
 
     // -----------------------
     // Map from Nodes to Live Ranges
@@ -65,7 +74,9 @@ public class RegAlloc {
 
     // Define a new LRG, and assign n
     LRG newLRG( Node n ) {
-        LRG lrg = new LRG(_lrg_num++);
+        LRG lrg = lrg(n);
+        if( lrg!=null ) return lrg;
+        lrg = new LRG(_lrg_num++);
         LRG old = _lrgs.put(n,lrg); assert old==null;
         return lrg;
     }
@@ -83,23 +94,36 @@ public class RegAlloc {
     // Find LRG for n.in(idx), and also map n to it
     LRG lrg2( Node n, int idx ) {
         LRG lrg = lrg(n.in(idx));
-        _lrgs.put(n,lrg);       // Another node to the same live range
-        return lrg;
+        return union(lrg,n);
     }
 
     // Union any lrg for n with lrg and map to the union
-    void union( LRG lrg, Node n ) {
+    LRG union( LRG lrg, Node n ) {
         LRG lrgn = _lrgs.get(n);
         LRG lrg3 = lrg.union(lrgn);
         _lrgs.put(n,lrg3);
+        return lrg3;
     }
+
+    // Force all unified to roll up; collect live ranges
+    LRG[] _LRGS;
+    void unify() {
+        Ary<LRG> lrgs = new Ary<>(LRG.class);
+        for( Node n : _lrgs.keySet() ) {
+            LRG lrg = lrg(n);
+            lrgs.setX(lrg._lrg,lrg);
+        }
+        _LRGS = lrgs.asAry();
+    }
+
 
 
     // Printable register number for node n
     String reg( Node n ) {
         LRG lrg = lrg(n);
         if( lrg==null ) return null;
-        return "V"+lrg._lrg;
+        if( lrg._reg == -1 ) return "V"+lrg._lrg;
+        return _code._mach.reg(lrg._reg);
     }
 
     // -----------------------
@@ -117,17 +141,17 @@ public class RegAlloc {
     }
 
     private boolean graphColor(int round) {
-        FAILED.clear();
+        _failed.clear();
         _lrgs.clear();
         _lrg_num = 1;
 
         return
             // Build Live Ranges
-            BuildLRG.run(this) &&          // if no hard register conflicts
+            BuildLRG.run(round,this) &&    // if no hard register conflicts
             // Build Interference Graph
             IFG.build(round,this) && // If no self conflicts or uncolorable
             // Color attempt
-            IFG.color(round,_code);        // If colorable
+            IFG.color(round,this);   // If colorable
     }
 
     // -----------------------
@@ -139,20 +163,95 @@ public class RegAlloc {
         // independently... which generally requires a full pass over the
         // program for each failing live range.  i.e., might be a lot of
         // passes.
-        for( LRG lrg : FAILED )
+        for( LRG lrg : _failed.keySet() )
             split(lrg);
     }
 
     // Split this live range
     boolean split( LRG lrg ) {
+        assert !lrg.unified();  // Already rolled up
 
+        // Register mask when empty; split around defs and uses with limited
+        // register masks.
         if( lrg._mask.isEmpty() )
             return splitEmptyMask(lrg);
 
-        throw Utils.TODO();
+        // Generic split-by-loop depth.
+        return splitByLoop(lrg);
     }
 
-    // Split live range with an empty mask
+    // Generic: split around the outermost loop with non-split def/uses.  This
+    // covers both self-conflicts (once we split deep enough) and register
+    // pressure issues.
+    boolean splitByLoop( LRG lrg ) {
+        findAllLRG(lrg);
+
+        // Find min loop depth for all non-split defs and uses.
+        long ld = (-1L<<32) | 9999;
+        for( Node n : _ns ) {
+            if( lrg(n)==lrg ) // This is a LRG def
+                ld = ldepth(ld,n,n.cfg0());
+            // PhiNodes check all CFG inputs
+            if( n instanceof PhiNode phi ) {
+                for( int i=1; i<n.nIns(); i++ )
+                    ld = ldepth(ld, phi.in(i), phi.region().cfg(i));
+            } else {
+                // Others check uses
+                for( int i=1; i<n.nIns(); i++ )
+                    if( lrg(n.in(i))==lrg ) // This is a LRG use
+                        ld = ldepth(ld,n.in(i),n.in(i).cfg0());
+            }
+        }
+        int min = (int)ld;
+        int max = (int)(ld>>32);
+
+
+        // If the minLoopDepth is less than the maxLoopDepth: for-all defs and
+        // uses, if at minLoopDepth or lower, split after def and before use.
+        for( Node n : _ns ) {
+            if( n instanceof MachNode mach && mach.isSplit() ) continue; // Ignoring splits; since spilling need to split in a deeper loop
+            if( lrg(n)==lrg && // This is a LRG def
+                (min==max || n.cfg0().loopDepth() <= min) )
+                // Split after def in min loop nest
+                _code._mach.split().insertAfter(n);
+
+            // PhiNodes check all CFG inputs
+            if( n instanceof PhiNode phi ) {
+                for( int i=1; i<n.nIns(); i++ )
+                    if( !(n.in(i) instanceof MachNode mach && mach.isSplit()) &&
+                        (min==max || phi.region().cfg(i).loopDepth() <= min) )
+                        // Split before phi-use in prior block
+                        _code._mach.split().insertBefore(phi, i);
+
+            } else {
+                // Others check uses
+                for( int i=1; i<n.nIns(); i++ ) {
+                    if( lrg(n.in(i))==lrg && // This is a LRG use
+                        !(n.in(i) instanceof MachNode mach && mach.isSplit()) &&
+                        (min==max || n.cfg0().loopDepth() <= min) )
+                        // Split before in this block
+                        _code._mach.split().insertBefore(n, i);
+                }
+            }
+        }
+        return true;
+    }
+
+    private static long ldepth( long ld, Node n, CFGNode cfg ) {
+        // Do not count splits
+        if( n instanceof MachNode mach && mach.isSplit() ) return ld;
+        // Collect min/max loop depth
+        int min = (int)ld;
+        int max = (int)(ld>>32);
+        int d = cfg.loopDepth();
+        min = Math.min(min,d);
+        max = Math.max(max,d);
+        return ((long)max<<32) | min;
+    }
+
+
+    // Split live range with an empty mask.  Specifically forces splits at
+    // single-register defs or uses and not elsewhere.
     boolean splitEmptyMask( LRG lrg ) {
         // Live range has a single-def single-register, and/or a single-use
         // single-register.  Split after the def and before the use.  Does not
@@ -169,6 +268,27 @@ public class RegAlloc {
         // Needs a full pass to find all defs and all uses
         throw Utils.TODO();
     }
+
+    // Find all members of a live range, both defs and uses
+    private final Ary<Node> _ns = new Ary<>(Node.class);
+    void findAllLRG( LRG lrg ) {
+        _ns.clear();
+        int wd = 0;
+        _ns.push((Node)lrg._machDef);
+        _ns.push((Node)lrg._machUse);
+        while( wd < _ns._len ) {
+            Node n = _ns.at(wd++);
+            if( lrg(n)!=lrg ) continue;
+            for( Node def : n._inputs )
+                if( lrg(def)==lrg && _ns.find(def)== -1 )
+                    _ns.push(def);
+            for( Node use : n._outputs )
+                if( _ns.find(use)== -1 )
+                    _ns.push(use);
+        }
+    }
+
+
 
     // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
@@ -195,12 +315,5 @@ public class RegAlloc {
                 throw Utils.TODO();
             }
         }
-    }
-
-    // Collect live ranges which did not color, or a self-conflict or
-    // register mask is empty.
-    void failed(LRG lrg) {
-        if( FAILED.find(lrg)== -1 )
-            FAILED.push(lrg);
     }
 }

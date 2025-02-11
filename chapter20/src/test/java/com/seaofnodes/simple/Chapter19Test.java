@@ -156,7 +156,7 @@ hashCode(s);""");
     @Test
     public void testBasic15() {
         CodeGen code = new CodeGen("return arg / 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (divf,(i2f8,arg),2.0f);", code._stop.toString());
+        assertEquals("return (mulf,(i2f8,arg),0.5f);", code._stop.toString());
     }
 
     @Test
@@ -339,7 +339,7 @@ flt farg = arg;
 return sqrt(farg);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return Phi(Loop,(i2f8,arg),(divf,(addf,(divf,i2f8,Phi_guess),Phi_guess),2.0f));", code.print());
+        assertEquals("return Phi(Loop,(i2f8,arg),(mulf,(addf,(divf,i2f8,Phi_guess),Phi_guess),0.5f));", code.print());
     };
 
 
