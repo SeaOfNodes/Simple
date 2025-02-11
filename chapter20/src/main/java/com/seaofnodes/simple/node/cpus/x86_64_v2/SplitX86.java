@@ -15,6 +15,8 @@ public class SplitX86 extends MachConcreteNode implements MachNode {
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return RegMask.FULL; }
 
+    @Override public boolean isSplit() { return true; }
+
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();

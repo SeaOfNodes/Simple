@@ -321,8 +321,14 @@ public abstract class Node {
     // immediately before use in the basic block.
     public void insertBefore( Node use, int uidx ) {
         CFGNode cfg = use.cfg0();
-        int i = cfg._outputs.find(use);
-        while( cfg.out(i).isMultiTail() ) i--;
+        int i;
+        if( use instanceof PhiNode phi ) {
+            cfg = phi.region().cfg(uidx);
+            i = cfg.nOuts()-1;
+        } else {
+            i = cfg._outputs.find(use);
+            while( cfg.out(i).isMultiTail() ) i--;
+        }
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
         setDef(1,use.in(uidx));
