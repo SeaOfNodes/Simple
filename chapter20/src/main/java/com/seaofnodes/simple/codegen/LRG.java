@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.MachNode;
@@ -23,19 +24,63 @@ public class LRG {
     // AND of all masks involved; null if none have been applied yet
     RegMask _mask;
 
-    LRG( short lrg ) { _lrg = lrg; }
+    // Adjacent Live Range neighbors.  Only valid during coloring
+    Ary<LRG> _adj;
+    void addNeighbor(LRG lrg) {
+        if( _adj==null ) _adj = new Ary<>(LRG.class);
+        _adj.push(lrg);
+    }
+
+    // Remove and compress neighbor list; store ex-neighbor past
+    // end for unwinding Simplify.  If true if exactly going low-degree
+    boolean removeCompress( LRG lrg ) {
+        _adj.swap(_adj.find(lrg),_adj._len-1);
+        return _adj._len-- == _mask.size();
+    }
+
+    void reinsert( LRG lrg ) {
+        assert _adj._es[_adj._len]==lrg;
+        _adj._len++;
+    }
+
+    // More registers than neighbors
+    boolean lowDegree() { return (_adj==null ? 0 : _adj._len) < _mask.size(); }
+
+    // Choosen register
+    short _reg;
+
+    LRG( short lrg ) { _lrg = lrg; _reg = -1; }
+
+    boolean unified() { return _leader!=null; }
 
     LRG find() {
         if( _leader==null )
             return this;
+        if( _leader._leader==null )
+            return _leader;
         throw Utils.TODO();
     }
 
     LRG union( LRG lrg ) {
         if( lrg==null || lrg==this ) return this;
-        throw Utils.TODO();
+        return _lrg < lrg._lrg ? _union(lrg) : lrg._union(this);
     }
+    private LRG _union( LRG lrg ) {
+        // Set U-F leader
+        lrg._leader = this;
+        // Fold together stats
+        if( _machDef == lrg._machDef && _1regDefCnt > 0 ) _1regDefCnt--;
+        if( _machDef == null ) _machDef = lrg._machDef;
+        _1regDefCnt += lrg._1regDefCnt;
 
+        if( _machUse == lrg._machUse && _uidx == lrg._uidx && _1regUseCnt > 0 ) _1regUseCnt--;
+        if( _machUse == null ) { _machUse = lrg._machUse; _uidx = lrg._uidx; }
+        _1regUseCnt += lrg._1regUseCnt;
+
+        // Fold together masks
+        _mask = _mask.and(lrg._mask);
+        return this;
+    }
 
     // Record any Mach def for spilling heuristics
     LRG machDef( MachNode def, boolean size1 ) {

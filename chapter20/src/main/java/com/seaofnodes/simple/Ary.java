@@ -29,6 +29,10 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
         range_check(i);
         return _es[i];
     }
+    public E atX( int i ) {
+        if( i >= _len ) return null;
+        return _es[i];
+    }
 
     /** @return last element */
     public E last( ) { return at(_len-1); }

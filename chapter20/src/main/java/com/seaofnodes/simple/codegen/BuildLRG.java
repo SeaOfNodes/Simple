@@ -1,7 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 
 abstract public class BuildLRG {
@@ -14,28 +12,29 @@ abstract public class BuildLRG {
     // Sets FAILED to the set of hard-conflicts (means no need for an IFG,
     // since it will not color, just split the conflicted ranges now).  Returns
     // true if no hard-conflicts, although we still might not color.
-    public static boolean run(RegAlloc alloc) {
+    public static boolean run(int round, RegAlloc alloc) {
         for( Node bb : alloc._code._cfg )
             for( Node n : bb.outs() ) {
                 if( n instanceof MachNode mach ) {
                     RegMask def_mask = mach.outregmap();
-                    if( def_mask!=null && !alloc.hasLRG(n) ) {
+                    if( def_mask!=null ) {
                         LRG lrg = mach.twoAddress() == 0
                             ? alloc.newLRG(n) // Define a new LRG for N
                             : alloc.lrg2(n,mach.twoAddress()); // Use the matching 2-adr input
                         // Record mask and mach
                         if( !lrg.machDef(mach,def_mask.size1()).and(def_mask) )
-                            alloc.failed(lrg); // Empty register mask, must split
+                            alloc.fail(lrg); // Empty register mask, must split
                     }
+
                     // Now, look in the opposite direction. How are incoming
                     // LRGs affected by this node: For all uses, make live lrgs
                     for( int i=1; i<n.nIns(); i++ )
                         if( n.in(i)!=null ) {
-                            LRG lrg = alloc.lrg(n.in(i));
-                            if( lrg != null ) { // Anti-dep or other, no LRG
+                            LRG lrg2 = alloc.lrg(n.in(i));
+                            if( lrg2 != null ) { // Anti-dep or other, no LRG
                                 RegMask use_mask = mach.regmap(i);
-                                if( !lrg.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
-                                    alloc.failed(lrg); // Empty register mask, must split
+                                if( !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
+                                    alloc.fail(lrg2); // Empty register mask, must split
                             }
                         }
 
@@ -54,10 +53,13 @@ abstract public class BuildLRG {
                     for( int i=1; i<n.nIns(); i++ )
                         alloc.union(lrg,n.in(i));
                     if( lrg._mask.isEmpty() )
-                        alloc.failed(lrg);
+                        alloc.fail(lrg);
                 }
             }
 
-        return alloc.FAILED.isEmpty();
+        // Collect live ranges
+        alloc.unify();
+
+        return alloc.success();
   }
 }

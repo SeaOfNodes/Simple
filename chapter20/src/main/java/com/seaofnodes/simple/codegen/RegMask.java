@@ -7,7 +7,7 @@ import com.seaofnodes.simple.SB;
 // slot" registers may be allowed, effectively making the set infinite.
 public class RegMask {
 
-    final long _bits;
+    long _bits;
 
     private static final RegMask EMPTY = new RegMask(0);
     public static final RegMask FULL = new RegMask(-1L);
@@ -29,12 +29,25 @@ public class RegMask {
         throw Utils.TODO();
     }
 
+    short firstColor() {
+        return (short)Long.numberOfTrailingZeros(_bits);
+    }
+
     boolean isEmpty() { return _bits==0; }
 
-    // Defensive writable copy
-    public RegMaskRW copy() { return new RegMaskRW( /*(BitSet)_bits.clone()*/ ); }
+    boolean overlap( RegMask mask ) {
+        return (_bits & mask._bits)!=0;
+    }
 
-    boolean size1() { return (_bits & ~(_bits-1))==_bits; }
+
+    // Defensive writable copy
+    public RegMaskRW copy() { return new RegMaskRW( _bits ); }
+
+    // Has exactly 1 bit set
+    boolean size1() { return (_bits & -_bits)==_bits; }
+
+    // Cardinality
+    int size() { return Long.bitCount(_bits); }
 
     @Override public String toString() { return toString(new SB()).toString(); }
     public SB toString(SB sb) {
@@ -49,16 +62,6 @@ public class RegMask {
 }
 
 class RegMaskRW extends RegMask {
-    public RegMaskRW() { super(); }
-    public RegMaskRW(long x) { super(new long[]{x}); }
-    public RegMaskRW(long[] xs) { super(xs); }
-    //public RegMaskRW(BitSet bs) { super(bs); }
-    public void set(int r) { /*_bits.set(r);*/ }
-    public void clr(int r) { /*_bits.clear(r);*/ }
-    public void set(int r, boolean b) { /*_bits.set(r,b);*/ }
-    public RegMaskRW and( RegMask r ) {
-        //_bits.and(r._bits);
-        return this;
-    }
-    boolean isEmpty() { throw Utils.TODO(); }
+    public RegMaskRW(long x) { super(x);  }
+    public void clr(int r) { _bits &= ~(1L<<r); }
 }
