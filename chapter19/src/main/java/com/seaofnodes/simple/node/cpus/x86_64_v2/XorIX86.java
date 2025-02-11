@@ -11,7 +11,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 import java.io.ByteArrayOutputStream;
 
-public class XorIX86  extends MachConcreteNode implements MachNode {
+public class XorIX86 extends MachConcreteNode implements MachNode {
 
     final TypeInteger _ti;
     XorIX86(Node xor, TypeInteger ti) {super(xor); _inputs.pop(); _ti = ti;}
