@@ -10,7 +10,7 @@ public class riscv extends Machine{
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int ZERO =  0,  RA =  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int             RA =  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
@@ -21,7 +21,7 @@ public class riscv extends Machine{
     public static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
     public static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    public static int FLAGS = 64;
+    public static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
@@ -33,7 +33,8 @@ public class riscv extends Machine{
 
 
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(1<<A0);
+    public static RegMask RET_MASK  = new RegMask(1L<< A0);
+    public static RegMask RET_FMASK = new RegMask(1L<<FA0);
 
     // Arguments masks
     public static RegMask A0_MASK = new RegMask(1L<<A0);
@@ -141,7 +142,7 @@ public class riscv extends Machine{
     public int FLOAT_COUNT_CONV_RISCV = 7; // FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7
 
     public static final String[] REGS = new String[] {
-            "zero", "ra"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
+            "flags","ra"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
             "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
             "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
             "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
@@ -149,7 +150,6 @@ public class riscv extends Machine{
             "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
             "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
             "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11",
-            "flags"
     };
 
     // General purpose register mask:
@@ -227,21 +227,26 @@ public class riscv extends Machine{
         return new AndRISC(and);
     }
 
-    private Node cmp(BoolNode bool) {
-        Node cmp = _cmp(bool);
-        return new SetRISC(cmp, bool.op());
-    }
-
     private Node call(CallNode call) {
         if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
             return new CallRISC(call, tfp);
         return new CallRRISC(call);
     }
 
-    private Node _cmp(BoolNode bool) {
-        Node rhs = bool.in(2);
+    private Node cmp(BoolNode bool) {
+        Node cmp = _cmp(bool);
+        return new SetRISC(cmp, bool.op());
+    }
 
-        return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
+    private Node _cmp(BoolNode bool) {
+        // Float variant
+        if( bool instanceof BoolNode.EQF ||
+            bool instanceof BoolNode.LTF ||
+            bool instanceof BoolNode.LEF )
+            return new CmpFRISC(bool);
+
+        Node rhs = bool.in(2);
+        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
                 : new CmpRISC(bool);
     }

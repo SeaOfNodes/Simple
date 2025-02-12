@@ -29,7 +29,7 @@ public class CBranchRISC extends IfNode implements MachNode{
             throw Utils.TODO();
     }
 
-    @Override public RegMask regmap(int i) { assert i==1; return riscv.RMASK; }
+    @Override public RegMask regmap(int i) { assert i==1; return riscv.FLAGS_MASK; }
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
@@ -40,7 +40,7 @@ public class CBranchRISC extends IfNode implements MachNode{
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
-        if( src!="FLAGS" )  sb.p(src);
+        if( src!="flags" )  sb.p(src);
     }
 
     @Override public String op() { return "b"+_bop; }

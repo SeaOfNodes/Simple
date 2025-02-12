@@ -173,7 +173,10 @@ public class RegAlloc {
 
         // Register mask when empty; split around defs and uses with limited
         // register masks.
-        if( lrg._mask.isEmpty() )
+        if( lrg._mask.isEmpty() &&
+             lrg._1regDefCnt <= 1 &&
+             lrg._1regUseCnt <= 1 &&
+            (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
             return splitEmptyMask(lrg);
 
         if( lrg._selfConflicts != null )
@@ -189,17 +192,14 @@ public class RegAlloc {
         // Live range has a single-def single-register, and/or a single-use
         // single-register.  Split after the def and before the use.  Does not
         // require a full pass.
-        if( lrg._1regDefCnt<=1 && lrg._1regUseCnt<=1 && (lrg._1regDefCnt + lrg._1regUseCnt) > 0 ) {
-            // Split just after def
-            if( lrg._1regDefCnt==1 )
-                _code._mach.split().insertAfter((Node)lrg._machDef);
-            // Split just before use
-            if( lrg._1regUseCnt==1 )
-                _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
-            return true;
-        }
-        // Needs a full pass to find all defs and all uses
-        throw Utils.TODO();
+
+        // Split just after def
+        if( lrg._1regDefCnt==1 )
+            _code._mach.split().insertAfter((Node)lrg._machDef);
+        // Split just before use
+        if( lrg._1regUseCnt==1 )
+            _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
+        return true;
     }
 
     // Self conflicts require Phis (or two-address).
