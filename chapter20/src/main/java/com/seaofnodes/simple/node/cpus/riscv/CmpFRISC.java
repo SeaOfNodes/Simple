@@ -9,8 +9,8 @@ import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
 
 // Compare.  Sets flags.(RFLAGS)
-public class CmpRISC extends  MachConcreteNode implements MachNode{
-    CmpRISC( Node cmp ) { super(cmp); }
+public class CmpFRISC extends  MachConcreteNode implements MachNode{
+    CmpFRISC( Node cmp ) { super(cmp); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -25,8 +25,8 @@ public class CmpRISC extends  MachConcreteNode implements MachNode{
         sb.p(code.reg(in(1))).p(", ").p(code.reg(in(2)));
     }
 
-    @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.RMASK; }
+    @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.FMASK; }
     @Override public RegMask outregmap() { return riscv.FLAGS_MASK; }
 
-    @Override public String op() { return "cmp"; }
+    @Override public String op() { return "cmpf"; }
 }

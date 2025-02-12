@@ -13,10 +13,7 @@ public class RegMask {
     public static final RegMask FULL = new RegMask(-1L);
 
     public RegMask(long x ) { _bits = x; }
-    public RegMask(long[] xs) { /*_bits = BitSet.valueOf(           xs); */ throw Utils.TODO(); }
-    // Internal constructor
-    RegMask() { /*_bits = new BitSet();*/ _bits = 0; }
-    //RegMask(BitSet bs) { _bits = bs; }
+    private RegMask() { _bits = 0; }
 
     // Copy-on-write
     RegMask and( RegMask mask ) {
