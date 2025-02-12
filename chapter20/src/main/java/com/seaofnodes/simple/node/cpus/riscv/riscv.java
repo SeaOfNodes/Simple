@@ -24,9 +24,9 @@ public class riscv extends Machine{
     public static int FLAGS = 64;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111111);
+    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
     // Float mask from(ft0–ft11)
-    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111<<F0);
+    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
 
     // Load/store mask; both GPR and FPR
     public static RegMask MEM_MASK = new RegMask((1L<<64)-1);
@@ -160,9 +160,7 @@ public class riscv extends Machine{
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public Node split() {
-        throw Utils.TODO();
-    }
+    @Override  public Node split() { return new SplitRISC();  }
 
     // Break an infinite loop
     @Override public IfNode never( CFGNode ctrl ) {
@@ -171,43 +169,43 @@ public class riscv extends Machine{
 
     @Override public Node instSelect( Node n ) {
         return switch (n) {
-            case AddFNode addf -> addf(addf);
-            case AddNode add -> add(add);
-            case AndNode and -> and(and);
-            case BoolNode bool -> cmp(bool);
-            case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
-            case CallNode call -> call(call);
-            case CProjNode c -> new CProjNode(c);
-            case ConstantNode con -> con(con);
-            case DivFNode divf -> new DivFRISC(divf);
-            case DivNode div -> new DivRISC(div);
-            case FunNode fun -> new FunRISC(fun);
-            case IfNode iff -> jmp(iff);
-            case LoadNode ld -> ld(ld);
-            case MemMergeNode mem -> new MemMergeNode(mem);
-            case MulFNode mulf -> new MulFRISC(mulf);
-            case MulNode mul -> mul(mul);
-            case NewNode nnn -> new NewRISC(nnn);
-            case OrNode or -> or(or);
-            case ParmNode parm -> new ParmRISC(parm);
-            case PhiNode phi -> new PhiNode(phi);
-            case ProjNode prj -> prj(prj);
-            case ReadOnlyNode read -> new ReadOnlyNode(read);
-            case ReturnNode ret -> new RetRISC(ret, ret.fun());
-            case SarNode sar -> sra(sar);
-            case ShlNode shl -> sll(shl);
-            case ShrNode shr -> srl(shr);
-            case StartNode start -> new StartNode(start);
-            case StopNode stop -> new StopNode(stop);
-            case StoreNode st -> st(st);
-            case SubFNode subf -> new SubFRISC(subf);
-            case SubNode sub -> sub(sub);
-            case ToFloatNode tfn -> i2f8(tfn);
-            case XorNode xor -> xor(xor);
+        case AddFNode addf -> addf(addf);
+        case AddNode add -> add(add);
+        case AndNode and -> and(and);
+        case BoolNode bool -> cmp(bool);
+        case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
+        case CallNode call -> call(call);
+        case CProjNode c -> new CProjNode(c);
+        case ConstantNode con -> con(con);
+        case DivFNode divf -> new DivFRISC(divf);
+        case DivNode div -> new DivRISC(div);
+        case FunNode fun -> new FunRISC(fun);
+        case IfNode iff -> jmp(iff);
+        case LoadNode ld -> ld(ld);
+        case MemMergeNode mem -> new MemMergeNode(mem);
+        case MulFNode mulf -> new MulFRISC(mulf);
+        case MulNode mul -> mul(mul);
+        case NewNode nnn -> new NewRISC(nnn);
+        case OrNode or -> or(or);
+        case ParmNode parm -> new ParmRISC(parm);
+        case PhiNode phi -> new PhiNode(phi);
+        case ProjNode prj -> prj(prj);
+        case ReadOnlyNode read -> new ReadOnlyNode(read);
+        case ReturnNode ret -> new RetRISC(ret, ret.fun());
+        case SarNode sar -> sra(sar);
+        case ShlNode shl -> sll(shl);
+        case ShrNode shr -> srl(shr);
+        case StartNode start -> new StartNode(start);
+        case StopNode stop -> new StopNode(stop);
+        case StoreNode st -> st(st);
+        case SubFNode subf -> new SubFRISC(subf);
+        case SubNode sub -> sub(sub);
+        case ToFloatNode tfn -> i2f8(tfn);
+        case XorNode xor -> xor(xor);
 
-            case LoopNode loop -> new LoopNode(loop);
-            case RegionNode region -> new RegionNode(region);
-            default -> throw Utils.TODO();
+        case LoopNode loop -> new LoopNode(loop);
+        case RegionNode region -> new RegionNode(region);
+        default -> throw Utils.TODO();
         };
     }
 
@@ -249,14 +247,15 @@ public class riscv extends Machine{
     }
 
     private Node con( ConstantNode con ) {
+        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-            case TypeInteger ti  -> new IntRISC(con);
-            case TypeFloat   tf  -> new IntRISC(con);
-            case TypeFunPtr  tfp -> new TFPRISC(con);
-            case TypeMemPtr  tmp -> new ConstantNode(con);
-            case TypeNil     tn  -> throw Utils.TODO();
-            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-            case Type t -> new ConstantNode(con);
+        case TypeInteger ti  -> new IntRISC(con);
+        case TypeFloat   tf  -> new IntRISC(con);
+        case TypeFunPtr  tfp -> new TFPRISC(con);
+        case TypeMemPtr  tmp -> new ConstantNode(con);
+        case TypeNil     tn  -> throw Utils.TODO();
+        // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+        case Type t -> new ConstantNode(con);
         };
     }
 

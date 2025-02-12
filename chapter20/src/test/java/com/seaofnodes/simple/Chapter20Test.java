@@ -39,8 +39,8 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg);
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("return Phi(Loop,(i2f8,arg),(divf,(addf,(divf,i2f8,Phi_guess),Phi_guess),2.0f));", code.print());
+        code.parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("return (mov,Phi(Loop,(mov,(i2f8,arg)),(mulf,(addf,(mov,(divf,i2f8,mov)),mov),0.5f)));", code.print());
     };
 
 }

@@ -35,9 +35,9 @@ public class RegMask {
 
     boolean isEmpty() { return _bits==0; }
 
-    boolean overlap( RegMask mask ) {
-        return (_bits & mask._bits)!=0;
-    }
+    boolean test( int reg ) { return ((_bits >> reg)&1) != 0; }
+
+    boolean overlap( RegMask mask ) { return (_bits & mask._bits)!=0;  }
 
 
     // Defensive writable copy
