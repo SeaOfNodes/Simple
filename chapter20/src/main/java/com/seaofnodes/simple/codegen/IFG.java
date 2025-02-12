@@ -79,13 +79,13 @@ abstract public class IFG {
 
         // Process blocks until no more changes
         while( !WORK.isEmpty() )
-            do_block(alloc,WORK.pop());
+            do_block(round,alloc,WORK.pop());
 
         return alloc.success();
     }
 
     // Walk one block backwards, compute live-in from live-out, and build IFG
-    static void do_block( RegAlloc alloc, CFGNode bb ) {
+    static void do_block( int round, RegAlloc alloc, CFGNode bb ) {
         assert bb.blockHead();
         IdentityHashMap<LRG,Node> live_out = BBOUTS.get(bb);
         TMP.clear();
@@ -195,9 +195,14 @@ abstract public class IFG {
     // Check for self-conflict live ranges.  These must split, and only happens
     // during the first round a particular LRG splits.
     private static void selfConflict(RegAlloc alloc, Node n, LRG lrg) {
-        Node prior_def = TMP.get(lrg);
-        if( prior_def!=null && prior_def != n )
+        selfConflict(alloc,n,lrg,TMP.get(lrg));
+    }
+    private static void selfConflict(RegAlloc alloc, Node n, LRG lrg, Node prior) {
+        if( prior!=null && prior != n ) {
+            lrg.selfConflict(prior);
+            lrg.selfConflict(n);
             alloc.fail(lrg); // 2 unrelated values live at once same live range; self-conflict
+        }
     }
 
     // Merge TMP into bb's live-out set; if changes put bb on WORK
@@ -223,8 +228,7 @@ abstract public class IFG {
                 pushWork(bb);
             } else {
                 // Alive twice with different definitions; self-conflict
-                if( def != def_bb )
-                    alloc.fail(lrg);
+                selfConflict(alloc,def,lrg,def_bb);
             }
         }
     }
@@ -279,7 +283,7 @@ abstract public class IFG {
         while( sptr < color_stack.length ) {
             // Out of trivial colorable, pick an at-risk to pull
             if( sptr==swork )
-                throw Utils.TODO(); //swap(color_stack,sptr,pickRisky(color_stack,sptr));
+                swap(color_stack,sptr,pickRisky(color_stack,sptr));
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
             // If sptr was swork, then pulled an at-risk lrg
@@ -290,14 +294,14 @@ abstract public class IFG {
             if( lrg._adj != null ) {
                 for( LRG nlrg : lrg._adj ) {
                     // Remove and compress out neighbor
-                    if( nlrg.removeCompress(lrg) )
+                    if( nlrg.removeCompress(lrg) ) {
                         // Neighbor is just exactly going trivial as 'lrg' is removed from IFG
-                        //            // Find "j" position in the color_stack
-                        //            int jx = swork;  while( color_stack[jx] != j ) jx++;
-                        //            // Add trivial neighbor to trivial list.  Pull lrg j out of
-                        //            // unknown set, since its now in the trivial set
-                        //            swap(color_stack, swork++, jx);
-                        throw Utils.TODO();
+                        // Find "j" position in the color_stack
+                        int jx = swork;  while( color_stack[jx] != nlrg ) jx++;
+                        // Add trivial neighbor to trivial list.  Pull lrg j out of
+                        // unknown set, since its now in the trivial set
+                        swap(color_stack, swork++, jx);
+                    }
                 }
             }
         }
@@ -324,7 +328,7 @@ abstract public class IFG {
                 short reg = rmask.firstColor();
                 // Pick a "good" color from the choices.  Typically, biased-coloring
                 // removes some over-spilling.
-                if( rmask.size() > 1 ) reg = biasColor(lrg,reg,rmask);
+                if( rmask.size() > 1 ) reg = biasColor(alloc,lrg,reg,rmask);
                 lrg._reg = reg; // Assign the register
             }
         }
@@ -332,9 +336,33 @@ abstract public class IFG {
         return alloc.success();
     }
 
-    private static short biasColor( LRG lrg, short reg, RegMask mask ) {
-        //throw Utils.TODO();
+    private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
+        // Check chain of splits up the def-chain.  Take first allocated
+        // register, and if its available in the mask, take it.
+        Node split = lrg._splitDef;
+        while( split instanceof MachNode mach && mach.isSplit() ) {
+            short bias = alloc.lrg(split)._reg;
+            if( bias != -1 )
+                if( mask.test(bias) ) return bias; // Good bias
+                else break;                        // Not allowed on the def-side; break
+            split = split.in(1);
+        }
+        // Same check for chain of splits down the use-chain.
+        split = lrg._splitUse;
+        while( split instanceof MachNode mach && mach.isSplit() ) {
+            short bias = alloc.lrg(split)._reg;
+            if( bias != -1 )
+                if( mask.test(bias) ) return bias; // Good bias
+                else break;                        // Not allowed on the use-side
+            split = split.out(0);
+        }
         return reg;
+    }
+
+    // Pick a live range that hasn't already spilled, or has a single-def-
+    // single-use that are not adjacent.
+    private static int pickRisky( LRG[] color_stack, int sptr ) {
+        return sptr;
     }
 
     private static void swap( LRG[] ary, int x, int y ) {

@@ -27,4 +27,6 @@ public class CmpRISC extends  MachConcreteNode implements MachNode{
 
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.FLAGS_MASK; }
+
+    @Override public String op() { return "cmp"; }
 }

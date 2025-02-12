@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.ParmNode;
 import java.io.ByteArrayOutputStream;
 
-public class ParmRISC extends ParmNode implements MachNode{
+public class ParmRISC extends ParmNode implements MachNode {
     final RegMask _rmask;
     ParmRISC(ParmNode parm) {
         super(parm);
