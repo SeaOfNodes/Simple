@@ -335,6 +335,13 @@ public abstract class Node {
         use.setDef(uidx,this);
     }
 
+    public void remove() {
+        CFGNode cfg = cfg0();
+        cfg._outputs.remove(cfg._outputs.find(this));
+        _inputs.set(0,null);
+        subsume(in(1));
+    }
+
     // ------------------------------------------------------------------------
     // Graph-based optimizations
 

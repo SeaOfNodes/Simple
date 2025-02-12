@@ -37,7 +37,7 @@ public class JmpX86 extends IfNode implements MachNode {
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
-        if( src!="FLAGS" )  sb.p(src);
+        if( src!="flags" )  sb.p(src);
     }
 
     @Override public String op() { return "j"+_bop; }

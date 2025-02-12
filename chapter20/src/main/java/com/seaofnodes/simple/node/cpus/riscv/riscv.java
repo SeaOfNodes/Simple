@@ -10,7 +10,7 @@ public class riscv extends Machine{
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int ZERO =  0,  RA =  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int             RA =  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
@@ -21,19 +21,20 @@ public class riscv extends Machine{
     public static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
     public static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    public static int FLAGS = 64;
+    public static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111111);
+    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
     // Float mask from(ft0–ft11)
-    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111<<F0);
+    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
 
     // Load/store mask; both GPR and FPR
     public static RegMask MEM_MASK = new RegMask((1L<<64)-1);
 
 
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(1<<A0);
+    public static RegMask RET_MASK  = new RegMask(1L<< A0);
+    public static RegMask RET_FMASK = new RegMask(1L<<FA0);
 
     // Arguments masks
     public static RegMask A0_MASK = new RegMask(1L<<A0);
@@ -141,7 +142,7 @@ public class riscv extends Machine{
     public int FLOAT_COUNT_CONV_RISCV = 7; // FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7
 
     public static final String[] REGS = new String[] {
-            "zero", "ra"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
+            "flags","ra"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
             "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
             "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
             "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
@@ -149,7 +150,6 @@ public class riscv extends Machine{
             "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
             "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
             "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11",
-            "flags"
     };
 
     // General purpose register mask:
@@ -160,9 +160,7 @@ public class riscv extends Machine{
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public Node split() {
-        throw Utils.TODO();
-    }
+    @Override  public Node split() { return new SplitRISC();  }
 
     // Break an infinite loop
     @Override public IfNode never( CFGNode ctrl ) {
@@ -171,43 +169,43 @@ public class riscv extends Machine{
 
     @Override public Node instSelect( Node n ) {
         return switch (n) {
-            case AddFNode addf -> addf(addf);
-            case AddNode add -> add(add);
-            case AndNode and -> and(and);
-            case BoolNode bool -> cmp(bool);
-            case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
-            case CallNode call -> call(call);
-            case CProjNode c -> new CProjNode(c);
-            case ConstantNode con -> con(con);
-            case DivFNode divf -> new DivFRISC(divf);
-            case DivNode div -> new DivRISC(div);
-            case FunNode fun -> new FunRISC(fun);
-            case IfNode iff -> jmp(iff);
-            case LoadNode ld -> ld(ld);
-            case MemMergeNode mem -> new MemMergeNode(mem);
-            case MulFNode mulf -> new MulFRISC(mulf);
-            case MulNode mul -> mul(mul);
-            case NewNode nnn -> new NewRISC(nnn);
-            case OrNode or -> or(or);
-            case ParmNode parm -> new ParmRISC(parm);
-            case PhiNode phi -> new PhiNode(phi);
-            case ProjNode prj -> prj(prj);
-            case ReadOnlyNode read -> new ReadOnlyNode(read);
-            case ReturnNode ret -> new RetRISC(ret, ret.fun());
-            case SarNode sar -> sra(sar);
-            case ShlNode shl -> sll(shl);
-            case ShrNode shr -> srl(shr);
-            case StartNode start -> new StartNode(start);
-            case StopNode stop -> new StopNode(stop);
-            case StoreNode st -> st(st);
-            case SubFNode subf -> new SubFRISC(subf);
-            case SubNode sub -> sub(sub);
-            case ToFloatNode tfn -> i2f8(tfn);
-            case XorNode xor -> xor(xor);
+        case AddFNode addf -> addf(addf);
+        case AddNode add -> add(add);
+        case AndNode and -> and(and);
+        case BoolNode bool -> cmp(bool);
+        case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
+        case CallNode call -> call(call);
+        case CProjNode c -> new CProjNode(c);
+        case ConstantNode con -> con(con);
+        case DivFNode divf -> new DivFRISC(divf);
+        case DivNode div -> new DivRISC(div);
+        case FunNode fun -> new FunRISC(fun);
+        case IfNode iff -> jmp(iff);
+        case LoadNode ld -> ld(ld);
+        case MemMergeNode mem -> new MemMergeNode(mem);
+        case MulFNode mulf -> new MulFRISC(mulf);
+        case MulNode mul -> mul(mul);
+        case NewNode nnn -> new NewRISC(nnn);
+        case OrNode or -> or(or);
+        case ParmNode parm -> new ParmRISC(parm);
+        case PhiNode phi -> new PhiNode(phi);
+        case ProjNode prj -> prj(prj);
+        case ReadOnlyNode read -> new ReadOnlyNode(read);
+        case ReturnNode ret -> new RetRISC(ret, ret.fun());
+        case SarNode sar -> sra(sar);
+        case ShlNode shl -> sll(shl);
+        case ShrNode shr -> srl(shr);
+        case StartNode start -> new StartNode(start);
+        case StopNode stop -> new StopNode(stop);
+        case StoreNode st -> st(st);
+        case SubFNode subf -> new SubFRISC(subf);
+        case SubNode sub -> sub(sub);
+        case ToFloatNode tfn -> i2f8(tfn);
+        case XorNode xor -> xor(xor);
 
-            case LoopNode loop -> new LoopNode(loop);
-            case RegionNode region -> new RegionNode(region);
-            default -> throw Utils.TODO();
+        case LoopNode loop -> new LoopNode(loop);
+        case RegionNode region -> new RegionNode(region);
+        default -> throw Utils.TODO();
         };
     }
 
@@ -229,34 +227,40 @@ public class riscv extends Machine{
         return new AndRISC(and);
     }
 
-    private Node cmp(BoolNode bool) {
-        Node cmp = _cmp(bool);
-        return new SetRISC(cmp, bool.op());
-    }
-
     private Node call(CallNode call) {
         if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
             return new CallRISC(call, tfp);
         return new CallRRISC(call);
     }
 
-    private Node _cmp(BoolNode bool) {
-        Node rhs = bool.in(2);
+    private Node cmp(BoolNode bool) {
+        Node cmp = _cmp(bool);
+        return new SetRISC(cmp, bool.op());
+    }
 
-        return rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti
+    private Node _cmp(BoolNode bool) {
+        // Float variant
+        if( bool instanceof BoolNode.EQF ||
+            bool instanceof BoolNode.LTF ||
+            bool instanceof BoolNode.LEF )
+            return new CmpFRISC(bool);
+
+        Node rhs = bool.in(2);
+        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
                 : new CmpRISC(bool);
     }
 
     private Node con( ConstantNode con ) {
+        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-            case TypeInteger ti  -> new IntRISC(con);
-            case TypeFloat   tf  -> new IntRISC(con);
-            case TypeFunPtr  tfp -> new TFPRISC(con);
-            case TypeMemPtr  tmp -> new ConstantNode(con);
-            case TypeNil     tn  -> throw Utils.TODO();
-            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-            case Type t -> new ConstantNode(con);
+        case TypeInteger ti  -> new IntRISC(con);
+        case TypeFloat   tf  -> new IntRISC(con);
+        case TypeFunPtr  tfp -> new TFPRISC(con);
+        case TypeMemPtr  tmp -> new ConstantNode(con);
+        case TypeNil     tn  -> throw Utils.TODO();
+        // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+        case Type t -> new ConstantNode(con);
         };
     }
 

@@ -6,6 +6,7 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.type.TypeFloat;
 
 import java.io.ByteArrayOutputStream;
 
@@ -16,11 +17,11 @@ public class RetRISC extends ReturnNode implements MachNode{
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
         return switch( i ) {
-            case 0 -> null;
-            case 1 -> null;
-            case 2 -> riscv.RET_MASK;
-            case 3 -> null; // RPC is always on stack
-            default -> throw Utils.TODO();
+        case 0 -> null;
+        case 1 -> null;
+        case 2 -> _fun.sig()._ret instanceof TypeFloat ? riscv.RET_FMASK : riscv.RET_MASK;
+        case 3 -> null; // RPC is always on stack
+        default -> throw Utils.TODO();
         };
     }
     // Register mask allowed as a result.  0 for no register.

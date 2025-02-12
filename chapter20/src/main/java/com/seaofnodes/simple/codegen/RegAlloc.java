@@ -173,12 +173,46 @@ public class RegAlloc {
 
         // Register mask when empty; split around defs and uses with limited
         // register masks.
-        if( lrg._mask.isEmpty() )
+        if( lrg._mask.isEmpty() &&
+             lrg._1regDefCnt <= 1 &&
+             lrg._1regUseCnt <= 1 &&
+            (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
             return splitEmptyMask(lrg);
+
+        if( lrg._selfConflicts != null )
+            return splitSelfConflict(lrg);
 
         // Generic split-by-loop depth.
         return splitByLoop(lrg);
     }
+
+    // Split live range with an empty mask.  Specifically forces splits at
+    // single-register defs or uses and not elsewhere.
+    boolean splitEmptyMask( LRG lrg ) {
+        // Live range has a single-def single-register, and/or a single-use
+        // single-register.  Split after the def and before the use.  Does not
+        // require a full pass.
+
+        // Split just after def
+        if( lrg._1regDefCnt==1 )
+            _code._mach.split().insertAfter((Node)lrg._machDef);
+        // Split just before use
+        if( lrg._1regUseCnt==1 )
+            _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
+        return true;
+    }
+
+    // Self conflicts require Phis (or two-address).
+    // Insert a split after every def.
+    boolean splitSelfConflict( LRG lrg ) {
+        for( Node def : lrg._selfConflicts.keySet() ) {
+            _code._mach.split().insertAfter(def);
+            if( def instanceof PhiNode phi )
+                _code._mach.split().insertBefore(phi,1);
+        }
+        return true;
+    }
+
 
     // Generic: split around the outermost loop with non-split def/uses.  This
     // covers both self-conflicts (once we split deep enough) and register
@@ -218,8 +252,12 @@ public class RegAlloc {
             // PhiNodes check all CFG inputs
             if( n instanceof PhiNode phi ) {
                 for( int i=1; i<n.nIns(); i++ )
+                    // No split in front of a split
                     if( !(n.in(i) instanceof MachNode mach && mach.isSplit()) &&
-                        (min==max || phi.region().cfg(i).loopDepth() <= min) )
+                        // splitting in inner loop or at loop border
+                        (min==max || phi.region().cfg(i).loopDepth() <= min) &&
+                        // and not around the backedge of a loop (bad place to force a split, hard to remove)
+                        !(phi.region() instanceof LoopNode && i==2) )
                         // Split before phi-use in prior block
                         _code._mach.split().insertBefore(phi, i);
 
@@ -249,26 +287,6 @@ public class RegAlloc {
         return ((long)max<<32) | min;
     }
 
-
-    // Split live range with an empty mask.  Specifically forces splits at
-    // single-register defs or uses and not elsewhere.
-    boolean splitEmptyMask( LRG lrg ) {
-        // Live range has a single-def single-register, and/or a single-use
-        // single-register.  Split after the def and before the use.  Does not
-        // require a full pass.
-        if( lrg._1regDefCnt<=1 && lrg._1regUseCnt<=1 && (lrg._1regDefCnt + lrg._1regUseCnt) > 0 ) {
-            // Split just after def
-            if( lrg._1regDefCnt==1 )
-                _code._mach.split().insertAfter((Node)lrg._machDef);
-            // Split just before use
-            if( lrg._1regUseCnt==1 )
-                _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
-            return true;
-        }
-        // Needs a full pass to find all defs and all uses
-        throw Utils.TODO();
-    }
-
     // Find all members of a live range, both defs and uses
     private final Ary<Node> _ns = new Ary<>(Node.class);
     void findAllLRG( LRG lrg ) {
@@ -296,23 +314,15 @@ public class RegAlloc {
         for( Node bb : _code._cfg ) { // For all ops
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
-                boolean live = true;
-                //if( n.isSpill() ) {
-                //    int defreg = IFG.REGS.at(BuildLRG.lrg(n));
-                //    int usereg = IFG.REGS.at(BuildLRG.lrg(n.in(1)));
-                //    if( defreg == usereg ) {
-                //        n.delCFG(); // Remove spill from block
-                //        Node spilt = n.in(1);
-                //        n.insert(spilt); // Insert the spill's input in front of spill's uses
-                //        spilt.keep();
-                //        n.kill("blank spill");
-                //        spilt.unkeep();
-                //        live=false;
-                //        j--;
-                //    }
-                //}
+                if( n instanceof MachNode mach && mach.isSplit() ) {
+                    int defreg = lrg(n      )._reg;
+                    int usereg = lrg(n.in(1))._reg;
+                    if( defreg == usereg ) {
+                        n.remove();
+                        j--;
+                    }
+                }
                 //if( live && n instanceof Mach m )  m.post_allocate();
-                throw Utils.TODO();
             }
         }
     }

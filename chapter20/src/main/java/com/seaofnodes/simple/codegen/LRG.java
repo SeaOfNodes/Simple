@@ -3,7 +3,10 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.PhiNode;
+
+import java.util.IdentityHashMap;
 
 // Live Range
 public class LRG {
@@ -14,6 +17,9 @@ public class LRG {
     // U-F leader; null if leader
     LRG _leader;
 
+    // Choosen register
+    short _reg;
+
     // Count of single-register defs and uses
     short _1regDefCnt, _1regUseCnt;
 
@@ -21,18 +27,25 @@ public class LRG {
     MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
 
+    // Some splits used in biased coloring
+    MachConcreteNode _splitDef, _splitUse;
+
+    // All the self-conflicting defs for this live range
+    IdentityHashMap<Node,String> _selfConflicts;
+
     // AND of all masks involved; null if none have been applied yet
     RegMask _mask;
 
     // Adjacent Live Range neighbors.  Only valid during coloring
     Ary<LRG> _adj;
+
     void addNeighbor(LRG lrg) {
         if( _adj==null ) _adj = new Ary<>(LRG.class);
         _adj.push(lrg);
     }
 
     // Remove and compress neighbor list; store ex-neighbor past
-    // end for unwinding Simplify.  If true if exactly going low-degree
+    // end for unwinding Simplify.  True if exactly going low-degree
     boolean removeCompress( LRG lrg ) {
         _adj.swap(_adj.find(lrg),_adj._len-1);
         return _adj._len-- == _mask.size();
@@ -45,9 +58,6 @@ public class LRG {
 
     // More registers than neighbors
     boolean lowDegree() { return (_adj==null ? 0 : _adj._len) < _mask.size(); }
-
-    // Choosen register
-    short _reg;
 
     LRG( short lrg ) { _lrg = lrg; _reg = -1; }
 
@@ -88,6 +98,8 @@ public class LRG {
             _machDef = def;
         if( size1 )
             _1regDefCnt++;
+        if( def.isSplit() && (_splitDef==null || ((MachConcreteNode)def).cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
+            _splitDef = (MachConcreteNode)def;
         return this;
     }
 
@@ -97,8 +109,16 @@ public class LRG {
             { _machUse = use; _uidx = uidx; }
         if( size1 )
             _1regUseCnt++;
+        if( use.isSplit() && (_splitUse==null || ((MachConcreteNode)use).cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
+            _splitUse = (MachConcreteNode)use;
         return this;
     }
+
+    void selfConflict( Node def ) {
+        if( _selfConflicts == null ) _selfConflicts = new IdentityHashMap<>();
+        _selfConflicts.put(def,"");
+    }
+
 
     // Record intersection of all register masks.
     // True if still has registers

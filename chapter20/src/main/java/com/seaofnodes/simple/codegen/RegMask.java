@@ -13,10 +13,7 @@ public class RegMask {
     public static final RegMask FULL = new RegMask(-1L);
 
     public RegMask(long x ) { _bits = x; }
-    public RegMask(long[] xs) { /*_bits = BitSet.valueOf(           xs); */ throw Utils.TODO(); }
-    // Internal constructor
-    RegMask() { /*_bits = new BitSet();*/ _bits = 0; }
-    //RegMask(BitSet bs) { _bits = bs; }
+    private RegMask() { _bits = 0; }
 
     // Copy-on-write
     RegMask and( RegMask mask ) {
@@ -35,9 +32,9 @@ public class RegMask {
 
     boolean isEmpty() { return _bits==0; }
 
-    boolean overlap( RegMask mask ) {
-        return (_bits & mask._bits)!=0;
-    }
+    boolean test( int reg ) { return ((_bits >> reg)&1) != 0; }
+
+    boolean overlap( RegMask mask ) { return (_bits & mask._bits)!=0;  }
 
 
     // Defensive writable copy

@@ -21,7 +21,7 @@ public class CmpFX86 extends MachConcreteNode implements MachNode {
     // General form: "cmp src1,src2"
     @Override public void asm(CodeGen code, SB sb) {
         String dst = code.reg(this);
-        if( dst!="FLAGS" )  sb.p(dst).p(" = ");
+        if( dst!="flags" )  sb.p(dst).p(" = ");
         sb.p(code.reg(in(1))).p(", ").p(code.reg(in(2)));
     }
 

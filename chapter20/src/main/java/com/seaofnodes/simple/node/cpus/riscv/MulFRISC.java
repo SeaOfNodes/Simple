@@ -24,7 +24,7 @@ public class MulFRISC extends MachConcreteNode implements MachNode{
     // Default on double precision for now(64 bits)
     // General form: "fmul.d  rd = src1 * src2
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + ").p(code.reg(in(2)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * ").p(code.reg(in(2)));
     }
 
     @Override public String op() { return "mulf"; }
