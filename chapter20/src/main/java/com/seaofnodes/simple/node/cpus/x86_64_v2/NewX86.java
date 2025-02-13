@@ -18,7 +18,7 @@ public class NewX86 extends NewNode implements MachNode {
         // All the memory alias edges
         return null;
     }
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
+    @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
 
     // Register mask allowed as a result.  Pointer result in standard calling
     // convention.

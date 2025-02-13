@@ -53,7 +53,9 @@ public class x86_64_v2 extends Machine {
         "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
         "flags",
     };
-    @Override public String reg( int reg ) { return REGS[reg]; }
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
 
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.

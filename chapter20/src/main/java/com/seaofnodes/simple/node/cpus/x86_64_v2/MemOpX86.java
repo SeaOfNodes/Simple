@@ -51,9 +51,11 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     }
 
     Node idx() { return in(3); }
-    Node val() { return in(4); }
+    Node val() { return in(4); } // Only for stores, including op-to-memory
 
-    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) {
+        return sb.append(".").append(_name);
+    }
 
     @Override public String label() { return op(); }
     @Override public Type compute() { throw Utils.TODO(); }

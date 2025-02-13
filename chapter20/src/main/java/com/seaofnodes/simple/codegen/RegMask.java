@@ -26,6 +26,12 @@ public class RegMask {
         throw Utils.TODO();
     }
 
+    // Fails if bit is set, because this is immutable
+    public boolean clr( int reg ) {
+        return ((_bits >> reg)&1)==0;
+    }
+
+
     short firstColor() {
         return (short)Long.numberOfTrailingZeros(_bits);
     }
@@ -60,5 +66,5 @@ public class RegMask {
 
 class RegMaskRW extends RegMask {
     public RegMaskRW(long x) { super(x);  }
-    public void clr(int r) { _bits &= ~(1L<<r); }
+    public boolean clr(int r) { _bits &= ~(1L<<r); return _bits!=0; }
 }

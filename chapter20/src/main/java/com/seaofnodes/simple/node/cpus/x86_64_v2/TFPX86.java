@@ -23,6 +23,8 @@ public class TFPX86 extends ConstantNode implements MachNode {
         throw Utils.TODO();
     }
 
+    @Override public boolean isClone() { return true; }
+
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.
     // Just something like "ld4\tR17=[R18+12] // Load array base".

@@ -20,7 +20,7 @@ return 0;
     @Ignore @Test
     public void testBasic1() {
         CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("return (ori,arg);", code._stop.toString());
+        assertEquals("return (ori,(mov,arg));", code._stop.toString());
     }
 
     @Ignore @Test
@@ -39,8 +39,15 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg);
 """);
-        code.parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return (mov,Phi(Loop,(mov,(i2f8,arg)),(mulf,(addf,(mov,(divf,i2f8,mov)),mov),0.5f)));", code.print());
     };
+
+    @Test
+    public void testAlloc2() {
+        CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("return .[];", code.print());
+    }
 
 }

@@ -146,7 +146,7 @@ abstract public class IFG {
                     // Then tlrg and lrg interfere.
                     // If lrg *must* get its register, make tlrg skip this register.
                     if( mustDef ) {
-                        if( tlrg.and(mustMask) )
+                        if( !tlrg.clr(mustMask.firstColor()) )
                             alloc.fail(tlrg);
                     } else addIFG(lrg,tlrg); // Add interference
             }
@@ -168,19 +168,20 @@ abstract public class IFG {
 
             // Look for a must-use single register conflicting with some other must-def.
             if( n instanceof MachNode m ) {
-                // Record splits for later
-                //if( m.isSplit() ) throw Utils.TODO();
-                if( m.regmap(i).size1() ) { // Must-use single register
+                RegMask ni_mask = m.regmap(i);
+                if( ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
                         assert !tlrg.unified();
                         Node live = TMP.get(tlrg);
-                        if( live != def && live instanceof MachNode lmach ) {
-                            // Look at live value and see if it must-def same register
-                            if( lmach.outregmap().size1() && lmach.outregmap().overlap(m.regmap(i)) )
-                                // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there
-                                //    alloc.failed( tlrg );
-                                throw Utils.TODO();
+                        if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
+                            // Look at live value and see if it must-def same register.
+                            if( lmach.outregmap().size1() ||
+                                // Deny the register, since it absolutely must be used here
+                                !tlrg.clr(ni_mask.firstColor()) )
+                                // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there.
+                                // Fail the older live range, it must move its register.
+                                alloc.fail( tlrg );
                         }
                     }
                 }

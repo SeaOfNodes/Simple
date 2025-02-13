@@ -15,7 +15,11 @@ public class StoreX86 extends MemOpX86 {
     @Override public String op() { return "st"+_sz; }
 
     @Override public StringBuilder _printMach(StringBuilder sb, BitSet visited) {
-        return sb.append(".").append(_name).append("=").append(val()==null ? _imm : val()).append(";");
+        Node val = val();
+        sb.append(".").append(_name).append("=");
+        if( val==null ) sb.append(_imm);
+        else val._print0(sb,visited);
+        return sb.append(";");
     }
 
     // Register mask allowed as a result.  0 for no register.
