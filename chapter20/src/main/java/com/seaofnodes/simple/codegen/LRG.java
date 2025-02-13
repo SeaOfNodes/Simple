@@ -64,11 +64,22 @@ public class LRG {
     boolean unified() { return _leader!=null; }
 
     LRG find() {
-        if( _leader==null )
-            return this;
-        if( _leader._leader==null )
+        if( _leader==null ) return this; // I am the leader
+        if( _leader._leader==null ) // I point to the leader
             return _leader;
-        throw Utils.TODO();
+        return _rollup();
+    }
+    private LRG _rollup() {
+        LRG ldr = _leader._leader;
+        // Roll-up
+        while( ldr._leader!=null ) ldr = ldr._leader;
+        LRG l2 = this;
+        while( l2 != ldr ) {
+            LRG l3 = l2._leader;
+            l2._leader = ldr;
+            l2 = l3;
+        }
+        return ldr;
     }
 
     LRG union( LRG lrg ) {
