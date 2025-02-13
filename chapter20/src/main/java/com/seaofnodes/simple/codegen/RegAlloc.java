@@ -207,7 +207,7 @@ public class RegAlloc {
     boolean splitSelfConflict( LRG lrg ) {
         for( Node def : lrg._selfConflicts.keySet() ) {
             _code._mach.split().insertAfter(def);
-            if( def instanceof PhiNode phi )
+            if( def instanceof PhiNode phi && !(def instanceof ParmNode) )
                 _code._mach.split().insertBefore(phi,1);
         }
         return true;
@@ -245,12 +245,18 @@ public class RegAlloc {
         for( Node n : _ns ) {
             if( n instanceof MachNode mach && mach.isSplit() ) continue; // Ignoring splits; since spilling need to split in a deeper loop
             if( lrg(n)==lrg && // This is a LRG def
-                (min==max || n.cfg0().loopDepth() <= min) )
-                // Split after def in min loop nest
-                _code._mach.split().insertAfter(n);
+                // At loop boundary, or splitting in inner loop
+                (min==max || n.cfg0().loopDepth() <= min) ) {
+                // Clonable constants will be cloned at uses, so delete the def
+                if( n instanceof MachNode mach && mach.isClone() )
+                    n.remove();
+                else
+                    // Split after def in min loop nest
+                    _code._mach.split().insertAfter(n);
+            }
 
             // PhiNodes check all CFG inputs
-            if( n instanceof PhiNode phi ) {
+            if( n instanceof PhiNode phi && !(n instanceof ParmNode)) {
                 for( int i=1; i<n.nIns(); i++ )
                     // No split in front of a split
                     if( !(n.in(i) instanceof MachNode mach && mach.isSplit()) &&
@@ -259,16 +265,18 @@ public class RegAlloc {
                         // and not around the backedge of a loop (bad place to force a split, hard to remove)
                         !(phi.region() instanceof LoopNode && i==2) )
                         // Split before phi-use in prior block
-                        _code._mach.split().insertBefore(phi, i);
+                        insertBefore(phi,i);
 
             } else {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ ) {
                     if( lrg(n.in(i))==lrg && // This is a LRG use
+                        // Not a split already
                         !(n.in(i) instanceof MachNode mach && mach.isSplit()) &&
+                        // splitting in inner loop or at loop border
                         (min==max || n.cfg0().loopDepth() <= min) )
                         // Split before in this block
-                        _code._mach.split().insertBefore(n, i);
+                        insertBefore(n,i);
                 }
             }
         }
@@ -304,6 +312,13 @@ public class RegAlloc {
                 if( _ns.find(use)== -1 )
                     _ns.push(use);
         }
+    }
+
+    void insertBefore(Node n, int i) {
+        Node split = (n.in(i) instanceof MachNode mach && mach.isClone()
+                      ? mach.copy()
+                      : _code._mach.split());
+        split.insertBefore(n, i);
     }
 
 

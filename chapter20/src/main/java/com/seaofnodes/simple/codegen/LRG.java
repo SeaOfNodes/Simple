@@ -126,6 +126,13 @@ public class LRG {
         _mask = mask.and(_mask);
         return !_mask.isEmpty();
     }
+    // Remove this singular register
+    // True if still has registers
+    boolean clr( int reg ) {
+        if( _mask.clr(reg) ) return true;
+        _mask = _mask.copy();   // Need a mutable copy
+        return _mask.clr(reg);
+    }
 
     @Override public String toString() { return toString(new SB()).toString(); }
 

@@ -67,7 +67,7 @@ public abstract class Node {
     // Make a Node using the existing arrays of nodes.
     // Used by any pass rewriting all Node classes but not the edges.
     Node( Node n ) {
-        assert CodeGen.CODE._phase == CodeGen.Phase.InstructionSelection;
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstructionSelection.ordinal();
         _nid = CODE.getUID(); // allocate unique dense ID
         _inputs  = new Ary<>(n._inputs.asAry());
         _outputs = new Ary<>(Node.class);
@@ -112,7 +112,7 @@ public abstract class Node {
 
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
-    final StringBuilder _print0(StringBuilder sb, BitSet visited) {
+    public final StringBuilder _print0(StringBuilder sb, BitSet visited) {
         if (visited.get(_nid) && !(this instanceof ConstantNode) )
             return sb.append(label());
         visited.set(_nid);
@@ -331,7 +331,7 @@ public abstract class Node {
         }
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        setDef(1,use.in(uidx));
+        if( _inputs._len > 1 ) setDef(1,use.in(uidx));
         use.setDef(uidx,this);
     }
 
@@ -339,7 +339,7 @@ public abstract class Node {
         CFGNode cfg = cfg0();
         cfg._outputs.remove(cfg._outputs.find(this));
         _inputs.set(0,null);
-        subsume(in(1));
+        if( _inputs._len > 1 ) subsume(in(1));
     }
 
     // ------------------------------------------------------------------------
