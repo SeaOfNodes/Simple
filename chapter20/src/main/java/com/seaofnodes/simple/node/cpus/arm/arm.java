@@ -171,15 +171,61 @@ public class arm extends Machine{
         }
         return new AddARM(add);
     }
+
+    private Node sub(SubNode sub) {
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+                ? new AddIARM(sub, TypeInteger.constant(-ti.value()))
+                : new SubARM(sub);
+    }
+
     private Node and(AndNode and) {
         if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AndIARM(and, ti);
         return new AndARM(and);
     }
+
     private Node or(OrNode or) {
         if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new OrIRISC(or, ti);
+            return new OrIARM(or, ti);
 
-        return new OrRISC(or);
+        return new OrARM(or);
+    }
+
+    private Node xor(XorNode xor) {
+        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new XorIARM(xor, ti);
+        return new XorARM(xor);
+    }
+
+    private Node con(ConstantNode con) {
+        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
+        return switch( con._con ) {
+            case TypeInteger ti  -> new IntARM(con);
+            case TypeFloat   tf  -> new IntARM(con);
+            case TypeFunPtr  tfp -> new TFPARM(con);
+            case TypeMemPtr  tmp -> new ConstantNode(con);
+            case TypeNil     tn  -> throw Utils.TODO();
+            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+            case Type t -> new ConstantNode(con);
+        };
+    }
+
+    private Node sar(SarNode sar){
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new AsrIARM(sar, ti);
+        return new AsrARM(sar);
+    }
+
+    private Node shl(ShlNode shl) {
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new LslIARM(shl, ti);
+        return new LslARM(shl);
+
+    }
+
+    private Node shr(ShrNode shr) {
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new LsrIARM(shr, ti);
+        return new LsrARM(shr);
     }
 }

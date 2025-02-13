@@ -245,7 +245,6 @@ public class riscv extends Machine{
             bool instanceof BoolNode.LEF )
             return new CmpFRISC(bool);
 
-        Node rhs = bool.in(2);
         return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
                 : new CmpRISC(bool);

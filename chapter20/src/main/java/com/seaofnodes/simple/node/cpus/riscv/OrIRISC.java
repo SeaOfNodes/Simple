@@ -37,5 +37,5 @@ public class OrIRISC extends MachConcreteNode implements MachNode{
         _ti.print(sb);
     }
 
-    @Override public String op() { return "ori"; }
+    @Override public String op() { return "orri"; }
 }
