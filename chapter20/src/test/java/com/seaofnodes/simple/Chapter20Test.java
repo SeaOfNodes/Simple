@@ -50,4 +50,20 @@ return sqrt(farg);
         assertEquals("return .[];", code.print());
     }
 
+    @Test
+    public void testArray1() {
+        CodeGen code = new CodeGen(
+"""
+int[] !ary = new int[arg];
+// Fill [0,1,2,3,4,...]
+for( int i=0; i<ary#; i++ )
+    ary[i] = i;
+// Fill [0,1,3,6,10,...]
+for( int i=0; i<ary#-1; i++ )
+    ary[i+1] += ary[i];
+return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("return .[];", code.print());
+    }
 }
