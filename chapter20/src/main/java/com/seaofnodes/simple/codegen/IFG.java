@@ -287,6 +287,7 @@ abstract public class IFG {
                 swap(color_stack,sptr,pickRisky(color_stack,sptr));
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
+            if( lrg==null ) continue;
             // If sptr was swork, then pulled an at-risk lrg
             if( sptr > swork )
                 swork = sptr;
@@ -310,6 +311,7 @@ abstract public class IFG {
         // Reverse simplify (unstack the color stack), and set colors (registers) for live ranges
         while( sptr > 1 ) {
             LRG lrg = color_stack[--sptr];
+            if( lrg==null ) continue;
             RegMaskRW rmask = lrg._mask.copy();
             // Walk neighbors and remove adjacent colors
             if( lrg._adj!=null ) {

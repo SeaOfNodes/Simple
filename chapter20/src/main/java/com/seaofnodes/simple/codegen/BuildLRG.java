@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeMem;
 
 abstract public class BuildLRG {
     // Compute live ranges in a single forwards pass.  Every def is a new live
@@ -32,7 +33,7 @@ abstract public class BuildLRG {
                             }
                         }
 
-                } else if( n instanceof PhiNode phi ) {
+                } else if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
                     // All Phi inputs end up with the same LRG.
                     // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
                     LRG lrg = alloc.lrg(phi);
