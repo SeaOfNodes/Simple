@@ -16,12 +16,12 @@ public class NewRISC extends NewNode implements MachNode{
     // Register mask allowed on input i, the size
     @Override public RegMask regmap(int i) {
         // Size
-        if( i==1 ) return riscv.RET_MASK;
+        if( i==1 ) return riscv.A0_MASK;
         // All the memory alias edges
         return null;
     }
 
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
+    @Override public RegMask outregmap() { return null; }
 
     // Register mask allowed as a result.  Pointer result in standard calling
     // convention.

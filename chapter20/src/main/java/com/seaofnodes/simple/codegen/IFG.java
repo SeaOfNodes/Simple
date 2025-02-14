@@ -254,7 +254,8 @@ abstract public class IFG {
 
         // Convert the 2-D array of bits (a 1-D array of BitSets) into an
         // adjacency matrix.
-        for( int i=1; i<IFG._len; i++ ) {
+        int maxlrg = alloc._LRGS.length;
+        for( int i=1; i<maxlrg; i++ ) {
             BitSet ifg = IFG.atX(i);
             if( ifg != null ) {
                 LRG lrg0 = alloc._LRGS[i];
