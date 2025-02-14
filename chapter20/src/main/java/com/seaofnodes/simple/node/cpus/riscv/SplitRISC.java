@@ -11,9 +11,9 @@ public class SplitRISC extends MachConcreteNode implements MachNode {
     SplitRISC( ) { super(new Node[2]); }
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) { return RegMask.FULL; }
+    @Override public RegMask regmap(int i) { return riscv.MEM_MASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return RegMask.FULL; }
+    @Override public RegMask outregmap() { return riscv.MEM_MASK; }
 
     @Override public boolean isSplit() { return true; }
 
