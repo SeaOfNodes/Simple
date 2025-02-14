@@ -134,7 +134,10 @@ public class LRG {
     // Record intersection of all register masks.
     // True if still has registers
     boolean and( RegMask mask ) {
-        _mask = mask.and(_mask);
+        RegMask mask2 = mask.and(_mask);
+        if( mask2==null )
+            mask2 = _mask.copy().and(mask);
+        _mask = mask2;
         return !_mask.isEmpty();
     }
     // Remove this singular register
