@@ -48,6 +48,14 @@ get the same result - and can be shared.
   constant 17 is not the same as 99, but both are the same `ConstantNode` class
   and label.  The `eq` and `hash` calls check (or hash) these extra bits.
 
+Note the intentional *value* equality here.  In many places in Simple we use
+*reference* equality - e.g. node/edge maintenance is via reference equality, not
+value equality, so e.g. the `Utils.find()` call finds via reference.  Through
+out the Simple project whenever a Node lookup is happening, beware if its via
+*value* or *reference* equality; this is not always explicitly called out but
+should be obvious from context.
+
+
 Since we edit the graph a lot, Nodes can have their inputs change which changes
 their hash which means they can't be found in the GVN table.  E.g. we swap out
 the `Add` for a `Con` in:

@@ -2,8 +2,8 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.CodeGen;
+import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.node.CallEndNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFloat;
@@ -14,7 +14,7 @@ public class CallEndX86 extends CallEndNode implements MachNode {
     final TypeFunPtr _tfp;
     CallEndX86( CallEndNode cend ) {
         super(cend);
-        _tfp = (TypeFunPtr)(cend.call().fptr()._type);
+        _tfp = (TypeFunPtr)cend.call().fptr()._type;
     }
 
     @Override public String label() { return op(); }

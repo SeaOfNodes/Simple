@@ -12,7 +12,7 @@ import java.io.ByteArrayOutputStream;
 public class TFPX86 extends ConstantNode implements MachNode {
     TFPX86( ConstantNode con ) {  super(con); }
     // Register mask allowed on input i.  0 for no register.
-    @Override public RegMask regmap(int i) { return RegMask.EMPTY; }
+    @Override public RegMask regmap(int i) { return null; }
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 

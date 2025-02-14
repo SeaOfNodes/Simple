@@ -53,7 +53,9 @@ public class x86_64_v2 extends Machine {
         "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
         "flags",
     };
-    @Override public String reg( int reg ) { return REGS[reg]; }
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
 
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
@@ -153,7 +155,7 @@ public class x86_64_v2 extends Machine {
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
-        case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
+        case CallEndNode  cend  -> new CallEndX86(cend);
         case CallNode     call  -> call(call);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
@@ -412,6 +414,7 @@ public class x86_64_v2 extends Machine {
         }
         return mop;
     }
+
     private int imm( Node xval ) {
         assert val==null && imm==0;
         if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {

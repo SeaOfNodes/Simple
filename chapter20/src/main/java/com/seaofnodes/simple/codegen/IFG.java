@@ -146,7 +146,7 @@ abstract public class IFG {
                     // Then tlrg and lrg interfere.
                     // If lrg *must* get its register, make tlrg skip this register.
                     if( mustDef ) {
-                        if( tlrg.and(mustMask) )
+                        if( !tlrg.clr(mustMask.firstColor()) )
                             alloc.fail(tlrg);
                     } else addIFG(lrg,tlrg); // Add interference
             }
@@ -168,19 +168,20 @@ abstract public class IFG {
 
             // Look for a must-use single register conflicting with some other must-def.
             if( n instanceof MachNode m ) {
-                // Record splits for later
-                //if( m.isSplit() ) throw Utils.TODO();
-                if( m.regmap(i).size1() ) { // Must-use single register
+                RegMask ni_mask = m.regmap(i);
+                if( ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
                         assert !tlrg.unified();
                         Node live = TMP.get(tlrg);
-                        if( live != def && live instanceof MachNode lmach ) {
-                            // Look at live value and see if it must-def same register
-                            if( lmach.outregmap().size1() && lmach.outregmap().overlap(m.regmap(i)) )
-                                // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there
-                                //    alloc.failed( tlrg );
-                                throw Utils.TODO();
+                        if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
+                            // Look at live value and see if it must-def same register.
+                            if( lmach.outregmap().size1() ||
+                                // Deny the register, since it absolutely must be used here
+                                !tlrg.clr(ni_mask.firstColor()) )
+                                // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there.
+                                // Fail the older live range, it must move its register.
+                                alloc.fail( tlrg );
                         }
                     }
                 }
@@ -253,7 +254,8 @@ abstract public class IFG {
 
         // Convert the 2-D array of bits (a 1-D array of BitSets) into an
         // adjacency matrix.
-        for( int i=1; i<IFG._len; i++ ) {
+        int maxlrg = alloc._LRGS.length;
+        for( int i=1; i<maxlrg; i++ ) {
             BitSet ifg = IFG.atX(i);
             if( ifg != null ) {
                 LRG lrg0 = alloc._LRGS[i];
@@ -286,6 +288,7 @@ abstract public class IFG {
                 swap(color_stack,sptr,pickRisky(color_stack,sptr));
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
+            if( lrg==null ) continue;
             // If sptr was swork, then pulled an at-risk lrg
             if( sptr > swork )
                 swork = sptr;
@@ -309,6 +312,7 @@ abstract public class IFG {
         // Reverse simplify (unstack the color stack), and set colors (registers) for live ranges
         while( sptr > 1 ) {
             LRG lrg = color_stack[--sptr];
+            if( lrg==null ) continue;
             RegMaskRW rmask = lrg._mask.copy();
             // Walk neighbors and remove adjacent colors
             if( lrg._adj!=null ) {

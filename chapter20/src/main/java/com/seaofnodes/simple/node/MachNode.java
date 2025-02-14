@@ -36,10 +36,12 @@ public interface MachNode {
     // this is their Multi's updated input.
     default int twoAddress( ) { return 0; }
 
-    // Instructions cheaper to recreate than to spill, such as loading small constants
-    default boolean isClone() { return false; }
     // Known to be a split node
     default boolean isSplit() { return false; }
+    // Instructions cheaper to recreate than to spill, such as loading small constants
+    default boolean isClone() { return false; }
+    // Make a clone of a cheap instruction
+    default Node copy() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     int encoding(ByteArrayOutputStream bytes);

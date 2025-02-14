@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.IterPeeps.WorkList;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
@@ -11,6 +12,14 @@ public abstract class ListScheduler {
     // eXtra per-node stuff for scheduling.
     private static final IdentityHashMap<Node,XSched> XS = new IdentityHashMap<>();
     private static class XSched {
+
+        Node _n;         // Node this extra is for
+        int _bcnt;       // Not-ready not-scheduled inputs
+        int _rcnt;       // Ready not-scheduled inputs
+        boolean _ruse;   // Node IS a "remote use", uses a other-block value
+        boolean _rdef;   // Node IS a "remote def" of a value used in other block
+        boolean _single; // Defines a single register, likely to conflict
+
         static final Ary<XSched> FREE = new Ary<>(XSched.class);
         static void alloc(CFGNode bb, Node n) {
             XSched x = FREE.pop();
@@ -42,7 +51,14 @@ public abstract class ListScheduler {
         }
 
         private void computeSingleRDef(CFGNode bb, Node n) {
-            RegMaskRW rmask = n instanceof MachNode mach && mach.outregmap() != null ? mach.outregmap().copy() : null;
+            // See if this is 2-input, and that input is single-def
+            if( n instanceof MachNode mach && mach.twoAddress() != 0 ) {
+                XSched xs = XS.get(n.in(mach.twoAddress()));
+                if( xs != null )
+                    _single = xs._single;
+            }
+            // Visit all outputs
+            RegMaskRW rmask = !_single && n instanceof MachNode mach && mach.outregmap() != null ? mach.outregmap().copy() : null;
             for( Node use : n._outputs ) {
                 // Remote use, so this is a remote def
                 if( use!=null && use.cfg0()!=bb ) _rdef = true;
@@ -53,7 +69,7 @@ public abstract class ListScheduler {
                             rmask.and(mach.regmap(i));
             }
             // Defines in a single register
-            _single = rmask!=null && rmask.size1();
+            _single |= rmask!=null && rmask.size1();
         }
 
         // If _bcnt==0, declare ready; move user bcnts into rcnts.
@@ -83,13 +99,6 @@ public abstract class ListScheduler {
             _rcnt--;
             return isReady();
         }
-
-        Node _n;         // Node this extra is for
-        int _bcnt;       // Not-ready not-scheduled inputs
-        int _rcnt;       // Ready not-scheduled inputs
-        boolean _ruse;   // Node IS a "remote use", uses a other-block value
-        boolean _rdef;   // Node IS a "remote def" of a value used in other block
-        boolean _single; // Defines a single register, likely to conflict
     }
 
 
@@ -181,9 +190,9 @@ public abstract class ListScheduler {
         // Register pressure local scheduling: avoid overlapping specialized
         // registers usages.
 
-        // Subtract 10 if this op forces a live range to exist that cannot be
-        // resolved immediately; i.e., live count goes up.  Scale to 20 if
-        // multi-def.
+        // Subtract 10 (delay) if this op forces a live range to exist that
+        // cannot be resolved immediately; i.e., live count goes up.  Scale to
+        // 20 if multi-def.
 
         // Subtract 100 if this op forces a single-def live range to exist
         // which might conflict on the same register with other live ranges.
@@ -191,11 +200,13 @@ public abstract class ListScheduler {
         // ready.  Scale to 200 for multi-def.
         CNT[1]=CNT[2]=0;
         XSched xn = XSched.get(n);
-        if( xn._rdef ) score = 200; // If defining a remote value, just generically stall alot
+        // If defining a remote value, just generically stall alot.  Value is
+        // used in a later block, can we delay until the end of this block?
+        if( xn._rdef ) score = 200;
         if( n instanceof MultiNode ) {
             for( Node use : n._outputs )
                 singleUseNotReady( use, xn._single );
-        } else if( n.nOuts() == 1 )
+        } else
             singleUseNotReady( n, xn._single );
         score +=  -10 * Math.min( CNT[1], 2 );
         score += -100 * Math.min( CNT[2], 2 );
@@ -211,9 +222,7 @@ public abstract class ListScheduler {
         score +=   10 * Math.min( CNT[1], 2 );
         score +=  100 * Math.min( CNT[2], 2 );
 
-        //// Nothing special
-        //if( n instanceof Pe            ) return  500; // RISC want to go after PE
-        //if( n instanceof Risc          ) return  400; // RISC want to go after PE
+        // Nothing special
         assert 10 <= score && score <= 990;
         return score;
     }
@@ -222,11 +231,11 @@ public abstract class ListScheduler {
     // If true, stalling 'n' might reduce 'n's lifetime.
     // Return 0 for false, 1 if true, 10 if also single register
     private static void singleUseNotReady( Node n, boolean single ) {
-        if( n.nOuts() != 1 ) return;
-        XSched xu = XSched.get(n.out(0));
-        if( xu !=null && xu._bcnt==0 )
-            return;
-        CNT[single ? 2 : 1]++;
+        for( Node use : n.outs() ) {
+            XSched xu = XSched.get(use);
+            if( xu != null && xu._bcnt > 0 )
+                CNT[single ? 2 : 1]++;
+        }
     }
 
 }

@@ -40,6 +40,7 @@ class RegMaskRW extends RegMask {
     public void clr(int r) { _bits.clear(r); }
     public void set(int r, boolean b) { _bits.set(r,b); }
     public RegMaskRW and( RegMask r ) {
+        if( r==null ) return this;
         _bits.and(r._bits);
         return this;
     }

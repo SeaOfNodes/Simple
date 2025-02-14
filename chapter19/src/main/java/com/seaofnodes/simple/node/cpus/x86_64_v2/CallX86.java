@@ -20,11 +20,12 @@ public class CallX86 extends CallNode implements MachNode {
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return x86_64_v2.callInMaskInt(i); // Normal argument
+        return x86_64_v2.callInMask(tfp(),i); // Normal argument
     }
     @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
 
     @Override public String name() { return _name; }
+    @Override public TypeFunPtr tfp() { return _tfp; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

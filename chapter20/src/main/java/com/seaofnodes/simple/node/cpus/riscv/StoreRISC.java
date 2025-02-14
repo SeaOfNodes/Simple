@@ -14,14 +14,16 @@ import java.util.BitSet;
 
 // sw rs2,offset(rs1)
 public class StoreRISC extends MemOpRISC {
-    StoreRISC( StoreNode st) {
-        super(st, st);
+    StoreRISC( StoreNode st, Node base, Node idx, int off, int imm, Node val ) {
+        super(st, base, idx, off, imm, val);
     }
 
     // Wider mask to store both GPRs and FPRs
     @Override public RegMask regmap(int i) {
         if( i==1 ) return riscv.MEM_MASK;
         if( i==2 ) return riscv.RMASK;
+        if( i==3 ) return riscv.RMASK;
+        if( i==4 ) return riscv.RMASK;
         throw Utils.TODO();
     }
 
@@ -35,7 +37,9 @@ public class StoreRISC extends MemOpRISC {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-
+        asm_address(code,sb).p(",");
+        if( val()==null ) sb.p("#").p(_imm);
+        else sb.p(code.reg(val()));
     }
 
     @Override public String op() { return "st"+_sz; }

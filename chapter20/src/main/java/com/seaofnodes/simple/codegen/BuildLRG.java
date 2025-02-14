@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeMem;
 
 abstract public class BuildLRG {
     // Compute live ranges in a single forwards pass.  Every def is a new live
@@ -16,16 +18,8 @@ abstract public class BuildLRG {
         for( Node bb : alloc._code._cfg )
             for( Node n : bb.outs() ) {
                 if( n instanceof MachNode mach ) {
-                    RegMask def_mask = mach.outregmap();
-                    if( def_mask!=null ) {
-                        LRG lrg = mach.twoAddress() == 0
-                            ? alloc.newLRG(n) // Define a new LRG for N
-                            : alloc.lrg2(n,mach.twoAddress()); // Use the matching 2-adr input
-                        // Record mask and mach
-                        // def_mask.size()->1 : single register mask
-                        if( !lrg.machDef(mach,def_mask.size1()).and(def_mask) )
-                            alloc.fail(lrg); // Empty register mask, must split
-                    }
+                    // Define live range
+                    defLRG(alloc,n);
 
                     // Now, look in the opposite direction. How are incoming
                     // LRGs affected by this node: For all uses, make live lrgs
@@ -39,7 +33,7 @@ abstract public class BuildLRG {
                             }
                         }
 
-                } else if( n instanceof PhiNode phi ) {
+                } else if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
                     // All Phi inputs end up with the same LRG.
                     // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
                     LRG lrg = alloc.lrg(phi);
@@ -56,11 +50,31 @@ abstract public class BuildLRG {
                     if( lrg._mask.isEmpty() )
                         alloc.fail(lrg);
                 }
+
+                // MultiNodes have projections which set/kill registers
+                if( n instanceof MultiNode )
+                    for( Node proj : n.outs() )
+                        if( proj instanceof MachNode )
+                            defLRG(alloc,proj);
+
             }
 
         // Collect live ranges
         alloc.unify();
 
         return alloc.success();
-  }
+    }
+
+    private static void defLRG( RegAlloc alloc, Node n ) {
+        MachNode mach = (MachNode)n;
+        RegMask def_mask = mach.outregmap();
+        if( def_mask == null ) return;
+        LRG lrg = mach.twoAddress() == 0
+            ? alloc.newLRG(n)                  // Define a new LRG for N
+            : alloc.lrg2(n,mach.twoAddress()); // Use the matching 2-adr input
+        // Record mask and mach
+        if( !lrg.machDef(mach,def_mask.size1()).and(def_mask) )
+            alloc.fail(lrg); // Empty register mask, must split
+    }
+
 }

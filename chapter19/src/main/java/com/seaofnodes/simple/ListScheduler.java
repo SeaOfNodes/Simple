@@ -41,7 +41,7 @@ public abstract class ListScheduler {
         }
 
         private void computeSingleRDef(CFGNode bb, Node n) {
-            RegMaskRW rmask = n instanceof MachNode mach ? mach.outregmap().copy() : null;
+            RegMaskRW rmask = n instanceof MachNode mach && mach.outregmap()!=null ? mach.outregmap().copy() : null;
             for( Node use : n._outputs ) {
                 // Remote use, so this is a remote def
                 if( use!=null && use.cfg0()!=bb ) _rdef = true;
@@ -205,7 +205,7 @@ public abstract class ListScheduler {
         for( int i=1; i<n.nIns(); i++ ) {
             XSched xd = XSched.get( n.in(i) );
             if( xd != null && xd._n.nOuts()==1 )
-                CNT[xd._single || ((MachNode)n).regmap(i).size1() ? 2 : 1]++;
+                CNT[xd._single || ((MachNode)n).regmap(i)!=null && ((MachNode)n).regmap(i).size1() ? 2 : 1]++;
         }
         score +=   10 * Math.min( CNT[1], 2 );
         score +=  100 * Math.min( CNT[2], 2 );

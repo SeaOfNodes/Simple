@@ -26,7 +26,7 @@ public class JmpX86 extends IfNode implements MachNode {
             throw Utils.TODO();
     }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
-    @Override public RegMask outregmap() { return RegMask.EMPTY; }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
