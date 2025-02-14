@@ -20,7 +20,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
 
-    CallNode call() { return (CallNode)in(0); }
+    public CallNode call() { return (CallNode)in(0); }
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {

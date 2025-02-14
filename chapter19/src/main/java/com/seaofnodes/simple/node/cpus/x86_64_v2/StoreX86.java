@@ -19,7 +19,7 @@ public class StoreX86 extends MemOpX86 {
     }
 
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return RegMask.EMPTY; }
+    @Override public RegMask outregmap() { return null; }
 
     // General form: "stN  [base + idx<<2 + 12],val"
     @Override public void asm(CodeGen code, SB sb) {
