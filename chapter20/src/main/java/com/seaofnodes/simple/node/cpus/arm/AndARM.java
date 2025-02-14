@@ -35,7 +35,7 @@ public class AndARM extends MachConcreteNode implements MachNode {
 
     // General form
     // General form:  #rd = rs1 & rs2
-    @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+    @Override public void asm(CodeGen code, SB sb){
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" & ").p(code.reg(in(2)));
     }
 }

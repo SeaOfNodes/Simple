@@ -22,6 +22,7 @@ public class arm extends Machine{
     public static int X16 = 16,  X17 = 17,  X18 = 18,  X19 = 19,  X20 = 20,  X21 = 21,  X22 = 22,  X23 = 23;
     public static int X24 = 24,  X25 = 25,  X26 = 26,  X27 = 27,  X28 = 28,  X29 = 29,  X30 = 30;
 
+    public static int FLAGS = 31;
     // Floating point registers
 
     public static int D0  =  31,  D1  =  32,  D2  =  33,  D3  =  34,  D4  =  35,  D5  =  36,  D6  =  37,  D7  =  38;
@@ -35,6 +36,14 @@ public class arm extends Machine{
 
     // Float mask from(d0–d30)
     public static RegMask DMASK = new RegMask(0b11111111111111111111111111111111L<<D0);
+
+    public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
+
+    //  x30 (LR): Procedure link register, used to return from subroutines.
+    public static RegMask RET_MASK = new RegMask(1L << X30);
+    // If the return type is a floating point variable, it is returned in s0 or d0, as appropriate.
+
+    public static RegMask RET_FMASK = new RegMask(1L << D0);
 
     // Arguments masks
     public static RegMask X0_MASK = new RegMask(1L<<X0);
@@ -130,19 +139,19 @@ public class arm extends Machine{
             case ConstantNode con   -> con(con);
             case DivFNode     divf  -> new DivFARM(divf);
             case DivNode      div   -> new DivARM(div);
-            case FunNode      fun   -> new FunX86(fun);
+            case FunNode      fun   -> new FunARM(fun);
             case IfNode       iff   -> jmp(iff);
             case LoadNode     ld    -> ld(ld);
             case MemMergeNode mem   -> new MemMergeNode(mem);
             case MulFNode     mulf  -> new MulFARM(mulf);
             case MulNode      mul   -> new MulFARM(mul);
-            case NewNode      nnn   -> new NewX86(nnn);
+            case NewNode      nnn   -> new NewARM(nnn);
             case OrNode       or   ->  or(or);
-            case ParmNode     parm  -> new ParmX86(parm);
+            case ParmNode     parm  -> new ParmARM(parm);
             case PhiNode      phi   -> new PhiNode(phi);
             case ProjNode     prj   -> prj(prj);
             case ReadOnlyNode read  -> new ReadOnlyNode(read);
-            case ReturnNode   ret   -> new RetX86(ret,ret.fun());
+            case ReturnNode   ret   -> new RetARM(ret,ret.fun());
             case SarNode      sar   -> sar(sar);
             case ShlNode      shl   -> shl(shl);
             case ShrNode      shr   -> shr(shr);
@@ -159,6 +168,42 @@ public class arm extends Machine{
             default -> throw Utils.TODO();
         };
     }
+
+    private Node cmp(BoolNode bool){
+        Node cmp = _cmp(bool);
+        return new SetARM(cmp, bool.op());
+    }
+
+    private Node i2f8(ToFloatNode tfn) {
+        assert tfn.in(1)._type instanceof TypeInteger ti;
+        return new I2F8ARM(tfn);
+    }
+
+    private Node ld(LoadNode ld) {
+        return ld;
+    }
+
+    private Node jmp(IfNode iff) {
+        // If/Bool combos will match to a Cmp/Set which sets flags.
+        // Most general arith ops will also set flags, which the Jmp needs directly.
+        // Loads do not set the flags, and will need an explicit TEST
+        if( !(iff.in(1) instanceof BoolNode) )
+            iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
+        return new JmpARM(iff, ((BoolNode)iff.in(1)).op());
+    }
+
+    private Node _cmp(BoolNode bool) {
+        if( bool instanceof BoolNode.EQF ||
+                bool instanceof BoolNode.LTF ||
+                bool instanceof BoolNode.LEF )
+            return new CmpFARM(bool);
+
+
+        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+                ? new CmpIARM(bool, ti)
+                : new CmpARM(bool);
+    }
+
 
     private Node addf(AddFNode addf) {
         return new AddFARM(addf);
@@ -201,7 +246,7 @@ public class arm extends Machine{
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
             case TypeInteger ti  -> new IntARM(con);
-            case TypeFloat   tf  -> new IntARM(con);
+            case TypeFloat   tf  -> new FloatARM(con);
             case TypeFunPtr  tfp -> new TFPARM(con);
             case TypeMemPtr  tmp -> new ConstantNode(con);
             case TypeNil     tn  -> throw Utils.TODO();
@@ -228,4 +273,19 @@ public class arm extends Machine{
             return new LsrIARM(shr, ti);
         return new LsrARM(shr);
     }
+
+    private Node call(CallNode call){
+        if(call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp)
+            return new CallARM(call, tfp);
+        return new CallRRARM(call);
+    }
+
+    private Node prj(ProjNode prj) {
+        return new ProjARM(prj);
+    }
+
+    private Node st(StoreNode st) {
+        return new StoreARM(st);
+    }
+
 }
