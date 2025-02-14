@@ -27,6 +27,7 @@ public class CallX86 extends CallNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     @Override public String name() { return _name; }
+    @Override public TypeFunPtr tfp() { return _tfp; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

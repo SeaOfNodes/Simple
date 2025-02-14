@@ -12,14 +12,16 @@ import java.io.ByteArrayOutputStream;
 
 public class CallEndX86 extends CallEndNode implements MachNode {
     final TypeFunPtr _tfp;
-    CallEndX86( CallEndNode cend, TypeFunPtr tfp ) {
+    CallEndX86( CallEndNode cend ) {
         super(cend);
-        _tfp = tfp;
+        _tfp = (TypeFunPtr)(cend.call().fptr()._type);
     }
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) { return null; }
-    @Override public RegMask outregmap() {
+    @Override public RegMask outregmap() { throw Utils.TODO(); }
+    @Override public RegMask outregmap(int idx) {
+        if( idx != 2 ) return null;
         return _tfp._ret instanceof TypeFloat ? x86_64_v2.RET_FMASK : x86_64_v2.RET_MASK;
     }
 

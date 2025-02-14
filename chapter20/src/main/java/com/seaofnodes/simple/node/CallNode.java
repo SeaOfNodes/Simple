@@ -48,6 +48,8 @@ public class CallNode extends CFGNode {
     int nargs() { return nIns()-3; } // Minus control, memory, fptr
     // args from input 2 to last; last is function input
     public Node fptr() { return _inputs.last(); }
+    // Error if not a TFP
+    public TypeFunPtr tfp() { return (TypeFunPtr)fptr()._type; }
 
     // Find the Call End from the Call
     public CallEndNode cend() {

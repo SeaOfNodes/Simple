@@ -29,7 +29,7 @@ public class riscv extends Machine{
     public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask((1L<<64)-1);
+    public static RegMask MEM_MASK = new RegMask(-1L);
 
 
     // Return single int/ptr register
@@ -319,17 +319,46 @@ public class riscv extends Machine{
         return new ProjRISC(prj);
     }
 
-    private Node ld(LoadNode ld) {
-        return new LoadRISC(ld);
-    }
-
-    private Node st(StoreNode st) {
-        return new StoreRISC(st);
-    }
-
     private Node mul(MulNode mul) {
         return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new MulIRISC(mul, ti)
                 : new MulRISC(mul);
     }
+
+    private Node ld(LoadNode ld) {
+        return new LoadRISC(address(ld),ld.ptr(),idx,off);
+    }
+
+    private Node st(StoreNode st) {
+        int imm=0;
+        Node xval = st.val();
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            xval = null;
+            imm = (int)ti.value();
+            assert imm == ti.value(); // In 32-bit range
+        }
+        return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);
+    }
+
+    // Gather addressing mode bits prior to constructing.  This is a builder
+    // pattern, but saving the bits in a *local* *global* here to keep mess
+    // contained.
+    private static int off;
+    private static Node idx;
+    private <N extends MemOpNode> N address( N mop ) {
+        off = 0;  // Reset
+        idx = null;
+        Node base = mop.ptr();
+        // Skip/throw-away a ReadOnly, only used to typecheck
+        if( base instanceof ReadOnlyNode read ) base = read.in(1);
+        assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
+        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            off = (int)ti.value();
+            assert off == ti.value(); // In 32-bit range
+        } else {
+            idx = mop.off();
+        }
+        return mop;
+    }
+
 }

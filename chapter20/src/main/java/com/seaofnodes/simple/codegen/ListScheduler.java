@@ -51,7 +51,7 @@ public abstract class ListScheduler {
         }
 
         private void computeSingleRDef(CFGNode bb, Node n) {
-            // Also see if this is 2-input, and that input is single-def
+            // See if this is 2-input, and that input is single-def
             if( n instanceof MachNode mach && mach.twoAddress() != 0 ) {
                 XSched xs = XS.get(n.in(mach.twoAddress()));
                 if( xs != null )
@@ -206,7 +206,7 @@ public abstract class ListScheduler {
         if( n instanceof MultiNode ) {
             for( Node use : n._outputs )
                 singleUseNotReady( use, xn._single );
-        } else if( n.nOuts() == 1 )
+        } else
             singleUseNotReady( n, xn._single );
         score +=  -10 * Math.min( CNT[1], 2 );
         score += -100 * Math.min( CNT[2], 2 );
@@ -231,11 +231,11 @@ public abstract class ListScheduler {
     // If true, stalling 'n' might reduce 'n's lifetime.
     // Return 0 for false, 1 if true, 10 if also single register
     private static void singleUseNotReady( Node n, boolean single ) {
-        if( n.nOuts() != 1 ) return;
-        XSched xu = XSched.get(n.out(0));
-        if( xu !=null && xu._bcnt==0 && xu._rcnt <= 1 )
-            return;
-        CNT[single ? 2 : 1]++;
+        for( Node use : n.outs() ) {
+            XSched xu = XSched.get(use);
+            if( xu != null && xu._bcnt > 0 )
+                CNT[single ? 2 : 1]++;
+        }
     }
 
 }

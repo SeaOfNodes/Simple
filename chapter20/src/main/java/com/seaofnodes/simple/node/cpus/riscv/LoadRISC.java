@@ -8,8 +8,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class LoadRISC extends MemOpRISC {
-    LoadRISC(LoadNode ld) {
-        super(ld, ld);
+    LoadRISC(LoadNode ld, Node base, Node idx, int off) {
+        super(ld, base, idx, off, 0);
     }
 
     @Override public RegMask regmap(int i) {
@@ -25,10 +25,9 @@ public class LoadRISC extends MemOpRISC {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        throw Utils.TODO();
+        sb.p(code.reg(this)).p(",");
+        asm_address(code,sb);
     }
 
-    @Override public String op() {
-        return "ld" +_sz;
-    }
+    @Override public String op() { return "ld" +_sz; }
 }
