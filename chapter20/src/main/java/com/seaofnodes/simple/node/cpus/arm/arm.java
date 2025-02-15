@@ -3,12 +3,9 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Machine;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.*;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.*;
 import com.seaofnodes.simple.type.*;
 
 public class arm extends Machine{
@@ -36,6 +33,9 @@ public class arm extends Machine{
 
     // Float mask from(d0–d30)
     public static RegMask DMASK = new RegMask(0b11111111111111111111111111111111L<<D0);
+
+    // Load/store mask; both GPR and FPR
+    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<D0));
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
@@ -84,6 +84,8 @@ public class arm extends Machine{
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     static RegMask[] CALLINMASK = new RegMask[] {
+            null,
+            null,
             X1_MASK,
             X2_MASK,
             X3_MASK,
@@ -145,7 +147,7 @@ public class arm extends Machine{
             case LoadNode     ld    -> ld(ld);
             case MemMergeNode mem   -> new MemMergeNode(mem);
             case MulFNode     mulf  -> new MulFARM(mulf);
-            case MulNode      mul   -> new MulFARM(mul);
+            case MulNode      mul   -> mul(mul);
             case NewNode      nnn   -> new NewARM(nnn);
             case OrNode       or   ->  or(or);
             case ParmNode     parm  -> new ParmARM(parm);
@@ -170,6 +172,13 @@ public class arm extends Machine{
         };
     }
 
+    private Node mul(MulNode mul) {
+        Node rhs = mul.in(2);
+        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+            return new MulIARM(mul, toff);
+        }
+        return new MulARM(mul);
+    }
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
         return new SetARM(cmp, bool.op());
@@ -181,7 +190,7 @@ public class arm extends Machine{
     }
 
     private Node ld(LoadNode ld) {
-        return ld;
+        return new LoadARM(address(ld), ld.ptr(), idx, off);
     }
 
     private Node jmp(IfNode iff) {
@@ -190,7 +199,7 @@ public class arm extends Machine{
         // Loads do not set the flags, and will need an explicit TEST
         if( !(iff.in(1) instanceof BoolNode) )
             iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new JmpARM(iff, ((BoolNode)iff.in(1)).op());
+        return new BranchARM(iff, ((BoolNode)iff.in(1)).op());
     }
 
     private Node _cmp(BoolNode bool) {
@@ -285,9 +294,39 @@ public class arm extends Machine{
         return new ProjARM(prj);
     }
 
+
+    private static int off;
+    private static Node idx;
     private Node st(StoreNode st) {
-        //return new StoreARM(st);
-        return st;
+        int imm=0;
+        Node xval = st.val();
+        // e.g store this                     s.cs[0] =  67; // C
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            xval = null;
+            imm = (int)ti.value();
+            assert imm == ti.value(); // In 32-bit range
+        }
+        return new StoreARM(address(st),st.ptr(),idx,off,imm,xval);
     }
+
+    // Gather addressing mode bits prior to constructing.  This is a builder
+    // pattern, but saving the bits in a *local* *global* here to keep mess
+    // contained.
+    private <N extends MemOpNode> N address( N mop ) {
+        off = 0;  // Reset
+        idx = null;
+        Node base = mop.ptr();
+        // Skip/throw-away a ReadOnly, only used to typecheck
+        if( base instanceof ReadOnlyNode read ) base = read.in(1);
+        assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
+        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            off = (int)ti.value();
+            assert off == ti.value(); // In 32-bit range
+        } else {
+            idx = mop.off();
+        }
+        return mop;
+    }
+
 
 }

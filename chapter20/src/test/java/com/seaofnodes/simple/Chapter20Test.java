@@ -19,14 +19,26 @@ return 0;
         assertEquals("0", Eval2.eval(code, 2));
     }
 
-    @Ignore
     @Test
     public void testBasic1() {
-        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("return (ori,(mov,arg));", code._stop.toString());
+        CodeGen code_x86 = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code_riscv = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code_arm = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("return (ori,(mov,arg));", code_x86._stop.toString());
+        assertEquals("return (ori,arg);", code_riscv._stop.toString());
+        assertEquals("return (ori,arg);", code_arm._stop.toString());
     }
 
-    @Ignore
+    @Test
+    public void testBasic2() {
+        CodeGen code_x86 = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code_riscv = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code_arm = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("return (andi,(mov,arg));", code_x86._stop.toString());
+        assertEquals("return (andi,arg);", code_riscv._stop.toString());
+        assertEquals("return (andi,arg);", code_arm._stop.toString());
+    }
+
     @Test
     public void testNewton() {
         CodeGen code = new CodeGen(
@@ -110,7 +122,8 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
                         s.cs[1] = 108; // l
                         hashCode(s);"""
         );
-        code.parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched();
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,.[])); return Phi(Region,1,0,0,1); ]", code.print());
         SB sb = new SB();
         ASMPrinter.print(sb, code);
         System.out.print(sb);
@@ -119,15 +132,15 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     @Test
     public void testCast() {
         CodeGen code = new CodeGen(
-                """
+    """
         struct Bar { int x; };
         var b = arg ? new Bar;
         return b ? b.x++ + b.x++ : -1;
-                     """
+     """
         );
-        code.parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched();
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return Phi(Region,(lea, ---,.x),-1);", code.print());
         code.print();
     }
-
 
 }

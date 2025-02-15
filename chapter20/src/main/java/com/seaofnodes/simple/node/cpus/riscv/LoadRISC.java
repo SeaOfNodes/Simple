@@ -7,6 +7,13 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
+
+// Load memory addressing on RISC
+// Support imm, reg(direct), or reg+off(indirect) addressing
+// Base = base - base pointer, offset is added to base
+// idx  = null
+// off  = off - offset added to base
+
 public class LoadRISC extends MemOpRISC {
     LoadRISC(LoadNode ld, Node base, Node idx, int off) {
         super(ld, base, idx, off, 0);

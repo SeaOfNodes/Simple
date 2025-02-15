@@ -11,6 +11,16 @@ import com.seaofnodes.simple.node.StoreNode;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 
+// Store memory addressing on ARM
+// Support imm, reg(direct), or reg+off(indirect) addressing
+// Base = base - base pointer, offset is added to base
+// idx  = null
+// off  = off - offset added to base)
+// imm  = imm - immediate value to store
+// val  = Node of immediate value to store(null if its a constant immediate)
+
+//e.g s.cs[0] =  67; // C
+// base = s.cs, off = 4, imm = 67, val = null
 
 // sw rs2,offset(rs1)
 public class StoreRISC extends MemOpRISC {

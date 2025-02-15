@@ -18,7 +18,7 @@ public class NewARM extends NewNode implements MachNode {
         return null;
     }
 
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
+    @Override public RegMask outregmap() { return null; }
 
     // Register mask allowed as a result.  Pointer result in standard calling
     // convention.
