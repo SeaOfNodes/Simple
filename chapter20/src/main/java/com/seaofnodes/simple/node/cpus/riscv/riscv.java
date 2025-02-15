@@ -176,6 +176,7 @@ public class riscv extends Machine{
         case BoolNode bool -> cmp(bool);
         case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
         case CallNode call -> call(call);
+        case CastNode cast  -> new CastRISC();
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);
@@ -332,9 +333,13 @@ public class riscv extends Machine{
     private Node st(StoreNode st) {
         int imm=0;
         Node xval = st.val();
+        // e.g store this                     s.cs[0] =  67; // C
         if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             xval = null;
             imm = (int)ti.value();
+            if(imm == 67) {
+                System.out.print("Hello");
+            }
             assert imm == ti.value(); // In 32-bit range
         }
         return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);

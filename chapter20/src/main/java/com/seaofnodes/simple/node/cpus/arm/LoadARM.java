@@ -8,8 +8,8 @@ import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.MemOpX86;
 
-public class LoadARM extends MemOpARM{
-    LoadARM(LoadNode ld) {}
+//public class LoadARM extends MemOpARM{
+//    LoadARM(LoadNode ld) {}
 //    @Override public String op() { return "ld"+_sz; }
 //
 //    // Register mask allowed as a result.  0 for no register.
@@ -21,4 +21,4 @@ public class LoadARM extends MemOpARM{
 //        sb.p(code.reg(this)).p(",");
 //        asm_address(code,sb);
 //    }
-}
+//}

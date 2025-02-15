@@ -13,9 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 
 
-public class StoreARM extends MemOpARM {
-    StoreARM(StoreNode st) {
-
-    }
-
-}
+//public class StoreARM extends MemOpARM {
+//    StoreARM(StoreNode st) {
+//    }
+//}

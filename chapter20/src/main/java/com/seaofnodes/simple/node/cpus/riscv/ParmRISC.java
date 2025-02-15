@@ -13,7 +13,7 @@ public class ParmRISC extends ParmNode implements MachNode {
     ParmRISC(ParmNode parm) {
         super(parm);
         // Assume int
-        _rmask = riscv.callInMaskInt(_idx);
+        _rmask = riscv.callInMask(_idx);
     }
 
     // Register mask allowed on input i.  0 for no register.

@@ -23,9 +23,9 @@ public class JmpARM extends IfNode implements MachNode{
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
-        if( set instanceof SetARM && (cmp instanceof CmpARM|| cmp instanceof CmpARM|| cmp instanceof CmpMemARM || cmp instanceof CmpFARM) )
-            _inputs.set(1,cmp);
-        else
+//        if( set instanceof SetARM && (cmp instanceof CmpARM|| cmp instanceof CmpARM|| cmp instanceof CmpMemARM || cmp instanceof CmpFARM) )
+//            _inputs.set(1,cmp);
+//        else
             throw Utils.TODO();
     }
 

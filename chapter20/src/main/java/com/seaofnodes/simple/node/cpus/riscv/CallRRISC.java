@@ -14,7 +14,7 @@ public class CallRRISC extends CallNode implements MachNode{
         // Todo: float or int?
         return i==_inputs._len
                 ? riscv.RMASK          // Function call target
-                : riscv.callInMaskInt(i); // Normal argument
+                : riscv.callInMask(i); // Normal argument
     }
     @Override public RegMask outregmap() { return riscv.RET_MASK; }
 

@@ -135,6 +135,7 @@ public class arm extends Machine{
             case BoolNode     bool  -> cmp(bool);
             case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
             case CallNode     call  -> call(call);
+            case CastNode     cast  -> new CastARM(cast);
             case CProjNode    c     -> new CProjNode(c);
             case ConstantNode con   -> con(con);
             case DivFNode     divf  -> new DivFARM(divf);
@@ -285,7 +286,8 @@ public class arm extends Machine{
     }
 
     private Node st(StoreNode st) {
-        return new StoreARM(st);
+        //return new StoreARM(st);
+        return st;
     }
 
 }

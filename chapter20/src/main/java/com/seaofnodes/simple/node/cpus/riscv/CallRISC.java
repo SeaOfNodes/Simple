@@ -20,7 +20,7 @@ public class CallRISC extends CallNode implements MachNode{
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return riscv.callInMaskInt(i); // Normal argument
+        return riscv.callInMask(i); // Normal argument
     }
     @Override public RegMask outregmap() { return riscv.RET_MASK; }
 
