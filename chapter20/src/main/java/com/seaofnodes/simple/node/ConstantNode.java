@@ -50,7 +50,7 @@ public class ConstantNode extends Node {
         return sb.append(_con.print(new SB()));
     }
 
-    @Override public boolean isMultiTail() { return true; }
+    //@Override public boolean isMultiTail() { return true; }
     @Override public boolean isConst() { return true; }
 
     @Override

@@ -21,7 +21,7 @@ public class OrIRISC extends MachConcreteNode implements MachNode{
         return riscv.RMASK;
     }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.RMASK; }
+    @Override public RegMask outregmap() { return riscv.WMASK; }
     // Output is same register as input#1
     @Override public int twoAddress() { return 0;}
 

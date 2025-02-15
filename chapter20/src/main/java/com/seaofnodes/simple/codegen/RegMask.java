@@ -23,7 +23,7 @@ public class RegMask {
         if( bits==mask._bits ) return mask;
         if( bits==0 ) return EMPTY;
         // Update-in-place a mutable mask, or make a defensive copy
-        throw Utils.TODO();
+        return null;
     }
 
     // Fails if bit is set, because this is immutable
@@ -67,4 +67,9 @@ public class RegMask {
 class RegMaskRW extends RegMask {
     public RegMaskRW(long x) { super(x);  }
     public boolean clr(int r) { _bits &= ~(1L<<r); return _bits!=0; }
+    @Override RegMaskRW and( RegMask mask ) {
+        if( mask==null ) return this;
+        _bits &= mask._bits;
+        return this;
+    }
 }
