@@ -1,22 +1,24 @@
-package com.seaofnodes.simple.node.cpus.riscv;
+package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
+
 import java.io.ByteArrayOutputStream;
 
-public class CallRRISC extends CallNode implements MachNode{
-    CallRRISC( CallNode call ) { super(call); }
+public class CallRRARM extends CallNode implements MachNode{
+    CallRRARM(CallNode call) {super(call);}
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
         // Todo: float or int?
         return i==_inputs._len
-                ? riscv.RMASK          // Function call target
-                : riscv.callInMask(i); // Normal argument
+                ? arm.RMASK          // Function call target
+                : arm.callInMask(i); // Normal argument
     }
-    @Override public RegMask outregmap() { return riscv.RET_MASK; }
+    @Override public RegMask outregmap() { return arm.RET_MASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -28,5 +30,4 @@ public class CallRRISC extends CallNode implements MachNode{
     }
 
     @Override public String op() { return "callr"; }
-
 }

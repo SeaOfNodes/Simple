@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
@@ -86,50 +87,50 @@ public class riscv extends Machine{
             A7
     };
 
-    static int callInArgInt(int idx) {
+    static int callInArg(int idx) {
         return CALLINARG_RISCV_INT[idx];
     }
 
-    static RegMask callInMaskInt(int idx) {
+    static RegMask callInMask(int idx) {
         return CALLINMASK_RISCV_INT[idx];
     }
 
     // Float arguments
-    static RegMask[] CALLINMASK_RISCV_FLOAT = new RegMask[] {
-            null,
-            null,
-            FA0_MASK,
-            FA1_MASK,
-            FA2_MASK,
-            FA3_MASK,
-            FA4_MASK,
-            FA5_MASK,
-            FA6_MASK,
-            FA7_MASK
-    };
+//    static RegMask[] CALLINMASK_RISCV_FLOAT = new RegMask[] {
+//            null,
+//            null,
+//            FA0_MASK,
+//            FA1_MASK,
+//            FA2_MASK,
+//            FA3_MASK,
+//            FA4_MASK,
+//            FA5_MASK,
+//            FA6_MASK,
+//            FA7_MASK
+//    };
+//
+//
+//    static int[] CALLINARG_RISCV_FLOAT = new int[] {
+//            0, // Control, no register
+//            0, // Memory, no register
+//            FA0,
+//            FA1,
+//            FA2,
+//            FA3,
+//            FA4,
+//            FA5,
+//            FA6,
+//            FA7
+//    };
 
 
-    static int[] CALLINARG_RISCV_FLOAT = new int[] {
-            0, // Control, no register
-            0, // Memory, no register
-            FA0,
-            FA1,
-            FA2,
-            FA3,
-            FA4,
-            FA5,
-            FA6,
-            FA7
-    };
-
-
-    static int callInArgFloat(int idx) {
-        return CALLINARG_RISCV_FLOAT[idx];
-    }
-
-    static RegMask callInMaskFloat(int idx) {
-        return CALLINMASK_RISCV_FLOAT[idx];
-    }
+//    static int callInArgFloat(int idx) {
+//        return CALLINARG_RISCV_FLOAT[idx];
+//    }
+//
+//    static RegMask callInMaskFloat(int idx) {
+//        return CALLINMASK_RISCV_FLOAT[idx];
+//    }
     // caller saved(riscv)
     //public static final long RISCV_CALLER_SAVED= TBD
     // callee saved(riscv)
@@ -176,6 +177,7 @@ public class riscv extends Machine{
         case BoolNode bool -> cmp(bool);
         case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
         case CallNode call -> call(call);
+        case CastNode cast  -> new CastRISC(cast);
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);
@@ -246,7 +248,6 @@ public class riscv extends Machine{
             bool instanceof BoolNode.LEF )
             return new CmpFRISC(bool);
 
-        Node rhs = bool.in(2);
         return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
                 : new CmpRISC(bool);
@@ -333,9 +334,13 @@ public class riscv extends Machine{
     private Node st(StoreNode st) {
         int imm=0;
         Node xval = st.val();
+        // e.g store this                     s.cs[0] =  67; // C
         if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             xval = null;
             imm = (int)ti.value();
+            if(imm == 67) {
+                System.out.print("Hello");
+            }
             assert imm == ti.value(); // In 32-bit range
         }
         return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);

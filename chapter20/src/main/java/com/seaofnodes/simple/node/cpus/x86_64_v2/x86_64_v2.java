@@ -27,9 +27,12 @@ public class x86_64_v2 extends Machine {
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
+    // Load/store mask; both GPR and FPR
+    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<XMM0));
     // Return single int/ptr register
     public static RegMask RET_MASK = new RegMask(1<<RAX);
     public static RegMask RET_FMASK = new RegMask(1<<XMM0);
+
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
@@ -157,6 +160,7 @@ public class x86_64_v2 extends Machine {
         case BoolNode     bool  -> cmp(bool);
         case CallEndNode  cend  -> new CallEndX86(cend);
         case CallNode     call  -> call(call);
+        case CastNode     cast  -> new CastX86(cast);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);

@@ -91,3 +91,98 @@ the `Cmp/SetXX` opcode sequence.  The X86 `Jxx` takes in `FLAGS` and not a
 the ideal `Bool` directly will require the `SetXX`.  i.e. `return a==3` will
 match to a `CmpX86 RAX,#3; SetEQ RAX; ret;` whereas a `if( a==3 )` will match
 to a `CmpX86 RAX,#3; jeq;`
+
+##  RISC-V port
+
+In the `node/cpus/riscv` directory is a `riscv.java` port to a RISC-V.
+This port supports 32 64-bit GPRs, and 32 floating-point registers.
+There is a pattern matcher for matching riscv ops from idealized Simple
+Sea-of-Nodes. Currently, we are targeting `RVA23U64`.
+
+### Normal instruction selection
+
+Works the same way as **X86_64_V2**, since riscv doesn't have *complex* addressing modes, greedy 
+pattern matching doesn't apply to most of the cases. Ops without any special behavior simply do the lookup.
+
+### Restricted ISA
+RISC-V is a restricted ISA with simple addressing modes and overloads.
+E.g `lea` is not present.
+
+
+### Branching
+In `x86_64_v2`, branching requires a comparison instruction to set flags, 
+followed by a jump instruction that uses those flags. 
+In contrast, RISC-V includes all necessary operands within the 
+branch instruction itself, eliminating the need for a separate 
+comparison step.
+
+E.g
+```
+beq x10, x11, some_label 
+```
+
+`CBranchRISC` implements this behavior.
+### No R-Flags
+No R-flags exist in RiSC-V. To obtain similar functionality:
+
+We can set the value of registers based on the result of the comparison this way explicitly.
+```
+xor     a0, a0, a1
+seqz    a0, a0
+```
+After the first `xor` - `a0` will be zero if `a0` and `a1` are equal.
+The `seqz` instruction will set `a0` to 1 if `a0` is zero from the previous operation.
+This matches `SetRISC` in the `nodes/cpus/riscv` port.
+
+### Fixed instruction length
+RISC-V instructions have fixed length of 32 bits(in most cases) which means that we can benefit
+from displacements in the encoding side.
+
+E.g
+```
+flw fa5, 0(a0)
+flw fa4, 12(a0)
+fadd.s fa0, fa5, fa4
+```
+(No load is needed prior to `flw`)
+
+### ABI names(registers)
+In `RISC-V`, general-purpose registers (`GPRs`) range from `x0` to `x31`, and floating-point registers range 
+from `f0` to `f31`.
+
+To enhance readability and align with calling conventions, RISC-V defines ABI names for registers, providing more intuitive aliases 
+instead of raw register numbers.
+
+
+
+| Register | Alias | Usage                         | Saved By |
+|----------|-------|------------------------------|----------|
+| x10      | a0    | Function arguments/return values | Caller   |
+| x11      | a1    | Function arguments/return values | Caller   |
+| x12      | a2    | Function arguments           | Caller   |
+| x13      | a3    | Function arguments           | Caller   |
+| x14      | a4    | Function arguments           | Caller   |
+| x15      | a5    | Function arguments           | Caller   |
+| x16      | a6    | Function arguments           | Caller   |
+| x17      | a7    | Function arguments           | Caller   |
+
+When passing in arguments to a function, the first 8 arguments from the caller are passed in registers `a0` to `a7`.
+
+### Load floats
+Currently, floating-point constants are first loaded into an `integer GPR` before being converted into a floating-point register. 
+This process is rewritten in the RA stage as:
+
+
+````
+lui a0, 262144
+fmv.w.x fa0, a0
+````
+For non-constant values, we use a broader register mask that 
+supports both GPRs and FPRs. This implementation can be found in:
+`nodes/cpus/riscv/LoadRISC`.
+
+
+
+
+
+

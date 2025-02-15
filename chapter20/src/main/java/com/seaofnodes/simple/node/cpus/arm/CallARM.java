@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node.cpus.riscv;
+package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
@@ -7,10 +7,11 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
 
-public class CallRISC extends CallNode implements MachNode{
+public class CallARM extends CallNode implements MachNode {
     final TypeFunPtr _tfp;
     final String _name;
-    CallRISC( CallNode call, TypeFunPtr tfp ) {
+
+    CallARM(CallNode call, TypeFunPtr tfp) {
         super(call);
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
@@ -20,9 +21,9 @@ public class CallRISC extends CallNode implements MachNode{
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return riscv.callInMask(i); // Normal argument
+        return arm.callInMask(i); // Normal argument
     }
-    @Override public RegMask outregmap() { return riscv.RET_MASK; }
+    @Override public RegMask outregmap() { return arm.RET_MASK; }
 
     @Override public String name() { return _name; }
 
@@ -36,4 +37,5 @@ public class CallRISC extends CallNode implements MachNode{
     }
 
     @Override public String op() { return "call"; }
+
 }

@@ -1,17 +1,17 @@
-package com.seaofnodes.simple.node.cpus.riscv;
+package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
+import com.seaofnodes.simple.node.MachConcreteNode;
+import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.Node;
 
-public class AndRISC extends MachConcreteNode implements MachNode{
-    AndRISC(Node and) {
+import java.io.ByteArrayOutputStream;
+
+public class AndARM extends MachConcreteNode implements MachNode {
+    AndARM(Node and) {
         super(and);
     }
 
@@ -19,11 +19,11 @@ public class AndRISC extends MachConcreteNode implements MachNode{
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
         assert i==1 || i==2;
-        return riscv.RMASK;
+        return arm.RMASK;
     }
 
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.WMASK; }
+    @Override public RegMask outregmap() { return arm.RMASK; }
 
     // Output is same register as input#1
     @Override public int twoAddress() { return 0; }
@@ -35,7 +35,7 @@ public class AndRISC extends MachConcreteNode implements MachNode{
 
     // General form
     // General form:  #rd = rs1 & rs2
-    @Override public void asm(CodeGen code, SB sb) {
+    @Override public void asm(CodeGen code, SB sb){
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" & ").p(code.reg(in(2)));
     }
 }

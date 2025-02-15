@@ -1,25 +1,21 @@
-package com.seaofnodes.simple.node.cpus.riscv;
+package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
 
-public class SllRISC extends MachConcreteNode implements MachNode{
-    SllRISC(Node sll) {super(sll);}
+
+// mulh signed multiply instruction(no-imm form)
+public class MulARM extends MachConcreteNode implements MachNode{
+    MulARM(Node mul) {super(mul);}
 
     // Register mask allowed on input i.
-    // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        //assert i==1;
-        return riscv.RMASK; }
+    @Override public RegMask regmap(int i) { assert i==1 || i==2; return arm.RMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.WMASK; }
-
+    @Override public RegMask outregmap() { return arm.RMASK; }
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
 
@@ -28,13 +24,11 @@ public class SllRISC extends MachConcreteNode implements MachNode{
         throw Utils.TODO();
     }
 
-    // General form
-    // General form: "sll rd, rs1, rs2"
+    // General form: "rd = rs1 * rs2"
     @Override public void asm(CodeGen code, SB sb) {
-
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" << ").p(code.reg(in(2)));
-
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * ").p(code.reg(in(2)));
     }
 
-    @Override public String op() { return "sll"; }
+    @Override public String op() { return "mul"; }
+
 }
