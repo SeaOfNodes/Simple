@@ -36,7 +36,17 @@ public class CallEndNode extends CFGNode implements MultiNode {
     public Type compute() {
         if( !(in(0) instanceof CallNode call) )
             return TypeTuple.RET.dual();
-        Type ret = call.fptr().addDep(this)._type instanceof TypeFunPtr tfp ? tfp.ret() : Type.BOTTOM;
+        Type ret = Type.BOTTOM;
+        TypeMem mem = TypeMem.BOT;
+        if( call.fptr().addDep(this)._type instanceof TypeFunPtr tfp ) {
+            ret = tfp.ret();
+            // Here, if I can figure out I've found *all* callers, then I can meet
+            // across the linked returns and join with the function return type.
+            if( tfp.isConstant() && nIns()>1 ) {
+                assert nIns()==2;     // Linked exactly once for a constant
+                ret = ((TypeTuple)in(1)._type).ret(); // Return type
+            }
+        }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);
     }
 

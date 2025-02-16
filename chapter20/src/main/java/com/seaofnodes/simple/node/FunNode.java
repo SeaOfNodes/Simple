@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.TypeTuple;
+
 import java.util.BitSet;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
@@ -71,6 +73,10 @@ public class FunNode extends RegionNode {
                 CODE.add(call.cend()); // If Start and one call, check for inline
             return progress;
         }
+
+        // Upgrade inferred or user-written return type to actual
+        if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() )
+            throw Utils.TODO();
 
         // When can we assume no callers?  Or no other callers (except main)?
         // In a partial compilation, we assume Start gets access to any/all
