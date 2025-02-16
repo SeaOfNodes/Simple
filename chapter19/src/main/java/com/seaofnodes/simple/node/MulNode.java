@@ -78,4 +78,10 @@ public class MulNode extends Node {
     }
     @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs); }
     @Override Node copyF() { return new MulFNode(null,null); }
+    @Override public Parser.ParseException err() {
+        if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return null;
+        if( !(in(1)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+label()+"' " + in(1)._type,null);
+        if( !(in(2)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+label()+"' " + in(2)._type,null);
+        return null;
+    }
 }
