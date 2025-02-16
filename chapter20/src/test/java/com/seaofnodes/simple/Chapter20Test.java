@@ -17,13 +17,13 @@ return 0;
         assertEquals("0", Eval2.eval(code,  2));
     }
 
-    @Ignore @Test
+    @Test
     public void testBasic1() {
         CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return (ori,(mov,arg));", code._stop.toString());
     }
 
-    @Ignore @Test
+    @Test
     public void testNewton() {
         CodeGen code = new CodeGen(
 """
@@ -37,7 +37,7 @@ val sqrt = { flt x ->
     }
 };
 flt farg = arg;
-return sqrt(farg);
+return sqrt(farg) + sqrt(farg+2.0);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return (mov,Phi(Loop,(mov,(i2f8,arg)),(mulf,(addf,(mov,(divf,i2f8,mov)),mov),0.5f)));", code.print());
