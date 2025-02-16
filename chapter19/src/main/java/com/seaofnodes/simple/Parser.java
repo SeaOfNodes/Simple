@@ -1724,6 +1724,6 @@ public class Parser {
         public final Lexer _loc;
         // file:line:charoff err
         //String msg = "src:"+_line_number+":"+(_position-_line_start)+" "+errorMessage;
-        ParseException( String msg, Lexer loc ) { super(msg);  _loc = loc; assert loc!=null; }
+        ParseException( String msg, Lexer loc ) { super(msg);  _loc = loc; }
     }
 }

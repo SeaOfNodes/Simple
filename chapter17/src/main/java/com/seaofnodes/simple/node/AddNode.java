@@ -44,6 +44,7 @@ public class AddNode extends Node {
     public Node idealize () {
         Node lhs = in(1);
         Node rhs = in(2);
+        if( rhs.err() != null ) return null;
         Type t2 = rhs._type;
 
         // Add of 0.  We do not check for (0+x) because this will already
@@ -184,4 +185,9 @@ public class AddNode extends Node {
 
     @Override Node copy(Node lhs, Node rhs) { return new AddNode(lhs,rhs); }
     @Override Node copyF() { return new AddFNode(null,null); }
+    @Override public String err() {
+        if( !(in(1)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(1)._type;
+        if( !(in(2)._type instanceof TypeInteger) ) return "Cannot '"+label()+"' " + in(2)._type;
+        return null;
+    }
 }
