@@ -128,7 +128,7 @@ public class CallNode extends CFGNode {
     }
 
     // Unlink all linked functions
-    void unlink_all() {
+    public void unlink_all() {
         for( int i=0; i<_outputs._len; i++ )
             if( out(i) instanceof FunNode fun ) {
                 assert linked(fun);
@@ -137,6 +137,7 @@ public class CallNode extends CFGNode {
                     if( use instanceof ParmNode parm )
                         use.delDef(idx);
                 fun.delDef(idx);
+                cend().delDef(cend()._inputs.find(fun.ret()));
                 assert !linked(fun);
                 i--;
             }
@@ -156,7 +157,6 @@ public class CallNode extends CFGNode {
             if( !arg(i+2)._type.isa(tfp.arg(i)) )
                 return Parser.error( "Argument #"+i+" isa "+arg(i+2)._type+", but must be a "+tfp.arg(i), _loc);
 
-        unlink_all();
         return null;
     }
 
