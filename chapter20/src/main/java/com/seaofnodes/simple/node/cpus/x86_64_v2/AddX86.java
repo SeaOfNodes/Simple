@@ -16,6 +16,8 @@ public class AddX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     // Output is same register as input#1
     @Override public int twoAddress() { return 1; }
+    // Ok to swap arguments
+    @Override public boolean commutes() { return true; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

@@ -35,7 +35,6 @@ public class ProjNode extends Node {
         return in(0) instanceof CFGNode cfg ? cfg : in(0).cfg0();
     }
 
-    @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
 

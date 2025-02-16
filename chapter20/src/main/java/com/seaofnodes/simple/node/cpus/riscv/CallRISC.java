@@ -20,11 +20,12 @@ public class CallRISC extends CallNode implements MachNode{
 
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return riscv.callInMask(i); // Normal argument
+        return riscv.callInMask(_tfp,i); // Normal argument
     }
-    @Override public RegMask outregmap() { return riscv.RET_MASK; }
+    @Override public RegMask outregmap() { return null; }
 
     @Override public String name() { return _name; }
+    @Override public TypeFunPtr tfp() { return _tfp; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -32,7 +33,10 @@ public class CallRISC extends CallNode implements MachNode{
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(_name);
+        sb.p(_name).p("  ");
+        for( int i=0; i<nargs(); i++ )
+            sb.p(code.reg(arg(i))).p("  ");
+        sb.unchar(2);
     }
 
     @Override public String op() { return "call"; }

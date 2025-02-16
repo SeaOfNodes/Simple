@@ -27,7 +27,7 @@ public class RetX86 extends ReturnNode implements MachNode {
         case 0 -> null;
         case 1 -> null;
         case 2 -> _fun.sig()._ret instanceof TypeFloat ? x86_64_v2.RET_FMASK : x86_64_v2.RET_MASK;
-        case 3 -> null; // RPC is always on stack
+        case 3 -> x86_64_v2.RPC_MASK;
         default -> throw Utils.TODO();
         };
     }

@@ -23,7 +23,7 @@ return 0;
     public void testBasic1() {
         CodeGen code_x86 = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         CodeGen code_riscv = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
-        CodeGen code_arm = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code_arm = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("arm", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return (ori,(mov,arg));", code_x86._stop.toString());
         assertEquals("return (ori,arg);", code_riscv._stop.toString());
         assertEquals("return (ori,arg);", code_arm._stop.toString());
@@ -33,7 +33,7 @@ return 0;
     public void testBasic2() {
         CodeGen code_x86 = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         CodeGen code_riscv = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
-        CodeGen code_arm = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("riscv", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code_arm = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("arm", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return (andi,(mov,arg));", code_x86._stop.toString());
         assertEquals("return (andi,arg);", code_riscv._stop.toString());
         assertEquals("return (andi,arg);", code_arm._stop.toString());
@@ -53,7 +53,7 @@ val sqrt = { flt x ->
     }
 };
 flt farg = arg;
-return sqrt(farg);
+return sqrt(farg) + sqrt(farg+2.0);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return (mov,Phi(Loop,(mov,(i2f8,arg)),(mulf,(addf,(mov,(divf,i2f8,mov)),mov),0.5f)));", code.print());

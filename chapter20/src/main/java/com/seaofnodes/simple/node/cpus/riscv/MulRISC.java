@@ -16,8 +16,6 @@ public class MulRISC extends MachConcreteNode implements MachNode{
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.RMASK; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return riscv.WMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 1; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

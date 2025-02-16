@@ -68,6 +68,7 @@ public class TypeFunPtr extends TypeNil {
     public long fidxs() { return _fidxs; }
     public Type ret() { return _ret; }
     public int nargs() { return _sig._types.length; }
+    public int fidx() { assert Long.bitCount(_fidxs)==1; return Long.numberOfTrailingZeros(_fidxs); }
 
     @Override
     int hash() { return Utils.fold(_sig.hashCode() ^ _ret.hashCode() ^ _fidxs ^ super.hash()); }

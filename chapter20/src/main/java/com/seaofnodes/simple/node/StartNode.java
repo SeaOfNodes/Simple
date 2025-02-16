@@ -29,7 +29,6 @@ public class StartNode extends LoopNode implements MultiNode {
       return sb.append(label());
     }
 
-    @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
     @Override public CFGNode cfg0() { return null; }
 

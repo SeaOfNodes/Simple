@@ -95,7 +95,7 @@ abstract public class IFG {
         // A backwards walk over instructions in the basic block
         for( int inum = bb.nOuts()-1; inum >= 0; inum-- ) {
             Node n = bb.out(inum);
-            if( n instanceof PhiNode ) continue;
+            if( n.in(0) != bb ) continue;
             // In a backwards walk, proj users come before the node itself
             if( n instanceof MultiNode )
                 for( Node proj : n.outs() )
@@ -106,7 +106,7 @@ abstract public class IFG {
         }
 
         // Push live-sets backwards to priors in CFG.
-        if( bb.nIns() > 2 )
+        if( bb instanceof RegionNode )
             for( int i=1; i<bb.nIns(); i++ )
                 mergeLiveOut(alloc,bb,i);
         else
@@ -123,11 +123,13 @@ abstract public class IFG {
             TMP.remove(lrg);    // Kill def
         }
 
+        if( n instanceof PhiNode )
+            return;
         // A copy does not define a new value, and the src and dst can use the
         // same register.  Remove the input from TMP/liveout set before
         // interfering.
-        if( n instanceof MachNode m && m.isSplit() )
-            TMP.remove(alloc.lrg(n.in(1))); // Kill spill-use
+        //if( n instanceof MachNode m && m.isSplit() )
+        //    TMP.remove(alloc.lrg(n.in(1))); // Kill spill-use
 
         // Interfere n with all live
         if( lrg!=null ) {
@@ -210,7 +212,8 @@ abstract public class IFG {
     private static void mergeLiveOut( RegAlloc alloc, CFGNode priorbb, int i ) {
         CFGNode bb = priorbb.cfg(i);
         if( bb == null ) return; // Start has no prior
-        if( i==0 && !(bb instanceof StartNode) ) bb = bb.cfg0();
+        if( !bb.blockHead() ) bb = bb.cfg0();
+        //if( i==0 && !(bb instanceof StartNode) ) bb = bb.cfg0();
         assert bb.blockHead();
 
         // Lazy get live-out set for bb
@@ -342,18 +345,20 @@ abstract public class IFG {
 
     private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
         // Check chain of splits up the def-chain.  Take first allocated
-        // register, and if its available in the mask, take it.
+        // register, and if it's available in the mask, take it.
         Node split = lrg._splitDef;
-        while( split instanceof MachNode mach && mach.isSplit() ) {
+        int idx=1;
+        while( split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0) ) {
             short bias = alloc.lrg(split)._reg;
             if( bias != -1 )
                 if( mask.test(bias) ) return bias; // Good bias
                 else break;                        // Not allowed on the def-side; break
-            split = split.in(1);
+            split = split.in(idx);
+            idx=1;
         }
         // Same check for chain of splits down the use-chain.
         split = lrg._splitUse;
-        while( split instanceof MachNode mach && mach.isSplit() ) {
+        while( split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0) ) {
             short bias = alloc.lrg(split)._reg;
             if( bias != -1 )
                 if( mask.test(bias) ) return bias; // Good bias

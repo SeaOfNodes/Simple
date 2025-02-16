@@ -28,8 +28,8 @@ public class x86_64_v2 extends Machine {
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(RAX);
-    public static RegMask RET_FMASK = new RegMask(XMM0);
+    public static RegMask RET_MASK = new RegMask(1<<RAX);
+    public static RegMask RET_FMASK = new RegMask(1<<XMM0);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
@@ -37,7 +37,6 @@ public class x86_64_v2 extends Machine {
     public static RegMask R08_MASK = new RegMask(1L<<R08);
     public static RegMask R09_MASK = new RegMask(1L<<R09);
     public static RegMask RSI_MASK = new RegMask(1L<<RSI);
-
 
     public static RegMask XMM0_MASK = new RegMask(1L<<XMM0);
     public static RegMask XMM1_MASK = new RegMask(1L<<XMM1);
@@ -65,8 +64,11 @@ public class x86_64_v2 extends Machine {
         "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
         "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
         "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+        "flags",
     };
-    @Override public String reg( int reg ) { return REGS[reg]; }
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
 
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
@@ -84,6 +86,7 @@ public class x86_64_v2 extends Machine {
         return cargs[idx];
     }
 
+    // WIN64(param passing)
     static int[] CALLINARG_WIN64_INT = new int[] {
         -1,   // Control, no register
         -1,   // Memory, no register

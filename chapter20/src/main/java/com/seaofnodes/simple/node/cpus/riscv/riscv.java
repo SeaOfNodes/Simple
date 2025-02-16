@@ -37,6 +37,7 @@ public class riscv extends Machine{
     // Return single int/ptr register
     public static RegMask RET_MASK  = new RegMask(1L<< A0);
     public static RegMask RET_FMASK = new RegMask(1L<<FA0);
+    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
 
     // Arguments masks
     public static RegMask A0_MASK = new RegMask(1L<<A0);
@@ -61,8 +62,8 @@ public class riscv extends Machine{
     public static RegMask FA7_MASK = new RegMask(1L<<FA7);
 
     // Int arguments calling conv
-    static RegMask[] CALLINMASK_RISCV_INT = new RegMask[] {
-        null,
+    static RegMask[] CALLINMASK_RISCV = new RegMask[] {
+        RPC_MASK,
         null,
         A0_MASK,
         A1_MASK,
@@ -74,70 +75,36 @@ public class riscv extends Machine{
         A7_MASK
     };
 
-    static int[] CALLINARG_RISCV_INT = new int[] {
-            0, // Control, no register
-            0, // Memory, no register
-            A0,
-            A1,
-            A2,
-            A3,
-            A4,
-            A5,
-            A6,
-            A7
+    static RegMask[] CALLINMASK_F = new RegMask[] {
+            RPC_MASK,
+            null,
+            FA0_MASK,
+            FA1_MASK,
+            FA2_MASK,
+            FA3_MASK,
+            FA4_MASK,
+            FA5_MASK,
+            FA6_MASK,
+            FA7_MASK
     };
 
-    static int callInArg(int idx) {
-        return CALLINARG_RISCV_INT[idx];
-    }
-
     static RegMask callInMask(int idx) {
-        return CALLINMASK_RISCV_INT[idx];
+        return CALLINMASK_RISCV[idx];
     }
 
-    // Float arguments
-//    static RegMask[] CALLINMASK_RISCV_FLOAT = new RegMask[] {
-//            null,
-//            null,
-//            FA0_MASK,
-//            FA1_MASK,
-//            FA2_MASK,
-//            FA3_MASK,
-//            FA4_MASK,
-//            FA5_MASK,
-//            FA6_MASK,
-//            FA7_MASK
-//    };
-//
-//
-//    static int[] CALLINARG_RISCV_FLOAT = new int[] {
-//            0, // Control, no register
-//            0, // Memory, no register
-//            FA0,
-//            FA1,
-//            FA2,
-//            FA3,
-//            FA4,
-//            FA5,
-//            FA6,
-//            FA7
-//    };
-
-
-//    static int callInArgFloat(int idx) {
-//        return CALLINARG_RISCV_FLOAT[idx];
-//    }
-//
-//    static RegMask callInMaskFloat(int idx) {
-//        return CALLINMASK_RISCV_FLOAT[idx];
-//    }
     // caller saved(riscv)
     //public static final long RISCV_CALLER_SAVED= TBD
     // callee saved(riscv)
     public static final long RISCV_CALLEE_SAVED =
             (1L << FS0) | (1L << FS1) | (1L << FS2) | (1L << FS3) | (1L << FS4)
-            | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
+                    | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
 
+
+    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+        if( idx >= 2 && idx <= 10 && tfp.arg(idx-2) instanceof TypeFloat )
+            return CALLINMASK_F[idx];
+        return CALLINMASK_RISCV[idx];
+    }
 
     // Calling conv metadata
     public int GPR_COUNT_CONV_RISCV = 7;  // A0, A1, A2, A3, A4, A5, A6, A7
@@ -175,7 +142,7 @@ public class riscv extends Machine{
         case AddNode add -> add(add);
         case AndNode and -> and(and);
         case BoolNode bool -> cmp(bool);
-        case CallEndNode cend -> new CallEndNode((CallNode) cend.in(0));
+        case CallEndNode cend -> new CallEndRISC(cend);
         case CallNode call -> call(call);
         case CastNode cast  -> new CastRISC(cast);
         case CProjNode c -> new CProjNode(c);
@@ -248,6 +215,7 @@ public class riscv extends Machine{
             bool instanceof BoolNode.LEF )
             return new CmpFRISC(bool);
 
+        Node rhs = bool.in(2);
         return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
                 ? new CmpIRISC(bool, ti)
                 : new CmpRISC(bool);
@@ -334,13 +302,9 @@ public class riscv extends Machine{
     private Node st(StoreNode st) {
         int imm=0;
         Node xval = st.val();
-        // e.g store this                     s.cs[0] =  67; // C
         if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             xval = null;
             imm = (int)ti.value();
-            if(imm == 67) {
-                System.out.print("Hello");
-            }
             assert imm == ti.value(); // In 32-bit range
         }
         return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);

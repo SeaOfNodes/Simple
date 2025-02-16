@@ -8,8 +8,8 @@ import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.ProjNode;
 import java.io.ByteArrayOutputStream;
 
-public class ProjRISC extends ProjNode implements MachNode{
-    ProjRISC(ProjNode p) {super(p);}
+public class ProjRISC extends ProjNode implements MachNode {
+    ProjRISC(ProjNode p) { super(p); }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
