@@ -144,7 +144,7 @@ public class riscv extends Machine{
         case BoolNode bool -> cmp(bool);
         case CallEndNode cend -> new CallEndRISC(cend);
         case CallNode call -> call(call);
-        case CastNode cast  -> new CastRISC(cast);
+        case CastNode cast  -> new CastNode(cast);
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);

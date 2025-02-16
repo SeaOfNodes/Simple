@@ -22,10 +22,10 @@ public class arm extends Machine{
     public static int FLAGS = 31;
     // Floating point registers
 
-    public static int D0  =  31,  D1  =  32,  D2  =  33,  D3  =  34,  D4  =  35,  D5  =  36,  D6  =  37,  D7  =  38;
-    public static int D8  =  39,  D9  =  40,  D10 = 41,  D11 = 42,  D12 = 43,  D13 = 44,  D14 = 45,  D15 = 46;
-    public static int D16 = 47,  D17 = 48,  D18 = 49,  D19 = 50,  D20 = 51,  D21 = 52,  D22 = 53,  D23 = 54;
-    public static int D24 = 55,  D25 = 56,  D26 = 57,  D27 = 58,  D28 = 59,  D29 = 60;
+    public static int D0  =  32,  D1  =  33,  D2  =  34,  D3  =  35,  D4  =  36,  D5  =  37,  D6  =  38,  D7  =  39;
+    public static int D8  =  40,  D9  =  41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
+    public static int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
+    public static int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61;
 
     // from (x0-x30)
     // General purpose register mask: pointers and ints, not floats
@@ -137,7 +137,7 @@ public class arm extends Machine{
             case BoolNode     bool  -> cmp(bool);
             case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
             case CallNode     call  -> call(call);
-            case CastNode     cast  -> new CastARM(cast);
+            case CastNode     cast  -> new CastNode(cast);
             case CProjNode    c     -> new CProjNode(c);
             case ConstantNode con   -> con(con);
             case DivFNode     divf  -> new DivFARM(divf);
