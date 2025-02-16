@@ -40,13 +40,13 @@ public class TypeMemPtr extends Type {
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not.
-    public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
-    public static TypeMemPtr TOP = BOT.dual();
+    public static final TypeMemPtr BOT = make(TypeStruct.BOT,true);
+    public static final TypeMemPtr TOP = BOT.dual();
     // An abstract null (can be Struct or Array) or not-null C void*
-    public static TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
-    public static TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
+    public static final TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
+    public static final TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
 
-    public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
+    public static final TypeMemPtr TEST= make(TypeStruct.TEST,false);
     public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
 
     @Override
