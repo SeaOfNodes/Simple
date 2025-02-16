@@ -25,9 +25,9 @@ public class AndX86  extends MachConcreteNode implements MachNode{
     }
 
     // General form
-    // General form: "and  dst & #imm"
+    // General form: "and  dst & src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" & ").p(code.reg(in(2)));;
     }
 
     @Override public String op() { return "and"; }

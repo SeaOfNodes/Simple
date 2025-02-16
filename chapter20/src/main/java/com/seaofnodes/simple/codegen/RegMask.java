@@ -40,8 +40,8 @@ public class RegMask {
 
     boolean test( int reg ) { return ((_bits >> reg)&1) != 0; }
 
+    // checks if the 2 masks have at least 1 bit in common
     boolean overlap( RegMask mask ) { return (_bits & mask._bits)!=0;  }
-
 
     // Defensive writable copy
     public RegMaskRW copy() { return new RegMaskRW( _bits ); }
@@ -64,8 +64,10 @@ public class RegMask {
     }
 }
 
+// Mutable regmask(writable)
 class RegMaskRW extends RegMask {
     public RegMaskRW(long x) { super(x);  }
+    // clears bit at position r. Returns true if the mask is still not empty.
     public boolean clr(int r) { _bits &= ~(1L<<r); return _bits!=0; }
     @Override RegMaskRW and( RegMask mask ) {
         if( mask==null ) return this;
