@@ -729,16 +729,6 @@ public class Parser {
         return tary;
     }
 
-    // Fixup forward refs lazily.  Basically a Union-Find flavored read
-    // barrier.
-    Type lazyFRef(Type t) {
-        //if( !t.isFRef() ) return t;
-        //Type def = Parser.TYPES.get(((TypeMemPtr)t)._obj._name);
-        throw Utils.TODO();
-
-    }
-
-
     /**
      * Parse an expression of the form:
      *
