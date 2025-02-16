@@ -40,7 +40,7 @@ flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("return (mov,Phi(Loop,(mov,(i2f8,arg)),(mulf,(addf,(mov,(divf,i2f8,mov)),mov),0.5f)));", code.print());
+        assertEquals("Stop[ return (addf,#2,(mov,#2)); return (mov,Phi(Loop,(mov,(mov,Parm_x(sqrt,flt))),(mulf,(addf,(divf,(mov,mov),mov),mov),0.5f))); ]", code.print());
     };
 
     @Test

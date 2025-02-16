@@ -56,10 +56,10 @@ val _hashCodeString = { String self ->
 String !s = new String { cs = new u8[17]; };
 s.cs[0] =  67; // C
 s.cs[1] = 108; // l
-hashCode(s);""");
+hashCode(s)+hashCode(s);""");
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return Phi(Region,1,0,0,1); ]", code._stop.toString());
-        assertEquals("-2449306563677080489", Eval2.eval(code,  2));
+        assertEquals("Stop[ return (#2+#2); return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
+        assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
 
     @Test
@@ -383,7 +383,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("Stop[ return (add,Phi(Region,{ int -> int #1},{ int -> int #2})( 3),(muli,Phi_( 2))); return (mul,Parm_x($fun,int,3,2),x); return (shli,Parm_x($fun,int,3,2)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun1,int),x); return (shli,Parm_x($fun2,int)); ]", code.print());
     }
 
     @Test
@@ -394,6 +394,6 @@ val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("Stop[ return (add,sq(),sq()); return (mul,Parm_x(sq,int,3,arg),x); ]", code.print());
+        assertEquals("Stop[ return (add,#2,#2); return (mul,Parm_x(sq,int),x); ]", code.print());
     }
 }
