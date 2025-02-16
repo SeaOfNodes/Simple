@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
@@ -31,6 +32,7 @@ public class riscv extends Machine{
 
     // Load/store mask; both GPR and FPR
     public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<F0));
+
 
     // Return single int/ptr register
     public static RegMask RET_MASK  = new RegMask(1L<< A0);
@@ -72,18 +74,18 @@ public class riscv extends Machine{
         A6_MASK,
         A7_MASK
     };
-    // Int arguments calling conv
+
     static RegMask[] CALLINMASK_F = new RegMask[] {
-        RPC_MASK,
-        null,
-        FA0_MASK,
-        FA1_MASK,
-        FA2_MASK,
-        FA3_MASK,
-        FA4_MASK,
-        FA5_MASK,
-        FA6_MASK,
-        FA7_MASK
+            RPC_MASK,
+            null,
+            FA0_MASK,
+            FA1_MASK,
+            FA2_MASK,
+            FA3_MASK,
+            FA4_MASK,
+            FA5_MASK,
+            FA6_MASK,
+            FA7_MASK
     };
 
     static RegMask callInMask(int idx) {
@@ -95,7 +97,7 @@ public class riscv extends Machine{
     // callee saved(riscv)
     public static final long RISCV_CALLEE_SAVED =
             (1L << FS0) | (1L << FS1) | (1L << FS2) | (1L << FS3) | (1L << FS4)
-            | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
+                    | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
 
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
@@ -142,6 +144,7 @@ public class riscv extends Machine{
         case BoolNode bool -> cmp(bool);
         case CallEndNode cend -> new CallEndRISC(cend);
         case CallNode call -> call(call);
+        case CastNode cast  -> new CastNode(cast);
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);

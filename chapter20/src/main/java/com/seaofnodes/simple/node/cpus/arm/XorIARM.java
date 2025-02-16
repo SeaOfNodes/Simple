@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node.cpus.riscv;
+package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
@@ -10,18 +10,22 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-// Right Shift Arithmetic
-public class SraRISC extends MachConcreteNode implements MachNode {
-
-    SraRISC(Node sra) {super(sra);}
+public class XorIARM extends MachConcreteNode implements MachNode{
+    final TypeInteger _ti;
+    XorIARM(Node xor, TypeInteger ti) {super(xor); _inputs.pop(); _ti = ti;}
 
     // Register mask allowed on input i.
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
-        // assert i==1;
-        return riscv.RMASK; }
+        assert i==1 || i==2;
+
+        return arm.RMASK; }
+
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.WMASK; }
+    @Override public RegMask outregmap() { return arm.RMASK; }
+
+    // Output is same register as input#1
+    @Override public int twoAddress() { return 1; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -29,10 +33,11 @@ public class SraRISC extends MachConcreteNode implements MachNode {
     }
 
     // General form
-    // General form: "sra rd, rs1, rs2"
+    // General form: "rd = rs1 ^ imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >> ").p(code.reg(in(2)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" ^ #");
+        _ti.print(sb);
     }
 
-    @Override public String op() { return "sra"; }
+    @Override public String op() { return "eor"; }
 }
