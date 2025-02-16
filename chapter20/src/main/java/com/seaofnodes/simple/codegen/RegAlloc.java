@@ -144,14 +144,15 @@ public class RegAlloc {
         _failed.clear();
         _lrgs.clear();
         _lrg_num = 1;
+        _LRGS=null;
 
         return
             // Build Live Ranges
-            BuildLRG.run(round,this) &&    // if no hard register conflicts
+            BuildLRG.run(round,this) && // if no hard register conflicts
             // Build Interference Graph
-            IFG.build(round,this) && // If no self conflicts or uncolorable
+            IFG.build(round,this) &&    // If no self conflicts or uncolorable
             // Color attempt
-            IFG.color(round,this);   // If colorable
+            IFG.color(round,this);      // If colorable
     }
 
     // -----------------------
@@ -206,9 +207,12 @@ public class RegAlloc {
     // Insert a split after every def.
     boolean splitSelfConflict( LRG lrg ) {
         for( Node def : lrg._selfConflicts.keySet() ) {
-            _code._mach.split().insertAfter(def);
+            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) )
+                _code._mach.split().insertAfter(def);
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) )
                 _code._mach.split().insertBefore(phi,1);
+            if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
+                _code._mach.split().insertBefore(def,mach.twoAddress());
         }
         return true;
     }
@@ -244,6 +248,12 @@ public class RegAlloc {
         // uses, if at minLoopDepth or lower, split after def and before use.
         for( Node n : _ns ) {
             if( n instanceof MachNode mach && mach.isSplit() ) continue; // Ignoring splits; since spilling need to split in a deeper loop
+
+            if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 ) {
+                n.swap12();
+            }
+
+
             if( lrg(n)==lrg && // This is a LRG def
                 // At loop boundary, or splitting in inner loop
                 (min==max || n.cfg0().loopDepth() <= min) ) {
@@ -271,12 +281,16 @@ public class RegAlloc {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ ) {
                     if( lrg(n.in(i))==lrg && // This is a LRG use
-                        // Not a split already
-                        !(n.in(i) instanceof MachNode mach && mach.isSplit()) &&
                         // splitting in inner loop or at loop border
-                        (min==max || n.cfg0().loopDepth() <= min) )
+                        (min==max || n.cfg0().loopDepth() <= min) ) {
+                        // Not a split already
+                        boolean do_it = true;
+                        if(  (n.in( i ) instanceof MachNode mach && mach.isSplit()) )
+                            System.out.println();
                         // Split before in this block
-                        insertBefore(n,i);
+                        if( do_it )
+                            insertBefore( n, i );
+                    }
                 }
             }
         }

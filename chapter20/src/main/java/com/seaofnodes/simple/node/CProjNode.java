@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
@@ -25,7 +26,6 @@ public class CProjNode extends CFGNode {
 
     @Override StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
-    @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean blockHead() { return true; }
 
     public CFGNode ctrl() { return cfg(0); }

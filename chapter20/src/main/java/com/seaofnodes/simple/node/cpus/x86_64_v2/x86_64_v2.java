@@ -13,10 +13,11 @@ public class x86_64_v2 extends Machine {
 
     public static int RAX =  0, RCX =  1, RDX =  2, RBX =  3, RSP =  4, RBP =  5, RSI =  6, RDI =  7;
     public static int R08 =  8, R09 =  9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
-    public static int FLAGS = 32;
 
     public static int XMM0  = 16, XMM1  = 17, XMM2  = 18, XMM3  = 19, XMM4  = 20, XMM5  = 21, XMM6  = 22, XMM7  = 23;
     public static int XMM8  = 24, XMM9  = 25, XMM10 = 26, XMM11 = 27, XMM12 = 28, XMM13 = 29, XMM14 = 30, XMM15 = 31;
+    public static int FLAGS = 32;
+    public static int RPC = 33;
 
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
@@ -26,10 +27,12 @@ public class x86_64_v2 extends Machine {
     public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
+    public static RegMask SPLIT_MASK = new RegMask(0b1111111111101111L | (0b1111111111111111L << XMM0) | (1L<<FLAGS) );
 
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(1<<RAX);
-    public static RegMask RET_FMASK = new RegMask(1<<XMM0);
+    public static RegMask RET_MASK = new RegMask(1L<<RAX);
+    public static RegMask RET_FMASK= new RegMask(1L<<XMM0);
+    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
@@ -37,6 +40,19 @@ public class x86_64_v2 extends Machine {
     public static RegMask R08_MASK = new RegMask(1L<<R08);
     public static RegMask R09_MASK = new RegMask(1L<<R09);
     public static RegMask RSI_MASK = new RegMask(1L<<RSI);
+
+    public static RegMask XMM0_MASK = new RegMask(1L<<XMM0);
+    public static RegMask XMM1_MASK = new RegMask(1L<<XMM1);
+    public static RegMask XMM2_MASK = new RegMask(1L<<XMM2);
+    public static RegMask XMM3_MASK = new RegMask(1L<<XMM3);
+    public static RegMask XMM4_MASK = new RegMask(1L<<XMM4);
+    public static RegMask XMM5_MASK = new RegMask(1L<<XMM5);
+    public static RegMask XMM6_MASK = new RegMask(1L<<XMM6);
+    public static RegMask XMM7_MASK = new RegMask(1L<<XMM7);
+    public static RegMask[] XMMS = new RegMask[]{
+        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+        XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
+    };
 
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
@@ -51,44 +67,21 @@ public class x86_64_v2 extends Machine {
         "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
         "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
         "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
-        "flags",
+        "flags","[rsp-4]",
     };
     @Override public String reg( int reg ) {
         return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
     }
 
-    // Calling convention; returns a machine-specific register
-    // for incoming argument idx.
-    // index 0 for control, 1 for memory, real args start at index 2
-    static int callInArg( TypeFunPtr tfp, int idx ) {
-        return switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> callInArgSystemV(tfp,idx);
-        case CodeGen.CallingConv.Win64   -> callInArgWin64  (tfp,idx);
-        };
-    }
-
     // WIN64(param passing)
     static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
-        null,
+        RPC_MASK,
         null,
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
         R09_MASK,
-        null,
-        null
     };
-    static int[] CALLINARG_WIN64 = new int[] {
-        0,   // Control, no register
-        0,   // Memory, no register
-        RCX, //
-        RDX,
-        R08,
-        R09,
-        0,
-        0,
-    };
-    static int callInArgWin64( TypeFunPtr tfp, int idx ) { return CALLINARG_WIN64[idx]; }
 
     // caller saved(win64)
     public static final long WIN64_ABI_CALLER_SAVED =
@@ -99,26 +92,15 @@ public class x86_64_v2 extends Machine {
 
     // SystemV(param passing)
     static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
-        null,
-        null,
+        RPC_MASK,
+        null,   // Memory, no register
         RDI_MASK,
         RSI_MASK,
         RDX_MASK,
         RCX_MASK,
         R08_MASK,
-        R09_MASK
+        R09_MASK,
     };
-    static int[] CALLINARG_SYSTEMV = new int[] {
-        0,   // Control, no register
-        0,   // Memory, no register
-        RDI,
-        RSI,
-        RDX,
-        RCX,
-        R08,
-        R09,
-    };
-    static int callInArgSystemV( TypeFunPtr tfp, int idx ) { return CALLINARG_SYSTEMV[idx]; }
 
     // caller saved(systemv)
     // caller saved(win64)
@@ -128,11 +110,16 @@ public class x86_64_v2 extends Machine {
     public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
 
-    static RegMask callInMask( int idx ) {
-        return switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
-        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64  [idx];
+    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+        RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
+        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV;
+        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64;
         };
+        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat )
+            return XMMS[idx-2];
+        if( idx >= cargs.length )
+            throw Utils.TODO(); // Pass on stack slot
+        return cargs[idx];
     }
 
     // Create a split op; any register to any register, including stack slots

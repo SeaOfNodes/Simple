@@ -20,7 +20,7 @@ public class RetRISC extends ReturnNode implements MachNode{
         case 0 -> null;
         case 1 -> null;
         case 2 -> _fun.sig()._ret instanceof TypeFloat ? riscv.RET_FMASK : riscv.RET_MASK;
-        case 3 -> null; // RPC is always on stack
+        case 3 -> riscv.RPC_MASK;
         default -> throw Utils.TODO();
         };
     }
