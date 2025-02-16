@@ -21,7 +21,6 @@ public class RegionNode extends CFGNode {
         return sb.append(label());
     }
 
-    @Override public boolean isMultiHead() { return true; }
     @Override public boolean blockHead() { return true; }
 
     @Override

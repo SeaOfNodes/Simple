@@ -57,14 +57,14 @@ public abstract class IRPrinter {
         boolean gap=false;
         for( int i=rpos.size()-1; i>=0; i-- ) {
             Node n = rpos.get(i);
-            if( n instanceof CFGNode || n.isMultiHead() ) {
+            if( n instanceof CFGNode || n instanceof MultiNode ) {
                 if( !gap ) sb.p("\n"); // Blank before multihead
                 if( n instanceof FunNode fun )
                     fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" "),false).p("----------------------\n");
                 printLine( n, sb );         // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
-                    if( !t.isMultiTail() ) { i++; break; }
+                    if( !(t.in(0) instanceof MultiNode) ) { i++; break; }
                     printLine( t, sb );
                 }
                 if( n instanceof ReturnNode ret ) {
@@ -141,7 +141,7 @@ public abstract class IRPrinter {
             // Toss things past the limit except multi-heads
             while( idx < _bfs.size() ) {
                 Node n = _bfs.get(idx);
-                if( n.isMultiHead() ) idx++;
+                if( n instanceof MultiNode ) idx++;
                 else del(idx);
             }
             // Root set is any node with no inputs in the visited set
@@ -172,6 +172,48 @@ public abstract class IRPrinter {
                     return true;
             return false;
         }
+    }
+
+    public static String _prettyPrint( CodeGen code ) {
+        SB sb = new SB();
+        // Print the Start "block"
+        printLine(code._start,sb);
+        for( Node n : code._start._outputs )
+            printLine(n,sb);
+        sb.nl();
+
+        // Skip start, stop
+        for( int i=1; i<code._cfg._len-1; i++ ) {
+            CFGNode blk = code._cfg.at(i);
+            if( blk.blockHead() && (!(blk instanceof CProjNode) || (blk.cfg0() instanceof IfNode )) ) {
+                if( blk instanceof FunNode fun )
+                    sb.p("--- ").p(fun.label()).p(" ---------------------------").nl();
+                // Print block header
+                sb.p("%-13.13s".formatted(label(blk)+":"));
+                sb.p( "     ".repeat(4) ).p(" [[  ");
+                if( blk instanceof RegionNode )
+                    for( int j=1; j<blk.nIns(); j++ )
+                        label(sb,blk.cfg(j));
+                else
+                    label(sb,blk.cfg(0));
+                sb.p(" ]]  \n");
+            }
+            printLine(blk,sb);
+            if( blk instanceof ReturnNode ret )
+                sb.p("--- ").p(ret.fun().label()).p(" ---------------------------").nl();
+
+            // Block contents
+            for( Node n : blk._outputs ) {
+                if( n instanceof CFGNode cfg ) continue;
+                printLine(n,sb);
+                if( !(n instanceof CFGNode) && n instanceof MultiNode )
+                    for( Node use : n._outputs )
+                        printLine(use,sb);
+            }
+        }
+
+        printLine(code._stop,sb);
+        return sb.toString();
     }
 
     // Bulk pretty printer, knowing scheduling information is available

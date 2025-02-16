@@ -2,9 +2,7 @@
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.print.ASMPrinter;
-import com.seaofnodes.simple.print.GraphVisualizer;
-import com.seaofnodes.simple.print.JSViewer;
+import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -296,7 +294,11 @@ public class CodeGen {
     public String print() { return _stop.print(); }
 
     // Debugging helper
-    @Override public String toString() { return _stop.p(9999); }
+    @Override public String toString() {
+        return _phase.ordinal() > Phase.Schedule.ordinal()
+            ? IRPrinter._prettyPrint( this )
+            : _stop.p(9999);
+    }
 
     // Debugging helper
     public Node f(int idx) { return _stop.find(idx); }

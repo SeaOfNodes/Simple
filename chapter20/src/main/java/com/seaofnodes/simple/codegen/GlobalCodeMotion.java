@@ -16,12 +16,8 @@ public abstract class GlobalCodeMotion {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         _rpo_cfg(null, code._start, code.visit(), rpo);
         // Reverse in-place
-        for( int i=0; i< rpo.size()>>1; i++ ) {
-            int j = rpo.size()-1-i;
-            CFGNode tmp = rpo.get(i);
-            rpo.set(i, rpo.get(j));
-            rpo.set(j, tmp);
-        }
+        for( int i=0; i< rpo.size()>>1; i++ )
+            rpo.swap(i,rpo.size()-1-i);
         // Set global CFG
         code._cfg = rpo;
 

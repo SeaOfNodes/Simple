@@ -20,7 +20,7 @@ public class FunNode extends RegionNode {
     public FunNode( FunNode fun ) { super( fun, fun._loc ); _sig = fun.sig(); _name = fun._name; }
 
     @Override
-    public String label() { return _name == null ? "$fun" : _name; }
+    public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.

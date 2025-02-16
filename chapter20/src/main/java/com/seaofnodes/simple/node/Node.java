@@ -125,8 +125,6 @@ public abstract class Node {
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
-    public boolean isMultiHead() { return false; }
-    public boolean isMultiTail() { return false; }
     public boolean isConst    () { return false; }
 
     // ------------------------------------------------------------------------
@@ -304,7 +302,10 @@ public abstract class Node {
     public void insertAfter( Node def ) {
         CFGNode cfg = def.cfg0();
         int i = cfg._outputs.find(def)+1;
-        while( cfg.out(i).isMultiTail() ) i++;
+        if( cfg instanceof CallEndNode ) {
+            cfg = cfg.uctrl();  i=0;
+        }
+        while( cfg.out(i) instanceof PhiNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
         while( def.nOuts() > 0 ) {
@@ -327,7 +328,6 @@ public abstract class Node {
             i = cfg.nOuts()-1;
         } else {
             i = cfg._outputs.find(use);
-            while( cfg.out(i).isMultiTail() ) i--;
         }
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
@@ -625,7 +625,7 @@ public abstract class Node {
     // Peephole utilities
 
     // Swap inputs without letting either input go dead during the swap.
-    Node swap12() {
+    public Node swap12() {
         unlock();               // Hash is order dependent
         _inputs.swap(1,2);
         return this;

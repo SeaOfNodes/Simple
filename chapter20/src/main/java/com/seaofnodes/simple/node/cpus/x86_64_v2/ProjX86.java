@@ -8,7 +8,6 @@ import com.seaofnodes.simple.node.ProjNode;
 import java.io.ByteArrayOutputStream;
 
 public class ProjX86 extends ProjNode implements MachNode {
-
     ProjX86( ProjNode p ) { super(p); }
 
     // Register mask allowed on input i.  0 for no register.

@@ -17,7 +17,25 @@ abstract public class BuildLRG {
     public static boolean run(int round, RegAlloc alloc) {
         for( Node bb : alloc._code._cfg )
             for( Node n : bb.outs() ) {
-                if( n instanceof MachNode mach ) {
+                if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
+                    // All Phi inputs end up with the same LRG.
+                    // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
+                    LRG lrg = alloc.lrg(phi);
+                    if( lrg == null )
+                        for( int i=1; i<phi.nIns(); i++ )
+                            if( (lrg = alloc.lrg(phi.in(i))) != null )
+                                break;
+                    // If none, make one.
+                    if( lrg==null ) lrg = alloc.newLRG(n);
+                    if( phi instanceof MachNode mach ) defLRG(alloc,n);
+                    // Pass 2: everybody uses the same LRG
+                    alloc.union(lrg,phi);
+                    for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
+                        alloc.union(lrg,n.in(i));
+                    if( lrg._mask!=null && lrg._mask.isEmpty() )
+                        alloc.fail(lrg);
+
+                } else if( n instanceof MachNode mach ) {
                     // Define live range
                     defLRG(alloc,n);
 
@@ -33,22 +51,6 @@ abstract public class BuildLRG {
                             }
                         }
 
-                } else if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
-                    // All Phi inputs end up with the same LRG.
-                    // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
-                    LRG lrg = alloc.lrg(phi);
-                    if( lrg == null )
-                        for( int i=1; i<phi.nIns(); i++ )
-                            if( (lrg = alloc.lrg(phi.in(i))) != null )
-                                break;
-                    // If none, make one.
-                    if( lrg==null ) lrg = alloc.newLRG(n);
-                    // Pass 2: everybody uses the same LRG
-                    alloc.union(lrg,phi);
-                    for( int i=1; i<n.nIns(); i++ )
-                        alloc.union(lrg,n.in(i));
-                    if( lrg._mask.isEmpty() )
-                        alloc.fail(lrg);
                 }
 
                 // MultiNodes have projections which set/kill registers

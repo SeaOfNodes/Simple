@@ -23,8 +23,6 @@ public class IfNode extends CFGNode implements MultiNode {
         return in(1)._print0(sb, visited).append(" )");
     }
 
-    @Override public boolean isMultiHead() { return true; }
-
     public Node ctrl() { return in(0); }
     public Node pred() { return in(1); }
 

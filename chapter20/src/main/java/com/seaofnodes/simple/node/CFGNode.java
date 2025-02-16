@@ -18,6 +18,15 @@ import java.util.HashSet;
  * <p>
  *  loop_depth is computed after optimization as part of scheduling.
  *
+ *  Start - Block head; has constants and trailing Funs
+ *  Region - Block head; has Phis.  Includes Fun and Parms.
+ *  CallEnd - Block head; followed by CProj and Proj; also linked RPC Parms
+ *  CProj - Block head
+ *
+ *  If - Block tail; followed by CProj same block
+ *  Call - Block tail; followed by CallEnd and linked Funs
+ *  New/intrinsic - If followed by CProj: block tail else mid-block; followed by Proj
+ *
  */
 public abstract class CFGNode extends Node {
 

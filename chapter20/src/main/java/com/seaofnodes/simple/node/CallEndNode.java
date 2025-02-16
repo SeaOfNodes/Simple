@@ -12,13 +12,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     private boolean _folding;
+    public final TypeRPC _rpc;
 
-    public CallEndNode(CallNode call) { super(new Node[]{call}); }
-    public CallEndNode(CallEndNode cend) { super(cend); }
+    public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
+    public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
 
-    @Override
-    public String label() { return "CallEnd"; }
-    @Override public boolean isMultiHead() { return true; }
+    @Override public String label() { return "CallEnd"; }
     @Override public boolean blockHead() { return true; }
 
     public CallNode call() { return (CallNode)in(0); }
