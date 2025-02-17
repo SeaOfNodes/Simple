@@ -57,7 +57,9 @@ public class CodeGen {
      */
     private int _uid = 1;
     public int UID() { return _uid; }
-    public int getUID() { return _uid++; }
+    public int getUID() {
+        return _uid++;
+    }
 
     // Next available memory alias number
     private int _alias = 2; // 0 is for control, 1 for memory
