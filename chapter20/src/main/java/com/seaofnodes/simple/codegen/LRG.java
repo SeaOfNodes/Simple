@@ -84,6 +84,7 @@ public class LRG {
 
     LRG union( LRG lrg ) {
         if( lrg==null || lrg==this ) return this;
+        assert !unified();
         return _lrg < lrg._lrg ? _union(lrg) : lrg._union(this);
     }
     private LRG _union( LRG lrg ) {

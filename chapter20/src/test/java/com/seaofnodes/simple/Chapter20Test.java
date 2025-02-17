@@ -70,7 +70,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     }
 
     @Test
-    public void testArray2() {
+    public void testString() {
         CodeGen code = new CodeGen("""
 struct String {
     u8[] cs;
@@ -107,8 +107,8 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,.[])); return Phi(Region,1,0,0,1); ]", code.print());
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("Stop[ return (mov,Phi(Region,123456789,Phi(Loop,0,.[]))); return Phi(Region,1,0,0,1); ]", code.print());
     }
 
     @Test
@@ -120,7 +120,7 @@ hashCode(s);
         return b ? b.x++ + b.x++ : -1;
      """
         );
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return Phi(Region,(lea, ---,.x),-1);", code.print());
     }
 

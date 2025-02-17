@@ -19,6 +19,8 @@ public class FltRISC extends ConstantNode implements MachNode{
     // General int registers
     @Override public RegMask outregmap() { return riscv.FMASK; }
 
+    @Override public boolean isClone() { return true; }
+
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();
