@@ -20,7 +20,8 @@ public class CodeGen {
         InstructionSelection,   // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
-        RegAlloc;               // Register allocation
+        RegAlloc,               // Register allocation
+        Export;                 //
     }
     public enum CallingConv {
         Win64,
@@ -284,6 +285,14 @@ public class CodeGen {
         return "N"+ n._nid;
     }
 
+    ObjFile _obj;
+    public CodeGen export() {
+        assert _phase == Phase.RegAlloc;
+        _phase = Phase.Export;
+        _obj = new ObjFile(this);
+        _obj.export();
+        return this;
+    }
 
     // ---------------------------
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }
