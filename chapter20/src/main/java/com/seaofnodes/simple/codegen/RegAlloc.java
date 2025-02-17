@@ -195,11 +195,14 @@ public class RegAlloc {
         // require a full pass.
 
         // Split just after def
-        if( lrg._1regDefCnt==1 )
+        if( lrg._1regDefCnt==1 ) {
+            if( lrg._machDef.isClone() )
+                throw Utils.TODO();
             _code._mach.split().insertAfter((Node)lrg._machDef);
+        }
         // Split just before use
         if( lrg._1regUseCnt==1 )
-            _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
+            insertBefore((Node)lrg._machUse,lrg._uidx);
         return true;
     }
 
@@ -207,12 +210,24 @@ public class RegAlloc {
     // Insert a split after every def.
     boolean splitSelfConflict( LRG lrg ) {
         for( Node def : lrg._selfConflicts.keySet() ) {
-            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) )
-                _code._mach.split().insertAfter(def);
+            // Not a single split user; as no conflict is removed splitting yet again
+            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) ) {
+                if( def instanceof MachNode mach && mach.isClone() ) {
+                    // Remove a clone def; all uses get their own clone
+                    def.remove();
+                    // Clone before each use
+                    while( !def._outputs.isEmpty() ) {
+                        Node use = def._outputs.last();
+                        insertBefore( use, use._inputs.find(def) );
+                    }
+                } else {
+                    _code._mach.split().insertAfter(def);
+                }
+            }
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) )
-                _code._mach.split().insertBefore(phi,1);
+                insertBefore(phi,1);
             if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
-                _code._mach.split().insertBefore(def,mach.twoAddress());
+                insertBefore(def,mach.twoAddress());
         }
         return true;
     }
@@ -248,19 +263,16 @@ public class RegAlloc {
         // uses, if at minLoopDepth or lower, split after def and before use.
         for( Node n : _ns ) {
             if( n instanceof MachNode mach && mach.isSplit() ) continue; // Ignoring splits; since spilling need to split in a deeper loop
-
-            if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 ) {
+            // If this is a 2-address commutable op (e.g. AddX86, MulX86) and the rhs has only a single user,
+            // commute the inputs... which chops the LHS live ranges' upper bound to just the RHS.
+            if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 )
                 n.swap12();
-            }
-
 
             if( lrg(n)==lrg && // This is a LRG def
                 // At loop boundary, or splitting in inner loop
                 (min==max || n.cfg0().loopDepth() <= min) ) {
-                // Clonable constants will be cloned at uses, so delete the def
-                if( n instanceof MachNode mach && mach.isClone() )
-                    n.remove();
-                else
+                // Cloneable constants will be cloned at uses, not after def
+                if( !(n instanceof MachNode mach && mach.isClone()) )
                     // Split after def in min loop nest
                     _code._mach.split().insertAfter(n);
             }
@@ -282,15 +294,11 @@ public class RegAlloc {
                 for( int i=1; i<n.nIns(); i++ ) {
                     if( lrg(n.in(i))==lrg && // This is a LRG use
                         // splitting in inner loop or at loop border
-                        (min==max || n.cfg0().loopDepth() <= min) ) {
+                        (min==max || n.cfg0().loopDepth() <= min) &&
                         // Not a split already
-                        boolean do_it = true;
-                        if(  (n.in( i ) instanceof MachNode mach && mach.isSplit()) )
-                            System.out.println();
+                        !(n.in(i) instanceof MachNode mach && mach.isSplit() && n.in(i).nOuts()==1) )
                         // Split before in this block
-                        if( do_it )
-                            insertBefore( n, i );
-                    }
+                        insertBefore( n, i );
                 }
             }
         }

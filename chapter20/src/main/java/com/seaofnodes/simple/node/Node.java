@@ -331,8 +331,21 @@ public abstract class Node {
         }
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        if( _inputs._len > 1 ) setDef(1,use.in(uidx));
-        use.setDef(uidx,this);
+        if( _inputs._len > 1 ) setDefOrdered(1,use.in(uidx));
+        use.setDefOrdered(uidx,this);
+    }
+
+    void setDefOrdered(int idx, Node def) {
+        // If old is dying, remove from CFG ordered
+        Node old = in(idx);
+        if( old!=null && old.nOuts()==1 ) {
+            CFGNode cfg = old.cfg0();
+            if( cfg!=null ) {
+                cfg._outputs.remove(cfg._outputs.find(old));
+                old._inputs.set(0,null);
+            }
+        }
+        setDef(idx,def);
     }
 
     public void remove() {
