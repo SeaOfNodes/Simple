@@ -108,7 +108,7 @@ s.cs[1] = 108; // l
 hashCode(s);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Stop[ return (mov,Phi(Region,123456789,Phi(Loop,0,.[]))); return Phi(Region,1,0,0,1); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,123456789,(mov,(mov,Phi(Loop,0,.[])))); return Phi(Region,1,0,0,1); ]", code.print());
     }
 
     @Test
@@ -121,7 +121,7 @@ hashCode(s);
      """
         );
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("return Phi(Region,(lea, ---,.x),-1);", code.print());
+        assertEquals("return Phi(Region,(mov,(lea, ---,.x)),-1);", code.print());
     }
 
 }

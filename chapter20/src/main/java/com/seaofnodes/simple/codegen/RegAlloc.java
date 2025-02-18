@@ -4,7 +4,6 @@ import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 
-import java.util.BitSet;
 import java.util.IdentityHashMap;
 
 /**
@@ -58,7 +57,7 @@ public class RegAlloc {
     // Live ranges with self-conflicts or no allowed registers
     private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
     void fail( LRG lrg ) {
-        assert !lrg.unified();
+        assert lrg.leader();
         _failed.put(lrg,"");
     }
     boolean success() { return _failed.isEmpty(); }
@@ -170,7 +169,7 @@ public class RegAlloc {
 
     // Split this live range
     boolean split( LRG lrg ) {
-        assert !lrg.unified();  // Already rolled up
+        assert lrg.leader();  // Already rolled up
 
         // Register mask when empty; split around defs and uses with limited
         // register masks.
@@ -210,22 +209,29 @@ public class RegAlloc {
     // Insert a split after every def.
     boolean splitSelfConflict( LRG lrg ) {
         for( Node def : lrg._selfConflicts.keySet() ) {
-            // Not a single split user; as no conflict is removed splitting yet again
-            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) ) {
-                if( def instanceof MachNode mach && mach.isClone() ) {
-                    // Remove a clone def; all uses get their own clone
-                    def.remove();
-                    // Clone before each use
-                    while( !def._outputs.isEmpty() ) {
-                        Node use = def._outputs.last();
-                        insertBefore( use, use._inputs.find(def) );
-                    }
-                } else {
-                    _code._mach.split().insertAfter(def);
-                }
+            assert lrg(def)==lrg; // Might be conflict use-side?
+            // Split before each use that extends the live range; i.e. is a
+            // Phi or two-address
+            for( int i=0; i<def._outputs._len; i++ ) {
+                Node use = def.out(i);
+                if( use instanceof PhiNode ||
+                        (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
+                    insertBefore( use, use._inputs.find(def) );
             }
+            // Split after the def, but not if a single split user; as no
+            // conflict is removed splitting yet again.
+            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) ) {
+                // Also no need to split-after-def for clonables, as they will
+                // clone before each use and this def will go dead.
+                if( !(def instanceof MachNode mach && mach.isClone()) )
+                    _code._mach.split().insertAfter(def);
+            }
+            // Split also before Phi slot 1 (and not all inputs), because Phis
+            // extend the live range.
+            // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) )
                 insertBefore(phi,1);
+            // Split before two-address ops which extend the live range
             if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
                 insertBefore(def,mach.twoAddress());
         }
