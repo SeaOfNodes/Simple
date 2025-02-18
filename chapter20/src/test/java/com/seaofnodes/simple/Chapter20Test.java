@@ -26,6 +26,16 @@ return 0;
     }
 
     @Test
+    public void testExport() {
+        CodeGen code = new CodeGen(
+"""
+val foo = { flt x -> return x * x; };
+return foo(0.5);
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().export();
+    }
+
+    @Test
     public void testNewton() {
         CodeGen code = new CodeGen(
 """
