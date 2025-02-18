@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.Type;
@@ -67,7 +66,7 @@ public abstract class Node {
     // Make a Node using the existing arrays of nodes.
     // Used by any pass rewriting all Node classes but not the edges.
     Node( Node n ) {
-        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstructionSelection.ordinal();
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstSelect.ordinal();
         _nid = CODE.getUID(); // allocate unique dense ID
         _inputs  = new Ary<>(n._inputs.asAry());
         _outputs = new Ary<>(Node.class);
@@ -125,7 +124,7 @@ public abstract class Node {
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
-    public boolean isConst    () { return false; }
+    public boolean isConst() { return false; }
 
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
@@ -304,7 +303,11 @@ public abstract class Node {
         int i = cfg._outputs.find(def)+1;
         if( cfg instanceof CallEndNode ) {
             cfg = cfg.uctrl();  i=0;
+        } else if( def.in(0) instanceof MultiNode ) {
+            assert i==0;
+            i = cfg._outputs.find(def.in(0))+1;
         }
+
         while( cfg.out(i) instanceof PhiNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);

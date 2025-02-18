@@ -22,21 +22,61 @@ public abstract class GlobalCodeMotion {
         code._cfg = rpo;
 
         schedEarly(code);
+
+        // Break up shared global constants by functions
+        breakUpGlobalConstants(code);
+
         code._visit.clear();
         schedLate (code);
     }
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
-        if( def instanceof CallNode call ) call.unlink_all();
+        if( use instanceof CallNode call ) call.unlink_all();
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
-        if( def instanceof CallNode && cfg instanceof FunNode )
-            return;           // Ignore linked function calls
+        if( def instanceof ReturnNode && use instanceof CallEndNode )
+            return;
+        assert !( def instanceof CallNode && use instanceof FunNode );
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
         rpo.add(cfg);
+    }
+
+    // Break up shared global constants by functions
+    private static void breakUpGlobalConstants( CodeGen code ) {
+        // For all global constants
+        for( Node con : code._start.outs() )
+            if( con instanceof MachNode mach && mach.isClone() ) {
+                // While constant has users in different functions
+                while( true ) {
+                    // Find a function user, and another function
+                    FunNode fun = null;
+                    boolean done=true;
+                    for( Node use : con.outs() ) {
+                        FunNode fun2 = use.cfg0().fun();
+                        if( fun==null || fun==fun2 ) fun=fun2;
+                        else { done=false; break; }
+                    }
+                    // Single function user, so this constant is not shared
+                    if( done ) { con.setDef(0,fun); break; }
+                    // Move function users to a private constant
+                    Node con2 = mach.copy();  // Private constant clone
+                    con2._inputs.set(0,null); // Preserve edge invariants from clone
+                    con2.setDef(0,fun);
+                    // Move function users to this private constant
+                    for( int i=0; i<con._outputs._len; i++ ) {
+                        Node use = con.out(i);
+                        FunNode fun2 = use.cfg0().fun();
+                        if( fun2==fun ) {
+                            use.setDef(use._inputs.find(con),con2);
+                            i--;
+                        }
+                    }
+                }
+            }
+
     }
 
     // ------------------------------------------------------------------------
@@ -49,30 +89,30 @@ public abstract class GlobalCodeMotion {
         for( CFGNode cfg : code._cfg ) {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
-                _schedEarly(n,code._visit );
+                _schedEarly(n,code );
             if( cfg instanceof RegionNode )
                 for( Node phi : cfg._outputs )
                     if( phi instanceof PhiNode )
-                        _schedEarly(phi,code._visit );
+                        _schedEarly(phi,code );
         }
     }
 
-    private static void _schedEarly(Node n, BitSet visit) {
-        if( n==null || visit.get(n._nid) ) return; // Been there, done that
+    private static void _schedEarly(Node n, CodeGen code) {
+        if( n==null || code._visit.get(n._nid) ) return; // Been there, done that
         assert !(n instanceof CFGNode);
-        visit.set(n._nid);
+        code._visit.set(n._nid);
         // Schedule not-pinned not-CFG inputs before self.  Since skipping
         // Pinned, this never walks the backedge of Phis (and thus spins around
         // a data-only loop), eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
-                _schedEarly(def,visit);
+                _schedEarly(def,code);
 
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
             // Schedule at deepest input
-            CFGNode early = CodeGen.CODE._start; // Maximally early, lowest idepth
+            CFGNode early = code._start; // Maximally early, lowest idepth
             if( n.in(0) instanceof CFGNode cfg ) early = cfg;
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )

@@ -147,7 +147,7 @@ public class x86_64_v2 extends Machine {
         case BoolNode     bool  -> cmp(bool);
         case CallEndNode  cend  -> new CallEndX86(cend);
         case CallNode     call  -> call(call);
-        case CastNode     cast  -> new CastNode(cast);
+        case CastNode     cast  -> new CastX86(cast);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
@@ -283,10 +283,10 @@ public class x86_64_v2 extends Machine {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
         case TypeFunPtr  tfp -> new TFPX86(con);
-        case TypeMemPtr  tmp -> new ConstantNode(con);
+        case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntX86(con) : new ConstantNode(con);
         };
     }
 

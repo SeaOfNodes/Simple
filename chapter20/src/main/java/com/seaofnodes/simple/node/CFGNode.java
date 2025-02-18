@@ -84,6 +84,14 @@ public abstract class CFGNode extends Node {
     // Anti-dependence field support
     public int _anti;           // Per-CFG field to help find anti-deps
 
+    // Find nearest enclosing FunNode
+    public FunNode fun() {
+        CFGNode cfg = this;
+        while( !(cfg instanceof FunNode fun) )
+            cfg = cfg.idom();
+        return fun;
+    }
+
     // ------------------------------------------------------------------------
     // Loop nesting
     public LoopNode loop() { return _ltree._head; }

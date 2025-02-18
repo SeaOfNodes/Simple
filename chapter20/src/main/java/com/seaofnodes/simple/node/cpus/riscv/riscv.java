@@ -144,7 +144,7 @@ public class riscv extends Machine{
         case BoolNode bool -> cmp(bool);
         case CallEndNode cend -> new CallEndRISC(cend);
         case CallNode call -> call(call);
-        case CastNode cast  -> new CastNode(cast);
+        case CastNode cast  -> new CastRISC(cast);
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);
@@ -227,10 +227,10 @@ public class riscv extends Machine{
         case TypeInteger ti  -> new IntRISC(con);
         case TypeFloat   tf  -> new IntRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
-        case TypeMemPtr  tmp -> new ConstantNode(con);
+        case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
         };
     }
 

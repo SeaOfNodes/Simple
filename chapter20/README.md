@@ -44,11 +44,13 @@ range *splitting*.  Splitting live ranges makes them more colorable; they
 become shorter with fewer interfering other live ranges.  Generally large
 functions might require a few rounds of splitting before becoming colorable.
 Since the problem is NP-complete there are no guarantees here, and the final
-allocation quality becomes heavily dependent on splitting heuristics.
+allocation quality becomes heavily dependent on splitting and coloring heuristics.
 
 Hence, much of the "high theory" will be used to drive the core coloring
 algorithm, but much of the "actual success" will depend on a large collection
-of splitting heuristics.
+of heuristics.
+
+### Coloring Rounds
 
 Coloring proceeds in rounds until we get a coloring:
 
@@ -58,7 +60,8 @@ Coloring proceeds in rounds until we get a coloring:
   interconnected live ranges with a lot of conflicts.  Some hardware ops
   require the same register for both inputs and outputs (X86 is notorious here)
   which also makes fewer larger live ranges.  We'll be using the disjoint
-  Union-Find algorithm to rapidly build up live ranges.
+  Union-Find algorithm to rapidly build up live ranges in one forward pass over
+  the program.
   
 - Build the Inteference Graph: every live range which is alive at the same time
   as any other, now *interferes* or conflicts.  This is built using a LIVE-ness
@@ -67,17 +70,17 @@ Coloring proceeds in rounds until we get a coloring:
   2-D bitset, triangulated to cut its size in half.  As part of LIVE, we'll
   also have a set of reaching defs per-block.
   
-- Color the interference graph.  Nodes in the graph which are strictly low
-  degree (more available registers than neighbors) will guaranteed get a color.
-  These can be removed from the graph - since they will guaranteed get a
-  register (color) because they have so few neighbors.  Removing these trivial
-  nodes makes more nodes go trivial, and this process repeats until either we
-  run out (and are guaranteed a coloring) or we find a high-degree clique: a
-  set of mutual interferences where none of them are guaranteed a color.  In
-  this case we pull an "at risk" live range out; this one might not color.
-  Once the graph is emptied, we reverse and re-insert the live ranges, coloring
-  as we go.  All the trivial live ranges will color; the at-risk ones may or
-  may not.
+- Color the interference graph.  Nodes (live ranges) in the graph which are
+  strictly low degree (more available registers than neighbors) will guaranteed
+  get a color.  These can be removed from the graph - since they will
+  guaranteed get a register (color) because they have so few conflicting
+  neighbors.  Removing these trivial nodes makes more nodes go trivial, and
+  this process repeats until either we run out (and are guaranteed a coloring)
+  or we find a high-degree clique: a set of mutually interfering live ranges
+  where none of them are guaranteed a color.  In this case we pull an "at risk"
+  live range out; this one might not color.  Once the graph is emptied, we
+  reverse and re-insert the live ranges, coloring as we go.  All the trivial
+  live ranges will color; the at-risk ones may or may not.
 
 - If every live range gets a color, then Register Allocation is done.  If not,
   we enter a round of splitting.  Live ranges which did not color are now split
@@ -114,10 +117,10 @@ One of the Click extensions is this notion of treating "stack slots" are Just
 Another Register.  They get colored like other registers, which in turn leads
 to very efficient use of the stack; C2 is known for having very small stack
 frames.  Another benefit is callee save registers will get split preferentially
-(they have very long lifetime and only 2 uses)... which the splits then end up
-coloring to the stack, building the call prolog & epilog naturally.  This
-allocator will not otherwise dedicate any effort to stack frame management; it
-will "fall out in the wash".
+(they have very long lifetime and only one def on entry and one use on
+exit)... which the splits then end up coloring to the stack, building the call
+prolog and epilog naturally.  This allocator will not otherwise dedicate any
+effort to stack frame management; it will "fall out in the wash".
 
 Many of the register masks are immutable; e.g. allowed registers for particular
 opcodes, or describing registers for calling conventions.  Other masks
@@ -129,7 +132,7 @@ accumulating a set of constraints.  To help keep these uses apart, the
 ## Live Ranges and Conflicts
 
 A live range is a set of nodes and edges which must get the same register.
-Live ranges form an interconnected web, with almost no limits on their shape.
+Live ranges form an interconnected web with almost no limits on their shape.
 Live ranges also gather the set of register constraints from all their parts.
 This leads to a set of levels of conflicts within a live range.
 
@@ -138,25 +141,25 @@ This leads to a set of levels of conflicts within a live range.
 A live range can have a *hard confict*: conflicting register requirements,
 leading to no valid register choices.  The obvious case is an incoming
 parameter fixed in e.g. `rdx` but also required as an exit value in `rax`.  You
-can't pick both registers at once, so again a split is required.  During the
-build live ranges phase, every register constraint from every def and use are
-AND'd together; the `RegMask` might lose all valid registers, or remain with
-just a handful of register choices.
+can't pick both registers at once, so a split is required.  During the build
+live ranges phase, every register constraint from every def and use are AND'd
+together; the `RegMask` might lose all valid registers, or remain with just a
+handful of register choices.
 
 Hard-conflicts are found while build live ranges, and will trigger a round of
-splitting before building the interference graph.
+splitting before building the interference graph or coloring.
 
 ### Avoiding conflicts
 
 Once of the Click extensions to the Briggs-Chaitin allocator is to take
 advantage of register constraints to lower the interference graph degree (which
-otherwise becomes an O(n^2) edge collection ).  If a live range LR1 is reduced
+otherwise becomes an O(n^2) edge collection).  If a live range LR1 is reduced
 to a single register (such as a call argument requiring `rdx`) and would
 otherwise conflict with another live range LR2 which has more choices - we
 remove `rdx` from the LR2's choices.  Without having `rdx`, LR1 and LR2 have no
 registers in common - and hence do not conflict.  We just don't add the
 interference graph edge between them.  Call argument restrictions are very
-common, and this kind of edge-removal can dramatically shrink the O(n^2) edge
+common and this kind of edge-removal can dramatically shrink the O(n^2) edge
 collection - and hence speedup allocation by a large constant factor.
 
 ### Self-Conflicts
@@ -186,11 +189,56 @@ In SoN SSA form:
   }
 ```
 
-And then `x0,x1,x2,y0,y1` all form part of the same live range, since they are
-all joined by `Phis`.  However, `x1` and `y1` hold different values from
+The variables `x0,x1,x2,y0,y1` all form part of the same live range, since they
+are all joined by `Phis`.  However, `x1` and `y1` hold different values from
 different iterations of `fib`.  The SSA form does not have a copy, but the
 register-allocated form - just like the original code - DOES require a copy.
 
 Self-conflicts are found during building the interference graph, and will
 trigger a round of splits before attempting the coloring phase.
+
+
+## Coloring Heuristics
+
+Both register coloring and register splitting are full of heuristics, and the
+quality of these heuristics goes a long way to deciding the quality of the
+final allocation.  Graph coloring is NP-complete; there is no efficient
+algorithm for coloring and many programs are simply not colorable without
+splitting in any case.
+
+
+### Biased Coloring
+
+Biased coloring is a heuristic that attempts to "pick a better color" or "bias
+the color choice", such that a Split is removed.  A Split splits one live range
+into two; sometimes some are inserted that are not required (i.e., over-
+splitting has already happened).  If one side (live range) of a split is
+already colored and we can color the other side (live range) the same color -
+then this split can be removed.  If neither side is colored, but one or the
+other side is recursively connected to a colored live range, we can still bias
+the color in the hopes that a chain of splits will all get the same color and
+thus all get removed.
+
+When the coloring process is reversing, and colors are being picked for live
+ranges, we often have many register choices.  A first choice is made
+arbitrarily (lowest numbered register), and then we go looking for a better
+color.  Biased coloring inspects first a sample def (if there is only one, then
+the One Def is inspected), and then a sample use.  Inspection looks to see if
+"the other side" of a split is already colored; if so, and that color is
+available it is choosen.  If there is a split, but it is not colored - we
+recursively repeat the process on that split's other side.  This is also done
+for the other input of two-address ops and one of a Phi node inputs.
+
+In all cases, the goal is to pick a valid available color - that might also
+eventually be pick-able for this Split's other side - and lead to this split
+having the same color for both sides, and then being removed.
+
+
+### Pick Risky
+
+### Split Hard Conflict
+
+### Split Self Conflict
+
+### Split By Loop Nest
 
