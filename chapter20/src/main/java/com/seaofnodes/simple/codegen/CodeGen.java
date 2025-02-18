@@ -2,11 +2,15 @@
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
+
+import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.Arrays;
 
 public class CodeGen {
     // Last created CodeGen as a global; used all over to avoid passing about a
@@ -119,7 +123,6 @@ public class CodeGen {
         JSViewer.show();
         return this;
     }
-
 
     // ---------------------------
     // Iterator peepholes.
@@ -268,7 +271,7 @@ public class CodeGen {
 
     // ---------------------------
     // Register Allocation
-    RegAlloc _regAlloc;
+    public RegAlloc _regAlloc;
     public CodeGen regAlloc() {
         assert _phase == Phase.LocalSched;
         _phase = Phase.RegAlloc;
@@ -276,6 +279,23 @@ public class CodeGen {
         _regAlloc.regAlloc();
         return this;
     }
+
+    public CodeGen printENCODING() {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+            for(Node bb : CodeGen.CODE._cfg) {
+                for(Node n: bb.outs()) {
+                    if(n instanceof MachNode) {
+                        ((MachNode) n).encoding(outputStream);
+                    }
+                }
+            }
+
+        // Get the raw bytes from the output stream
+        x86_64_v2.print_as_hex(outputStream); // Move to the next line after printing
+        return this;
+    }
+
     public String reg(Node n) {
         if( _phase == Phase.RegAlloc ) {
             String s = _regAlloc.reg(n);
@@ -283,7 +303,6 @@ public class CodeGen {
         }
         return "N"+ n._nid;
     }
-
 
     // ---------------------------
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }

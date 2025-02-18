@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -18,7 +19,25 @@ public class FltX86 extends ConstantNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Simply move the constant into a FPR
+        // movsd xmm, [rip + 0]
+        // F2 0F 10 /r MOVSD xmm1, m64
+        LRG fpr_con = CodeGen.CODE._regAlloc.lrg(this);
+        short fpr_reg = fpr_con.get_reg();
+
+        int beforeSize = bytes.size();
+        bytes.write(x86_64_v2.REX_W);
+
+        // Fopcode
+        bytes.write(0xF2);
+        bytes.write(0x0F);
+        bytes.write(0x10);
+
+        // hard-code rip here
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, fpr_reg - 16 , 0x05));
+        x86_64_v2.imm(0, 32, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     @Override public boolean isClone() { return true; }

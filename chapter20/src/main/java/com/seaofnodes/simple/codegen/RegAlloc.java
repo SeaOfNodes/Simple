@@ -82,7 +82,7 @@ public class RegAlloc {
     }
 
     // LRG for n
-    LRG lrg( Node n ) {
+    public LRG lrg( Node n ) {
         LRG lrg = _lrgs.get(n);
         if( lrg==null ) return null;
         LRG lrg2 = lrg.find();

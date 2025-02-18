@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -30,7 +31,19 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // REX.W + 81 /7 id	CMP r/m64, imm32
+        LRG rg_1 = CodeGen.CODE._regAlloc.lrg(this);
+
+        short reg1 = rg_1.get_reg();
+        int beforeSize = bytes.size();
+
+        bytes.write(x86_64_v2.REX_W);
+        bytes.write(0x81); // opcode
+
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x07, reg1));
+
+        x86_64_v2.imm(_imm, 32, bytes);
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

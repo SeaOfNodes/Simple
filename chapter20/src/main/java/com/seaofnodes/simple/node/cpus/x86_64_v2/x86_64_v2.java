@@ -7,6 +7,8 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
+import java.io.ByteArrayOutputStream;
+
 public class x86_64_v2 extends Machine {
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "x86_64_v2"; }
@@ -55,6 +57,93 @@ public class x86_64_v2 extends Machine {
     public static RegMask[] XMMS = new RegMask[]{
         XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
         XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
+    };
+
+    // Encoding
+    public static int REX_W = 0x48;
+    public enum MOD {INDIRECT, //  [mem]
+                    INDIRECT_disp8, // [mem + 0x12]
+                    INDIRECT_disp32,// [mem + 0x12345678]
+                    DIRECT,          // mem
+    };
+
+    // size =  size in bits
+    static public int imm(int imm, int size, ByteArrayOutputStream bytes) {
+        if (size == 8) {
+            bytes.write(imm & 0xFF);
+        } else if (size == 16) {
+            bytes.write(imm & 0xFF);
+            bytes.write((imm >> 8) & 0xFF);
+        } else if (size == 32) {
+            bytes.write(imm & 0xFF);
+            bytes.write((imm >> 8) & 0xFF);
+            bytes.write((imm >> 16) & 0xFF);
+            bytes.write((imm >> 24) & 0xFF);
+        }
+        return size;
+    }
+
+    // 0F (returned_value)
+    // 0F 94	SETE r/m8
+    // 0F 9F	SETG r/m8
+    // 0F 9D	SETGE r/m8
+    static public int setop(String op) {
+        return switch(op) {
+            case "==" -> 0x94;
+            case "<"  -> 0x9F;
+            case "<="  -> 0X9D;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+
+
+    // opcode included here
+    // 74 cb	JE rel8
+    // 7C  cb	J   L rel8
+    // 7E cb	JLE rel8
+    static public int jumpop(String op) {
+        return switch(op) {
+            case "==" -> 0x74cb;
+            case "<"  -> 0x7Ccb;
+            case "<="  -> 0X7Ecb;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+
+    // Clear bits
+    // e.g before using setl
+    // setl sets low 8 bits the other bits are still the same from before
+    // Clear them
+    public static void clear_bits(short reg1, short reg2, ByteArrayOutputStream bytes) {
+        // use xor to clear them
+        bytes.write(x86_64_v2.REX_W);
+        bytes.write(0x33); // opcode
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
+    }
+    public static void zero_extend(short reg1, short reg2, ByteArrayOutputStream bytes) {
+        bytes.write(x86_64_v2.REX_W);
+        bytes.write(0x0F); // opcode
+        bytes.write(0xB6); // opcode
+
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
+    }
+
+     public static void print_as_hex(ByteArrayOutputStream outputStream) {
+
+        byte[] encodedBytes = outputStream.toByteArray();
+
+        for (byte b : encodedBytes) {
+
+            System.out.print(String.format("%02X ", b));
+        }
+
+        System.out.println();
+    }
+
+    public static int modrm(MOD mod, int reg, int m_r) {
+        // combine all the bits
+
+        return (mod.ordinal() << 6) | (reg << 3) | m_r;
     };
 
     // Calling conv metadata
@@ -370,9 +459,8 @@ public class x86_64_v2 extends Machine {
     private Node xor(XorNode xor) {
         if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new XorIX86(xor, ti);
-        throw Utils.TODO();
+        return new XorX86(xor);
     }
-
 
     // Gather X86 addressing mode bits prior to constructing.  This is a
     // builder pattern, but saving the bits in a *local* *global* here to keep

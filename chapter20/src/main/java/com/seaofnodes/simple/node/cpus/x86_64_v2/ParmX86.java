@@ -21,5 +21,8 @@ public class ParmX86 extends ParmNode implements MachNode {
     @Override public RegMask outregmap() { return _rmask; }
 
     // Encoding is appended into the byte array.  Returns size
-    @Override public int encoding(ByteArrayOutputStream bytes) { return 0; }
+    @Override public int encoding(ByteArrayOutputStream bytes) {
+        // move param into reg
+        return 0;
+    }
 }

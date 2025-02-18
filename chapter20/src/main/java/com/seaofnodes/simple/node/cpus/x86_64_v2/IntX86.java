@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -26,7 +27,27 @@ public class IntX86 extends ConstantNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Simply move the constant into a GPR
+        //REX.W + C7 /0 id	MOV r/m64, imm32
+        LRG gpr_con = CodeGen.CODE._regAlloc.lrg(this);
+        short gpr_reg = gpr_con.get_reg();
+
+        x86_64_v2.print_as_hex(bytes);
+
+        int beforeSize = bytes.size();
+        bytes.write(x86_64_v2.REX_W);
+
+        bytes.write(0xC7); // opcode
+
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x00, gpr_reg));
+
+        System.out.println();
+        // immediate(4 bytes) 32 bits
+        TypeInteger ti = (TypeInteger)_con;
+        int imm32 = (int)ti.value();
+        x86_64_v2.imm(imm32, 32, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

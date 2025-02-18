@@ -20,15 +20,45 @@ return 0;
     }
 
     @Test
+    public void testEncoding1() {
+        CodeGen code = new CodeGen("""
+                   return arg * (arg>3);
+             
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
+    public void testEncoding2() {
+        CodeGen code = new CodeGen("""
+                return arg & 2;
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    // Todo: fix needed
+    @Test
+    public void testEncoding3() {
+        CodeGen code = new CodeGen("""
+                return arg - (arg + 3);
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
+    public void testFloatEncoding4() {
+        CodeGen code = new CodeGen("""
+                return arg == 1;
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
     public void testBasic1() {
-        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
         assertEquals("return (ori,(mov,arg));", code._stop.toString());
     }
 
     @Test
     public void testNewton() {
         CodeGen code = new CodeGen(
-                """
+                """                
                 // Newtons approximation to the square root
                 val sqrt = { flt x ->
                     flt guess = x;
@@ -40,6 +70,7 @@ return 0;
                 };
                 flt farg = arg;
                 return sqrt(farg) + sqrt(farg+2.0);
+
                 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Stop[ return (addf,#2,(mov,#2)); return (mov,Phi(Loop,(mov,(mov,Parm_x(sqrt,flt))),(mulf,(addf,(divf,(mov,mov),mov),mov),0.5f))); ]", code.print());

@@ -20,6 +20,7 @@ public class LRG {
     // Choosen register
     short _reg;
 
+    public short get_reg() {return _reg;}
     // Count of single-register defs and uses
     short _1regDefCnt, _1regUseCnt;
 

@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -29,7 +30,23 @@ public class OrIX86  extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // REX.W + 81 /1 id	OR r/m64, imm32
+        LRG ori_reg = CodeGen.CODE._regAlloc.lrg(this);
+
+        short reg = ori_reg.get_reg();
+        int beforeSize = bytes.size();
+
+        bytes.write(x86_64_v2.REX_W);
+        bytes.write(0x81); // opcode
+
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x01, reg));
+
+        // immediate(4 bytes) 32 bits
+        // Bytes write only allows for 1 byte
+        int imm32 = (int)_ti.value();
+        x86_64_v2.imm(imm32, 32, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // General form

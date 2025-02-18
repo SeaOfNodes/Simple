@@ -21,7 +21,11 @@ public class CallRX86 extends CallNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        bytes.write(0xe8);
+        int beforeSize = bytes.size();
+        // address
+        bytes.write(0x00);
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {
