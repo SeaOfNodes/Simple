@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -19,7 +20,20 @@ public class SplitX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // REX.W + 8B /r	MOV r64, r/m64
+        LRG split_rg = CodeGen.CODE._regAlloc.lrg(this);
+        LRG reg_1_rg = CodeGen.CODE._regAlloc.lrg(in(1));
+
+        short split_reg_1 = split_rg.get_reg();
+        short split_reg_2 = reg_1_rg.get_reg();
+        int beforeSize = bytes.size();
+
+        bytes.write(x86_64_v2.REX_W);
+        bytes.write(0x8B); // opcode
+
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, split_reg_1, split_reg_2));
+
+        return bytes.size() - beforeSize;
     }
 
     // General form: "mov  dst = src"

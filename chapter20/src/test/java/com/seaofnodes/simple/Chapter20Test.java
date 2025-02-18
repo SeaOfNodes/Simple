@@ -20,27 +20,57 @@ return 0;
     }
 
     @Test
+    public void testEncoding1() {
+        CodeGen code = new CodeGen("""
+                   return arg * (arg>3);
+             
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
+    public void testEncoding2() {
+        CodeGen code = new CodeGen("""
+                return arg & 2;
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
+    public void testEncoding3() {
+        CodeGen code = new CodeGen("""
+                return arg - (arg + 3);
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
+    public void testFloatEncoding4() {
+        CodeGen code = new CodeGen("""
+                return arg == 1;
+                """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test
     public void testBasic1() {
-        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
         assertEquals("return (ori,(mov,arg));", code._stop.toString());
     }
 
     @Test
     public void testNewton() {
         CodeGen code = new CodeGen(
-"""
-// Newtons approximation to the square root
-val sqrt = { flt x ->
-    flt guess = x;
-    while( 1 ) {
-        flt next = (x/guess + guess)/2;
-        if( next == guess ) return guess;
-        guess = next;
-    }
-};
-flt farg = arg;
-return sqrt(farg) + sqrt(farg+2.0);
-""");
+                """                
+                // Newtons approximation to the square root
+                val sqrt = { flt x ->
+                    flt guess = x;
+                    while( 1 ) {
+                        flt next = (x/guess + guess)/2;
+                        if( next == guess ) return guess;
+                        guess = next;
+                    }
+                };
+                flt farg = arg;
+                return sqrt(farg) + sqrt(farg+2.0);
+
+                """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Stop[ return (addf,#2,(mov,#2)); return (mov,Phi(Loop,(mov,(mov,Parm_x(sqrt,flt))),(mulf,(addf,(divf,(mov,mov),mov),mov),0.5f))); ]", code.print());
     };
@@ -55,16 +85,16 @@ return sqrt(farg) + sqrt(farg+2.0);
     @Test
     public void testArray1() {
         CodeGen code = new CodeGen(
-"""
-int[] !ary = new int[arg];
-// Fill [0,1,2,3,4,...]
-for( int i=0; i<ary#; i++ )
-ary[i] = i;
-// Fill [0,1,3,6,10,...]
-for( int i=0; i<ary#-1; i++ )
-ary[i+1] += ary[i];
-return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
-""");
+                """
+                int[] !ary = new int[arg];
+                // Fill [0,1,2,3,4,...]
+                for( int i=0; i<ary#; i++ )
+                ary[i] = i;
+                // Fill [0,1,3,6,10,...]
+                for( int i=0; i<ary#-1; i++ )
+                ary[i+1] += ary[i];
+                return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
+                """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("return .[];", code.print());
     }
@@ -114,11 +144,11 @@ hashCode(s);
     @Test
     public void testCast() {
         CodeGen code = new CodeGen(
-    """
-        struct Bar { int x; };
-        var b = arg ? new Bar;
-        return b ? b.x++ + b.x++ : -1;
-     """
+                """
+                    struct Bar { int x; };
+                    var b = arg ? new Bar;
+                    return b ? b.x++ + b.x++ : -1;
+                 """
         );
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
         assertEquals("return Phi(Region,(lea, ---,.x),-1);", code.print());

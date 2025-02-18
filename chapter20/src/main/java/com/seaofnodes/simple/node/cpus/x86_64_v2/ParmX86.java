@@ -21,5 +21,10 @@ public class ParmX86 extends ParmNode implements MachNode {
     @Override public RegMask outregmap() { return _rmask; }
 
     // Encoding is appended into the byte array.  Returns size
-    @Override public int encoding(ByteArrayOutputStream bytes) { return 0; }
+    @Override public int encoding(ByteArrayOutputStream bytes) {
+        // move param into specificed reg by RA
+        // REX.W + 8B /r	MOV r64, r/m64
+        // Todo: if its a constant just move it into GPR, or use the reg specified by RA
+        throw Utils.TODO();
+    }
 }
