@@ -72,7 +72,10 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { throw Utils.TODO(); }
 
-    @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }
+    @Override public int encoding(ByteArrayOutputStream bytes) {
+        // Todo: decide if its load or store or memadd then use SIB and indirect addressing
+        throw Utils.TODO();
+    }
 
 
     // "[base + idx<<2 + 12]"

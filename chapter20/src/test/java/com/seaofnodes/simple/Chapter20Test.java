@@ -34,7 +34,6 @@ return 0;
                 """).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
     }
 
-    // Todo: fix needed
     @Test
     public void testEncoding3() {
         CodeGen code = new CodeGen("""

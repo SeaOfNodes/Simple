@@ -30,6 +30,7 @@ public class NewX86 extends NewNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
+        // MOV [mem], reg:
         throw Utils.TODO();
     }
 

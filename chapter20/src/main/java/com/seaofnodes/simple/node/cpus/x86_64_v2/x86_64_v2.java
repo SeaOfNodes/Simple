@@ -144,7 +144,13 @@ public class x86_64_v2 extends Machine {
         // combine all the bits
 
         return (mod.ordinal() << 6) | (reg << 3) | m_r;
-    };
+    }
+
+    // 00 000 000
+    // same bit-layout as modrm
+    public static int sib(int scale, int index, int base) {
+        return (scale<< 6) | (index << 3) | base;
+    }
 
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9

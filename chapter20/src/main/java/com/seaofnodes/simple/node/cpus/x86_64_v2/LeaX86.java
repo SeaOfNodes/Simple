@@ -28,6 +28,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
+        // REX.W + 8D /r	LEA r64,m
         throw Utils.TODO();
     }
 
