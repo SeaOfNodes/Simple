@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
+
 import java.io.ByteArrayOutputStream;
 
 public class AddFX86 extends MachConcreteNode implements MachNode {
@@ -31,14 +31,14 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.rex(reg1 - x86_64_v2.FLOAT_OFFSET, reg2 - x86_64_v2.FLOAT_OFFSET));
+        bytes.write(x86_64_v2.rex(reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET));
 
         // Fopcode
         bytes.write(0xF2);
         bytes.write(0x0F);
         bytes.write(0x58);
 
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.FLOAT_OFFSET , reg2 - x86_64_v2.FLOAT_OFFSET));
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET));
         return bytes.size() - beforeSize;
     }
 

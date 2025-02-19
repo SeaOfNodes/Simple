@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
@@ -26,7 +25,7 @@ public class FltX86 extends ConstantNode implements MachNode {
         short fpr_reg = fpr_con.get_reg();
 
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.rex(fpr_reg - x86_64_v2.FLOAT_OFFSET, 0));
+        bytes.write(x86_64_v2.rex(fpr_reg - x86_64_v2.XMM_OFFSET, 0));
 
         // Fopcode
         bytes.write(0xF2);
@@ -34,7 +33,7 @@ public class FltX86 extends ConstantNode implements MachNode {
         bytes.write(0x10);
 
         // hard-code rip here
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, fpr_reg - x86_64_v2.FLOAT_OFFSET , 0x05));
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, fpr_reg - x86_64_v2.XMM_OFFSET, 0x05));
         x86_64_v2.imm(0, 32, bytes);
 
         return bytes.size() - beforeSize;

@@ -28,7 +28,7 @@ public class SubFX86 extends MachConcreteNode implements MachNode {
         short reg2 = sub_rg_2.get_reg();
 
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.rex(reg1 - x86_64_v2.FLOAT_OFFSET, reg2 - x86_64_v2.FLOAT_OFFSET));
+        bytes.write(x86_64_v2.rex(reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET));
 
 
         // Fopcode
@@ -36,7 +36,7 @@ public class SubFX86 extends MachConcreteNode implements MachNode {
         bytes.write(0x0F);
         bytes.write(0x5C);
 
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.FLOAT_OFFSET , reg2 - x86_64_v2.FLOAT_OFFSET));
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET));
 
         return bytes.size() - beforeSize;
     }

@@ -21,7 +21,7 @@ public class x86_64_v2 extends Machine {
     public static int FLAGS = 32;
     public static int RPC = 33;
 
-    public static int FLOAT_OFFSET = 16;
+    public static int XMM_OFFSET = 16;
 
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
@@ -96,8 +96,8 @@ public class x86_64_v2 extends Machine {
     static public int setop(String op) {
         return switch(op) {
             case "==" -> 0x94;
-            case "<"  -> 0x9F;
-            case "<="  -> 0X9D;
+            case "<"  -> 0x9C;
+            case "<="  -> 0X9E;
             default  ->  throw new IllegalArgumentException("Too many arguments");
         };
     }
