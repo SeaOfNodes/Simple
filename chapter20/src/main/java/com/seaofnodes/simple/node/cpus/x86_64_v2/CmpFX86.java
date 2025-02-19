@@ -30,7 +30,7 @@ public class CmpFX86 extends MachConcreteNode implements MachNode {
         bytes.write(0x0F);
         bytes.write(0x2E);
 
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.FLOAT_OFFSET, reg2 - x86_64_v2.FLOAT_OFFSET));
 
         return bytes.size() - beforeSize;
     }

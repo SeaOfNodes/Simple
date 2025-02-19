@@ -21,6 +21,8 @@ public class x86_64_v2 extends Machine {
     public static int FLAGS = 32;
     public static int RPC = 33;
 
+    public static int FLOAT_OFFSET = 16;
+
     // General purpose register mask: pointers and ints, not floats
     public static RegMask RMASK = new RegMask(0b1111111111111111);
     // No RSP in the *write* general set.
@@ -178,6 +180,17 @@ public class x86_64_v2 extends Machine {
         }
     }
 
+    public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes, int m_r, MOD mod) {
+
+        // rsp is hard-coded here(0x04)
+        bytes.write(x86_64_v2.modrm(mod, reg, m_r));
+        bytes.write(x86_64_v2.sib(scale,  index, base));
+
+        if(offset != 0) {
+            // long truncating here BAD!!
+            bytes.write(offset);
+        }
+    }
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
     public int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L

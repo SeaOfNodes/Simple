@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -29,7 +30,28 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // REX.W + 8D /r	LEA r64,m
-        throw Utils.TODO();
+        LRG lea_rg = CodeGen.CODE._regAlloc.lrg(this);
+        short reg = lea_rg.get_reg();
+
+        int beforeSize = bytes.size();
+        bytes.write(x86_64_v2.rex(0, reg));
+        bytes.write(0x8D); // opcode
+
+        LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(1));
+        LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+
+        short base_reg = base_rg.get_reg();
+        short idx_re = idx_rg.get_reg();
+
+        // rsp is hard-coded here(0x04)
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, reg, 0x04));
+        bytes.write(x86_64_v2.sib(_scale,  idx_re, base_reg));
+
+        if(_offset != 0) {
+            // long truncating here BAD!!
+            bytes.write((int)_offset);
+        }
+        return bytes.size() - beforeSize;
     }
 
     // General form: "lea  dst = base + 4*idx + 12"

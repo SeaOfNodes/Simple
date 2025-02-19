@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
@@ -73,7 +74,166 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     @Override public RegMask outregmap() { throw Utils.TODO(); }
 
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // Todo: decide if its load or store or memadd then use SIB and indirect addressing
+        switch (this) {
+            case LoadX86 loadX86 -> {
+                // REX.W + 8B /r	MOV r64, r/m64
+                LRG load_rg = CodeGen.CODE._regAlloc.lrg(this);
+                short reg = load_rg.get_reg();
+                int beforeSize = bytes.size();
+                bytes.write(x86_64_v2.rex(0, reg));
+
+                bytes.write(0x8B); // opcode
+
+                LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(3));
+
+                short base_reg = base_rg.get_reg();
+                short idx_re = idx_rg.get_reg();
+
+                // rsp is hard-coded here(0x04)
+                // includes modrm internally
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+
+                return bytes.size() - beforeSize;
+            }
+            case StoreX86 storeX86 -> {
+                // REX.W + C7 /0 id	MOV r/m64, imm32
+                LRG store_rg = CodeGen.CODE._regAlloc.lrg(this);
+                short reg = store_rg.get_reg();
+                int beforeSize = bytes.size();
+                bytes.write(x86_64_v2.rex(0, reg));
+                bytes.write(0xC7);  // opcode
+
+                LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(3));
+
+                short base_reg = base_rg.get_reg();
+                short idx_re = idx_rg.get_reg();
+
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.imm(_imm, 32, bytes);
+
+                return bytes.size() - beforeSize;
+            }
+            case MemAddX86 memAddX86 -> {
+                // add something to memory
+                //REX.W + 01 /r | REX.W + 81 /0 id
+                // ADD [mem], imm32/reg
+                boolean im_form = false;
+                LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
+                short reg = mem_rg.get_reg();
+                int beforeSize = bytes.size();
+                bytes.write(x86_64_v2.rex(0, reg));
+                if(in(4) != null) {
+                    // val and not immediate
+                    // opcode
+                    bytes.write(0x81);
+                } else {
+                    im_form = true;
+                    bytes.write(0x01);
+                }
+
+                LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(3));
+
+                short base_reg = base_rg.get_reg();
+                short idx_re = idx_rg.get_reg();
+                if(im_form) {
+                    reg = 0;
+                }
+
+                // includes modrm
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                if(im_form) {
+                    x86_64_v2.imm(_imm, 32, bytes);
+                }
+                return bytes.size() - beforeSize;
+            }
+            case CmpMemX86 cmpMemX86 -> {
+                // REX.W + 81 /7 id	CMP r/m64, imm32 | REX.W + 39 /r	CMP r/m64,r64
+                // CMP [mem], imm32
+                boolean im_form = false;
+                LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
+                short reg = mem_rg.get_reg();
+                int beforeSize = bytes.size();
+
+                bytes.write(x86_64_v2.rex(0, reg));
+                if(in(4) != null) {
+                    // val and not immediate
+                    // opcode
+                    bytes.write(0x81);
+                } else {
+                    im_form = true;
+                    bytes.write(0x39);
+                }
+
+                LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(3));
+
+                short base_reg = base_rg.get_reg();
+                short idx_re = idx_rg.get_reg();
+                if(im_form) {
+                    reg = 7;
+                }
+
+                // includes modrm
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                if(im_form) {
+                    x86_64_v2.imm(_imm, 32, bytes);
+                }
+                return bytes.size() - beforeSize;
+            }
+            case AddFMemX86 addFMemX86 -> {
+                //  addsd xmm0, DWORD PTR [rdi+0xc]
+                LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
+
+                short reg = mem_rg.get_reg();
+                int beforeSize = bytes.size();
+
+//                bytes.write(x86_64_v2.rex(0, reg - x86_64_v2.FLOAT_OFFSET));
+
+                // F opcode
+                bytes.write(0xF2);
+
+                bytes.write(0x0F);
+                bytes.write(0x58);
+
+                LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(3));
+
+                short base_reg = base_rg.get_reg();
+                short idx_re = idx_rg.get_reg();
+
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+
+                return bytes.size() - beforeSize;
+            }
+            case AddMemX86 addmemX86 -> {
+                // add something to register from memory
+                //  add   eax,DWORD PTR [rdi+0xc]
+                // REX.W + 03 /r	ADD r64, r/m64
+                LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
+
+                short reg = mem_rg.get_reg();
+                int beforeSize = bytes.size();
+
+                bytes.write(x86_64_v2.rex(0, reg));
+                // opcode
+                bytes.write(0x03);
+
+                LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(3));
+
+                short base_reg = base_rg.get_reg();
+                short idx_re = idx_rg.get_reg();
+
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+
+                return bytes.size() - beforeSize;
+            }
+            default -> {
+            }
+        }
         throw Utils.TODO();
     }
 

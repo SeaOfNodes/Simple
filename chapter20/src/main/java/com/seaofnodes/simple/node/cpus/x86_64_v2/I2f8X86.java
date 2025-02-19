@@ -29,11 +29,11 @@ public class I2f8X86 extends MachConcreteNode implements MachNode {
 
         // Fopcode
         bytes.write(0xF2);
-        bytes.write(x86_64_v2.rex(reg1 - 16, reg2));
+        bytes.write(x86_64_v2.rex(reg1 - x86_64_v2.FLOAT_OFFSET, reg2));
         bytes.write(0x0F);
         bytes.write(0x2A);
 
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - 16 , reg2));
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.FLOAT_OFFSET , reg2));
         return bytes.size() - beforeSize;
     }
 
