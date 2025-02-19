@@ -24,8 +24,8 @@ public class CmpX86 extends MachConcreteNode implements MachNode {
         short reg2 = cmp_rg_2.get_reg();
 
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.REX_W);
-        bytes.write(0x39); // opcode
+        bytes.write(x86_64_v2.rex(reg1, reg2));
+        bytes.write(0x3B); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
 

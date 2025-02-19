@@ -29,8 +29,8 @@ public class SubX86 extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.REX_W);
-        bytes.write(0x29); // opcode
+        bytes.write(x86_64_v2.rex(reg1, reg2));
+        bytes.write(0x2B); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
 

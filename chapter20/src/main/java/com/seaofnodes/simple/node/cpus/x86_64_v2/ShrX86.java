@@ -33,7 +33,7 @@ public class ShrX86 extends MachConcreteNode implements MachNode {
 
         short reg1 = shr_rg_1.get_reg();
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(x86_64_v2.rex(0, reg1));
         bytes.write(0xD3); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x05, reg1));

@@ -61,6 +61,10 @@ public class x86_64_v2 extends Machine {
 
     // Encoding
     public static int REX_W = 0x48;
+    public static int REX_WR = 0x4C;
+    public static int REX_WRB = 0x4D;
+    public static int REX_WB = 0x49;
+
     public enum MOD {INDIRECT, //  [mem]
                     INDIRECT_disp8, // [mem + 0x12]
                     INDIRECT_disp32,// [mem + 0x12345678]
@@ -85,8 +89,8 @@ public class x86_64_v2 extends Machine {
 
     // 0F (returned_value)
     // 0F 94	SETE r/m8
-    // 0F 9F	SETG r/m8
-    // 0F 9D	SETGE r/m8
+    // 0F 9C	SETL r/m8
+    // 0F 9E	SETLE r/m8
     static public int setop(String op) {
         return switch(op) {
             case "==" -> 0x94;
@@ -150,6 +154,28 @@ public class x86_64_v2 extends Machine {
     // same bit-layout as modrm
     public static int sib(int scale, int index, int base) {
         return (scale<< 6) | (index << 3) | base;
+    }
+    // reg1 is reg
+    // reg 2 is  r/mem
+    // 0 denotes no direct register
+    public static int rex(int reg1, int reg2) {
+        // assuming 64 bit by default so: 0100 1000
+        boolean both = (reg1 >= 8 && reg1 <= 15) && (reg2 >= 8 && reg2 <= 15);
+        boolean firstOnly = (reg1 >= 8 && reg1 <= 15) && !(reg2 >= 8 && reg2 <= 15);
+        boolean secondOnly = !(reg1 >= 8 && reg1 <= 15) && (reg2 >= 8 && reg2 <= 15);
+
+        if (both) {
+            // 0100 1101
+            return REX_WRB;
+        } else if (firstOnly) {
+            // 0100 1100
+            return REX_WR;
+        } else if (secondOnly) {
+            // 0100 1001
+            return REX_WB;
+        } else {
+            return REX_W;
+        }
     }
 
     // Calling conv metadata

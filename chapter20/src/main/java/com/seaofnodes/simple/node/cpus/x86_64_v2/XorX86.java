@@ -33,7 +33,8 @@ public class XorX86 extends MachConcreteNode implements MachNode{
 
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(x86_64_v2.rex(reg1, reg2));
+
         bytes.write(0x33); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));

@@ -26,7 +26,7 @@ public class FltX86 extends ConstantNode implements MachNode {
         short fpr_reg = fpr_con.get_reg();
 
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(x86_64_v2.rex(fpr_reg - 16, 0));
 
         // Fopcode
         bytes.write(0xF2);

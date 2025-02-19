@@ -31,7 +31,7 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(x86_64_v2.rex(reg1 - 16, reg2 - 16));
 
         // Fopcode
         bytes.write(0xF2);

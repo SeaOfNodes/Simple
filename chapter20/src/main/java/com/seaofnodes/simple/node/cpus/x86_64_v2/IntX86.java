@@ -35,7 +35,7 @@ public class IntX86 extends ConstantNode implements MachNode {
         x86_64_v2.print_as_hex(bytes);
 
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(x86_64_v2.rex(0, gpr_reg));
 
         bytes.write(0xC7); // opcode
 
