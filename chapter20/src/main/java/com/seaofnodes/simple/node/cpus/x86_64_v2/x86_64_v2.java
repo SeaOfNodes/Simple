@@ -149,13 +149,13 @@ public class x86_64_v2 extends Machine {
     public static int modrm(MOD mod, int reg, int m_r) {
         // combine all the bits
 
-        return (mod.ordinal() << 6) | (reg << 3) | m_r;
+        return (mod.ordinal() << 6) | ((reg & 0x07) << 3) | m_r & 0x07;
     }
 
     // 00 000 000
     // same bit-layout as modrm
     public static int sib(int scale, int index, int base) {
-        return (scale<< 6) | (index << 3) | base;
+        return (scale<< 6) | ((index & 0x07) << 3) | base & 0x07;
     }
     // reg1 is reg
     // reg 2 is  r/mem
