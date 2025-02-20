@@ -16,7 +16,7 @@ public class CmpX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // REX.W + 39 /r	CMP r/m64,r64
+        // REX.W + 3B /r	CMP r64, r/m64
         LRG cmp_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
         LRG cmp_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
 

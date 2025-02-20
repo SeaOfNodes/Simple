@@ -25,7 +25,7 @@ public class AndX86  extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // REX.W + 21 /r	AND r/m64, r64
+        // REX.W + 23 /r	AND r64, r/m64
         LRG and_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
         LRG and_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
 
@@ -35,7 +35,7 @@ public class AndX86  extends MachConcreteNode implements MachNode{
         int beforeSize = bytes.size();
 
         bytes.write(x86_64_v2.rex(reg1, reg2, 0));
-        bytes.write(0x21); // opcode
+        bytes.write(0x23); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
 
