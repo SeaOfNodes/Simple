@@ -26,6 +26,13 @@ public class DivX86 extends MachConcreteNode implements MachNode {
         LRG div_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
         short reg1 = div_rg_1.get_reg();
 
+        // sign extend rax before 128/64 bits division
+        // sign extend rax to rdx:rax
+        bytes.write(x86_64_v2.REX_W);
+        // opcode for CQO
+        bytes.write(0x99);
+
+        // actual division starts
         int beforeSize = bytes.size();
         bytes.write(x86_64_v2.rex(0, reg1));
         bytes.write(0xF7); // opcode
