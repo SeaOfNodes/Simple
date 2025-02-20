@@ -21,6 +21,11 @@ public class IntX86 extends ConstantNode implements MachNode {
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
+    // Zero-set uses XOR kills flags
+    @Override public RegMask killmap() {
+        return _con == Type.NIL || _con == TypeInteger.ZERO ? x86_64_v2.FLAGS_MASK : null;
+    }
+
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new IntX86(this); }
 
