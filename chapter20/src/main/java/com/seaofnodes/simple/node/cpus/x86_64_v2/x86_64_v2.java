@@ -162,20 +162,23 @@ public class x86_64_v2 extends Machine {
     }
     // reg1 is reg(R)
     // reg 2 is  r/mem(B)
-    // reg3 is X
+    // reg3 is X(index)
+    // reg4 is X(base)
+
     // 0 denotes no direct register
-    public static int rex(int reg1, int reg2, int reg3) {
+    public static int rex(int reg1, int reg2, int reg3, int reg4) {
         // assuming 64 bit by default so: 0100 1000
         boolean firstHigh = (reg1 >= 8 && reg1 <= 15);
         boolean secondHigh = (reg2 >= 8 && reg2 <= 15);
         boolean thirdHigh = (reg3 >= 8 && reg3 <= 15);
+        boolean fourthHigh = (reg4 >= 8 && reg4 <= 15);
 
         int rex = x86_64_v2.REX_W; // Default REX.W
 
         if (firstHigh) rex |= 0b00000100; // REX.R
         if (secondHigh) rex |= 0b00000001; // REX.B
         if (thirdHigh) rex |= 0b00000010; // REX.X
-
+        if (fourthHigh) rex |= 0b00000001; // REX.B (reg2(r/m) m and reg4(base) are mutually exclusive)
         return rex;
     }
 

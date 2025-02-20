@@ -91,7 +91,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short idx_re = 0;
                 if(idx_rg != null) idx_re = idx_rg.get_reg();
 
-                bytes.write(x86_64_v2.rex(0, reg, idx_re));
+                bytes.write(x86_64_v2.rex(0, reg, idx_re, base_reg));
 
                 bytes.write(0x8B); // opcode
 
@@ -117,7 +117,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short idx_re = 0;
                 if(idx_rg != null) idx_re = idx_rg.get_reg();
 
-                bytes.write(x86_64_v2.rex(0, reg, idx_re));
+                bytes.write(x86_64_v2.rex(0, reg, idx_re, base_reg));
                 bytes.write(0xC7);  // opcode
 
                 x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
@@ -143,7 +143,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short idx_re = 0;
                 if(idx_rg != null) idx_re = idx_rg.get_reg();
 
-                bytes.write(x86_64_v2.rex(0, reg, idx_re));
+                bytes.write(x86_64_v2.rex(0, reg, idx_re, base_reg));
                 if(in(4) != null) {
                     // val and not immediate
                     // opcode
@@ -184,7 +184,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 if(idx_rg != null) idx_re = idx_rg.get_reg();
 
 
-                bytes.write(x86_64_v2.rex(0, reg, idx_re));
+                bytes.write(x86_64_v2.rex(0, reg, idx_re, base_reg));
                 if(in(4) != null) {
                     // val and not immediate
                     // opcode
@@ -250,7 +250,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short idx_re = 0;
                 if(idx_rg != null) idx_re = idx_rg.get_reg();
 
-                bytes.write(x86_64_v2.rex(0, reg, idx_re));
+                bytes.write(x86_64_v2.rex(0, reg, idx_re, base_reg));
                 // opcode
                 bytes.write(0x03);
 
