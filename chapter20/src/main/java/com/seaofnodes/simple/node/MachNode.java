@@ -22,6 +22,9 @@ public interface MachNode {
     // Sometimes these Projs have no uses, and just exist to kill a register.
     default RegMask outregmap(int idx) { throw Utils.TODO(); }
 
+    // Set of killed registers
+    default RegMask killmap() { return null; }
+
     // If this op updates the same register as input 'idx', e.g. many X86 "R1 +=
     // R2" style ops.  This forces the output live range to equal the input live
     // range, so they both get the same register.

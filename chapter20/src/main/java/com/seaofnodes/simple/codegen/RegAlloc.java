@@ -3,7 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 
 /**
@@ -52,6 +52,8 @@ public class RegAlloc {
 
     // Top-level program graph structure
     final CodeGen _code;
+
+    public int _spills, _spillScaled;
 
     // -----------------------
     // Live ranges with self-conflicts or no allowed registers
@@ -208,7 +210,10 @@ public class RegAlloc {
     // Self conflicts require Phis (or two-address).
     // Insert a split after every def.
     boolean splitSelfConflict( LRG lrg ) {
-        for( Node def : lrg._selfConflicts.keySet() ) {
+        // Sort conflict set, so we're deterministic
+        Node[] conflicts = lrg._selfConflicts.keySet().toArray(new Node[0]);
+        Arrays.sort(conflicts, (x,y) -> x._nid - y._nid );
+        for( Node def : conflicts ) {
             assert lrg(def)==lrg; // Might be conflict use-side?
             // Split before each use that extends the live range; i.e. is a
             // Phi or two-address
@@ -354,7 +359,7 @@ public class RegAlloc {
     // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
     private void postColor() {
-        for( Node bb : _code._cfg ) { // For all ops
+        for( CFGNode bb : _code._cfg ) { // For all ops
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
                 if( n instanceof MachNode mach && mach.isSplit() ) {
@@ -363,6 +368,10 @@ public class RegAlloc {
                     if( defreg == usereg ) {
                         n.remove();
                         j--;
+                    } else {
+                        _spills++;
+                        _spillScaled += (1<<bb.loopDepth()*3);
+                        assert _spillScaled >= 0;
                     }
                 }
                 //if( live && n instanceof Mach m )  m.post_allocate();

@@ -268,7 +268,7 @@ public class CodeGen {
 
     // ---------------------------
     // Register Allocation
-    RegAlloc _regAlloc;
+    public RegAlloc _regAlloc;
     public CodeGen regAlloc() {
         assert _phase == Phase.LocalSched;
         _phase = Phase.RegAlloc;
