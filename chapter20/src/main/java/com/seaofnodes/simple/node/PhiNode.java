@@ -100,6 +100,10 @@ public class PhiNode extends Node {
             // Test not running backwards, which can happen for e.g. And's
             if( down.compute().isa(compute()) )
                 return down;
+            in(1).in(1).addDep(this);
+            in(1).in(2).addDep(this);
+            in(2).in(1).addDep(this);
+            in(2).in(2).addDep(this);
             down.kill();
         }
 
