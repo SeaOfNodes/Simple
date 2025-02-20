@@ -182,7 +182,29 @@ public class x86_64_v2 extends Machine {
         }
     }
 
-    public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes, int m_r, MOD mod) {
+    // Looks for best mod locally
+    public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes, int m_r) {
+
+        // Assume indirect
+        MOD mod = MOD.INDIRECT;
+        MOD disp;
+        // is 1 byte enough or need more?
+        if (offset >= -128 && offset <= 127) {
+            disp = MOD.INDIRECT_disp8;
+                                             }
+        else {
+            disp = MOD.INDIRECT_disp32;
+        }
+
+        // needs to pick optimal displacement mod if we want to encode base
+        if(base == RBP || base == R13) {
+            mod = disp;
+        }
+
+        // if there is displacement but base is one of these, switch mod
+        if((base == RSI || base == R08 || base == R09 || base == R10 || base == R11 || base == R12) && offset != 0) {
+            mod = disp;
+        }
 
         // rsp is hard-coded here(0x04)
         bytes.write(x86_64_v2.modrm(mod, reg, m_r));

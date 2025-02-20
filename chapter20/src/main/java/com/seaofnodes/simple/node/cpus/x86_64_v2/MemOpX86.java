@@ -92,7 +92,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
 
                 // rsp is hard-coded here(0x04)
                 // includes modrm internally
-                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
 
                 return bytes.size() - beforeSize;
             }
@@ -110,7 +110,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short base_reg = base_rg.get_reg();
                 short idx_re = idx_rg.get_reg();
 
-                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
                 x86_64_v2.imm(_imm, 32, bytes);
 
                 return bytes.size() - beforeSize;
@@ -143,7 +143,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 }
 
                 // includes modrm
-                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
                 if(im_form) {
                     x86_64_v2.imm(_imm, 32, bytes);
                 }
@@ -177,7 +177,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 }
 
                 // includes modrm
-                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
                 if(im_form) {
                     x86_64_v2.imm(_imm, 32, bytes);
                 }
@@ -204,7 +204,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short base_reg = base_rg.get_reg();
                 short idx_re = idx_rg.get_reg();
 
-                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
 
                 return bytes.size() - beforeSize;
             }
@@ -227,7 +227,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short base_reg = base_rg.get_reg();
                 short idx_re = idx_rg.get_reg();
 
-                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04, x86_64_v2.MOD.INDIRECT);
+                x86_64_v2.sibAdr(_scale, idx_re, base_reg, _off, reg, bytes, 0x04);
 
                 return bytes.size() - beforeSize;
             }
