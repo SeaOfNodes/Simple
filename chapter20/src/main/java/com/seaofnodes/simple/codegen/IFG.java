@@ -136,7 +136,8 @@ abstract public class IFG {
             // ranges *must* avoid this register, so instead of interfering we
             // remove the single register from the other rmask.
             RegMask mustMask = null;
-            boolean mustDef = n instanceof MachNode m && (mustMask=m.outregmap()).size1(); // Must define this register
+            boolean mustDef  = n instanceof MachNode m && (mustMask=m.outregmap()).size1(); // Must define this register
+            RegMask killMask = n instanceof MachNode m ? m.killmap() : null;
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
                 assert tlrg.leader();
@@ -150,6 +151,9 @@ abstract public class IFG {
                         if( !tlrg.clr(mustMask.firstColor()) )
                             alloc.fail(tlrg);
                     } else addIFG(lrg,tlrg); // Add interference
+                // Always, lrg cannot use kills
+                if( killMask != null && !tlrg.sub(killMask) )
+                    alloc.fail(tlrg);
             }
         }
 
@@ -290,6 +294,14 @@ abstract public class IFG {
 
         // Pull all lrgs from IFG, in trivial order if possible
         while( sptr < color_stack.length ) {
+            // If pulling a trivial spill lrg, pick a different trivial
+            // non-spill lrg so the spill lrg might be able to bias color.
+            int idx=sptr;
+            while( idx < swork && (color_stack[idx]._splitDef!=null || color_stack[idx]._splitUse!=null) )
+                idx++;
+            if( idx < swork && idx != sptr )
+                swap(color_stack,sptr,idx); // Delay this trivial LRG
+
             // Out of trivial colorable, pick an at-risk to pull
             if( sptr==swork )
                 swap(color_stack,sptr,pickRisky(color_stack,sptr));

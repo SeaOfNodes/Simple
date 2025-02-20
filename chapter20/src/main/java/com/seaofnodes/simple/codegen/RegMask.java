@@ -15,10 +15,19 @@ public class RegMask {
     public RegMask(long x ) { _bits = x; }
     private RegMask() { _bits = 0; }
 
-    // Copy-on-write
+    // AND, with copy-on-write if changing
     RegMask and( RegMask mask ) {
         if( mask==null ) return this;
         long bits = _bits & mask._bits;
+        if( bits==_bits ) return this;
+        if( bits==mask._bits ) return mask;
+        if( bits==0 ) return EMPTY;
+        // Update-in-place a mutable mask, or make a defensive copy
+        return null;
+    }
+    RegMask sub( RegMask mask ) {
+        if( mask==null ) return this;
+        long bits = _bits & ~mask._bits;
         if( bits==_bits ) return this;
         if( bits==mask._bits ) return mask;
         if( bits==0 ) return EMPTY;
@@ -72,6 +81,11 @@ class RegMaskRW extends RegMask {
     @Override RegMaskRW and( RegMask mask ) {
         if( mask==null ) return this;
         _bits &= mask._bits;
+        return this;
+    }
+    @Override RegMaskRW sub( RegMask mask ) {
+        if( mask==null ) return this;
+        _bits &= ~mask._bits;
         return this;
     }
 }

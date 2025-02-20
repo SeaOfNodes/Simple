@@ -53,7 +53,7 @@ abstract public class BuildLRG {
 
                 }
 
-                // MultiNodes have projections which set/kill registers
+                // MultiNodes have projections which set registers
                 if( n instanceof MultiNode )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )

@@ -37,9 +37,10 @@ public class x86_64_v2 extends Machine {
     public static RegMask RPC_MASK = new RegMask(1L<<RPC);
 
 
-    public static RegMask RDI_MASK = new RegMask(1L<<RDI);
+    public static RegMask RAX_MASK = new RegMask(1L<<RAX);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
     public static RegMask RDX_MASK = new RegMask(1L<<RDX);
+    public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask R08_MASK = new RegMask(1L<<R08);
     public static RegMask R09_MASK = new RegMask(1L<<R09);
     public static RegMask RSI_MASK = new RegMask(1L<<RSI);

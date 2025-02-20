@@ -148,6 +148,15 @@ public class LRG {
         _mask = _mask.copy();   // Need a mutable copy
         return _mask.clr(reg);
     }
+    // Subtract mask (AND complement)
+    // True if still has registers
+    boolean sub( RegMask mask ) {
+        RegMask mask2 = _mask.sub(mask);
+        if( mask2==null )
+            mask2 = _mask.copy().sub(mask);
+        _mask = mask2;
+        return !_mask.isEmpty();
+    }
 
     @Override public String toString() { return toString(new SB()).toString(); }
 
