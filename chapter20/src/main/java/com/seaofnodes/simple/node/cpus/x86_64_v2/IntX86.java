@@ -41,7 +41,6 @@ public class IntX86 extends ConstantNode implements MachNode {
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x00, gpr_reg));
 
-        System.out.println();
         // immediate(4 bytes) 32 bits
         TypeInteger ti = (TypeInteger)_con;
         int imm32 = (int)ti.value();
