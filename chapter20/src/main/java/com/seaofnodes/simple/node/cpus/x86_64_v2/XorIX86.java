@@ -34,7 +34,7 @@ public class XorIX86  extends MachConcreteNode implements MachNode {
         short reg = xor_rg_1.get_reg();
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.rex(0, reg));
+        bytes.write(x86_64_v2.rex(0, reg, 0));
 
         bytes.write(0x83); // opcode
 

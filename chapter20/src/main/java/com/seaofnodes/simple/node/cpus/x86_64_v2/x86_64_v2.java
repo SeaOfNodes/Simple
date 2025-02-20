@@ -159,35 +159,30 @@ public class x86_64_v2 extends Machine {
     public static int sib(int scale, int index, int base) {
         return (scale<< 6) | ((index & 0x07) << 3) | base & 0x07;
     }
-    // reg1 is reg
-    // reg 2 is  r/mem
+    // reg1 is reg(R)
+    // reg 2 is  r/mem(B)
+    // reg3 is X
     // 0 denotes no direct register
-    public static int rex(int reg1, int reg2) {
+    public static int rex(int reg1, int reg2, int reg3) {
         // assuming 64 bit by default so: 0100 1000
-        boolean both = (reg1 >= 8 && reg1 <= 15) && (reg2 >= 8 && reg2 <= 15);
-        boolean firstOnly = (reg1 >= 8 && reg1 <= 15) && !(reg2 >= 8 && reg2 <= 15);
-        boolean secondOnly = !(reg1 >= 8 && reg1 <= 15) && (reg2 >= 8 && reg2 <= 15);
+        boolean firstHigh = (reg1 >= 8 && reg1 <= 15);
+        boolean secondHigh = (reg2 >= 8 && reg2 <= 15);
+        boolean thirdHigh = (reg3 >= 8 && reg3 <= 15);
 
-        if (both) {
-            // 0100 1101
-            return REX_WRB;
-        } else if (firstOnly) {
-            // 0100 1100
-            return REX_WR;
-        } else if (secondOnly) {
-            // 0100 1001
-            return REX_WB;
-        } else {
-            return REX_W;
-        }
+        int rex = x86_64_v2.REX_W; // Default REX.W
+
+        if (firstHigh) rex |= 0b00000100; // REX.R
+        if (secondHigh) rex |= 0b00000001; // REX.B
+        if (thirdHigh) rex |= 0b00000010; // REX.X
+
+        return rex;
     }
 
     // Looks for best mod locally
     public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes, int m_r) {
-
         // Assume indirect
         MOD mod = MOD.INDIRECT;
-        MOD disp;
+        MOD disp = MOD.INDIRECT;
         // is 1 byte enough or need more?
         if (offset >= -128 && offset <= 127) {
             disp = MOD.INDIRECT_disp8;
@@ -206,7 +201,9 @@ public class x86_64_v2 extends Machine {
             mod = disp;
         }
 
+
         // rsp is hard-coded here(0x04)
+        if(disp != mod) mod = disp;
         bytes.write(x86_64_v2.modrm(mod, reg, m_r));
         bytes.write(x86_64_v2.sib(scale,  index, base));
 

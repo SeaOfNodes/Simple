@@ -28,7 +28,7 @@ public class SplitX86 extends MachConcreteNode implements MachNode {
         short split_reg_2 = reg_1_rg.get_reg();
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.rex(split_reg_1, split_reg_2));
+        bytes.write(x86_64_v2.rex(split_reg_1, split_reg_2, 0));
         bytes.write(0x8B); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, split_reg_1, split_reg_2));

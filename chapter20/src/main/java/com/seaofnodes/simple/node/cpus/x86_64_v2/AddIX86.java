@@ -33,7 +33,7 @@ public class AddIX86 extends MachConcreteNode implements MachNode {
         short reg = add_rg.get_reg();
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.rex(0, reg));
+        bytes.write(x86_64_v2.rex(0, reg, 0));
         bytes.write(0x81); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, reg));
