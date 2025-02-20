@@ -11,10 +11,16 @@ import java.io.ByteArrayOutputStream;
 public class DivX86 extends MachConcreteNode implements MachNode {
     DivX86( Node div ) { super(div); }
 
+    // Todo: when idiv is used regalloc should not depend on rdx since its going to be sign extended
+    // %11 = %8 / %9
+    // %10 = mach_temp [RDX] // consuume rdx and it cannot be used
+    // %11 = idiv %8, %9, %10
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
-        assert i==1 || i==2;
-        return x86_64_v2.RMASK; }
+        if(i == 1) return x86_64_v2.RET_MASK;
+        if(i == 2) return x86_64_v2.DMASK; // no rdx in input
+        throw Utils.TODO();
+    }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     // Output is same register as input#1
@@ -23,7 +29,7 @@ public class DivX86 extends MachConcreteNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
     // REX.W + F7 /7	IDIV r/m64
-        LRG div_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
+        LRG div_rg_1 = CodeGen.CODE._regAlloc.lrg(in(2));
         short reg1 = div_rg_1.get_reg();
 
         // sign extend rax before 128/64 bits division

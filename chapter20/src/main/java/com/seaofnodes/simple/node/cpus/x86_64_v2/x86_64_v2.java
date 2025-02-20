@@ -27,6 +27,8 @@ public class x86_64_v2 extends Machine {
     public static RegMask RMASK = new RegMask(0b1111111111111111);
     // No RSP in the *write* general set.
     public static RegMask WMASK = new RegMask(0b1111111111101111);
+    // No RDX for division in inputs
+    public static RegMask DMASK = new RegMask(0b1111111111111011);
     // Xmm register mask
     public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
 
@@ -186,10 +188,7 @@ public class x86_64_v2 extends Machine {
         bytes.write(x86_64_v2.modrm(mod, reg, m_r));
         bytes.write(x86_64_v2.sib(scale,  index, base));
 
-        if(offset != 0) {
-            // long truncating here BAD!!
-            bytes.write(offset);
-        }
+        bytes.write(offset);
     }
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
