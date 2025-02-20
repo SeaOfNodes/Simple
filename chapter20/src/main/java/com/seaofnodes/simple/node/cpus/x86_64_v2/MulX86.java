@@ -30,8 +30,7 @@ public class MulX86 extends MachConcreteNode implements MachNode {
         short reg2 = mul_rg_2.get_reg();
 
         int beforeSize = bytes.size();
-
-        bytes.write(x86_64_v2.rex(reg1, reg2, 0, 0));
+        bytes.write(x86_64_v2.rex(reg1, reg2, 0));
 
         bytes.write(0x0F); // opcode
         bytes.write(0xAF); // opcode

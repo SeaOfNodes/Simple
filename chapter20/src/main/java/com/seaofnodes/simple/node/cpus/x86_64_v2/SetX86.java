@@ -28,18 +28,24 @@ public class SetX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // 0F ...
+        // REX + 0F 94
         LRG set_rg = CodeGen.CODE._regAlloc.lrg(this);
         short reg = set_rg.get_reg();
 
 //        // Clear bits prior
 //        x86_64_v2.clear_bits(reg, reg, bytes);
 
+        bytes.write(x86_64_v2.rex(reg, 0, 0));
         bytes.write(0x0F); // opcode
 
         bytes.write(x86_64_v2.setop(_bop));
-
+        System.out.print("Before mod: ");
+        x86_64_v2.print_as_hex(bytes);
+        System.out.println();
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, reg));
+        System.out.print("After mod: ");
+        x86_64_v2.print_as_hex(bytes);
+        System.out.println();
         // low 8 bites are set, now zero extend for next instruction
         x86_64_v2.zero_extend(reg, reg, bytes);
         return bytes.size();

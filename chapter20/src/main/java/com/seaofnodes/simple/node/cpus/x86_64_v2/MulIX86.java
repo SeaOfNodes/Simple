@@ -32,7 +32,7 @@ public class MulIX86 extends MachConcreteNode  implements MachNode {
 
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.rex(reg1, reg1, 0, 0));
+        bytes.write(x86_64_v2.rex(reg1, reg1, 0));
         bytes.write(0x69); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg1));

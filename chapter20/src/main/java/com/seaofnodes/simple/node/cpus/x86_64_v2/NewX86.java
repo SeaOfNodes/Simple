@@ -35,7 +35,7 @@ public class NewX86 extends NewNode implements MachNode {
         int beforeSize = bytes.size();
 
         bytes.write(0xE8);
-        bytes.write(x86_64_v2.imm(0, 32, bytes)); //offset
+        x86_64_v2.imm(0, 32, bytes); //offset
 
         return bytes.size() - beforeSize;
     }

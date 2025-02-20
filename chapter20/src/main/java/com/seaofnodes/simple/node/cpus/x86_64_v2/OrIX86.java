@@ -36,7 +36,7 @@ public class OrIX86  extends MachConcreteNode implements MachNode {
         short reg = ori_reg.get_reg();
         int beforeSize = bytes.size();
 
-        bytes.write(x86_64_v2.rex(0, reg, 0, 0));
+        bytes.write(x86_64_v2.rex(0, reg, 0));
         bytes.write(0x81); // opcode
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x01, reg));

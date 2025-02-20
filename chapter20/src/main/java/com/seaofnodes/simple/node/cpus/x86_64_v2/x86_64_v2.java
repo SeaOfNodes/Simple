@@ -166,24 +166,23 @@ public class x86_64_v2 extends Machine {
     // reg4 is X(base)
 
     // 0 denotes no direct register
-    public static int rex(int reg1, int reg2, int reg3, int reg4) {
+    public static int rex(int reg, int base_rm, int index) {
         // assuming 64 bit by default so: 0100 1000
-        boolean firstHigh = (reg1 >= 8 && reg1 <= 15);
-        boolean secondHigh = (reg2 >= 8 && reg2 <= 15);
-        boolean thirdHigh = (reg3 >= 8 && reg3 <= 15);
-        boolean fourthHigh = (reg4 >= 8 && reg4 <= 15);
+        boolean firstHigh = (reg >= 8 && reg <= 15);
+        boolean secondHigh = (base_rm >= 8 && base_rm <= 15);
+        boolean thirdHigh = (index >= 8 && index <= 15);
 
         int rex = x86_64_v2.REX_W; // Default REX.W
 
         if (firstHigh) rex |= 0b00000100; // REX.R
         if (secondHigh) rex |= 0b00000001; // REX.B
         if (thirdHigh) rex |= 0b00000010; // REX.X
-        if (fourthHigh) rex |= 0b00000001; // REX.B (reg2(r/m) m and reg4(base) are mutually exclusive)
         return rex;
     }
 
+    // -1 denotes empty value, not set - note 0 is different from -1 as it can represent rax.
     // Looks for best mod locally
-    public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes, int m_r) {
+    public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes) {
         // Assume indirect
         MOD mod = MOD.INDIRECT;
         MOD disp = MOD.INDIRECT;
@@ -205,10 +204,16 @@ public class x86_64_v2 extends Machine {
             mod = disp;
         }
 
-
         // rsp is hard-coded here(0x04)
         if(disp != mod) mod = disp;
-        bytes.write(x86_64_v2.modrm(mod, reg, m_r));
+        // special encoding for [base +offset]
+        if(index == -1) {
+            bytes.write(x86_64_v2.modrm(mod, 0, base));
+            imm(offset, 32, bytes);
+            return;
+        }
+
+        bytes.write(x86_64_v2.modrm(mod, reg, 0x04));
         bytes.write(x86_64_v2.sib(scale,  index, base));
 
         bytes.write(offset);

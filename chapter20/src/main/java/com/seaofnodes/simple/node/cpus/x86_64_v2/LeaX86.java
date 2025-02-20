@@ -34,23 +34,36 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
         short reg = lea_rg.get_reg();
 
         int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.rex(0, reg, 0, 0));
-        bytes.write(0x8D); // opcode
 
         LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(1));
+
         LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(2));
 
         short base_reg = base_rg.get_reg();
         short idx_re = idx_rg.get_reg();
 
-        // rsp is hard-coded here(0x04)
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, reg, 0x04));
-        bytes.write(x86_64_v2.sib(_scale,  idx_re, base_reg));
+        // base is null
+        // just do: [(index * s) + disp32]
+        if(in(1) == null) {
+            bytes.write(x86_64_v2.rex(reg, idx_re, 0));
+            bytes.write(0x8D); // opcode
 
-        if(_offset != 0) {
-            // long truncating here BAD!!
-            bytes.write((int)_offset);
+            bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT_disp32, reg, 0x04));
+            bytes.write(x86_64_v2.sib(_scale, idx_re, x86_64_v2.RBP));
+            // early return
+            return bytes.size() - beforeSize;
         }
+
+
+        bytes.write(x86_64_v2.rex(reg, idx_re, base_reg));
+        bytes.write(0x8D); // opcode
+
+        // rsp is hard-coded here(0x04)
+        x86_64_v2.sibAdr(_scale, idx_re, base_reg, (int)_offset, reg, bytes);
+
+        // long truncating here BAD!!
+        bytes.write((int)_offset);
+
         return bytes.size() - beforeSize;
     }
 
