@@ -27,7 +27,8 @@ public class CallEndX86 extends CallEndNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // encodes to nothing
+        return 0;
     }
 
     @Override public void asm(CodeGen code, SB sb) {  }

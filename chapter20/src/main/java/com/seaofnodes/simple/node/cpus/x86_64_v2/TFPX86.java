@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -20,7 +21,20 @@ public class TFPX86 extends ConstantNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        int beforeSize = bytes.size();
+        // REX.W + 8D /r	LEA r64,m
+        // opcode
+        LRG tfp_lrg = CodeGen.CODE._regAlloc.lrg(this);
+
+        short tfp_reg = tfp_lrg.get_reg();
+        bytes.write(x86_64_v2.rex(0, 0));
+        bytes.write(0x8D);
+
+        // hard-code rip here
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, tfp_reg, 0x05));
+        x86_64_v2.imm(0, 32, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     @Override public boolean isClone() { return true; }
