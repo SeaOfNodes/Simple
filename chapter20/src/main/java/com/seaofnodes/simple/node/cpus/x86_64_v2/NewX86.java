@@ -30,8 +30,14 @@ public class NewX86 extends NewNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // MOV [mem], reg:
-        throw Utils.TODO();
+        // E8 cd    CALL rel32;
+
+        int beforeSize = bytes.size();
+
+        bytes.write(0xE8);
+        bytes.write(x86_64_v2.imm(0, 32, bytes)); //offset
+
+        return bytes.size() - beforeSize;
     }
 
     // General form: "alloc #bytes"
