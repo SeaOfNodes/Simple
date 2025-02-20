@@ -27,7 +27,7 @@ public abstract class ListScheduler {
         }
         void free() { _n = null; FREE.push(this); }
 
-        static XSched get(Node n) { return n==null ? null : XS.get(n); }
+        static XSched get(Node n) { return n==null ? null : XS.get(n instanceof ProjNode && !(n.in(0) instanceof CallEndNode) ? n.in(0) : n); }
 
         private XSched init(CFGNode bb, Node n) {
             _n = n;
@@ -39,11 +39,11 @@ public abstract class ListScheduler {
                 for( Node def : n._inputs )
                     if( def != null && def != bb ) {
                         if( def.cfg0()==bb ) _bcnt++; // Raise block-local input count
-                        else                 _ruse = true;
+                        else if( !def.isMem() ) _ruse = true; // Remote register user
                     }
             // Count remote outputs and allowed registers
             if( n instanceof MultiNode )
-                for( Node use : n._inputs )
+                for( Node use : n._outputs )
                     computeSingleRDef(bb,use);
             else
                 computeSingleRDef(bb,n);
@@ -107,11 +107,11 @@ public abstract class ListScheduler {
         XS.clear();
         for( CFGNode bb : code._cfg )
             if( bb.blockHead() )
-                local(bb);
+                local(bb,false);
     }
 
     // Classic list scheduler
-    private static void local( CFGNode bb ) {
+    private static void local( CFGNode bb, boolean trace ) {
         assert XS.isEmpty();
         int len = bb.nOuts();
 
@@ -136,7 +136,7 @@ public abstract class ListScheduler {
         int sched = 0;
         while( sched < len ) {
             assert sched < ready;
-            int  pick = best(bb._outputs,sched,ready);  // Pick best
+            int  pick = best(bb._outputs,sched,ready,trace);  // Pick best
             Node best = bb._outputs.swap(pick,sched++); // Swap best to head of ready and move into the scheduled set
             // Lower ready count of users, and since projections are ready as
             // soon as their multi is ready, lower those now too.
@@ -155,7 +155,7 @@ public abstract class ListScheduler {
     }
 
     private static int ready(CFGNode bb, Node use, int ready) {
-        if( use!=null && !(use instanceof PhiNode) && use.in(0)==bb && XSched.get(use).decIsReady() )
+        if( use!=null && use.in(0)==bb && !(use instanceof PhiNode) && XSched.get(use).decIsReady() )
             bb._outputs.set(ready++, use); // Became ready, move into ready set
             //bb._outputs.swap(ready++,use);  // Became ready, move into ready set
         return ready;
@@ -163,14 +163,17 @@ public abstract class ListScheduler {
 
 
     // Pick best between sched and ready.
-    private static int best( Ary<Node> blk, int sched, int ready ) {
+    private static int best( Ary<Node> blk, int sched, int ready, boolean trace ) {
         int pick = sched;
         int score = score(blk.at(pick));
+        if( trace ) { System.out.printf("%4d ",score); System.out.println(blk.at(sched)); }
         for( int i=sched+1; i<ready; i++ ) {
             int nscore = score(blk.at(i));
+            if( trace ) { System.out.printf("%4d ",nscore); System.out.println(blk.at(i)); }
             if( nscore > score )
                 { score = nscore; pick = i; }
         }
+        if( trace ) { System.out.print("Pick: "+blk.at(pick)+"\n\n"); }
         return pick;
     }
 
@@ -202,7 +205,7 @@ public abstract class ListScheduler {
         XSched xn = XSched.get(n);
         // If defining a remote value, just generically stall alot.  Value is
         // used in a later block, can we delay until the end of this block?
-        if( xn._rdef ) score = 200;
+        if( xn._rdef ) score = 200; // If defining a remote value, just generically stall alot
         if( n instanceof MultiNode ) {
             for( Node use : n._outputs )
                 singleUseNotReady( use, xn._single );
@@ -231,6 +234,10 @@ public abstract class ListScheduler {
     // If true, stalling 'n' might reduce 'n's lifetime.
     // Return 0 for false, 1 if true, 10 if also single register
     private static void singleUseNotReady( Node n, boolean single ) {
+        // If can rematerialize, assume allocator will split into private uses
+        // as needed.  No impact on local scheduling.
+        if( n.nOuts()>1 && n instanceof MachNode mach && mach.isClone() )
+            return;
         for( Node use : n.outs() ) {
             XSched xu = XSched.get(use);
             if( xu != null && xu._bcnt > 0 )

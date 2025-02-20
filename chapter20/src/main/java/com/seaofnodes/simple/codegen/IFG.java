@@ -1,9 +1,8 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import java.util.Arrays;
+
 import java.util.BitSet;
 import java.util.IdentityHashMap;
 
@@ -137,10 +136,11 @@ abstract public class IFG {
             // ranges *must* avoid this register, so instead of interfering we
             // remove the single register from the other rmask.
             RegMask mustMask = null;
-            boolean mustDef = n instanceof MachNode m && (mustMask=m.outregmap()).size1(); // Must define this register
+            boolean mustDef  = n instanceof MachNode m && (mustMask=m.outregmap()).size1(); // Must define this register
+            RegMask killMask = n instanceof MachNode m ? m.killmap() : null;
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
-                assert !tlrg.unified();
+                assert tlrg.leader();
                 // Skip self
                 if( lrg != tlrg &&
                     // And register sets overlap
@@ -151,6 +151,9 @@ abstract public class IFG {
                         if( !tlrg.clr(mustMask.firstColor()) )
                             alloc.fail(tlrg);
                     } else addIFG(lrg,tlrg); // Add interference
+                // Always, lrg cannot use kills
+                if( killMask != null && !tlrg.sub(killMask) )
+                    alloc.fail(tlrg);
             }
         }
 
@@ -174,7 +177,7 @@ abstract public class IFG {
                 if( ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
-                        assert !tlrg.unified();
+                        assert tlrg.leader();
                         Node live = TMP.get(tlrg);
                         if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
                             // Look at live value and see if it must-def same register.
@@ -257,8 +260,9 @@ abstract public class IFG {
 
         // Convert the 2-D array of bits (a 1-D array of BitSets) into an
         // adjacency matrix.
-        int maxlrg = alloc._LRGS.length;
+        int maxlrg = alloc._LRGS.length, nlrgs=0;
         for( int i=1; i<maxlrg; i++ ) {
+            if( alloc._LRGS[i] != null ) nlrgs++;
             BitSet ifg = IFG.atX(i);
             if( ifg != null ) {
                 LRG lrg0 = alloc._LRGS[i];
@@ -277,21 +281,32 @@ abstract public class IFG {
         // - trivial, removed from IFG;           color_stack[0 to sptr]
         // - trivial, not (yet) removed from IFG; color_stack[sptr to swork]
         // - unknown;                             color_stack[work to maxlrg]
-        LRG[] color_stack = Arrays.copyOf(alloc._LRGS, alloc._LRGS.length);
-        // Gather trivial not-removed set.
-        int sptr = 1, swork = 1;
-        for( LRG lrg : alloc._LRGS )
-            if( lrg!=null && lrg.lowDegree() )
-                swap( color_stack, swork++, lrg._lrg );
+
+        // Gather all not-unified (not-null); seperate trivial and non-trivial set.
+        int sptr = 0, swork = 0;
+        LRG[] color_stack = new LRG[nlrgs];
+        for( int i=0, j=0; i<maxlrg; i++ ) {
+            LRG lrg = alloc._LRGS[i];
+            if( lrg==null ) continue; // Unified lrgs are null here
+            color_stack[j++] = lrg;
+            if( lrg.lowDegree() ) swap(color_stack, swork++, j-1);
+        }
 
         // Pull all lrgs from IFG, in trivial order if possible
         while( sptr < color_stack.length ) {
+            // If pulling a trivial spill lrg, pick a different trivial
+            // non-spill lrg so the spill lrg might be able to bias color.
+            int idx=sptr;
+            while( idx < swork && (color_stack[idx]._splitDef!=null || color_stack[idx]._splitUse!=null) )
+                idx++;
+            if( idx < swork && idx != sptr )
+                swap(color_stack,sptr,idx); // Delay this trivial LRG
+
             // Out of trivial colorable, pick an at-risk to pull
             if( sptr==swork )
                 swap(color_stack,sptr,pickRisky(color_stack,sptr));
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
-            if( lrg==null ) continue;
             // If sptr was swork, then pulled an at-risk lrg
             if( sptr > swork )
                 swork = sptr;
@@ -347,8 +362,9 @@ abstract public class IFG {
         // Check chain of splits up the def-chain.  Take first allocated
         // register, and if it's available in the mask, take it.
         Node split = lrg._splitDef;
-        int idx=1;
-        while( split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0) ) {
+        int idx=1, cnt=0;
+        while( (split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0)) || split instanceof PhiNode ) {
+            if( cnt++ > 10 ) break;
             short bias = alloc.lrg(split)._reg;
             if( bias != -1 )
                 if( mask.test(bias) ) return bias; // Good bias
@@ -358,7 +374,9 @@ abstract public class IFG {
         }
         // Same check for chain of splits down the use-chain.
         split = lrg._splitUse;
-        while( split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0) ) {
+        cnt=0;
+        while( (split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0)) || split instanceof PhiNode ) {
+            if( cnt++ > 10 ) break;
             short bias = alloc.lrg(split)._reg;
             if( bias != -1 )
                 if( mask.test(bias) ) return bias; // Good bias
@@ -372,6 +390,7 @@ abstract public class IFG {
     // single-use that are not adjacent.
     private static int pickRisky( LRG[] color_stack, int sptr ) {
         return sptr;
+        //throw Utils.TODO();
     }
 
     private static void swap( LRG[] ary, int x, int y ) {

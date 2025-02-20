@@ -43,9 +43,10 @@ public class x86_64_v2 extends Machine {
     public static RegMask RPC_MASK = new RegMask(1L<<RPC);
 
 
-    public static RegMask RDI_MASK = new RegMask(1L<<RDI);
+    public static RegMask RAX_MASK = new RegMask(1L<<RAX);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
     public static RegMask RDX_MASK = new RegMask(1L<<RDX);
+    public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask R08_MASK = new RegMask(1L<<R08);
     public static RegMask R09_MASK = new RegMask(1L<<R09);
     public static RegMask RSI_MASK = new RegMask(1L<<RSI);
@@ -299,7 +300,7 @@ public class x86_64_v2 extends Machine {
         case BoolNode     bool  -> cmp(bool);
         case CallEndNode  cend  -> new CallEndX86(cend);
         case CallNode     call  -> call(call);
-        case CastNode     cast  -> new CastNode(cast);
+        case CastNode     cast  -> new CastX86(cast);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
@@ -435,10 +436,10 @@ public class x86_64_v2 extends Machine {
         case TypeInteger ti  -> new IntX86(con);
         case TypeFloat   tf  -> new FltX86(con);
         case TypeFunPtr  tfp -> new TFPX86(con);
-        case TypeMemPtr  tmp -> new ConstantNode(con);
+        case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntX86(con) : new ConstantNode(con);
         };
     }
 

@@ -29,9 +29,9 @@ abstract public class BuildLRG {
                     if( lrg==null ) lrg = alloc.newLRG(n);
                     if( phi instanceof MachNode mach ) defLRG(alloc,n);
                     // Pass 2: everybody uses the same LRG
-                    alloc.union(lrg,phi);
+                    lrg=alloc.union(lrg,phi);
                     for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
-                        alloc.union(lrg,n.in(i));
+                        lrg=alloc.union(lrg,n.in(i));
                     if( lrg._mask!=null && lrg._mask.isEmpty() )
                         alloc.fail(lrg);
 
@@ -53,7 +53,7 @@ abstract public class BuildLRG {
 
                 }
 
-                // MultiNodes have projections which set/kill registers
+                // MultiNodes have projections which set registers
                 if( n instanceof MultiNode )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )

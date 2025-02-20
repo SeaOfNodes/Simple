@@ -2,9 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.PhiNode;
 
 import java.util.IdentityHashMap;
 
@@ -62,7 +60,7 @@ public class LRG {
 
     LRG( short lrg ) { _lrg = lrg; _reg = -1; }
 
-    boolean unified() { return _leader!=null; }
+    boolean leader() { return _leader == null; }
 
     LRG find() {
         if( _leader==null ) return this; // I am the leader
@@ -84,7 +82,10 @@ public class LRG {
     }
 
     LRG union( LRG lrg ) {
-        if( lrg==null || lrg==this ) return this;
+        assert leader();
+        if( lrg==null ) return this;
+        lrg = lrg.find();
+        if( lrg==this ) return this;
         return _lrg < lrg._lrg ? _union(lrg) : lrg._union(this);
     }
     private LRG _union( LRG lrg ) {
@@ -147,6 +148,15 @@ public class LRG {
         if( _mask.clr(reg) ) return true;
         _mask = _mask.copy();   // Need a mutable copy
         return _mask.clr(reg);
+    }
+    // Subtract mask (AND complement)
+    // True if still has registers
+    boolean sub( RegMask mask ) {
+        RegMask mask2 = _mask.sub(mask);
+        if( mask2==null )
+            mask2 = _mask.copy().sub(mask);
+        _mask = mask2;
+        return !_mask.isEmpty();
     }
 
     @Override public String toString() { return toString(new SB()).toString(); }

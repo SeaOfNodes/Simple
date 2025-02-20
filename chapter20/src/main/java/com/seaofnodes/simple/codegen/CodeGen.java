@@ -1,4 +1,4 @@
- package com.seaofnodes.simple.codegen;
+package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
@@ -21,7 +21,7 @@ public class CodeGen {
         Parse,                  // Parse ASCII text into Sea-of-Nodes IR
         Opto,                   // Run ideal optimizations
         TypeCheck,              // Last check for bad programs
-        InstructionSelection,   // Convert to target hardware nodes
+        InstSelect,             // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
         RegAlloc;               // Register allocation
@@ -175,7 +175,7 @@ public class CodeGen {
     // Convert to target hardware nodes
     public CodeGen instSelect( String cpu, String callingConv ) {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
-        _phase = Phase.InstructionSelection;
+        _phase = Phase.InstSelect;
 
         _callingConv = switch(callingConv) {
         case "SystemV" -> CallingConv.SystemV;
@@ -248,7 +248,7 @@ public class CodeGen {
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase.ordinal() <= Phase.InstructionSelection.ordinal();
+        assert _phase.ordinal() <= Phase.InstSelect.ordinal();
         _phase = Phase.Schedule;
 
         // Build the loop tree, fix never-exit loops
@@ -306,7 +306,7 @@ public class CodeGen {
 
     // ---------------------------
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }
-    String asm() { return asm(new SB()).toString(); }
+    public String asm() { return asm(new SB()).toString(); }
 
 
     // Testing shortcuts

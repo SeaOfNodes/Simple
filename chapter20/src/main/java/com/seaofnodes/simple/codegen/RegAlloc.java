@@ -3,8 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-
-import java.util.BitSet;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 
 /**
@@ -54,11 +53,13 @@ public class RegAlloc {
     // Top-level program graph structure
     final CodeGen _code;
 
+    public int _spills, _spillScaled;
+
     // -----------------------
     // Live ranges with self-conflicts or no allowed registers
     private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
     void fail( LRG lrg ) {
-        assert !lrg.unified();
+        assert lrg.leader();
         _failed.put(lrg,"");
     }
     boolean success() { return _failed.isEmpty(); }
@@ -170,7 +171,7 @@ public class RegAlloc {
 
     // Split this live range
     boolean split( LRG lrg ) {
-        assert !lrg.unified();  // Already rolled up
+        assert lrg.leader();  // Already rolled up
 
         // Register mask when empty; split around defs and uses with limited
         // register masks.
@@ -195,24 +196,49 @@ public class RegAlloc {
         // require a full pass.
 
         // Split just after def
-        if( lrg._1regDefCnt==1 )
+        if( lrg._1regDefCnt==1 ) {
+            if( lrg._machDef.isClone() )
+                throw Utils.TODO();
             _code._mach.split().insertAfter((Node)lrg._machDef);
+        }
         // Split just before use
         if( lrg._1regUseCnt==1 )
-            _code._mach.split().insertBefore((Node)lrg._machUse, lrg._uidx);
+            insertBefore((Node)lrg._machUse,lrg._uidx);
         return true;
     }
 
     // Self conflicts require Phis (or two-address).
     // Insert a split after every def.
     boolean splitSelfConflict( LRG lrg ) {
-        for( Node def : lrg._selfConflicts.keySet() ) {
-            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) )
-                _code._mach.split().insertAfter(def);
+        // Sort conflict set, so we're deterministic
+        Node[] conflicts = lrg._selfConflicts.keySet().toArray(new Node[0]);
+        Arrays.sort(conflicts, (x,y) -> x._nid - y._nid );
+        for( Node def : conflicts ) {
+            assert lrg(def)==lrg; // Might be conflict use-side?
+            // Split before each use that extends the live range; i.e. is a
+            // Phi or two-address
+            for( int i=0; i<def._outputs._len; i++ ) {
+                Node use = def.out(i);
+                if( use instanceof PhiNode ||
+                        (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
+                    insertBefore( use, use._inputs.find(def) );
+            }
+            // Split after the def, but not if a single split user; as no
+            // conflict is removed splitting yet again.
+            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) ) {
+                // Also no need to split-after-def for clonables, as they will
+                // clone before each use and this def will go dead.
+                if( !(def instanceof MachNode mach && mach.isClone()) )
+                    _code._mach.split().insertAfter(def);
+            }
+            // Split also before Phi slot 1 (and not all inputs), because Phis
+            // extend the live range.
+            // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) )
-                _code._mach.split().insertBefore(phi,1);
+                insertBefore(phi,1);
+            // Split before two-address ops which extend the live range
             if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
-                _code._mach.split().insertBefore(def,mach.twoAddress());
+                insertBefore(def,mach.twoAddress());
         }
         return true;
     }
@@ -248,19 +274,16 @@ public class RegAlloc {
         // uses, if at minLoopDepth or lower, split after def and before use.
         for( Node n : _ns ) {
             if( n instanceof MachNode mach && mach.isSplit() ) continue; // Ignoring splits; since spilling need to split in a deeper loop
-
-            if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 ) {
+            // If this is a 2-address commutable op (e.g. AddX86, MulX86) and the rhs has only a single user,
+            // commute the inputs... which chops the LHS live ranges' upper bound to just the RHS.
+            if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 )
                 n.swap12();
-            }
-
 
             if( lrg(n)==lrg && // This is a LRG def
                 // At loop boundary, or splitting in inner loop
                 (min==max || n.cfg0().loopDepth() <= min) ) {
-                // Clonable constants will be cloned at uses, so delete the def
-                if( n instanceof MachNode mach && mach.isClone() )
-                    n.remove();
-                else
+                // Cloneable constants will be cloned at uses, not after def
+                if( !(n instanceof MachNode mach && mach.isClone()) )
                     // Split after def in min loop nest
                     _code._mach.split().insertAfter(n);
             }
@@ -282,15 +305,11 @@ public class RegAlloc {
                 for( int i=1; i<n.nIns(); i++ ) {
                     if( lrg(n.in(i))==lrg && // This is a LRG use
                         // splitting in inner loop or at loop border
-                        (min==max || n.cfg0().loopDepth() <= min) ) {
+                        (min==max || n.cfg0().loopDepth() <= min) &&
                         // Not a split already
-                        boolean do_it = true;
-                        if(  (n.in( i ) instanceof MachNode mach && mach.isSplit()) )
-                            System.out.println();
+                        !(n.in(i) instanceof MachNode mach && mach.isSplit() && n.in(i).nOuts()==1) )
                         // Split before in this block
-                        if( do_it )
-                            insertBefore( n, i );
-                    }
+                        insertBefore( n, i );
                 }
             }
         }
@@ -340,7 +359,7 @@ public class RegAlloc {
     // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
     private void postColor() {
-        for( Node bb : _code._cfg ) { // For all ops
+        for( CFGNode bb : _code._cfg ) { // For all ops
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
                 if( n instanceof MachNode mach && mach.isSplit() ) {
@@ -349,6 +368,10 @@ public class RegAlloc {
                     if( defreg == usereg ) {
                         n.remove();
                         j--;
+                    } else {
+                        _spills++;
+                        _spillScaled += (1<<bb.loopDepth()*3);
+                        assert _spillScaled >= 0;
                     }
                 }
                 //if( live && n instanceof Mach m )  m.post_allocate();
