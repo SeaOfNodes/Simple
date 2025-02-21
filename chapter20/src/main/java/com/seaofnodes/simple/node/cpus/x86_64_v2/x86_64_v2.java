@@ -210,8 +210,15 @@ public class x86_64_v2 extends Machine {
         if(disp != mod) mod = disp;
         // special encoding for [base +offset]
         if(index == -1) {
-            bytes.write(x86_64_v2.modrm(mod, 0, base));
-            imm(offset, 32, bytes);
+            bytes.write(x86_64_v2.modrm(mod, reg == -1 ? 0 : reg, base));
+
+            // conditional offset encoding
+            if(mod == MOD.INDIRECT_disp8) {
+                x86_64_v2.imm(offset, 8, bytes);
+            } else if(mod == MOD.INDIRECT_disp32) {
+                x86_64_v2.imm(offset, 32, bytes);
+            }
+
             return;
         }
 
@@ -401,7 +408,7 @@ public class x86_64_v2 extends Machine {
         }
 
         // (base + idx) + off
-        return off==0 && scale==1
+        return off==0 && scale==0
             ? new AddX86(add)
             : new LeaX86(add,base,idx,scale,off);
     }

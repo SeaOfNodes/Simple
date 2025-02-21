@@ -13,7 +13,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
     final long _offset;
     LeaX86( Node add, Node base, Node idx, int scale, long offset ) {
         super(add);
-        assert scale==1 || scale==2 || scale==4 || scale==8;
+        assert scale==0 || scale==1 || scale==2 || scale==3;
         _inputs.pop();
         _inputs.pop();
         _inputs.push(base);
@@ -40,27 +40,28 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
         LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(2));
 
 
-        short idx_re = -1;
-        if(idx_rg != null) idx_re = idx_rg.get_reg();
+        short idx_reg = -1;
+        if(idx_rg != null) idx_reg = idx_rg.get_reg();
 
         // base is null
         // just do: [(index * s) + disp32]
         if(in(1) == null) {
-            bytes.write(x86_64_v2.rex(reg, 0, idx_re));
+            bytes.write(x86_64_v2.rex(reg, 0, idx_reg));
             bytes.write(0x8D); // opcode
 
             bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, reg, 0x04));
-            bytes.write(x86_64_v2.sib(_scale, idx_re, x86_64_v2.RBP));
+            bytes.write(x86_64_v2.sib(_scale, idx_reg, x86_64_v2.RBP));
+            x86_64_v2.imm((int)_offset, 32, bytes);
             // early return
             return bytes.size() - beforeSize;
         }
 
         short base_reg = base_rg.get_reg();
-        bytes.write(x86_64_v2.rex(reg, idx_re, base_reg));
+        bytes.write(x86_64_v2.rex(reg, base_reg, idx_reg));
         bytes.write(0x8D); // opcode
 
         // rsp is hard-coded here(0x04)
-        x86_64_v2.sibAdr(_scale, idx_re, base_reg, (int)_offset, reg, bytes);
+        x86_64_v2.sibAdr(_scale, idx_reg, base_reg, (int)_offset, reg, bytes);
 
         return bytes.size() - beforeSize;
     }

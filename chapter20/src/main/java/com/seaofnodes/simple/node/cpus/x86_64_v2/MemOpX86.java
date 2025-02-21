@@ -102,7 +102,8 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 return bytes.size() - beforeSize;
             }
             case StoreX86 storeX86 -> {
-                // REX.W + C7 /0 id	MOV r/m64, imm32
+                // REX.W + C7 /0 id	MOV r/m64, imm32 |
+                // REX.W + 89 /r    MOV r/m64, r64
                 short reg = -1;
                 LRG store_rg = CodeGen.CODE._regAlloc.lrg(in(4));
                 if(store_rg != null) reg = store_rg.get_reg();
@@ -117,10 +118,13 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 if(idx_rg != null) idx_reg = idx_rg.get_reg();
 
                 bytes.write(x86_64_v2.rex(reg, base_reg, idx_reg));
-                bytes.write(0xC7);  // opcode
+
+                // switch on opcode depending on instruction
+                if(store_rg != null) bytes.write(0x89);
+                else bytes.write(0xC7);  // opcode
 
                 x86_64_v2.sibAdr(_scale, idx_reg, base_reg, _off, reg, bytes);
-                x86_64_v2.imm(_imm, 32, bytes);
+                if(store_rg == null) x86_64_v2.imm(_imm, 32, bytes);
 
                 return bytes.size() - beforeSize;
             }
@@ -151,7 +155,6 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                     im_form = true;
                     bytes.write(0x01);
                 }
-
 
                 if(im_form) {
                     reg = 0;
