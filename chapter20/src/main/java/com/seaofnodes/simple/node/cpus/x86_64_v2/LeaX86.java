@@ -39,7 +39,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
 
         LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(2));
 
-        short base_reg = base_rg.get_reg();
+
         short idx_re = idx_rg.get_reg();
 
         // base is null
@@ -54,7 +54,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
             return bytes.size() - beforeSize;
         }
 
-
+        short base_reg = base_rg.get_reg();
         bytes.write(x86_64_v2.rex(reg, idx_re, base_reg));
         bytes.write(0x8D); // opcode
 
