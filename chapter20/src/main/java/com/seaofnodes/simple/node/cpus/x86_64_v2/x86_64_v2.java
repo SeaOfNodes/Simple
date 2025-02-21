@@ -187,11 +187,13 @@ public class x86_64_v2 extends Machine {
         MOD mod = MOD.INDIRECT;
         MOD disp = MOD.INDIRECT;
         // is 1 byte enough or need more?
-        if (offset >= -128 && offset <= 127) {
-            disp = MOD.INDIRECT_disp8;
-                                             }
-        else {
-            disp = MOD.INDIRECT_disp32;
+        if(offset != 0) {
+            if (offset >= -128 && offset <= 127) {
+                disp = MOD.INDIRECT_disp8;
+            }
+            else {
+                disp = MOD.INDIRECT_disp32;
+            }
         }
 
         // needs to pick optimal displacement mod if we want to encode base
@@ -216,7 +218,13 @@ public class x86_64_v2 extends Machine {
         bytes.write(x86_64_v2.modrm(mod, reg, 0x04));
         bytes.write(x86_64_v2.sib(scale,  index, base));
 
-        bytes.write(offset);
+        if(mod == MOD.INDIRECT_disp8) {
+            x86_64_v2.imm(offset, 8, bytes);
+        } else if(mod == MOD.INDIRECT_disp32) {
+            x86_64_v2.imm(offset, 32, bytes);
+        }
+        // no offset if just MOD.INDIRECT
+
     }
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
@@ -384,13 +392,14 @@ public class x86_64_v2 extends Machine {
 
 
     private Node _lea( Node add, Node base, Node idx, long off ) {
-        int scale = 1;
+        int scale = 0;
         if( base instanceof ShlNode && !(idx instanceof ShlNode) ) throw Utils.TODO(); // Bug in canonicalization, should on RHS
         if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
             shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
             idx = shift.in(1);
-            scale = 1 << ((int)tscale.value());
+            scale = ((int)tscale.value());
         }
+
         // (base + idx) + off
         return off==0 && scale==1
             ? new AddX86(add)
