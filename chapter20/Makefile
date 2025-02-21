@@ -75,6 +75,14 @@ fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+# Build a Simple jar
+release:	build/release/simple.jar
+
+# Build a Simple jar
+build/release/simple.jar:	$(main_classes) $(test_classes)
+	@echo "jarring " $@ " because " $?
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	jar cf build/release/simple.jar $(main_classes) $(test_classes)
 
 # Launch viewer
 view:	$(main_classes)
