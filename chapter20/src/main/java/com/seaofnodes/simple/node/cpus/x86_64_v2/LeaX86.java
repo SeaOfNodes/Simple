@@ -35,6 +35,8 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
+        x86_64_v2.assert_imm_32(_offset);
+
         LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(1));
 
         LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(2));

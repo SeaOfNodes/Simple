@@ -82,6 +82,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 LRG load_rg = CodeGen.CODE._regAlloc.lrg(this);
                 if(load_rg != null) reg = load_rg.get_reg();
 
+                x86_64_v2.assert_imm_32(_imm);
+                x86_64_v2.assert_imm_32(_off);
+
                 int beforeSize = bytes.size();
 
                 LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
@@ -108,6 +111,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short reg = -1;
                 LRG store_rg = CodeGen.CODE._regAlloc.lrg(in(4));
                 if(store_rg != null) reg = store_rg.get_reg();
+
+                x86_64_v2.assert_imm_32(_imm);
+                x86_64_v2.assert_imm_32(_off);
 
                 int beforeSize = bytes.size();
 
@@ -138,6 +144,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short reg = -1;
                 LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
                 if(mem_rg != null) reg =  mem_rg.get_reg();
+
+                x86_64_v2.assert_imm_32(_imm);
+                x86_64_v2.assert_imm_32(_off);
 
                 int beforeSize = bytes.size();
 
@@ -178,6 +187,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
                 if(mem_rg != null) reg = mem_rg.get_reg();
 
+                x86_64_v2.assert_imm_32(_imm);
+                x86_64_v2.assert_imm_32(_off);
+
                 int beforeSize = bytes.size();
 
 
@@ -216,6 +228,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
                 if(mem_rg != null) reg = mem_rg.get_reg();
 
+                x86_64_v2.assert_imm_32(_imm);
+                x86_64_v2.assert_imm_32(_off);
+
                 int beforeSize = bytes.size();
 
 //                bytes.write(x86_64_v2.rex(0, reg - x86_64_v2.FLOAT_OFFSET));
@@ -245,6 +260,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
                 short reg = -1;
                 LRG mem_rg = CodeGen.CODE._regAlloc.lrg(this);
                 if(mem_rg != null) reg = mem_rg.get_reg();
+
+                x86_64_v2.assert_imm_32(_imm);
+                x86_64_v2.assert_imm_32(_off);
 
                 int beforeSize = bytes.size();
 

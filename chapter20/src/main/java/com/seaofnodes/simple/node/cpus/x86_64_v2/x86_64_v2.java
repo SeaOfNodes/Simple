@@ -165,6 +165,11 @@ public class x86_64_v2 extends Machine {
     // reg3 is X(index)
     // reg4 is X(base)
 
+    public static void assert_imm_32(long imm_32) {
+        boolean enc32 = imm_32 >= Integer.MIN_VALUE && imm_32 <= Integer.MAX_VALUE;
+        assert enc32;
+    }
+
     // 0 denotes no direct register
     public static int rex(int reg, int base_rm, int index) {
         // assuming 64 bit by default so: 0100 1000
@@ -189,6 +194,7 @@ public class x86_64_v2 extends Machine {
         assert base != -1;
         assert base >= 0 && base < 16;
         assert index != RSP;
+        assert_imm_32(offset);
 
         MOD mod = MOD.INDIRECT;
         // is 1 byte enough or need more?
