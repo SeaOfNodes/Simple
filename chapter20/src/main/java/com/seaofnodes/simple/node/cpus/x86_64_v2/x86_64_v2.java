@@ -185,31 +185,31 @@ public class x86_64_v2 extends Machine {
     public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes) {
         // Assume indirect
         MOD mod = MOD.INDIRECT;
-        MOD disp = MOD.INDIRECT;
         // is 1 byte enough or need more?
         if(offset != 0) {
             if (offset >= -128 && offset <= 127) {
-                disp = MOD.INDIRECT_disp8;
+                mod = MOD.INDIRECT_disp8;
             }
             else {
-                disp = MOD.INDIRECT_disp32;
+                mod = MOD.INDIRECT_disp32;
             }
         }
 
         // needs to pick optimal displacement mod if we want to encode base
-        if(base == RBP || base == R13) {
-            mod = disp;
-        }
-
-        // if there is displacement but base is one of these, switch mod
-        if((base == RSI || base == R08 || base == R09 || base == R10 || base == R11 || base == R12) && offset != 0) {
-            mod = disp;
+        if(mod == MOD.INDIRECT && base == RBP || base == R13) {
+            mod = MOD.INDIRECT_disp8;
         }
 
         // rsp is hard-coded here(0x04)
-        if(disp != mod) mod = disp;
         // special encoding for [base +offset]
         if(index == -1) {
+            // Case for mov reg, [disp] (load)
+            if(base == -1 && scale == 0) {
+                bytes.write(x86_64_v2.modrm(MOD.INDIRECT, reg == -1 ? 0 : reg, 0x4));
+                bytes.write(x86_64_v2.sib(scale,  0x04, 0x05));
+                x86_64_v2.imm(offset, 32, bytes);
+                return;
+            }
             bytes.write(x86_64_v2.modrm(mod, reg == -1 ? 0 : reg, base));
 
             // conditional offset encoding
