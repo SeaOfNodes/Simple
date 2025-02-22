@@ -135,25 +135,24 @@ abstract public class IFG {
             // Single-register defines *must* have their register; other live
             // ranges *must* avoid this register, so instead of interfering we
             // remove the single register from the other rmask.
-            RegMask mustMask = null;
-            boolean mustDef  = n instanceof MachNode m && (mustMask=m.outregmap()).size1(); // Must define this register
             RegMask killMask = n instanceof MachNode m ? m.killmap() : null;
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
                 assert tlrg.leader();
+                // Always, tlrg cannot use kills
+                if( killMask != null && !tlrg.sub(killMask) )
+                    alloc.fail(tlrg);
                 // Skip self
                 if( lrg != tlrg &&
                     // And register sets overlap
                     lrg._mask.overlap(tlrg._mask) )
-                    // Then tlrg and lrg interfere.
-                    // If lrg *must* get its register, make tlrg skip this register.
-                    if( mustDef ) {
-                        if( !tlrg.clr(mustMask.firstColor()) )
-                            alloc.fail(tlrg);
-                    } else addIFG(lrg,tlrg); // Add interference
-                // Always, lrg cannot use kills
-                if( killMask != null && !tlrg.sub(killMask) )
-                    alloc.fail(tlrg);
+                    // Then tlrg and lrg interfere.  If lrg needs the single
+                    // last tlrg register at some point, either tlrg or lrg
+                    // must fail.  If *n* (a subset of lrg) needs the single
+                    // last tlrg register then only tlrg must fail.
+                    if( lrg._mask.size1() && !tlrg.clr(lrg._mask.firstColor()) )
+                        alloc.fail(tlrg);
+                    else addIFG(lrg,tlrg); // Add interference
             }
         }
 
@@ -180,10 +179,8 @@ abstract public class IFG {
                         assert tlrg.leader();
                         Node live = TMP.get(tlrg);
                         if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
-                            // Look at live value and see if it must-def same register.
-                            if( lmach.outregmap().size1() ||
-                                // Deny the register, since it absolutely must be used here
-                                !tlrg.clr(ni_mask.firstColor()) )
+                            // Deny the register, since it absolutely must be used here
+                            if( !tlrg.clr(ni_mask.firstColor()) )
                                 // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there.
                                 // Fail the older live range, it must move its register.
                                 alloc.fail( tlrg );
@@ -192,7 +189,8 @@ abstract public class IFG {
                 }
             }
 
-            // All inputs live
+            // All inputs live - except in self conflicts, where we keep the prior def alive
+            // until it goes.
             TMP.put(lrg1,def);
         }
     }

@@ -173,6 +173,9 @@ public class RegAlloc {
     boolean split( LRG lrg ) {
         assert lrg.leader();  // Already rolled up
 
+        if( lrg._selfConflicts != null )
+            return splitSelfConflict(lrg);
+
         // Register mask when empty; split around defs and uses with limited
         // register masks.
         if( lrg._mask.isEmpty() &&
@@ -180,9 +183,6 @@ public class RegAlloc {
              lrg._1regUseCnt <= 1 &&
             (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
             return splitEmptyMask(lrg);
-
-        if( lrg._selfConflicts != null )
-            return splitSelfConflict(lrg);
 
         // Generic split-by-loop depth.
         return splitByLoop(lrg);
@@ -213,8 +213,20 @@ public class RegAlloc {
         // Sort conflict set, so we're deterministic
         Node[] conflicts = lrg._selfConflicts.keySet().toArray(new Node[0]);
         Arrays.sort(conflicts, (x,y) -> x._nid - y._nid );
+
+        // For all conflicts
         for( Node def : conflicts ) {
-            assert lrg(def)==lrg; // Might be conflict use-side?
+            assert lrg(def)==lrg; // Might be conflict use-side
+            // Split after the Phi which extends the LRG.  Split also before
+            // Phi slot 1 (and not all inputs), because Phis extend the live range.
+            // TODO: split before all inputs (except the last; at least 1 split here must be extra)
+            if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
+                _code._mach.split().insertAfter(def);
+                insertBefore(phi,1);
+            }
+            // Split before two-address ops which extend the live range
+            if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
+                insertBefore(def,mach.twoAddress());
             // Split before each use that extends the live range; i.e. is a
             // Phi or two-address
             for( int i=0; i<def._outputs._len; i++ ) {
@@ -223,22 +235,6 @@ public class RegAlloc {
                         (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
                     insertBefore( use, use._inputs.find(def) );
             }
-            // Split after the def, but not if a single split user; as no
-            // conflict is removed splitting yet again.
-            if( !(def.nOuts()==1 && def.out(0) instanceof MachNode mach && mach.isSplit()) ) {
-                // Also no need to split-after-def for clonables, as they will
-                // clone before each use and this def will go dead.
-                if( !(def instanceof MachNode mach && mach.isClone()) )
-                    _code._mach.split().insertAfter(def);
-            }
-            // Split also before Phi slot 1 (and not all inputs), because Phis
-            // extend the live range.
-            // TODO: split before all inputs (except the last; at least 1 split here must be extra)
-            if( def instanceof PhiNode phi && !(def instanceof ParmNode) )
-                insertBefore(phi,1);
-            // Split before two-address ops which extend the live range
-            if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
-                insertBefore(def,mach.twoAddress());
         }
         return true;
     }
@@ -283,7 +279,9 @@ public class RegAlloc {
                 // At loop boundary, or splitting in inner loop
                 (min==max || n.cfg0().loopDepth() <= min) ) {
                 // Cloneable constants will be cloned at uses, not after def
-                if( !(n instanceof MachNode mach && mach.isClone()) )
+                if( !(n instanceof MachNode mach && mach.isClone()) &&
+                    // Single user is already a split
+                    !(n.nOuts()==1 && n.out(0) instanceof MachNode mach2 && mach2.isSplit()) )
                     // Split after def in min loop nest
                     _code._mach.split().insertAfter(n);
             }
@@ -348,7 +346,12 @@ public class RegAlloc {
     }
 
     void insertBefore(Node n, int i) {
-        Node split = (n.in(i) instanceof MachNode mach && mach.isClone()
+        // Effective block for use
+        Node def = n.in(i);
+        CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
+        if( cfg==def.cfg0() && def instanceof MachNode mach && mach.isSplit() && def.nOuts()==1 )
+            return;
+        Node split = (def instanceof MachNode mach && mach.isClone()
                       ? mach.copy()
                       : _code._mach.split());
         split.insertBefore(n, i);

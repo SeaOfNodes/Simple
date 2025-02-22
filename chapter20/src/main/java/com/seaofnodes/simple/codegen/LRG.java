@@ -91,12 +91,24 @@ public class LRG {
         // Set U-F leader
         lrg._leader = this;
         // Fold together stats
-        if( _machDef == lrg._machDef && _1regDefCnt > 0 ) _1regDefCnt--;
-        if( _machDef == null ) _machDef = lrg._machDef;
+        if( _machDef==null ) {
+            _machDef = lrg._machDef;
+        } else if( lrg._machDef!=null ) {
+            if( _1regDefCnt==0 )
+                _machDef = lrg._machDef;
+            else if( _machDef==lrg._machDef )
+                _1regDefCnt--;
+        }
         _1regDefCnt += lrg._1regDefCnt;
 
-        if( _machUse == lrg._machUse && _uidx == lrg._uidx && _1regUseCnt > 0 ) _1regUseCnt--;
-        if( _machUse == null ) { _machUse = lrg._machUse; _uidx = lrg._uidx; }
+        if( _machUse==null ) {
+            _machUse = lrg._machUse;
+        } else if( lrg._machUse!=null ) {
+            if( _1regUseCnt==0 )
+                _machUse = lrg._machUse;
+            else if( _machUse==lrg._machUse )
+                _1regUseCnt--;
+        }
         _1regUseCnt += lrg._1regUseCnt;
 
         // Fold together masks
