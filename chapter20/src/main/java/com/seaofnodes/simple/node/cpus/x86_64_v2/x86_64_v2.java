@@ -180,10 +180,16 @@ public class x86_64_v2 extends Machine {
         return rex;
     }
 
+    // Function used for encoding indirect memory addresses
+    // Does not always generate SIB byte e.g index == -1.
     // -1 denotes empty value, not set - note 0 is different from -1 as it can represent rax.
     // Looks for best mod locally
-    public static void sibAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes) {
+    public static void indirectAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes) {
         // Assume indirect
+        assert base != -1;
+        assert base >= 0 && base < 16;
+        assert index != RSP;
+
         MOD mod = MOD.INDIRECT;
         // is 1 byte enough or need more?
         if(offset != 0) {
@@ -196,7 +202,7 @@ public class x86_64_v2 extends Machine {
         }
 
         // needs to pick optimal displacement mod if we want to encode base
-        if(mod == MOD.INDIRECT && base == RBP || base == R13) {
+        if(mod == MOD.INDIRECT && (base == RBP || base == R13)) {
             mod = MOD.INDIRECT_disp8;
         }
 
@@ -204,12 +210,13 @@ public class x86_64_v2 extends Machine {
         // special encoding for [base +offset]
         if(index == -1) {
             // Case for mov reg, [disp] (load)
-            if(base == -1 && scale == 0) {
-                bytes.write(x86_64_v2.modrm(MOD.INDIRECT, reg == -1 ? 0 : reg, 0x4));
-                bytes.write(x86_64_v2.sib(scale,  0x04, 0x05));
-                x86_64_v2.imm(offset, 32, bytes);
-                return;
-            }
+            assert base != -1;
+//            if(base == -1 && scale == 0) {
+//                bytes.write(x86_64_v2.modrm(MOD.INDIRECT, reg == -1 ? 0 : reg, 0x4));
+//                bytes.write(x86_64_v2.sib(scale,  0x04, 0x05));
+//                x86_64_v2.imm(offset, 32, bytes);
+//                return;
+//            }
             bytes.write(x86_64_v2.modrm(mod, reg == -1 ? 0 : reg, base));
 
             // conditional offset encoding
@@ -231,7 +238,6 @@ public class x86_64_v2 extends Machine {
             x86_64_v2.imm(offset, 32, bytes);
         }
         // no offset if just MOD.INDIRECT
-
     }
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9

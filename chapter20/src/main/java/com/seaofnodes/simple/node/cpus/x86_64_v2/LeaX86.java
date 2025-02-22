@@ -39,10 +39,10 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
 
         LRG idx_rg = CodeGen.CODE._regAlloc.lrg(in(2));
 
-
         short idx_reg = -1;
         if(idx_rg != null) idx_reg = idx_rg.get_reg();
 
+        assert idx_reg != x86_64_v2.RSP;
         // base is null
         // just do: [(index * s) + disp32]
         if(in(1) == null) {
@@ -61,7 +61,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
         bytes.write(0x8D); // opcode
 
         // rsp is hard-coded here(0x04)
-        x86_64_v2.sibAdr(_scale, idx_reg, base_reg, (int)_offset, reg, bytes);
+        x86_64_v2.indirectAdr(_scale, idx_reg, base_reg, (int)_offset, reg, bytes);
 
         return bytes.size() - beforeSize;
     }
