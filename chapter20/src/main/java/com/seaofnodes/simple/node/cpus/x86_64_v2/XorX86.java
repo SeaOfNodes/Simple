@@ -15,7 +15,7 @@ import java.io.ByteArrayOutputStream;
 public class XorX86 extends MachConcreteNode implements MachNode{
     XorX86(Node xor) {super(xor);}
 
-    @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }
+    @Override public RegMask regmap(int i) {  return x86_64_v2.WMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     // Output is same register as input#1

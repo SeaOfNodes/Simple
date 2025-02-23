@@ -14,7 +14,9 @@ public class OrX86 extends MachConcreteNode implements MachNode{
 
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }
+    @Override public RegMask regmap(int i) {
+        //assert i==1;
+        return x86_64_v2.WMASK; }
 
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 

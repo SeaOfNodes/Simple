@@ -384,6 +384,11 @@ public class x86_64_v2 extends Machine {
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
         if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+
+            if(imm_size(toff.value()) == 64) {
+                return new AddX86(add);
+            }
+
             if( lhs instanceof AddNode ladd )
                 // ((base + (idx << scale)) + off)
                 return _lea(add,ladd.in(1),ladd.in(2),toff.value());
@@ -393,6 +398,7 @@ public class x86_64_v2 extends Machine {
 
             // lhs + rhs1
             if( toff.value()==0 ) return add;
+
             return new AddIX86(add, toff);
         }
         return _lea(add,lhs,rhs,0);
@@ -427,8 +433,11 @@ public class x86_64_v2 extends Machine {
 
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            if(imm_size(ti.value()) == 64) return new AndX86(and);
             return new AndIX86(and, ti);
+        }
+
         return new AndX86(and);
     }
 
@@ -460,8 +469,11 @@ public class x86_64_v2 extends Machine {
             return new CmpMemX86(bool,address(ld),ld.ptr(),idx,off,scale, imm(lhs),val,true);
 
         // Vs immediate
-        if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+        if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            if(x86_64_v2.imm_size(ti.value()) == 64) return new CmpX86(bool);
             return new CmpIX86(bool, ti);
+        }
+
         // x vs y
         return new CmpX86(bool);
     }
@@ -498,15 +510,14 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node mul(MulNode mul) {
-        return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new MulIX86(mul, ti)
-            : new MulX86(mul);
+        if (mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+            if(imm_size(ti.value()) == 64) return new MulX86(mul);
+            return new MulIX86(mul, ti);
+        }
+        return new MulX86(mul);
     }
 
     private Node div(DivNode div) {
-//        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-//                ? new MulIX86(div, TypeInteger.constant(1 / ti.value()))  :
-//
         return new DivX86(div);
     }
 
@@ -517,8 +528,11 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node or(OrNode or) {
-        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+            if(imm_size(ti.value()) == 64) return new OrX86(or);
             return new OrIX86(or, ti);
+        }
+
         return new OrX86(or);
     }
 
@@ -527,20 +541,27 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node sar( SarNode sar ) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+            if(imm_size(ti.value()) == 64) return new SarIX86(sar, TypeInteger.constant(ti.value() & 0x03f));
             return new SarIX86(sar, ti);
+        }
         return new SarX86(sar);
     }
 
     private Node shl( ShlNode shl ) {
-        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            if(imm_size(ti.value()) == 64) return new ShlIX86(shl, TypeInteger.constant(ti.value() & 0x03f));
             return new ShlIX86(shl, ti);
+        }
         return new ShlX86(shl);
     }
 
     private Node shr(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            if(imm_size(ti.value()) == 64) return new ShrIX86(shr, TypeInteger.constant(ti.value() & 0x03f));
             return new ShrIX86(shr, ti);
+        }
+
         return new ShrX86(shr);
     }
 
@@ -570,8 +591,11 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node xor(XorNode xor) {
-        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+            if(imm_size(ti.value()) == 64) return new XorX86(xor);
             return new XorIX86(xor, ti);
+        }
+
         return new XorX86(xor);
     }
 
