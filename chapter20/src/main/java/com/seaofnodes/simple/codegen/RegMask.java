@@ -59,7 +59,7 @@ public class RegMask {
     boolean size1() { return (_bits & -_bits)==_bits; }
 
     // Cardinality
-    int size() { return Long.bitCount(_bits); }
+    short size() { return (short)Long.bitCount(_bits); }
 
     @Override public String toString() { return toString(new SB()).toString(); }
     public SB toString(SB sb) {

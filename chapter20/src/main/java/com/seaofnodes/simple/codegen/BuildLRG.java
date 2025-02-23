@@ -36,6 +36,16 @@ abstract public class BuildLRG {
                         alloc.fail(lrg);
 
                 } else if( n instanceof MachNode mach ) {
+                    // Attempt to commute ops to keep live ranges compatible.
+                    if( mach.commutes() && n.nOuts()==1 ) {
+                        int uidx = n.out(0)._inputs.find(n);
+                        RegMask mask1 = n.in (1) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(1))._mask;
+                        RegMask mask2 = n.in (2) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(2))._mask;
+                        RegMask masko = n.out(0) instanceof MachNode machx ? machx.regmap(uidx): alloc.lrg(n      )._mask;
+                        if( !mask1.overlap(masko) && mask2.overlap(masko) )
+                            n.swap12();
+                    }
+
                     // Define live range
                     defLRG(alloc,n);
 

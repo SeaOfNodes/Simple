@@ -19,11 +19,22 @@ return 0;
         assertEquals("0", Eval2.eval(code,  2));
     }
 
+
+    @Test
+    public void testAlloc0() {
+        CodeGen code = new CodeGen("""
+return new u8[arg];
+""");
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("Expect spills:",1,code._regAlloc._spillScaled,0);
+        assertEquals("return [u8];", code._stop.toString());
+    }
+
     @Test
     public void testBasic1() {
         CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)1,code._regAlloc._spillScaled,1>>3);
-        assertEquals("return (ori,(mov,arg));", code._stop.toString());
+        assertEquals("return mov((ori,arg));", code._stop.toString());
     }
 
     @Test
@@ -42,8 +53,8 @@ val sqrt = { int x ->
 return sqrt(arg) + sqrt(arg+2);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)20,code._regAlloc._spillScaled,20>>3);
-        assertEquals("Stop[ return (add,#2,(mov,#2)); return (mov,Phi(Loop,(mov,Parm_x(sqrt,int)),(mov,(div,(add,(div,(mov,x),Phi_guess),Phi_guess),2)))); ]", code.print());
+        assertEquals("Expect spills:",(double)19,code._regAlloc._spillScaled,20>>3);
+        assertEquals("Stop[ return (add,#2,mov(#2)); return mov(mov(Phi(Loop,mov(mov(Parm_x(sqrt,int))),(divi,(add,(div,mov(mov),mov),mov))))); ]", code.print());
     };
 
     @Test
@@ -64,7 +75,7 @@ return sqrt(farg) + sqrt(farg+2.0);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)20,code._regAlloc._spillScaled,20>>3);
-        assertEquals("Stop[ return (addf,#2,(mov,#2)); return Phi(Loop,(mov,(mov,Parm_x(sqrt,flt))),(mov,(mulf,(addf,(divf,(mov,mov),Phi_guess),Phi_guess),0.5f))); ]", code.print());
+        assertEquals("Stop[ return mov((addf,mov(#2),#2)); return mov(Phi(Loop,mov(mov(Parm_x(sqrt,flt))),(mulf,(addf,(divf,mov(mov),mov),mov),0.5f))); ]", code.print());
     };
 
     @Test
@@ -82,14 +93,14 @@ return sqrt(farg) + sqrt(farg+2.0);
 int[] !ary = new int[arg];
 // Fill [0,1,2,3,4,...]
 for( int i=0; i<ary#; i++ )
-ary[i] = i;
+    ary[i] = i;
 // Fill [0,1,3,6,10,...]
 for( int i=0; i<ary#-1; i++ )
-ary[i+1] += ary[i];
+    ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)4,code._regAlloc._spillScaled,4>>3);
+        assertEquals("Expect spills:",(double)3,code._regAlloc._spillScaled,1);
         assertEquals("return .[];", code.print());
     }
 
@@ -133,7 +144,7 @@ hashCode(s);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)18,code._regAlloc._spillScaled,18>>3);
-        assertEquals("Stop[ return Phi(Region,123456789,(mov,(mov,Phi(Loop,0,.[])))); return Phi(Region,1,0,0,1); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,.[])); return Phi(Region,1,0,0,1); ]", code.print());
     }
 
     @Test
@@ -147,7 +158,7 @@ hashCode(s);
         );
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)1,code._regAlloc._spillScaled,1>>3);
-        assertEquals("return Phi(Region,(mov,(lea, ---,.x)),-1);", code.print());
+        assertEquals("return Phi(Region,(lea, ---,.x),-1);", code.print());
     }
 
 }

@@ -6,7 +6,7 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
-public class NewX86 extends NewNode implements MachNode {
+public class NewX86 extends NewNode implements MachNode, MultiNode {
 
     // A pre-zeroed chunk of memory.
     NewX86( NewNode nnn ) {  super(nnn); }
@@ -18,7 +18,7 @@ public class NewX86 extends NewNode implements MachNode {
         // All the memory alias edges
         return null;
     }
-    @Override public RegMask outregmap() { return x86_64_v2.RET_MASK; }
+    @Override public RegMask outregmap() { return null; }
 
     // Register mask allowed as a result.  Pointer result in standard calling
     // convention.

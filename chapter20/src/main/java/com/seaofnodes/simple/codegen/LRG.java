@@ -92,12 +92,24 @@ public class LRG {
         // Set U-F leader
         lrg._leader = this;
         // Fold together stats
-        if( _machDef == lrg._machDef && _1regDefCnt > 0 ) _1regDefCnt--;
-        if( _machDef == null ) _machDef = lrg._machDef;
+        if( _machDef==null ) {
+            _machDef = lrg._machDef;
+        } else if( lrg._machDef!=null ) {
+            if( _1regDefCnt==0 )
+                _machDef = lrg._machDef;
+            else if( _machDef==lrg._machDef )
+                _1regDefCnt--;
+        }
         _1regDefCnt += lrg._1regDefCnt;
 
-        if( _machUse == lrg._machUse && _uidx == lrg._uidx && _1regUseCnt > 0 ) _1regUseCnt--;
-        if( _machUse == null ) { _machUse = lrg._machUse; _uidx = lrg._uidx; }
+        if( _machUse==null ) {
+            _machUse = lrg._machUse;
+        } else if( lrg._machUse!=null ) {
+            if( _1regUseCnt==0 )
+                _machUse = lrg._machUse;
+            else if( _machUse==lrg._machUse )
+                _1regUseCnt--;
+        }
         _1regUseCnt += lrg._1regUseCnt;
 
         // Fold together masks
@@ -111,7 +123,7 @@ public class LRG {
             _machDef = def;
         if( size1 )
             _1regDefCnt++;
-        if( def.isSplit() && (_splitDef==null || ((MachConcreteNode)def).cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
+        if( def instanceof SplitNode split && (_splitDef==null || split.cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
             _splitDef = (MachConcreteNode)def;
         return this;
     }
@@ -122,10 +134,15 @@ public class LRG {
             { _machUse = use; _uidx = uidx; }
         if( size1 )
             _1regUseCnt++;
-        if( use.isSplit() && (_splitUse==null || ((MachConcreteNode)use).cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
+        if( use instanceof SplitNode split && (_splitUse==null || split.cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
             _splitUse = (MachConcreteNode)use;
         return this;
     }
+
+    boolean hasSplit() { return _splitDef != null || _splitUse != null; }
+    short size() { return _mask.size(); }
+    boolean size1() { return _mask.size1(); }
+
 
     void selfConflict( Node def ) {
         if( _selfConflicts == null ) _selfConflicts = new IdentityHashMap<>();
