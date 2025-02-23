@@ -28,6 +28,7 @@ public class XorIX86  extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
+        // REX.W + 81 /6 id	XOR r/m64, imm32
         // REX.W + 83 /6 ib	XOR r/m64, imm8
         LRG xor_rg_1 = CodeGen.CODE._regAlloc.lrg(this);
 
@@ -36,13 +37,18 @@ public class XorIX86  extends MachConcreteNode implements MachNode {
 
         bytes.write(x86_64_v2.rex(0, reg, 0));
 
-        bytes.write(0x83); // opcode
+        // immediate(4 bytes) 32 bits
+        int imm32_8 = (int)_ti.value();
+        int imm_size = x86_64_v2.imm_size(imm32_8);
+        if(imm_size == 32) bytes.write(0x81);
+        else if(imm_size == 8) bytes.write(0x83);
+        // opcode
+        bytes.write(0x83);
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x06, reg));
 
-        // immediate(4 bytes) 32 bits
-        int imm8 = (int)_ti.value();
-        x86_64_v2.imm(imm8, 8, bytes);
+
+        x86_64_v2.imm(imm32_8, imm_size, bytes);
         return bytes.size() - beforeSize;
     }
 

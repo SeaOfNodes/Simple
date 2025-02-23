@@ -27,6 +27,7 @@ public class SarIX86 extends MachConcreteNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // REX.W + C1 /7 ib
+
         LRG sar_lrg = CodeGen.CODE._regAlloc.lrg(this);
         short reg = sar_lrg.get_reg();
 

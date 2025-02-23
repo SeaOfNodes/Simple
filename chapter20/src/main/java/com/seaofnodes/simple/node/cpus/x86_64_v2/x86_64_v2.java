@@ -339,7 +339,7 @@ public class x86_64_v2 extends Machine {
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
-        case DivNode      div   -> new DivX86(div);
+        case DivNode      div   -> div(div);
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
         case LoadNode     ld    -> ld(ld);
@@ -501,6 +501,19 @@ public class x86_64_v2 extends Machine {
         return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
             ? new MulIX86(mul, ti)
             : new MulX86(mul);
+    }
+
+    private Node div(DivNode div) {
+//        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+//                ? new MulIX86(div, TypeInteger.constant(1 / ti.value()))  :
+//
+        return new DivX86(div);
+    }
+
+    public static int imm_size(long imm) {
+        if (imm >= Short.MIN_VALUE && imm <= Short.MAX_VALUE) return 8;
+        if (imm >= Integer.MIN_VALUE && imm <= Integer.MAX_VALUE) return 32;
+        return 64;
     }
 
     private Node or(OrNode or) {
