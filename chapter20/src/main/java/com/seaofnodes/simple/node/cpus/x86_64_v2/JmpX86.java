@@ -34,12 +34,13 @@ public class JmpX86 extends IfNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // linker sorts out target address
-        LRG jmp_rg = CodeGen.CODE._regAlloc.lrg(this);
-        short reg = jmp_rg.get_reg();
-        // opcode included
+        // JMP rel32
+
+        // common opcode
+        bytes.write(0x0F);
         bytes.write(x86_64_v2.jumpop(_bop));
 
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, reg));
+          x86_64_v2.imm(0, 32, bytes);
 
         return bytes.size();
     }

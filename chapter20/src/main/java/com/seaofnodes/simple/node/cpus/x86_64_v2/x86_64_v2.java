@@ -107,14 +107,14 @@ public class x86_64_v2 extends Machine {
 
 
     // opcode included here
-    // 74 cb	JE rel8
-    // 7C  cb	J   L rel8
-    // 7E cb	JLE rel8
+    // 0F 84 cd	JE rel32
+    // 0F 8C cd	JL rel32
+    // 0F 8E cd	JLE rel32
     static public int jumpop(String op) {
         return switch(op) {
-            case "==" -> 0x74cb;
-            case "<"  -> 0x7Ccb;
-            case "<="  -> 0X7Ecb;
+            case "==" -> 0x84;
+            case "<"  -> 0x8C;
+            case "<="  -> 0X8E;
             default  ->  throw new IllegalArgumentException("Too many arguments");
         };
     }
