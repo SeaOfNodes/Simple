@@ -343,7 +343,7 @@ public abstract class Node {
         use.setDefOrdered(uidx,this);
     }
 
-    void setDefOrdered(int idx, Node def) {
+    public void setDefOrdered(int idx, Node def) {
         // If old is dying, remove from CFG ordered
         Node old = in(idx);
         if( old!=null && old.nOuts()==1 ) {
@@ -356,7 +356,7 @@ public abstract class Node {
         setDef(idx,def);
     }
 
-    public void remove() {
+    public void removeSplit() {
         CFGNode cfg = cfg0();
         cfg._outputs.remove(cfg._outputs.find(this));
         _inputs.set(0,null);
