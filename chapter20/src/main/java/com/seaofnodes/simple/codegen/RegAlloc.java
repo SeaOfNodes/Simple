@@ -398,20 +398,42 @@ public class RegAlloc {
         for( CFGNode bb : _code._cfg ) { // For all ops
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
-                if( n instanceof SplitNode ) {
-                    int defreg = lrg(n      )._reg;
-                    int usereg = lrg(n.in(1))._reg;
-                    if( defreg == usereg ) {
-                        n.remove();
-                        j--;
-                    } else {
-                        _spills++;
-                        _spillScaled += (1<<bb.loopDepth()*3);
-                        assert _spillScaled >= 0;
-                    }
+                if( !(n instanceof SplitNode lo) ) continue;
+                int defreg = lrg(n      )._reg;
+                int usereg = lrg(n.in(1))._reg;
+                // Attempt to bypass split
+                if( defreg != usereg && splitBypass(bb,j,n,defreg) )
+                    usereg = lrg(n.in(1))._reg;
+
+                // Split has same reg?  Useless!  Can remove it!
+                if( defreg == usereg ) {
+                    n.removeSplit();
+                    j--;
+                    continue;
                 }
-                //if( live && n instanceof Mach m )  m.post_allocate();
+                // Split is kept; count against split score
+                _spills++;
+                _spillScaled += (1<<bb.loopDepth()*3);
+                assert _spillScaled >= 0;
             }
         }
+    }
+
+    private boolean splitBypass( CFGNode bb, int j, Node lo, int defreg ) {
+        // Attempt to bypass split
+        Node hi = lo.in(1);
+        while( true ) {
+            if( !(hi instanceof SplitNode && lo.cfg0() == hi.cfg0()) )
+                return false;
+            if( lrg(hi.in(1))._reg==defreg )
+                break;
+            hi = hi.in(1);
+        }
+
+        for( int idx = j-1; bb.out(idx) != hi; idx++) {
+            throw Utils.TODO();
+        }
+        lo.setDefOrdered(1,hi.in(1));
+        return true;
     }
 }
