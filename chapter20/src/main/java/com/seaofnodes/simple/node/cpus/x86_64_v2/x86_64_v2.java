@@ -479,12 +479,6 @@ public class x86_64_v2 extends Machine {
         };
     }
 
-    private Node div(DivNode div) {
-        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-            ? new DivIX86(div, ti)
-            : new DivX86(div);
-    }
-
     private Node i2f8(ToFloatNode tfn) {
         assert tfn.in(1)._type instanceof TypeInteger ti;
         return new I2f8X86(tfn);
@@ -517,7 +511,7 @@ public class x86_64_v2 extends Machine {
     }
 
     public static int imm_size(long imm) {
-        if (imm >= Short.MIN_VALUE && imm <= Short.MAX_VALUE) return 8;
+        if(imm >= Byte.MIN_VALUE && imm <= Byte.MAX_VALUE) return 8;
         if (imm >= Integer.MIN_VALUE && imm <= Integer.MAX_VALUE) return 32;
         return 64;
     }

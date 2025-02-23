@@ -40,13 +40,11 @@ public class XorIX86  extends MachConcreteNode implements MachNode {
         // immediate(4 bytes) 32 bits
         int imm32_8 = (int)_ti.value();
         int imm_size = x86_64_v2.imm_size(imm32_8);
+        // opcode
         if(imm_size == 32) bytes.write(0x81);
         else if(imm_size == 8) bytes.write(0x83);
-        // opcode
-        bytes.write(0x83);
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x06, reg));
-
 
         x86_64_v2.imm(imm32_8, imm_size, bytes);
         return bytes.size() - beforeSize;
