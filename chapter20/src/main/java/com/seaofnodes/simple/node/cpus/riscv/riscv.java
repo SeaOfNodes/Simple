@@ -7,7 +7,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-public class riscv extends Machine{
+public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
@@ -129,7 +129,7 @@ public class riscv extends Machine{
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public Node split() { return new SplitRISC();  }
+    @Override  public SplitNode split(String kind, byte round) { return new SplitRISC(kind,round);  }
 
     // Break an infinite loop
     @Override public IfNode never( CFGNode ctrl ) {

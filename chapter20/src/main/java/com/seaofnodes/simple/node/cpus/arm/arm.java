@@ -8,7 +8,7 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-public class arm extends Machine{
+public class arm extends Machine {
 
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "arm"; }
@@ -116,7 +116,7 @@ public class arm extends Machine{
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public Node split() {  return new SplitARM();  }
+    @Override public SplitNode split(String kind, byte round) {  return new SplitARM(kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

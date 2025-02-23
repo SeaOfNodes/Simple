@@ -122,7 +122,7 @@ public class LRG {
             _machDef = def;
         if( size1 )
             _1regDefCnt++;
-        if( def.isSplit() && (_splitDef==null || ((MachConcreteNode)def).cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
+        if( def instanceof SplitNode split && (_splitDef==null || split.cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
             _splitDef = (MachConcreteNode)def;
         return this;
     }
@@ -133,10 +133,15 @@ public class LRG {
             { _machUse = use; _uidx = uidx; }
         if( size1 )
             _1regUseCnt++;
-        if( use.isSplit() && (_splitUse==null || ((MachConcreteNode)use).cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
+        if( use instanceof SplitNode split && (_splitUse==null || split.cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
             _splitUse = (MachConcreteNode)use;
         return this;
     }
+
+    boolean hasSplit() { return _splitDef != null || _splitUse != null; }
+    short size() { return _mask.size(); }
+    boolean size1() { return _mask.size1(); }
+
 
     void selfConflict( Node def ) {
         if( _selfConflicts == null ) _selfConflicts = new IdentityHashMap<>();

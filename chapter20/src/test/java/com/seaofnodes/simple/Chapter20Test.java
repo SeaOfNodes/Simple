@@ -26,7 +26,7 @@ return 0;
 return new u8[arg];
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)1,code._regAlloc._spillScaled,0);
+        assertEquals("Expect spills:",1,code._regAlloc._spillScaled,0);
         assertEquals("return [u8];", code._stop.toString());
     }
 
@@ -34,7 +34,7 @@ return new u8[arg];
     public void testBasic1() {
         CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)1,code._regAlloc._spillScaled,1>>3);
-        assertEquals("return (ori,(mov,arg));", code._stop.toString());
+        assertEquals("return mov((ori,arg));", code._stop.toString());
     }
 
     @Test
@@ -54,7 +54,7 @@ return sqrt(arg) + sqrt(arg+2);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)19,code._regAlloc._spillScaled,20>>3);
-        assertEquals("Stop[ return (add,#2,(mov,#2)); return (mov,Phi(Loop,(mov,Parm_x(sqrt,int)),(mov,(div,(add,(div,(mov,x),Phi_guess),Phi_guess),2)))); ]", code.print());
+        assertEquals("Stop[ return (add,#2,mov(#2)); return mov(mov(Phi(Loop,mov(mov(Parm_x(sqrt,int))),(divi,(add,(div,mov(mov),mov),mov))))); ]", code.print());
     };
 
     @Test
@@ -75,7 +75,7 @@ return sqrt(farg) + sqrt(farg+2.0);
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
         assertEquals("Expect spills:",(double)20,code._regAlloc._spillScaled,20>>3);
-        assertEquals("Stop[ return (addf,#2,(mov,#2)); return Phi(Loop,(mov,(mov,Parm_x(sqrt,flt))),(mov,(mulf,(addf,(divf,(mov,mov),Phi_guess),Phi_guess),0.5f))); ]", code.print());
+        assertEquals("Stop[ return mov((addf,mov(#2),#2)); return mov(Phi(Loop,mov(mov(Parm_x(sqrt,flt))),(mulf,(addf,(divf,mov(mov),mov),mov),0.5f))); ]", code.print());
     };
 
     @Test

@@ -41,8 +41,6 @@ public interface MachNode {
     // Ok to switch arguments
     default boolean commutes() { return false; }
 
-    // Known to be a split node
-    default boolean isSplit() { return false; }
     // Instructions cheaper to recreate than to spill, such as loading small constants
     default boolean isClone() { return false; }
 
