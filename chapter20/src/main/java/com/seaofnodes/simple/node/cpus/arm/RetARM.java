@@ -19,11 +19,11 @@ public class RetARM extends ReturnNode implements MachNode {
     // This is the normal calling convention
     @Override public RegMask regmap(int i) {
         return switch( i ) {
-            case 0 -> null;
-            case 1 -> null;
-            case 2 -> _fun.sig()._ret instanceof TypeFloat ?arm.RET_FMASK : arm.RET_MASK;
-            case 3 -> null; // RPC is always on stack
-            default -> throw Utils.TODO();
+        case 0 -> null;
+        case 1 -> null;
+        case 2 -> _fun.sig()._ret instanceof TypeFloat ? arm.RET_FMASK : arm.RET_MASK;
+        case 3 -> arm.RPC_MASK;
+        default -> throw Utils.TODO();
         };
     }
     // Register mask allowed as a result.  0 for no register.

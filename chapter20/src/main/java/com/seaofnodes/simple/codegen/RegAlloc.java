@@ -429,9 +429,11 @@ public class RegAlloc {
                 break;
             hi = hi.in(1);
         }
-
+        // Check no clobbers
         for( int idx = j-1; bb.out(idx) != hi; idx++) {
-            throw Utils.TODO();
+            Node n = bb.out(idx);
+            if( lrg(n)!=null && lrg(n)._reg == defreg )
+                return false;   // Clobbered
         }
         lo.setDefOrdered(1,hi.in(1));
         return true;

@@ -6,7 +6,7 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
-public class NewX86 extends NewNode implements MachNode, MultiNode {
+public class NewX86 extends NewNode implements MachNode {
 
     // A pre-zeroed chunk of memory.
     NewX86( NewNode nnn ) {  super(nnn); }
