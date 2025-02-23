@@ -127,7 +127,7 @@ public class x86_64_v2 extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public Node split() {  return new SplitX86();  }
+    @Override public SplitNode split(String kind, byte round) {  return new SplitX86(kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
@@ -152,7 +152,7 @@ public class x86_64_v2 extends Machine {
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
         case DivFNode     divf  -> new DivFX86(divf);
-        case DivNode      div   -> new DivX86(div);
+        case DivNode      div   -> div(div);
         case FunNode      fun   -> new FunX86(fun);
         case IfNode       iff   -> jmp(iff);
         case LoadNode     ld    -> ld(ld);
@@ -289,6 +289,12 @@ public class x86_64_v2 extends Machine {
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntX86(con) : new ConstantNode(con);
         };
+    }
+
+    private Node div(DivNode div) {
+        return div.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new DivIX86(div, ti)
+            : new DivX86(div);
     }
 
     private Node i2f8(ToFloatNode tfn) {

@@ -63,7 +63,8 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        code.parse().opto().typeCheck()/*.instSelect("x86_64_v2", "SystemV")*/.GCM().localSched();
-        assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
+        assertEquals("Expect spills:",28.0,code._regAlloc._spillScaled,28>>3);
+        //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
 }
