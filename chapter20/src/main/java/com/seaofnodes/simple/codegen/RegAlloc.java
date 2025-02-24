@@ -219,16 +219,17 @@ public class RegAlloc {
     // Split live range with an empty mask.  Specifically forces splits at
     // single-register defs or uses everywhere.
     boolean splitEmptyMask( byte round, LRG lrg ) {
+        boolean all = (lrg._1regDefCnt + lrg._1regUseCnt)==0;
         findAllLRG(lrg);
         for( Node n : _ns ) {
             if( !(n instanceof MachNode mach) ) continue;
-            if( lrg(n)==lrg && mach.outregmap().size1() )
+            if( lrg(n)==lrg && (all || mach.outregmap().size1()) )
                 _code._mach.split("def/empty",round).insertAfter(n,true);
             for( int i=1; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
                 while( def instanceof SplitNode && lrg(def)==null )
                     def = def.in(1);
-                if( lrg(def)==lrg && mach.regmap(i).size1() )
+                if( lrg(def)==lrg && (all || mach.regmap(i).size1()) )
                     insertBefore(n,i,"use/empty",round);
             }
         }
