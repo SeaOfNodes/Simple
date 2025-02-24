@@ -36,13 +36,14 @@ public class JmpX86 extends IfNode implements MachNode {
         // linker sorts out target address
         // JMP rel32
 
+        int beforeSize = bytes.size();
         // common opcode
         bytes.write(0x0F);
         bytes.write(x86_64_v2.jumpop(_bop));
 
           x86_64_v2.imm(0, 32, bytes);
 
-        return bytes.size();
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

@@ -105,16 +105,35 @@ public class x86_64_v2 extends Machine {
         };
     }
 
-
+    // Inverting IfNode
+    static public String invert(String op) {
+        return switch (op) {
+            case "==" -> "!=";
+            case "!=" -> "==";
+            case ">" -> "<=";
+            case "<" -> ">=";
+            case ">=" -> "<";
+            case "<=" -> ">";
+            default -> throw new IllegalStateException("Unexpected value: " + op);
+        };
+    }
     // opcode included here
     // 0F 84 cd	JE rel32
+    // 0F 85 cd	JNE rel32
+    // 0F 8F cd	JG rel32
     // 0F 8C cd	JL rel32
     // 0F 8E cd	JLE rel32
+    // 0F 8D cd	JGE rel32
+
+
     static public int jumpop(String op) {
         return switch(op) {
             case "==" -> 0x84;
+            case "!=" -> 0x85;
+            case ">"  -> 0x8F;
             case "<"  -> 0x8C;
-            case "<="  -> 0X8E;
+            case "<=" -> 0x8E;
+            case ">=" -> 0X8D;
             default  ->  throw new IllegalArgumentException("Too many arguments");
         };
     }
@@ -127,14 +146,14 @@ public class x86_64_v2 extends Machine {
         // use xor to clear them
         bytes.write(x86_64_v2.REX_W);
         bytes.write(0x33); // opcode
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
+        bytes.write(x86_64_v2.modrm(MOD.DIRECT, reg1, reg2));
     }
     public static void zero_extend(short reg1, short reg2, ByteArrayOutputStream bytes) {
         bytes.write(x86_64_v2.REX_W);
         bytes.write(0x0F); // opcode
         bytes.write(0xB6); // opcode
 
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
+        bytes.write(x86_64_v2.modrm(MOD.DIRECT, reg1, reg2));
     }
 
      public static void print_as_hex(ByteArrayOutputStream outputStream) {
@@ -306,20 +325,23 @@ public class x86_64_v2 extends Machine {
         case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV;
         case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64;
         };
-        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat )
-            return XMMS[idx-2];
         if( idx >= cargs.length )
             throw Utils.TODO(); // Pass on stack slot
-        return cargs[idx];
+
+        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat )
+            return XMMS[idx-2];
+
+        return cargs[idx]
+                ;
     }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round) {  return new SplitX86(kind,round);  }
 
-    // Return a MachNode unconditional branch
+   // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
         throw Utils.TODO();
-    }
+   }
 
     // Break an infinite loop
     @Override public IfNode never( CFGNode ctrl ) {
@@ -502,8 +524,9 @@ public class x86_64_v2 extends Machine {
         // Loads do not set the flags, and will need an explicit TEST
         if( !(iff.in(1) instanceof BoolNode) )
             iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new JmpX86(iff, ((BoolNode)iff.in(1)).op());
+        return new JmpX86(iff, invert(((BoolNode)iff.in(1)).op()));
     }
+
 
     private Node ld( LoadNode ld ) {
         return new LoadX86(address(ld),ld.ptr(),idx,off,scale);
