@@ -1,26 +1,25 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
-
 import java.io.ByteArrayOutputStream;
 
 //FMOV (scalar, immediate)
 //Floating-point move immediate.
-public class FloatARM extends ConstantNode implements MachNode{
-    FloatARM(ConstantNode con) {super(con);}
+public class FloatARM extends ConstantNode implements MachNode {
+    FloatARM(ConstantNode con) { super(con); }
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
 
     // General int registers
     @Override public RegMask outregmap() { return arm.DMASK; }
 
+    @Override public boolean isClone() { return true; }
+    @Override public FloatARM copy() { return new FloatARM(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

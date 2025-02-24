@@ -17,6 +17,7 @@ public class TFPRISC extends ConstantNode implements MachNode{
     @Override public RegMask outregmap() { return riscv.WMASK; }
 
     @Override public boolean isClone() { return true; }
+    @Override public TFPRISC copy() { return new TFPRISC(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

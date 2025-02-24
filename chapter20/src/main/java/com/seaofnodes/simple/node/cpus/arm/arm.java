@@ -29,7 +29,8 @@ public class arm extends Machine {
 
     // from (x0-x30)
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0x7FFFFFFFL);
+    public static RegMask RMASK = new RegMask(0xFFFFFFFFL);
+    public static RegMask WMASK = new RegMask(0x7FFFFFFFL);
 
     // Float mask from(d0–d30)
     public static RegMask DMASK = new RegMask(0x3FFFFFFFL<<D0);
@@ -76,7 +77,7 @@ public class arm extends Machine {
             "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
             "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
             "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
-            "D24", "D25", "D26", "D27", "D28", "D29", "D30"
+            "D24", "D25", "D26", "D27", "D28", "D29", "flags"
     };
 
     @Override public String reg( int reg ) { return REGS[reg]; }
