@@ -325,11 +325,13 @@ public class x86_64_v2 extends Machine {
         case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV;
         case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64;
         };
-        if( idx >= cargs.length )
-            throw Utils.TODO(); // Pass on stack slot
 
+        // Todo: this will break if there are more float args that we can load into registers
         if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat )
             return XMMS[idx-2];
+
+        if( idx >= cargs.length )
+            throw Utils.TODO(); // Pass on stack slot
 
         return cargs[idx]
                 ;
