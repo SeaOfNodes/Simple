@@ -16,7 +16,7 @@ public class ParmARM extends ParmNode implements MachNode{
     ParmARM(ParmNode parm) {
         super(parm);
         // Assume int
-        _rmask = arm.callInMask(_idx);
+        _rmask = arm.callInMask(fun().sig(),_idx);
     }
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }

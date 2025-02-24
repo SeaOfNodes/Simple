@@ -4,11 +4,9 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-
 import java.io.ByteArrayOutputStream;
 
-
-public class NewRISC extends NewNode implements MachNode{
+public class NewRISC extends NewNode implements MachNode {
 
     // A pre-zeroed chunk of memory.
     NewRISC( NewNode nnn ) {  super(nnn); }

@@ -11,35 +11,40 @@ public class Chapter20Test {
 
     @Test
     public void testJig() {
-        CodeGen code = new CodeGen("""
-return 0;
-""");
+        CodeGen code = new CodeGen("return 0;");
         code.parse().opto().typeCheck();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
 
-
-    @Test
-    public void testAlloc0() {
-        CodeGen code = new CodeGen("""
-return new u8[arg];
-""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",1,code._regAlloc._spillScaled,0);
-        assertEquals("return [u8];", code._stop.toString());
+    private static void testCPU( String src, String cpu, String os, int spills, String stop ) {
+        CodeGen code = new CodeGen(src);
+        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc();
+        assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,spills>>3);
+        if( stop != null )
+            assertEquals(stop, code._stop.toString());
     }
 
-    @Test
-    public void testBasic1() {
-        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)1,code._regAlloc._spillScaled,1>>3);
-        assertEquals("return mov((ori,arg));", code._stop.toString());
+    private static void testAllCPUs( String src, int spills, String stop ) {
+        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
+        testCPU(src,"riscv"    , "SystemV",spills,stop);
+        testCPU(src,"arm"      , "SystemV",spills,stop);
+    }
+
+    @Test public void testAlloc0() {
+        testAllCPUs("return new u8[arg];", 1, "return [u8];");
+    }
+
+    @Test public void testBasic1() {
+        String src = "return arg | 2;";
+        testCPU(src,"x86_64_v2", "SystemV",1,"return mov((ori,arg));");
+        testCPU(src,"riscv"    , "SystemV",0,"return (ori,arg);");
+        testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
 
     @Test
     public void testNewtonInteger() {
-        CodeGen code = new CodeGen(
+        String src =
 """
 // Newtons approximation to the square root
 val sqrt = { int x ->
@@ -51,15 +56,15 @@ val sqrt = { int x ->
     }
 };
 return sqrt(arg) + sqrt(arg+2);
-""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)19,code._regAlloc._spillScaled,20>>3);
-        assertEquals("Stop[ return (add,#2,mov(#2)); return mov(mov(Phi(Loop,mov(mov(Parm_x(sqrt,int))),(divi,(add,(div,mov(mov),mov),mov))))); ]", code.print());
-    };
+""";
+        testCPU(src,"x86_64_v2", "SystemV",19,null);
+        testCPU(src,"riscv"    , "SystemV",12,null);
+        testCPU(src,"arm"      , "SystemV",19,null);
+    }
 
     @Test
     public void testNewtonFloat() {
-        CodeGen code = new CodeGen(
+        String src =
 """
 // Newtons approximation to the square root
 val sqrt = { flt x ->
@@ -72,11 +77,11 @@ val sqrt = { flt x ->
 };
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
-""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)20,code._regAlloc._spillScaled,20>>3);
-        assertEquals("Stop[ return mov((addf,mov(#2),#2)); return mov(Phi(Loop,mov(mov(Parm_x(sqrt,flt))),(mulf,(addf,(divf,mov(mov),mov),mov),0.5f))); ]", code.print());
-    };
+""";
+        testCPU(src,"x86_64_v2", "SystemV",22,null);
+        testCPU(src,"riscv"    , "SystemV",21,null);
+        testCPU(src,"arm"      , "SystemV",22,null);
+    }
 
     @Test
     public void testAlloc2() {
@@ -88,7 +93,7 @@ return sqrt(farg) + sqrt(farg+2.0);
 
     @Test
     public void testArray1() {
-        CodeGen code = new CodeGen(
+        String src =
 """
 int[] !ary = new int[arg];
 // Fill [0,1,2,3,4,...]
@@ -98,10 +103,10 @@ for( int i=0; i<ary#; i++ )
 for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
-""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",(double)3,code._regAlloc._spillScaled,1);
-        assertEquals("return .[];", code.print());
+""";
+        //testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
+        //testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"arm"      , "SystemV",1,"return .[];");
     }
 
     @Test

@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 public class CallRISC extends CallNode implements MachNode{
     final TypeFunPtr _tfp;
     final String _name;
+
     CallRISC( CallNode call, TypeFunPtr tfp ) {
         super(call);
         _inputs.pop(); // Pop constant target

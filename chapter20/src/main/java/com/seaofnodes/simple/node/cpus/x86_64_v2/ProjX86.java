@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachNode;

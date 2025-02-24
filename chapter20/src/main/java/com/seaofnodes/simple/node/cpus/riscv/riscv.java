@@ -88,10 +88,6 @@ public class riscv extends Machine {
             FA7_MASK
     };
 
-    static RegMask callInMask(int idx) {
-        return CALLINMASK_RISCV[idx];
-    }
-
     // caller saved(riscv)
     //public static final long RISCV_CALLER_SAVED= TBD
     // callee saved(riscv)
@@ -142,9 +138,9 @@ public class riscv extends Machine {
         case AddNode add -> add(add);
         case AndNode and -> and(and);
         case BoolNode bool -> cmp(bool);
-        case CallEndNode cend -> new CallEndRISC(cend);
         case CallNode call -> call(call);
         case CastNode cast  -> new CastRISC(cast);
+        case CallEndNode cend -> new CallEndRISC(cend);
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);

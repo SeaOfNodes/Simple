@@ -219,16 +219,17 @@ public class RegAlloc {
     // Split live range with an empty mask.  Specifically forces splits at
     // single-register defs or uses everywhere.
     boolean splitEmptyMask( byte round, LRG lrg ) {
+        boolean all = (lrg._1regDefCnt + lrg._1regUseCnt)==0;
         findAllLRG(lrg);
         for( Node n : _ns ) {
             if( !(n instanceof MachNode mach) ) continue;
-            if( lrg(n)==lrg && mach.outregmap().size1() )
+            if( lrg(n)==lrg && (all || mach.outregmap().size1()) )
                 _code._mach.split("def/empty",round).insertAfter(n,true);
             for( int i=1; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
                 while( def instanceof SplitNode && lrg(def)==null )
                     def = def.in(1);
-                if( lrg(def)==lrg && mach.regmap(i).size1() )
+                if( lrg(def)==lrg && (all || mach.regmap(i).size1()) )
                     insertBefore(n,i,"use/empty",round);
             }
         }
@@ -398,20 +399,44 @@ public class RegAlloc {
         for( CFGNode bb : _code._cfg ) { // For all ops
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
-                if( n instanceof SplitNode ) {
-                    int defreg = lrg(n      )._reg;
-                    int usereg = lrg(n.in(1))._reg;
-                    if( defreg == usereg ) {
-                        n.remove();
-                        j--;
-                    } else {
-                        _spills++;
-                        _spillScaled += (1<<bb.loopDepth()*3);
-                        assert _spillScaled >= 0;
-                    }
+                if( !(n instanceof SplitNode lo) ) continue;
+                int defreg = lrg(n      )._reg;
+                int usereg = lrg(n.in(1))._reg;
+                // Attempt to bypass split
+                if( defreg != usereg && splitBypass(bb,j,n,defreg) )
+                    usereg = lrg(n.in(1))._reg;
+
+                // Split has same reg?  Useless!  Can remove it!
+                if( defreg == usereg ) {
+                    n.removeSplit();
+                    j--;
+                    continue;
                 }
-                //if( live && n instanceof Mach m )  m.post_allocate();
+                // Split is kept; count against split score
+                _spills++;
+                _spillScaled += (1<<bb.loopDepth()*3);
+                assert _spillScaled >= 0;
             }
         }
+    }
+
+    private boolean splitBypass( CFGNode bb, int j, Node lo, int defreg ) {
+        // Attempt to bypass split
+        Node hi = lo.in(1);
+        while( true ) {
+            if( !(hi instanceof SplitNode && lo.cfg0() == hi.cfg0()) )
+                return false;
+            if( lrg(hi.in(1))._reg==defreg )
+                break;
+            hi = hi.in(1);
+        }
+        // Check no clobbers
+        for( int idx = j-1; bb.out(idx) != hi; idx++) {
+            Node n = bb.out(idx);
+            if( lrg(n)!=null && lrg(n)._reg == defreg )
+                return false;   // Clobbered
+        }
+        lo.setDefOrdered(1,hi.in(1));
+        return true;
     }
 }
