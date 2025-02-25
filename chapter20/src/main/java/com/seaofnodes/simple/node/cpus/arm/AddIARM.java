@@ -29,12 +29,6 @@ public class AddIARM extends MachConcreteNode implements MachNode {
         return arm.RMASK;
     }
 
-    // Output is same register as input#1
-    @Override
-    public int twoAddress() {
-        return 0;
-    }
-
     // Encoding is appended into the byte array; size is returned
     @Override
     public int encoding(ByteArrayOutputStream bytes) {

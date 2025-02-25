@@ -43,7 +43,7 @@ public class IntX86 extends ConstantNode implements MachNode {
         if( _con == Type.NIL || _con == TypeInteger.ZERO )
             sb.p(reg).p(",").p(reg);
         else
-            _con.print(sb.p(reg).p(" #"));
+            _con.print(sb.p(reg).p(" = #"));
     }
 
     @Override public String op() {

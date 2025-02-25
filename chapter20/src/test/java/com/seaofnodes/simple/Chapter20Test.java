@@ -37,7 +37,7 @@ public class Chapter20Test {
 
     @Test public void testBasic1() {
         String src = "return arg | 2;";
-        testCPU(src,"x86_64_v2", "SystemV",1,"return mov((ori,arg));");
+        testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
         testCPU(src,"riscv"    , "SystemV",0,"return (ori,arg);");
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
@@ -80,7 +80,7 @@ return sqrt(farg) + sqrt(farg+2.0);
 """;
         testCPU(src,"x86_64_v2", "SystemV",22,null);
         testCPU(src,"riscv"    , "SystemV",21,null);
-        testCPU(src,"arm"      , "SystemV",22,null);
+        testCPU(src,"arm"      , "SystemV",12,null);
     }
 
     @Test
@@ -106,7 +106,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
         //testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
         //testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(muli,.[]));");
-        testCPU(src,"arm"      , "SystemV",1,"return .[];");
+        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
     }
 
     @Test
