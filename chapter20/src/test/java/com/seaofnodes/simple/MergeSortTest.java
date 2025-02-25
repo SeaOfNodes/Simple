@@ -59,7 +59,7 @@ merge_sort(a, b, a#);
 return a;
 """);
         code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",67.0,code._regAlloc._spillScaled,67>>3);
+        assertEquals("Expect spills:",34.0,code._regAlloc._spillScaled,34>>3);
         assertEquals("Stop[ return mov(mov([int])); return 0; ]", code._stop.toString());
 //assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
     }

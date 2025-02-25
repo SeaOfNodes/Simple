@@ -2,7 +2,6 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.node.*;
-
 import java.util.BitSet;
 import java.util.IdentityHashMap;
 
@@ -12,7 +11,6 @@ abstract public class IFG {
 
     // Map from a Basic Block to Live-Out: {a map from a Live Range to a Def}
     private static final IdentityHashMap<CFGNode,IdentityHashMap<LRG,Node>> BBOUTS = new IdentityHashMap<>();
-    private static IdentityHashMap<LRG,Node> bbLiveOut( CFGNode bb ) { return BBOUTS.get(bb); }
     static void resetBBLiveOut() {
         for( IdentityHashMap<LRG,Node> bbout : BBOUTS.values() )
             bbout.clear();
@@ -360,7 +358,6 @@ abstract public class IFG {
         // Out of trivial colorable, pick an at-risk to pull
         if( sptr==swork )
             swap(color_stack,sptr,pickRisky(color_stack,sptr));
-
         // When coloring, we'd like to give more choices; so when coloring we'd
         // like to see the single-def first (since no choices anyway), then
         // non-split related (so more live ranges get colored), then
@@ -368,22 +365,25 @@ abstract public class IFG {
 
         // Working in reverse, pick first split-related with many regs, then
         // those with some regs, then single-def.
-
         int bidx=sptr;
         LRG best=color_stack[bidx];
-        for( int idx = sptr+1; idx < swork; idx++ ) {
-            LRG lrg = color_stack[idx];
-            if( !best.hasSplit() && lrg.hasSplit() && !lrg.size1() )
-                { best=lrg; bidx=idx;  continue; } // Has splits
-
-            if( best.size() < lrg.size() )
-                { best=lrg; bidx=idx;  continue; } // Many regs
-        }
-
+        for( int idx = sptr+1; idx < swork; idx++ )
+            if( betterLRG(best,color_stack[idx]) )
+                best = color_stack[bidx=idx];
         if( bidx != sptr )
             swap(color_stack,sptr,bidx); // Pick best at sptr
     }
 
+    private static boolean betterLRG( LRG best, LRG lrg ) {
+        // If single-def varies, keep the not-single-def
+        if( best.size1() != lrg.size1() )
+            return best.size1();
+        // If hasSplit varies, keep the hasSplit
+        if( best.hasSplit() != lrg.hasSplit() )
+            return lrg.hasSplit();
+        // Keep large register count
+        return best.size() < lrg.size();
+    }
 
     // Pick a live range that hasn't already spilled, or has a single-def-
     // single-use that are not adjacent.
@@ -393,31 +393,81 @@ abstract public class IFG {
     }
 
     private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
+        if( mask.size1() ) return reg;
         // Check chain of splits up the def-chain.  Take first allocated
         // register, and if it's available in the mask, take it.
-        Node split = lrg._splitDef;
-        int idx=1, cnt=0;
-        while( split instanceof SplitNode || split instanceof PhiNode || (split instanceof MachNode mach && (idx=mach.twoAddress())!=0) ) {
+        Node defSplit = lrg._splitDef, useSplit = lrg._splitUse;
+        int tidx, cnt=0;
+
+        while( (tidx=biasable(defSplit)) != 0 || biasable(useSplit) != 0 ) {
             if( cnt++ > 10 ) break;
-            short bias = alloc.lrg(split)._reg;
-            if( bias != -1 )
-                if( mask.test(bias) ) return bias; // Good bias
-                else break;                        // Not allowed on the def-side; break
-            split = split.in(idx);
-            idx=1;
+
+            if( tidx != 0 ) {
+                short bias = biasColor( alloc, defSplit, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) defSplit = null; // Kill this side, no more searching
+            } else defSplit = null;
+
+            if( biasable(useSplit) != 0 ) {
+                short bias = biasColor( alloc, useSplit, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) useSplit = null; // Kill this side, no more searching
+            } else useSplit = null;
+
+            if( defSplit != null ) {
+                short bias = biasColorNeighbors( alloc, defSplit, mask );
+                if( bias >= 0 ) return bias;
+                // Advance def side
+                defSplit = defSplit.in(tidx);
+            }
+
+            if( useSplit != null ) {
+                short bias = biasColorNeighbors( alloc, useSplit, mask );
+                if( bias >= 0 ) return bias;
+                useSplit = useSplit.out(0);
+            }
+
         }
-        // Same check for chain of splits down the use-chain.
-        split = lrg._splitUse;
-        cnt=0;
-        while( split instanceof SplitNode || split instanceof PhiNode || (split instanceof MachNode mach && (idx=mach.twoAddress())!=0) ) {
-            if( cnt++ > 10 ) break;
-            short bias = alloc.lrg(split)._reg;
-            if( bias != -1 )
-                if( mask.test(bias) ) return bias; // Good bias
-                else break;                        // Not allowed on the use-side
-            split = split.out(0);
+        return mask.firstColor();
+    }
+
+    private static int biasable(Node split) {
+        if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode ) return 1;   // Yes biasable, advance is slot 1
+        if( !(split instanceof MachNode mach) ) return 0; // Not biasable
+        return mach.twoAddress();                         // Only biasable if 2-addr
+    }
+
+    // 3-way return:
+    // - good bias reg, take it & exit
+    // - this path is cutoff; do not search here anymore
+    // - advance this side
+    private static short biasColor( RegAlloc alloc, Node split, RegMask mask ) {
+        short bias = alloc.lrg(split)._reg;
+        if( bias != -1 ) {
+            if( mask.test(bias) ) return bias; // Good bias
+            else return -2;                    // Kill this side
+        } else return -1;                      // Advance this side
+    }
+
+    // Check if we can match "split" color, or else trim "mask" to colors
+    // "split" might get.
+    private static short biasColorNeighbors( RegAlloc alloc, Node split, RegMask mask ) {
+        LRG slrg = alloc.lrg(split);
+        if( slrg._adj == null ) return -1; // No trimming
+
+        // Can I limit my own choices to valid neighbor choices?
+        for( LRG alrg : slrg._adj ) {
+            int reg = alrg._reg;
+            if( reg == -1 && alrg._mask.size1() )
+                reg = alrg._mask.firstColor();
+            if( reg != -1 ) {
+                mask.clr(alrg._reg);
+                if( mask.size1() )
+                    return mask.firstColor();
+            }
         }
-        return reg;
+        return -1;              // No obvious color choice, but mask got trimmed
     }
 
     private static void swap( LRG[] ary, int x, int y ) {

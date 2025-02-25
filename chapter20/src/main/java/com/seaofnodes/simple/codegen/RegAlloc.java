@@ -9,27 +9,27 @@ import java.util.IdentityHashMap;
 /**
   * "Briggs/Chaitin/Click".
   * Graph coloring.
-  *
-  * Every def and every use has a bit-set of allowed registers.
+  * <p>
+  * Every def and every use have a bit-set of allowed registers.
   * Fully general to bizarre chips.
-  * Multiple outputs fully supported, e.g. add-with-carry or combined div/rem.
-  *
+  * Multiple outputs fully supported, e.g. add-with-carry or combined div/rem or "xor rax,rax" setting both rax and flags.
+  * <p>
   * Intel 2-address accumulator-style ops fully supported.
   * Op-to-stack-spill supported.
   * All addressing modes supported.
-  * Register pairs supported with some grief.
-  *
+  * Register pairs could be supported with some grief.
+  * <p>
   * Splitting instead of spilling (simpler implementation).
   * Stack slots are "just another register" (tiny stack frames, simpler implementation).
   * Stack/unstack during coloring with a marvelous trick (simpler implementation).
-  *
+  * <p>
   * Both bitset and adjacency list formats for the interference graph; one of
-  * the few times its faster to change data structures mid-flight rather than
+  * the few times it's faster to change data structures mid-flight rather than
   * just wrap one of the two.
-  *
+  * <p>
   * Liveness computation and interference graph built in the same one pass (one
   * fewer passes per round of coloring).
-  *
+  * <p>
   * Single-register def or use live ranges deny neighbors their required
   * register and thus do not interfere, vs interfering and denying the color
   * and coloring time.  Basically all function calls do this, but many oddball
@@ -69,9 +69,6 @@ public class RegAlloc {
     // Map from Nodes to Live Ranges
     private final IdentityHashMap<Node,LRG> _lrgs = new IdentityHashMap<>();
     short _lrg_num;
-
-    // Has a LRG defined
-    boolean hasLRG( Node n ) { return _lrgs.containsKey(n);  }
 
     // Define a new LRG, and assign n
     LRG newLRG( Node n ) {
