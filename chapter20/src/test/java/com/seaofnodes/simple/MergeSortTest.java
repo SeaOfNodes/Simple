@@ -9,7 +9,7 @@ public class MergeSortTest {
 
     @Test
     public void testMergeSort() {
-        CodeGen code = new CodeGen(
+        String src =
 """
 // based on the top-down version from https://en.wikipedia.org/wiki/Merge_sort
 
@@ -57,10 +57,10 @@ for (int i = 0; i < a#; i++)
 merge_sort(a, b, a#);
 
 return a;
-""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",34.0,code._regAlloc._spillScaled,34>>3);
-        assertEquals("Stop[ return mov(mov([int])); return 0; ]", code._stop.toString());
+""";
+        Chapter20Test.testCPU(src,"x86_64_v2", "SystemV",34,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"riscv"    , "SystemV",21,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"arm"      , "SystemV",21,"Stop[ return mov(mov([int])); return 0; ]");
 //assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
     }
 

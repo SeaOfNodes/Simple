@@ -20,11 +20,8 @@ public class CodeGen {
         InstSelect,             // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
-        RegAlloc;               // Register allocation
-    }
-    public enum CallingConv {
-        Win64,
-        SystemV
+        RegAlloc,               // Register allocation
+        Encoding,               // Encoding
     }
     public Phase _phase;
 
@@ -33,7 +30,6 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
-    public CallingConv _callingConv;
 
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
@@ -168,21 +164,19 @@ public class CodeGen {
     // ---------------------------
     // Code generation CPU target
     public Machine _mach;
+    //
+    public String _callingConv;
 
     // Convert to target hardware nodes
-    public CodeGen instSelect( String cpu, String callingConv ) {
+    public CodeGen instSelect( String base, String cpu, String callingConv ) {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
         _phase = Phase.InstSelect;
 
-        _callingConv = switch(callingConv) {
-        case "SystemV" -> CallingConv.SystemV;
-        case "Win64"   -> CallingConv.Win64;
-        default -> throw Utils.TODO(); // Unknown calling convention
-        };
+        _callingConv = callingConv;
 
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
-        String clzFile = "com.seaofnodes.simple.node.cpus."+cpu+"."+cpu;
+        String clzFile = base+"."+cpu+"."+cpu;
         try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor().newInstance(); }
         catch( Exception e ) { throw new RuntimeException(e); }
 
@@ -284,6 +278,15 @@ public class CodeGen {
         return "N"+ n._nid;
     }
 
+    // ---------------------------
+    // Encoding
+    public CodeGen encode() {
+        assert _phase == Phase.RegAlloc;
+        _phase = Phase.Encoding;
+        throw Utils.TODO();
+    }
+    // Encoded binary, no relocation info
+    public byte[] binary() { throw Utils.TODO(); }
 
     // ---------------------------
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }
