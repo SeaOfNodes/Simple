@@ -60,7 +60,7 @@ public class x86_64_v2 extends Machine {
     public static RegMask XMM6_MASK = new RegMask(1L<<XMM6);
     public static RegMask XMM7_MASK = new RegMask(1L<<XMM7);
     public static RegMask[] XMMS = new RegMask[]{
-        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+        RPC_MASK, null,XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
         XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
     };
 
@@ -319,6 +319,8 @@ public class x86_64_v2 extends Machine {
     // callee saved(systemv)
     public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
+    private static int GPR_MASK_STATE = 2;
+    private static int FLOAT_MASK_STATE = 2;
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
@@ -326,15 +328,19 @@ public class x86_64_v2 extends Machine {
         case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64;
         };
 
-        // Todo: this will break if there are more float args that we can load into registers
-        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat )
-            return XMMS[idx-2];
-
         if( idx >= cargs.length )
             throw Utils.TODO(); // Pass on stack slot
 
-        return cargs[idx]
-                ;
+        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat ) {
+            FLOAT_MASK_STATE += (idx - FLOAT_MASK_STATE);
+            int ta = idx == 2 ? 0: 1;
+            return XMMS[FLOAT_MASK_STATE - ta];
+        } else if(idx >= 2){
+            GPR_MASK_STATE += (idx - GPR_MASK_STATE);
+            int ta = idx == 2 ? 0: 1;
+            return cargs[GPR_MASK_STATE - ta];
+        }
+        return cargs[idx];
     }
 
     // Create a split op; any register to any register, including stack slots
