@@ -377,6 +377,7 @@ public class x86_64_v2 extends Machine {
         case MulFNode     mulf  -> new MulFX86(mulf);
         case MulNode      mul   -> mul(mul);
         case NewNode      nnn   -> new NewX86(nnn);
+        case NotNode      not   -> new NotX86(not);
         case OrNode       or   ->  or(or);
         case ParmNode     parm  -> new ParmX86(parm);
         case PhiNode      phi   -> new PhiNode(phi);

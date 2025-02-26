@@ -25,6 +25,44 @@ public class Chapter20Test {
             assertEquals(stop, code._stop.toString());
     }
 
+    //  // Todo: need sp adjust, callee saves and caller saves
+    // Todo: Hack split so extra mov is not needed
+    @Test public void TestSplitHack() {
+        CodeGen code = new CodeGen("""
+         return {int i, flt f, int j->return i+f+j;};
+           """);
+
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    // Todo: do spilling and invole stack slots/stack frame currently AAOIB
+    @Test public void TestStackSlotTodo() {
+        CodeGen code = new CodeGen("""
+            return {flt f1, flt f2, flt f3, flt f4, flt f5, flt f6, flt f7, flt f7 flt f9->return f9;};
+            """);
+
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+
+    // Todo: Insert unconditional jumps
+    @Test public void TestUnconditionalJumpTodo() {
+        CodeGen code = new CodeGen("""
+                if (arg == 0) arg += 2;
+                else arg += arg;
+                return arg;
+            """);
+
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
+    @Test public void TestNotNodeTodo() {
+        CodeGen code = new CodeGen("""
+        return arg == 0;
+            """);
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+    }
+
     private static void testAllCPUs( String src, int spills, String stop ) {
         testCPU(src,"x86_64_v2", "SystemV",spills,stop);
         testCPU(src,"riscv"    , "SystemV",spills,stop);
