@@ -51,7 +51,7 @@ public class CodeGen {
      *  A counter, for unique node id generation.  Starting with value 1, to
      *  avoid bugs confusing node ID 0 with uninitialized values.
      */
-    private int _uid = 1;
+    public int _uid = 1;
     public int UID() { return _uid; }
     public int getUID() {
         return _uid++;
