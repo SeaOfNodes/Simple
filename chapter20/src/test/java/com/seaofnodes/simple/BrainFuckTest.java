@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static com.seaofnodes.simple.Main.PORTS;
 
 public class BrainFuckTest {
 
@@ -17,8 +18,7 @@ public class BrainFuckTest {
             encoded.append("program[").append(i).append("] = ").append(value).append(";");
         }
 
-        CodeGen code = new CodeGen(
-                encoded + """
+        String src = encoded + """
 
 int d = 0;
 u8[] !output = new u8[0];
@@ -62,9 +62,10 @@ for( int pc = 0; pc < program#; pc++ ) {
     }
 }
 return output;
-                """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc();
-        assertEquals("Expect spills:",28.0,code._regAlloc._spillScaled,28>>3);
+""";
+        Chapter20Test.testCPU(src,"x86_64_v2", "SystemV",28,null);
+        Chapter20Test.testCPU(src,"riscv"    , "SystemV",12,null);
+        Chapter20Test.testCPU(src,"arm"      , "SystemV",12,null);
         //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
 }

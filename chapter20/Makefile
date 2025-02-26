@@ -82,7 +82,7 @@ release:	build/release/simple.jar
 build/release/simple.jar:	$(main_classes) $(test_classes)
 	@echo "jarring " $@ " because " $?
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	jar cf build/release/simple.jar $(main_classes) $(test_classes)
+	@jar cf build/release/simple.jar -C build/classes/main . -C build/classes/test .
 
 # Launch viewer
 view:	$(main_classes)
