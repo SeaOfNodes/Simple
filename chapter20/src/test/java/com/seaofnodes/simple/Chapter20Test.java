@@ -159,4 +159,10 @@ hashCode(s);
         testAllCPUs(src,0,null);
     }
 
+    @Test
+    public void testFltArg() {
+        String src = "return {int i, flt f, int j->return i+f+j;};";
+        testAllCPUs(src,0,null);
+    }
+
 }
