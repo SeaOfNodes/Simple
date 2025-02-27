@@ -329,19 +329,19 @@ public class x86_64_v2 extends Machine {
         default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
         };
 
-        if( idx >= cargs.length )
-            throw Utils.TODO(); // Pass on stack slot
-
-        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat ) {
-            FLOAT_MASK_STATE += (idx - FLOAT_MASK_STATE);
-            int ta = idx == 2 ? 0: 1;
-            return XMMS[FLOAT_MASK_STATE - ta];
-        } else if(idx >= 2){
-            GPR_MASK_STATE += (idx - GPR_MASK_STATE);
-            int ta = idx == 2 ? 0: 1;
-            return cargs[GPR_MASK_STATE - ta];
+        if (idx < 2) return cargs[idx];
+    
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            int cnt = 2;
+            for (int i=2; i<idx; i++) if (tfp.arg(i-2) instanceof TypeFloat) cnt++;
+            if (cnt >= XMMS.length) throw Utils.TODO();
+            return XMMS[cnt];
+        } else {
+            int cnt = 2;
+            for (int i=2; i<idx; i++) if (!(tfp.arg(i-2) instanceof TypeFloat)) cnt++;
+            if (cnt >= cargs.length) throw Utils.TODO();
+            return cargs[cnt];
         }
-        return cargs[idx];
     }
 
     // Create a split op; any register to any register, including stack slots
