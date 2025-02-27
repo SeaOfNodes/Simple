@@ -112,9 +112,17 @@ public class LRG {
         }
         _1regUseCnt += lrg._1regUseCnt;
 
+        // Fold deepest Split
+        _splitDef = deepSplit(_splitDef,lrg._splitDef);
+        _splitUse = deepSplit(_splitUse,lrg._splitUse);
+
         // Fold together masks
         _mask = _mask.and(lrg._mask);
         return this;
+    }
+
+    private static MachConcreteNode deepSplit( MachConcreteNode s0, MachConcreteNode s1 ) {
+        return s0==null || (s1!=null && s0.cfg0().loopDepth() < s1.cfg0().loopDepth()) ? s1 : s0;
     }
 
     // Record any Mach def for spilling heuristics
@@ -123,8 +131,8 @@ public class LRG {
             _machDef = def;
         if( size1 )
             _1regDefCnt++;
-        if( def instanceof SplitNode split && (_splitDef==null || split.cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
-            _splitDef = (MachConcreteNode)def;
+        if( def instanceof SplitNode split )
+            _splitDef = deepSplit(_splitDef,split);
         return this;
     }
 
@@ -134,8 +142,8 @@ public class LRG {
             { _machUse = use; _uidx = uidx; }
         if( size1 )
             _1regUseCnt++;
-        if( use instanceof SplitNode split && (_splitUse==null || split.cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
-            _splitUse = (MachConcreteNode)use;
+        if( use instanceof SplitNode split )
+            _splitUse = deepSplit(_splitUse,split);
         return this;
     }
 

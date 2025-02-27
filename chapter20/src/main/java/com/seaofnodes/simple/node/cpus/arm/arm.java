@@ -36,7 +36,7 @@ public class arm extends Machine {
     public static RegMask DMASK = new RegMask(0x3FFFFFFFL<<D0);
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0x3FFFFFFF<<D0 | 0x7FFFFFFFL);
+    public static RegMask MEM_MASK = new RegMask(0x3FFFFFFFL<<D0 | 0x7FFFFFFFL);
 
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 

@@ -23,8 +23,6 @@ public class OrIARM extends MachConcreteNode implements MachNode{
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return arm.RMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 0;}
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

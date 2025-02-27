@@ -9,6 +9,7 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
+// Integer constants
 public class IntARM extends ConstantNode implements MachNode {
     IntARM( ConstantNode con ) { super(con); }
 
@@ -31,7 +32,7 @@ public class IntARM extends ConstantNode implements MachNode {
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);
-        _con.print(sb.p(reg).p(" #"));
+        _con.print(sb.p(reg).p(" = #"));
     }
 
     @Override public String op() {

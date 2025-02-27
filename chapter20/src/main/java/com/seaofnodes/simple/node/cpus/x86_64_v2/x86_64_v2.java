@@ -324,8 +324,9 @@ public class x86_64_v2 extends Machine {
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV;
-        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64;
+        case "SystemV" -> CALLINMASK_SYSTEMV;
+        case "Win64"   -> CALLINMASK_WIN64;
+        default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
         };
 
         if( idx >= cargs.length )

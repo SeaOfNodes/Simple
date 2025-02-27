@@ -32,7 +32,7 @@ public class IntRISC extends ConstantNode implements MachNode {
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);
-        _con.print(sb.p(reg).p(" #"));
+        _con.print(sb.p(reg).p(" = #"));
     }
 
     @Override public String op() {
