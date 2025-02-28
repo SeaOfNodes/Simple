@@ -30,7 +30,11 @@ public class CallRISC extends CallNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        //  linker will fix this up
+        // Todo: figure out how to do it
+        int beforeSize = bytes.size();
+
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

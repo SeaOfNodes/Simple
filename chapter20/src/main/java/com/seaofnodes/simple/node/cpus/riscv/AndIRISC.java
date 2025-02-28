@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -25,7 +26,22 @@ public class AndIRISC extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // andi AND Immediate I 0010011 0x7
+        LRG and_rg = CodeGen.CODE._regAlloc.lrg(this);
+        LRG in_rg = CodeGen.CODE._regAlloc.lrg(in(1));
+
+        int beforeSize = bytes.size();
+
+        short rd = and_rg.get_reg();
+        short in_reg = in_rg.get_reg();
+
+        int imm32_8 = (int)_ti.value();
+
+        int body = riscv.i_type(riscv.I_TYPE, rd, 7, in_reg, imm32_8, 0);
+
+        riscv.push_4_bytes(body, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // General form

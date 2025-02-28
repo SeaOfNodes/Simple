@@ -29,7 +29,8 @@ public class RetRISC extends ReturnNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+       // ret jalr x0, x1, 0 Return from subroutine
+       return 0;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

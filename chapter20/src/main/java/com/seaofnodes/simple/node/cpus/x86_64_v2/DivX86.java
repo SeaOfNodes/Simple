@@ -23,18 +23,19 @@ public class DivX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-    // REX.W + F7 /7	IDIV r/m64
+      // REX.W + F7 /7	IDIV r/m64
         LRG div_rg_1 = CodeGen.CODE._regAlloc.lrg(in(2));
         short reg1 = div_rg_1.get_reg();
 
         // sign extend rax before 128/64 bits division
         // sign extend rax to rdx:rax
-        bytes.write(x86_64_v2.REX_W);
-        // opcode for CQO
-        bytes.write(0x99);
 
         // actual division starts
         int beforeSize = bytes.size();
+
+        bytes.write(x86_64_v2.REX_W);
+        // opcode for CQO
+        bytes.write(0x99);
         bytes.write(x86_64_v2.rex(0, reg1, 0));
         bytes.write(0xF7); // opcode
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x07, reg1));

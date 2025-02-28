@@ -3,6 +3,8 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
+
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 
@@ -276,7 +278,7 @@ public class CodeGen {
     }
 
     // Debug purposes for now
-    public CodeGen printENCODING() {
+    public CodeGen printENCODINGX64() {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
             for(Node bb : CodeGen.CODE._cfg) {
@@ -287,11 +289,26 @@ public class CodeGen {
                 }
             }
 
+
         // Get the raw bytes from the output stream
         x86_64_v2.print_as_hex(outputStream); // Move to the next line after printing
         return this;
     }
 
+    public CodeGen printENCODINGRISCV() {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        for(Node bb : CodeGen.CODE._cfg) {
+            for(Node n: bb.outs()) {
+                if(n instanceof MachNode) {
+                    ((MachNode) n).encoding(outputStream);
+                }
+            }
+        }
+        riscv.print_as_hex(outputStream);
+
+        return this;
+    }
     public String reg(Node n) {
         if( _phase == Phase.RegAlloc ) {
             String s = _regAlloc.reg(n);

@@ -7,6 +7,8 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
+import java.io.ByteArrayOutputStream;
+
 public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
@@ -87,6 +89,49 @@ public class riscv extends Machine {
             FA6_MASK,
             FA7_MASK
     };
+    //                 3   3
+    // R_type opcode: 0011 0011
+    public static int R_TYPE = 0x33;
+
+    //I_type opcode: 0010 011
+    public static int I_TYPE = 0x13;
+
+    //  rd funct3 pack it into 1 byte
+    public static int r_des(int rd, int func3) {
+        return (func3 << 5) | rd;
+    }
+
+    // Since riscv instructions are fixed we can just or them togehter
+    public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
+        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
+
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm, int func7) {
+        return (func7 << 25) | (imm << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
+
+    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
+        bytes.write(value);
+        bytes.write(value >> 8);
+        bytes.write(value >> 16);
+        bytes.write(value >> 24);
+    }
+
+    public static void print_as_hex(ByteArrayOutputStream outputStream) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : outputStream.toByteArray()) {
+            hexString.append(String.format("%02X", b));  // Format as uppercase hex without space
+        }
+        System.out.println(hexString.toString());
+    }
+
+    // rs1 - rs2
+    public static int r_source(int rs1, int rs2) {
+        return (rs2 << 4) | rs1;
+    }
+    public static int r_func7(int f) {
+        return f & 7;
+    }
 
     // caller saved(riscv)
     //public static final long RISCV_CALLER_SAVED= TBD
