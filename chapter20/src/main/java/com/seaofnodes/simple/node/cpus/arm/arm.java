@@ -13,62 +13,56 @@ public class arm extends Machine {
     @Override public String name() { return "arm"; }
 
     // GPR(S)
-    public static int X0  =  0,  X1  =  1,  X2  =  2,  X3  =  3,  X4  =  4,  X5  =  5,  X6  =  6,  X7  =  7;
-    public static int X8  =  8,  X9  =  9,  X10 = 10,  X11 = 11,  X12 = 12,  X13 = 13,  X14 = 14,  X15 = 15;
-    public static int X16 = 16,  X17 = 17,  X18 = 18,  X19 = 19,  X20 = 20,  X21 = 21,  X22 = 22,  X23 = 23;
-    public static int X24 = 24,  X25 = 25,  X26 = 26,  X27 = 27,  X28 = 28,  X29 = 29,  X30 = 30,  RSP = 31;
+    static int X0  =  0,  X1  =  1,  X2  =  2,  X3  =  3,  X4  =  4,  X5  =  5,  X6  =  6,  X7  =  7;
+    static int X8  =  8,  X9  =  9,  X10 = 10,  X11 = 11,  X12 = 12,  X13 = 13,  X14 = 14,  X15 = 15;
+    static int X16 = 16,  X17 = 17,  X18 = 18,  X19 = 19,  X20 = 20,  X21 = 21,  X22 = 22,  X23 = 23;
+    static int X24 = 24,  X25 = 25,  X26 = 26,  X27 = 27,  X28 = 28,  X29 = 29,  X30 = 30,  RSP = 31;
 
     // Floating point registers
-    public static int D0  = 32,  D1  = 33,  D2  = 34,  D3  = 35,  D4  = 36,  D5  = 37,  D6  = 38,  D7  = 39;
-    public static int D8  = 40,  D9  = 41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
-    public static int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
-    public static int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61;
+    static int D0  = 32,  D1  = 33,  D2  = 34,  D3  = 35,  D4  = 36,  D5  = 37,  D6  = 38,  D7  = 39;
+    static int D8  = 40,  D9  = 41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
+    static int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
+    static int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61;
 
-    public static int FLAGS = 62;
+    static int FLAGS = 62;
 
     // from (x0-x30)
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0xFFFFFFFFL);
-    public static RegMask WMASK = new RegMask(0x7FFFFFFFL);
+    static RegMask RMASK = new RegMask(0xFFFFFFFFL);
+    static RegMask WMASK = new RegMask(0x7FFFFFFFL);
 
     // Float mask from(d0–d30)
-    public static RegMask DMASK = new RegMask(0x3FFFFFFFL<<D0);
+    static RegMask DMASK = new RegMask(0x3FFFFFFFL<<D0);
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0x3FFFFFFFL<<D0 | 0x7FFFFFFFL);
+    static RegMask MEM_MASK = new RegMask(0x3FFFFFFFL<<D0 | 0x7FFFFFFFL);
 
-    public static RegMask FLAGS_MASK = new RegMask(FLAGS);
-
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
-    public static RegMask RPC_MASK = new RegMask(1L << X30);
-    // If the return type is a floating point variable, it is returned in s0 or d0, as appropriate.
+    static RegMask RPC_MASK = new RegMask(1L << X30);
 
     // Arguments masks
-    public static RegMask X0_MASK = new RegMask(X0);
-    public static RegMask X1_MASK = new RegMask(X1);
-    public static RegMask X2_MASK = new RegMask(X2);
-    public static RegMask X3_MASK = new RegMask(X3);
-    public static RegMask X4_MASK = new RegMask(X4);
-    public static RegMask X5_MASK = new RegMask(X5);
-    public static RegMask X6_MASK = new RegMask(X6);
-    public static RegMask X7_MASK = new RegMask(X7);
+    static RegMask X0_MASK = new RegMask(X0);
+    static RegMask X1_MASK = new RegMask(X1);
+    static RegMask X2_MASK = new RegMask(X2);
+    static RegMask X3_MASK = new RegMask(X3);
+    static RegMask X4_MASK = new RegMask(X4);
+    static RegMask X5_MASK = new RegMask(X5);
+    static RegMask X6_MASK = new RegMask(X6);
+    static RegMask X7_MASK = new RegMask(X7);
 
 
     // Arguments(float) masks
-    public static RegMask D0_MASK = new RegMask(D0);
-    public static RegMask D1_MASK = new RegMask(D1);
-    public static RegMask D2_MASK = new RegMask(D2);
-    public static RegMask D3_MASK = new RegMask(D3);
-    public static RegMask D4_MASK = new RegMask(D4);
-    public static RegMask D5_MASK = new RegMask(D5);
-    public static RegMask D6_MASK = new RegMask(D6);
-    public static RegMask D7_MASK = new RegMask(D7);
+    static RegMask D0_MASK = new RegMask(D0);
+    static RegMask D1_MASK = new RegMask(D1);
+    static RegMask D2_MASK = new RegMask(D2);
+    static RegMask D3_MASK = new RegMask(D3);
+    static RegMask D4_MASK = new RegMask(D4);
+    static RegMask D5_MASK = new RegMask(D5);
+    static RegMask D6_MASK = new RegMask(D6);
+    static RegMask D7_MASK = new RegMask(D7);
 
-    public static RegMask RET_MASK  = X0_MASK;
-    public static RegMask RET_FMASK = D0_MASK;
-
-
-    public static final String[] REGS = new String[] {
+    static final String[] REGS = new String[] {
             "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
             "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
             "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
@@ -85,8 +79,6 @@ public class arm extends Machine {
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     static RegMask[] CALLINMASK = new RegMask[] {
-        RPC_MASK,
-        null,
         X0_MASK,
         X1_MASK,
         X2_MASK,
@@ -96,9 +88,7 @@ public class arm extends Machine {
         X6_MASK,
         X7_MASK,
     };
-    static RegMask[] CALLINMASK_F = new RegMask[] {
-        RPC_MASK,
-        null,
+    static RegMask[] XMMS = new RegMask[] {
         D0_MASK,
         D1_MASK,
         D2_MASK,
@@ -110,9 +100,28 @@ public class arm extends Machine {
     };
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        if( idx >= 2 && idx <= 10 && tfp.arg(idx-2) instanceof TypeFloat )
-            return CALLINMASK_F[idx];
-        return CALLINMASK[idx];
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat )
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS.length )
+                return XMMS[fcnt];
+        } else {
+            RegMask[] cargs = CALLINMASK;
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        throw Utils.TODO(); // Pass on stack slot
+    }
+
+    // Return single int/ptr register
+    static RegMask retMask( TypeFunPtr tfp ) {
+        return tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK;
     }
 
     // Create a split op; any register to any register, including stack slots

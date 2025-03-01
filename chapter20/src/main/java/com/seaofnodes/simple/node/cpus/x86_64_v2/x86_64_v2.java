@@ -12,62 +12,61 @@ public class x86_64_v2 extends Machine {
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "x86_64_v2"; }
 
-    public static int RAX =  0, RCX =  1, RDX =  2, RBX =  3, RSP =  4, RBP =  5, RSI =  6, RDI =  7;
-    public static int R08 =  8, R09 =  9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
+    static final int RAX =  0, RCX =  1, RDX =  2, RBX =  3, RSP =  4, RBP =  5, RSI =  6, RDI =  7;
+    static final int R08 =  8, R09 =  9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
 
-    public static int XMM0  = 16, XMM1  = 17, XMM2  = 18, XMM3  = 19, XMM4  = 20, XMM5  = 21, XMM6  = 22, XMM7  = 23;
-    public static int XMM8  = 24, XMM9  = 25, XMM10 = 26, XMM11 = 27, XMM12 = 28, XMM13 = 29, XMM14 = 30, XMM15 = 31;
-    public static int FLAGS = 32;
-    public static int RPC = 33;
+    static final int XMM0  = 16, XMM1  = 17, XMM2  = 18, XMM3  = 19, XMM4  = 20, XMM5  = 21, XMM6  = 22, XMM7  = 23;
+    static final int XMM8  = 24, XMM9  = 25, XMM10 = 26, XMM11 = 27, XMM12 = 28, XMM13 = 29, XMM14 = 30, XMM15 = 31;
+    static final int FLAGS = 32;
+    static final int RPC = 33;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b1111111111111111L);
+    static final long RD_BITS = 0b1111111111111111L; // All the GPRs
+    static RegMask RMASK = new RegMask(RD_BITS);
     // No RSP in the *write* general set.
-    public static RegMask WMASK = new RegMask(0b1111111111101111L);
+    static final long WR_BITS = 0b1111111111101111L; // All the GPRs minus RSP
+    static RegMask WMASK = new RegMask(WR_BITS);
     // Xmm register mask
-    public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
+    static final long FP_BITS = 0b1111111111111111L << XMM0; // All the XMMs
+    static RegMask XMASK = new RegMask(FP_BITS);
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static RegMask RPC_MASK = new RegMask(RPC);
 
-    public static RegMask FLAGS_MASK = new RegMask(FLAGS);
-    public static RegMask SPLIT_MASK = new RegMask(0b1111111111101111L | (0b1111111111111111L << XMM0) | (1L<<FLAGS) );
+    static RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) );
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<XMM0));
-    // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(RAX);
-    public static RegMask RET_FMASK= new RegMask(XMM0);
-    public static RegMask RPC_MASK = new RegMask(RPC);
+    static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
+    static RegMask RAX_MASK = new RegMask(RAX);
+    static RegMask RCX_MASK = new RegMask(RCX);
+    static RegMask RDX_MASK = new RegMask(RDX);
+    static RegMask RDI_MASK = new RegMask(RDI);
+    static RegMask R08_MASK = new RegMask(R08);
+    static RegMask R09_MASK = new RegMask(R09);
+    static RegMask RSI_MASK = new RegMask(RSI);
 
-    public static RegMask RAX_MASK = new RegMask(RAX);
-    public static RegMask RCX_MASK = new RegMask(RCX);
-    public static RegMask RDX_MASK = new RegMask(RDX);
-    public static RegMask RDI_MASK = new RegMask(RDI);
-    public static RegMask R08_MASK = new RegMask(R08);
-    public static RegMask R09_MASK = new RegMask(R09);
-    public static RegMask RSI_MASK = new RegMask(RSI);
-
-    public static RegMask XMM0_MASK = new RegMask(XMM0);
-    public static RegMask XMM1_MASK = new RegMask(XMM1);
-    public static RegMask XMM2_MASK = new RegMask(XMM2);
-    public static RegMask XMM3_MASK = new RegMask(XMM3);
-    public static RegMask XMM4_MASK = new RegMask(XMM4);
-    public static RegMask XMM5_MASK = new RegMask(XMM5);
-    public static RegMask XMM6_MASK = new RegMask(XMM6);
-    public static RegMask XMM7_MASK = new RegMask(XMM7);
-    public static RegMask[] XMMS = new RegMask[]{
+    static RegMask XMM0_MASK = new RegMask(XMM0);
+    static RegMask XMM1_MASK = new RegMask(XMM1);
+    static RegMask XMM2_MASK = new RegMask(XMM2);
+    static RegMask XMM3_MASK = new RegMask(XMM3);
+    static RegMask XMM4_MASK = new RegMask(XMM4);
+    static RegMask XMM5_MASK = new RegMask(XMM5);
+    static RegMask XMM6_MASK = new RegMask(XMM6);
+    static RegMask XMM7_MASK = new RegMask(XMM7);
+    static RegMask[] XMMS = new RegMask[]{
         XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
         XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
     };
 
     // Calling conv metadata
-    public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
-    public int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
+    int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
+    int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
 
-    public int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
-    public int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
+    int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
+    int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
     // Human-readable name for a register number, e.g. "RAX".
     // Hard crash for bad register number, fix yer bugs!
-    public static final String[] REGS = new String[] {
+    static final String[] REGS = new String[] {
         "rax" , "rcx" , "rdx"  , "rbx"  , "rsp"  , "rbp"  , "rsi"  , "rdi"  ,
         "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
         "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
@@ -80,8 +79,6 @@ public class x86_64_v2 extends Machine {
 
     // WIN64(param passing)
     static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
-        RPC_MASK,
-        null,
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
@@ -89,16 +86,11 @@ public class x86_64_v2 extends Machine {
     };
 
     // caller saved(win64)
-    public static final long WIN64_ABI_CALLER_SAVED =
+    static final long WIN64_ABI_CALLER_SAVED =
         (1L << RAX) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11);
-
-    // callee saved(win64)
-    public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
 
     // SystemV(param passing)
     static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
-        RPC_MASK,
-        null,   // Memory, no register
         RDI_MASK,
         RSI_MASK,
         RDX_MASK,
@@ -108,24 +100,43 @@ public class x86_64_v2 extends Machine {
     };
 
     // caller saved(systemv)
-    // caller saved(win64)
-    public static final long SYSTEMV_ABI_CALLER_SAVED =
+    static final long SYSTEMV_ABI_CALLER_SAVED =
         (1L << RAX) | (1L << RDI) | (1L << RSI) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) << (1L << R10) << (1L << R11);
-    // callee saved(systemv)
-    public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
 
+    static RegMask[] XMMS4 = new RegMask[]{
+        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+    };
+
+    // Map from function signature and argument index to register.
+    // Used to set input registers to CallNodes, and ParmNode outputs.
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
-        case "SystemV" -> CALLINMASK_SYSTEMV;
-        case "Win64"   -> CALLINMASK_WIN64;
-        default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
-        };
-        if( idx >= 2 && tfp.arg(idx-2) instanceof TypeFloat )
-            return XMMS[idx-2];
-        if( idx >= cargs.length )
-            throw Utils.TODO(); // Pass on stack slot
-        return cargs[idx];
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat )
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS4.length )
+                return XMMS4[fcnt];
+        } else {
+            RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
+            case "SystemV" -> CALLINMASK_SYSTEMV;
+            case "Win64"   -> CALLINMASK_WIN64;
+            default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
+            };
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        throw Utils.TODO(); // Pass on stack slot
+    }
+
+    // Return single int/ptr register.  Used by CallEnd output and Return input.
+    static RegMask retMask( TypeFunPtr tfp ) {
+        return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
     }
 
     // Create a split op; any register to any register, including stack slots
