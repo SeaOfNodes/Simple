@@ -12,60 +12,53 @@ public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
-    public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
-    public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
-    public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
+    static int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
+    static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
+    static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    public static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
-    public static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
-    public static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
-    public static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
+    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
+    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
+    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
+    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    public static int FLAGS = 0 ;
+    static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
-    public static RegMask WMASK = new RegMask(0b11111111111111111111111111111010L);
+    static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
+    static RegMask WMASK = new RegMask(0b11111111111111111111111111111010L);
     // Float mask from(ft0–ft11)
-    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
+    static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<F0));
-
-
-    // Return single int/ptr register
-    public static RegMask RET_MASK  = new RegMask( A0);
-    public static RegMask RET_FMASK = new RegMask(FA0);
-    public static RegMask RPC_MASK = new RegMask(RPC);
+    static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<F0));
 
     // Arguments masks
-    public static RegMask A0_MASK = new RegMask(A0);
-    public static RegMask A1_MASK = new RegMask(A1);
-    public static RegMask A2_MASK = new RegMask(A2);
-    public static RegMask A3_MASK = new RegMask(A3);
-    public static RegMask A4_MASK = new RegMask(A4);
-    public static RegMask A5_MASK = new RegMask(A5);
-    public static RegMask A6_MASK = new RegMask(A6);
-    public static RegMask A7_MASK = new RegMask(A7);
+    static RegMask A0_MASK = new RegMask(A0);
+    static RegMask A1_MASK = new RegMask(A1);
+    static RegMask A2_MASK = new RegMask(A2);
+    static RegMask A3_MASK = new RegMask(A3);
+    static RegMask A4_MASK = new RegMask(A4);
+    static RegMask A5_MASK = new RegMask(A5);
+    static RegMask A6_MASK = new RegMask(A6);
+    static RegMask A7_MASK = new RegMask(A7);
 
-    public static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
-    public static RegMask FA0_MASK = new RegMask(FA0);
-    public static RegMask FA1_MASK = new RegMask(FA1);
-    public static RegMask FA2_MASK = new RegMask(FA2);
-    public static RegMask FA3_MASK = new RegMask(FA3);
-    public static RegMask FA4_MASK = new RegMask(FA4);
-    public static RegMask FA5_MASK = new RegMask(FA5);
-    public static RegMask FA6_MASK = new RegMask(FA6);
-    public static RegMask FA7_MASK = new RegMask(FA7);
+    static RegMask FA0_MASK = new RegMask(FA0);
+    static RegMask FA1_MASK = new RegMask(FA1);
+    static RegMask FA2_MASK = new RegMask(FA2);
+    static RegMask FA3_MASK = new RegMask(FA3);
+    static RegMask FA4_MASK = new RegMask(FA4);
+    static RegMask FA5_MASK = new RegMask(FA5);
+    static RegMask FA6_MASK = new RegMask(FA6);
+    static RegMask FA7_MASK = new RegMask(FA7);
 
     // Int arguments calling conv
-    static RegMask[] CALLINMASK_RISCV = new RegMask[] {
-        RPC_MASK,
-        null,
+    static RegMask[] CALLINMASK = new RegMask[] {
         A0_MASK,
         A1_MASK,
         A2_MASK,
@@ -76,9 +69,7 @@ public class riscv extends Machine {
         A7_MASK
     };
 
-    static RegMask[] CALLINMASK_F = new RegMask[] {
-            RPC_MASK,
-            null,
+    static RegMask[] XMMS = new RegMask[] {
             FA0_MASK,
             FA1_MASK,
             FA2_MASK,
@@ -89,25 +80,38 @@ public class riscv extends Machine {
             FA7_MASK
     };
 
-    // caller saved(riscv)
-    //public static final long RISCV_CALLER_SAVED= TBD
     // callee saved(riscv)
-    public static final long RISCV_CALLEE_SAVED =
+    static final long RISCV_CALLEE_SAVED =
             (1L << FS0) | (1L << FS1) | (1L << FS2) | (1L << FS3) | (1L << FS4)
                     | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
 
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        if( idx >= 2 && idx <= 10 && tfp.arg(idx-2) instanceof TypeFloat )
-            return CALLINMASK_F[idx];
-        return CALLINMASK_RISCV[idx];
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat )
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS.length )
+                return XMMS[fcnt];
+        } else {
+            RegMask[] cargs = CALLINMASK;
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Calling conv metadata
-    public int GPR_COUNT_CONV_RISCV = 7;  // A0, A1, A2, A3, A4, A5, A6, A7
-    public int FLOAT_COUNT_CONV_RISCV = 7; // FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7
+    // Return single int/ptr register
+    static RegMask retMask( TypeFunPtr tfp ) {
+        return tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
+    }
 
-    public static final String[] REGS = new String[] {
+    static final String[] REGS = new String[] {
             "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
             "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
             "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,

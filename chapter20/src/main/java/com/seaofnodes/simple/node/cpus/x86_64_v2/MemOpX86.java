@@ -63,14 +63,12 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
-        if( i==1 ) return null;            // Memory
-        if( i==2 ) return x86_64_v2.RMASK; // base
-        if( i==3 ) return x86_64_v2.RMASK; // index
-        if( i==4 ) return x86_64_v2.RMASK; // value
+        if( i==1 ) return null;               // Memory
+        if( i==2 ) return x86_64_v2.RMASK;    // base  in GPR
+        if( i==3 ) return x86_64_v2.RMASK;    // index in GPR
+        if( i==4 ) return x86_64_v2.MEM_MASK; // value in GPR or XMM
         throw Utils.TODO();
     }
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
 
     @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }
 
