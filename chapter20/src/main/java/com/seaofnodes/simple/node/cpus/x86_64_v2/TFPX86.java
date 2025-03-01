@@ -23,6 +23,7 @@ public class TFPX86 extends ConstantNode implements MachNode {
     @Override public int encoding(ByteArrayOutputStream bytes) {
         int beforeSize = bytes.size();
         // REX.W + 8D /r	LEA r64,m
+        // load function pointer into a reg
         // opcode
         LRG tfp_lrg = CodeGen.CODE._regAlloc.lrg(this);
 

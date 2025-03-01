@@ -25,12 +25,6 @@ public class LoadRISC extends MemOpRISC {
     // Wide mask loads both ints and floats; encoding varies.
     @Override public RegMask outregmap() { return riscv.MEM_MASK; }
 
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
-    }
-
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");
         asm_address(code,sb);

@@ -16,7 +16,6 @@ public class LoadX86 extends MemOpX86 {
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
-
     // General form: "ldN  dst,[base + idx<<2 + 12]"
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");

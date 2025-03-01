@@ -37,7 +37,6 @@ public class XorRISC extends MachConcreteNode implements MachNode {
         LRG xor_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
         LRG xor_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
 
-
         short self = xor_self.get_reg();
         short reg1 = xor_rg_1.get_reg();
         short reg2 = xor_rg_2.get_reg();

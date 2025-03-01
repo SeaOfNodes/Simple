@@ -135,6 +135,18 @@ public class riscv extends Machine {
         return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
 
+    // S-type instructions(store)
+    public static int s_type(int opcode, int offset1, int func3, int rs1, int rs2, int offset2) {
+        return (offset2 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (offset1 << 7) | opcode;
+    }
+
+    // immf = first imm
+    // immd = second imm
+    // BRANCH
+    public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
+        return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
+    }
+
     public enum RM {RNE, // Round to Nearest, ties to Even
         RTZ,  // Round towards Zero
         RDN, // Round Down
@@ -151,10 +163,29 @@ public class riscv extends Machine {
         Q, // 128-bit quad-precision
     };
 
+    // slt, (0110011)
+    //
+    // seqz ( sltiu rd, rs, 1 ) - 0001 0011
+    static public int setop(String op) {
+        return switch(op) {
+            case "==" -> 0x33;
+            case "<"  -> 0x33;
+            case "<="  -> 0x13;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+    // BEQ: 01100011
+    // BLT: 01100011
+    // BLE: bge rt, rs, offset:
 
-
-
-
+    static public int jumpop(String op) {
+        return switch(op) {
+            case "=="  -> 0x63;
+            case "<"   -> 0x63;
+            case "<="  -> 0x63;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
     public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
         bytes.write(value);
         bytes.write(value >> 8);
@@ -391,6 +422,10 @@ public class riscv extends Machine {
             imm = (int)ti.value();
             assert imm == ti.value(); // In 32-bit range
         }
+        // load imm first into reg before store
+        // store doesn't support storing imm into memory
+        if(imm != 0) return new IntRISC((ConstantNode)xval);
+
         return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);
     }
 
