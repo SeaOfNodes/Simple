@@ -10,6 +10,7 @@ import java.util.*;
 public abstract class ListScheduler {
 
     // eXtra per-node stuff for scheduling.
+    // Nodes are all block-local, and projections fold into their parent.
     private static final IdentityHashMap<Node,XSched> XS = new IdentityHashMap<>();
     private static class XSched {
 
@@ -219,7 +220,7 @@ public abstract class ListScheduler {
         CNT[1]=CNT[2]=0;
         for( int i=1; i<n.nIns(); i++ ) {
             XSched xd = XSched.get( n.in(i) );
-            if( xd != null && xd._n.nOuts()==1 )
+            if( xd != null && n.in(i).nOuts()==1 )
                 CNT[xd._single || ((MachNode)n).regmap(i)!=null && ((MachNode)n).regmap(i).size1() ? 2 : 1]++;
         }
         score +=   10 * Math.min( CNT[1], 2 );
@@ -234,14 +235,14 @@ public abstract class ListScheduler {
     // If true, stalling 'n' might reduce 'n's lifetime.
     // Return 0 for false, 1 if true, 10 if also single register
     private static void singleUseNotReady( Node n, boolean single ) {
-        // If can rematerialize, assume allocator will split into private uses
+        // If n can rematerialize, assume allocator will split into private uses
         // as needed.  No impact on local scheduling.
         if( n.nOuts()>1 && n instanceof MachNode mach && mach.isClone() )
             return;
         for( Node use : n.outs() ) {
             XSched xu = XSched.get(use);
             if( xu != null && xu._bcnt > 0 )
-                CNT[single ? 2 : 1]++;
+                CNT[single ? 2 : 1]++; // Since bcnt>0, stall until user is more ready
         }
     }
 

@@ -1,8 +1,7 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-
-
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.Machine;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
@@ -38,32 +37,32 @@ public class arm extends Machine {
     // Load/store mask; both GPR and FPR
     public static RegMask MEM_MASK = new RegMask(0x3FFFFFFFL<<D0 | 0x7FFFFFFFL);
 
-    public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
+    public static RegMask FLAGS_MASK = new RegMask(FLAGS);
 
     //  x30 (LR): Procedure link register, used to return from subroutines.
     public static RegMask RPC_MASK = new RegMask(1L << X30);
     // If the return type is a floating point variable, it is returned in s0 or d0, as appropriate.
 
     // Arguments masks
-    public static RegMask X0_MASK = new RegMask(1L<<X0);
-    public static RegMask X1_MASK = new RegMask(1L<<X1);
-    public static RegMask X2_MASK = new RegMask(1L<<X2);
-    public static RegMask X3_MASK = new RegMask(1L<<X3);
-    public static RegMask X4_MASK = new RegMask(1L<<X4);
-    public static RegMask X5_MASK = new RegMask(1L<<X5);
-    public static RegMask X6_MASK = new RegMask(1L<<X6);
-    public static RegMask X7_MASK = new RegMask(1L<<X7);
+    public static RegMask X0_MASK = new RegMask(X0);
+    public static RegMask X1_MASK = new RegMask(X1);
+    public static RegMask X2_MASK = new RegMask(X2);
+    public static RegMask X3_MASK = new RegMask(X3);
+    public static RegMask X4_MASK = new RegMask(X4);
+    public static RegMask X5_MASK = new RegMask(X5);
+    public static RegMask X6_MASK = new RegMask(X6);
+    public static RegMask X7_MASK = new RegMask(X7);
 
 
     // Arguments(float) masks
-    public static RegMask D0_MASK = new RegMask(1L<<D0);
-    public static RegMask D1_MASK = new RegMask(1L<<D1);
-    public static RegMask D2_MASK = new RegMask(1L<<D2);
-    public static RegMask D3_MASK = new RegMask(1L<<D3);
-    public static RegMask D4_MASK = new RegMask(1L<<D4);
-    public static RegMask D5_MASK = new RegMask(1L<<D5);
-    public static RegMask D6_MASK = new RegMask(1L<<D6);
-    public static RegMask D7_MASK = new RegMask(1L<<D7);
+    public static RegMask D0_MASK = new RegMask(D0);
+    public static RegMask D1_MASK = new RegMask(D1);
+    public static RegMask D2_MASK = new RegMask(D2);
+    public static RegMask D3_MASK = new RegMask(D3);
+    public static RegMask D4_MASK = new RegMask(D4);
+    public static RegMask D5_MASK = new RegMask(D5);
+    public static RegMask D6_MASK = new RegMask(D6);
+    public static RegMask D7_MASK = new RegMask(D7);
 
     public static RegMask RET_MASK  = X0_MASK;
     public static RegMask RET_FMASK = D0_MASK;
@@ -117,7 +116,7 @@ public class arm extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round) {  return new SplitARM(kind,round);  }
+    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

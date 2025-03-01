@@ -22,7 +22,7 @@ public class LRG {
     short _1regDefCnt, _1regUseCnt;
 
     // A sample MachNode def in the live range
-    MachNode _machDef, _machUse;
+    public MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
 
     // Some splits used in biased coloring

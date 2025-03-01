@@ -68,9 +68,9 @@ public abstract class Node {
     Node( Node n ) {
         assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstSelect.ordinal();
         _nid = CODE.getUID(); // allocate unique dense ID
-        _inputs  = new Ary<>(n._inputs.asAry());
+        _inputs  = new Ary<>(n==null ? new Node[0] : n._inputs.asAry());
         _outputs = new Ary<>(Node.class);
-        _type = n._type;
+        _type = n==null ? Type.BOTTOM : n._type;
         _deps = null;
         _hash = 0;
     }
@@ -182,12 +182,16 @@ public abstract class Node {
         // Return new_def for easy flow-coding
         return new_def;
     }
+    public <N extends Node> N setDefX(int idx, N new_def ) {
+        while( nIns() <= idx ) addDef(null);
+        return setDef(idx,new_def);
+    }
 
     // Remove the numbered input, compressing the inputs in-place.  This
     // shuffles the order deterministically - which is suitable for Region and
     // Phi, but not for every Node.  If the def goes dead, it is recursively
     // killed, which may include 'this' Node.
-    Node delDef(int idx) {
+    public Node delDef(int idx) {
         unlock();
         Node old_def = in(idx);
         _inputs.del(idx);
