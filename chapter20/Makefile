@@ -53,7 +53,7 @@ endif
 default: $(default_targets)
 
 # Compile just the out-of-date files
-$(main_classes): build/classes/main/%class: $(SRC)/%java
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)
@@ -64,7 +64,7 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas)
 
 # Base launch line for JVM tests
-JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
+JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
@@ -82,7 +82,7 @@ release:	build/release/simple.jar
 build/release/simple.jar:	$(main_classes) $(test_classes)
 	@echo "jarring " $@ " because " $?
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	@jar cf build/release/simple.jar -C build/classes/main . -C build/classes/test .
+	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 # Launch viewer
 view:	$(main_classes)

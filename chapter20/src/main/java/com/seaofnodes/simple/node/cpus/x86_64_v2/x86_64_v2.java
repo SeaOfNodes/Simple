@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.Machine;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
@@ -20,39 +21,39 @@ public class x86_64_v2 extends Machine {
     public static int RPC = 33;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b1111111111111111);
+    public static RegMask RMASK = new RegMask(0b1111111111111111L);
     // No RSP in the *write* general set.
-    public static RegMask WMASK = new RegMask(0b1111111111101111);
+    public static RegMask WMASK = new RegMask(0b1111111111101111L);
     // Xmm register mask
     public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
 
-    public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
+    public static RegMask FLAGS_MASK = new RegMask(FLAGS);
     public static RegMask SPLIT_MASK = new RegMask(0b1111111111101111L | (0b1111111111111111L << XMM0) | (1L<<FLAGS) );
 
     // Load/store mask; both GPR and FPR
     public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<XMM0));
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(1L<<RAX);
-    public static RegMask RET_FMASK= new RegMask(1L<<XMM0);
-    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
+    public static RegMask RET_MASK = new RegMask(RAX);
+    public static RegMask RET_FMASK= new RegMask(XMM0);
+    public static RegMask RPC_MASK = new RegMask(RPC);
 
 
-    public static RegMask RAX_MASK = new RegMask(1L<<RAX);
-    public static RegMask RCX_MASK = new RegMask(1L<<RCX);
-    public static RegMask RDX_MASK = new RegMask(1L<<RDX);
-    public static RegMask RDI_MASK = new RegMask(1L<<RDI);
-    public static RegMask R08_MASK = new RegMask(1L<<R08);
-    public static RegMask R09_MASK = new RegMask(1L<<R09);
-    public static RegMask RSI_MASK = new RegMask(1L<<RSI);
+    public static RegMask RAX_MASK = new RegMask(RAX);
+    public static RegMask RCX_MASK = new RegMask(RCX);
+    public static RegMask RDX_MASK = new RegMask(RDX);
+    public static RegMask RDI_MASK = new RegMask(RDI);
+    public static RegMask R08_MASK = new RegMask(R08);
+    public static RegMask R09_MASK = new RegMask(R09);
+    public static RegMask RSI_MASK = new RegMask(RSI);
 
-    public static RegMask XMM0_MASK = new RegMask(1L<<XMM0);
-    public static RegMask XMM1_MASK = new RegMask(1L<<XMM1);
-    public static RegMask XMM2_MASK = new RegMask(1L<<XMM2);
-    public static RegMask XMM3_MASK = new RegMask(1L<<XMM3);
-    public static RegMask XMM4_MASK = new RegMask(1L<<XMM4);
-    public static RegMask XMM5_MASK = new RegMask(1L<<XMM5);
-    public static RegMask XMM6_MASK = new RegMask(1L<<XMM6);
-    public static RegMask XMM7_MASK = new RegMask(1L<<XMM7);
+    public static RegMask XMM0_MASK = new RegMask(XMM0);
+    public static RegMask XMM1_MASK = new RegMask(XMM1);
+    public static RegMask XMM2_MASK = new RegMask(XMM2);
+    public static RegMask XMM3_MASK = new RegMask(XMM3);
+    public static RegMask XMM4_MASK = new RegMask(XMM4);
+    public static RegMask XMM5_MASK = new RegMask(XMM5);
+    public static RegMask XMM6_MASK = new RegMask(XMM6);
+    public static RegMask XMM7_MASK = new RegMask(XMM7);
     public static RegMask[] XMMS = new RegMask[]{
         XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
         XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
@@ -128,7 +129,7 @@ public class x86_64_v2 extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round) {  return new SplitX86(kind,round);  }
+    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitX86(kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

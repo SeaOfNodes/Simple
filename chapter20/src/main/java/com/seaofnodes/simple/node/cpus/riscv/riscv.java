@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
+import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -35,31 +36,31 @@ public class riscv extends Machine {
 
 
     // Return single int/ptr register
-    public static RegMask RET_MASK  = new RegMask(1L<< A0);
-    public static RegMask RET_FMASK = new RegMask(1L<<FA0);
-    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
+    public static RegMask RET_MASK  = new RegMask( A0);
+    public static RegMask RET_FMASK = new RegMask(FA0);
+    public static RegMask RPC_MASK = new RegMask(RPC);
 
     // Arguments masks
-    public static RegMask A0_MASK = new RegMask(1L<<A0);
-    public static RegMask A1_MASK = new RegMask(1L<<A1);
-    public static RegMask A2_MASK = new RegMask(1L<<A2);
-    public static RegMask A3_MASK = new RegMask(1L<<A3);
-    public static RegMask A4_MASK = new RegMask(1L<<A4);
-    public static RegMask A5_MASK = new RegMask(1L<<A5);
-    public static RegMask A6_MASK = new RegMask(1L<<A6);
-    public static RegMask A7_MASK = new RegMask(1L<<A7);
+    public static RegMask A0_MASK = new RegMask(A0);
+    public static RegMask A1_MASK = new RegMask(A1);
+    public static RegMask A2_MASK = new RegMask(A2);
+    public static RegMask A3_MASK = new RegMask(A3);
+    public static RegMask A4_MASK = new RegMask(A4);
+    public static RegMask A5_MASK = new RegMask(A5);
+    public static RegMask A6_MASK = new RegMask(A6);
+    public static RegMask A7_MASK = new RegMask(A7);
 
-    public static RegMask FLAGS_MASK = new RegMask(1L << FLAGS);
+    public static RegMask FLAGS_MASK = new RegMask(FLAGS);
 
     // Float arguments masks
-    public static RegMask FA0_MASK = new RegMask(1L<<FA0);
-    public static RegMask FA1_MASK = new RegMask(1L<<FA1);
-    public static RegMask FA2_MASK = new RegMask(1L<<FA2);
-    public static RegMask FA3_MASK = new RegMask(1L<<FA3);
-    public static RegMask FA4_MASK = new RegMask(1L<<FA4);
-    public static RegMask FA5_MASK = new RegMask(1L<<FA5);
-    public static RegMask FA6_MASK = new RegMask(1L<<FA6);
-    public static RegMask FA7_MASK = new RegMask(1L<<FA7);
+    public static RegMask FA0_MASK = new RegMask(FA0);
+    public static RegMask FA1_MASK = new RegMask(FA1);
+    public static RegMask FA2_MASK = new RegMask(FA2);
+    public static RegMask FA3_MASK = new RegMask(FA3);
+    public static RegMask FA4_MASK = new RegMask(FA4);
+    public static RegMask FA5_MASK = new RegMask(FA5);
+    public static RegMask FA6_MASK = new RegMask(FA6);
+    public static RegMask FA7_MASK = new RegMask(FA7);
 
     // Int arguments calling conv
     static RegMask[] CALLINMASK_RISCV = new RegMask[] {
@@ -125,7 +126,7 @@ public class riscv extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public SplitNode split(String kind, byte round) { return new SplitRISC(kind,round);  }
+    @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
 
     // Break an infinite loop
     @Override public IfNode never( CFGNode ctrl ) {

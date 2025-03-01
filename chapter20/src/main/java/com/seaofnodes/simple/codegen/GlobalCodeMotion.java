@@ -47,7 +47,8 @@ public abstract class GlobalCodeMotion {
     // Break up shared global constants by functions
     private static void breakUpGlobalConstants( CodeGen code ) {
         // For all global constants
-        for( Node con : code._start.outs() )
+        for( int i=0; i< code._start.nOuts(); i++ ) {
+            Node con = code._start.out(i);
             if( con instanceof MachNode mach && mach.isClone() ) {
                 // While constant has users in different functions
                 while( true ) {
@@ -60,23 +61,23 @@ public abstract class GlobalCodeMotion {
                         else { done=false; break; }
                     }
                     // Single function user, so this constant is not shared
-                    if( done ) { con.setDef(0,fun); break; }
+                    if( done ) { i--; con.setDef(0,fun); break; }
                     // Move function users to a private constant
                     Node con2 = mach.copy();  // Private constant clone
                     con2._inputs.set(0,null); // Preserve edge invariants from clone
                     con2.setDef(0,fun);
                     // Move function users to this private constant
-                    for( int i=0; i<con._outputs._len; i++ ) {
-                        Node use = con.out(i);
+                    for( int j=0; j<con._outputs._len; j++ ) {
+                        Node use = con.out(j);
                         FunNode fun2 = use.cfg0().fun();
                         if( fun2==fun ) {
                             use.setDef(use._inputs.find(con),con2);
-                            i--;
+                            j--;
                         }
                     }
                 }
             }
-
+        }
     }
 
     // ------------------------------------------------------------------------
