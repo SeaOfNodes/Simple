@@ -4,6 +4,7 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -23,7 +24,19 @@ public class IntRISC extends ConstantNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // lui Load Upper Imm U 0110111
+        LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
+        
+        short rd_reg = frd_self.get_reg();
+        int beforeSize = bytes.size();
+
+        TypeInteger ti = (TypeInteger)_con;
+        long imm32_64 = ti.value();
+        int body = riscv.u_type(0x37, rd_reg, (int)imm32_64);
+
+        riscv.push_4_bytes(body, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

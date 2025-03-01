@@ -13,7 +13,7 @@ public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int        ZERO=0,     RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
@@ -93,8 +93,16 @@ public class riscv extends Machine {
     // R_type opcode: 0011 0011
     public static int R_TYPE = 0x33;
 
-    //I_type opcode: 0010 011
+
+    //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
+
+    // R_type float opcode 0101 0011
+    public static int R_FLOAT = 0x53;
+    // 0110 0111
+    public static int I_JALR = 0x67;
+    // 10100
+    public static int R_FLOAT_CONVERSION = 0x14;
 
     //  rd funct3 pack it into 1 byte
     public static int r_des(int rd, int func3) {
@@ -106,9 +114,46 @@ public class riscv extends Machine {
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
 
-    public static int i_type(int opcode, int rd, int func3, int rs1, int imm, int func7) {
-        return (func7 << 25) | (imm << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
+        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3.ordinal() << 12) | (rd << 7) | opcode;
     }
+
+    public static int r_fmt(int opcode, int rd, RM rm, int rs1, FMT fmt, int func7) {
+        // opcode has align 2 bits
+        return (func7 << 27) | (fmt.ordinal() << 25) | rs1 << 20 | rm.ordinal() << 15 | rd << 12 | opcode;
+    }
+
+    public static int u_type(int opcode, int rd, int imm) {
+        return (imm << 12) | (rd << 7) | opcode;
+    }
+
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm) {
+        return (imm << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
+
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm, int func7) {
+        return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
+
+    public enum RM {RNE, // Round to Nearest, ties to Even
+        RTZ,  // Round towards Zero
+        RDN, // Round Down
+        RUP, // Round Up
+        DIRECT, // Round to Nearest, ties to Max Magnitude
+        RESERVED1, // Reserved for futue use
+        RESERVED2, // Reserved for future use
+        DYN, // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
+    }
+
+    public enum FMT {S, // 32-bit single-precision
+        D,  // 64-bit double-precision
+        H, // 16-bit half-precision
+        Q, // 128-bit quad-precision
+    };
+
+
+
+
 
     public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
         bytes.write(value);
@@ -266,7 +311,7 @@ public class riscv extends Machine {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
         case TypeInteger ti  -> new IntRISC(con);
-        case TypeFloat   tf  -> new IntRISC(con);
+        case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
@@ -331,9 +376,7 @@ public class riscv extends Machine {
     }
 
     private Node mul(MulNode mul) {
-        return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new MulIRISC(mul, ti)
-                : new MulRISC(mul);
+                return new MulRISC(mul);
     }
 
     private Node ld(LoadNode ld) {

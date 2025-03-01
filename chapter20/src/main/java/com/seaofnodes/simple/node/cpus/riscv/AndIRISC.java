@@ -37,7 +37,7 @@ public class AndIRISC extends MachConcreteNode implements MachNode{
 
         int imm32_8 = (int)_ti.value();
 
-        int body = riscv.i_type(riscv.I_TYPE, rd, 7, in_reg, imm32_8, 0);
+        int body = riscv.i_type(riscv.I_TYPE, rd, 7, in_reg, imm32_8);
 
         riscv.push_4_bytes(body, bytes);
 

@@ -37,7 +37,7 @@ public class SllIRISC extends MachConcreteNode implements MachNode{
         int beforeSize = bytes.size();
 
         int imm32_8 = (int)_ti.value();
-        int body = riscv.i_type(riscv.I_TYPE, slli_rd_reg, 1, slli_in_reg, imm32_8, 0);
+        int body = riscv.i_type(riscv.I_TYPE, slli_rd_reg, 1, slli_in_reg, imm32_8);
 
         riscv.push_4_bytes(body, bytes);
 

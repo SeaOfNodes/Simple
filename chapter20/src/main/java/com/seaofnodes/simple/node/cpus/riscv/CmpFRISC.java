@@ -14,7 +14,8 @@ public class CmpFRISC extends  MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Does not set flags, so what to do here?
+        return 0;
     }
 
 

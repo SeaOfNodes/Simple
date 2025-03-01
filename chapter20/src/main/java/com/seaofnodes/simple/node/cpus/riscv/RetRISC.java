@@ -29,8 +29,20 @@ public class RetRISC extends ReturnNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-       // ret jalr x0, x1, 0 Return from subroutine
-       return 0;
+      // ret   | jalr x0, 0(x1)
+      // jalr Jump And Link Reg I 1100111 0x0
+
+      // destination reg:
+      int reg = riscv.ZERO;
+      int to_imm = riscv.RPC;
+
+      int beforeSize = bytes.size();
+
+      int body = riscv.i_type(riscv.I_JALR, reg, 0, to_imm, 0);
+
+      riscv.push_4_bytes(body, bytes);
+
+      return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

@@ -2,10 +2,12 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
+// fmul.s
 public class MulFRISC extends MachConcreteNode implements MachNode{
     MulFRISC(Node mulf) {super(mulf);}
 
@@ -16,7 +18,23 @@ public class MulFRISC extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        LRG fmul_self = CodeGen.CODE._regAlloc.lrg(this);
+
+        LRG fmul_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
+        LRG fmul_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
+
+        int beforeSize = bytes.size();
+
+        short reg1 = fmul_rg_1.get_reg();
+        short rd = fmul_self.get_reg();
+        short reg2 = fmul_rg_2.get_reg();
+
+        int body = riscv.r_type(riscv.R_FLOAT, rd, riscv.RM.RNE, reg1, reg2, 2);
+
+        riscv.push_4_bytes(body, bytes);
+
+        return bytes.size() - beforeSize;
+
     }
 
     // Default on double precision for now(64 bits)
