@@ -18,6 +18,7 @@ public class x86_64_v2 extends Machine {
     static final int XMM0  = 16, XMM1  = 17, XMM2  = 18, XMM3  = 19, XMM4  = 20, XMM5  = 21, XMM6  = 22, XMM7  = 23;
     static final int XMM8  = 24, XMM9  = 25, XMM10 = 26, XMM11 = 27, XMM12 = 28, XMM13 = 29, XMM14 = 30, XMM15 = 31;
     static final int FLAGS = 32;
+    static final int MAX_REG = 33;
     static final int RPC = 33;
 
     // General purpose register mask: pointers and ints, not floats
@@ -28,42 +29,25 @@ public class x86_64_v2 extends Machine {
     static RegMask WMASK = new RegMask(WR_BITS);
     // Xmm register mask
     static final long FP_BITS = 0b1111111111111111L << XMM0; // All the XMMs
-    static RegMask XMASK = new RegMask(FP_BITS);
-    static RegMask FLAGS_MASK = new RegMask(FLAGS);
-    static RegMask RPC_MASK = new RegMask(RPC);
+    static final RegMask XMASK = new RegMask(FP_BITS);
+    static final RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static final RegMask RPC_MASK = new RegMask(RPC);
 
-    static RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) );
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) );
 
     // Load/store mask; both GPR and FPR
     static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static RegMask RAX_MASK = new RegMask(RAX);
-    static RegMask RCX_MASK = new RegMask(RCX);
-    static RegMask RDX_MASK = new RegMask(RDX);
-    static RegMask RDI_MASK = new RegMask(RDI);
-    static RegMask R08_MASK = new RegMask(R08);
-    static RegMask R09_MASK = new RegMask(R09);
-    static RegMask RSI_MASK = new RegMask(RSI);
+    static final RegMask RAX_MASK = new RegMask(RAX);
+    static final RegMask RCX_MASK = new RegMask(RCX);
+    static final RegMask RDX_MASK = new RegMask(RDX);
+    static final RegMask RDI_MASK = new RegMask(RDI);
+    static final RegMask R08_MASK = new RegMask(R08);
+    static final RegMask R09_MASK = new RegMask(R09);
+    static final RegMask RSI_MASK = new RegMask(RSI);
 
-    static RegMask XMM0_MASK = new RegMask(XMM0);
-    static RegMask XMM1_MASK = new RegMask(XMM1);
-    static RegMask XMM2_MASK = new RegMask(XMM2);
-    static RegMask XMM3_MASK = new RegMask(XMM3);
-    static RegMask XMM4_MASK = new RegMask(XMM4);
-    static RegMask XMM5_MASK = new RegMask(XMM5);
-    static RegMask XMM6_MASK = new RegMask(XMM6);
-    static RegMask XMM7_MASK = new RegMask(XMM7);
-    static RegMask[] XMMS = new RegMask[]{
-        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
-        XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
-    };
+    static final RegMask XMM0_MASK = new RegMask(XMM0);
 
-    // Calling conv metadata
-    int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
-    int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
-
-    int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
-    int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
     // Human-readable name for a register number, e.g. "RAX".
     // Hard crash for bad register number, fix yer bugs!
     static final String[] REGS = new String[] {
@@ -95,10 +79,9 @@ public class x86_64_v2 extends Machine {
         R09_MASK,
     };
 
-
     // Limit of float args passed in registers
     static RegMask[] XMMS4 = new RegMask[]{
-        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+        new RegMask(XMM0), new RegMask(XMM1), new RegMask(XMM2), new RegMask(XMM3),
     };
 
     // Map from function signature and argument index to register.
@@ -134,30 +117,55 @@ public class x86_64_v2 extends Machine {
 
 
     // caller saved(systemv)
-    static final long SYSTEMV_ABI_CALLER_SAVED =
-        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
-        (1L << RDI ) | (1L << RSI ) |
-        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
-        // All XMM is killed
+    static final long SYSTEM5_CALLER_SAVE =
+        (1L<< RAX) | (1L<< RCX) | (1L<< RDX) |
+        (1L<< RDI) | (1L<< RSI) |
+        (1L<< R08) | (1L<< R09) | (1L<< R10) | (1L<< R11) |
+        // All FP regs are killed
         FP_BITS;
-    static final RegMask SYSTEMV_ABI_CALLER_SAVED_MASK = new RegMask(SYSTEMV_ABI_CALLER_SAVED);
+    static final RegMask SYSTEM5_CALLER_SAVE_MASK = new RegMask(SYSTEM5_CALLER_SAVE);
 
     // caller saved(win64)
-    static final long WIN64_ABI_CALLER_SAVED =
-        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
-        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
-        // All XMM is killed
-        FP_BITS;
-    static final RegMask WIN64_ABI_CALLER_SAVED_MASK = new RegMask(WIN64_ABI_CALLER_SAVED);
+    static final long WIN64_CALLER_SAVE =
+        (1L<< RAX) | (1L<< RCX) | (1L<< RDX) |
+        (1L<< R08) | (1L<< R09) | (1L<< R10) | (1L<< R11) |
+        // Only XMM0-XMM5 are killed; XMM6-XMM15 are preserved
+        (1L<<XMM0) | (1L<<XMM1) | (1L<<XMM2) | (1L<<XMM3) |
+        (1L<<XMM4) | (1L<<XMM5);
+    static final RegMask WIN64_CALLER_SAVE_MASK = new RegMask(WIN64_CALLER_SAVE);
 
     static RegMask x86CallerSave() {
         return switch( CodeGen.CODE._callingConv ) {
-        case "SystemV" -> SYSTEMV_ABI_CALLER_SAVED_MASK;
-        case "Win64"   ->   WIN64_ABI_CALLER_SAVED_MASK;
+        case "SystemV" -> SYSTEM5_CALLER_SAVE_MASK;
+        case "Win64"   ->   WIN64_CALLER_SAVE_MASK;
         default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
         };
     }
     @Override public RegMask callerSave() { return x86CallerSave(); }
+
+    static final RegMask SYSTEM5_CALLEE_SAVE_MASK;
+    static final RegMask   WIN64_CALLEE_SAVE_MASK;
+    static {
+        long callee = ~SYSTEM5_CALLER_SAVE;
+        // Remove the spills
+        callee &= (1L<<MAX_REG)-1;
+        callee &= ~(1L<<FLAGS);
+        SYSTEM5_CALLEE_SAVE_MASK = new RegMask(callee);
+
+        callee = ~WIN64_CALLER_SAVE;
+        // Remove the spills
+        callee &= (1L<<MAX_REG)-1;
+        callee &= ~(1L<<FLAGS);
+        WIN64_CALLEE_SAVE_MASK = new RegMask(callee);
+    }
+    static RegMask x86CalleeSave() {
+        return switch( CodeGen.CODE._callingConv ) {
+        case "SystemV" -> SYSTEM5_CALLEE_SAVE_MASK;
+        case "Win64"   ->   WIN64_CALLEE_SAVE_MASK;
+        default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
+        };
+    }
+    @Override public RegMask calleeSave() { return x86CalleeSave(); }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitX86(kind,round);  }
