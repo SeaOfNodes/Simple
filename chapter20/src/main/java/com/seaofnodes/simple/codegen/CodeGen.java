@@ -113,11 +113,14 @@ public class CodeGen {
     public final Parser P;
 
     // Parse ASCII text into Sea-of-Nodes IR
+    public int _tParse;
     public CodeGen parse() {
         assert _phase == null;
         _phase = Phase.Parse;
+        long t0 = System.currentTimeMillis();
 
         P.parse();
+        _tParse = (int)(System.currentTimeMillis() - t0);
         JSViewer.show();
         return this;
     }
@@ -135,12 +138,15 @@ public class CodeGen {
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
 
     // Run ideal optimizations
+    public int _tOpto;
     public CodeGen opto() {
         assert _phase == Phase.Parse;
         _phase = Phase.Opto;
+        long t0 = System.currentTimeMillis();
 
         // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
+        _tOpto = (int)(System.currentTimeMillis() - t0);
 
         // TODO:
         // Optimistic
@@ -154,13 +160,16 @@ public class CodeGen {
 
     // ---------------------------
     // Last check for bad programs
+    int _tTypeCheck;
     public CodeGen typeCheck() {
         // Demand phase Opto for cleaning up dead control flow at least,
         // required for the following GCM.
         assert _phase.ordinal() <= Phase.Opto.ordinal();
         _phase = Phase.TypeCheck;
+        long t0 = System.currentTimeMillis();
 
         Parser.ParseException err = _stop.walk( Node::err );
+        _tTypeCheck = (int)(System.currentTimeMillis() - t0);
         if( err != null )
             throw err;
         return this;
@@ -174,12 +183,14 @@ public class CodeGen {
     public String _callingConv;
 
     // Convert to target hardware nodes
+    public int _tInsSel;
     public CodeGen instSelect( String base, String cpu, String callingConv ) {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
         _phase = Phase.InstSelect;
 
         _callingConv = callingConv;
 
+        // Not timing the class load...
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
         String clzFile = base+"."+cpu+"."+cpu;
@@ -187,6 +198,7 @@ public class CodeGen {
         catch( Exception e ) { throw new RuntimeException(e); }
 
         // Convert to machine ops
+        long t0 = System.currentTimeMillis();
         _uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _stop, map );
@@ -194,6 +206,7 @@ public class CodeGen {
         _start = (StartNode)map.get(_start);
         _instOuts(_stop,visit());
         _visit.clear();
+        _tInsSel = (int)(System.currentTimeMillis() - t0);
         return this;
     }
 
@@ -240,6 +253,7 @@ public class CodeGen {
 
     // ---------------------------
     // Control Flow Graph in RPO order.
+    int _tGCM;
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
@@ -247,10 +261,12 @@ public class CodeGen {
     public CodeGen GCM( boolean show) {
         assert _phase.ordinal() <= Phase.InstSelect.ordinal();
         _phase = Phase.Schedule;
+        long t0 = System.currentTimeMillis();
 
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree(_stop);
         GlobalCodeMotion.buildCFG(this);
+        _tGCM = (int)(System.currentTimeMillis() - t0);
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
         return this;
@@ -258,22 +274,28 @@ public class CodeGen {
 
     // ---------------------------
     // Local (basic block) scheduler phase, a classic list scheduler
+    int _tLocal;
     public CodeGen localSched() {
         assert _phase == Phase.Schedule;
         _phase = Phase.LocalSched;
+        long t0 = System.currentTimeMillis();
         ListScheduler.sched(this);
+        _tLocal = (int)(System.currentTimeMillis() - t0);
         return this;
      }
 
 
     // ---------------------------
     // Register Allocation
+    int _tRegAlloc;
     public RegAlloc _regAlloc;
     public CodeGen regAlloc() {
         assert _phase == Phase.LocalSched;
         _phase = Phase.RegAlloc;
+        long t0 = System.currentTimeMillis();
         _regAlloc = new RegAlloc(this);
         _regAlloc.regAlloc();
+        _tRegAlloc = (int)(System.currentTimeMillis() - t0);
         return this;
     }
 
@@ -319,9 +341,12 @@ public class CodeGen {
 
     // ---------------------------
     // Encoding
+    int _tEncode;
     public CodeGen encode() {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
+        long t0 = System.currentTimeMillis();
+        _tEncode = (int)(System.currentTimeMillis() - t0);
         throw Utils.TODO();
     }
     // Encoded binary, no relocation info

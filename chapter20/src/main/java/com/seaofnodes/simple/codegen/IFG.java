@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
@@ -102,6 +103,10 @@ abstract public class IFG {
                 do_node(alloc,n);
         }
 
+        // The bb head kills register, e.g. a CallEnd and caller-save registers
+        if( bb instanceof MachNode mach )
+            kills(alloc,mach);
+
         // Push live-sets backwards to priors in CFG.
         if( bb instanceof RegionNode )
             for( int i=1; i<bb.nIns(); i++ )
@@ -130,23 +135,11 @@ abstract public class IFG {
 
         // Interfere n with all live
         if( lrg!=null ) {
-            // Single-register defines *must* have their register; other live
-            // ranges *must* avoid this register, so instead of interfering we
-            // remove the single register from the other rmask.
-            RegMask killMask = n instanceof MachNode m ? m.killmap() : null;
+            if( n instanceof MachNode m )
+                kills(alloc,m);
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
                 assert tlrg.leader();
-                // Always, tlrg cannot use kills
-                if( killMask != null && tlrg._mask.overlap(killMask) ) {
-                    // Disallow clone-ables from killing registers.  Just fail
-                    // them and re-clone closer to target... so no kill.
-                    // Special case for Intel XOR used to zero.
-                    if( ((MachNode)n).isClone() )
-                        alloc.fail(lrg);
-                    else if( !tlrg.sub(killMask) )
-                        alloc.fail(tlrg);
-                }
                 // Skip self
                 if( lrg != tlrg &&
                     // And register sets overlap
@@ -200,6 +193,27 @@ abstract public class IFG {
         }
     }
 
+    // Single-register defines *must* have their register; other live ranges
+    // *must* avoid this register, so instead of interfering we remove the
+    // single register from the other rmask.
+    private static void kills( RegAlloc alloc, MachNode m ) {
+        RegMask killMask = m.killmap();
+        if( killMask==null ) return;
+        // Kill registers with all live
+        for( LRG tlrg : TMP.keySet() ) {
+            assert tlrg.leader();
+            // Always, tlrg cannot use kills
+            if( tlrg._mask.overlap(killMask) ) {
+                // Disallow clone-ables from killing registers.  Just fail
+                // them and re-clone closer to target... so no kill.
+                // Special case for Intel XOR used to zero.
+                if( m.isClone() )
+                    alloc.fail(alloc.lrg((Node)m));
+                else if( !tlrg.sub(killMask) )
+                    alloc.fail(tlrg);
+            }
+        }
+    }
 
     // Check for self-conflict live ranges.  These must split, and only happens
     // during the first round a particular LRG splits.

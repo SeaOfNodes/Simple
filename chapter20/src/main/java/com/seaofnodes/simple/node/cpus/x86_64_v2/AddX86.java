@@ -9,7 +9,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-public class AddX86 extends MachConcreteNode implements MachNode {
+public class AddX86 extends MachConcreteNode {
     AddX86( Node add ) { super(add); }
 
     // Register mask allowed on input i.

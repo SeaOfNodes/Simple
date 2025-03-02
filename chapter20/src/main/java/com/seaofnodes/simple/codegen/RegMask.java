@@ -9,10 +9,11 @@ public class RegMask {
 
     long _bits;
 
-    private static final RegMask EMPTY = new RegMask(0);
+    private static final RegMask EMPTY = new RegMask(0L);
     public static final RegMask FULL = new RegMask(-1L);
 
-    public RegMask(long x ) { _bits = x; }
+    public RegMask(int bit) { _bits = 1L<<bit; }
+    public RegMask(long bits ) { _bits = bits; }
     private RegMask() { _bits = 0; }
 
     // AND, with copy-on-write if changing
@@ -50,7 +51,7 @@ public class RegMask {
     boolean test( int reg ) { return ((_bits >> reg)&1) != 0; }
 
     // checks if the 2 masks have at least 1 bit in common
-    boolean overlap( RegMask mask ) { return (_bits & mask._bits)!=0;  }
+    public boolean overlap( RegMask mask ) { return (_bits & mask._bits)!=0;  }
 
     // Defensive writable copy
     public RegMaskRW copy() { return new RegMaskRW( _bits ); }

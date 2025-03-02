@@ -33,10 +33,10 @@ public abstract class MemOpNode extends Node {
     }
     public MemOpNode( Node mach, MemOpNode mop ) {
         super(mach);
-        _name  = mop._name;
-        _alias = mop._alias;
-        _declaredType = mop._declaredType;
-        _loc = mop._loc;
+        _name  = mop==null ? null : mop._name;
+        _alias = mop==null ? 0    : mop._alias;
+        _loc   = mop==null ? null : mop._loc;
+        _declaredType = mop==null ? Type.BOTTOM : mop._declaredType;
     }
 
     //

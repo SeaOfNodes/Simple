@@ -1,9 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -19,27 +18,25 @@ public class riscv extends Machine {
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    public static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
-    public static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
-    public static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
-    public static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
+    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
+    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
+    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
+    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    public static int FLAGS = 0 ;
+    static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
-    public static RegMask WMASK = new RegMask(0b11111111111111111111111111111010L);
+    static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
+    static RegMask RMASK = new RegMask(RD_BITS);
+
+    static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
+    static RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(ft0–ft11)
-    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
+    static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
+    static RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<F0));
-
-
-    // Return single int/ptr register
-    public static RegMask RET_MASK  = new RegMask(1L<< A0);
-    public static RegMask RET_FMASK = new RegMask(1L<<FA0);
-    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
+    static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
     // Arguments masks
     public static RegMask A0_MASK = new RegMask(1L<<A0);
@@ -51,7 +48,8 @@ public class riscv extends Machine {
     public static RegMask A6_MASK = new RegMask(1L<<A6);
     public static RegMask A7_MASK = new RegMask(1L<<A7);
 
-    public static RegMask FLAGS_MASK = new RegMask(1L << FLAGS);
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
     public static RegMask FA0_MASK = new RegMask(1L<<FA0);
@@ -64,9 +62,7 @@ public class riscv extends Machine {
     public static RegMask FA7_MASK = new RegMask(1L<<FA7);
 
     // Int arguments calling conv
-    static RegMask[] CALLINMASK_RISCV = new RegMask[] {
-        RPC_MASK,
-        null,
+    static RegMask[] CALLINMASK = new RegMask[] {
         A0_MASK,
         A1_MASK,
         A2_MASK,
@@ -77,9 +73,7 @@ public class riscv extends Machine {
         A7_MASK
     };
 
-    static RegMask[] CALLINMASK_F = new RegMask[] {
-            RPC_MASK,
-            null,
+    static RegMask[] XMMS = new RegMask[] {
             FA0_MASK,
             FA1_MASK,
             FA2_MASK,
@@ -209,25 +203,44 @@ public class riscv extends Machine {
         return f & 7;
     }
 
-    // caller saved(riscv)
-    //public static final long RISCV_CALLER_SAVED= TBD
-    // callee saved(riscv)
-    public static final long RISCV_CALLEE_SAVED =
-            (1L << FS0) | (1L << FS1) | (1L << FS2) | (1L << FS3) | (1L << FS4)
-                    | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
-
-
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        if( idx >= 2 && idx <= 10 && tfp.arg(idx-2) instanceof TypeFloat )
-            return CALLINMASK_F[idx];
-        return CALLINMASK_RISCV[idx];
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat )
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS.length )
+                return XMMS[fcnt];
+        } else {
+            RegMask[] cargs = CALLINMASK;
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Calling conv metadata
-    public int GPR_COUNT_CONV_RISCV = 7;  // A0, A1, A2, A3, A4, A5, A6, A7
-    public int FLOAT_COUNT_CONV_RISCV = 7; // FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7
+    // Return single int/ptr register
+    static RegMask retMask( TypeFunPtr tfp ) {
+        return tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
+    }
 
-    public static final String[] REGS = new String[] {
+    // callee saved(riscv)
+    static final long CALLEE_SAVED =
+        (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
+        (1L<< S4) | (1L<< S5) | (1L<< S6 ) | (1L<< S7 ) |
+        (1L<< S8) | (1L<< S9) | (1L<< S10) | (1L<< S11) |
+        (1L<<FS0) | (1L<<FS1) | (1L<<FS2 ) | (1L<<FS3 ) |
+        (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
+        (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
+    static final RegMask CALLER_SAVE_MASK = new RegMask(~CALLEE_SAVED);
+    static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
+    @Override public RegMask callerSave() { return riscCallerSave(); }
+
+    static final String[] REGS = new String[] {
             "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
             "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
             "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,

@@ -128,6 +128,11 @@ public class RegAlloc {
     RegAlloc( CodeGen code ) { _code = code; }
 
     public void regAlloc() {
+        // Insert callee-save registers
+        for( CFGNode bb : _code._cfg )
+            if( bb instanceof FunNode fun )
+                insertCalleeSave(fun);
+
         // Top driver: repeated rounds of coloring and splitting.
         byte round=0;
         while( !graphColor(round) ) {
@@ -152,6 +157,14 @@ public class RegAlloc {
             // Color attempt
             IFG.color(round,this);      // If colorable
     }
+
+    // Insert callee-save registers.  Walk the callee-save RegMask and cut out
+    // any Parms, then insert a Parm and an edge from the Ret to the Parm with
+    // the callee-save register.
+    private void insertCalleeSave( FunNode fun ) {
+        //throw Utils.TODO();
+    }
+
 
     // -----------------------
     // Split conflicted live ranges.
@@ -205,11 +218,11 @@ public class RegAlloc {
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            _code._mach.split("def/empty",round).insertAfter((Node)lrg._machDef, true);
+            _code._mach.split("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, true);
         }
         // Split just before use
         if( lrg._1regUseCnt==1 )
-            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty",round);
+            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
     }
 
@@ -220,14 +233,21 @@ public class RegAlloc {
         findAllLRG(lrg);
         for( Node n : _ns ) {
             if( !(n instanceof MachNode mach) ) continue;
-            if( lrg(n)==lrg && (all || mach.outregmap().size1()) )
-                _code._mach.split("def/empty",round).insertAfter(n,true);
+            // Find def of spilling live range; spilling everywhere, OR
+            // single-register DEF and not cloneable (since these will clone
+            // before every use)
+            if( lrg(n)==lrg && (all || (!mach.isClone() && mach.outregmap().size1() )) )
+                _code._mach.split("def/empty2",round,lrg).insertAfter(n,true);
+            // Find all uses
             for( int i=1; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
+                // Skip any new splits inserted just this pass
                 while( def instanceof SplitNode && lrg(def)==null )
                     def = def.in(1);
+                // Main def (past splits) is of the spilling lrg, and spilling
+                // single-register USE (or everywhere)
                 if( lrg(def)==lrg && (all || mach.regmap(i).size1()) )
-                    insertBefore(n,i,"use/empty",round);
+                    insertBefore(n,i,"use/empty2",round,lrg);
             }
         }
         return true;
@@ -247,22 +267,22 @@ public class RegAlloc {
             // Phi slot 1 (and not all inputs), because Phis extend the live range.
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
-                SplitNode split = _code._mach.split("def/self",round);
+                SplitNode split = _code._mach.split("def/self",round,lrg);
                 split.insertAfter(def,false);
                 if( split.nOuts()==0 )
                     split.kill();
-                insertBefore(phi,1,"use/self/phi",round);
+                insertBefore(phi,1,"use/self/phi",round,lrg);
             }
             // Split before two-address ops which extend the live range
             if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
-                insertBefore(def,mach.twoAddress(),"use/self/two",round);
+                insertBefore(def,mach.twoAddress(),"use/self/two",round,lrg);
             // Split before each use that extends the live range; i.e. is a
             // Phi or two-address
             for( int i=0; i<def._outputs._len; i++ ) {
                 Node use = def.out(i);
                 if( (use instanceof PhiNode phi && !(phi.region() instanceof LoopNode && phi.in(2)==def ) ) ||
                         (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
-                    insertBefore( use, use._inputs.find(def), "use/self/use",round );
+                    insertBefore( use, use._inputs.find(def), "use/self/use",round,lrg );
             }
         }
         return true;
@@ -313,7 +333,7 @@ public class RegAlloc {
                     // Single user is already a split
                     !(n.nOuts()==1 && n.out(0) instanceof SplitNode) )
                     // Split after def in min loop nest
-                    _code._mach.split("def/loop",round).insertAfter(n,false);
+                    _code._mach.split("def/loop",round,lrg).insertAfter(n,false);
             }
 
             // PhiNodes check all CFG inputs
@@ -326,7 +346,7 @@ public class RegAlloc {
                         // and not around the backedge of a loop (bad place to force a split, hard to remove)
                         !(phi.region() instanceof LoopNode && i==2) )
                         // Split before phi-use in prior block
-                        insertBefore(phi,i, "use/loop/phi",round);
+                        insertBefore(phi,i, "use/loop/phi",round,lrg);
 
             } else {
                 // Others check uses
@@ -337,7 +357,7 @@ public class RegAlloc {
                         // Not a split already
                         !(n.in(i) instanceof SplitNode && n.in(i).nOuts()==1) )
                         // Split before in this block
-                        insertBefore( n, i, "use/loop/use", round );
+                        insertBefore( n, i, "use/loop/use", round,lrg );
                 }
             }
         }
@@ -376,15 +396,15 @@ public class RegAlloc {
         for( Node n : _ns ) assert !n.isDead();
     }
 
-    void insertBefore(Node n, int i, String kind, byte round) {
+    void insertBefore(Node n, int i, String kind, byte round, LRG lrg) {
         // Effective block for use
         Node def = n.in(i);
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
-        if( cfg==def.cfg0() && def instanceof SplitNode && def.nOuts()==1 )
+        if( cfg==def.cfg0() && def instanceof SplitNode && def.nOuts()==1 && !(n instanceof MachNode mach && mach.regmap(i).size1()))
             return;
         Node split = (def instanceof MachNode mach && mach.isClone()
                       ? mach.copy()
-                      : _code._mach.split(kind,round));
+                      : _code._mach.split(kind,round,lrg));
         split.insertBefore(n, i);
     }
 

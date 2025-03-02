@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.Machine;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
@@ -24,23 +25,21 @@ public class x86_64_v2 extends Machine {
     public static int XMM_OFFSET = 16;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b1111111111111111);
+    static final long RD_BITS = 0b1111111111111111L; // All the GPRs
+    static RegMask RMASK = new RegMask(RD_BITS);
     // No RSP in the *write* general set.
-    public static RegMask WMASK = new RegMask(0b1111111111101111);
-    // No RDX for division in inputs
-    public static RegMask DMASK = new RegMask(0b1111111111111011);
+    static final long WR_BITS = 0b1111111111101111L; // All the GPRs minus RSP
+    static RegMask WMASK = new RegMask(WR_BITS);
     // Xmm register mask
-    public static RegMask XMASK = new RegMask( 0b1111111111111111L << XMM0);
+    static final long FP_BITS = 0b1111111111111111L << XMM0; // All the XMMs
+    static RegMask XMASK = new RegMask(FP_BITS);
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static RegMask RPC_MASK = new RegMask(RPC);
 
-    public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
-    public static RegMask SPLIT_MASK = new RegMask(0b1111111111101111L | (0b1111111111111111L << XMM0) | (1L<<FLAGS) );
+    static RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) );
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<XMM0));
-    // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(1L<<RAX);
-    public static RegMask RET_FMASK= new RegMask(1L<<XMM0);
-    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
+    static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
 
     public static RegMask RAX_MASK = new RegMask(1L<<RAX);
@@ -60,7 +59,7 @@ public class x86_64_v2 extends Machine {
     public static RegMask XMM6_MASK = new RegMask(1L<<XMM6);
     public static RegMask XMM7_MASK = new RegMask(1L<<XMM7);
     public static RegMask[] XMMS = new RegMask[]{
-        RPC_MASK, null,XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
         XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
     };
 
@@ -285,25 +284,14 @@ public class x86_64_v2 extends Machine {
 
     // WIN64(param passing)
     static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
-        RPC_MASK,
-        null,
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
         R09_MASK,
     };
 
-    // caller saved(win64)
-    public static final long WIN64_ABI_CALLER_SAVED =
-        (1L << RAX) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11);
-
-    // callee saved(win64)
-    public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
-
     // SystemV(param passing)
     static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
-        RPC_MASK,
-        null,   // Memory, no register
         RDI_MASK,
         RSI_MASK,
         RDX_MASK,
@@ -312,37 +300,69 @@ public class x86_64_v2 extends Machine {
         R09_MASK,
     };
 
-    // caller saved(systemv)
-    // caller saved(win64)
-    public static final long SYSTEMV_ABI_CALLER_SAVED =
-        (1L << RAX) | (1L << RDI) | (1L << RSI) | (1L << RCX) | (1L << RDX) | (1L << R08) | (1L << R09) << (1L << R10) << (1L << R11);
-    // callee saved(systemv)
-    public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
-    private static int GPR_MASK_STATE = 2;
-    private static int FLOAT_MASK_STATE = 2;
+    // Limit of float args passed in registers
+    static RegMask[] XMMS4 = new RegMask[]{
+        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+    };
 
+    // Map from function signature and argument index to register.
+    // Used to set input registers to CallNodes, and ParmNode outputs.
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
-        case "SystemV" -> CALLINMASK_SYSTEMV;
-        case "Win64"   -> CALLINMASK_WIN64;
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat )
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS4.length )
+                return XMMS4[fcnt];
+        } else {
+            RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
+            case "SystemV" -> CALLINMASK_SYSTEMV;
+            case "Win64"   -> CALLINMASK_WIN64;
+            default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
+            };
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        throw Utils.TODO(); // Pass on stack slot
+    }
+
+    // Return single int/ptr register.  Used by CallEnd output and Return input.
+    static RegMask retMask( TypeFunPtr tfp ) {
+        return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
+    }
+
+
+    // caller saved(systemv)
+    static final long SYSTEMV_ABI_CALLER_SAVED =
+        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
+        (1L << RDI ) | (1L << RSI ) |
+        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
+        // All XMM is killed
+        FP_BITS;
+    static final RegMask SYSTEMV_ABI_CALLER_SAVED_MASK = new RegMask(SYSTEMV_ABI_CALLER_SAVED);
+
+    // caller saved(win64)
+    static final long WIN64_ABI_CALLER_SAVED =
+        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
+        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
+        // All XMM is killed
+        FP_BITS;
+    static final RegMask WIN64_ABI_CALLER_SAVED_MASK = new RegMask(WIN64_ABI_CALLER_SAVED);
+
+    static RegMask x86CallerSave() {
+        return switch( CodeGen.CODE._callingConv ) {
+        case "SystemV" -> SYSTEMV_ABI_CALLER_SAVED_MASK;
+        case "Win64"   ->   WIN64_ABI_CALLER_SAVED_MASK;
         default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
         };
-
-        if (idx < 2) return cargs[idx];
-    
-        if( tfp.arg(idx-2) instanceof TypeFloat ) {
-            int cnt = 2;
-            for (int i=2; i<idx; i++) if (tfp.arg(i-2) instanceof TypeFloat) cnt++;
-            if (cnt >= XMMS.length) throw Utils.TODO();
-            return XMMS[cnt];
-        } else {
-            int cnt = 2;
-            for (int i=2; i<idx; i++) if (!(tfp.arg(i-2) instanceof TypeFloat)) cnt++;
-            if (cnt >= cargs.length) throw Utils.TODO();
-            return cargs[cnt];
-        }
     }
+    @Override public RegMask callerSave() { return x86CallerSave(); }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round) {  return new SplitX86(kind,round);  }
@@ -430,7 +450,6 @@ public class x86_64_v2 extends Machine {
 
             // lhs + rhs1
             if( toff.value()==0 ) return add;
-
             return new AddIX86(add, toff);
         }
         return _lea(add,lhs,rhs,0);
@@ -456,7 +475,6 @@ public class x86_64_v2 extends Machine {
             idx = shift.in(1);
             scale = ((int)tscale.value());
         }
-
         // (base + idx) + off
         return off==0 && scale==0
             ? new AddX86(add)
@@ -468,8 +486,6 @@ public class x86_64_v2 extends Machine {
         if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             if(imm_size(ti.value()) == 64) return new AndX86(and);
             return new AndIX86(and, ti);
-        }
-
         return new AndX86(and);
     }
 
@@ -504,8 +520,6 @@ public class x86_64_v2 extends Machine {
         if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             if(x86_64_v2.imm_size(ti.value()) == 64) return new CmpX86(bool);
             return new CmpIX86(bool, ti);
-        }
-
         // x vs y
         return new CmpX86(bool);
     }
@@ -537,7 +551,6 @@ public class x86_64_v2 extends Machine {
         return new JmpX86(iff, invert(((BoolNode)iff.in(1)).op()));
     }
 
-
     private Node ld( LoadNode ld ) {
         return new LoadX86(address(ld),ld.ptr(),idx,off,scale);
     }
@@ -564,8 +577,6 @@ public class x86_64_v2 extends Machine {
         if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
             if(imm_size(ti.value()) == 64) return new OrX86(or);
             return new OrIX86(or, ti);
-        }
-
         return new OrX86(or);
     }
 
@@ -577,7 +588,6 @@ public class x86_64_v2 extends Machine {
         if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
             if(imm_size(ti.value()) == 64) return new SarIX86(sar, TypeInteger.constant(ti.value() & 0x03f));
             return new SarIX86(sar, ti);
-        }
         return new SarX86(sar);
     }
 
@@ -585,7 +595,6 @@ public class x86_64_v2 extends Machine {
         if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             if(imm_size(ti.value()) == 64) return new ShlIX86(shl, TypeInteger.constant(ti.value() & 0x03f));
             return new ShlIX86(shl, ti);
-        }
         return new ShlX86(shl);
     }
 
@@ -593,8 +602,6 @@ public class x86_64_v2 extends Machine {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             if(imm_size(ti.value()) == 64) return new ShrIX86(shr, TypeInteger.constant(ti.value() & 0x03f));
             return new ShrIX86(shr, ti);
-        }
-
         return new ShrX86(shr);
     }
 

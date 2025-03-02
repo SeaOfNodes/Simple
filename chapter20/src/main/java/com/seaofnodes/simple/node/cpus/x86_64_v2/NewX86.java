@@ -7,26 +7,13 @@ import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
 public class NewX86 extends NewNode implements MachNode {
-
     // A pre-zeroed chunk of memory.
-    NewX86( NewNode nnn ) {  super(nnn); }
-
-    // Register mask allowed on input i, the size
-    @Override public RegMask regmap(int i) {
-        // Size
-        if( i==1 ) return x86_64_v2.RDI_MASK;
-        // All the memory alias edges
-        return null;
-    }
+    NewX86( NewNode nnn ) { super(nnn); }
+    // Size and pointer result in standard calling convention; null for all the
+    // memory aliases edges
+    @Override public RegMask    regmap(int i) { return i == 1 ? x86_64_v2.RDI_MASK : null; }
+    @Override public RegMask outregmap(int i) { return i == 1 ? x86_64_v2.RAX_MASK : null; }
     @Override public RegMask outregmap() { return null; }
-
-    // Register mask allowed as a result.  Pointer result in standard calling
-    // convention.
-    @Override public RegMask outregmap(int i) {
-        if( i == 1 ) return x86_64_v2.RET_MASK;
-        // All the memory aliases edges
-        return null;
-    }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
