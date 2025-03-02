@@ -35,7 +35,7 @@ public class Chapter20Test {
          return {int i, flt f, int j->return i+f+j;};
            """);
 
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
     }
 
     // Todo: do spilling and invole stack slots/stack frame currently AAOIB
@@ -44,7 +44,7 @@ public class Chapter20Test {
             return {flt f1, flt f2, flt f3, flt f4, flt f5, flt f6, flt f7, flt f7 flt f9->return f9;};
             """);
 
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
     }
 
 
@@ -56,14 +56,27 @@ public class Chapter20Test {
                 return arg;
             """);
 
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
     }
 
     @Test public void TestNotNodeTodo() {
         CodeGen code = new CodeGen("""
-        return arg == 0;
+        return arg != 0;
             """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODING();
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
+    }
+
+    @Test public void TestAddition() {
+        CodeGen code = new CodeGen("""
+        return arg + 2;
+            """);
+        code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
+    }
+    @Test public void testDoubleNotNodeTodo() {
+        CodeGen code = new CodeGen("""
+        return !!arg;
+            """);
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
     }
 
     private static void testAllCPUs( String src, int spills, String stop ) {
