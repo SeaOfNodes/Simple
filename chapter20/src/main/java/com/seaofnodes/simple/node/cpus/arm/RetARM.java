@@ -22,7 +22,7 @@ public class RetARM extends ReturnNode implements MachNode {
         case 0 -> null;
         case 1 -> null;
         case 2 -> arm.retMask(_fun.sig());
-        case 3 -> arm.RPC_MASK;
+        case 3 -> arm.RMASK;
         default -> throw Utils.TODO();
         };
     }
@@ -39,7 +39,7 @@ public class RetARM extends ReturnNode implements MachNode {
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(2)));
+        sb.p(code.reg(in(2))).p("  ").p(code.reg(in(3)));
     }
 
     // Correct Nodes outside the normal edges

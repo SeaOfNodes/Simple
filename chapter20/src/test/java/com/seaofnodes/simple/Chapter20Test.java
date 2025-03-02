@@ -60,9 +60,9 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",19,null);
-        testCPU(src,"riscv"    , "SystemV",12,null);
-        testCPU(src,"arm"      , "SystemV",19,null);
+        testCPU(src,"x86_64_v2", "SystemV",22,null);
+        testCPU(src,"riscv"    , "SystemV",14,null);
+        testCPU(src,"arm"      , "SystemV",22,null);
     }
 
     @Test

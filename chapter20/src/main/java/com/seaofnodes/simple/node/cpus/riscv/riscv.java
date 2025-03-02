@@ -26,13 +26,17 @@ public class riscv extends Machine {
     static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
-    static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
-    static RegMask WMASK = new RegMask(0b11111111111111111111111111111010L);
+    static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
+    static RegMask RMASK = new RegMask(RD_BITS);
+
+    static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
+    static RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(ft0–ft11)
-    static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
+    static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
+    static RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
-    static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<F0));
+    static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
     // Arguments masks
     static RegMask A0_MASK = new RegMask(A0);
@@ -80,11 +84,6 @@ public class riscv extends Machine {
             FA7_MASK
     };
 
-    // callee saved(riscv)
-    static final long RISCV_CALLEE_SAVED =
-            (1L << FS0) | (1L << FS1) | (1L << FS2) | (1L << FS3) | (1L << FS4)
-                    | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
-
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
@@ -110,6 +109,17 @@ public class riscv extends Machine {
     static RegMask retMask( TypeFunPtr tfp ) {
         return tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
     }
+
+    // callee saved(riscv)
+    static final long CALLEE_SAVED =
+        (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
+        (1L<< S4) | (1L<< S5) | (1L<< S6 ) | (1L<< S7 ) |
+        (1L<< S8) | (1L<< S9) | (1L<< S10) | (1L<< S11) |
+        (1L<<FS0) | (1L<<FS1) | (1L<<FS2 ) | (1L<<FS3 ) |
+        (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
+        (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
+    static final RegMask CALLER_SAVE_MASK = new RegMask(~CALLEE_SAVED);
+    static RegMask callerSave() { return CALLER_SAVE_MASK; }
 
     static final String[] REGS = new String[] {
             "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
