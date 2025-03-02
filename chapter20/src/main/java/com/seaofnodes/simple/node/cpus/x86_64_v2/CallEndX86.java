@@ -21,7 +21,7 @@ public class CallEndX86 extends CallEndNode implements MachNode {
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return null; }
     @Override public RegMask outregmap(int idx) { return idx == 2 ? x86_64_v2.retMask(_tfp) : null; }
-    @Override public RegMask killmap() { return x86_64_v2.callerSave(); }
+    @Override public RegMask killmap() { return x86_64_v2.x86CallerSave(); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

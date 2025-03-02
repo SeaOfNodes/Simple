@@ -133,7 +133,8 @@ public class arm extends Machine {
         1L<<D9  | 1L<<D10 | 1L<<D11 |
         1L<<D12 | 1L<<D13 | 1L<<D14 | 1L<<D15;
     static final RegMask CALLER_SAVE_MASK = new RegMask(~CALLEE_SAVED);
-    static RegMask callerSave() { return CALLER_SAVE_MASK; }
+    static RegMask armCallerSave() { return CALLER_SAVE_MASK; }
+    @Override public RegMask callerSave() { return armCallerSave(); }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }

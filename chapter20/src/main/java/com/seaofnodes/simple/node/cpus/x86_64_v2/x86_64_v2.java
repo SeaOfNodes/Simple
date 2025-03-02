@@ -85,14 +85,6 @@ public class x86_64_v2 extends Machine {
         R09_MASK,
     };
 
-    // caller saved(win64)
-    static final long WIN64_ABI_CALLER_SAVED =
-        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
-        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
-        // All XMM is killed
-        FP_BITS;
-    static final RegMask WIN64_ABI_CALLER_SAVED_MASK = new RegMask(WIN64_ABI_CALLER_SAVED);
-
     // SystemV(param passing)
     static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
         RDI_MASK,
@@ -102,16 +94,6 @@ public class x86_64_v2 extends Machine {
         R08_MASK,
         R09_MASK,
     };
-
-    // caller saved(systemv)
-    static final long SYSTEMV_ABI_CALLER_SAVED =
-        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
-        (1L << RDI ) | (1L << RSI ) |
-        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
-        // All XMM is killed
-        FP_BITS;
-
-    static final RegMask SYSTEMV_ABI_CALLER_SAVED_MASK = new RegMask(SYSTEMV_ABI_CALLER_SAVED);
 
 
     // Limit of float args passed in registers
@@ -150,13 +132,32 @@ public class x86_64_v2 extends Machine {
         return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
     }
 
-    static RegMask callerSave() {
+
+    // caller saved(systemv)
+    static final long SYSTEMV_ABI_CALLER_SAVED =
+        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
+        (1L << RDI ) | (1L << RSI ) |
+        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
+        // All XMM is killed
+        FP_BITS;
+    static final RegMask SYSTEMV_ABI_CALLER_SAVED_MASK = new RegMask(SYSTEMV_ABI_CALLER_SAVED);
+
+    // caller saved(win64)
+    static final long WIN64_ABI_CALLER_SAVED =
+        (1L << RAX ) | (1L << RCX ) | (1L << RDX) |
+        (1L << R08 ) | (1L << R09 ) | (1L << R10) | (1L << R11) |
+        // All XMM is killed
+        FP_BITS;
+    static final RegMask WIN64_ABI_CALLER_SAVED_MASK = new RegMask(WIN64_ABI_CALLER_SAVED);
+
+    static RegMask x86CallerSave() {
         return switch( CodeGen.CODE._callingConv ) {
         case "SystemV" -> SYSTEMV_ABI_CALLER_SAVED_MASK;
         case "Win64"   ->   WIN64_ABI_CALLER_SAVED_MASK;
         default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
         };
     }
+    @Override public RegMask callerSave() { return x86CallerSave(); }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitX86(kind,round);  }

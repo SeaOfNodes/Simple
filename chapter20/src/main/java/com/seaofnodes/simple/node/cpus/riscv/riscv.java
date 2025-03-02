@@ -119,7 +119,8 @@ public class riscv extends Machine {
         (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
         (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
     static final RegMask CALLER_SAVE_MASK = new RegMask(~CALLEE_SAVED);
-    static RegMask callerSave() { return CALLER_SAVE_MASK; }
+    static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
+    @Override public RegMask callerSave() { return riscCallerSave(); }
 
     static final String[] REGS = new String[] {
             "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
