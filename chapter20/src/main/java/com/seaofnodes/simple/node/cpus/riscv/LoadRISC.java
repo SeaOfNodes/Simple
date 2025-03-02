@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 
 public class LoadRISC extends MemOpRISC {
     LoadRISC(LoadNode ld, Node base, Node idx, int off) {
-        super(ld, base, idx, off, 0);
+        super(ld, base, idx, off, null);
     }
 
     @Override public RegMask regmap(int i) {

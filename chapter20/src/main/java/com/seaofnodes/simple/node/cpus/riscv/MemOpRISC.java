@@ -14,22 +14,22 @@ import java.util.BitSet;
 
 
 public class MemOpRISC extends MemOpNode implements MachNode {
-    final int _off;             // Limit 32 bits
-    final int _imm;             // Limit 32 bits
+    final int _off;             // Limit 32 bits     // Limit 32 bits
     final char _sz = (char)('0'+(1<<_declaredType.log_size()));
-    MemOpRISC( MemOpNode mop, Node base, Node idx, int off, int imm) {
+    MemOpRISC(MemOpNode mop, Node base, Node idx, int off, Node val) {
         super(mop,mop);
         assert base._type instanceof TypeMemPtr && !(base instanceof AddNode);
         assert ptr() == base;
         _inputs.setX(3,idx);
-        _off = off;
-        _imm = imm;
-    }
-    // Store-based flavors have a value edge
-    MemOpRISC( MemOpNode mop, Node base, Node idx, int off, int imm, Node val ) {
-        this(mop,base,idx,off,imm);
         _inputs.setX(4,val);
+        _off = off;
     }
+//    // Store-based flavors have a value edge
+//    MemOpRISC( MemOpNode mop, Node base, Node idx, int off,  Node val ) {
+//        this(mop,mop, base, off, idx);
+//        _inputs.setX(4,val);
+//        _off = off;
+//    }
 
     Node idx() { return in(3); }
     Node val() { return in(4); } // Only for stores, including op-to-memory
@@ -73,7 +73,8 @@ public class MemOpRISC extends MemOpNode implements MachNode {
                 // can't store imm, must be loaded into reg first
                 // store rs2 into rs1 + offset
                 LRG store_rg = CodeGen.CODE._regAlloc.lrg(in(4));
-                short store_reg = store_rg.get_reg();
+                int store_reg = riscv.ZERO;
+                if(store_rg != null) store_reg = store_rg.get_reg();
 
                 int beforeSize = bytes.size();
 

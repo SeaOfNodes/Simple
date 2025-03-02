@@ -19,6 +19,7 @@ public class SubFRISC extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
+        // fsub.d
         LRG fsub_self = CodeGen.CODE._regAlloc.lrg(this);
 
         LRG fsub_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));

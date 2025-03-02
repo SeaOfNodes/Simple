@@ -415,18 +415,10 @@ public class riscv extends Machine {
     }
 
     private Node st(StoreNode st) {
-        int imm=0;
         Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
             xval = null;
-            imm = (int)ti.value();
-            assert imm == ti.value(); // In 32-bit range
-        }
-        // load imm first into reg before store
-        // store doesn't support storing imm into memory
-        if(imm != 0) return new IntRISC((ConstantNode)xval);
-
-        return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);
+        return new StoreRISC(address(st),st.ptr(),off, idx == null ? st.ptr() : new AddRISC(st.ptr(), idx), xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder

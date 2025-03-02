@@ -12,7 +12,9 @@ import java.io.ByteArrayOutputStream;
 public class AddRISC extends MachConcreteNode implements MachNode {
 
     AddRISC( Node add) {super(add); }
-
+    AddRISC (Node in1, Node in2) {
+        super(new Node[]{null, in1, in2});
+    }
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
         assert i== 1 || i == 2 || i == 3;
