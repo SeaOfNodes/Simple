@@ -13,64 +13,66 @@ public class arm extends Machine {
     @Override public String name() { return "arm"; }
 
     // GPR(S)
-    static int X0  =  0,  X1  =  1,  X2  =  2,  X3  =  3,  X4  =  4,  X5  =  5,  X6  =  6,  X7  =  7;
-    static int X8  =  8,  X9  =  9,  X10 = 10,  X11 = 11,  X12 = 12,  X13 = 13,  X14 = 14,  X15 = 15;
-    static int X16 = 16,  X17 = 17,  X18 = 18,  X19 = 19,  X20 = 20,  X21 = 21,  X22 = 22,  X23 = 23;
-    static int X24 = 24,  X25 = 25,  X26 = 26,  X27 = 27,  X28 = 28,  X29 = 29,  X30 = 30,  RSP = 31;
+    static final int X0  =  0,  X1  =  1,  X2  =  2,  X3  =  3,  X4  =  4,  X5  =  5,  X6  =  6,  X7  =  7;
+    static final int X8  =  8,  X9  =  9,  X10 = 10,  X11 = 11,  X12 = 12,  X13 = 13,  X14 = 14,  X15 = 15;
+    static final int X16 = 16,  X17 = 17,  X18 = 18,  X19 = 19,  X20 = 20,  X21 = 21,  X22 = 22,  X23 = 23;
+    static final int X24 = 24,  X25 = 25,  X26 = 26,  X27 = 27,  X28 = 28,  X29 = 29,  X30 = 30,  RSP = 31;
 
     // Floating point registers
-    static int D0  = 32,  D1  = 33,  D2  = 34,  D3  = 35,  D4  = 36,  D5  = 37,  D6  = 38,  D7  = 39;
-    static int D8  = 40,  D9  = 41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
-    static int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
-    static int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61;
+    static final int D0  = 32,  D1  = 33,  D2  = 34,  D3  = 35,  D4  = 36,  D5  = 37,  D6  = 38,  D7  = 39;
+    static final int D8  = 40,  D9  = 41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
+    static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
+    static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61; // TODO: RegMask limited to 64 bits, so losing 2 FPRs
 
-    static int FLAGS = 62;
+    static final int FLAGS = 62;
 
     // from (x0-x30)
     // General purpose register mask: pointers and ints, not floats
-    static RegMask RMASK = new RegMask(0xFFFFFFFFL);
-    static RegMask WMASK = new RegMask(0x7FFFFFFFL);
+    static final long RD_BITS = 0xFFFFFFFFL;
+    static final RegMask RMASK = new RegMask(RD_BITS);
+    static final long WR_BITS = 0x7FFFFFFFL; // All the GPRs, not RSP
+    static final RegMask WMASK = new RegMask(WR_BITS);
 
-    // Float mask from(d0–d30)
-    static RegMask DMASK = new RegMask(0x3FFFFFFFL<<D0);
+    // Float mask from(d0–d29)
+    static final long FP_BITS = 0x3FFFFFFFL<<D0;
+    static final RegMask DMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
-    static RegMask MEM_MASK = new RegMask(0x3FFFFFFFL<<D0 | 0x7FFFFFFFL);
+    static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
-    static RegMask RPC_MASK = new RegMask(1L << X30);
+    static final RegMask RPC_MASK = new RegMask(1L << X30);
 
     // Arguments masks
-    static RegMask X0_MASK = new RegMask(X0);
-    static RegMask X1_MASK = new RegMask(X1);
-    static RegMask X2_MASK = new RegMask(X2);
-    static RegMask X3_MASK = new RegMask(X3);
-    static RegMask X4_MASK = new RegMask(X4);
-    static RegMask X5_MASK = new RegMask(X5);
-    static RegMask X6_MASK = new RegMask(X6);
-    static RegMask X7_MASK = new RegMask(X7);
-
+    static final RegMask X0_MASK = new RegMask(X0);
+    static final RegMask X1_MASK = new RegMask(X1);
+    static final RegMask X2_MASK = new RegMask(X2);
+    static final RegMask X3_MASK = new RegMask(X3);
+    static final RegMask X4_MASK = new RegMask(X4);
+    static final RegMask X5_MASK = new RegMask(X5);
+    static final RegMask X6_MASK = new RegMask(X6);
+    static final RegMask X7_MASK = new RegMask(X7);
 
     // Arguments(float) masks
-    static RegMask D0_MASK = new RegMask(D0);
-    static RegMask D1_MASK = new RegMask(D1);
-    static RegMask D2_MASK = new RegMask(D2);
-    static RegMask D3_MASK = new RegMask(D3);
-    static RegMask D4_MASK = new RegMask(D4);
-    static RegMask D5_MASK = new RegMask(D5);
-    static RegMask D6_MASK = new RegMask(D6);
-    static RegMask D7_MASK = new RegMask(D7);
+    static final RegMask D0_MASK = new RegMask(D0);
+    static final RegMask D1_MASK = new RegMask(D1);
+    static final RegMask D2_MASK = new RegMask(D2);
+    static final RegMask D3_MASK = new RegMask(D3);
+    static final RegMask D4_MASK = new RegMask(D4);
+    static final RegMask D5_MASK = new RegMask(D5);
+    static final RegMask D6_MASK = new RegMask(D6);
+    static final RegMask D7_MASK = new RegMask(D7);
 
     static final String[] REGS = new String[] {
-            "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
-            "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
-            "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
-            "X24", "X25", "X26", "X27", "X28", "X29", "X30", "RSP",
-            "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
-            "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
-            "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
-            "D24", "D25", "D26", "D27", "D28", "D29", "flags"
+        "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
+        "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
+        "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
+        "X24", "X25", "X26", "X27", "X28", "X29", "RPC", "RSP",
+        "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
+        "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
+        "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
+        "D24", "D25", "D26", "D27", "D28", "D29", "flags"
     };
 
     @Override public String reg( int reg ) { return REGS[reg]; }
@@ -78,7 +80,7 @@ public class arm extends Machine {
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
-    static RegMask[] CALLINMASK = new RegMask[] {
+    static final RegMask[] CALLINMASK = new RegMask[] {
         X0_MASK,
         X1_MASK,
         X2_MASK,
@@ -88,7 +90,7 @@ public class arm extends Machine {
         X6_MASK,
         X7_MASK,
     };
-    static RegMask[] XMMS = new RegMask[] {
+    static final RegMask[] XMMS = new RegMask[] {
         D0_MASK,
         D1_MASK,
         D2_MASK,
@@ -123,6 +125,15 @@ public class arm extends Machine {
     static RegMask retMask( TypeFunPtr tfp ) {
         return tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK;
     }
+
+    static final long CALLEE_SAVED =
+        1L<<X19 |
+        1L<<X20 | 1L<<X21 | 1L<<X22 | 1L<<X23 |
+        1L<<X24 | 1L<<X26 | 1L<<X27 | 1L<<X28 |
+        1L<<D9  | 1L<<D10 | 1L<<D11 |
+        1L<<D12 | 1L<<D13 | 1L<<D14 | 1L<<D15;
+    static final RegMask CALLER_SAVE_MASK = new RegMask(~CALLEE_SAVED);
+    static RegMask callerSave() { return CALLER_SAVE_MASK; }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
