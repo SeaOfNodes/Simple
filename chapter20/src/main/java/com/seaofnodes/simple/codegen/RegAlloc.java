@@ -128,6 +128,11 @@ public class RegAlloc {
     RegAlloc( CodeGen code ) { _code = code; }
 
     public void regAlloc() {
+        // Insert callee-save registers
+        for( CFGNode bb : _code._cfg )
+            if( bb instanceof FunNode fun )
+                insertCalleeSave(fun);
+
         // Top driver: repeated rounds of coloring and splitting.
         byte round=0;
         while( !graphColor(round) ) {
@@ -152,6 +157,14 @@ public class RegAlloc {
             // Color attempt
             IFG.color(round,this);      // If colorable
     }
+
+    // Insert callee-save registers.  Walk the callee-save RegMask and cut out
+    // any Parms, then insert a Parm and an edge from the Ret to the Parm with
+    // the callee-save register.
+    private void insertCalleeSave( FunNode fun ) {
+        //throw Utils.TODO();
+    }
+
 
     // -----------------------
     // Split conflicted live ranges.

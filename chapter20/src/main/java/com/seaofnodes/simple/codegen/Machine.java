@@ -9,6 +9,8 @@ abstract public class Machine {
     public abstract String reg( int reg );
     // Create a split op; any register to any register, including stack slots
     public abstract SplitNode split( String kind, byte round, LRG lrg);
+    // List of caller-save registers
+    public abstract RegMask callerSave();
     // Return a MachNode unconditional branch
     public abstract CFGNode jump();
     // Break an infinite loop
