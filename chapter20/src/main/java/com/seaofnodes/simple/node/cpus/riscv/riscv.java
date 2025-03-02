@@ -12,54 +12,66 @@ public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    static int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
-    static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
-    static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
-    static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
+    static final int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    static final int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
+    static final int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
+    static final int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
-    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
-    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
-    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
+    static final int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
+    static final int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
+    static final int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
+    static final int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    static int FLAGS = 0 ;
+    static final int FLAGS = 0 ;
+    static final int MAX_REG = 63;
+
+    static final String[] REGS = new String[] {
+            "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
+            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
+            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
+            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
+            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11",
+    };
 
     // General purpose register mask: pointers and ints, not floats
     static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
-    static RegMask RMASK = new RegMask(RD_BITS);
+    static final RegMask RMASK = new RegMask(RD_BITS);
 
     static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
-    static RegMask WMASK = new RegMask(WR_BITS);
-    // Float mask from(ft0–ft11)
-    static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
-    static RegMask FMASK = new RegMask(FP_BITS);
+    static final RegMask WMASK = new RegMask(WR_BITS);
+    // Float mask from(f0-ft10)
+    static final long FP_BITS = 0b01111111111111111111111111111111L<<F0;
+    static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
-    static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
+    static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
     // Arguments masks
-    static RegMask A0_MASK = new RegMask(A0);
-    static RegMask A1_MASK = new RegMask(A1);
-    static RegMask A2_MASK = new RegMask(A2);
-    static RegMask A3_MASK = new RegMask(A3);
-    static RegMask A4_MASK = new RegMask(A4);
-    static RegMask A5_MASK = new RegMask(A5);
-    static RegMask A6_MASK = new RegMask(A6);
-    static RegMask A7_MASK = new RegMask(A7);
+    static final RegMask A0_MASK = new RegMask(A0);
+    static final RegMask A1_MASK = new RegMask(A1);
+    static final RegMask A2_MASK = new RegMask(A2);
+    static final RegMask A3_MASK = new RegMask(A3);
+    static final RegMask A4_MASK = new RegMask(A4);
+    static final RegMask A5_MASK = new RegMask(A5);
+    static final RegMask A6_MASK = new RegMask(A6);
+    static final RegMask A7_MASK = new RegMask(A7);
 
-    static RegMask FLAGS_MASK = new RegMask(FLAGS);
-    static RegMask RPC_MASK = new RegMask(RPC);
+    static final RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static final RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
-    static RegMask FA0_MASK = new RegMask(FA0);
-    static RegMask FA1_MASK = new RegMask(FA1);
-    static RegMask FA2_MASK = new RegMask(FA2);
-    static RegMask FA3_MASK = new RegMask(FA3);
-    static RegMask FA4_MASK = new RegMask(FA4);
-    static RegMask FA5_MASK = new RegMask(FA5);
-    static RegMask FA6_MASK = new RegMask(FA6);
-    static RegMask FA7_MASK = new RegMask(FA7);
+    static final RegMask FA0_MASK = new RegMask(FA0);
+    static final RegMask FA1_MASK = new RegMask(FA1);
+    static final RegMask FA2_MASK = new RegMask(FA2);
+    static final RegMask FA3_MASK = new RegMask(FA3);
+    static final RegMask FA4_MASK = new RegMask(FA4);
+    static final RegMask FA5_MASK = new RegMask(FA5);
+    static final RegMask FA6_MASK = new RegMask(FA6);
+    static final RegMask FA7_MASK = new RegMask(FA7);
 
     // Int arguments calling conv
     static RegMask[] CALLINMASK = new RegMask[] {
@@ -111,27 +123,27 @@ public class riscv extends Machine {
     }
 
     // callee saved(riscv)
-    static final long CALLEE_SAVED =
+    static final long CALLEE_SAVE =
         (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
         (1L<< S4) | (1L<< S5) | (1L<< S6 ) | (1L<< S7 ) |
         (1L<< S8) | (1L<< S9) | (1L<< S10) | (1L<< S11) |
         (1L<<FS0) | (1L<<FS1) | (1L<<FS2 ) | (1L<<FS3 ) |
         (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
         (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
-    static final RegMask CALLER_SAVE_MASK = new RegMask(~CALLEE_SAVED);
+
+    static final RegMask CALLER_SAVE_MASK;
+    static {
+        long caller = ~CALLEE_SAVE;
+        // Remove the spills
+        caller &= (1L<<MAX_REG)-1;
+        CALLER_SAVE_MASK = new RegMask(caller);
+    }
     static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
     @Override public RegMask callerSave() { return riscCallerSave(); }
 
-    static final String[] REGS = new String[] {
-            "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
-            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11",
-    };
+    static final RegMask CALLEE_SAVE_MASK = new RegMask(CALLEE_SAVE);
+    static RegMask riscCalleeSave() { return CALLEE_SAVE_MASK; }
+    @Override public RegMask calleeSave() { return riscCalleeSave(); }
 
     // General purpose register mask:
     @Override public String reg( int reg ) { return REGS[reg]; }

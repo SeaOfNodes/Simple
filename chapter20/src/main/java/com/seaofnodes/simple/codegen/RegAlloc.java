@@ -158,10 +158,12 @@ public class RegAlloc {
             IFG.color(round,this);      // If colorable
     }
 
-    // Insert callee-save registers.  Walk the callee-save RegMask and cut out
-    // any Parms, then insert a Parm and an edge from the Ret to the Parm with
-    // the callee-save register.
+    // Insert callee-save registers.  Walk the callee-save RegMask ignoring any
+    // Parms, then insert a Parm and an edge from the Ret to the Parm with the
+    // callee-save register.
     private void insertCalleeSave( FunNode fun ) {
+        RegMask saves = _code._mach.calleeSave();
+
         //throw Utils.TODO();
     }
 

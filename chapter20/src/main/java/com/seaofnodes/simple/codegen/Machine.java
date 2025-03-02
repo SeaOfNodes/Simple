@@ -11,6 +11,8 @@ abstract public class Machine {
     public abstract SplitNode split( String kind, byte round, LRG lrg);
     // List of caller-save registers
     public abstract RegMask callerSave();
+    // List of callee-save registers
+    public abstract RegMask calleeSave();
     // Return a MachNode unconditional branch
     public abstract CFGNode jump();
     // Break an infinite loop
