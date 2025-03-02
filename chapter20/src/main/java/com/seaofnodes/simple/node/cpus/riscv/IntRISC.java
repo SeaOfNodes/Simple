@@ -30,11 +30,36 @@ public class IntRISC extends ConstantNode implements MachNode {
         short rd_reg = frd_self.get_reg();
         int beforeSize = bytes.size();
 
+        long MIN_SIGNED_20 = -524288;
+        long MAX_SIGNED_20 = 524287;
+
         TypeInteger ti = (TypeInteger)_con;
         long imm32_64 = ti.value();
-        int body = riscv.u_type(0x37, rd_reg, (int)imm32_64);
+        boolean fitsInSigned20 = (imm32_64 >= MIN_SIGNED_20 && imm32_64 <= MAX_SIGNED_20);
 
+        // check if immediate fit into 20 bits
+        // if not create extra add
+
+        if (!fitsInSigned20) {
+            // low 12 bit of the immediate goes into add immediate
+            // addi t0, t0, low12bit
+            // 0xFFF = 1111 1111 1111
+            int low_12_bits = (int)(imm32_64 & 0xFFF);
+            if((low_12_bits & 0x800) != 0) imm32_64 += 4096;
+
+        }
+
+        int upper20_bits =  ((int)imm32_64 >> 12) & 0xFFFFF;
+        int body = riscv.u_type(0x37, rd_reg, upper20_bits);
         riscv.push_4_bytes(body, bytes);
+
+        if (!fitsInSigned20) {
+            // low 12 bit of the immediate goes into add immediate
+            // addi t0, t0, low12bit
+            // 0xFFF = 1111 1111 1111
+            int body2 = riscv.i_type(riscv.I_TYPE, rd_reg, 0, rd_reg, (int)(imm32_64 & 0xFFF));
+            riscv.push_4_bytes(body2, bytes);
+        }
 
         return bytes.size() - beforeSize;
     }

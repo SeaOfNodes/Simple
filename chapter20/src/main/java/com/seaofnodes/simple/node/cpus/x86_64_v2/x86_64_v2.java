@@ -46,22 +46,22 @@ public class x86_64_v2 extends Machine {
     static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
 
-    public static RegMask RAX_MASK = new RegMask(1L << RAX);
-    public static RegMask RCX_MASK = new RegMask(1L << RCX);
-    public static RegMask RDX_MASK = new RegMask(1L << RDX);
-    public static RegMask RDI_MASK = new RegMask(1L << RDI);
-    public static RegMask R08_MASK = new RegMask(1L << R08);
-    public static RegMask R09_MASK = new RegMask(1L << R09);
-    public static RegMask RSI_MASK = new RegMask(1L << RSI);
+    public static RegMask RAX_MASK = new RegMask(RAX);
+    public static RegMask RCX_MASK = new RegMask(RCX);
+    public static RegMask RDX_MASK = new RegMask(RDX);
+    public static RegMask RDI_MASK = new RegMask(RDI);
+    public static RegMask R08_MASK = new RegMask(R08);
+    public static RegMask R09_MASK = new RegMask(R09);
+    public static RegMask RSI_MASK = new RegMask(RSI);
 
-    public static RegMask XMM0_MASK = new RegMask(1L << XMM0);
-    public static RegMask XMM1_MASK = new RegMask(1L << XMM1);
-    public static RegMask XMM2_MASK = new RegMask(1L << XMM2);
-    public static RegMask XMM3_MASK = new RegMask(1L << XMM3);
-    public static RegMask XMM4_MASK = new RegMask(1L << XMM4);
-    public static RegMask XMM5_MASK = new RegMask(1L << XMM5);
-    public static RegMask XMM6_MASK = new RegMask(1L << XMM6);
-    public static RegMask XMM7_MASK = new RegMask(1L << XMM7);
+    public static RegMask XMM0_MASK = new RegMask(XMM0);
+    public static RegMask XMM1_MASK = new RegMask(XMM1);
+    public static RegMask XMM2_MASK = new RegMask(XMM2);
+    public static RegMask XMM3_MASK = new RegMask(XMM3);
+    public static RegMask XMM4_MASK = new RegMask(XMM4);
+    public static RegMask XMM5_MASK = new RegMask(XMM5);
+    public static RegMask XMM6_MASK = new RegMask(XMM6);
+    public static RegMask XMM7_MASK = new RegMask(XMM7);
     public static RegMask[] XMMS = new RegMask[]{
             XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
             XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
@@ -381,7 +381,7 @@ public class x86_64_v2 extends Machine {
 
     // Create a split op; any register to any register, including stack slots
     @Override
-    public SplitNode split(String kind, byte round) {
+    public SplitNode split(String kind, byte round, LRG lrg) {
         return new SplitX86(kind, round);
     }
 

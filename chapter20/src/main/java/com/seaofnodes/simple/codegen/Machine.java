@@ -8,7 +8,7 @@ abstract public class Machine {
     // Human-readable name for a register number, e.g. "RAX" or "R0"
     public abstract String reg( int reg );
     // Create a split op; any register to any register, including stack slots
-    public abstract SplitNode split( String kind, byte round);
+    public abstract SplitNode split( String kind, byte round, LRG lrg);
     // List of caller-save registers
     public abstract RegMask callerSave();
     // Return a MachNode unconditional branch
