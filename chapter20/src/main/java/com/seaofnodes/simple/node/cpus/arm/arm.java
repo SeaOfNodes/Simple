@@ -22,10 +22,9 @@ public class arm extends Machine {
     static final int D0  = 32,  D1  = 33,  D2  = 34,  D3  = 35,  D4  = 36,  D5  = 37,  D6  = 38,  D7  = 39;
     static final int D8  = 40,  D9  = 41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
-    static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60;  // TODO: RegMask limited to 64 bits, so losing 4 FPRs
+    static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
     static final int FLAGS = 60;
-    static final int MAX_REG = 61;
 
     static final String[] REGS = new String[] {
         "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
@@ -35,7 +34,7 @@ public class arm extends Machine {
         "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
         "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
         "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
-        "D24", "D25", "D26", "D27",
+        "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31",
         "flags"
     };
     @Override public String reg( int reg ) {
@@ -49,15 +48,14 @@ public class arm extends Machine {
     static final long WR_BITS = 0x7FFFFFFFL; // All the GPRs, not RSP
     static final RegMask WMASK = new RegMask(WR_BITS);
 
-    // Float mask from(d0–d29)
-    static final long FP_BITS = 0x1FFFFFFFL<<D0;
+    // Float mask from(d0–d31)
+    static final long FP_BITS = 0xFFFFFFFFL<<D0;
     static final RegMask DMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static final long SPILLS = -(1L << MAX_REG);
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | SPILLS);
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L - (1L<<FLAGS));
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
@@ -138,10 +136,8 @@ public class arm extends Machine {
     static final RegMask CALLER_SAVE_MASK;
     static {
         long caller = ~CALLEE_SAVE;
-        // Remove the spills
-        caller &=  (1L<<MAX_REG)-1;
         caller &= ~(1L<<RSP);
-        CALLER_SAVE_MASK = new RegMask(caller);
+        CALLER_SAVE_MASK = new RegMask(caller,1L<<FLAGS);
     }
     static RegMask armCallerSave() { return CALLER_SAVE_MASK; }
     @Override public RegMask callerSave() { return armCallerSave(); }
