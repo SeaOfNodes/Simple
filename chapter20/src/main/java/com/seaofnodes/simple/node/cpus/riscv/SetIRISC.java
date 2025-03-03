@@ -12,6 +12,7 @@ public class SetIRISC extends ImmRISC {
         _bop = bool.op();
     }
     @Override int opcode() { throw Utils.TODO(); }
+    @Override int func3() { throw Utils.TODO(); }
     @Override public String glabel() { return _bop; }
     @Override public String op() { return "set"+_bop; }
 }

@@ -33,7 +33,7 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // REX.W + 81 /7 id	CMP r/m64, imm32
         // REX.W + 83 /7 ib	CMP r/m64, imm8
-        LRG rg_1 = CodeGen.CODE._regAlloc.lrg(this);
+        LRG rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
 
         short reg1 = rg_1.get_reg();
         int beforeSize = bytes.size();

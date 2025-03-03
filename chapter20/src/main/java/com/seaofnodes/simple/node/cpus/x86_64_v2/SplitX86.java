@@ -32,23 +32,23 @@ public class SplitX86 extends SplitNode {
 
         int beforeSize = bytes.size();
 
-        if(split_reg_1 == x86_64_v2.FLAGS) {
-            // mov flags, reg
-            // pushf; pop reg
-            bytes.write(0x9C);
-            // 58+ rd	POP r64
-            bytes.write(0x58 + split_reg_2);
-            return bytes.size() - beforeSize; // early return
-        } else if(split_reg_2 == x86_64_v2.FLAGS) {
+      if(split_reg_1 == x86_64_v2.FLAGS) {
             // mov reg, flags
             // push rcx
             // popf (Pop the top of the stack into the FLAGS register)
             // 50+rd	PUSH r64
-            bytes.write(0x50 + split_reg_1);
+            bytes.write(0x50 + split_reg_2);
             // popf
             bytes.write(0x9D);
             return bytes.size() - beforeSize; // early return
-        }
+      } else if(split_reg_2 == x86_64_v2.FLAGS) {
+            // mov flags, reg
+            // pushf; pop reg
+            bytes.write(0x9C);
+            // 58+ rd	POP r64
+            bytes.write(0x58 + split_reg_1);
+            return bytes.size() - beforeSize; // early return
+      }
 
         boolean reg_1_xmm = split_reg_1 >= 16 ? true  : false;
         boolean reg_2_xmm = split_reg_2 >= 16 ? true  : false;
