@@ -24,7 +24,7 @@ public class arm extends Machine {
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
-    static final int FLAGS = 60;
+    static final int FLAGS = 64;
 
     static final String[] REGS = new String[] {
         "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
@@ -55,7 +55,7 @@ public class arm extends Machine {
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L - (1L<<FLAGS));
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L);
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
@@ -137,7 +137,7 @@ public class arm extends Machine {
     static {
         long caller = ~CALLEE_SAVE;
         caller &= ~(1L<<RSP);
-        CALLER_SAVE_MASK = new RegMask(caller,1L<<FLAGS);
+        CALLER_SAVE_MASK = new RegMask(caller,1L<<(FLAGS-64));
     }
     static RegMask armCallerSave() { return CALLER_SAVE_MASK; }
     @Override public RegMask callerSave() { return armCallerSave(); }

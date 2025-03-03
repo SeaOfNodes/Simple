@@ -12,7 +12,10 @@ public class RegMask {
     private static final RegMask EMPTY = new RegMask(0L);
     public  static final RegMask FULL = new RegMask(-1L);
 
-    public RegMask(int bit) { _bits0 = 1L<<bit; }
+    public RegMask(int bit) {
+        if( bit < 64 ) _bits0 = 1L<<bit;
+        else _bits1 = 1L<<(bit=64);
+    }
     public RegMask(long bits ) { _bits0 = bits; }
     public RegMask(long bits0, long bits1 ) { _bits0 = bits0; _bits1 = bits1; }
     private RegMask() { _bits0 = _bits1 = 0; }
