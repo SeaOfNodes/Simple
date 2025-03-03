@@ -22,15 +22,7 @@ public class RetX86 extends ReturnNode implements MachNode {
 
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        return switch( i ) {
-        case 0 -> null;
-        case 1 -> null;
-        case 2 -> x86_64_v2.retMask(_fun.sig());
-        case 3 -> x86_64_v2.RPC_MASK;
-        default -> throw Utils.TODO();
-        };
-    }
+    @Override public RegMask regmap(int i) { return x86_64_v2.retMask(_fun.sig(),i); }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
 
@@ -39,12 +31,13 @@ public class RetX86 extends ReturnNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // Human-readable form appended to the SB.  Things like the encoding,
-    // indentation, leading address or block labels not printed here.
-    // Just something like "ld4\tR17=[R18+12] // Load array base".
-    // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(2)));
+        // Post code-gen, just print the "ret"
+        if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
+            // Prints return reg (either RAX or XMM0), RPC (always [rsp-4]) and
+            // then the callee-save registers.
+            for( int i=2; i<nIns(); i++ )
+                sb.p(code.reg(in(i))).p("  ");
     }
 
     @Override public String op() { return "ret"; }

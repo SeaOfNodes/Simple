@@ -33,7 +33,8 @@ public class x86_64_v2 extends Machine {
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     static final RegMask RPC_MASK = new RegMask(RPC);
 
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) );
+    static final long SPILLS = -(1L << MAX_REG);
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) | SPILLS );
 
     // Load/store mask; both GPR and FPR
     static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
@@ -110,17 +111,12 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Return single int/ptr register.  Used by CallEnd output and Return input.
-    static RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
-    }
-
-
     // caller saved(systemv)
     static final long SYSTEM5_CALLER_SAVE =
         (1L<< RAX) | (1L<< RCX) | (1L<< RDX) |
         (1L<< RDI) | (1L<< RSI) |
         (1L<< R08) | (1L<< R09) | (1L<< R10) | (1L<< R11) |
+        (1L<<FLAGS)|           // Flags are killed
         // All FP regs are killed
         FP_BITS;
     static final RegMask SYSTEM5_CALLER_SAVE_MASK = new RegMask(SYSTEM5_CALLER_SAVE);
@@ -129,6 +125,7 @@ public class x86_64_v2 extends Machine {
     static final long WIN64_CALLER_SAVE =
         (1L<< RAX) | (1L<< RCX) | (1L<< RDX) |
         (1L<< R08) | (1L<< R09) | (1L<< R10) | (1L<< R11) |
+        (1L<<FLAGS)|           // Flags are killed
         // Only XMM0-XMM5 are killed; XMM6-XMM15 are preserved
         (1L<<XMM0) | (1L<<XMM1) | (1L<<XMM2) | (1L<<XMM3) |
         (1L<<XMM4) | (1L<<XMM5);
@@ -150,12 +147,14 @@ public class x86_64_v2 extends Machine {
         // Remove the spills
         callee &= (1L<<MAX_REG)-1;
         callee &= ~(1L<<FLAGS);
+        callee &= ~(1L<<RSP);
         SYSTEM5_CALLEE_SAVE_MASK = new RegMask(callee);
 
         callee = ~WIN64_CALLER_SAVE;
         // Remove the spills
         callee &= (1L<<MAX_REG)-1;
         callee &= ~(1L<<FLAGS);
+        callee &= ~(1L<<RSP);
         WIN64_CALLEE_SAVE_MASK = new RegMask(callee);
     }
     static RegMask x86CalleeSave() {
@@ -166,6 +165,39 @@ public class x86_64_v2 extends Machine {
         };
     }
     @Override public RegMask calleeSave() { return x86CalleeSave(); }
+
+
+    static final RegMask[] WIN64_RET_MASKS, SYS5_RET_MASKS;
+    static {
+        WIN64_RET_MASKS = makeRetMasks(  WIN64_CALLEE_SAVE_MASK);
+         SYS5_RET_MASKS = makeRetMasks(SYSTEM5_CALLEE_SAVE_MASK);
+    }
+    private static RegMask[] makeRetMasks(RegMask mask) {
+        int nSaves = mask.size();
+        RegMask[] masks = new RegMask[4 + nSaves];
+        masks[0] = null;
+        masks[1] = null;     // Memory
+        masks[2] = null;     // Varies, either XMM0 or RAX
+        masks[3] = RPC_MASK;
+        short reg = mask.firstReg();
+        for( int i=0; i<nSaves; i++ ) {
+            masks[i+4] = new RegMask(reg);
+            reg = mask.nextReg(reg);
+        }
+        return masks;
+    }
+
+    // Return single int/ptr register.  Used by CallEnd output and Return input.
+    static RegMask retMask( TypeFunPtr tfp, int i ) {
+        if( i==2 )
+            return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
+        RegMask[] masks = switch( CodeGen.CODE._callingConv ) {
+        case "SystemV" ->  SYS5_RET_MASKS;
+        case "Win64"   -> WIN64_RET_MASKS;
+        default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
+        };
+        return masks[i];
+    }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitX86(kind,round);  }

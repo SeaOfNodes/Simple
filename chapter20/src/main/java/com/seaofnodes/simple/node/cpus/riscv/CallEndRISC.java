@@ -20,7 +20,7 @@ public class CallEndRISC extends CallEndNode implements MachNode {
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return null; }
-    @Override public RegMask outregmap(int idx) { return idx == 2 ? riscv.retMask(_tfp) : null; }
+    @Override public RegMask outregmap(int idx) { return idx == 2 ? riscv.retMask(_tfp,2) : null; }
     @Override public RegMask killmap() { return riscv.riscCallerSave(); }
 
     // Encoding is appended into the byte array; size is returned

@@ -115,6 +115,10 @@ public class RegAlloc {
     }
 
 
+    public int regnum( Node n ) {
+        LRG lrg = lrg(n);
+        return lrg==null ? -1 : lrg._reg;
+    }
 
     // Printable register number for node n
     String reg( Node n ) {
@@ -163,8 +167,12 @@ public class RegAlloc {
     // callee-save register.
     private void insertCalleeSave( FunNode fun ) {
         RegMask saves = _code._mach.calleeSave();
+        ReturnNode ret = fun.ret();
 
-        //throw Utils.TODO();
+        for( short reg = saves.firstReg(); reg != -1; reg = saves.nextReg(reg) ) {
+            ret.addDef(new CalleeSaveNode(fun,reg,_code._mach.reg(reg)));
+            assert ((MachNode)ret).regmap(ret.nIns()-1).firstReg()==reg;
+        }
     }
 
 
@@ -309,7 +317,7 @@ public class RegAlloc {
             } else {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ )
-                    if( lrg(n.in(i))==lrg ) // This is a LRG use
+                    if( lrgSame(n.in(i),lrg) ) // This is a LRG use
                         ld = ldepth(ld,n.in(i),n.in(i).cfg0());
             }
         }
@@ -353,17 +361,24 @@ public class RegAlloc {
             } else {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ ) {
-                    if( lrg(n.in(i))==lrg && // This is a LRG use
+                    if( lrgSame(n.in(i),lrg) && // This is a LRG use
                         // splitting in inner loop or at loop border
                         (min==max || n.cfg0().loopDepth() <= min) &&
-                        // Not a split already
-                        !(n.in(i) instanceof SplitNode && n.in(i).nOuts()==1) )
+                        // Not a single-use split same block already
+                        !(n.in(i) instanceof SplitNode && n.in(i).nOuts()==1 && n.cfg0()==n.in(i).cfg0()) )
                         // Split before in this block
                         insertBefore( n, i, "use/loop/use", round,lrg );
                 }
             }
         }
         return true;
+    }
+
+    private boolean lrgSame(Node x, LRG lrg) {
+        LRG xlrg = lrg(x);
+        while( xlrg==null && x instanceof SplitNode )
+            xlrg=lrg(x = x.in(1));
+        return xlrg==lrg;
     }
 
     private static long ldepth( long ld, Node n, CFGNode cfg ) {

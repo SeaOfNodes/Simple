@@ -22,10 +22,10 @@ public class arm extends Machine {
     static final int D0  = 32,  D1  = 33,  D2  = 34,  D3  = 35,  D4  = 36,  D5  = 37,  D6  = 38,  D7  = 39;
     static final int D8  = 40,  D9  = 41,  D10 = 42,  D11 = 43,  D12 = 44,  D13 = 45,  D14 = 46,  D15 = 47;
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
-    static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61; // TODO: RegMask limited to 64 bits, so losing 2 FPRs
+    static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60;  // TODO: RegMask limited to 64 bits, so losing 4 FPRs
 
-    static final int FLAGS = 62;
-    static final int MAX_REG = 63;
+    static final int FLAGS = 60;
+    static final int MAX_REG = 61;
 
     static final String[] REGS = new String[] {
         "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
@@ -35,8 +35,12 @@ public class arm extends Machine {
         "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
         "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
         "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
-        "D24", "D25", "D26", "D27", "D28", "D29", "flags"
+        "D24", "D25", "D26", "D27",
+        "flags"
     };
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
 
     // from (x0-x30)
     // General purpose register mask: pointers and ints, not floats
@@ -46,11 +50,14 @@ public class arm extends Machine {
     static final RegMask WMASK = new RegMask(WR_BITS);
 
     // Float mask from(d0–d29)
-    static final long FP_BITS = 0x3FFFFFFFL<<D0;
+    static final long FP_BITS = 0x1FFFFFFFL<<D0;
     static final RegMask DMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
+
+    static final long SPILLS = -(1L << MAX_REG);
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | SPILLS);
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
@@ -75,8 +82,6 @@ public class arm extends Machine {
     static final RegMask D5_MASK = new RegMask(D5);
     static final RegMask D6_MASK = new RegMask(D6);
     static final RegMask D7_MASK = new RegMask(D7);
-
-    @Override public String reg( int reg ) { return REGS[reg]; }
 
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
@@ -122,11 +127,6 @@ public class arm extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Return single int/ptr register
-    static RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK;
-    }
-
     static final long CALLEE_SAVE =
         1L<<X19 |
         1L<<X20 | 1L<<X21 | 1L<<X22 | 1L<<X23 |
@@ -139,7 +139,8 @@ public class arm extends Machine {
     static {
         long caller = ~CALLEE_SAVE;
         // Remove the spills
-        caller &= (1L<<MAX_REG)-1;
+        caller &=  (1L<<MAX_REG)-1;
+        caller &= ~(1L<<RSP);
         CALLER_SAVE_MASK = new RegMask(caller);
     }
     static RegMask armCallerSave() { return CALLER_SAVE_MASK; }
@@ -149,6 +150,27 @@ public class arm extends Machine {
     static RegMask armCalleeSave() { return CALLEE_SAVE_MASK; }
     @Override public RegMask calleeSave() { return armCalleeSave(); }
 
+
+    // Return single int/ptr register.  Used by CallEnd output and Return input.
+    static final RegMask[] RET_MASKS;
+    static {
+        int nSaves = CALLEE_SAVE_MASK.size();
+        RET_MASKS = new RegMask[4 + nSaves];
+        RET_MASKS[0] = null;
+        RET_MASKS[1] = null;     // Memory
+        RET_MASKS[2] = null;     // Varies, either XMM0 or RAX
+        RET_MASKS[3] = RMASK;    // Expected R30 but could be any register
+        short reg = CALLEE_SAVE_MASK.firstReg();
+        for( int i=0; i<nSaves; i++ ) {
+            RET_MASKS[i+4] = new RegMask(reg);
+            reg = CALLEE_SAVE_MASK.nextReg(reg);
+        }
+    }
+    static RegMask retMask( TypeFunPtr tfp, int i ) {
+        return i==2
+            ? (tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK)
+            : RET_MASKS[i];
+    }
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }

@@ -14,18 +14,9 @@ import java.io.ByteArrayOutputStream;
 public class RetARM extends ReturnNode implements MachNode {
     RetARM(ReturnNode ret, FunNode fun) { super(ret, fun); fun.setRet(this); }
 
-    // Todo: postSelect
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        return switch( i ) {
-        case 0 -> null;
-        case 1 -> null;
-        case 2 -> arm.retMask(_fun.sig());
-        case 3 -> arm.RMASK;
-        default -> throw Utils.TODO();
-        };
-    }
+    @Override public RegMask regmap(int i) { return arm.retMask(_fun.sig(),i); }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
 
@@ -34,12 +25,17 @@ public class RetARM extends ReturnNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // Human-readable form appended to the SB.  Things like the encoding,
-    // indentation, leading address or block labels not printed here.
-    // Just something like "ld4\tR17=[R18+12] // Load array base".
-    // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(2))).p("  ").p(code.reg(in(3)));
+        // Post code-gen, just print the "ret"
+        if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
+            // Prints return reg (either X0 or D0), RPC (always R30) and
+            // then the callee-save registers.
+            for( int i=2; i<nIns(); i++ )
+                sb.p(code.reg(in(i))).p("  ");
+
+        // Post-allocation, if we did not get the expected return register, print what we got
+        else if( code._regAlloc.regnum(in(3)) != arm.X30 )
+            sb.p("[").p(code.reg(in(3))).p("]");
     }
 
     // Correct Nodes outside the normal edges
