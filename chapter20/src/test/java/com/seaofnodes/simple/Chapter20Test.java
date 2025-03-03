@@ -29,7 +29,7 @@ public class Chapter20Test {
     }
 
     private static void testAllCPUs( String src, int spills, String stop ) {
-        //testCPU(src,"x86_64_v2", "SystemV",spills,stop);
+        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
         testCPU(src,"riscv"    , "SystemV",spills,stop);
         testCPU(src,"arm"      , "SystemV",spills,stop);
     }
