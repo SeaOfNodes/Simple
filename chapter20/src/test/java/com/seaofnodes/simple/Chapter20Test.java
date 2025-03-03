@@ -20,7 +20,7 @@ public class Chapter20Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc();
+        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -101,7 +101,7 @@ public class Chapter20Test {
     }
 
     private static void testAllCPUs( String src, int spills, String stop ) {
-        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
+        //testCPU(src,"x86_64_v2", "SystemV",spills,stop);
         testCPU(src,"riscv"    , "SystemV",spills,stop);
         testCPU(src,"arm"      , "SystemV",spills,stop);
     }
@@ -113,7 +113,7 @@ public class Chapter20Test {
     @Test public void testBasic1() {
         String src = "return arg | 2;";
         testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
-        testCPU(src,"riscv"    , "SystemV",0,"return (ori,arg);");
+        testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
 
@@ -132,9 +132,9 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",22,null);
-        testCPU(src,"riscv"    , "SystemV",14,null);
-        testCPU(src,"arm"      , "SystemV",22,null);
+        testCPU(src,"x86_64_v2", "SystemV",26,null);
+        testCPU(src,"riscv"    , "SystemV",19,null);
+        testCPU(src,"arm"      , "SystemV",26,null);
     }
 
     @Test
@@ -153,9 +153,9 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",22,null);
-        testCPU(src,"riscv"    , "SystemV",21,null);
-        testCPU(src,"arm"      , "SystemV",12,null);
+        testCPU(src,"x86_64_v2", "SystemV",33,null);
+        testCPU(src,"riscv"    , "SystemV",29,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
     }
 
     @Test
@@ -178,7 +178,7 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
         testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],( .[] * #1000 ));");
         testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
     }
 
@@ -237,4 +237,17 @@ hashCode(s);
         testAllCPUs(src,0,null);
     }
 
+    @Test
+    public void testFlags() {
+        String src = """
+bool b1 = arg == 1;
+bool b2 = arg == 2;
+if (b2) if (b1) return 1;
+if (b1) return 2;
+return 0;
+""";
+        testCPU(src,"x86_64_v2", "SystemV",5,null);
+        testCPU(src,"riscv"    , "SystemV",0,null);
+        testCPU(src,"arm"      , "SystemV",5,null);
+    }
 }

@@ -24,6 +24,7 @@ public abstract class ASMPrinter {
     private static int print(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         // Function header
         sb.nl().p("---");
+        if( fun._name != null ) sb.p(fun._name).p(" ");
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
 
@@ -38,39 +39,60 @@ public abstract class ASMPrinter {
         return iadr;
     }
 
+    static private final int encWidth = 8;
+    static private final int opWidth = 5;
+    static private final int argWidth = 30;
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         CFGNode bb = code._cfg.at(cfgidx);
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p(bb instanceof LoopNode ? "LOOP" : "L").p(bb._nid).p(":").nl();
+        if( bb instanceof CallNode ) return iadr;
+        final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal();
 
-        if( !(bb instanceof CallNode) )
-            for( Node n : bb._outputs )
-                iadr = doInst(iadr, sb,code,fun,bb,n);
+        // Count Phis
+        int nPhi=0;
+        for( ; nPhi<bb.nOuts(); nPhi++ )
+            if( !(bb.out(nPhi) instanceof PhiNode) )
+                break;
+
+        if( nPhi>0 ) {
+            // Post-alloc phi prints all on one line
+            if( postAlloc ) {
+                sb.fix(4," ").p(" ").fix(encWidth,"").p("  ");
+                for( int i=0; i<nPhi; i++ ) {
+                    PhiNode phi = (PhiNode)bb.out(i);
+                    if( !(phi._type instanceof TypeMem || phi._type instanceof TypeRPC) ) // Nothing for the hidden ones
+                        sb.p(phi._label).p(':').p(code.reg(phi)).p(',');
+                }
+                sb.unchar().nl();
+
+            } else {
+                for( int j=0; j<nPhi; j++ ) {
+                    PhiNode phi = (PhiNode)bb.out(j);
+                    if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) continue; // Nothing for the hidden ones
+                    sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ");
+                    sb.p(code.reg(phi));
+                    if( !(phi instanceof ParmNode) ) {
+                        sb.p(" = phi( ");
+                        for( int i=1; i<phi.nIns(); i++ )
+                            sb.p("N").p(phi.in(i)._nid).p(",");
+                        sb.unchar().p(" )");
+                    }
+                    sb.nl();
+                }
+            }
+        }
+
+        // All the non-phis
+        for( int i=nPhi; i<bb.nOuts(); i++ )
+            iadr = doInst(iadr, sb,code,fun,bb,bb.out(i),postAlloc );
 
         return iadr;
     }
 
-    static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n) {
-        final int encWidth = 8;
-        final int opWidth = 5;
-        final int argWidth = 30;
-
-        if( n instanceof  CProjNode ) return iadr;
-
-        // Phis are useful before (and during) reg alloc
-        if( n instanceof PhiNode phi ) {
-            if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) return iadr; // Nothing for the hidden ones
-            sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ");
-            sb.p(code.reg(n));
-            if( !(n instanceof ParmNode) ) {
-                sb.p(" = phi( ");
-                for( int i=1; i<n.nIns(); i++ )
-                    sb.p("N").p(n.in(i)._nid).p(",");
-                sb.unchar().p(" )");
-            }
-            sb.nl();
-            return iadr;
-        }
+    static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n, boolean postAlloc ) {
+        if( n instanceof CProjNode ) return iadr;
+        if( n instanceof CalleeSaveNode && postAlloc ) return iadr;
 
         // All blocks ending in a Region will need to either fall into or jump
         // to this block.  Until the post-reg-alloc block layout cleanup, we
@@ -132,7 +154,7 @@ public abstract class ASMPrinter {
         if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
             for( Node proj : n._outputs ) {
                 assert proj instanceof ProjNode;
-                doInst(iadr,sb,code,fun,bb,proj);
+                doInst(iadr,sb,code,fun,bb,proj,postAlloc);
             }
         }
 

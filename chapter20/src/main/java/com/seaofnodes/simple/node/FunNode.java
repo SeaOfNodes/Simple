@@ -54,7 +54,7 @@ public class FunNode extends RegionNode {
     // Cannot create the Return and Fun at the same time; one has to be first.
     // So setting the return requires a second step.
     public void setRet(ReturnNode ret) { _ret=ret; }
-    ReturnNode ret() { assert _ret!=null; return _ret; }
+    public ReturnNode ret() { assert _ret!=null; return _ret; }
 
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
