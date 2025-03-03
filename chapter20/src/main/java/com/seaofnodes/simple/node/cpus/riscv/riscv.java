@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.Machine;
 import com.seaofnodes.simple.codegen.RegMask;
@@ -23,18 +22,17 @@ public class riscv extends Machine {
     static final int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
     static final int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    static final int FLAGS = 0 ;
     static final int MAX_REG = 61;
 
     static final String[] REGS = new String[] {
-            "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
-            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+        "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
+        "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
+        "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
+        "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
+        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
     @Override public String reg( int reg ) {
         return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
@@ -42,7 +40,7 @@ public class riscv extends Machine {
 
 
     // General purpose register mask: pointers and ints, not floats
-    static final long RD_BITS = 0b11111111111111111111111111111110L; // All the GPRs
+    static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
     static final RegMask RMASK = new RegMask(RD_BITS);
 
     static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
@@ -67,7 +65,6 @@ public class riscv extends Machine {
     static final RegMask A6_MASK = new RegMask(A6);
     static final RegMask A7_MASK = new RegMask(A7);
 
-    static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     static final RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
@@ -181,6 +178,12 @@ public class riscv extends Machine {
         throw Utils.TODO();
     }
 
+    // True if signed 12-bit immediate
+    private static boolean imm12(TypeInteger ti) {
+        return ti.isConstant() && ((ti.value()<<12)>>12) == ti.value();
+    }
+
+
     @Override public Node instSelect( Node n ) {
         return switch (n) {
         case AddFNode addf -> addf(addf);
@@ -229,16 +232,14 @@ public class riscv extends Machine {
     }
 
     private Node add(AddNode add) {
-        Node rhs = add.in(2);
-        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            return new AddIRISC(add, toff);
-        }
+        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) )
+            return new AddIRISC(add, (int)toff.value());
         return new AddRISC(add);
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new AndIRISC(and, ti);
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
+            return new AndIRISC(and, (int)ti.value());
         return new AndRISC(and);
     }
 
@@ -249,21 +250,12 @@ public class riscv extends Machine {
     }
 
     private Node cmp(BoolNode bool) {
-        Node cmp = _cmp(bool);
-        return new SetRISC(cmp, bool.op());
-    }
-
-    private Node _cmp(BoolNode bool) {
+        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff )
+            return new SetIRISC(bool, (int)toff.value());
         // Float variant
-        if( bool instanceof BoolNode.EQF ||
-            bool instanceof BoolNode.LTF ||
-            bool instanceof BoolNode.LEF )
-            return new CmpFRISC(bool);
-
-        Node rhs = bool.in(2);
-        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new CmpIRISC(bool, ti)
-                : new CmpRISC(bool);
+        if( bool.isFloat() )
+            return new SetFRISC(bool);
+        return new SetRISC(bool);
     }
 
     private Node con( ConstantNode con ) {
@@ -280,49 +272,46 @@ public class riscv extends Machine {
     }
 
     private Node jmp( IfNode iff ) {
-        // If/Bool combos will match to a Cmp/Set which sets flags.
-        // Most general arith ops will also set flags, which the Jmp needs directly.
-        // Loads do not set the flags, and will need an explicit TEST
-        if( !(iff.in(1) instanceof BoolNode) )
-            iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new CBranchRISC(iff, ((BoolNode)iff.in(1)).op());
+        if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() )
+            return new BranchRISC(iff, bool.op(), bool.in(1), bool.in(2));
+        // Vs zero
+        return new BranchRISC(iff, "==", iff.in(1), null);
     }
 
     private Node or(OrNode or) {
-        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new OrIRISC(or, ti);
-
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
+            return new OrIRISC(or, (int)ti.value());
         return new OrRISC(or);
     }
 
     private Node xor(XorNode xor) {
-        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new XorIRISC(xor, ti);
+        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
+            return new XorIRISC(xor, (int)ti.value());
         return new XorRISC(xor);
     }
 
     private Node sra(SarNode sar) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SraIRISC(sar, ti);
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
+            return new SraIRISC(sar, (int)ti.value());
         return new SraRISC(sar);
     }
 
     private Node srl(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SrlIRISC(shr, ti);
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
+            return new SrlIRISC(shr, (int)ti.value());
         return new SrlRISC(shr);
     }
 
     private Node sll(ShlNode sll) {
-        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SllIRISC(sll, ti);
+        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
+            return new SllIRISC(sll, (int)ti.value());
         return new SllRISC(sll);
     }
 
     private Node sub(SubNode sub) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new AddIRISC(sub, TypeInteger.constant(-ti.value()))
-                : new SubRISC(sub);
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
+            ? new AddIRISC(sub, (int)(-ti.value()))
+            : new SubRISC(sub);
     }
 
     private Node i2f8(ToFloatNode tfn) {
@@ -336,7 +325,7 @@ public class riscv extends Machine {
 
     private Node mul(MulNode mul) {
         return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new MulIRISC(mul, ti)
+                ? new MulIRISC(mul, (int)ti.value())
                 : new MulRISC(mul);
     }
 
@@ -347,7 +336,7 @@ public class riscv extends Machine {
     private Node st(StoreNode st) {
         int imm=0;
         Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) ) {
             xval = null;
             imm = (int)ti.value();
             assert imm == ti.value(); // In 32-bit range
@@ -367,9 +356,8 @@ public class riscv extends Machine {
         // Skip/throw-away a ReadOnly, only used to typecheck
         if( base instanceof ReadOnlyNode read ) base = read.in(1);
         assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
-        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) ) {
             off = (int)ti.value();
-            assert off == ti.value(); // In 32-bit range
         } else {
             idx = mop.off();
         }

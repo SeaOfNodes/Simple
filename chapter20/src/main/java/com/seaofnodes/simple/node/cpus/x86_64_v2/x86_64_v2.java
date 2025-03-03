@@ -331,9 +331,7 @@ public class x86_64_v2 extends Machine {
     }
     private Node _cmp( BoolNode bool ) {
         // Float variant
-        if( bool instanceof BoolNode.EQF ||
-            bool instanceof BoolNode.LTF ||
-            bool instanceof BoolNode.LEF )
+        if( bool.isFloat() )
             return new CmpFX86(bool);
 
         Node lhs = bool.in(1);
