@@ -202,7 +202,7 @@ public class riscv extends Machine {
         case LoadNode ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
         case MulFNode mulf -> new MulFRISC(mulf);
-        case MulNode mul -> mul(mul);
+        case MulNode mul -> new MulRISC(mul);
         case NewNode nnn -> new NewRISC(nnn);
         case OrNode or -> or(or);
         case ParmNode parm -> new ParmRISC(parm);
@@ -233,7 +233,7 @@ public class riscv extends Machine {
 
     private Node add(AddNode add) {
         if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) )
-            return new AddIRISC(add, (int)toff.value());
+            return new AddIRISC(add, (int)ti.value());
         return new AddRISC(add);
     }
 
@@ -321,12 +321,6 @@ public class riscv extends Machine {
 
     private Node prj(ProjNode prj) {
         return new ProjRISC(prj);
-    }
-
-    private Node mul(MulNode mul) {
-        return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new MulIRISC(mul, (int)ti.value())
-                : new MulRISC(mul);
     }
 
     private Node ld(LoadNode ld) {
