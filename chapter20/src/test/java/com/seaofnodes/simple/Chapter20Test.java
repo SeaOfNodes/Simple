@@ -59,10 +59,30 @@ public class Chapter20Test {
         code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
     }
 
+    @Test public void TestAdditionLong() {
+        CodeGen code = new CodeGen("""
+        return arg + (arg * 1234234234123123123);
+            """);
+        code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
+    }
+
     @Test public void TestNotNodeTodo() {
         CodeGen code = new CodeGen("""
         return arg != 0;
             """);
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
+    }
+
+    // Todo: Still missing UNCODNTIONAL JUMPS here
+    // Todo: on riscv regalloc breaks
+    @Test public void testSpills() {
+        CodeGen code = new CodeGen("""
+                bool b1 = arg == 1;
+                bool b2 = arg == 2;
+                if (b2) if (b1) return 1;f
+                if (b1) return 2;
+                return 0;
+                """);
         code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
     }
 
@@ -72,6 +92,7 @@ public class Chapter20Test {
             """);
         code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
     }
+
     @Test public void testDoubleNotNodeTodo() {
         CodeGen code = new CodeGen("""
         return !!arg;
