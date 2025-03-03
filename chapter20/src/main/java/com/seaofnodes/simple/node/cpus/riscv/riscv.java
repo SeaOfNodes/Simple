@@ -34,7 +34,7 @@ public class riscv extends Machine {
             "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
             "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
             "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" ,
+            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
     @Override public String reg( int reg ) {
         return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
@@ -48,14 +48,13 @@ public class riscv extends Machine {
     static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
     static final RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
-    static final long FP_BITS = 0b00011111111111111111111111111111L<<F0;
+    static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
     static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static final long SPILLS = -(1L << MAX_REG);
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | SPILLS);
+    static final RegMask SPLIT_MASK = new RegMask( WR_BITS | FP_BITS, -1L );
 
 
     // Arguments masks
@@ -137,10 +136,8 @@ public class riscv extends Machine {
     static final RegMask CALLER_SAVE_MASK;
     static {
         long caller = ~CALLEE_SAVE;
-        // Remove the spills
-        caller &= (1L<<MAX_REG)-1;
         caller &= ~(1L<<SP);
-        CALLER_SAVE_MASK = new RegMask(caller);
+        CALLER_SAVE_MASK = new RegMask(caller,0);
     }
     static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
     @Override public RegMask callerSave() { return riscCallerSave(); }
