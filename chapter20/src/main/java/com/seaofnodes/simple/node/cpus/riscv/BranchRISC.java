@@ -4,43 +4,39 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
+import java.util.BitSet;
 
 // Conditional branch such as: BEQ
-public class CBranchRISC extends IfNode implements MachNode{
+public class BranchRISC extends IfNode implements MachNode {
     final String _bop;
     // label is obtained implicitly
-    CBranchRISC( IfNode iff, String bop ) {
+    BranchRISC( IfNode iff, String bop, Node n1, Node n2 ) {
         super(iff);
         _bop = bop;
+        _inputs.setX(1,n1);
+        _inputs.setX(2,n2);
     }
 
     @Override public String label() { return op(); }
 
-    @Override public void postSelect() {
-        Node set = in(1);
-        Node cmp = set.in(1);
-        // Bypass an expected Set and just reference the cmp directly
-        if( set instanceof SetRISC)
-            _inputs.set(1,cmp);
-        else
-            throw Utils.TODO();
-    }
-
-    @Override public RegMask regmap(int i) { assert i==1; return riscv.FLAGS_MASK; }
+    @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return null; }
 
-    // Encoding is appended into the byte array; size is returned
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        in(1)._print0(sb.append("if( "),visited).append(_bop);
+        if( in(2)==null ) sb.append("0");
+        else in(2)._print0(sb,visited);
+        return sb.append(" )");
+    }
 
+    // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        String src = code.reg(in(1));
-        if( src!="flags" )  sb.p(src);
+        sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2)));
     }
 
     @Override public String op() { return "b"+_bop; }

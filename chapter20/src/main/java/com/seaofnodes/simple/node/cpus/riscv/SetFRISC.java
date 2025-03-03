@@ -10,14 +10,14 @@ import com.seaofnodes.simple.node.MachNode;
 import java.io.ByteArrayOutputStream;
 
 // corresponds to slt,sltu,slti,sltiu, seqz
-public class SetRISC extends MachConcreteNode implements MachNode {
+public class SetFRISC extends MachConcreteNode implements MachNode {
     final String _bop;          // One of <,<=,==
-    SetRISC( BoolNode bool ) {
+    SetFRISC( BoolNode bool ) {
         super(bool);
-        assert !bool.isFloat();
+        assert bool.isFloat();
         _bop = bool.op();
     }
-    @Override public RegMask regmap(int i) { throw Utils.TODO(); }
+    @Override public RegMask regmap(int i) { return riscv.FMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
