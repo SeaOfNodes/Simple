@@ -35,7 +35,7 @@ public class JmpX86 extends IfNode implements MachNode {
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // linker sorts out target address
         // JMP rel32
-
+        // TODO: relocs
         int beforeSize = bytes.size();
         // common opcode
         bytes.write(0x0F);

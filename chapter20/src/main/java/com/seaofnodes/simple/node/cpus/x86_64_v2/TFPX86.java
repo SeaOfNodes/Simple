@@ -27,6 +27,7 @@ public class TFPX86 extends ConstantNode implements MachNode {
         // opcode
         LRG tfp_lrg = CodeGen.CODE._regAlloc.lrg(this);
 
+        // TODO: relocs
         short tfp_reg = tfp_lrg.get_reg();
         bytes.write(x86_64_v2.rex(0, 0, 0));
         bytes.write(0x8D);

@@ -35,6 +35,7 @@ public class CallX86 extends CallNode implements MachNode {
         //  linker will fix this up
         bytes.write(0xe8);
         int beforeSize = bytes.size();
+        // TODO: relocs
         // address
         bytes.write(0x00);
         return bytes.size() - beforeSize;

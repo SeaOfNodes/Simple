@@ -34,6 +34,7 @@ public class CallRISC extends CallNode implements MachNode{
         // combo of:
         //  auipc    ra,0x0
         //  jalr    ra # 0 <main>
+        // TODO: relocs
         LRG call_self = CodeGen.CODE._regAlloc.lrg(this);
         short rd = call_self.get_reg();
 

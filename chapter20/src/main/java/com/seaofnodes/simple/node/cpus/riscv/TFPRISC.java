@@ -32,6 +32,7 @@ public class TFPRISC extends ConstantNode implements MachNode{
         LRG add_rg = CodeGen.CODE._regAlloc.lrg(this);
         LRG in_rg = CodeGen.CODE._regAlloc.lrg(in(1));
 
+        //TODO: relocs
         short rd = add_rg.get_reg();
         // assume x2 = x1 are same for now
         int beforeSize = bytes.size();

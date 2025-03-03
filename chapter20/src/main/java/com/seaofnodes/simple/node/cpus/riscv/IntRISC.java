@@ -59,6 +59,7 @@ public class IntRISC extends ConstantNode implements MachNode {
             // 0xFFF = 1111 1111 1111
             if(imm32_64 < Integer.MIN_VALUE || imm32_64 > Integer.MAX_VALUE) {
                 // handle long case here
+                // TODO: relocs
             }
             int body2 = riscv.i_type(riscv.I_TYPE, rd_reg, 0, rd_reg, (int)(imm32_64 & 0xFFF));
             riscv.push_4_bytes(body2, bytes);
