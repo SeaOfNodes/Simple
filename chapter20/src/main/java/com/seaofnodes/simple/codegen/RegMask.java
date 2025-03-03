@@ -42,8 +42,13 @@ public class RegMask {
     }
 
 
-    short firstColor() {
+    public short firstReg() {
         return (short)Long.numberOfTrailingZeros(_bits);
+    }
+    public short nextReg(short reg) {
+        long bits = _bits >> (reg+1);
+        if( bits==0 ) return -1;
+        return (short)(reg+1+Long.numberOfTrailingZeros(bits));
     }
 
     boolean isEmpty() { return _bits==0; }
@@ -60,7 +65,7 @@ public class RegMask {
     boolean size1() { return (_bits & -_bits)==_bits; }
 
     // Cardinality
-    short size() { return (short)Long.bitCount(_bits); }
+    public short size() { return (short)Long.bitCount(_bits); }
 
     @Override public String toString() { return toString(new SB()).toString(); }
     public SB toString(SB sb) {

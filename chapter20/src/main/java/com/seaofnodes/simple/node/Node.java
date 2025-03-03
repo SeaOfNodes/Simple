@@ -312,7 +312,7 @@ public abstract class Node {
             i = cfg._outputs.find(def.in(0))+1;
         }
 
-        while( cfg.out(i) instanceof PhiNode )  i++;
+        while( cfg.out(i) instanceof PhiNode || cfg.out(i) instanceof CalleeSaveNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
         for( int j=def.nOuts()-1; j>=0; j-- ) {

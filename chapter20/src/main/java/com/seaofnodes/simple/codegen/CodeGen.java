@@ -293,7 +293,7 @@ public class CodeGen {
         return this;
     }
     public String reg(Node n) {
-        if( _phase == Phase.RegAlloc ) {
+        if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
             String s = _regAlloc.reg(n);
             if( s!=null ) return s;
         }
@@ -307,8 +307,11 @@ public class CodeGen {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
-        _tEncode = (int)(System.currentTimeMillis() - t0);
-        throw Utils.TODO();
+
+
+        //_tEncode = (int)(System.currentTimeMillis() - t0);
+        //throw Utils.TODO();
+        return this;
     }
     // Encoded binary, no relocation info
     public byte[] binary() { throw Utils.TODO(); }

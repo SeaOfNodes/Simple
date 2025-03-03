@@ -68,7 +68,6 @@ abstract public class BuildLRG {
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )
                             defLRG(alloc,proj);
-
             }
 
         // Collect live ranges

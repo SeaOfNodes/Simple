@@ -148,7 +148,7 @@ abstract public class IFG {
                     // last tlrg register at some point, either tlrg or lrg
                     // must fail.  If *n* (a subset of lrg) needs the single
                     // last tlrg register then only tlrg must fail.
-                    if( lrg.size1() && !tlrg.clr(lrg._mask.firstColor()) )
+                    if( lrg.size1() && !tlrg.clr(lrg._mask.firstReg()) )
                         alloc.fail(tlrg);
                     else addIFG(lrg,tlrg); // Add interference
             }
@@ -178,7 +178,7 @@ abstract public class IFG {
                         Node live = TMP.get(tlrg);
                         if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
                             // Deny the register, since it absolutely must be used here
-                            if( !tlrg.clr(ni_mask.firstColor()) )
+                            if( !tlrg.clr(ni_mask.firstReg()) )
                                 // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there.
                                 // Fail the older live range, it must move its register.
                                 alloc.fail( tlrg );
@@ -356,7 +356,7 @@ abstract public class IFG {
                 lrg._reg = -1;
             } else {
                 // Pick first available register
-                short reg = rmask.firstColor();
+                short reg = rmask.firstReg();
                 // Pick a "good" color from the choices.  Typically, biased-coloring
                 // removes some over-spilling.
                 if( rmask.size() > 1 ) reg = biasColor(alloc,lrg,reg,rmask);
@@ -402,8 +402,37 @@ abstract public class IFG {
     // Pick a live range that hasn't already spilled, or has a single-def-
     // single-use that are not adjacent.
     private static int pickRisky( LRG[] color_stack, int sptr ) {
-        return sptr;
-        //throw Utils.TODO();
+        int best=sptr;
+        int bestScore = pickRiskyScore(color_stack[best]);
+        for( int i=sptr+1; i<color_stack.length; i++ ) {
+            if( bestScore == 999999 ) return best; // Already max score
+            int iScore = pickRiskyScore(color_stack[i]);
+            if( iScore > bestScore )
+                { best = i; bestScore = iScore; }
+        }
+        return best;
+    }
+
+    // Pick a live range to pull, that might not color.
+    //
+    // Picking a live range with a very large span, with defs and uses outside
+    // loops means spilling a relative cheap live range and getting that
+    // register over a large area.
+    //
+    // Picking a live range that is very close to coloring might allow it to
+    // color despite being risky.
+    private static int pickRiskyScore( LRG lrg ) {
+        // Always pick callee-save registers as being very large area recovered
+        // and very cheap to spill.
+        if( lrg._machDef instanceof CalleeSaveNode )
+            return 999998;
+        if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
+            lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
+            return 999999;
+
+        // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
+        // and "area" for benefit
+        return 1000;
     }
 
     private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
@@ -442,7 +471,7 @@ abstract public class IFG {
             }
 
         }
-        return mask.firstColor();
+        return mask.firstReg();
     }
 
     private static int biasable(Node split) {
@@ -474,11 +503,11 @@ abstract public class IFG {
         for( LRG alrg : slrg._adj ) {
             int reg = alrg._reg;
             if( reg == -1 && alrg._mask.size1() )
-                reg = alrg._mask.firstColor();
+                reg = alrg._mask.firstReg();
             if( reg != -1 ) {
                 mask.clr(alrg._reg);
                 if( mask.size1() )
-                    return mask.firstColor();
+                    return mask.firstReg();
             }
         }
         return -1;              // No obvious color choice, but mask got trimmed

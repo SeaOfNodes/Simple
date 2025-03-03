@@ -20,7 +20,7 @@ public class Chapter20Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc();
+        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -60,9 +60,9 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",22,null);
-        testCPU(src,"riscv"    , "SystemV",14,null);
-        testCPU(src,"arm"      , "SystemV",22,null);
+        testCPU(src,"x86_64_v2", "SystemV",26,null);
+        testCPU(src,"riscv"    , "SystemV",19,null);
+        testCPU(src,"arm"      , "SystemV",26,null);
     }
 
     @Test
@@ -81,9 +81,9 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",22,null);
-        testCPU(src,"riscv"    , "SystemV",21,null);
-        testCPU(src,"arm"      , "SystemV",12,null);
+        testCPU(src,"x86_64_v2", "SystemV",33,null);
+        testCPU(src,"riscv"    , "SystemV",29,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
     }
 
     @Test

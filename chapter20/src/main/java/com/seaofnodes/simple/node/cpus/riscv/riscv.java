@@ -24,7 +24,7 @@ public class riscv extends Machine {
     static final int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
     static final int FLAGS = 0 ;
-    static final int MAX_REG = 63;
+    static final int MAX_REG = 61;
 
     static final String[] REGS = new String[] {
             "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
@@ -34,21 +34,29 @@ public class riscv extends Machine {
             "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
             "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
             "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11",
+            "fs8" , "fs9" , "fs10", "fs11", "ft8" ,
     };
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
+
 
     // General purpose register mask: pointers and ints, not floats
-    static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
+    static final long RD_BITS = 0b11111111111111111111111111111110L; // All the GPRs
     static final RegMask RMASK = new RegMask(RD_BITS);
 
     static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
     static final RegMask WMASK = new RegMask(WR_BITS);
-    // Float mask from(f0-ft10)
-    static final long FP_BITS = 0b01111111111111111111111111111111L<<F0;
+    // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
+    static final long FP_BITS = 0b00011111111111111111111111111111L<<F0;
     static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
+
+    static final long SPILLS = -(1L << MAX_REG);
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | SPILLS);
+
 
     // Arguments masks
     static final RegMask A0_MASK = new RegMask(A0);
@@ -117,11 +125,6 @@ public class riscv extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Return single int/ptr register
-    static RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
-    }
-
     // callee saved(riscv)
     static final long CALLEE_SAVE =
         (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
@@ -136,6 +139,7 @@ public class riscv extends Machine {
         long caller = ~CALLEE_SAVE;
         // Remove the spills
         caller &= (1L<<MAX_REG)-1;
+        caller &= ~(1L<<SP);
         CALLER_SAVE_MASK = new RegMask(caller);
     }
     static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
@@ -145,8 +149,28 @@ public class riscv extends Machine {
     static RegMask riscCalleeSave() { return CALLEE_SAVE_MASK; }
     @Override public RegMask calleeSave() { return riscCalleeSave(); }
 
-    // General purpose register mask:
-    @Override public String reg( int reg ) { return REGS[reg]; }
+    // Return single int/ptr register.  Used by CallEnd output and Return input.
+    static final RegMask[] RET_MASKS;
+    static {
+        int nSaves = CALLEE_SAVE_MASK.size();
+        RET_MASKS = new RegMask[4 + nSaves];
+        RET_MASKS[0] = null;
+        RET_MASKS[1] = null;     // Memory
+        RET_MASKS[2] = null;     // Varies, either XMM0 or RAX
+        RET_MASKS[3] = RMASK;    // Expected R1 but could be any register really
+        short reg = CALLEE_SAVE_MASK.firstReg();
+        for( int i=0; i<nSaves; i++ ) {
+            RET_MASKS[i+4] = new RegMask(reg);
+            reg = CALLEE_SAVE_MASK.nextReg(reg);
+        }
+    }
+    static RegMask retMask( TypeFunPtr tfp, int i ) {
+        return i==2
+            ? (tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK)
+            : RET_MASKS[i];
+    }
+
+
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
         throw Utils.TODO();
