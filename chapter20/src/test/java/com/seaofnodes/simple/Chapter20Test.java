@@ -174,8 +174,8 @@ if (b2) if (b1) return 1;
 if (b1) return 2;
 return 0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",5,null);
+        testCPU(src,"x86_64_v2", "SystemV",0,null);
         testCPU(src,"riscv"    , "SystemV",0,null);
-        testCPU(src,"arm"      , "SystemV",5,null);
+        testCPU(src,"arm"      , "SystemV",0,null);
     }
 }

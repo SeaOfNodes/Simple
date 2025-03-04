@@ -13,8 +13,11 @@ import java.io.ByteArrayOutputStream;
 
 // Integer constants
 public class IntX86 extends ConstantNode implements MachNode {
-
     IntX86( ConstantNode con ) { super(con); }
+
+    @Override public String op() {
+        return _con == Type.NIL || _con == TypeInteger.ZERO ? "xor" : "ldi";
+    }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
@@ -44,11 +47,5 @@ public class IntX86 extends ConstantNode implements MachNode {
             sb.p(reg).p(",").p(reg);
         else
             _con.print(sb.p(reg).p(" = #"));
-    }
-
-    @Override public String op() {
-        if( _con == Type.NIL || _con == TypeInteger.ZERO )
-            return "xor";
-        return "ldi";           // Some fancier encoding
     }
 }

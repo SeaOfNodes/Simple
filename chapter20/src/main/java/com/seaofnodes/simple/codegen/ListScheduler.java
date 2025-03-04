@@ -166,15 +166,17 @@ public abstract class ListScheduler {
     // Pick best between sched and ready.
     private static int best( Ary<Node> blk, int sched, int ready, boolean trace ) {
         int pick = sched;
-        int score = score(blk.at(pick));
-        if( trace ) { System.out.printf("%4d ",score); System.out.println(blk.at(sched)); }
+        Node p = blk.at(pick);
+        int score = score(p);
+        if( trace ) { System.out.printf("%4d N%d ",score,p._nid); System.out.println(p); }
         for( int i=sched+1; i<ready; i++ ) {
-            int nscore = score(blk.at(i));
-            if( trace ) { System.out.printf("%4d ",nscore); System.out.println(blk.at(i)); }
+            Node n = blk.at(i);
+            int nscore = score(n);
+            if( trace ) { System.out.printf("%4d N%d ",nscore,n._nid); System.out.println(n); }
             if( nscore > score )
-                { score = nscore; pick = i; }
+                { score = nscore; pick = i; p = n; }
         }
-        if( trace ) { System.out.print("Pick: "+blk.at(pick)+"\n\n"); }
+        if( trace ) { System.out.printf("Pick: N%d %s\n\n",p._nid,p); }
         return pick;
     }
 
@@ -207,13 +209,15 @@ public abstract class ListScheduler {
         // If defining a remote value, just generically stall alot.  Value is
         // used in a later block, can we delay until the end of this block?
         if( xn._rdef ) score = 200; // If defining a remote value, just generically stall alot
+        boolean flags = false;
         if( n instanceof MultiNode ) {
             for( Node use : n._outputs )
-                singleUseNotReady( use, xn._single );
+                flags |= singleUseNotReady( use, xn._single );
         } else
-            singleUseNotReady( n, xn._single );
+            flags |= singleUseNotReady( n, xn._single );
         score +=  -10 * Math.min( CNT[1], 2 );
         score += -100 * Math.min( CNT[2], 2 );
+        if( flags ) return 10;
 
         // Add 10 if this op ends a single-def live range, add 20 for 2 or more.
         // Scale to 100,200 if the single-def is also single-register.
@@ -231,19 +235,24 @@ public abstract class ListScheduler {
         return score;
     }
 
-    // Single use, and that use is not ready to fire once this one does.
-    // If true, stalling 'n' might reduce 'n's lifetime.
-    // Return 0 for false, 1 if true, 10 if also single register
-    private static void singleUseNotReady( Node n, boolean single ) {
+    // Single use, and that use is not ready to fire once this one does.  If
+    // true, stalling 'n' might reduce 'n's lifetime.  Stall by 1 (2 if single)
+    // per not-ready.
+
+    // If CFG user in this block, it must be last, so definitely stall
+    // single-def (which stalls flags on x86,arm until the jmp).
+    private static boolean singleUseNotReady( Node n, boolean single ) {
         // If n can rematerialize, assume allocator will split into private uses
         // as needed.  No impact on local scheduling.
         if( n.nOuts()>1 && n instanceof MachNode mach && mach.isClone() )
-            return;
+            return false;
         for( Node use : n.outs() ) {
             XSched xu = XSched.get(use);
+            if( xu != null && xu._n instanceof CFGNode ) return true;
             if( xu != null && xu._bcnt > 0 )
-                CNT[single ? 2 : 1]++; // Since bcnt>0, stall until user is more ready
+                CNT[single ? 2 : 1]++; // Since bcnt>0 or CFG, stall until user is more ready
         }
+        return false;
     }
 
 }

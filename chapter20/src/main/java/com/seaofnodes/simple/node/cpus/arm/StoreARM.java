@@ -8,11 +8,8 @@ import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
-
 
 // Store memory addressing on ARM
 // Support imm, reg(direct), or reg+off(indirect) addressing
@@ -24,12 +21,12 @@ import java.util.BitSet;
 
 //e.g s.cs[0] =  67; // C
 // base = s.cs, off = 4, imm = 67, val = null
-
-
 public class StoreARM extends MemOpARM {
     StoreARM(StoreNode st, Node base, Node idx, int off, int imm, Node val) {
         super(st, base, idx, off, imm, val);
     }
+
+    @Override public String op() { return "st"+_sz; }
 
     // Wider mask to store both GPRs and FPRs
     @Override public RegMask regmap(int i) {
@@ -39,8 +36,6 @@ public class StoreARM extends MemOpARM {
         if( i==4 ) return arm.RMASK;
         throw Utils.TODO();
     }
-
-
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
 
@@ -54,6 +49,4 @@ public class StoreARM extends MemOpARM {
         if( val()==null ) sb.p("#").p(_imm);
         else sb.p(code.reg(val()));
     }
-
-    @Override public String op() { return "st"+_sz; }
 }

@@ -343,7 +343,8 @@ public abstract class Node {
         }
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        if( _inputs._len > 1 ) setDefOrdered(1,use.in(uidx));
+        if( _inputs._len > 1 && this instanceof SplitNode )
+            setDefOrdered(1,use.in(uidx));
         use.setDefOrdered(uidx,this);
     }
 

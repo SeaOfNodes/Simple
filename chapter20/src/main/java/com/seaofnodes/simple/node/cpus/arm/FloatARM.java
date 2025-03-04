@@ -12,9 +12,9 @@ import java.io.ByteArrayOutputStream;
 //Floating-point move immediate.
 public class FloatARM extends ConstantNode implements MachNode {
     FloatARM(ConstantNode con) { super(con); }
+    @Override public String op() { return "fld"; }
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
-
     // General int registers
     @Override public RegMask outregmap() { return arm.DMASK; }
 
@@ -32,9 +32,5 @@ public class FloatARM extends ConstantNode implements MachNode {
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
         _con.print(sb.p(code.reg(this)).p(" #"));
-    }
-
-    @Override public String op() {
-        return "fld";           // Some fancier encoding
     }
 }

@@ -6,12 +6,9 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.ParmNode;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
 import java.io.ByteArrayOutputStream;
 
-
-public class ParmARM extends ParmNode implements MachNode{
+public class ParmARM extends ParmNode implements MachNode {
     final RegMask _rmask;
     ParmARM(ParmNode parm) {
         super(parm);

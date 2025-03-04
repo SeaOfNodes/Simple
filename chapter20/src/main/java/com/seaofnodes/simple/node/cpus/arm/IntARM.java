@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 // Integer constants
 public class IntARM extends ConstantNode implements MachNode {
     IntARM( ConstantNode con ) { super(con); }
+    @Override public String op() { return "ldi"; }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
@@ -34,9 +35,4 @@ public class IntARM extends ConstantNode implements MachNode {
         String reg = code.reg(this);
         _con.print(sb.p(reg).p(" = #"));
     }
-
-    @Override public String op() {
-        return "ldi";           // Some fancier encoding
-    }
-
 }
