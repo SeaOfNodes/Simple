@@ -228,7 +228,7 @@ public class RegAlloc {
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            _code._mach.split("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, true);
+            makeSplit("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, true);
         }
         // Split just before use
         if( lrg._1regUseCnt==1 )
@@ -246,8 +246,9 @@ public class RegAlloc {
             // Find def of spilling live range; spilling everywhere, OR
             // single-register DEF and not cloneable (since these will clone
             // before every use)
+
             if( lrg(n)==lrg && (all || (!mach.isClone() && mach.outregmap().size1() )) )
-                _code._mach.split("def/empty2",round,lrg).insertAfter(n,true);
+                makeSplit(n,"def/empty2",round,lrg).insertAfter(n,true);
             // Find all uses
             for( int i=1; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
@@ -277,7 +278,7 @@ public class RegAlloc {
             // Phi slot 1 (and not all inputs), because Phis extend the live range.
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
-                SplitNode split = _code._mach.split("def/self",round,lrg);
+                SplitNode split = makeSplit("def/self",round,lrg);
                 split.insertAfter(def,false);
                 if( split.nOuts()==0 )
                     split.kill();
@@ -343,7 +344,7 @@ public class RegAlloc {
                     // Single user is already a split
                     !(n.nOuts()==1 && n.out(0) instanceof SplitNode) )
                     // Split after def in min loop nest
-                    _code._mach.split("def/loop",round,lrg).insertAfter(n,false);
+                    makeSplit("def/loop",round,lrg).insertAfter(n,false);
             }
 
             // PhiNodes check all CFG inputs
@@ -419,12 +420,21 @@ public class RegAlloc {
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
         if( cfg==def.cfg0() && def instanceof SplitNode && def.nOuts()==1 && !(n instanceof MachNode mach && mach.regmap(i).size1()))
             return;
-        Node split = (def instanceof MachNode mach && mach.isClone()
-                      ? mach.copy()
-                      : _code._mach.split(kind,round,lrg));
-        split.insertBefore(n, i);
+        makeSplit(def,kind,round,lrg).insertBefore(n, i);
     }
 
+    private Node makeSplit( Node def, String kind, byte round, LRG lrg ) {
+        Node split = def instanceof MachNode mach && mach.isClone()
+            ? mach.copy()
+            : _code._mach.split(kind,round,lrg);
+        _lrgs.put(split,lrg);
+        return split;
+    }
+    private SplitNode makeSplit( String kind, byte round, LRG lrg ) {
+        SplitNode split = _code._mach.split(kind,round,lrg);
+        _lrgs.put(split,lrg);
+        return split;
+    }
 
 
     // -----------------------

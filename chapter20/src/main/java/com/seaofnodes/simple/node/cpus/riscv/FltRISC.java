@@ -13,11 +13,8 @@ public class FltRISC extends ConstantNode implements MachNode{
     @Override public String op() { return "flw"; }
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
-    // General int registers
-    @Override public RegMask outregmap() { return riscv.FMASK; }
-
-    @Override public boolean isClone() { return true; }
-    @Override public FltRISC copy() { return new FltRISC(this); }
+    // General int registers!  Must-split into the floats
+    @Override public RegMask outregmap() { return riscv.RMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {

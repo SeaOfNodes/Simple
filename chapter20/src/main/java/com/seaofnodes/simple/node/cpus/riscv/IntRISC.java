@@ -5,8 +5,6 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 // Integer constants

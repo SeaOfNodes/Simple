@@ -327,7 +327,7 @@ public abstract class Node {
             use._inputs.set(idx,this);
             addUse(use);
         }
-        setDef(1,def);
+        if( nIns()>1 ) setDef(1,def);
     }
 
     // Insert this in front of use.in(uidx) with this, and insert this

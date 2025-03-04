@@ -100,7 +100,6 @@ public class riscv extends Machine {
             FA7_MASK
     };
 
-
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
@@ -262,7 +261,7 @@ public class riscv extends Machine {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
         case TypeInteger ti  -> new IntRISC(con);
-        case TypeFloat   tf  -> new IntRISC(con);
+        case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
