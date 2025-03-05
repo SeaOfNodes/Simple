@@ -50,6 +50,7 @@ public class riscv extends Machine {
     static final RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
     static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
     static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR

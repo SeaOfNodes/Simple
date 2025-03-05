@@ -21,7 +21,7 @@ public class SetRISC extends MachConcreteNode implements MachNode {
         _bop = bool.op();
         _imm = imm;
     }
-    @Override public RegMask regmap(int i) { throw Utils.TODO(); }
+    @Override public RegMask regmap(int i) {assert i == 1; return riscv.FLAGS_MASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
 
     // Encoding is appended into the byte array; size is returned

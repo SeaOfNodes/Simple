@@ -20,16 +20,12 @@ public class MemOpRISC extends MemOpNode implements MachNode {
         super(mop,mop);
         assert base._type instanceof TypeMemPtr && !(base instanceof AddNode);
         assert ptr() == base;
+        _inputs.setX(2, base);
         _inputs.setX(3,idx);
         _inputs.setX(4,val);
         _off = off;
     }
-//    // Store-based flavors have a value edge
-//    MemOpRISC( MemOpNode mop, Node base, Node idx, int off,  Node val ) {
-//        this(mop,mop, base, off, idx);
-//        _inputs.setX(4,val);
-//        _off = off;
-//    }
+
 
     Node idx() { return in(3); }
     Node val() { return in(4); } // Only for stores, including op-to-memory
@@ -43,6 +39,9 @@ public class MemOpRISC extends MemOpNode implements MachNode {
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
+        if(i == 1) return null;
+        if(i == 2) return riscv.RMASK; // base
+        if(i == 4) return riscv.MEM_MASK; // value
         throw Utils.TODO();
     }
     // Register mask allowed as a result.  0 for no register.
