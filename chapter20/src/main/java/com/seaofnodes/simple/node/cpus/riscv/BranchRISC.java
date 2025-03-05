@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
@@ -32,7 +33,19 @@ public class BranchRISC extends IfNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Todo: relocs (for offset - immf)
+//        LRG branch_self = CodeGen.CODE._regAlloc.lrg(this);
+        LRG branch_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
+        LRG branch_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
+
+        // no rd
+        short reg1 = branch_rg_1.get_reg();
+        short reg2 = branch_rg_2.get_reg();
+
+        int beforeSize = bytes.size();
+        int body = riscv.b_type(0x63, 0, riscv.jumpop(_bop), reg1, reg2, 0);
+        riscv.push_4_bytes(body, bytes);
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

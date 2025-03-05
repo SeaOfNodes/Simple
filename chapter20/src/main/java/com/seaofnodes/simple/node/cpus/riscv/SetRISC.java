@@ -12,11 +12,14 @@ import java.io.ByteArrayOutputStream;
 
 // corresponds to slt,sltu,slti,sltiu, seqz
 public class SetRISC extends MachConcreteNode implements MachNode {
-    final String _bop;          // One of <,<=,==
-    SetRISC( BoolNode bool ) {
+    final String _bop; // One of <,<=,==
+    boolean _imm;
+    SetRISC( BoolNode bool, boolean imm) {
+        // bool imm referes to the zero case
         super(bool);
         assert !bool.isFloat();
         _bop = bool.op();
+        _imm = imm;
     }
     @Override public RegMask regmap(int i) { throw Utils.TODO(); }
     @Override public RegMask outregmap() { return riscv.WMASK; }
@@ -30,43 +33,46 @@ public class SetRISC extends MachConcreteNode implements MachNode {
         LRG in2_rg = CodeGen.CODE._regAlloc.lrg(in(2));
 
         short reg = set_rg.get_reg();
-        short reg_in_1 = set_rg.get_reg();
-        short reg_in_2 = set_rg.get_reg();
+        int reg_in_1 = in1_rg.get_reg();
+        int reg_in_2 = in2_rg.get_reg();
 
         int beforeSize = bytes.size();
         // handle cases manually
         if(_bop.equals( "<")) {
-            int body = riscv.r_type(riscv.setop("<"), reg,  0x2, reg_in_1,  reg_in_2, 0);
+            // Test for zero case
+            if(_imm) {
+                reg_in_2 = riscv.ZERO;
+            }
+            int body = riscv.r_type(riscv.R_TYPE, reg,  riscv.setop("<"), reg_in_1,  reg_in_2, 0);
             riscv.push_4_bytes(body, bytes);
         } else if(_bop.equals("=")) {
             // xor t0, a0, a1  # XOR a0 and a1; result is 0 if they are equal
 
-
-            LRG xor_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-            LRG xor_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-            short reg1 = xor_rg_1.get_reg();
-            short reg2 = xor_rg_2.get_reg();
-
-            int body = riscv.r_type(riscv.R_TYPE, reg, 4, reg1, reg2, 0);
+            if(_imm) {
+                reg_in_2 = riscv.ZERO;
+            }
+            int body = riscv.r_type(riscv.R_TYPE, reg, riscv.setop("="), reg_in_1, reg_in_2, 0);
 
             riscv.push_4_bytes(body, bytes);
             // need to get reg here from RA
 
             // seqz t1, t0 = sltiu rd, rs, 1
             // will clobber output reg from first XOR
-            int body2 = riscv.i_type(riscv.setop("="),  reg, 0x3, reg, 1);
+            int body2 = riscv.i_type(riscv.R_TYPE,  reg, riscv.setop("="), reg, 1);
             riscv.push_4_bytes(body2, bytes);
 
         } else if(_bop.equals("<=")) {
             // slt t0, a1, a0  # t0 = (a1 < a0) ? 1 : 0
             //seqz t1, t0     # t1 = (t0 == 0) ? 1 : 0  (t1 = (a0 ≤ a1))
 
-            int body = riscv.r_type(riscv.setop("<"), reg,  0x2, reg_in_1,  reg_in_2, 0);
+            if(_imm) {
+                reg_in_2 = riscv.ZERO;
+            }
+            int body = riscv.r_type(riscv.R_TYPE, reg, riscv.setop("<="), reg_in_1,  reg_in_2, 0);
             riscv.push_4_bytes(body, bytes);
 
             // will clobber output reg from first XOR
-            int body2 = riscv.i_type(riscv.setop("="),  reg, 0x3, reg, 1);
+            int body2 = riscv.i_type(riscv.R_TYPE, reg,  riscv.setop("="), 0x3, reg, 1);
             riscv.push_4_bytes(body2, bytes);
         }
 

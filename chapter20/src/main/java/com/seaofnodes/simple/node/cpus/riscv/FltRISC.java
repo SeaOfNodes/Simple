@@ -27,14 +27,14 @@ public class FltRISC extends ConstantNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // fld
+        //fld rd,rs1,offset
 
         LRG fpr_con = CodeGen.CODE._regAlloc.lrg(this);
         short fpr_reg = fpr_con.get_reg();
         int beforeSize = bytes.size();
 
         TypeFloat ti = (TypeFloat)_con;
-        int body = riscv.i_type(riscv.R_FLOAT, fpr_reg, 0X03, fpr_reg, (int)ti.value());
+        int body = riscv.i_type(0x07, fpr_reg - riscv.F_OFFSET, 0X03, fpr_reg - riscv.F_OFFSET, (int)ti.value());
 
         riscv.push_4_bytes(body, bytes);
 

@@ -27,7 +27,7 @@ public class DivRISC extends MachConcreteNode implements MachNode{
 
         short reg1 = div_rg_1.get_reg();
         short reg2 = div_rg_2.get_reg();
-        short reg_self = div_rg_2.get_reg();
+        short reg_self = self.get_reg();
 
         int beforeSize = bytes.size();
         int body = riscv.r_type(riscv.R_TYPE, reg_self,4,  reg1, reg2, 1);

@@ -27,6 +27,8 @@ public class riscv extends Machine {
 
     static final int MAX_REG = 61;
 
+    static final int F_OFFSET = 31;
+
     static final String[] REGS = new String[] {
             "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
             "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
@@ -108,17 +110,8 @@ public class riscv extends Machine {
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
 
-    // R_type float opcode 0101 0011
-    public static int R_FLOAT = 0x53;
     // 0110 0111
     public static int I_JALR = 0x67;
-    // 10100
-    public static int R_FLOAT_CONVERSION = 0x14;
-
-    //  rd funct3 pack it into 1 byte
-    public static int r_des(int rd, int func3) {
-        return (func3 << 5) | rd;
-    }
 
     // Since riscv instructions are fixed we can just or them togehter
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
@@ -127,11 +120,6 @@ public class riscv extends Machine {
 
     public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3.ordinal() << 12) | (rd << 7) | opcode;
-    }
-
-    public static int r_fmt(int opcode, int rd, RM rm, int rs1, FMT fmt, int func7) {
-        // opcode has align 2 bits
-        return (func7 << 27) | (fmt.ordinal() << 25) | rs1 << 20 | rm.ordinal() << 15 | rd << 12 | opcode;
     }
 
     public static int u_type(int opcode, int rd, int imm) {
@@ -168,11 +156,11 @@ public class riscv extends Machine {
         DYN, // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
     }
 
-    public enum FMT {S, // 32-bit single-precision
-        D,  // 64-bit double-precision
-        H, // 16-bit half-precision
-        Q, // 128-bit quad-precision
-    };
+//    public enum FMT {S, // 32-bit single-precision
+//        D,  // 64-bit double-precision
+//        H, // 16-bit half-precision
+//        Q, // 128-bit quad-precision
+//    };
 
     // slt, (0110011)
     //
@@ -185,15 +173,24 @@ public class riscv extends Machine {
             default  ->  throw new IllegalArgumentException("Too many arguments");
         };
     }
+    // Since opcode is the same just return back func3
     // BEQ: 01100011
     // BLT: 01100011
     // BLE: bge rt, rs, offset:
-
     static public int jumpop(String op) {
         return switch(op) {
-            case "=="  -> 0x63;
-            case "<"   -> 0x63;
-            case "<="  -> 0x63;
+            case "=="  -> 0;
+            case "<"   -> 0x4;
+            case "<="  -> 0x5;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+    // Since opcode is the same just return back func3
+    static public int fsetop(String op) {
+        return switch(op) {
+            case "==" -> 0x2;
+            case "<"  -> 0x1;
+            case "<="  -> 0x0;
             default  ->  throw new IllegalArgumentException("Too many arguments");
         };
     }
@@ -212,13 +209,13 @@ public class riscv extends Machine {
         System.out.println(hexString.toString());
     }
 
-    // rs1 - rs2
-    public static int r_source(int rs1, int rs2) {
-        return (rs2 << 4) | rs1;
-    }
-    public static int r_func7(int f) {
-        return f & 7;
-    }
+//    // rs1 - rs2
+//    public static int r_source(int rs1, int rs2) {
+//        return (rs2 << 4) | rs1;
+//    }
+//    public static int r_func7(int f) {
+//        return f & 7;
+//    }
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
@@ -372,12 +369,19 @@ public class riscv extends Machine {
     }
 
     private Node cmp(BoolNode bool) {
-        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff )
+        // use zero reg or
+        // slti	Set Less Than Immediate	slti rd, rs1, imm
+        boolean imm = false;
+        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff && (bool.op().equals("<"))) {
+            if(toff.value() == 0) imm = true;
             return new SetIRISC(bool, (int)toff.value());
+        }
+
         // Float variant
         if( bool.isFloat() )
             return new SetFRISC(bool);
-        return new SetRISC(bool);
+
+        return new SetRISC(bool, imm);
     }
 
     private Node con( ConstantNode con ) {
@@ -394,8 +398,12 @@ public class riscv extends Machine {
     }
 
     private Node jmp( IfNode iff ) {
-        if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() )
+        if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() ) {
+            // if less than or equal switch inputs
+            if (bool.op().equals("<=")) return new BranchRISC(iff, bool.op(), bool.in(2), bool.in(1));
             return new BranchRISC(iff, bool.op(), bool.in(1), bool.in(2));
+        }
+
         // Vs zero
         return new BranchRISC(iff, "==", iff.in(1), null);
     }

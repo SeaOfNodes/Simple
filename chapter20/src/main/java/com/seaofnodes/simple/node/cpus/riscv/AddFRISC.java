@@ -27,11 +27,12 @@ public class AddFRISC extends MachConcreteNode implements MachNode{
 
         int beforeSize = bytes.size();
 
-        short reg1 = fadd_rg_1.get_reg();
         short rd = fadd_self.get_reg();
+        short reg1 = fadd_rg_1.get_reg();
+
         short reg2 = fadd_rg_2.get_reg();
 
-        int body = riscv.r_type(riscv.R_FLOAT, rd, riscv.RM.RNE, reg1, reg2, 0);
+        int body = riscv.r_type(0x53, rd - riscv.F_OFFSET, riscv.RM.RNE, reg1 - riscv.F_OFFSET, reg2 - riscv.F_OFFSET, 0);
 
         riscv.push_4_bytes(body, bytes);
 

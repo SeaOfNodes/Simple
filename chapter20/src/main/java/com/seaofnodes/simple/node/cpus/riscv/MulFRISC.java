@@ -30,7 +30,8 @@ public class MulFRISC extends MachConcreteNode implements MachNode{
         short rd = fmul_self.get_reg();
         short reg2 = fmul_rg_2.get_reg();
 
-        int body = riscv.r_type(riscv.R_FLOAT, rd, riscv.RM.RNE, reg1, reg2, 2);
+
+        int body = riscv.r_type(0x53, rd - riscv.F_OFFSET, riscv.RM.RNE, reg1 - riscv.F_OFFSET, reg2 - riscv.F_OFFSET, 0x9);
 
         riscv.push_4_bytes(body, bytes);
 

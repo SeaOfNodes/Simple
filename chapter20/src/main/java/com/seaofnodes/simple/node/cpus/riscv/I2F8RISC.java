@@ -20,6 +20,7 @@ public class I2F8RISC extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
+        // fcvt.s.w
         LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
 
         LRG rs1_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
@@ -29,7 +30,7 @@ public class I2F8RISC extends MachConcreteNode implements MachNode {
         short reg_self = frd_self.get_reg();
         short reg1 = rs1_rg_1.get_reg();
 
-        int body = riscv.r_fmt(riscv.R_FLOAT_CONVERSION, reg_self, riscv.RM.RNE, reg1, riscv.FMT.D, 0x1A);
+        int body = riscv.r_type(0x53, reg_self - riscv.F_OFFSET, riscv.RM.RNE, reg1, 0, 0x68);
 
         riscv.push_4_bytes(body, bytes);
 

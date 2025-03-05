@@ -11,8 +11,8 @@ public class SetIRISC extends ImmRISC {
         assert !bool.isFloat();
         _bop = bool.op();
     }
-    @Override int opcode() { throw Utils.TODO(); }
-    @Override int func3() { throw Utils.TODO(); }
+    @Override int opcode() { return 19; }
+    @Override int func3() { return 2; }
     @Override public String glabel() { return _bop; }
     @Override public String op() { return "set"+_bop; }
 }

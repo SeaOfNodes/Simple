@@ -18,6 +18,7 @@ public class DivFRISC extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
+        // fdiv.d
         LRG fdiv_self = CodeGen.CODE._regAlloc.lrg(this);
 
         LRG fdiv_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
@@ -29,7 +30,7 @@ public class DivFRISC extends MachConcreteNode implements MachNode{
         short rd = fdiv_self.get_reg();
         short reg2 = fdiv_rg_2.get_reg();
 
-        int body = riscv.r_type(riscv.R_FLOAT, rd, riscv.RM.RNE, reg1, reg2, 3);
+        int body = riscv.r_type(0x53, rd - riscv.F_OFFSET, 0x4, reg1 - riscv.F_OFFSET, reg2 - riscv.F_OFFSET, 0xC);
 
         riscv.push_4_bytes(body, bytes);
 

@@ -64,11 +64,18 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
                 return bytes.size() - beforeSize;
             }
 
-            // todo
             case SetIRISC setIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
+             // zero reg encode it as zero
+//             if(reg_2 == riscv.ZERO) {
+//                 int body = riscv.i_type(opcode(), rd, func3(), reg_1, 0);
+//                 riscv.push_4_bytes(body, bytes);
+//                 return bytes.size() - beforeSize;
+//             }
+             // assume less than with imm
+             int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
+             riscv.push_4_bytes(body, bytes);
+
+             return bytes.size() - beforeSize;
             }
 
             case SllIRISC sllIRISC -> {
