@@ -112,6 +112,14 @@ public class RegAlloc {
             lrgs.setX(lrg._lrg,lrg);
         }
         _LRGS = lrgs.asAry();
+        // Remove unified lrgs from failed set also
+        for( LRG lrg : _failed.keySet().toArray(new LRG[0]) ) {
+            if( !lrg.leader() ) {
+                LRG lrg2 = lrg.find();
+                _failed.remove(lrg);
+                _failed.put(lrg2,"");
+            }
+        }
     }
 
 
@@ -234,34 +242,34 @@ public class RegAlloc {
         return true;
     }
 
-    //// Split live range with an empty mask.  Specifically forces splits at
-    //// single-register defs or uses everywhere.
-    //boolean splitEmptyMask( byte round, LRG lrg ) {
-    //    findAllLRG(lrg);
-    //    // If no single-use or single-def, assume this is a complete register
-    //    // kill and force spilling everywhere.
-    //    boolean all = lrg._killed || (lrg._1regDefCnt + lrg._1regUseCnt)==0;
-    //    for( Node n : _ns ) {
-    //        if( !(n instanceof MachNode mach) ) continue;
-    //        // Find def of spilling live range; spilling everywhere, OR
-    //        // single-register DEF and not cloneable (since these will clone
-    //        // before every use)
-    //        if( lrg(n)==lrg && (all || (!mach.isClone() && mach.outregmap().size1() )) )
-    //            makeSplit(n,"def/empty2",round,lrg).insertAfter(n,true);
-    //        // Find all uses
-    //        for( int i=1; i<n.nIns(); i++ ) {
-    //            Node def = n.in(i);
-    //            // Skip any new splits inserted just this pass
-    //            while( def instanceof SplitNode && lrg(def)==null )
-    //                def = def.in(1);
-    //            // Main def (past splits) is of the spilling lrg, and spilling
-    //            // single-register USE (or everywhere)
-    //            if( lrg(def)==lrg && (all || mach.regmap(i).size1()) )
-    //                insertBefore(n,i,"use/empty2",round,lrg);
-    //        }
-    //    }
-    //    return true;
-    //}
+    // Split live range with an empty mask.  Specifically forces splits at
+    // single-register defs or uses everywhere.
+    boolean splitEmptyMask( byte round, LRG lrg ) {
+        findAllLRG(lrg);
+        // If no single-use or single-def, assume this is a complete register
+        // kill and force spilling everywhere.
+        boolean all = lrg._killed || (lrg._1regDefCnt + lrg._1regUseCnt)==0;
+        for( Node n : _ns ) {
+            if( !(n instanceof MachNode mach) ) continue;
+            // Find def of spilling live range; spilling everywhere, OR
+            // single-register DEF and not cloneable (since these will clone
+            // before every use)
+            if( lrg(n)==lrg && (all || (!mach.isClone() && mach.outregmap().size1() )) )
+                makeSplit(n,"def/empty2",round,lrg).insertAfter(n,true);
+            // Find all uses
+            for( int i=1; i<n.nIns(); i++ ) {
+                Node def = n.in(i);
+                // Skip any new splits inserted just this pass
+                while( def instanceof SplitNode && lrg(def)==null )
+                    def = def.in(1);
+                // Main def (past splits) is of the spilling lrg, and spilling
+                // single-register USE (or everywhere)
+                if( lrg(def)==lrg && (all || mach.regmap(i).size1()) )
+                    insertBefore(n,i,"use/empty2",round,lrg);
+            }
+        }
+        return true;
+    }
 
     // Self conflicts require Phis (or two-address).
     // Insert a split after every def.
