@@ -81,8 +81,8 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",33,null);
-        testCPU(src,"riscv"    , "SystemV",29,null);
+        testCPU(src,"x86_64_v2", "SystemV",25,null);
+        testCPU(src,"riscv"    , "SystemV",21,null);
         testCPU(src,"arm"      , "SystemV",18,null);
     }
 
@@ -166,7 +166,7 @@ hashCode(s);
     }
 
     @Test
-    public void testFlags() {
+    public void testFlags1() {
         String src = """
 bool b1 = arg == 1;
 bool b2 = arg == 2;
@@ -174,8 +174,23 @@ if (b2) if (b1) return 1;
 if (b1) return 2;
 return 0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",0,null);
-        testCPU(src,"riscv"    , "SystemV",0,null);
-        testCPU(src,"arm"      , "SystemV",0,null);
+        testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,1,2,0);");
+        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,1,2,0);");
+        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,1,2,0);");
+    }
+
+    @Test
+    public void testFlags2() {
+        String src = """
+bool b1 = arg == 1;
+while (arg > 0) {
+    arg--;
+    if (b1) arg--;
+}
+return arg;
+""";
+        testCPU(src,"x86_64_v2", "SystemV",3,null);
+        testCPU(src,"riscv"    , "SystemV",2,null);
+        testCPU(src,"arm"      , "SystemV",2,null);
     }
 }

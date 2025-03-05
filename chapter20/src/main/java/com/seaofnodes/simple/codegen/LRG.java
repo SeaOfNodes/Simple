@@ -25,6 +25,11 @@ public class LRG {
     public MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
 
+    // Mask set to empty via a kill-mask.  This is usually a capacity kill,
+    // which means we need to split and spill into memory - which means even if
+    // the def-side has many registers, it MUST spill.
+    boolean _killed;
+
     // Some splits used in biased coloring
     MachConcreteNode _splitDef, _splitUse;
 

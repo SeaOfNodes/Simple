@@ -81,7 +81,7 @@ public class RegMask {
     public RegMaskRW copy() { return new RegMaskRW( _bits0, _bits1 ); }
 
     // Has exactly 1 bit set
-    boolean size1() {
+    public boolean size1() {
         return ((_bits0 & -_bits0)==_bits0 && _bits1==0) ||
                ((_bits1 & -_bits1)==_bits1 && _bits0==0);
     }

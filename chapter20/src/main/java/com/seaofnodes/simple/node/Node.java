@@ -319,7 +319,7 @@ public abstract class Node {
             // Can we avoid a split of a split?  'this' split is used by
             // another split in the same block.
             if( !must && def.out(j) instanceof SplitNode split && def.out(j).cfg0()==cfg &&
-                !split._kind.equals( "use/self/use" ) )
+                !split._kind.contains("self") )
                 continue;
             Node use = def._outputs.del(j);
             use.unlock();

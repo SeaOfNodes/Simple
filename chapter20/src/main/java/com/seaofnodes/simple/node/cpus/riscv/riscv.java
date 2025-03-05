@@ -25,10 +25,10 @@ public class riscv extends Machine {
     static final int MAX_REG = 61;
 
     static final String[] REGS = new String[] {
-        "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
-        "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-        "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-        "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
+        "zero", "r1"  , "rsp" , "r3"  , "r4"  , "r5"  , "r6"  , "r7"  ,
+        "r8"  , "r9"  , "r10" , "r11" , "r12" , "r13" , "r14" , "r15" ,
+        "r16" , "r17" , "r18" , "r19" , "r20" , "r21" , "r22" , "r23" ,
+        "r24" , "r25" , "r26" , "r27" , "r28" , "r29" , "r30" , "r31" ,
         "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
         "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
         "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
