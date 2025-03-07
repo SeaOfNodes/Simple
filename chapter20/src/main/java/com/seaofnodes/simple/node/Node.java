@@ -707,7 +707,14 @@ public abstract class Node {
     /**
      * Debugging utility to find a Node by index
      */
-    public Node find(int nid) {
-        return walk( n -> n._nid==nid ? n : null );
+    public Node find(int nid) { return _find(nid, new BitSet()); }
+    private Node _find(int nid, BitSet bs) {
+        if( bs.get(_nid) ) return null; // Been there, done that
+        bs.set(_nid);
+        if( _nid==nid ) return this;
+        Node x;
+        for( Node def : _inputs  )  if( def != null && (x = def._find(nid,bs)) != null ) return x;
+        for( Node use : _outputs )  if( use != null && (x = use._find(nid,bs)) != null ) return x;
+        return null;
     }
 }
