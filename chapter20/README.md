@@ -102,6 +102,8 @@ register 0, RCX register 1 and so on up to the 16 GPRs.  The XMM registers at
 16 and go up to 32.  Register numbers must be unique; this is how the register
 allocator tracks them.
 
+#### Why a RegMask class and not a simple `long`?
+
 A collection of registers live in a Register Mask.  For smaller and simpler
 machines it suffices to make such masks an i64 or i128 (64 or 128 bit
 integers), and this presentation is by far the better way to go... if all
@@ -113,6 +115,8 @@ is adequate for nearly all allocations; only the largest allocations will run
 this out.  However, if we move to a chip with 64 registers we'll immediately
 run out, and need at least a 128 bit mask.  Since you cannot *return* a 128
 bit value directly in Java, Simple will pick up a `RegMask` class object.
+
+#### Stack Slots
 
 One of the Click extensions is this notion of treating "stack slots" are Just
 Another Register.  They get colored like other registers, which in turn leads
@@ -127,12 +131,12 @@ Many of the register masks are immutable; e.g. allowed registers for particular
 opcodes, or describing registers for calling conventions.  Other masks
 represent mutable bitsets with the allocator routinely masking off bits when
 accumulating a set of constraints.  To help keep these uses apart, the
-`RegMask` class includes mutable and immutable mask objects.
+`RegMask` class includes mutable and immutable variants.
 
 
-## Callee/Caller Save Registers
+### Callee/Caller Save Registers
 
-In this allocator, callee- & caller-save registers get almost no special
+In this allocator, callee- and caller-save registers get almost no special
 treatment and no special prolog nor epilog is built to save and restore them.
 At the start of the allocator, SoN graph edges are added between each `Return`
 and a `CalleeSave` from each `Fun`.  These edges are given register masks
@@ -147,19 +151,71 @@ range splitting process.
 
 `Calls` kill the caller-save registers (just the inverted callee-save mask),
 and this is computed during the normal interference graph building process just
-like any other op that kills registers.  Killing a bunch of registers at a call
-typically removes all free registers from whatever is currently alive - and
-will thus force spilling... which will quickly end up spilling callee-save
-registers as ideal candidates.
+like any other operation that kills registers.  Killing a bunch of registers at
+a call typically removes all the free registers from whatever is currently
+alive - and will thus force spilling... which will quickly end up spilling
+callee-save registers as ideal candidates.
 
 
-
-## Live Ranges and Conflicts
+## Live Ranges
 
 A live range is a set of nodes and edges which must get the same register.
 Live ranges form an interconnected web with almost no limits on their shape.
 Live ranges also gather the set of register constraints from all their parts.
-This leads to a set of levels of conflicts within a live range.
+
+Live ranges are held in `LRG` class instances.  Most of the fields in this
+class are for spill heuristics, but there are a few key ones that define what a
+LRG is.  `RegAlloc` has several functions dealing with LRGs, including a lookup
+table from Nodes i.e., a mapping from `Node` to `LRG` (which is very similar to
+having a dedicated LRG field in each Node... except that LRGs are only used
+during RegAlloc and the field would be dead weight otherwise).
+
+LRGs have a unique dense integer `_lrg` number which names the LRG.  New `_lrg`
+numbers come from the `RegAlloc._lrg_num` counter.  LRGs can be unioned
+together -
+[this is the Union-Find algorithm](https://en.wikipedia.org/wiki/Disjoint-set_data_structure)
+- and when this happens the lower numbered `_lrg` wins.  Unioning only happens
+during `BuildLRG` and happens because either a `Phi` is forcing all its inputs
+and outputs into the same register, or because of a 2-address instruction.
+LRGs have matching `union` and `find` calls, and a set `_leader` field.
+
+Post-allocation the `LRG._reg` field holds the chosen register.  During
+allocation the `LRG._mask` field holds the set of available registers,
+typically all the defaults, minus various conflicts.
+
+The `LRG._adj` holds a list of adjacent neighbors as part of the larger
+Interference Graph, and is only used during the Coloring phase.  
+[See more about graphs here.](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
+This is a "adjacency list" form of a Graph description, and is built from the
+IFG's 2-D collection of bits (itself a 1-D list of `BitSet`s).  Graph coloring
+register allocation is one of the few places where changing the layout of a
+data structure mid-algorithm pays out.
+
+The rest of the fields are dedicated to various spilling heuristics:
+
+- `_machDef` `_machUse` `_uidx` - A sample def and use.
+- `_splitDef` `_splitUse` - Sample splits involved with this LRG; biased
+  coloring attempts to align register choices to remove these.
+- `_selfConflicts` - A partial set of *self-conflicting* nodes.  These are
+  detected during the Interference Graph build phase, and require aggressive
+  splitting.
+- `_1regDefCnt` `_1regUseCnt` - Count of defs and uses which are pinned to a
+  single register.  These typically require a hard-split just before (use) or
+  after (def) to free up the register choices.
+- `_killed` - LRG lost all registers due to an op killing its available
+  registers; commonly happens to LRGs which span a `Call` and generally
+  requires splitting some callee-save live range (spilling a callee-save
+  register) and move the LRG into the now available register.
+  
+
+## Live Ranges and Conflicts
+
+If the live range `_mask` field goes empty, you might have a *hard conflict* or
+have gotten *killed*.  Live ranges can self-interfere, making a
+*self-conflict*.  During coloring you might discover an uncolorable clique of
+interfering live ranges, leading to a *capacity spill*.  This leads to a set of
+levels of conflicts within a live range (and thus a different heuristics for
+handling them).
 
 ### Hard-Conflicts
 
@@ -171,10 +227,12 @@ live ranges phase, every register constraint from every def and use are AND'd
 together; the `RegMask` might lose all valid registers, or remain with just a
 handful of register choices.
 
-Hard-conflicts are found while build live ranges, and will trigger a round of
-splitting before building the interference graph or coloring.
+Hard-conflicts are usually found while build live ranges, and will trigger a
+round of splitting before building the interference graph or coloring.  They
+can also be found during interference graph building, generally caused by a
+1-register kill.
 
-### Avoiding conflicts
+### Avoiding interferences
 
 Once of the Click extensions to the Briggs-Chaitin allocator is to take
 advantage of register constraints to lower the interference graph degree (which
@@ -339,16 +397,15 @@ For simple hard-conflicts, we have the exact def and use kept in the Live Range
 itself.  We split once after the def and once before the use (and only on sides
 with restricted registers).
 
-For more complex cases we gather all the defs and uses (via `findAllLRG()`),
-visit each def and use, and insert splits at the restricted register places.
+For more complex cases we use the capacity spilling/loop-nest technique.
 
 
 ### Split By Loop Nest
 
 Here we typically see capacity spills: we just need more registers.  This
-easily happens when a `Call` crushes all the tmp registers and we need to carry
-some values past the call - but it can also happen any time we have a larger
-function with lots of things going on at once.  
+easily happens when a `Call` crushes all the temporary registers and we need to
+carry some values past the call - but it can also happen any time we have a
+larger function with lots of things going on at once.
 
 The heuristic here is to split *around* loops, attempting to keep some free
 registers available so the hot loop body does not spill.  Live ranges are split
@@ -372,5 +429,5 @@ A quick pass over the splits and after checking registers, we pull out the
 useless splits (and track the rest for "scoring" our allocation).  We'll also
 bypass some split-after-splits, which can remove some redundant copying.
 
-The registers remain available in the `RegAlloc` object via `alloc.regnum( Node
-n )` and will be used by a following instruction encoding pass.
+The registers remain available in the `RegAlloc` object via `alloc.regnum( Node n )` 
+and will be used by a following instruction encoding pass.

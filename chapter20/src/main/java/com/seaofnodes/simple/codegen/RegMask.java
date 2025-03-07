@@ -3,8 +3,22 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.SB;
 
-// A "register mask" - 1 bit set for each allowed register.  In addition "stack
-// slot" registers may be allowed, effectively making the set infinite.
+/** RegMask
+ *  A "register mask" - 1 bit set for each allowed register.  In addition
+ *  "stack slot" registers may be allowed, effectively making the set infinite.
+ * <p>
+ *  For smaller and simpler machines it suffices to make such masks an i64 or
+ *  i128 (64 or 128 bit integers), and this presentation is by far the better
+ *  way to go... if all register allocations can fit in this bit limitation.
+ *  The allocator will need bits for stack-based parameters and for splits
+ *  which cannot get a register.  For a 32-register machine like the X86, add 1
+ *  for flags - gives 33 registers.  Using a Java `long` has 64 bits, leaving
+ *  31 for spills and stack passing.  This is adequate for nearly all
+ *  allocations; only the largest allocations will run this out.  However, if
+ *  we move to a chip with 64 registers we'll immediately run out, and need at
+ *  least a 128 bit mask.  Since you cannot *return* a 128 bit value directly
+ *  in Java, Simple will pick up a `RegMask` class object.
+*/
 public class RegMask {
 
     long _bits0, _bits1;
