@@ -14,8 +14,6 @@ public class DivFARM extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return arm.DMASK; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() {  return arm.DMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 1; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -28,8 +26,5 @@ public class DivFARM extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / ").p(code.reg(in(2)));
     }
 
-    @Override public String op() {
-        // 8 bytes = 64 bits
-        return "vdif";
-    }
+    @Override public String op() { return "divf"; }
 }

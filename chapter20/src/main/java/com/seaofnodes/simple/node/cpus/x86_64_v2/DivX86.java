@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -12,16 +13,34 @@ public class DivX86 extends MachConcreteNode implements MachNode {
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
-        assert i==1 || i==2;
-        return x86_64_v2.RMASK; }
+        return (i==1) ? x86_64_v2.RAX_MASK : x86_64_v2.RMASK;
+    }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 1; }
+    @Override public RegMask outregmap() { return x86_64_v2.RAX_MASK; }
+
+    // DIV encodes a CQO which sign extends RAX into RDX, killing RDX.
+    @Override public RegMask killmap() { return x86_64_v2.RDX_MASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+      // REX.W + F7 /7	IDIV r/m64
+        LRG div_rg_1 = CodeGen.CODE._regAlloc.lrg(in(2));
+        short reg1 = div_rg_1.get_reg();
+
+        // sign extend rax before 128/64 bits division
+        // sign extend rax to rdx:rax
+
+        // actual division starts
+        int beforeSize = bytes.size();
+
+        bytes.write(x86_64_v2.REX_W);
+        // opcode for CQO
+        bytes.write(0x99);
+        bytes.write(x86_64_v2.rex(0, reg1, 0));
+        bytes.write(0xF7); // opcode
+        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x07, reg1));
+
+        return bytes.size() - beforeSize;
     }
 
     // General form: "div  dst /= src"
@@ -30,4 +49,5 @@ public class DivX86 extends MachConcreteNode implements MachNode {
     }
 
     @Override public String op() { return "div"; }
+    @Override public String comment() { return "kill rdx"; }
 }

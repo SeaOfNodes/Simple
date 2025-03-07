@@ -19,7 +19,16 @@ public class FunNode extends RegionNode {
     public String _name;        // Debug name
 
     public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) { super(loc,nodes); _sig = sig; }
-    public FunNode( FunNode fun ) { super( fun, fun._loc ); _sig = fun.sig(); _name = fun._name; }
+    public FunNode( FunNode fun ) {
+        super( fun, fun==null ? null : fun._loc );
+        if( fun!=null ) {
+            _sig = fun.sig();
+            _name = fun._name;
+        } else {
+            _sig = TypeFunPtr.BOT;
+            _name = "";
+        }
+    }
 
     @Override
     public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
@@ -45,11 +54,11 @@ public class FunNode extends RegionNode {
     // Cannot create the Return and Fun at the same time; one has to be first.
     // So setting the return requires a second step.
     public void setRet(ReturnNode ret) { _ret=ret; }
-    ReturnNode ret() { assert _ret!=null; return _ret; }
+    public ReturnNode ret() { assert _ret!=null; return _ret; }
 
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
-    void setSig( TypeFunPtr sig ) {
+    public void setSig( TypeFunPtr sig ) {
         assert sig.isa(_sig);
         if( _sig != sig ) {
             CODE.add(this);

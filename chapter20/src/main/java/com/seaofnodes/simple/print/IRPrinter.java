@@ -69,7 +69,10 @@ public abstract class IRPrinter {
                 }
                 if( n instanceof ReturnNode ret ) {
                     FunNode fun = ret.fun();
-                    fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" "),false).p("----------------------\n");
+                    sb.p("--- ");
+                    if( fun != null )
+                        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "),false);
+                    sb.p("----------------------\n");
                 }
                 if( !(n instanceof CallNode) ) {
                     sb.p("\n"); // Blank after multitail

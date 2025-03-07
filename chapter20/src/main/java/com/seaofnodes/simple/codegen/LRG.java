@@ -2,9 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.PhiNode;
 
 import java.util.IdentityHashMap;
 
@@ -20,11 +18,12 @@ public class LRG {
     // Choosen register
     short _reg;
 
+    public short get_reg() {return _reg;}
     // Count of single-register defs and uses
     short _1regDefCnt, _1regUseCnt;
 
     // A sample MachNode def in the live range
-    MachNode _machDef, _machUse;
+    public MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
 
     // Some splits used in biased coloring
@@ -61,7 +60,7 @@ public class LRG {
 
     LRG( short lrg ) { _lrg = lrg; _reg = -1; }
 
-    boolean unified() { return _leader!=null; }
+    boolean leader() { return _leader == null; }
 
     LRG find() {
         if( _leader==null ) return this; // I am the leader
@@ -83,24 +82,47 @@ public class LRG {
     }
 
     LRG union( LRG lrg ) {
-        if( lrg==null || lrg==this ) return this;
+        assert leader();
+        if( lrg==null ) return this;
+        lrg = lrg.find();
+        if( lrg==this ) return this;
         return _lrg < lrg._lrg ? _union(lrg) : lrg._union(this);
     }
     private LRG _union( LRG lrg ) {
         // Set U-F leader
         lrg._leader = this;
         // Fold together stats
-        if( _machDef == lrg._machDef && _1regDefCnt > 0 ) _1regDefCnt--;
-        if( _machDef == null ) _machDef = lrg._machDef;
+        if( _machDef==null ) {
+            _machDef = lrg._machDef;
+        } else if( lrg._machDef!=null ) {
+            if( _1regDefCnt==0 )
+                _machDef = lrg._machDef;
+            else if( _machDef==lrg._machDef )
+                _1regDefCnt--;
+        }
         _1regDefCnt += lrg._1regDefCnt;
 
-        if( _machUse == lrg._machUse && _uidx == lrg._uidx && _1regUseCnt > 0 ) _1regUseCnt--;
-        if( _machUse == null ) { _machUse = lrg._machUse; _uidx = lrg._uidx; }
+        if( _machUse==null ) {
+            _machUse = lrg._machUse;
+        } else if( lrg._machUse!=null ) {
+            if( _1regUseCnt==0 )
+                _machUse = lrg._machUse;
+            else if( _machUse==lrg._machUse )
+                _1regUseCnt--;
+        }
         _1regUseCnt += lrg._1regUseCnt;
+
+        // Fold deepest Split
+        _splitDef = deepSplit(_splitDef,lrg._splitDef);
+        _splitUse = deepSplit(_splitUse,lrg._splitUse);
 
         // Fold together masks
         _mask = _mask.and(lrg._mask);
         return this;
+    }
+
+    private static MachConcreteNode deepSplit( MachConcreteNode s0, MachConcreteNode s1 ) {
+        return s0==null || (s1!=null && s0.cfg0().loopDepth() < s1.cfg0().loopDepth()) ? s1 : s0;
     }
 
     // Record any Mach def for spilling heuristics
@@ -109,8 +131,8 @@ public class LRG {
             _machDef = def;
         if( size1 )
             _1regDefCnt++;
-        if( def.isSplit() && (_splitDef==null || ((MachConcreteNode)def).cfg0().loopDepth() > _splitDef.cfg0().loopDepth()) )
-            _splitDef = (MachConcreteNode)def;
+        if( def instanceof SplitNode split )
+            _splitDef = deepSplit(_splitDef,split);
         return this;
     }
 
@@ -120,10 +142,15 @@ public class LRG {
             { _machUse = use; _uidx = uidx; }
         if( size1 )
             _1regUseCnt++;
-        if( use.isSplit() && (_splitUse==null || ((MachConcreteNode)use).cfg0().loopDepth() > _splitUse.cfg0().loopDepth()) )
-            _splitUse = (MachConcreteNode)use;
+        if( use instanceof SplitNode split )
+            _splitUse = deepSplit(_splitUse,split);
         return this;
     }
+
+    boolean hasSplit() { return _splitDef != null || _splitUse != null; }
+    short size() { return _mask.size(); }
+    boolean size1() { return _mask.size1(); }
+
 
     void selfConflict( Node def ) {
         if( _selfConflicts == null ) _selfConflicts = new IdentityHashMap<>();
@@ -146,6 +173,15 @@ public class LRG {
         if( _mask.clr(reg) ) return true;
         _mask = _mask.copy();   // Need a mutable copy
         return _mask.clr(reg);
+    }
+    // Subtract mask (AND complement)
+    // True if still has registers
+    boolean sub( RegMask mask ) {
+        RegMask mask2 = _mask.sub(mask);
+        if( mask2==null )
+            mask2 = _mask.copy().sub(mask);
+        _mask = mask2;
+        return !_mask.isEmpty();
     }
 
     @Override public String toString() { return toString(new SB()).toString(); }
