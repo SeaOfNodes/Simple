@@ -40,9 +40,7 @@ public class JmpX86 extends IfNode implements MachNode {
         // common opcode
         bytes.write(0x0F);
         bytes.write(x86_64_v2.jumpop(_bop));
-
-          x86_64_v2.imm(0, 32, bytes);
-
+        x86_64_v2.imm(0, 32, bytes);
         return bytes.size() - beforeSize;
     }
 

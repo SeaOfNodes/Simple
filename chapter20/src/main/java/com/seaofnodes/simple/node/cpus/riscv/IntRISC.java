@@ -30,40 +30,39 @@ public class IntRISC extends ConstantNode implements MachNode {
         short rd_reg = frd_self.get_reg();
         int beforeSize = bytes.size();
 
-        long MIN_SIGNED_20 = -524288;
-        long MAX_SIGNED_20 = 524287;
-
+        // long MIN_SIGNED_20 = -524288;
+        // long MAX_SIGNED_20 = 524287;
 
         TypeInteger ti = (TypeInteger)_con;
         long imm32_64 = ti.value();
-        boolean fitsInSigned20 = (imm32_64 >= MIN_SIGNED_20 && imm32_64 <= MAX_SIGNED_20);
+
+        // It’s not needed because we are assuming the worst-case scenario, so no optimal case applies.
+        // Todo: if it fits into 12 bits just use addi
+        // Todo: if its between [13, 20] and [20, 32] use mixture of addi and lui
+        // boolean fitsInSigned20 = (imm32_64 >= MIN_SIGNED_20 && imm32_64 <= MAX_SIGNED_20);
         // check if immediate fit into 20 bits
         // if not create extra add
 
-        if (!fitsInSigned20) {
-            // low 12 bit of the immediate goes into add immediate
-            // addi t0, t0, low12bit
-            // 0xFFF = 1111 1111 1111
-            // check if it needs 64 bit encoding
-            int low_12_bits = (int)(imm32_64 & 0xFFF);
-            if((low_12_bits & 0x800) != 0) imm32_64 += 4096;
-        }
+        // low 12 bit of the immediate goes into add immediate
+        // addi t0, t0, low12bit
+        // 0xFFF = 1111 1111 1111
+        // check if it needs 64 bit encoding
+        int low_12_bits = (int)(imm32_64 & 0xFFF);
+        if((low_12_bits & 0x800) != 0) imm32_64 += 4096;
 
         int upper20_bits =  ((int)imm32_64 >> 12) & 0xFFFFF;
-        int body = riscv.u_type(0x37, rd_reg, upper20_bits);
-        riscv.push_4_bytes(body, bytes);
+        int lui_body = riscv.u_type(0x37, rd_reg, upper20_bits);
+        riscv.push_4_bytes(lui_body, bytes);
 
-        if (!fitsInSigned20) {
-            // low 12 bit of the immediate goes into add immediate
-            // addi t0, t0, low12bit
-            // 0xFFF = 1111 1111 1111
-            if(imm32_64 < Integer.MIN_VALUE || imm32_64 > Integer.MAX_VALUE) {
-                // handle long case here
-                // TODO: relocs
-            }
-            int body2 = riscv.i_type(riscv.I_TYPE, rd_reg, 0, rd_reg, (int)(imm32_64 & 0xFFF));
-            riscv.push_4_bytes(body2, bytes);
+        // low 12 bit of the immediate goes into add immediate
+        // addi t0, t0, low12bit
+        // 0xFFF = 1111 1111 1111
+        if(imm32_64 < Integer.MIN_VALUE || imm32_64 > Integer.MAX_VALUE) {
+            // handle long case here
+            // TODO: relocs
         }
+        int addi_body = riscv.i_type(riscv.I_TYPE, rd_reg, 0, rd_reg, (int)(imm32_64 & 0xFFF));
+        riscv.push_4_bytes(addi_body, bytes);
 
         return bytes.size() - beforeSize;
     }

@@ -61,7 +61,7 @@ public class Chapter20Test {
 
     @Test public void TestAdditionLong() {
         CodeGen code = new CodeGen("""
-        return arg + (arg * 1234234234123123123);
+       return arg / 1186046;
             """);
         code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
     }
@@ -79,7 +79,7 @@ public class Chapter20Test {
         CodeGen code = new CodeGen("""
                 bool b1 = arg == 1;
                 bool b2 = arg == 2;
-                if (b2) if (b1) return 1;f
+                if (b2) if (b1) return 1;
                 if (b1) return 2;
                 return 0;
                 """);
@@ -88,7 +88,7 @@ public class Chapter20Test {
 
     @Test public void TestAddition() {
         CodeGen code = new CodeGen("""
-        return arg + 2;
+        return arg / 7.0;
             """);
         code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
     }
@@ -242,7 +242,7 @@ hashCode(s);
         String src = """
 bool b1 = arg == 1;
 bool b2 = arg == 2;
-if (b2) if (b1) return 1;
+if (b1 == 0) if (b1) return 1;
 if (b1) return 2;
 return 0;
 """;
