@@ -179,7 +179,8 @@ public class riscv extends Machine {
 
     // True if signed 12-bit immediate
     private static boolean imm12(TypeInteger ti) {
-        return ti.isConstant() && ((ti.value()<<12)>>12) == ti.value();
+        // 64-12==52
+        return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
 
 
