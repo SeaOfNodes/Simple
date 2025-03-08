@@ -303,14 +303,14 @@ public class CodeGen {
     // ---------------------------
     // Encoding
     int _tEncode;
+    public Encoding _encoding;
     public CodeGen encode() {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
-
-
-        //_tEncode = (int)(System.currentTimeMillis() - t0);
-        //throw Utils.TODO();
+        _encoding = new Encoding(this);
+        _encoding.encode();
+        _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
     }
     // Encoded binary, no relocation info
