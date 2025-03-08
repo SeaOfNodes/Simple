@@ -180,6 +180,39 @@ return arg1 * arg;
     }
 
     @Test
+    public void testBasic18() {
+        CodeGen code = new CodeGen(
+                """
+                int arg1 =  arg + 1;
+                return arg1 << arg;
+                """);
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return (shl,(inc,arg),arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic19() {
+        CodeGen code = new CodeGen(
+                """
+                int arg1 =  arg + 1;
+                return arg1 >> arg;
+                """);
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return (sar,(inc,arg),arg);", code._stop.toString());
+    }
+
+    @Test
+    public void testBasic20() {
+        CodeGen code = new CodeGen(
+                """
+                int arg1 =  arg + 1;
+                return arg1 >>> arg;
+                """);
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        assertEquals("return (shr,(inc,arg),arg);", code._stop.toString());
+    }
+
+    @Test
     public void testToFloat() {
         CodeGen code = new CodeGen("""
                 int a = arg;

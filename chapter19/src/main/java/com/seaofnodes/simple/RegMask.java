@@ -12,6 +12,13 @@ public class RegMask {
 
     public RegMask(long   x ) { _bits = BitSet.valueOf(new long[]{x}); }
     public RegMask(long[] xs) { _bits = BitSet.valueOf(           xs); }
+
+    public RegMask or(RegMask other) {
+        BitSet resultBits = (BitSet)this._bits.clone();
+        resultBits.or(other._bits);
+        return new RegMask(resultBits);
+    }
+
     // Internal constructor
     RegMask() { _bits = new BitSet(); }
     RegMask(BitSet bs) { _bits = bs; }
@@ -33,6 +40,7 @@ class RegMaskRW extends RegMask {
     public void clr(int r) { _bits.clear(r); }
     public void set(int r, boolean b) { _bits.set(r,b); }
     public RegMaskRW and( RegMask r ) {
+        if( r==null ) return this;
         _bits.and(r._bits);
         return this;
     }

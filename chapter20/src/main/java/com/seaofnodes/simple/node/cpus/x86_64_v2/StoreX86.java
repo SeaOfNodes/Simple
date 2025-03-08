@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
 import java.util.BitSet;
@@ -15,11 +15,15 @@ public class StoreX86 extends MemOpX86 {
     @Override public String op() { return "st"+_sz; }
 
     @Override public StringBuilder _printMach(StringBuilder sb, BitSet visited) {
-        return sb.append(".").append(_name).append("=").append(val()==null ? _imm : val()).append(";");
+        Node val = val();
+        sb.append(".").append(_name).append("=");
+        if( val==null ) sb.append(_imm);
+        else val._print0(sb,visited);
+        return sb.append(";");
     }
 
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return RegMask.EMPTY; }
+    @Override public RegMask outregmap() { return null; }
 
     // General form: "stN  [base + idx<<2 + 12],val"
     @Override public void asm(CodeGen code, SB sb) {

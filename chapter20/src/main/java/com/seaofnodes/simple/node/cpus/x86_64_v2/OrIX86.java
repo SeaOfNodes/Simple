@@ -1,14 +1,13 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeInteger;
-
 import java.io.ByteArrayOutputStream;
 
 public class OrIX86  extends MachConcreteNode implements MachNode {

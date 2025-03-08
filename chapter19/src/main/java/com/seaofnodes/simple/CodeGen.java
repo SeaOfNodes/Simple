@@ -204,7 +204,7 @@ public class CodeGen {
         // If n is a MachConcrete, then its part of a multi-node expansion.
         // It does not need instruction selection (already selected!)
         // but it does need its inputs walked.
-        if( n instanceof MachConcreteNode || n instanceof MemOpX86 ) {
+        if( n instanceof MachConcreteNode || n instanceof MemOpX86) {
             for( int i=0; i < n.nIns(); i++ )
                 n._inputs.set(i, _instSelect(n.in(i),map) );
             return n;

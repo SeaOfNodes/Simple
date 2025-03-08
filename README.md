@@ -29,32 +29,38 @@ the backend starts with levering Java: the Evaluator (first appears in Chapter
 
 The following is a rough plan, subject to change.
 
-Each chapter will be self-sufficient and complete; in the sense that each chapter will fully implement
-a subset of the Simple language, and include everything that was created in the previous chapter.
-Each chapter will also include a detailed commentary on relevant aspects of the
-Sea Of Nodes intermediate representation.
+Each chapter will be self-sufficient and complete; in the sense that each
+chapter will fully implement a subset of the Simple language, and include
+everything that was created in the previous chapter.  Each chapter will also
+include a detailed commentary on relevant aspects of the Sea Of Nodes
+intermediate representation.
 
-The Simple language will be styled after a subset of C or Java
+The Simple language is styled after a subset of C or Java.
 
 * [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * [Chapter 2](chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
   with constants. Peephole optimization / simple constant folding.
 * [Chapter 3](chapter03/README.md): Local variables, and assignment statements. Read on RHS, SSA, more peephole optimization if local is a
   constant.
-* [Chapter 4](chapter04/README.md): A non-constant external variable input named `arg`. Binary and Comparison operators involving constants and `arg`. Non-zero values will be truthy. Peephole optimizations involving algebraic simplifications.
+* [Chapter 4](chapter04/README.md): A non-constant external variable input
+  named `arg`.  Binary and Comparison operators involving constants and `arg`.
+  Non-zero values will be truthy.  Peephole optimizations involving algebraic
+  simplifications.
 * [Chapter 5](chapter05/README.md): `if` statement. CFG construction.
 * [Chapter 6](chapter06/README.md): Peephole optimization around dead control flow.
-* [Chapter 7](chapter07/README.md): `while` statement. Looping construct - eager phi approach.
-* [Chapter 8](chapter08/README.md): Looping construct continued, lazy phi creation, `break` and `continue` statements.
+* [Chapter 7](chapter07/README.md): `while` statement; looping constructs - eager phi approach.
+* [Chapter 8](chapter08/README.md): Looping constructs continued, lazy phi creation, `break` and `continue` statements.
 * [Chapter 9](chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
-* [Chapter 10](chapter10/README.md): User defined Struct types. Memory effects: general memory edges in SSA. Equivalence class aliasing. Null pointer analysis. Peephole optimization around load-after-store/store-after-store.
+* [Chapter 10](chapter10/README.md): User defined Struct types. Memory effects:
+  general memory edges in SSA.  Equivalence class aliasing.  Null pointer
+  analysis.  Peephole optimization around load-after-store/store-after-store.
 * [Chapter 11](chapter11/README.md): Global Code Motion - Scheduling.
 * [Chapter 12](chapter12/README.md): Float type.
 * [Chapter 13](chapter13/README.md): Nested references in Structs.
 * [Chapter 14](chapter14/README.md): Narrow primitive types (e.g. bytes)
 * [Chapter 15](chapter15/README.md): One dimensional static length array type, with array loads and stores.
 * [Chapter 16](chapter16/README.md): Constructors
-* [Chapter 17](chapter17/README.md): Mutability & Syntax Sugar: `var`, `val`, `x+=y`, `for(init;test;next)body`
+* [Chapter 17](chapter17/README.md): Mutability & Syntax Sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
 * [Chapter 18](chapter18/README.md): Functions and calls.
 * [Chapter 19](chapter19/README.md): Instruction selection and portable compilation
 * [Chapter 20](chapter20/README.md): Graph Coloring Register Allocation

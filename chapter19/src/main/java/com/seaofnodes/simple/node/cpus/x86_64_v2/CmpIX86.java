@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-// Compare immediate.  Sets flags.
+// Compare immediate.  Sets flags.(RFLAGS)
 public class CmpIX86 extends MachConcreteNode implements MachNode {
     final int _imm;
     final String _bop;

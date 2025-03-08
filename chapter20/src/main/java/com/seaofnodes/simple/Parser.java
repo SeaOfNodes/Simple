@@ -1,6 +1,8 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import java.text.ParseException;
 import java.util.*;
@@ -1413,7 +1415,7 @@ public class Parser {
         mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
         _scope.mem(mem);
         // Call result
-        return new ProjNode(cend,2,null).peephole();
+        return new ProjNode(cend,2,"#2").peephole();
     }
 
     /**
@@ -1724,6 +1726,6 @@ public class Parser {
         public final Lexer _loc;
         // file:line:charoff err
         //String msg = "src:"+_line_number+":"+(_position-_line_start)+" "+errorMessage;
-        ParseException( String msg, Lexer loc ) { super(msg);  _loc = loc; assert loc!=null; }
+        ParseException( String msg, Lexer loc ) { super(msg);  _loc = loc; }
     }
 }

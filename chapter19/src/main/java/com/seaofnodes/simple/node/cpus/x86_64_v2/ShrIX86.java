@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.lang.StringBuilder;
 
+// Logical Right Shift
 public class ShrIX86 extends MachConcreteNode implements MachNode{
     final TypeInteger _ti;
     ShrIX86(Node shr, TypeInteger ti) {super(shr); _inputs.pop(); _ti = ti;}

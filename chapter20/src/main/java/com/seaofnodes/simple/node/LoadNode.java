@@ -204,7 +204,7 @@ public class LoadNode extends MemOpNode {
         Node shf = con(shift);
         if( shf._type==TypeInteger.ZERO )
             return val;
-        //return peep(new SarNode(null,peep(new ShlNode(null,val,shf.keep())),shf.unkeep()));
-        throw Utils.TODO();
+        Node shl = new ShlNode(null,val,shf.keep()).peephole();
+        return new SarNode(null,shl,shf.unkeep());
     }
 }

@@ -42,6 +42,18 @@ We extend the set of nodes by adding following additional node types.
 | Div       | Data | Divide a value by another     | Two data nodes, values are divided, order matters          | Result of the division      |
 | Minus     | Data | Negate a value                | One data node, value is negated                            | Result of the unary minus   |
 
+
+## *Value* equality vs *Reference* equality
+
+In much of Simple, Nodes are looked up (`find()` calls) via *reference*
+equality.  This is by far the most common case.  In [Chapter
+9](../chapter09/README.md) we introduce *value* equality for the first time.
+In both cases the choice of value-vs-reference equality is intentional: it is
+*never* correct to "just pick one or the other kind of equality".  When in
+doubt check the context: only *Global Value Numbering* uses value equality;
+everywhere we mean reference equality.
+
+
 ## Peephole Optimizations
 
 Nodes in the graph can be peephole-optimized.  The graph is viewed through a
@@ -141,6 +153,7 @@ starting in [Chapter 4](../chapter04/README.md) and [Chapter
 There are other important properties of the Lattice that we discuss in [Chapter
 4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
 
+
 ## Nodes Pre Peephole Optimization
 
 The following visual shows how the graph looks like pre-peephole optimization:
@@ -152,9 +165,11 @@ The following visual shows how the graph looks like pre-peephole optimization:
 * The edges from Constants to Start are shown in dotted lines as these are not true control edges
 * We label each edge with its position in the node's list of inputs.
 
+
 ## Post-peephole
 
 ![Example Visual](./docs/02-post-peephole-ex1.svg)
+
 
 ## Demonstration
 To demonstrate how the optimisation works, let's consider the following code:

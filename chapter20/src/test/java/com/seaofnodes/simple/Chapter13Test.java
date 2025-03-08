@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -125,6 +126,19 @@ return n.i;
 """);
         try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
+    }
+
+    @Test
+    public void testNullRef4() {
+        CodeGen code = new CodeGen("-null-5/null-5;");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
+    }
+
+    @Test public void testNullRef5() {
+        CodeGen code = new CodeGen("return null+42;");
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
     }
 
     @Test

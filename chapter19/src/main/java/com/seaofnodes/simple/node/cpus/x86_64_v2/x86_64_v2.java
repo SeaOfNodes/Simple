@@ -28,7 +28,8 @@ public class x86_64_v2 extends Machine {
     public static RegMask FLAGS_MASK = new RegMask(1L<<FLAGS);
 
     // Return single int/ptr register
-    public static RegMask RET_MASK = new RegMask(RAX);
+    public static RegMask RET_MASK = new RegMask(1<<RAX);
+    public static RegMask RET_FMASK = new RegMask(1<<XMM0);
 
     public static RegMask RDI_MASK = new RegMask(1L<<RDI);
     public static RegMask RCX_MASK = new RegMask(1L<<RCX);
@@ -36,6 +37,19 @@ public class x86_64_v2 extends Machine {
     public static RegMask R08_MASK = new RegMask(1L<<R08);
     public static RegMask R09_MASK = new RegMask(1L<<R09);
     public static RegMask RSI_MASK = new RegMask(1L<<RSI);
+
+    public static RegMask XMM0_MASK = new RegMask(1L<<XMM0);
+    public static RegMask XMM1_MASK = new RegMask(1L<<XMM1);
+    public static RegMask XMM2_MASK = new RegMask(1L<<XMM2);
+    public static RegMask XMM3_MASK = new RegMask(1L<<XMM3);
+    public static RegMask XMM4_MASK = new RegMask(1L<<XMM4);
+    public static RegMask XMM5_MASK = new RegMask(1L<<XMM5);
+    public static RegMask XMM6_MASK = new RegMask(1L<<XMM6);
+    public static RegMask XMM7_MASK = new RegMask(1L<<XMM7);
+    public static RegMask[] XMMS = new RegMask[]{
+        XMM0_MASK, XMM1_MASK, XMM2_MASK, XMM3_MASK,
+        XMM4_MASK, XMM5_MASK, XMM6_MASK, XMM7_MASK,
+    };
 
     // Calling conv metadata
     public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
@@ -50,41 +64,45 @@ public class x86_64_v2 extends Machine {
         "r8"  , "r9"  , "r10"  , "r11"  , "r12"  , "r13"  , "r14"  , "r15"  ,
         "xmm0", "xmm1", "xmm2" , "xmm3" , "xmm4" , "xmm5" , "xmm6" , "xmm7" ,
         "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+        "flags",
     };
-    @Override public String reg( int reg ) { return REGS[reg]; }
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
 
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
-    static int callInArg( int idx ) {
-        return switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> callInArgSystemV(idx);
-        case CodeGen.CallingConv.Win64   -> callInArgWin64  (idx);
+    static int callInArg( TypeFunPtr tfp, int idx ) {
+        int[] cargs = switch( CodeGen.CODE._callingConv ) {
+        case CodeGen.CallingConv.SystemV -> CALLINARG_SYSTEMV_INT;
+        case CodeGen.CallingConv.Win64   -> CALLINARG_WIN64_INT;
         };
+        if( idx < 2 ) return -1;
+        if( idx >= cargs.length )
+            throw Utils.TODO(); // Pass on stack slot
+        if( tfp.arg(idx-2) instanceof TypeFloat )
+            return XMM0 + (idx-2);
+        return cargs[idx];
     }
 
     // WIN64(param passing)
-    static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
-        RegMask.EMPTY,
-        RegMask.EMPTY,
+    static int[] CALLINARG_WIN64_INT = new int[] {
+        -1,   // Control, no register
+        -1,   // Memory, no register
+        RCX,
+        RDX,
+        R08,
+        R09,
+    };
+    static RegMask[] CALLINARG_WIN64_MASK = new RegMask[] {
+        null,   // Control, no register
+        null,   // Memory, no register
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
         R09_MASK,
-        RegMask.EMPTY,
-        RegMask.EMPTY
     };
-    static int[] CALLINARG_WIN64 = new int[] {
-        0,   // Control, no register
-        0,   // Memory, no register
-        RCX, //
-        RDX,
-        R08,
-        R09,
-        0,
-        0,
-    };
-    static int callInArgWin64( int idx ) { return CALLINARG_WIN64[idx]; }
 
     // caller saved(win64)
     public static final long WIN64_ABI_CALLER_SAVED =
@@ -93,20 +111,9 @@ public class x86_64_v2 extends Machine {
     // callee saved(win64)
     public static final long WIN64_ABI_CALLEE_SAVED = ~WIN64_ABI_CALLER_SAVED;
 
-    // SystemV(param passing)
-    static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
-        RegMask.EMPTY,
-        RegMask.EMPTY,
-        RDI_MASK,
-        RSI_MASK,
-        RDX_MASK,
-        RCX_MASK,
-        R08_MASK,
-        R09_MASK
-    };
-    static int[] CALLINARG_SYSTEMV = new int[] {
-        0,   // Control, no register
-        0,   // Memory, no register
+    static int[] CALLINARG_SYSTEMV_INT = new int[] {
+        -1,   // Control, no register
+        -1,   // Memory, no register
         RDI,
         RSI,
         RDX,
@@ -114,8 +121,16 @@ public class x86_64_v2 extends Machine {
         R08,
         R09,
     };
-    static int callInArgSystemV( int idx ) { return CALLINARG_SYSTEMV[idx]; }
-
+    static RegMask[] CALLINARG_SYSTEMV_MASK = new RegMask[] {
+        null,   // Control, no register
+        null,   // Memory, no register
+        RDI_MASK,
+        RSI_MASK,
+        RDX_MASK,
+        RCX_MASK,
+        R08_MASK,
+        R09_MASK,
+    };
     // caller saved(systemv)
     // caller saved(win64)
     public static final long SYSTEMV_ABI_CALLER_SAVED =
@@ -124,15 +139,22 @@ public class x86_64_v2 extends Machine {
     public static final long SYSTEMV_ABI_CALLE_SAVED = ~SYSTEMV_ABI_CALLER_SAVED;
 
 
-    static RegMask callInMask( int idx ) {
-        return switch( CodeGen.CODE._callingConv ) {
-        case CodeGen.CallingConv.SystemV -> CALLINMASK_SYSTEMV[idx];
-        case CodeGen.CallingConv.Win64   -> CALLINMASK_WIN64  [idx];
+    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+        RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
+        case CodeGen.CallingConv.SystemV -> CALLINARG_SYSTEMV_MASK;
+        case CodeGen.CallingConv.Win64   -> CALLINARG_WIN64_MASK;
         };
+        if( idx < 2 ) return null;
+        if( idx >= cargs.length )
+            throw Utils.TODO(); // Pass on stack slot
+        if( tfp.arg(idx-2) instanceof TypeFloat )
+            return XMMS[idx-2];
+        return cargs[idx];
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public Node split() {
+    @Override
+    public Node split() {
         throw Utils.TODO();
     }
 
@@ -153,7 +175,7 @@ public class x86_64_v2 extends Machine {
         case AddNode      add   -> add(add);
         case AndNode      and   -> and(and);
         case BoolNode     bool  -> cmp(bool);
-        case CallEndNode  cend  -> new CallEndNode((CallNode)cend.in(0));
+        case CallEndNode  cend  -> new CallEndX86(cend);
         case CallNode     call  -> call(call);
         case CProjNode    c     -> new CProjNode(c);
         case ConstantNode con   -> con(con);
@@ -247,7 +269,7 @@ public class x86_64_v2 extends Machine {
     private Node and(AndNode and) {
         if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new AndIX86(and, ti);
-        throw Utils.TODO();
+        return new AndX86(and);
     }
 
     private Node call(CallNode call) {
@@ -315,7 +337,7 @@ public class x86_64_v2 extends Machine {
     private Node or(OrNode or) {
         if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
             return new OrIX86(or, ti);
-        throw Utils.TODO();
+        return new OrX86(or);
     }
 
     private Node prj( ProjNode prj ) {
@@ -324,20 +346,20 @@ public class x86_64_v2 extends Machine {
 
     private Node sar( SarNode sar ) {
         if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SarX86(sar, ti);
-        throw Utils.TODO();
+            return new SarIX86(sar, ti);
+        return new SarX86(sar);
     }
 
     private Node shl( ShlNode shl ) {
         if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShlIX86(shl, ti);
-        throw Utils.TODO();
+        return new ShlX86(shl);
     }
 
     private Node shr(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
             return new ShrIX86(shr, ti);
-        throw Utils.TODO();
+        return new ShrX86(shr);
     }
 
     private Node st( StoreNode st ) {

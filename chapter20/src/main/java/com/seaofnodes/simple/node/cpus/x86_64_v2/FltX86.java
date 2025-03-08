@@ -1,21 +1,23 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.CodeGen;
-import com.seaofnodes.simple.RegMask;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
-
 import java.io.ByteArrayOutputStream;
 
 public class FltX86 extends ConstantNode implements MachNode {
     FltX86(ConstantNode con ) { super(con); }
+    @Override public String op() { return "fld"; }
 
     // Register mask allowed on input i.  0 for no register.
-    @Override public RegMask regmap(int i) { return RegMask.EMPTY; }
+    @Override public RegMask regmap(int i) { return null; }
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
+    @Override public boolean isClone() { return true; }
+    @Override public FltX86 copy() { return new FltX86(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -30,7 +32,4 @@ public class FltX86 extends ConstantNode implements MachNode {
         _con.print(sb.p(code.reg(this)).p(" #"));
     }
 
-    @Override public String op() {
-        return "fld";           // Some fancier encoding
-    }
 }
