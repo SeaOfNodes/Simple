@@ -305,7 +305,7 @@ public class CodeGen {
 
         for (byte b : encodedBytes) {
 
-            System.out.print(String.format("%02X ", b));
+            System.out.print(String.format("%02X", b));
         }
 
         System.out.println();

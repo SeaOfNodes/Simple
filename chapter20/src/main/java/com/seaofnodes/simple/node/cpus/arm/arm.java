@@ -184,12 +184,13 @@ public class arm extends Machine {
             return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
     }
 
-    public static int ret(int opcode, int rn, int rm) {
-        return (opcode << 10) | (rn << 5) | rm;
+    public static int ret(int opcode) {
+        return (opcode << 10);
     }
 
+    // FMOV (scalar, immediate)
     public static int f_mov(int opcode, int ftype,  int imm8, int rd) {
-        return (opcode << 24) | (ftype << 22) | (imm8 << 13) | (128 << 5) | rd;
+        return (opcode << 24) | (ftype << 22) |(imm8 << 13) | (128 << 5) | rd;
     }
 
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
@@ -214,6 +215,10 @@ public class arm extends Machine {
         return (opcode_1 << 28) | (opcode_2 << 24) | (opcode_3 << 20) | (opcode_4 << 16) |
                 (vd << 12) | (0x01100010 << 4) | vm;
     }
+    public static int float_cast(int opcode, int ftype, int rn, int rd) {
+        return (opcode << 24) | (ftype << 22) | (2176 << 10) | (rn << 5) | rd;
+    }
+
     // ftype = 3
     public static int f_cmp(int opcode, int ftype, int rm, int rn) {
         return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;

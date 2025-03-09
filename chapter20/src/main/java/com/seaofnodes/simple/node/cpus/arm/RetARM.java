@@ -24,7 +24,7 @@ public class RetARM extends ReturnNode implements MachNode {
     @Override public int encoding(ByteArrayOutputStream bytes) {
         int beforeSize = bytes.size();
         // default it to x30
-        int body = arm.ret(0x3512256, 0x30, 0);
+        int body = arm.ret(3512256);
         arm.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;
     }

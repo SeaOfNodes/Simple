@@ -21,17 +21,16 @@ public class I2F8ARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // VCVT.F32.S32
+        // SCVTF
 
         LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
         LRG rs1_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-
 
         short reg_self = frd_self.get_reg();
         short reg1 = rs1_rg_1.get_reg();
 
         int beforeSize = bytes.size();
-        int body = arm.f_convert(0x1111, 0x1111, 0x1D11, 0x1011, reg_self, reg1);
+        int body = arm.float_cast(158, 1, reg1, reg_self);
 
         riscv.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;

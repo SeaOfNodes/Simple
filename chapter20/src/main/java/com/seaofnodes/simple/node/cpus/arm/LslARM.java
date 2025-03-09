@@ -37,7 +37,6 @@ public class LslARM extends MachConcreteNode implements MachNode {
         short reg2 = lsl_rg_2.get_reg();
 
         int beforeSize = bytes.size();
-
         int body = arm.shift_reg(1238, reg2, 0x8,  reg1, self);
         arm.push_4_bytes(body, bytes);
 

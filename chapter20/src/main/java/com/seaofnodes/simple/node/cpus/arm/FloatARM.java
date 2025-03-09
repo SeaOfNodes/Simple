@@ -7,6 +7,7 @@ import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 
 import java.io.ByteArrayOutputStream;
@@ -27,14 +28,15 @@ public class FloatARM extends ConstantNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // ENCODING for the 64-bit to double-precision variant
+        // Todo: relocs for bigger values than 8 bit
         int beforeSize = bytes.size();
         LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
 
         short rd_reg = frd_self.get_reg();
-        TypeInteger ti = (TypeInteger)_con;
-        long imm32_64 = ti.value();
+        TypeFloat ti = (TypeFloat) _con;
+        // types is = 01 but includes extra 1 bit
+        int body = arm.f_mov(30, 3, (int)ti.value(), rd_reg);
 
-        int body = arm.f_mov(30, 1, (int)imm32_64, rd_reg);
         arm.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;
     }
