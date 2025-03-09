@@ -1,70 +1,88 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
+import com.seaofnodes.simple.codegen.Machine;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-public class riscv extends Machine{
+import java.io.ByteArrayOutputStream;
+
+public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int        ZERO=0,     RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    public static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
-    public static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
-    public static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
-    public static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
+    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
+    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
+    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
+    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    public static int FLAGS = 0 ;
+    static final int MAX_REG = 61;
+
+    static final int F_OFFSET = 31;
+
+    static final String[] REGS = new String[] {
+            "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
+            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
+            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
+            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
+            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+    };
+
+    static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
-    public static RegMask RMASK = new RegMask(0b11111111111111111111111111111110L);
-    public static RegMask WMASK = new RegMask(0b11111111111111111111111111111010L);
-    // Float mask from(ft0–ft11)
-    public static RegMask FMASK = new RegMask(0b11111111111111111111111111111111L<<F0);
+    static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
+    static final RegMask RMASK = new RegMask(RD_BITS);
+
+    static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
+    static final RegMask WMASK = new RegMask(WR_BITS);
+    // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
+    static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
+    static RegMask FLAGS_MASK = new RegMask(FLAGS);
+    static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
-    public static RegMask MEM_MASK = new RegMask(0b11111111111111111111111111111010L | (0b11111111111111111111111111111111L<<F0));
+    static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
+    static final RegMask SPLIT_MASK = new RegMask( WR_BITS | FP_BITS, -1L );
 
-    // Return single int/ptr register
-    public static RegMask RET_MASK  = new RegMask(1L<< A0);
-    public static RegMask RET_FMASK = new RegMask(1L<<FA0);
-    public static RegMask RPC_MASK = new RegMask(1L<<RPC);
 
     // Arguments masks
-    public static RegMask A0_MASK = new RegMask(1L<<A0);
-    public static RegMask A1_MASK = new RegMask(1L<<A1);
-    public static RegMask A2_MASK = new RegMask(1L<<A2);
-    public static RegMask A3_MASK = new RegMask(1L<<A3);
-    public static RegMask A4_MASK = new RegMask(1L<<A4);
-    public static RegMask A5_MASK = new RegMask(1L<<A5);
-    public static RegMask A6_MASK = new RegMask(1L<<A6);
-    public static RegMask A7_MASK = new RegMask(1L<<A7);
+    public static RegMask A0_MASK = new RegMask(A0);
+    public static RegMask A1_MASK = new RegMask(A1);
+    public static RegMask A2_MASK = new RegMask(A2);
+    public static RegMask A3_MASK = new RegMask(A3);
+    public static RegMask A4_MASK = new RegMask(A4);
+    public static RegMask A5_MASK = new RegMask(A5);
+    public static RegMask A6_MASK = new RegMask(A6);
+    public static RegMask A7_MASK = new RegMask(A7);
 
-    public static RegMask FLAGS_MASK = new RegMask(1L << FLAGS);
+    static final RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
-    public static RegMask FA0_MASK = new RegMask(1L<<FA0);
-    public static RegMask FA1_MASK = new RegMask(1L<<FA1);
-    public static RegMask FA2_MASK = new RegMask(1L<<FA2);
-    public static RegMask FA3_MASK = new RegMask(1L<<FA3);
-    public static RegMask FA4_MASK = new RegMask(1L<<FA4);
-    public static RegMask FA5_MASK = new RegMask(1L<<FA5);
-    public static RegMask FA6_MASK = new RegMask(1L<<FA6);
-    public static RegMask FA7_MASK = new RegMask(1L<<FA7);
+    public static RegMask FA0_MASK = new RegMask(FA0);
+    public static RegMask FA1_MASK = new RegMask(FA1);
+    public static RegMask FA2_MASK = new RegMask(FA2);
+    public static RegMask FA3_MASK = new RegMask(FA3);
+    public static RegMask FA4_MASK = new RegMask(FA4);
+    public static RegMask FA5_MASK = new RegMask(FA5);
+    public static RegMask FA6_MASK = new RegMask(FA6);
+    public static RegMask FA7_MASK = new RegMask(FA7);
 
     // Int arguments calling conv
-    static RegMask[] CALLINMASK_RISCV = new RegMask[] {
-        RPC_MASK,
-        null,
+    static RegMask[] CALLINMASK = new RegMask[] {
         A0_MASK,
         A1_MASK,
         A2_MASK,
@@ -75,9 +93,7 @@ public class riscv extends Machine{
         A7_MASK
     };
 
-    static RegMask[] CALLINMASK_F = new RegMask[] {
-            RPC_MASK,
-            null,
+    static RegMask[] XMMS = new RegMask[] {
             FA0_MASK,
             FA1_MASK,
             FA2_MASK,
@@ -87,54 +103,210 @@ public class riscv extends Machine{
             FA6_MASK,
             FA7_MASK
     };
+    //                 3   3
+    // R_type opcode: 0011 0011
+    public static int R_TYPE = 0x33;
 
-    static RegMask callInMask(int idx) {
-        return CALLINMASK_RISCV[idx];
+
+    //I_type opcode: 0010 0011
+    public static int I_TYPE = 0x13;
+
+    // 0110 0111
+    public static int I_JALR = 0x67;
+
+    // Since riscv instructions are fixed we can just or them togehter
+    public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
+        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
 
-    // caller saved(riscv)
-    //public static final long RISCV_CALLER_SAVED= TBD
-    // callee saved(riscv)
-    public static final long RISCV_CALLEE_SAVED =
-            (1L << FS0) | (1L << FS1) | (1L << FS2) | (1L << FS3) | (1L << FS4)
-                    | (1L << FS5) | (1L << FS6) | (1L << FS7) | (1L << FS8) | (1L << FS9) | (1L << FS10);
+    public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
+        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3.ordinal() << 12) | (rd << 7) | opcode;
+    }
 
+    public static int u_type(int opcode, int rd, int imm) {
+        return (imm << 12) | (rd << 7) | opcode;
+    }
+
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm) {
+        return (imm << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
+
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm, int func7) {
+        return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
+
+    // S-type instructions(store)
+    public static int s_type(int opcode, int offset1, int func3, int rs1, int rs2, int offset2) {
+        return (offset2 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (offset1 << 7) | opcode;
+    }
+
+    // immf = first imm
+    // immd = second imm
+    // BRANCH
+    public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
+        return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
+    }
+
+    public enum RM {RNE, // Round to Nearest, ties to Even
+        RTZ,  // Round towards Zero
+        RDN, // Round Down
+        RUP, // Round Up
+        DIRECT, // Round to Nearest, ties to Max Magnitude
+        RESERVED1, // Reserved for futue use
+        RESERVED2, // Reserved for future use
+        DYN, // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
+    }
+
+//    public enum FMT {S, // 32-bit single-precision
+//        D,  // 64-bit double-precision
+//        H, // 16-bit half-precision
+//        Q, // 128-bit quad-precision
+//    };
+
+    // slt, (0110011)
+    //
+    // seqz ( sltiu rd, rs, 1 ) - 0001 0011
+    static public int setop(String op) {
+        return switch(op) {
+            case "==" -> 0x33;
+            case "<"  -> 0x33;
+            case "<="  -> 0x13;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+    // Since opcode is the same just return back func3
+    // BEQ: 01100011
+    // BLT: 01100011
+    // BLE: bge rt, rs, offset:
+    static public int jumpop(String op) {
+        return switch(op) {
+            case "=="  -> 0;
+            case "<"   -> 0x4;
+            case "<="  -> 0x5;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+    // Since opcode is the same just return back func3
+    static public int fsetop(String op) {
+        return switch(op) {
+            case "==" -> 0x2;
+            case "<"  -> 0x1;
+            case "<="  -> 0x0;
+            default  ->  throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
+        bytes.write(value);
+        bytes.write(value >> 8);
+        bytes.write(value >> 16);
+        bytes.write(value >> 24);
+    }
+
+    public static void print_as_hex(ByteArrayOutputStream outputStream) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : outputStream.toByteArray()) {
+            hexString.append(String.format("%02X", b));  // Format as uppercase hex without space
+        }
+        System.out.println(hexString.toString());
+    }
+
+//    // rs1 - rs2
+//    public static int r_source(int rs1, int rs2) {
+//        return (rs2 << 4) | rs1;
+//    }
+//    public static int r_func7(int f) {
+//        return f & 7;
+//    }
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        if( idx >= 2 && idx <= 10 && tfp.arg(idx-2) instanceof TypeFloat )
-            return CALLINMASK_F[idx];
-        return CALLINMASK_RISCV[idx];
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat )
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS.length )
+                return XMMS[fcnt];
+        } else {
+            RegMask[] cargs = CALLINMASK;
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Calling conv metadata
-    public int GPR_COUNT_CONV_RISCV = 7;  // A0, A1, A2, A3, A4, A5, A6, A7
-    public int FLOAT_COUNT_CONV_RISCV = 7; // FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7
+    // callee saved(riscv)
+    static final long CALLEE_SAVE =
+        (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
+        (1L<< S4) | (1L<< S5) | (1L<< S6 ) | (1L<< S7 ) |
+        (1L<< S8) | (1L<< S9) | (1L<< S10) | (1L<< S11) |
+        (1L<<FS0) | (1L<<FS1) | (1L<<FS2 ) | (1L<<FS3 ) |
+        (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
+        (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
 
-    public static final String[] REGS = new String[] {
-            "flags","rpc" , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
-            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11",
-    };
+    static final RegMask CALLER_SAVE_MASK;
+    static {
+        long caller = ~CALLEE_SAVE;
+        caller &= ~(1L<<SP);
+        CALLER_SAVE_MASK = new RegMask(caller,0);
+    }
+    static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
+    @Override public RegMask callerSave() { return riscCallerSave(); }
 
-    // General purpose register mask:
-    @Override public String reg( int reg ) { return REGS[reg]; }
+    static final RegMask CALLEE_SAVE_MASK = new RegMask(CALLEE_SAVE);
+    static RegMask riscCalleeSave() { return CALLEE_SAVE_MASK; }
+    @Override public RegMask calleeSave() { return riscCalleeSave(); }
+
+    // Return single int/ptr register.  Used by CallEnd output and Return input.
+    static final RegMask[] RET_MASKS;
+    static {
+        int nSaves = CALLEE_SAVE_MASK.size();
+        RET_MASKS = new RegMask[4 + nSaves];
+        RET_MASKS[0] = null;
+        RET_MASKS[1] = null;     // Memory
+        RET_MASKS[2] = null;     // Varies, either XMM0 or RAX
+        RET_MASKS[3] = RMASK;    // Expected R1 but could be any register really
+        short reg = CALLEE_SAVE_MASK.firstReg();
+        for( int i=0; i<nSaves; i++ ) {
+            RET_MASKS[i+4] = new RegMask(reg);
+            reg = CALLEE_SAVE_MASK.nextReg(reg);
+        }
+    }
+    static RegMask retMask( TypeFunPtr tfp, int i ) {
+        return i==2
+            ? (tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK)
+            : RET_MASKS[i];
+    }
+
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
+
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
         throw Utils.TODO();
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public Node split() { return new SplitRISC();  }
+    @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
 
     // Break an infinite loop
     @Override public IfNode never( CFGNode ctrl ) {
         throw Utils.TODO();
     }
+
+    // True if signed 12-bit immediate
+    private static boolean imm12(TypeInteger ti) {
+        return ti.isConstant() && ((ti.value()<<12)>>12) == ti.value();
+    }
+
+    public static boolean fitsInSigned12Bits(TypeInteger ti) {
+        return ti.value() >= -2048 && ti.value() <= 2047;
+    }
+
 
     @Override public Node instSelect( Node n ) {
         return switch (n) {
@@ -142,9 +314,9 @@ public class riscv extends Machine{
         case AddNode add -> add(add);
         case AndNode and -> and(and);
         case BoolNode bool -> cmp(bool);
-        case CallEndNode cend -> new CallEndRISC(cend);
         case CallNode call -> call(call);
-        case CastNode cast  -> new CastNode(cast);
+        case CastNode cast  -> new CastRISC(cast);
+        case CallEndNode cend -> new CallEndRISC(cend);
         case CProjNode c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode divf -> new DivFRISC(divf);
@@ -156,6 +328,7 @@ public class riscv extends Machine{
         case MulFNode mulf -> new MulFRISC(mulf);
         case MulNode mul -> mul(mul);
         case NewNode nnn -> new NewRISC(nnn);
+        case NotNode not -> new NotRISC(not);
         case OrNode or -> or(or);
         case ParmNode parm -> new ParmRISC(parm);
         case PhiNode phi -> new PhiNode(phi);
@@ -184,16 +357,14 @@ public class riscv extends Machine{
     }
 
     private Node add(AddNode add) {
-        Node rhs = add.in(2);
-        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            return new AddIRISC(add, toff);
-        }
+        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+            return new AddIRISC(add, (int)ti.value());
         return new AddRISC(add);
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new AndIRISC(and, ti);
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+            return new AndIRISC(and, (int)ti.value());
         return new AndRISC(and);
     }
 
@@ -204,80 +375,80 @@ public class riscv extends Machine{
     }
 
     private Node cmp(BoolNode bool) {
-        Node cmp = _cmp(bool);
-        return new SetRISC(cmp, bool.op());
-    }
+        // use zero reg or
+        // slti	Set Less Than Immediate	slti rd, rs1, imm
+        boolean imm = false;
 
-    private Node _cmp(BoolNode bool) {
+        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff && (bool.op().equals("<"))) {
+            if(toff.value() == 0) imm = true;
+            return new SetIRISC(bool, (int)toff.value());
+        }
+
         // Float variant
-        if( bool instanceof BoolNode.EQF ||
-            bool instanceof BoolNode.LTF ||
-            bool instanceof BoolNode.LEF )
-            return new CmpFRISC(bool);
+        if( bool.isFloat() )
+            return new SetFRISC(bool);
 
-        Node rhs = bool.in(2);
-        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new CmpIRISC(bool, ti)
-                : new CmpRISC(bool);
+        return new SetRISC(bool, imm);
     }
 
     private Node con( ConstantNode con ) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
         case TypeInteger ti  -> new IntRISC(con);
-        case TypeFloat   tf  -> new IntRISC(con);
+        case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
-        case TypeMemPtr  tmp -> new ConstantNode(con);
+        case TypeMemPtr  tmp -> throw Utils.TODO();
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
         };
     }
 
     private Node jmp( IfNode iff ) {
-        // If/Bool combos will match to a Cmp/Set which sets flags.
-        // Most general arith ops will also set flags, which the Jmp needs directly.
-        // Loads do not set the flags, and will need an explicit TEST
-        if( !(iff.in(1) instanceof BoolNode) )
-            iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new CBranchRISC(iff, ((BoolNode)iff.in(1)).op());
+        if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() ) {
+            // if less than or equal switch inputs
+            if (bool.op().equals("<=")) return new BranchRISC(iff, bool.op(), bool.in(2), bool.in(1));
+            return new BranchRISC(iff, bool.op(), bool.in(1), bool.in(2));
+        }
+
+        // Vs zero
+        return new BranchRISC(iff, "==", iff.in(1), null);
     }
 
     private Node or(OrNode or) {
-        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new OrIRISC(or, ti);
-
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+            return new OrIRISC(or, (int)ti.value());
         return new OrRISC(or);
     }
 
     private Node xor(XorNode xor) {
-        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new XorIRISC(xor, ti);
+        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+            return new XorIRISC(xor, (int)ti.value());
         return new XorRISC(xor);
     }
 
     private Node sra(SarNode sar) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SraIRISC(sar, ti);
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+            return new SraIRISC(sar, (int)ti.value());
         return new SraRISC(sar);
     }
 
     private Node srl(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SrlIRISC(shr, ti);
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+            return new SrlIRISC(shr, (int)ti.value());
         return new SrlRISC(shr);
     }
 
     private Node sll(ShlNode sll) {
-        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new SllIRISC(sll, ti);
+        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+            return new SllIRISC(sll, (int)ti.value());
         return new SllRISC(sll);
     }
 
     private Node sub(SubNode sub) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new AddIRISC(sub, TypeInteger.constant(-ti.value()))
-                : new SubRISC(sub);
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti)
+            ? new AddIRISC(sub, (int)(-ti.value()))
+            : new SubRISC(sub);
     }
 
     private Node i2f8(ToFloatNode tfn) {
@@ -290,9 +461,7 @@ public class riscv extends Machine{
     }
 
     private Node mul(MulNode mul) {
-        return mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new MulIRISC(mul, ti)
-                : new MulRISC(mul);
+                return new MulRISC(mul);
     }
 
     private Node ld(LoadNode ld) {
@@ -300,14 +469,10 @@ public class riscv extends Machine{
     }
 
     private Node st(StoreNode st) {
-        int imm=0;
         Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
             xval = null;
-            imm = (int)ti.value();
-            assert imm == ti.value(); // In 32-bit range
-        }
-        return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);
+        return new StoreRISC(address(st),st.ptr(),off, idx == null ? st.ptr() : new AddRISC(st.ptr(), idx), xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder
@@ -322,7 +487,7 @@ public class riscv extends Machine{
         // Skip/throw-away a ReadOnly, only used to typecheck
         if( base instanceof ReadOnlyNode read ) base = read.in(1);
         assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
-        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) ) {
             off = (int)ti.value();
             assert off == ti.value(); // In 32-bit range
         } else {

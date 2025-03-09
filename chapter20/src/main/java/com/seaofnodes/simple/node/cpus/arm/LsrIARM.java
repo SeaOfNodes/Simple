@@ -25,18 +25,16 @@ public class LsrIARM extends MachConcreteNode implements MachNode{
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return arm.RMASK; }
 
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 0; }
-
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // force register form instead of imm form
+        return 0;
     }
 
     // General form
     // General form: "lsrl rd, rs1, imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >> #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >>> #");
         _ti.print(sb);
     }
 

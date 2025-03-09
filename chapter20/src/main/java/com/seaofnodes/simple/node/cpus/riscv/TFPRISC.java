@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -16,9 +17,29 @@ public class TFPRISC extends ConstantNode implements MachNode{
     // General int registers
     @Override public RegMask outregmap() { return riscv.WMASK; }
 
+    @Override public boolean isClone() { return true; }
+    @Override public TFPRISC copy() { return new TFPRISC(this); }
+
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // load function pointer into a reg
+        // addi x2, x1, m
+        // x1 is the base address.
+        // m is the immediate offset.
+        // x2 will hold the computed address.
+
+        LRG tfp_rg = CodeGen.CODE._regAlloc.lrg(this);
+
+        //TODO: relocs
+        short rd = tfp_rg.get_reg();
+        // assume x2 = x1 are same for now
+        int beforeSize = bytes.size();
+
+        int body = riscv.i_type(riscv.I_TYPE, rd, 0, rd, 0);
+
+        riscv.push_4_bytes(body, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

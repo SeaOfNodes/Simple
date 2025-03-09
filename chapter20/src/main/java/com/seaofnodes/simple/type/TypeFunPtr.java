@@ -43,7 +43,8 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr BOT   = make((byte)3,TypeTuple.BOT,Type.BOTTOM,-1);
     public static TypeFunPtr TEST  = make((byte)2,TypeTuple.TEST,TypeInteger.BOT,1);
     public static TypeFunPtr TEST0 = make((byte)3,TypeTuple.TEST,TypeInteger.BOT,3);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); }
+    public static TypeFunPtr MAIN  = make((byte)3,TypeTuple.MAIN,TypeInteger.BOT,-1);
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); }
 
     @Override
     Type xmeet(Type t) {

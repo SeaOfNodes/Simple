@@ -29,13 +29,23 @@ abstract public class BuildLRG {
                     if( lrg==null ) lrg = alloc.newLRG(n);
                     if( phi instanceof MachNode mach ) defLRG(alloc,n);
                     // Pass 2: everybody uses the same LRG
-                    alloc.union(lrg,phi);
+                    lrg=alloc.union(lrg,phi);
                     for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
-                        alloc.union(lrg,n.in(i));
+                        lrg=alloc.union(lrg,n.in(i));
                     if( lrg._mask!=null && lrg._mask.isEmpty() )
                         alloc.fail(lrg);
 
                 } else if( n instanceof MachNode mach ) {
+                    // Attempt to commute ops to keep live ranges compatible.
+                    if( mach.commutes() && n.nOuts()==1 ) {
+                        int uidx = n.out(0)._inputs.find(n);
+                        RegMask mask1 = n.in (1) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(1))._mask;
+                        RegMask mask2 = n.in (2) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(2))._mask;
+                        RegMask masko = n.out(0) instanceof MachNode machx ? machx.regmap(uidx): alloc.lrg(n      )._mask;
+                        if( !mask1.overlap(masko) && mask2.overlap(masko) )
+                            n.swap12();
+                    }
+
                     // Define live range
                     defLRG(alloc,n);
 
@@ -53,12 +63,11 @@ abstract public class BuildLRG {
 
                 }
 
-                // MultiNodes have projections which set/kill registers
+                // MultiNodes have projections which set registers
                 if( n instanceof MultiNode )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )
                             defLRG(alloc,proj);
-
             }
 
         // Collect live ranges

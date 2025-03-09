@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -21,12 +22,52 @@ public class IntX86 extends ConstantNode implements MachNode {
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
+    // Zero-set uses XOR kills flags
+    @Override public RegMask killmap() {
+        return _con == Type.NIL || _con == TypeInteger.ZERO ? x86_64_v2.FLAGS_MASK : null;
+    }
+
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new IntX86(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Simply move the constant into a GPR
+        // Conditional encoding based on 64 or 32 bits
+        //REX.W + C7 /0 id	MOV r/m64, imm32
+        LRG gpr_con = CodeGen.CODE._regAlloc.lrg(this);
+        short gpr_reg = gpr_con.get_reg();
+
+        boolean enc32; // assume 32 bits by default
+
+        int beforeSize = bytes.size();
+        bytes.write(x86_64_v2.rex(0, gpr_reg, 0));
+
+        // immediate(4 bytes) 32 bits or 64 bits(8 bytes)
+        TypeInteger ti = (TypeInteger)_con;
+        long imm32_64 = ti.value();
+
+        enc32 = imm32_64 >= Integer.MIN_VALUE && imm32_64 <= Integer.MAX_VALUE;
+
+        if(enc32) bytes.write(0xC7); // 32 bits encoding
+        else {
+            bytes.write(0xB8 + (gpr_reg & 0x07));
+        }  // 64 bits encoding
+
+        if (enc32) {
+            bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x00, gpr_reg));
+            x86_64_v2.imm((int)imm32_64, 32, bytes);
+        } else {
+            // just assume 64 bits for now, (folds into two 32 bit imm call)
+            int lower32 = (int)(imm32_64 & 0xFFFFFFFFL);
+            int upper32 = (int)((imm32_64 >> 32) & 0xFFFFFFFFL);
+
+            x86_64_v2.imm(lower32, 32, bytes);
+
+            x86_64_v2.imm(upper32, 32, bytes);
+        }
+
+        return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,
@@ -38,7 +79,7 @@ public class IntX86 extends ConstantNode implements MachNode {
         if( _con == Type.NIL || _con == TypeInteger.ZERO )
             sb.p(reg).p(",").p(reg);
         else
-            _con.print(sb.p(reg).p(" #"));
+            _con.print(sb.p(reg).p(" = #"));
     }
 
     @Override public String op() {

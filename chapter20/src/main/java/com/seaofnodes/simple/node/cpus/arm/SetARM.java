@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -28,7 +29,7 @@ public class SetARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        return 0;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

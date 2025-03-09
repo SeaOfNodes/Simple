@@ -14,32 +14,32 @@ import java.io.ByteArrayOutputStream;
 public class RetARM extends ReturnNode implements MachNode {
     RetARM(ReturnNode ret, FunNode fun) { super(ret, fun); fun.setRet(this); }
 
-    // Todo: postSelect
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        return switch( i ) {
-            case 0 -> null;
-            case 1 -> null;
-            case 2 -> _fun.sig()._ret instanceof TypeFloat ?arm.RET_FMASK : arm.RET_MASK;
-            case 3 -> null; // RPC is always on stack
-            default -> throw Utils.TODO();
-        };
-    }
+    @Override public RegMask regmap(int i) { return arm.retMask(_fun.sig(),i); }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        int beforeSize = bytes.size();
+        // default it to x30
+        int body = arm.ret(3512256);
+        arm.push_4_bytes(body, bytes);
+        return bytes.size() - beforeSize;
     }
 
-    // Human-readable form appended to the SB.  Things like the encoding,
-    // indentation, leading address or block labels not printed here.
-    // Just something like "ld4\tR17=[R18+12] // Load array base".
-    // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(2)));
+        // Post code-gen, just print the "ret"
+        if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
+            // Prints return reg (either X0 or D0), RPC (always R30) and
+            // then the callee-save registers.
+            for( int i=2; i<nIns(); i++ )
+                sb.p(code.reg(in(i))).p("  ");
+
+        // Post-allocation, if we did not get the expected return register, print what we got
+        else if( code._regAlloc.regnum(in(3)) != arm.X30 )
+            sb.p("[").p(code.reg(in(3))).p("]");
     }
 
     // Correct Nodes outside the normal edges

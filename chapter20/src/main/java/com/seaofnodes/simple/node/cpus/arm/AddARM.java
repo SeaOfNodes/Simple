@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -18,12 +19,23 @@ public class AddARM extends MachConcreteNode implements MachNode {
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return arm.RMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 0; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        LRG add_self = CodeGen.CODE._regAlloc.lrg(this);
+        LRG add_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
+        LRG add_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
+
+        short self = add_self.get_reg();
+        short reg1 = add_rg_1.get_reg();
+        short reg2 = add_rg_2.get_reg();
+
+        int beforeSize = bytes.size();
+
+        int body = arm.r_reg(139, 0, reg2, 0,  reg1, self);
+        arm.push_4_bytes(body, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // General form: "rd = rs1 + rs2"
