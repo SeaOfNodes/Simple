@@ -19,7 +19,6 @@ public class NewRISC extends NewNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // call to malloc
-
         LRG call_self = CodeGen.CODE._regAlloc.lrg(this);
         short rd = call_self.get_reg();
 

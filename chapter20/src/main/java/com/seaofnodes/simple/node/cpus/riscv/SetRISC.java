@@ -45,7 +45,7 @@ public class SetRISC extends MachConcreteNode implements MachNode {
             }
             int body = riscv.r_type(riscv.R_TYPE, reg,  riscv.setop("<"), reg_in_1,  reg_in_2, 0);
             riscv.push_4_bytes(body, bytes);
-        } else if(_bop.equals("=")) {
+        } else if(_bop.equals("==")) {
             // xor t0, a0, a1  # XOR a0 and a1; result is 0 if they are equal
 
             if(_imm) {

@@ -27,8 +27,8 @@ import java.util.BitSet;
 
 
 public class StoreARM extends MemOpARM {
-    StoreARM(StoreNode st, Node base, Node idx, int off, int imm, Node val) {
-        super(st, base, idx, off, imm, val);
+    StoreARM(StoreNode st, Node base, Node idx, int off, Node val) {
+        super(st, base, idx, off, 0, val);
     }
 
     // Wider mask to store both GPRs and FPRs

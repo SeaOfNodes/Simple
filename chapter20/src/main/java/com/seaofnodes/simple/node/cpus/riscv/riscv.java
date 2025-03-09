@@ -328,6 +328,7 @@ public class riscv extends Machine {
         case MulFNode mulf -> new MulFRISC(mulf);
         case MulNode mul -> mul(mul);
         case NewNode nnn -> new NewRISC(nnn);
+        case NotNode not -> new NotRISC(not);
         case OrNode or -> or(or);
         case ParmNode parm -> new ParmRISC(parm);
         case PhiNode phi -> new PhiNode(phi);
@@ -377,6 +378,7 @@ public class riscv extends Machine {
         // use zero reg or
         // slti	Set Less Than Immediate	slti rd, rs1, imm
         boolean imm = false;
+
         if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff && (bool.op().equals("<"))) {
             if(toff.value() == 0) imm = true;
             return new SetIRISC(bool, (int)toff.value());

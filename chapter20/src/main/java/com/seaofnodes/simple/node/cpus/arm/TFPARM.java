@@ -2,9 +2,11 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
@@ -19,7 +21,19 @@ public class TFPARM extends ConstantNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Todo: relocs
+        // LDR (immediate)
+        LRG tfp_rg = CodeGen.CODE._regAlloc.lrg(this);
+
+        short rd = tfp_rg.get_reg();
+
+        int beforeSize = bytes.size();
+
+        int body = arm.load_adr(1986,0, 0, rd);
+
+        riscv.push_4_bytes(body, bytes);
+
+        return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

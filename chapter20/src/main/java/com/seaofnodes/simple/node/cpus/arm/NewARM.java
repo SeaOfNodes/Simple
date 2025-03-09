@@ -19,7 +19,13 @@ public class NewARM extends NewNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // mov x0, size
+        // bl
+        // Todo: relocs
+        int beforeSize = bytes.size();
+        int body = arm.b(37, 0);
+        arm.push_4_bytes(body, bytes);
+        return bytes.size() - beforeSize;
     }
 
     // General form: "alloc #bytes"

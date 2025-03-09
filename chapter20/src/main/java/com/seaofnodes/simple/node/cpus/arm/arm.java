@@ -117,6 +117,17 @@ public class arm extends Machine {
         SXTX,
     }
 
+    static public String invert(String op) {
+        return switch (op) {
+            case "==" -> "!=";
+            case "!=" -> "==";
+            case ">" -> "<=";
+            case "<" -> ">=";
+            case ">=" -> "<";
+            case "<=" -> ">";
+            default -> throw new IllegalStateException("Unexpected value: " + op);
+        };
+    }
     public enum COND {
         EQ,
         NE,
@@ -143,8 +154,8 @@ public class arm extends Machine {
     }
 
     // sh is encoded in opcdoe
-    public static int imm_inst(int opcode, int imm2, int rn, int rd) {
-        return (opcode << 22) | (imm2 << 10) | (rn << 5) | rd;
+    public static int imm_inst(int opcode, int imm12, int rn, int rd) {
+        return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
 
     // logical immediates
@@ -184,6 +195,15 @@ public class arm extends Machine {
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
         return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
     }
+
+    public static int load_adr(int opcode, int offset, int base, int rt) {
+        return (opcode << 21) | (offset << 12) | (3 << 10) | (base << 5) | rt;
+    }
+
+    public static int indr_adr(int opcode, int rm, int option, int s, int rn, int rt) {
+        return (opcode << 21) | (rm << 16) | (option << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
+    }
+
     // encoding for vcvt, size is encoded in operand
     // <Qd>, <Qm>
     // F32.S32
@@ -194,10 +214,26 @@ public class arm extends Machine {
         return (opcode_1 << 28) | (opcode_2 << 24) | (opcode_3 << 20) | (opcode_4 << 16) |
                 (vd << 12) | (0x01100010 << 4) | vm;
     }
+    // ftype = 3
+    public static int f_cmp(int opcode, int ftype, int rm, int rn) {
+        return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
+    }
 
     // Todo: maybe missing zero here after label << 5
     public static int b_cond(int opcode, int label, COND cond) {
         return (opcode << 24) | (label << 5) | cond.ordinal();
+    }
+
+    public static int cond_set(int opcode, int rm, COND cond, int rn, int rd) {
+        return (opcode << 21) | (rm << 16) | (cond.ordinal() << 12) | (rn << 5) | rd;
+    }
+
+    public static int b(int opcode, int imm26) {
+        return (opcode << 26) | imm26;
+    }
+
+    public static int load_str_imm(int opcode, int imm9, int rn, int rt) {
+        return (opcode << 21) | (imm9 << 12) |(1 << 10) |(rn << 5) | rt;
     }
 
     public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
@@ -304,7 +340,8 @@ public class arm extends Machine {
             case MulFNode     mulf  -> new MulFARM(mulf);
             case MulNode      mul   -> mul(mul);
             case NewNode      nnn   -> new NewARM(nnn);
-            case OrNode       or   ->  or(or);
+            case NotNode      not   -> new NotARM(not);
+            case OrNode       or    ->  or(or);
             case ParmNode     parm  -> new ParmARM(parm);
             case PhiNode      phi   -> new PhiNode(phi);
             case ProjNode     prj   -> prj(prj);
@@ -351,7 +388,7 @@ public class arm extends Machine {
         // Loads do not set the flags, and will need an explicit TEST
         if( !(iff.in(1) instanceof BoolNode) )
             iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new BranchARM(iff, ((BoolNode)iff.in(1)).op());
+        return new BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
     }
 
     private Node _cmp(BoolNode bool) {
@@ -450,15 +487,10 @@ public class arm extends Machine {
     private static int off;
     private static Node idx;
     private Node st(StoreNode st) {
-        int imm=0;
         Node xval = st.val();
-        // e.g store this                     s.cs[0] =  67; // C
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
             xval = null;
-            imm = (int)ti.value();
-            assert imm == ti.value(); // In 32-bit range
-        }
-        return new StoreARM(address(st),st.ptr(),idx,off,imm,xval);
+        return new StoreARM(address(st),st.ptr(),idx,off,xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder

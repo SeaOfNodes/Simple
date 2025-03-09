@@ -22,7 +22,12 @@ public class CallRRARM extends CallNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // bl
+        // Todo: relocs
+        int beforeSize = bytes.size();
+        int body = arm.b(37, 0);
+        arm.push_4_bytes(body, bytes);
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

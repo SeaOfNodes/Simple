@@ -13,7 +13,7 @@ import java.lang.StringBuilder;
 import java.util.BitSet;
 
 
-public class MemOpRISC extends MemOpNode implements MachNode {
+public abstract class MemOpRISC extends MemOpNode implements MachNode {
     final int _off;             // Limit 32 bits     // Limit 32 bits
     final char _sz = (char)('0'+(1<<_declaredType.log_size()));
     MemOpRISC(MemOpNode mop, Node base, Node idx, int off, Node val) {
@@ -44,8 +44,6 @@ public class MemOpRISC extends MemOpNode implements MachNode {
         if(i == 4) return riscv.MEM_MASK; // value
         throw Utils.TODO();
     }
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { throw Utils.TODO(); }
 
     @Override public int encoding(ByteArrayOutputStream bytes) {
         switch (this) {
