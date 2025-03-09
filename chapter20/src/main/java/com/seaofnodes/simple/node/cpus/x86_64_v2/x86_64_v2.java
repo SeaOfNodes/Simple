@@ -148,17 +148,6 @@ public class x86_64_v2 extends Machine {
         bytes.write(x86_64_v2.modrm(MOD.DIRECT, reg1, reg2));
     }
 
-    public static void print_as_hex(ByteArrayOutputStream outputStream) {
-
-        byte[] encodedBytes = outputStream.toByteArray();
-
-        for (byte b : encodedBytes) {
-
-            System.out.print(String.format("%02X ", b));
-        }
-
-        System.out.println();
-    }
 
     public static int modrm(MOD mod, int reg, int m_r) {
         // combine all the bits

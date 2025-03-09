@@ -3,9 +3,12 @@ package com.seaofnodes.simple.node.cpus.arm;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.type.TypeInteger;
+
 import java.io.ByteArrayOutputStream;
 
 //FMOV (scalar, immediate)
@@ -23,7 +26,17 @@ public class FloatARM extends ConstantNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // ENCODING for the 64-bit to double-precision variant
+        int beforeSize = bytes.size();
+        LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
+
+        short rd_reg = frd_self.get_reg();
+        TypeInteger ti = (TypeInteger)_con;
+        long imm32_64 = ti.value();
+
+        int body = arm.f_mov(30, 1, (int)imm32_64, rd_reg);
+        arm.push_4_bytes(body, bytes);
+        return bytes.size() - beforeSize;
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

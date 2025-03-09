@@ -299,8 +299,20 @@ public class CodeGen {
         return this;
     }
 
+    public static void print_as_hex(ByteArrayOutputStream outputStream) {
+
+        byte[] encodedBytes = outputStream.toByteArray();
+
+        for (byte b : encodedBytes) {
+
+            System.out.print(String.format("%02X ", b));
+        }
+
+        System.out.println();
+    }
+
     // Debug purposes for now
-    public CodeGen printENCODINGX64() {
+    public CodeGen printENCODING() {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
             for(Node bb : CodeGen.CODE._cfg) {
@@ -311,26 +323,11 @@ public class CodeGen {
                 }
             }
 
-
+        print_as_hex(outputStream);
         // Get the raw bytes from the output stream
-        x86_64_v2.print_as_hex(outputStream); // Move to the next line after printing
         return this;
     }
 
-    public CodeGen printENCODINGRISCV() {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        for(Node bb : CodeGen.CODE._cfg) {
-            for(Node n: bb.outs()) {
-                if(n instanceof MachNode) {
-                    ((MachNode) n).encoding(outputStream);
-                }
-            }
-        }
-        riscv.print_as_hex(outputStream);
-
-        return this;
-    }
     public String reg(Node n) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
             String s = _regAlloc.reg(n);

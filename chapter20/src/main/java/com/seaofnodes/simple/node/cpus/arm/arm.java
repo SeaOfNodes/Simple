@@ -7,6 +7,8 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
+import java.io.ByteArrayOutputStream;
+
 public class arm extends Machine {
 
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
@@ -104,6 +106,106 @@ public class arm extends Machine {
         D6_MASK,
         D7_MASK,
     };
+
+    // ARM ENCODING
+    public enum OPTION {UXTB,
+        UXTH,
+        UXTX,
+        SXTB,
+        SXTH,
+        SXTW,
+        SXTX,
+    }
+
+    public enum COND {
+        EQ,
+        NE,
+        CS,
+        CC,
+        MI,
+        PL,
+        VS,
+        VC,
+        HI,
+        LS,
+        GE,
+        LT,
+        GT,
+        LE,
+        AL,
+        NV
+    }
+
+    // extra 1 is enoded in opt
+    // sf is encoded in opcode
+    public static int inst(int opcode, int opt,  int rm ,OPTION option, int immm3, int rn, int rd) {
+        return (opcode << 24) | (opt << 21) | (rm << 16) | (option.ordinal() << 13) | (immm3 << 10) | (rn << 5) << rd;
+    }
+
+    // sh is encoded in opcdoe
+    public static int imm_inst(int opcode, int imm2, int rn, int rd) {
+        return (opcode << 22) | (imm2 << 10) | (rn << 5) | rd;
+    }
+
+    // logical immediates
+    // sf is encoded in opcode as well as "opc" and "N"
+    public static int logic_imm(int opcode, int immr, int imms, int rn, int rd) {
+        return (opcode << 22) | (immr << 16) | (imms << 10) | (rn << 5) | rd;
+    }
+
+    // for normal add, reg1, reg2 cases (reg-to-reg)
+    // using shifted-reg form
+    public static int r_reg(int opcode, int shift, int rm, int imm6, int rn, int rd) {
+        return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) << (rn << 5) | rd;
+    }
+
+    public static int shift_reg(int opcode, int rm, int op2, int rn, int rd) {
+        return (opcode << 21) | (rm << 16) | (op2 << 10) | (rn << 5) | rd;
+    }
+
+    //  MUL can be considered an alias for MADD with the third operand Ra being set to 0
+    public static int madd(int opcode, int rm, int ra, int rn, int rd) {
+        return (opcode << 21) | (rm << 16) | (ra << 10) | (rn << 5) | rd;
+    }
+
+    // encodes movk
+    public static int mov(int opcode, int shift, int imm16, int rd) {
+            return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
+    }
+
+    public static int ret(int opcode, int rn, int rm) {
+        return (opcode << 10) | (rn << 5) | rm;
+    }
+
+    public static int f_mov(int opcode, int ftype,  int imm8, int rd) {
+        return (opcode << 24) | (ftype << 22) | (imm8 << 13) | (128 << 5) | rd;
+    }
+
+    public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
+        return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
+    }
+    // encoding for vcvt, size is encoded in operand
+    // <Qd>, <Qm>
+    // F32.S32
+    //encoded as op = 0b00, size = 0b10.
+    // VCVT<c>.<Td>.<Tm> <Dd>, <Dm>
+    // opcode is broken down into 4 pieces
+    public static int f_convert(int opcode_1, int opcode_2, int opcode_3, int opcode_4,  int vd, int vm)  {
+        return (opcode_1 << 28) | (opcode_2 << 24) | (opcode_3 << 20) | (opcode_4 << 16) |
+                (vd << 12) | (0x01100010 << 4) | vm;
+    }
+
+    // Todo: maybe missing zero here after label << 5
+    public static int b_cond(int opcode, int label, COND cond) {
+        return (opcode << 24) | (label << 5) | cond.ordinal();
+    }
+
+    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
+        bytes.write(value);
+        bytes.write(value >> 8);
+        bytes.write(value >> 16);
+        bytes.write(value >> 24);
+    }
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
@@ -226,12 +328,9 @@ public class arm extends Machine {
     }
 
     private Node mul(MulNode mul) {
-        Node rhs = mul.in(2);
-        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            return new MulIARM(mul, toff);
-        }
         return new MulARM(mul);
     }
+
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
         return new SetARM(cmp, bool.op());
@@ -287,21 +386,21 @@ public class arm extends Machine {
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new AndIARM(and, ti);
+//        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+//            return new AndIARM(and, ti);
         return new AndARM(and);
     }
 
     private Node or(OrNode or) {
-        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new OrIARM(or, ti);
+//        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+//            return new OrIARM(or, ti);
 
         return new OrARM(or);
     }
 
     private Node xor(XorNode xor) {
-        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new XorIARM(xor, ti);
+//        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+//            return new XorIARM(xor, ti);
         return new XorARM(xor);
     }
 
@@ -319,21 +418,21 @@ public class arm extends Machine {
     }
 
     private Node sar(SarNode sar){
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new AsrIARM(sar, ti);
+//        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+//            return new AsrIARM(sar, ti);
         return new AsrARM(sar);
     }
 
     private Node shl(ShlNode shl) {
-        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new LslIARM(shl, ti);
+//        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+//            return new LslIARM(shl, ti);
         return new LslARM(shl);
 
     }
 
     private Node shr(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-            return new LsrIARM(shr, ti);
+//        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+//            return new LsrIARM(shr, ti);
         return new LsrARM(shr);
     }
 

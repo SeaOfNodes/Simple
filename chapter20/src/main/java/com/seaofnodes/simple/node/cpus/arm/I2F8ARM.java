@@ -3,13 +3,14 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-// VCVT (between floating-point and integer)
+
 public class I2F8ARM extends MachConcreteNode implements MachNode {
     I2F8ARM(Node i2f8) {super(i2f8);}
 
@@ -20,7 +21,20 @@ public class I2F8ARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // VCVT.F32.S32
+
+        LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
+        LRG rs1_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
+
+
+        short reg_self = frd_self.get_reg();
+        short reg1 = rs1_rg_1.get_reg();
+
+        int beforeSize = bytes.size();
+        int body = arm.f_convert(0x1111, 0x1111, 0x1D11, 0x1011, reg_self, reg1);
+
+        riscv.push_4_bytes(body, bytes);
+        return bytes.size() - beforeSize;
     }
 
     // General form: "i2f8 (flt)int_value"

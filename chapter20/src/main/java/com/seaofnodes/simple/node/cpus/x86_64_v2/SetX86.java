@@ -39,10 +39,8 @@ public class SetX86 extends MachConcreteNode implements MachNode {
         bytes.write(0x0F); // opcode
 
         bytes.write(x86_64_v2.setop(_bop));
-        x86_64_v2.print_as_hex(bytes);
 
         bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, reg));
-        x86_64_v2.print_as_hex(bytes);
 
         // low 8 bites are set, now zero extend for next instruction
         x86_64_v2.zero_extend(reg, reg, bytes);

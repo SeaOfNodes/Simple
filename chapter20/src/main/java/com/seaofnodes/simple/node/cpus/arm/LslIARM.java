@@ -28,7 +28,8 @@ public class LslIARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // force register form instead of imm form
+        return 0;
     }
 
     // General form
