@@ -39,7 +39,7 @@ public class OrARM extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        int body = arm.r_reg(0x170, 0, reg2, 0,  reg1, self);
+        int body = arm.r_reg(170, 0, reg2, 0,  reg1, self);
         arm.push_4_bytes(body, bytes);
 
         return bytes.size() - beforeSize;

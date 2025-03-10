@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.simple.node.MachConcreteNode;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.LRG;
@@ -8,11 +10,11 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-public class AddIARM extends MachConcreteNode implements MachNode {
+public class SubIARM extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
 
-    AddIARM(Node add, TypeInteger ti) {
-        super(add);
+    SubIARM(Node sub, TypeInteger ti) {
+        super(sub);
         _inputs.pop();
         _ti = ti;
     }
@@ -34,8 +36,6 @@ public class AddIARM extends MachConcreteNode implements MachNode {
     @Override
     public int encoding(ByteArrayOutputStream bytes) {
         // Todo: how to handle more than 12 bits
-        // Only unsigned - need specific op for minus imm
-
         LRG rg_1 = CodeGen.CODE._regAlloc.lrg(this);
         LRG rg_2 = CodeGen.CODE._regAlloc.lrg(in(1));
 
@@ -46,22 +46,22 @@ public class AddIARM extends MachConcreteNode implements MachNode {
 
         int imm = (int)_ti.value();
 
-        int body = arm.imm_inst(580, imm, reg_1, rd);
+        int body = arm.imm_inst(836, imm, reg_1, rd);
 
         arm.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;
     }
 
-    // General form: "addi  rd = rs1 + imm"
+    // General form: "subi  rd = rs1 - imm"
     @Override
     public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + #");
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" - #");
         _ti.print(sb);
     }
 
     @Override
     public String op() {
-        return _ti.value() == 1 ? "inc" : (_ti.value() == -1 ? "dec" : "addi");
+        return (_ti.value() == -1 ? "dec" : "subi");
     }
 
 }

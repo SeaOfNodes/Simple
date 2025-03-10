@@ -30,7 +30,7 @@ public class MulFARM extends MachConcreteNode implements MachNode{
 
         int beforeSize = bytes.size();
 
-        int body = arm.f_scalar(30, 1,  reg2, 2,  reg1, self);
+        int body = arm.f_scalar(30, 1,  reg2 - arm.D_OFFSET, 2,  reg1 - arm.D_OFFSET, self - arm.D_OFFSET);
         riscv.push_4_bytes(body, bytes);
 
         return bytes.size() - beforeSize;

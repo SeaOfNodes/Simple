@@ -19,7 +19,6 @@ public class DivFARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-
         // FDIV(scalar) - encoding for the double-precision variant
         LRG fdiv_self = CodeGen.CODE._regAlloc.lrg(this);
         LRG fdiv_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
@@ -31,7 +30,7 @@ public class DivFARM extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        int body = arm.f_scalar(30, 1,  reg2, 6,  reg1, self);
+        int body = arm.f_scalar(30, 1,  reg2 - arm.D_OFFSET, 6,  reg1 - arm.D_OFFSET, self - arm.D_OFFSET);
         riscv.push_4_bytes(body, bytes);
 
         return bytes.size() - beforeSize;

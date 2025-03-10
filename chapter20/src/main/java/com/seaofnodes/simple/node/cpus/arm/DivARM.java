@@ -32,7 +32,7 @@ public class DivARM extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        int body = arm.madd(0x1238,  reg2,0x3, reg1, self);
+        int body = arm.madd(1238,  reg2,3, reg1, self);
 
         arm.push_4_bytes(body, bytes);
 

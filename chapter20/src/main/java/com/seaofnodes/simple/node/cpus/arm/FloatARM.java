@@ -35,7 +35,7 @@ public class FloatARM extends ConstantNode implements MachNode {
         short rd_reg = frd_self.get_reg();
         TypeFloat ti = (TypeFloat) _con;
         // types is = 01 but includes extra 1 bit
-        int body = arm.f_mov(30, 3, (int)ti.value(), rd_reg);
+        int body = arm.f_mov(30, 3, (int)ti.value(), rd_reg - arm.D_OFFSET);
 
         arm.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;

@@ -12,7 +12,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class XorARM extends MachConcreteNode implements MachNode{
-    XorARM(Node xor) {super(xor); _inputs.pop();}
+    XorARM(Node xor) {super(xor);}
 
     // Register mask allowed on input i.
     // This is the normal calling convention

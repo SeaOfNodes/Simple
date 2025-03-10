@@ -32,7 +32,7 @@ public class MulARM extends MachConcreteNode implements MachNode{
 
         int beforeSize = bytes.size();
 
-        int body = arm.madd(0x1240,  reg2,0x31, reg1, self);
+        int body = arm.madd(1240,  reg2,31, reg1, self);
 
         arm.push_4_bytes(body, bytes);
 

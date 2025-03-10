@@ -37,7 +37,7 @@ public class AsrARM extends MachConcreteNode implements MachNode {
 
         int beforeSize = bytes.size();
 
-        int body = arm.shift_reg(1238, reg2, 0x10,  reg1, self);
+        int body = arm.shift_reg(1238, reg2, 10,  reg1, self);
         arm.push_4_bytes(body, bytes);
 
         return bytes.size() - beforeSize;

@@ -26,6 +26,7 @@ public class arm extends Machine {
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
+    static final int D_OFFSET = 31;
     static final int FLAGS = 60;
 
     static final String[] REGS = new String[] {
@@ -190,7 +191,7 @@ public class arm extends Machine {
 
     // FMOV (scalar, immediate)
     public static int f_mov(int opcode, int ftype,  int imm8, int rd) {
-        return (opcode << 24) | (ftype << 22) |(imm8 << 13) | (128 << 5) | rd;
+        return (opcode << 24) | (ftype << 21) |(imm8 << 13) | (128 << 5) | rd;
     }
 
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
@@ -423,7 +424,7 @@ public class arm extends Machine {
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new AddIARM(sub, TypeInteger.constant(-ti.value()))
+                ? new SubIARM(sub, TypeInteger.constant(ti.value()))
                 : new SubARM(sub);
     }
 

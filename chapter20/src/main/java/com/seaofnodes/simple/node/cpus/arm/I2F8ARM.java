@@ -30,7 +30,7 @@ public class I2F8ARM extends MachConcreteNode implements MachNode {
         short reg1 = rs1_rg_1.get_reg();
 
         int beforeSize = bytes.size();
-        int body = arm.float_cast(158, 1, reg1, reg_self);
+        int body = arm.float_cast(158, 1, reg1, reg_self - arm.D_OFFSET);
 
         riscv.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;
