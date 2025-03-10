@@ -155,21 +155,9 @@ public class arm extends Machine {
         NV
     }
 
-    // extra 1 is enoded in opt
-    // sf is encoded in opcode
-    public static int inst(int opcode, int opt,  int rm ,OPTION option, int immm3, int rn, int rd) {
-        return (opcode << 24) | (opt << 21) | (rm << 16) | (option.ordinal() << 13) | (immm3 << 10) | (rn << 5) << rd;
-    }
-
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
-    }
-
-    // logical immediates
-    // sf is encoded in opcode as well as "opc" and "N"
-    public static int logic_imm(int opcode, int immr, int imms, int rn, int rd) {
-        return (opcode << 22) | (immr << 16) | (imms << 10) | (rn << 5) | rd;
     }
 
     // for normal add, reg1, reg2 cases (reg-to-reg)
@@ -212,11 +200,6 @@ public class arm extends Machine {
     // rt = reg to load into, rn = base reg, rm = register
     public static int indr_adr(int opcode, int rm, STORE_LOAD_OPTION option, int s, int rn, int rt) {
         return (opcode << 21) | (rm << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
-    }
-
-    // rt = reg to load into, rn = base reg, rm = register(no reg included)
-    public static int indr_adr(int opcode, STORE_LOAD_OPTION option, int s, int rn, int rt) {
-        return (opcode << 21) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
     }
 
     // encoding for vcvt, size is encoded in operand
