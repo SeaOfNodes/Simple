@@ -118,6 +118,13 @@ public class arm extends Machine {
         SXTX,
     }
 
+    public enum STORE_LOAD_OPTION {
+        UXTW,
+        LSL,
+        SXTW,
+        SXTX
+    }
+
     static public String invert(String op) {
         return switch (op) {
             case "==" -> "!=";
@@ -202,8 +209,14 @@ public class arm extends Machine {
         return (opcode << 21) | (offset << 12) | (3 << 10) | (base << 5) | rt;
     }
 
-    public static int indr_adr(int opcode, int rm, int option, int s, int rn, int rt) {
-        return (opcode << 21) | (rm << 16) | (option << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
+    // rt = reg to load into, rn = base reg, rm = register
+    public static int indr_adr(int opcode, int rm, STORE_LOAD_OPTION option, int s, int rn, int rt) {
+        return (opcode << 21) | (rm << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
+    }
+
+    // rt = reg to load into, rn = base reg, rm = register(no reg included)
+    public static int indr_adr(int opcode, STORE_LOAD_OPTION option, int s, int rn, int rt) {
+        return (opcode << 21) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
     }
 
     // encoding for vcvt, size is encoded in operand

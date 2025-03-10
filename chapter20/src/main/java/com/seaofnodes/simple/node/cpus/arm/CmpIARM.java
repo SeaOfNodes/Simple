@@ -39,15 +39,13 @@ public class CmpIARM extends MachConcreteNode implements MachNode{
         // Todo: Check for greater imm size
         LRG add_self = CodeGen.CODE._regAlloc.lrg(this);
         LRG add_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG add_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
 
         short self = add_self.get_reg();
         short reg1 = add_rg_1.get_reg();
-        short reg2 = add_rg_2.get_reg();
 
         int beforeSize = bytes.size();
         // self = reg1
-        int body = arm.imm_inst(966, _imm, self, reg1);
+        int body = arm.imm_inst(964, _imm, self, reg1);
         arm.push_4_bytes(body, bytes);
 
         return bytes.size() - beforeSize;

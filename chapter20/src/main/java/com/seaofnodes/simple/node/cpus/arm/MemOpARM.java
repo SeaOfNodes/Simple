@@ -11,6 +11,7 @@ import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 import java.lang.StringBuilder;
 import java.util.BitSet;
+import java.util.Optional;
 
 
 public abstract class MemOpARM extends MemOpNode implements MachNode {
@@ -21,6 +22,7 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         super(mop,mop);
         assert base._type instanceof TypeMemPtr && !(base instanceof AddNode);
         assert ptr() == base;
+        _inputs.setX(2, base);
         _inputs.setX(3,idx);
         _off = off;
         _imm = imm;
@@ -62,21 +64,34 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
                 short load_reg = load_rg.get_reg();
 
                 LRG base_rg = CodeGen.CODE._regAlloc.lrg(in(2));
+                assert base_rg != null; // base always must be provided
                 short base_reg = base_rg.get_reg();
 
                 LRG index_rg = CodeGen.CODE._regAlloc.lrg(in(3));
-                short index_reg = index_rg.get_reg();
+                short index_reg = -1;
+
+                if(index_rg != null) {
+                    index_reg = index_rg.get_reg();
+                }
 
                 int beforeSize = bytes.size();
                 // load from memory into load_reg
                 int body;
                 if(_off == 0) {
                     // ldr(reg)
-                    body = arm.indr_adr(1987, index_reg, 2, 0, base_reg, load_reg);
+                    if(index_reg != -1) {
+                        arm.STORE_LOAD_OPTION reg_op =  arm.STORE_LOAD_OPTION.SXTW;
+                        body = arm.indr_adr(1987,  index_reg, reg_op, 0, base_reg, load_reg);
+                    } else {
+                        // if index is not specified then just base + 0(offset)
+                        body = arm.load_str_imm(1986, _off, base_reg, load_reg);
+                    }
+
                 } else {
                     // ldr(imm)
                     body = arm.load_str_imm(1986, _off, base_reg, load_reg);
                 }
+
                 arm.push_4_bytes(body, bytes);
 
                 return  bytes.size() - beforeSize;
@@ -91,14 +106,25 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
                 short base_reg = base_rg.get_reg();
 
                 LRG index_rg = CodeGen.CODE._regAlloc.lrg(in(3));
-                short index_reg = index_rg.get_reg();
+                short index_reg = -1;
+
+                if(index_rg != null) {
+                    index_reg = index_rg.get_reg();
+                }
 
                 int beforeSize = bytes.size();
                 // store store_reg into memory
                 int body;
                 if(_off == 0) {
-                    // base, index combo
-                    body = arm.indr_adr(1985, index_reg, 2, 0, base_reg, store_reg);
+                    // if index is specified
+                    if(index_reg != -1) {
+                        arm.STORE_LOAD_OPTION reg_op = arm.STORE_LOAD_OPTION.SXTW;
+                        body = arm.indr_adr(1985, index_reg, reg_op, 0, base_reg, store_reg);
+                    } else {
+                        // if index is not specified then just base + 0(offset)
+                        body = arm.load_str_imm(1984, _off, base_reg, store_reg);
+                    }
+
                 } else {
                     // base + offset
                     body = arm.load_str_imm(1984, _off, base_reg, store_reg);

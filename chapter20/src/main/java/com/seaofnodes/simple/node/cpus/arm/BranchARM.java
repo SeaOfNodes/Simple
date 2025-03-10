@@ -37,13 +37,15 @@ public class BranchARM extends IfNode implements MachNode{
     @Override public int encoding(ByteArrayOutputStream bytes) {
         // Assuming that condition flags are already set
         // These flags are set by comparison
-        // Todo: implement more efficient solution with subs
         // no need for regs because it uses flags
 
         arm.COND cond = switch (_bop) {
             case "==" -> arm.COND.EQ;
+            case "!=" -> arm.COND.NE;
             case "<" -> arm.COND.LE;
             case "<=" -> arm.COND.LT;
+            case ">=" -> arm.COND.GT;
+            case ">" -> arm.COND.GE;
             default -> null;
         };
         int beforeSize = bytes.size();
@@ -52,7 +54,6 @@ public class BranchARM extends IfNode implements MachNode{
 
         arm.push_4_bytes(body, bytes);
         return bytes.size() - beforeSize;
-
 
     }
 

@@ -31,7 +31,7 @@ public class NotARM extends MachConcreteNode implements MachNode{
 
         int beforeSize = bytes.size();
 
-        int body_subs = arm.imm_inst(966, 0, reg1, reg1);
+        int body_subs = arm.imm_inst(964, 0, reg1, reg1);
         int body_cset = arm.cond_set(1236, 31, arm.COND.EQ, 63, reg1);
 
         arm.push_4_bytes(body_subs, bytes);

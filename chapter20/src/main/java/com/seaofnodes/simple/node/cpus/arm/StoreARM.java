@@ -44,10 +44,6 @@ public class StoreARM extends MemOpARM {
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
 
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
-    }
 
     @Override public void asm(CodeGen code, SB sb) {
         asm_address(code,sb).p(",");
