@@ -39,7 +39,7 @@
         <module>chapter18</module>
         <module>chapter19</module>
         <module>chapter20</module>
-        <module>transpile-tests</module>
+        <module>chapter21</module>
     </modules>
 
     <properties>

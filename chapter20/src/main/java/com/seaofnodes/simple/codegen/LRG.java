@@ -6,7 +6,24 @@ import com.seaofnodes.simple.node.*;
 
 import java.util.IdentityHashMap;
 
-// Live Range
+/** A Live Range
+ * <p>
+ *  A live range is a set of nodes and edges which must get the same register.
+ *  Live ranges form an interconnected web with almost no limits on their
+ *  shape.  Live ranges also gather the set of register constraints from all
+ *  their parts.
+ * <p>
+ *  Most of the fields in this class are for spill heuristics, but there are a
+ *  few key ones that define what a LRG is.  LRGs have a unique dense integer
+ *  `_lrg` number which names the LRG.  New `_lrg` numbers come from the
+ *  `RegAlloc._lrg_num` counter.  LRGs can be unioned together -
+ *  (<a href="https://en.wikipedia.org/wiki/Disjoint-set_data_structure">this is the Union-Find algorithm</a>)
+ *  - and when this happens the lower numbered `_lrg` wins.  Unioning only
+ *  happens during `BuildLRG` and happens because either a `Phi` is forcing all
+ *  its inputs and outputs into the same register, or because of a 2-address
+ *  instruction.  LRGs have matching `union` and `find` calls, and a set
+ *  `_leader` field.
+ */
 public class LRG {
 
     // Dense live range numbers
@@ -18,13 +35,17 @@ public class LRG {
     // Choosen register
     short _reg;
 
-    public short get_reg() {return _reg;}
     // Count of single-register defs and uses
     short _1regDefCnt, _1regUseCnt;
 
     // A sample MachNode def in the live range
     public MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
+
+    // Mask set to empty via a kill-mask.  This is usually a capacity kill,
+    // which means we need to split and spill into memory - which means even if
+    // the def-side has many registers, it MUST spill.
+    boolean _killed;
 
     // Some splits used in biased coloring
     MachConcreteNode _splitDef, _splitUse;
@@ -62,12 +83,14 @@ public class LRG {
 
     boolean leader() { return _leader == null; }
 
+    // Fast-path Find from the Union-Find algorithm
     LRG find() {
         if( _leader==null ) return this; // I am the leader
         if( _leader._leader==null ) // I point to the leader
             return _leader;
         return _rollup();
     }
+    // Slow-path rollup of U-F
     private LRG _rollup() {
         LRG ldr = _leader._leader;
         // Roll-up
@@ -81,6 +104,8 @@ public class LRG {
         return ldr;
     }
 
+    // Union `this` and `lrg`, keeping the lower numbered _lrg.
+    // Includes a number of fast-path cutouts.
     LRG union( LRG lrg ) {
         assert leader();
         if( lrg==null ) return this;
@@ -88,6 +113,7 @@ public class LRG {
         if( lrg==this ) return this;
         return _lrg < lrg._lrg ? _union(lrg) : lrg._union(this);
     }
+    // Union `this` and `lrg`, folding together all stats.
     private LRG _union( LRG lrg ) {
         // Set U-F leader
         lrg._leader = this;

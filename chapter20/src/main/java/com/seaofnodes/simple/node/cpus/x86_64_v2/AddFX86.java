@@ -2,10 +2,9 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-
+import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 public class AddFX86 extends MachConcreteNode implements MachNode {
@@ -22,24 +21,7 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // F2 0F 58 /r ADDSD xmm1, xmm2/m64
-        LRG add_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG add_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short reg1 = add_rg_1.get_reg();
-        short reg2 = add_rg_2.get_reg();
-
-        int beforeSize = bytes.size();
-
-        bytes.write(x86_64_v2.rex(reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET, 0));
-
-        // Fopcode
-        bytes.write(0xF2);
-        bytes.write(0x0F);
-        bytes.write(0x58);
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET));
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form: "addf  dst += src"

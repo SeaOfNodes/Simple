@@ -40,7 +40,7 @@ public abstract class MemOpNode extends Node {
     }
 
     //
-    static String mlabel(String name) { return name.equals("[]") ? "ary" : (name.equals("#") ? "len" : name); }
+    static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
     String mlabel() { return mlabel(_name); }
 
     public Node mem() { return in(1); }

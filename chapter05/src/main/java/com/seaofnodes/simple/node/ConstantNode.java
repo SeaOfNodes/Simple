@@ -16,7 +16,7 @@ import com.seaofnodes.simple.type.Type;
  * The Constant's value is the value stored in it.
  */
 public class ConstantNode extends Node {
-    Type _con;
+    final Type _con;
     public ConstantNode( Type type ) {
         super(Parser.START);
         _con = type;

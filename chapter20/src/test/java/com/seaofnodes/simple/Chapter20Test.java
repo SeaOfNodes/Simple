@@ -28,80 +28,8 @@ public class Chapter20Test {
             assertEquals(stop, code._stop.toString());
     }
 
-    //  // Todo: need sp adjust, callee saves and caller saves
-    // Todo: Hack split so extra mov is not needed
-    @Test public void TestSplitHack() {
-        CodeGen code = new CodeGen("""
-         return {int i, flt f, int j->return i+f+j;};
-           """);
-
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
-    }
-
-    // Todo: do spilling and invole stack slots/stack frame currently AAOIB
-    @Test public void TestStackSlotTodo() {
-        CodeGen code = new CodeGen("""
-            return {flt f1, flt f2, flt f3, flt f4, flt f5, flt f6, flt f7, flt f7 flt f9->return f9;};
-            """);
-
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
-    }
-
-
-    // Todo: Insert unconditional jumps
-    @Test public void TestUnconditionalJumpTodo() {
-        CodeGen code = new CodeGen("""
-                if (arg == 0) arg += 2;
-                else arg += arg;
-                return arg;
-            """);
-
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
-    }
-
-    @Test public void TestAdditionLong() {
-        CodeGen code = new CodeGen("""
-       return arg / 1186046;
-            """);
-        code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
-    }
-
-    @Test public void TestNotNodeTodo() {
-        CodeGen code = new CodeGen("""
-        return arg != 0;
-            """);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
-    }
-
-    // Todo: Still missing UNCODNTIONAL JUMPS here
-    // Todo: on riscv regalloc breaks
-    @Test public void testSpills() {
-        CodeGen code = new CodeGen("""
-                bool b1 = arg == 1;
-                bool b2 = arg == 2;
-                if (b2) if (b1) return 1;
-                if (b1) return 2;
-                return 0;
-                """);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
-    }
-
-    @Test public void TestAddition() {
-        CodeGen code = new CodeGen("""
-        return arg / 7.0;
-            """);
-        code.parse().opto().typeCheck().instSelect(PORTS, "riscv", "SystemV").GCM().localSched().regAlloc().printENCODINGRISCV();
-    }
-
-    @Test public void testDoubleNotNodeTodo() {
-        CodeGen code = new CodeGen("""
-        return !!arg;
-            """);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().printENCODINGX64();
-    }
-
     private static void testAllCPUs( String src, int spills, String stop ) {
-        //testCPU(src,"x86_64_v2", "SystemV",spills,stop);
+        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
         testCPU(src,"riscv"    , "SystemV",spills,stop);
         testCPU(src,"arm"      , "SystemV",spills,stop);
     }
@@ -153,8 +81,8 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",33,null);
-        testCPU(src,"riscv"    , "SystemV",29,null);
+        testCPU(src,"x86_64_v2", "SystemV",25,null);
+        testCPU(src,"riscv"    , "SystemV",21,null);
         testCPU(src,"arm"      , "SystemV",18,null);
     }
 
@@ -178,7 +106,7 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
         testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],( .[] * #1000 ));");
+        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
     }
 
@@ -238,16 +166,31 @@ hashCode(s);
     }
 
     @Test
-    public void testFlags() {
+    public void testFlags1() {
         String src = """
 bool b1 = arg == 1;
 bool b2 = arg == 2;
-if (b1 == 0) if (b1) return 1;
+if (b2) if (b1) return 1;
 if (b1) return 2;
 return 0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",5,null);
-        testCPU(src,"riscv"    , "SystemV",0,null);
-        testCPU(src,"arm"      , "SystemV",5,null);
+        testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,1,2,0);");
+        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,1,2,0);");
+        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,1,2,0);");
+    }
+
+    @Test
+    public void testFlags2() {
+        String src = """
+bool b1 = arg == 1;
+while (arg > 0) {
+    arg--;
+    if (b1) arg--;
+}
+return arg;
+""";
+        testCPU(src,"x86_64_v2", "SystemV",3,null);
+        testCPU(src,"riscv"    , "SystemV",2,null);
+        testCPU(src,"arm"      , "SystemV",2,null);
     }
 }

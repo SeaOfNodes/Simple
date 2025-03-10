@@ -9,6 +9,7 @@ import com.seaofnodes.simple.type.*;
 
 import java.io.ByteArrayOutputStream;
 
+
 public class arm extends Machine {
 
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
@@ -27,18 +28,18 @@ public class arm extends Machine {
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
     static final int D_OFFSET = 31;
-    static final int FLAGS = 60;
+    static final int FLAGS = 64;
 
     static final String[] REGS = new String[] {
-        "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
-        "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
-        "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
-        "X24", "X25", "X26", "X27", "X28", "X29", "RPC", "RSP",
-        "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
-        "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
-        "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
-        "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31",
-        "flags"
+            "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
+            "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
+            "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
+            "X24", "X25", "X26", "X27", "X28", "X29", "RPC", "RSP",
+            "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
+            "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
+            "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
+            "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31",
+            "flags"
     };
     @Override public String reg( int reg ) {
         return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
@@ -58,7 +59,7 @@ public class arm extends Machine {
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L - (1L<<FLAGS));
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L);
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
@@ -88,24 +89,24 @@ public class arm extends Machine {
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     static final RegMask[] CALLINMASK = new RegMask[] {
-        X0_MASK,
-        X1_MASK,
-        X2_MASK,
-        X3_MASK,
-        X4_MASK,
-        X5_MASK,
-        X6_MASK,
-        X7_MASK,
+            X0_MASK,
+            X1_MASK,
+            X2_MASK,
+            X3_MASK,
+            X4_MASK,
+            X5_MASK,
+            X6_MASK,
+            X7_MASK,
     };
     static final RegMask[] XMMS = new RegMask[] {
-        D0_MASK,
-        D1_MASK,
-        D2_MASK,
-        D3_MASK,
-        D4_MASK,
-        D5_MASK,
-        D6_MASK,
-        D7_MASK,
+            D0_MASK,
+            D1_MASK,
+            D2_MASK,
+            D3_MASK,
+            D4_MASK,
+            D5_MASK,
+            D6_MASK,
+            D7_MASK,
     };
 
     // ARM ENCODING
@@ -177,7 +178,7 @@ public class arm extends Machine {
 
     // encodes movk
     public static int mov(int opcode, int shift, int imm16, int rd) {
-            return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
+        return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
     }
 
     public static int ret(int opcode) {
@@ -245,13 +246,13 @@ public class arm extends Machine {
         bytes.write(value >> 24);
     }
 
-    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+    static RegMask callInMask(TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat )
+            if( tfp.arg(i-2) instanceof TypeFloat)
                 fcnt++;
         // Floats up to XMMS in XMM registers
         if( tfp.arg(idx-2) instanceof TypeFloat ) {
@@ -266,18 +267,18 @@ public class arm extends Machine {
     }
 
     static final long CALLEE_SAVE =
-        1L<<X19 |
-        1L<<X20 | 1L<<X21 | 1L<<X22 | 1L<<X23 |
-        1L<<X24 | 1L<<X25 | 1L<<X26 | 1L<<X27 |
-        1L<<X28 |
-        1L<<D9  | 1L<<D10 | 1L<<D11 |
-        1L<<D12 | 1L<<D13 | 1L<<D14 | 1L<<D15;
+            1L<<X19 |
+                    1L<<X20 | 1L<<X21 | 1L<<X22 | 1L<<X23 |
+                    1L<<X24 | 1L<<X25 | 1L<<X26 | 1L<<X27 |
+                    1L<<X28 |
+                    1L<<D9  | 1L<<D10 | 1L<<D11 |
+                    1L<<D12 | 1L<<D13 | 1L<<D14 | 1L<<D15;
 
     static final RegMask CALLER_SAVE_MASK;
     static {
         long caller = ~CALLEE_SAVE;
         caller &= ~(1L<<RSP);
-        CALLER_SAVE_MASK = new RegMask(caller,1L<<FLAGS);
+        CALLER_SAVE_MASK = new RegMask(caller,1L<<(FLAGS-64));
     }
     static RegMask armCallerSave() { return CALLER_SAVE_MASK; }
     @Override public RegMask callerSave() { return armCallerSave(); }
@@ -304,12 +305,12 @@ public class arm extends Machine {
     }
     static RegMask retMask( TypeFunPtr tfp, int i ) {
         return i==2
-            ? (tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK)
-            : RET_MASKS[i];
+                ? (tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK)
+                : RET_MASKS[i];
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
+    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new com.seaofnodes.simple.node.cpus.arm.SplitARM(kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
@@ -317,71 +318,71 @@ public class arm extends Machine {
     }
 
     // Break an infinite loop
-    @Override public IfNode never( CFGNode ctrl ) {
+    @Override public IfNode never(CFGNode ctrl ) {
         throw Utils.TODO();
     }
 
     // Instruction selection
-    @Override public Node instSelect( Node n ) {
+    @Override public Node instSelect(Node n ) {
         return switch( n ) {
-            case AddFNode     addf  -> addf(addf);
-            case AddNode      add   -> add(add);
-            case AndNode      and   -> and(and);
-            case BoolNode     bool  -> cmp(bool);
-            case CallNode     call  -> call(call);
-            case CastNode     cast  -> new CastNode(cast);
-            case CallEndNode  cend  -> new CallEndARM(cend);
-            case CProjNode    c     -> new CProjNode(c);
+            case AddFNode addf  -> addf(addf);
+            case AddNode add   -> add(add);
+            case AndNode and   -> and(and);
+            case BoolNode bool  -> cmp(bool);
+            case CallNode call  -> call(call);
+            case CastNode cast  -> new CastNode(cast);
+            case CallEndNode cend  -> new com.seaofnodes.simple.node.cpus.arm.CallEndARM(cend);
+            case CProjNode c     -> new CProjNode(c);
             case ConstantNode con   -> con(con);
-            case DivFNode     divf  -> new DivFARM(divf);
-            case DivNode      div   -> new DivARM(div);
-            case FunNode      fun   -> new FunARM(fun);
+            case DivFNode divf  -> new com.seaofnodes.simple.node.cpus.arm.DivFARM(divf);
+            case DivNode div   -> new com.seaofnodes.simple.node.cpus.arm.DivARM(div);
+            case FunNode fun   -> new com.seaofnodes.simple.node.cpus.arm.FunARM(fun);
             case IfNode       iff   -> jmp(iff);
-            case LoadNode     ld    -> ld(ld);
+            case LoadNode ld    -> ld(ld);
             case MemMergeNode mem   -> new MemMergeNode(mem);
-            case MulFNode     mulf  -> new MulFARM(mulf);
-            case MulNode      mul   -> mul(mul);
-            case NewNode      nnn   -> new NewARM(nnn);
-            case NotNode      not   -> new NotARM(not);
-            case OrNode       or    ->  or(or);
-            case ParmNode     parm  -> new ParmARM(parm);
-            case PhiNode      phi   -> new PhiNode(phi);
-            case ProjNode     prj   -> prj(prj);
+            case MulFNode mulf  -> new com.seaofnodes.simple.node.cpus.arm.MulFARM(mulf);
+            case MulNode mul   -> mul(mul);
+            case NewNode nnn   -> new com.seaofnodes.simple.node.cpus.arm.NewARM(nnn);
+            case NotNode not   -> new com.seaofnodes.simple.node.cpus.arm.NotARM(not);
+            case OrNode or    ->  or(or);
+            case ParmNode parm  -> new com.seaofnodes.simple.node.cpus.arm.ParmARM(parm);
+            case PhiNode phi   -> new PhiNode(phi);
+            case ProjNode prj   -> prj(prj);
             case ReadOnlyNode read  -> new ReadOnlyNode(read);
-            case ReturnNode   ret   -> new RetARM(ret,ret.fun());
-            case SarNode      sar   -> sar(sar);
-            case ShlNode      shl   -> shl(shl);
-            case ShrNode      shr   -> shr(shr);
-            case StartNode    start -> new StartNode(start);
-            case StopNode     stop  -> new StopNode(stop);
-            case StoreNode    st    -> st(st);
-            case SubFNode     subf  -> new SubFARM(subf);
-            case SubNode      sub   -> sub(sub);
-            case ToFloatNode  tfn   -> i2f8(tfn);
-            case XorNode      xor   -> xor(xor);
+            case ReturnNode ret   -> new com.seaofnodes.simple.node.cpus.arm.RetARM(ret,ret.fun());
+            case SarNode sar   -> sar(sar);
+            case ShlNode shl   -> shl(shl);
+            case ShrNode shr   -> shr(shr);
+            case StartNode start -> new StartNode(start);
+            case StopNode stop  -> new StopNode(stop);
+            case StoreNode st    -> st(st);
+            case SubFNode subf  -> new com.seaofnodes.simple.node.cpus.arm.SubFARM(subf);
+            case SubNode sub   -> sub(sub);
+            case ToFloatNode tfn   -> i2f8(tfn);
+            case XorNode xor   -> xor(xor);
 
-            case LoopNode     loop  -> new LoopNode(loop);
-            case RegionNode   region-> new RegionNode(region);
+            case LoopNode loop  -> new LoopNode(loop);
+            case RegionNode region-> new RegionNode(region);
             default -> throw Utils.TODO();
         };
     }
 
     private Node mul(MulNode mul) {
-        return new MulARM(mul);
+        return new com.seaofnodes.simple.node.cpus.arm.MulARM(mul);
     }
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, bool.op());
+        return new com.seaofnodes.simple.node.cpus.arm.SetARM(cmp, bool.op());
     }
 
     private Node i2f8(ToFloatNode tfn) {
         assert tfn.in(1)._type instanceof TypeInteger ti;
-        return new I2F8ARM(tfn);
+        return new com.seaofnodes.simple.node.cpus.arm.I2F8ARM(tfn);
     }
 
     private Node ld(LoadNode ld) {
-        return new LoadARM(address(ld), ld.ptr(), idx, off);
+        return new com.seaofnodes.simple.node.cpus.arm.LoadARM(address(ld), ld.ptr(), idx, off);
     }
 
     private Node jmp(IfNode iff) {
@@ -390,38 +391,38 @@ public class arm extends Machine {
         // Loads do not set the flags, and will need an explicit TEST
         if( !(iff.in(1) instanceof BoolNode) )
             iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
+        return new com.seaofnodes.simple.node.cpus.arm.BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
     }
 
     private Node _cmp(BoolNode bool) {
         if( bool instanceof BoolNode.EQF ||
                 bool instanceof BoolNode.LTF ||
                 bool instanceof BoolNode.LEF )
-            return new CmpFARM(bool);
+            return new com.seaofnodes.simple.node.cpus.arm.CmpFARM(bool);
 
 
         return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new CmpIARM(bool, ti)
-                : new CmpARM(bool);
+                ? new com.seaofnodes.simple.node.cpus.arm.CmpIARM(bool, ti)
+                : new com.seaofnodes.simple.node.cpus.arm.CmpARM(bool);
     }
 
 
     private Node addf(AddFNode addf) {
-        return new AddFARM(addf);
+        return new com.seaofnodes.simple.node.cpus.arm.AddFARM(addf);
     }
 
     private Node add(AddNode add) {
         Node rhs = add.in(2);
         if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            return new AddIARM(add, toff);
+            return new com.seaofnodes.simple.node.cpus.arm.AddIARM(add, toff);
         }
-        return new AddARM(add);
+        return new com.seaofnodes.simple.node.cpus.arm.AddARM(add);
     }
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new SubIARM(sub, TypeInteger.constant(ti.value()))
-                : new SubARM(sub);
+                ? new com.seaofnodes.simple.node.cpus.arm.SubIARM(sub, TypeInteger.constant(ti.value()))
+                : new com.seaofnodes.simple.node.cpus.arm.SubARM(sub);
     }
 
     private Node and(AndNode and) {
@@ -434,23 +435,23 @@ public class arm extends Machine {
 //        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
 //            return new OrIARM(or, ti);
 
-        return new OrARM(or);
+        return new com.seaofnodes.simple.node.cpus.arm.OrARM(or);
     }
 
     private Node xor(XorNode xor) {
 //        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
 //            return new XorIARM(xor, ti);
-        return new XorARM(xor);
+        return new com.seaofnodes.simple.node.cpus.arm.XorARM(xor);
     }
 
     private Node con(ConstantNode con) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-            case TypeInteger ti  -> new IntARM(con);
-            case TypeFloat   tf  -> new FloatARM(con);
-            case TypeFunPtr  tfp -> new TFPARM(con);
-            case TypeMemPtr  tmp -> new ConstantNode(con);
-            case TypeNil     tn  -> throw Utils.TODO();
+            case TypeInteger ti  -> new com.seaofnodes.simple.node.cpus.arm.IntARM(con);
+            case TypeFloat   tf  -> new com.seaofnodes.simple.node.cpus.arm.FloatARM(con);
+            case TypeFunPtr  tfp -> new com.seaofnodes.simple.node.cpus.arm.TFPARM(con);
+            case TypeMemPtr tmp -> new ConstantNode(con);
+            case TypeNil tn  -> throw Utils.TODO();
             // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
             case Type t -> new ConstantNode(con);
         };
@@ -459,30 +460,30 @@ public class arm extends Machine {
     private Node sar(SarNode sar){
 //        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
 //            return new AsrIARM(sar, ti);
-        return new AsrARM(sar);
+        return new com.seaofnodes.simple.node.cpus.arm.AsrARM(sar);
     }
 
     private Node shl(ShlNode shl) {
 //        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
 //            return new LslIARM(shl, ti);
-        return new LslARM(shl);
+        return new com.seaofnodes.simple.node.cpus.arm.LslARM(shl);
 
     }
 
     private Node shr(ShrNode shr) {
 //        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
 //            return new LsrIARM(shr, ti);
-        return new LsrARM(shr);
+        return new com.seaofnodes.simple.node.cpus.arm.LsrARM(shr);
     }
 
     private Node call(CallNode call){
         if(call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp)
-            return new CallARM(call, tfp);
-        return new CallRRARM(call);
+            return new com.seaofnodes.simple.node.cpus.arm.CallARM(call, tfp);
+        return new com.seaofnodes.simple.node.cpus.arm.CallRRARM(call);
     }
 
     private Node prj(ProjNode prj) {
-        return new ProjARM(prj);
+        return new com.seaofnodes.simple.node.cpus.arm.ProjARM(prj);
     }
 
 
@@ -492,13 +493,13 @@ public class arm extends Machine {
         Node xval = st.val();
         if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
             xval = null;
-        return new StoreARM(address(st),st.ptr(),idx,off,xval);
+        return new com.seaofnodes.simple.node.cpus.arm.StoreARM(address(st),st.ptr(),idx,off,xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder
     // pattern, but saving the bits in a *local* *global* here to keep mess
     // contained.
-    private <N extends MemOpNode> N address( N mop ) {
+    private <N extends MemOpNode> N address(N mop ) {
         off = 0;  // Reset
         idx = null;
         Node base = mop.ptr();

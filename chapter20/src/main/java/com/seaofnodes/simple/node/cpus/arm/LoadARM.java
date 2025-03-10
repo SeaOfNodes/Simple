@@ -26,6 +26,7 @@ public class LoadARM extends MemOpARM{
     // Wide mask loads both ints and floats; encoding varies.
     @Override public RegMask outregmap() { return arm.MEM_MASK; }
 
+
     @Override public String op() { return "ld"+_sz; }
 
     @Override public void asm(CodeGen code, SB sb) {

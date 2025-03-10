@@ -47,7 +47,6 @@ abstract public class BoolNode extends Node {
 
     boolean doOp(long   lhs, long   rhs) { throw Utils.TODO(); }
     boolean doOp(double lhs, double rhs) { throw Utils.TODO(); }
-    Node copyF(Node lhs, Node rhs) { throw Utils.TODO(); }
 
     @Override
     public Node idealize() {

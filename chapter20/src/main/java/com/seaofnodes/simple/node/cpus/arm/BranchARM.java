@@ -2,10 +2,8 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 
 import java.io.ByteArrayOutputStream;
 
@@ -35,26 +33,7 @@ public class BranchARM extends IfNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // Assuming that condition flags are already set
-        // These flags are set by comparison
-        // no need for regs because it uses flags
-
-        arm.COND cond = switch (_bop) {
-            case "==" -> arm.COND.EQ;
-            case "!=" -> arm.COND.NE;
-            case "<" -> arm.COND.LE;
-            case "<=" -> arm.COND.LT;
-            case ">=" -> arm.COND.GT;
-            case ">" -> arm.COND.GE;
-            default -> null;
-        };
-        int beforeSize = bytes.size();
-        assert cond != null;
-        int body = arm.b_cond(84, 0, cond);
-
-        arm.push_4_bytes(body, bytes);
-        return bytes.size() - beforeSize;
-
+        throw Utils.TODO();
     }
 
     @Override public void asm(CodeGen code, SB sb) {

@@ -3,8 +3,22 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.SB;
 
-// A "register mask" - 1 bit set for each allowed register.  In addition "stack
-// slot" registers may be allowed, effectively making the set infinite.
+/** RegMask
+ *  A "register mask" - 1 bit set for each allowed register.  In addition
+ *  "stack slot" registers may be allowed, effectively making the set infinite.
+ * <p>
+ *  For smaller and simpler machines it suffices to make such masks an i64 or
+ *  i128 (64 or 128 bit integers), and this presentation is by far the better
+ *  way to go... if all register allocations can fit in this bit limitation.
+ *  The allocator will need bits for stack-based parameters and for splits
+ *  which cannot get a register.  For a 32-register machine like the X86, add 1
+ *  for flags - gives 33 registers.  Using a Java `long` has 64 bits, leaving
+ *  31 for spills and stack passing.  This is adequate for nearly all
+ *  allocations; only the largest allocations will run this out.  However, if
+ *  we move to a chip with 64 registers we'll immediately run out, and need at
+ *  least a 128 bit mask.  Since you cannot *return* a 128 bit value directly
+ *  in Java, Simple will pick up a `RegMask` class object.
+*/
 public class RegMask {
 
     long _bits0, _bits1;
@@ -12,7 +26,10 @@ public class RegMask {
     private static final RegMask EMPTY = new RegMask(0L);
     public  static final RegMask FULL = new RegMask(-1L);
 
-    public RegMask(int bit) { _bits0 = 1L<<bit; }
+    public RegMask(int bit) {
+        if( bit < 64 ) _bits0 = 1L<<bit;
+        else _bits1 = 1L<<(bit=64);
+    }
     public RegMask(long bits ) { _bits0 = bits; }
     public RegMask(long bits0, long bits1 ) { _bits0 = bits0; _bits1 = bits1; }
     private RegMask() { _bits0 = _bits1 = 0; }
@@ -78,7 +95,7 @@ public class RegMask {
     public RegMaskRW copy() { return new RegMaskRW( _bits0, _bits1 ); }
 
     // Has exactly 1 bit set
-    boolean size1() {
+    public boolean size1() {
         return ((_bits0 & -_bits0)==_bits0 && _bits1==0) ||
                ((_bits1 & -_bits1)==_bits1 && _bits0==0);
     }

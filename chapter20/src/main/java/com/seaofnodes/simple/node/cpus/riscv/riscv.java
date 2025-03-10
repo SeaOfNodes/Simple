@@ -1,46 +1,43 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.Machine;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.io.ByteArrayOutputStream;
-
 public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int        ZERO=0,     RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
-    public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
-    public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
-    public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
+    static final int             RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    static final int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
+    static final int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
+    static final int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
-    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
-    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
-    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
+    static final int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
+    static final int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
+    static final int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
+    static final int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
     static final int MAX_REG = 61;
 
-    static final int F_OFFSET = 31;
-
     static final String[] REGS = new String[] {
-            "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
-            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+        "zero", "r1"  , "rsp" , "r3"  , "r4"  , "r5"  , "r6"  , "r7"  ,
+        "r8"  , "r9"  , "r10" , "r11" , "r12" , "r13" , "r14" , "r15" ,
+        "r16" , "r17" , "r18" , "r19" , "r20" , "r21" , "r22" , "r23" ,
+        "r24" , "r25" , "r26" , "r27" , "r28" , "r29" , "r30" , "r31" ,
+        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
+    @Override public String reg( int reg ) {
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+    }
 
-    static int FLAGS = 0 ;
 
     // General purpose register mask: pointers and ints, not floats
     static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
@@ -50,7 +47,6 @@ public class riscv extends Machine {
     static final RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
     static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
-    static RegMask FLAGS_MASK = new RegMask(FLAGS);
     static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
@@ -60,26 +56,26 @@ public class riscv extends Machine {
 
 
     // Arguments masks
-    public static RegMask A0_MASK = new RegMask(A0);
-    public static RegMask A1_MASK = new RegMask(A1);
-    public static RegMask A2_MASK = new RegMask(A2);
-    public static RegMask A3_MASK = new RegMask(A3);
-    public static RegMask A4_MASK = new RegMask(A4);
-    public static RegMask A5_MASK = new RegMask(A5);
-    public static RegMask A6_MASK = new RegMask(A6);
-    public static RegMask A7_MASK = new RegMask(A7);
+    static final RegMask A0_MASK = new RegMask(A0);
+    static final RegMask A1_MASK = new RegMask(A1);
+    static final RegMask A2_MASK = new RegMask(A2);
+    static final RegMask A3_MASK = new RegMask(A3);
+    static final RegMask A4_MASK = new RegMask(A4);
+    static final RegMask A5_MASK = new RegMask(A5);
+    static final RegMask A6_MASK = new RegMask(A6);
+    static final RegMask A7_MASK = new RegMask(A7);
 
     static final RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
-    public static RegMask FA0_MASK = new RegMask(FA0);
-    public static RegMask FA1_MASK = new RegMask(FA1);
-    public static RegMask FA2_MASK = new RegMask(FA2);
-    public static RegMask FA3_MASK = new RegMask(FA3);
-    public static RegMask FA4_MASK = new RegMask(FA4);
-    public static RegMask FA5_MASK = new RegMask(FA5);
-    public static RegMask FA6_MASK = new RegMask(FA6);
-    public static RegMask FA7_MASK = new RegMask(FA7);
+    static final RegMask FA0_MASK = new RegMask(FA0);
+    static final RegMask FA1_MASK = new RegMask(FA1);
+    static final RegMask FA2_MASK = new RegMask(FA2);
+    static final RegMask FA3_MASK = new RegMask(FA3);
+    static final RegMask FA4_MASK = new RegMask(FA4);
+    static final RegMask FA5_MASK = new RegMask(FA5);
+    static final RegMask FA6_MASK = new RegMask(FA6);
+    static final RegMask FA7_MASK = new RegMask(FA7);
 
     // Int arguments calling conv
     static RegMask[] CALLINMASK = new RegMask[] {
@@ -103,120 +99,6 @@ public class riscv extends Machine {
             FA6_MASK,
             FA7_MASK
     };
-    //                 3   3
-    // R_type opcode: 0011 0011
-    public static int R_TYPE = 0x33;
-
-
-    //I_type opcode: 0010 0011
-    public static int I_TYPE = 0x13;
-
-    // 0110 0111
-    public static int I_JALR = 0x67;
-
-    // Since riscv instructions are fixed we can just or them togehter
-    public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
-        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
-    }
-
-    public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
-        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3.ordinal() << 12) | (rd << 7) | opcode;
-    }
-
-    public static int u_type(int opcode, int rd, int imm) {
-        return (imm << 12) | (rd << 7) | opcode;
-    }
-
-    public static int i_type(int opcode, int rd, int func3, int rs1, int imm) {
-        return (imm << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
-    }
-
-    public static int i_type(int opcode, int rd, int func3, int rs1, int imm, int func7) {
-        return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
-    }
-
-    // S-type instructions(store)
-    public static int s_type(int opcode, int offset1, int func3, int rs1, int rs2, int offset2) {
-        return (offset2 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (offset1 << 7) | opcode;
-    }
-
-    // immf = first imm
-    // immd = second imm
-    // BRANCH
-    public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
-        return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
-    }
-
-    public enum RM {RNE, // Round to Nearest, ties to Even
-        RTZ,  // Round towards Zero
-        RDN, // Round Down
-        RUP, // Round Up
-        DIRECT, // Round to Nearest, ties to Max Magnitude
-        RESERVED1, // Reserved for futue use
-        RESERVED2, // Reserved for future use
-        DYN, // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
-    }
-
-//    public enum FMT {S, // 32-bit single-precision
-//        D,  // 64-bit double-precision
-//        H, // 16-bit half-precision
-//        Q, // 128-bit quad-precision
-//    };
-
-    // slt, (0110011)
-    //
-    // seqz ( sltiu rd, rs, 1 ) - 0001 0011
-    static public int setop(String op) {
-        return switch(op) {
-            case "==" -> 0x33;
-            case "<"  -> 0x33;
-            case "<="  -> 0x13;
-            default  ->  throw new IllegalArgumentException("Too many arguments");
-        };
-    }
-    // Since opcode is the same just return back func3
-    // BEQ: 01100011
-    // BLT: 01100011
-    // BLE: bge rt, rs, offset:
-    static public int jumpop(String op) {
-        return switch(op) {
-            case "=="  -> 0;
-            case "<"   -> 0x4;
-            case "<="  -> 0x5;
-            default  ->  throw new IllegalArgumentException("Too many arguments");
-        };
-    }
-    // Since opcode is the same just return back func3
-    static public int fsetop(String op) {
-        return switch(op) {
-            case "==" -> 0x2;
-            case "<"  -> 0x1;
-            case "<="  -> 0x0;
-            default  ->  throw new IllegalArgumentException("Too many arguments");
-        };
-    }
-    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
-        bytes.write(value);
-        bytes.write(value >> 8);
-        bytes.write(value >> 16);
-        bytes.write(value >> 24);
-    }
-
-    public static void print_as_hex(ByteArrayOutputStream outputStream) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : outputStream.toByteArray()) {
-            hexString.append(String.format("%02X", b));  // Format as uppercase hex without space
-        }
-        System.out.println(hexString.toString());
-    }
-
-//    // rs1 - rs2
-//    public static int r_source(int rs1, int rs2) {
-//        return (rs2 << 4) | rs1;
-//    }
-//    public static int r_func7(int f) {
-//        return f & 7;
-//    }
 
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
@@ -281,9 +163,6 @@ public class riscv extends Machine {
             : RET_MASKS[i];
     }
 
-    @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
-    }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
@@ -300,11 +179,8 @@ public class riscv extends Machine {
 
     // True if signed 12-bit immediate
     private static boolean imm12(TypeInteger ti) {
-        return ti.isConstant() && ((ti.value()<<12)>>12) == ti.value();
-    }
-
-    public static boolean fitsInSigned12Bits(TypeInteger ti) {
-        return ti.value() >= -2048 && ti.value() <= 2047;
+        // 64-12==52
+        return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
 
 
@@ -326,9 +202,8 @@ public class riscv extends Machine {
         case LoadNode ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
         case MulFNode mulf -> new MulFRISC(mulf);
-        case MulNode mul -> mul(mul);
+        case MulNode mul -> new MulRISC(mul);
         case NewNode nnn -> new NewRISC(nnn);
-        case NotNode not -> new NotRISC(not);
         case OrNode or -> or(or);
         case ParmNode parm -> new ParmRISC(parm);
         case PhiNode phi -> new PhiNode(phi);
@@ -357,13 +232,13 @@ public class riscv extends Machine {
     }
 
     private Node add(AddNode add) {
-        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) )
             return new AddIRISC(add, (int)ti.value());
         return new AddRISC(add);
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new AndIRISC(and, (int)ti.value());
         return new AndRISC(and);
     }
@@ -375,20 +250,12 @@ public class riscv extends Machine {
     }
 
     private Node cmp(BoolNode bool) {
-        // use zero reg or
-        // slti	Set Less Than Immediate	slti rd, rs1, imm
-        boolean imm = false;
-
-        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff && (bool.op().equals("<"))) {
-            if(toff.value() == 0) imm = true;
+        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff )
             return new SetIRISC(bool, (int)toff.value());
-        }
-
         // Float variant
         if( bool.isFloat() )
             return new SetFRISC(bool);
-
-        return new SetRISC(bool, imm);
+        return new SetRISC(bool);
     }
 
     private Node con( ConstantNode con ) {
@@ -405,48 +272,44 @@ public class riscv extends Machine {
     }
 
     private Node jmp( IfNode iff ) {
-        if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() ) {
-            // if less than or equal switch inputs
-            if (bool.op().equals("<=")) return new BranchRISC(iff, bool.op(), bool.in(2), bool.in(1));
+        if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() )
             return new BranchRISC(iff, bool.op(), bool.in(1), bool.in(2));
-        }
-
         // Vs zero
         return new BranchRISC(iff, "==", iff.in(1), null);
     }
 
     private Node or(OrNode or) {
-        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new OrIRISC(or, (int)ti.value());
         return new OrRISC(or);
     }
 
     private Node xor(XorNode xor) {
-        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new XorIRISC(xor, (int)ti.value());
         return new XorRISC(xor);
     }
 
     private Node sra(SarNode sar) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new SraIRISC(sar, (int)ti.value());
         return new SraRISC(sar);
     }
 
     private Node srl(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new SrlIRISC(shr, (int)ti.value());
         return new SrlRISC(shr);
     }
 
     private Node sll(ShlNode sll) {
-        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new SllIRISC(sll, (int)ti.value());
         return new SllRISC(sll);
     }
 
     private Node sub(SubNode sub) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti)
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new AddIRISC(sub, (int)(-ti.value()))
             : new SubRISC(sub);
     }
@@ -460,19 +323,19 @@ public class riscv extends Machine {
         return new ProjRISC(prj);
     }
 
-    private Node mul(MulNode mul) {
-                return new MulRISC(mul);
-    }
-
     private Node ld(LoadNode ld) {
         return new LoadRISC(address(ld),ld.ptr(),idx,off);
     }
 
     private Node st(StoreNode st) {
+        int imm=0;
         Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) ) {
             xval = null;
-        return new StoreRISC(address(st),st.ptr(),off, idx == null ? st.ptr() : new AddRISC(st.ptr(), idx), xval);
+            imm = (int)ti.value();
+            assert imm == ti.value(); // In 32-bit range
+        }
+        return new StoreRISC(address(st),st.ptr(),idx,off,imm,xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder
@@ -489,7 +352,6 @@ public class riscv extends Machine {
         assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
         if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) ) {
             off = (int)ti.value();
-            assert off == ti.value(); // In 32-bit range
         } else {
             idx = mop.off();
         }

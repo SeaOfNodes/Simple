@@ -2,20 +2,17 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
 // Compare with immediate.
 // Conditional compare (immediate)? e.g CCMP(immediate)
-public class CmpIARM extends MachConcreteNode implements MachNode{
+public class CmpIARM extends MachConcreteNode implements MachNode {
     final int _imm;
     final String _bop;
-
     CmpIARM(BoolNode bool, TypeInteger ti) {
         super(bool);
         _inputs.pop();
@@ -23,32 +20,26 @@ public class CmpIARM extends MachConcreteNode implements MachNode{
         _imm = (int)ti.value();
         assert _imm == ti.value();
     }
-
-    CmpIARM( Node cmp, double ignore ) {
+    // Copy constructor does not set reverse edges in, because the basic block
+    // is changing from the original node - and it must be properly placed in a
+    // new block.
+    CmpIARM( CmpIARM cmp ) {
         super(cmp);
-        _bop = "==";
-        _imm = 0;
+        _bop = cmp._bop;
+        _imm = cmp._imm;
+        // While in(0) will be handled by the caller, all other edges must be
+        // handled in the constructor.
+        cmp.in(1)._outputs.push(this);
     }
 
     @Override public RegMask regmap(int i) { assert i==1; return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.FLAGS_MASK; }
+    @Override public boolean isClone() { return true; }
+    @Override public Node copy() { return new CmpIARM(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // SUBS (immediate)
-        // Todo: Check for greater imm size
-        LRG add_self = CodeGen.CODE._regAlloc.lrg(this);
-        LRG add_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-
-        short self = add_self.get_reg();
-        short reg1 = add_rg_1.get_reg();
-
-        int beforeSize = bytes.size();
-        // self = reg1
-        int body = arm.imm_inst(964, _imm, self, reg1);
-        arm.push_4_bytes(body, bytes);
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form: "cmp  rs1, 1"

@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
@@ -13,10 +12,7 @@ public class AndX86  extends MachConcreteNode implements MachNode{
     }
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        //assert i==1;
-        return x86_64_v2.WMASK;
-    }
+    @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }
 
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
@@ -25,21 +21,7 @@ public class AndX86  extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // REX.W + 23 /r	AND r64, r/m64
-        LRG and_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG and_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short reg1 = and_rg_1.get_reg();
-        short reg2 = and_rg_2.get_reg();
-
-        int beforeSize = bytes.size();
-
-        bytes.write(x86_64_v2.rex(reg1, reg2, 0));
-        bytes.write(0x23); // opcode
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form

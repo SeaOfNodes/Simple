@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -20,22 +19,7 @@ public class MulRISC extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // mul MUL R 0110011 0x0 0x01
-        int beforeSize = bytes.size();
-
-        LRG self  = CodeGen.CODE._regAlloc.lrg(this);
-        LRG mul_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG mul_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short reg1 = mul_rg_1.get_reg();
-        short reg2 = mul_rg_2.get_reg();
-        short reg_self = mul_rg_2.get_reg();
-
-        int body = riscv.r_type(riscv.R_TYPE, reg_self,0,  reg1, reg2, 1);
-
-        riscv.push_4_bytes(body, bytes);
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form: "rd = rs1 * rs2"

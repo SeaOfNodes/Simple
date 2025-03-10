@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 
 public class LoadRISC extends MemOpRISC {
     LoadRISC(LoadNode ld, Node base, Node idx, int off) {
-        super(ld, base, idx, off, null);
+        super(ld, base, idx, off, 0);
     }
 
     @Override public RegMask regmap(int i) {
@@ -24,6 +24,12 @@ public class LoadRISC extends MemOpRISC {
     }
     // Wide mask loads both ints and floats; encoding varies.
     @Override public RegMask outregmap() { return riscv.MEM_MASK; }
+
+
+    // Encoding is appended into the byte array; size is returned
+    @Override public int encoding(ByteArrayOutputStream bytes) {
+        throw Utils.TODO();
+    }
 
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");

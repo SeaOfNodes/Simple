@@ -50,7 +50,6 @@ abstract public class BoolNode extends Node {
 
     TypeInteger doOp(TypeInteger t1, TypeInteger t2) { throw Utils.TODO(); }
     boolean doOp(double lhs, double rhs) { throw Utils.TODO(); }
-    Node copyF(Node lhs, Node rhs) { return null; }
 
     @Override
     public Node idealize() {

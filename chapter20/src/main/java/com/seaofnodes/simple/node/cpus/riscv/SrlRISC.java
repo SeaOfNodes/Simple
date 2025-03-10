@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -25,22 +24,7 @@ public class SrlRISC extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // srl Shift Right Logical R 0110011 0x5 0x00
-        int beforeSize = bytes.size();
-
-        LRG srl_self = CodeGen.CODE._regAlloc.lrg(this);
-        LRG srl_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG srl_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short self = srl_self.get_reg();
-        short reg1 = srl_rg_1.get_reg();
-        short reg2 = srl_rg_2.get_reg();
-
-        int body = riscv.r_type(riscv.R_TYPE, self, 7, reg1, reg2, 0);
-
-        riscv.push_4_bytes(body, bytes);
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form

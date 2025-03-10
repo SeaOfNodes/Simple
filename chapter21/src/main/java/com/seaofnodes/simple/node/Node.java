@@ -319,7 +319,7 @@ public abstract class Node {
             // Can we avoid a split of a split?  'this' split is used by
             // another split in the same block.
             if( !must && def.out(j) instanceof SplitNode split && def.out(j).cfg0()==cfg &&
-                !split._kind.equals( "use/self/use" ) )
+                !split._kind.contains("self") )
                 continue;
             Node use = def._outputs.del(j);
             use.unlock();
@@ -327,7 +327,7 @@ public abstract class Node {
             use._inputs.set(idx,this);
             addUse(use);
         }
-        setDef(1,def);
+        if( nIns()>1 ) setDef(1,def);
     }
 
     // Insert this in front of use.in(uidx) with this, and insert this
@@ -343,7 +343,8 @@ public abstract class Node {
         }
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        if( _inputs._len > 1 ) setDefOrdered(1,use.in(uidx));
+        if( _inputs._len > 1 && this instanceof SplitNode )
+            setDefOrdered(1,use.in(uidx));
         use.setDefOrdered(uidx,this);
     }
 
@@ -706,7 +707,14 @@ public abstract class Node {
     /**
      * Debugging utility to find a Node by index
      */
-    public Node find(int nid) {
-        return walk( n -> n._nid==nid ? n : null );
+    public Node find(int nid) { return _find(nid, new BitSet()); }
+    private Node _find(int nid, BitSet bs) {
+        if( bs.get(_nid) ) return null; // Been there, done that
+        bs.set(_nid);
+        if( _nid==nid ) return this;
+        Node x;
+        for( Node def : _inputs  )  if( def != null && (x = def._find(nid,bs)) != null ) return x;
+        for( Node use : _outputs )  if( use != null && (x = use._find(nid,bs)) != null ) return x;
+        return null;
     }
 }

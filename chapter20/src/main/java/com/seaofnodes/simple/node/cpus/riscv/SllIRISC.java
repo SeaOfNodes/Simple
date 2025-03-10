@@ -5,8 +5,7 @@ import com.seaofnodes.simple.node.Node;
 
 public class SllIRISC extends ImmRISC {
     SllIRISC( Node and, int imm) { super(and,imm); }
-    @Override int opcode() {  return riscv.I_TYPE; }
-    @Override int func3() {  return 1; }
+    @Override int opcode() { throw Utils.TODO(); }
     @Override public String glabel() { return "<<"; }
     @Override public String op() { return "slli"; }
 }

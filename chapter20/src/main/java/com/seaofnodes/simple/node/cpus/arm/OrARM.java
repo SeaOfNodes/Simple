@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node.cpus.arm;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -29,20 +28,7 @@ public class OrARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        LRG or_self = CodeGen.CODE._regAlloc.lrg(this);
-        LRG or_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG or_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short self = or_self.get_reg();
-        short reg1 = or_rg_1.get_reg();
-        short reg2 = or_rg_2.get_reg();
-
-        int beforeSize = bytes.size();
-
-        int body = arm.r_reg(170, 0, reg2, 0,  reg1, self);
-        arm.push_4_bytes(body, bytes);
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form

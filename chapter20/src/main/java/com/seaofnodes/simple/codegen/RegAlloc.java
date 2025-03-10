@@ -80,7 +80,7 @@ public class RegAlloc {
     }
 
     // LRG for n
-    public LRG lrg( Node n ) {
+    LRG lrg( Node n ) {
         LRG lrg = _lrgs.get(n);
         if( lrg==null ) return null;
         LRG lrg2 = lrg.find();
@@ -112,6 +112,14 @@ public class RegAlloc {
             lrgs.setX(lrg._lrg,lrg);
         }
         _LRGS = lrgs.asAry();
+        // Remove unified lrgs from failed set also
+        for( LRG lrg : _failed.keySet().toArray(new LRG[0]) ) {
+            if( !lrg.leader() ) {
+                LRG lrg2 = lrg.find();
+                _failed.remove(lrg);
+                _failed.put(lrg2,"");
+            }
+        }
     }
 
 
@@ -203,7 +211,8 @@ public class RegAlloc {
                 lrg._1regUseCnt <= 1 &&
                 (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
                 return splitEmptyMaskSimple(round,lrg);
-            return splitEmptyMask(round,lrg);
+            // Default to splitByLoop
+            //return splitEmptyMask(round,lrg);
         }
 
         // Generic split-by-loop depth.
@@ -218,9 +227,7 @@ public class RegAlloc {
         // require a full pass.
 
         // Split just after def
-        if( lrg._1regDefCnt==1 ) {
-            if( lrg._machDef.isClone() )
-                throw Utils.TODO();
+        if( lrg._1regDefCnt==1 && !lrg._machDef.isClone() )
             // Force must-split, even if a prior split same block because register
             // conflicts.  Example:
             //   alloc
@@ -228,8 +235,7 @@ public class RegAlloc {
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            _code._mach.split("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, true);
-        }
+            makeSplit("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, false/*true*/);
         // Split just before use
         if( lrg._1regUseCnt==1 )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
@@ -239,15 +245,17 @@ public class RegAlloc {
     // Split live range with an empty mask.  Specifically forces splits at
     // single-register defs or uses everywhere.
     boolean splitEmptyMask( byte round, LRG lrg ) {
-        boolean all = (lrg._1regDefCnt + lrg._1regUseCnt)==0;
         findAllLRG(lrg);
+        // If no single-use or single-def, assume this is a complete register
+        // kill and force spilling everywhere.
+        boolean all = lrg._killed || (lrg._1regDefCnt + lrg._1regUseCnt)==0;
         for( Node n : _ns ) {
             if( !(n instanceof MachNode mach) ) continue;
             // Find def of spilling live range; spilling everywhere, OR
             // single-register DEF and not cloneable (since these will clone
             // before every use)
             if( lrg(n)==lrg && (all || (!mach.isClone() && mach.outregmap().size1() )) )
-                _code._mach.split("def/empty2",round,lrg).insertAfter(n,true);
+                makeSplit(n,"def/empty2",round,lrg).insertAfter(n,true);
             // Find all uses
             for( int i=1; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
@@ -277,7 +285,7 @@ public class RegAlloc {
             // Phi slot 1 (and not all inputs), because Phis extend the live range.
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
-                SplitNode split = _code._mach.split("def/self",round,lrg);
+                SplitNode split = makeSplit("def/self",round,lrg);
                 split.insertAfter(def,false);
                 if( split.nOuts()==0 )
                     split.kill();
@@ -318,7 +326,7 @@ public class RegAlloc {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ )
                     if( lrgSame(n.in(i),lrg) ) // This is a LRG use
-                        ld = ldepth(ld,n.in(i),n.in(i).cfg0());
+                        ld = ldepth(ld,n,n.cfg0());
             }
         }
         int min = (int)ld;
@@ -343,7 +351,7 @@ public class RegAlloc {
                     // Single user is already a split
                     !(n.nOuts()==1 && n.out(0) instanceof SplitNode) )
                     // Split after def in min loop nest
-                    _code._mach.split("def/loop",round,lrg).insertAfter(n,false);
+                    makeSplit("def/loop",round,lrg).insertAfter(n,false);
             }
 
             // PhiNodes check all CFG inputs
@@ -414,17 +422,35 @@ public class RegAlloc {
     }
 
     void insertBefore(Node n, int i, String kind, byte round, LRG lrg) {
-        // Effective block for use
         Node def = n.in(i);
+        // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
-        if( cfg==def.cfg0() && def instanceof SplitNode && def.nOuts()==1 && !(n instanceof MachNode mach && mach.regmap(i).size1()))
-            return;
-        Node split = (def instanceof MachNode mach && mach.isClone()
-                      ? mach.copy()
-                      : _code._mach.split(kind,round,lrg));
-        split.insertBefore(n, i);
+        // Def is a split ?
+        if( def instanceof SplitNode ) {
+            boolean singleReg = n instanceof MachNode mach && mach.regmap(i).size1();
+            // Same block, multiple registers, split is only used by n,
+            // assume this is good enough and do not split again.
+            if( cfg==def.cfg0() && def.nOuts()==1 && !singleReg )
+                return;
+        }
+        makeSplit(def,kind,round,lrg).insertBefore(n, i);
+        // Skip split-of-split same block
+        if( def instanceof SplitNode && cfg==def.cfg0() )
+            n.in(i).setDefOrdered(1,def.in(1));
     }
 
+    private Node makeSplit( Node def, String kind, byte round, LRG lrg ) {
+        Node split = def instanceof MachNode mach && mach.isClone()
+            ? mach.copy()
+            : _code._mach.split(kind,round,lrg);
+        _lrgs.put(split,lrg);
+        return split;
+    }
+    private SplitNode makeSplit( String kind, byte round, LRG lrg ) {
+        SplitNode split = _code._mach.split(kind,round,lrg);
+        _lrgs.put(split,lrg);
+        return split;
+    }
 
 
     // -----------------------

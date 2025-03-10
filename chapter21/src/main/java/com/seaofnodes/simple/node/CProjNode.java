@@ -10,10 +10,10 @@ import java.util.BitSet;
 public class CProjNode extends CFGNode {
 
     // Which slice of the incoming multipart value
-    public final int _idx;
+    public int _idx;
 
     // Debugging label
-    public final String _label;
+    public String _label;
 
     public CProjNode(Node ctrl, int idx, String label) {
         super(ctrl);
@@ -51,6 +51,12 @@ public class CProjNode extends CFGNode {
 
         // Copy of some other input
         return ((MultiNode)ctrl()).pcopy(_idx);
+    }
+
+    // Only called during basic-block layout, inverts a T/F CProj
+    public void invert() {
+        _label = _idx == 0 ? "False" : "True";
+        _idx = 1-_idx;
     }
 
     @Override

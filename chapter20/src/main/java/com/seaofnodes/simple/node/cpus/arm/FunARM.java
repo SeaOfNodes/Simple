@@ -16,6 +16,6 @@ public class FunARM  extends FunNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-         return 0;
+        throw Utils.TODO();
     }
 }

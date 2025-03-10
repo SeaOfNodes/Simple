@@ -7,8 +7,6 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.io.ByteArrayOutputStream;
-
 public class arm extends Machine {
 
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
@@ -26,8 +24,7 @@ public class arm extends Machine {
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
-    static final int D_OFFSET = 31;
-    static final int FLAGS = 60;
+    static final int FLAGS = 64;
 
     static final String[] REGS = new String[] {
         "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
@@ -58,7 +55,7 @@ public class arm extends Machine {
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L - (1L<<FLAGS));
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L);
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
@@ -108,143 +105,6 @@ public class arm extends Machine {
         D7_MASK,
     };
 
-    // ARM ENCODING
-    public enum OPTION {UXTB,
-        UXTH,
-        UXTX,
-        SXTB,
-        SXTH,
-        SXTW,
-        SXTX,
-    }
-
-    public enum STORE_LOAD_OPTION {
-        UXTW,
-        LSL,
-        SXTW,
-        SXTX
-    }
-
-    static public String invert(String op) {
-        return switch (op) {
-            case "==" -> "!=";
-            case "!=" -> "==";
-            case ">" -> "<=";
-            case "<" -> ">=";
-            case ">=" -> "<";
-            case "<=" -> ">";
-            default -> throw new IllegalStateException("Unexpected value: " + op);
-        };
-    }
-    public enum COND {
-        EQ,
-        NE,
-        CS,
-        CC,
-        MI,
-        PL,
-        VS,
-        VC,
-        HI,
-        LS,
-        GE,
-        LT,
-        GT,
-        LE,
-        AL,
-        NV
-    }
-
-    // sh is encoded in opcdoe
-    public static int imm_inst(int opcode, int imm12, int rn, int rd) {
-        return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
-    }
-
-    // for normal add, reg1, reg2 cases (reg-to-reg)
-    // using shifted-reg form
-    public static int r_reg(int opcode, int shift, int rm, int imm6, int rn, int rd) {
-        return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) << (rn << 5) | rd;
-    }
-
-    public static int shift_reg(int opcode, int rm, int op2, int rn, int rd) {
-        return (opcode << 21) | (rm << 16) | (op2 << 10) | (rn << 5) | rd;
-    }
-
-    //  MUL can be considered an alias for MADD with the third operand Ra being set to 0
-    public static int madd(int opcode, int rm, int ra, int rn, int rd) {
-        return (opcode << 21) | (rm << 16) | (ra << 10) | (rn << 5) | rd;
-    }
-
-    // encodes movk
-    public static int mov(int opcode, int shift, int imm16, int rd) {
-            return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
-    }
-
-    public static int ret(int opcode) {
-        return (opcode << 10);
-    }
-
-    // FMOV (scalar, immediate)
-    public static int f_mov(int opcode, int ftype,  int imm8, int rd) {
-        return (opcode << 24) | (ftype << 21) |(imm8 << 13) | (128 << 5) | rd;
-    }
-
-    public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
-        return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
-    }
-
-    public static int load_adr(int opcode, int offset, int base, int rt) {
-        return (opcode << 21) | (offset << 12) | (3 << 10) | (base << 5) | rt;
-    }
-
-    // rt = reg to load into, rn = base reg, rm = register
-    public static int indr_adr(int opcode, int rm, STORE_LOAD_OPTION option, int s, int rn, int rt) {
-        return (opcode << 21) | (rm << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
-    }
-
-    // encoding for vcvt, size is encoded in operand
-    // <Qd>, <Qm>
-    // F32.S32
-    //encoded as op = 0b00, size = 0b10.
-    // VCVT<c>.<Td>.<Tm> <Dd>, <Dm>
-    // opcode is broken down into 4 pieces
-    public static int f_convert(int opcode_1, int opcode_2, int opcode_3, int opcode_4,  int vd, int vm)  {
-        return (opcode_1 << 28) | (opcode_2 << 24) | (opcode_3 << 20) | (opcode_4 << 16) |
-                (vd << 12) | (0x01100010 << 4) | vm;
-    }
-    public static int float_cast(int opcode, int ftype, int rn, int rd) {
-        return (opcode << 24) | (ftype << 22) | (2176 << 10) | (rn << 5) | rd;
-    }
-
-    // ftype = 3
-    public static int f_cmp(int opcode, int ftype, int rm, int rn) {
-        return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
-    }
-
-    // Todo: maybe missing zero here after label << 5
-    public static int b_cond(int opcode, int label, COND cond) {
-        return (opcode << 24) | (label << 5) | cond.ordinal();
-    }
-
-    public static int cond_set(int opcode, int rm, COND cond, int rn, int rd) {
-        return (opcode << 21) | (rm << 16) | (cond.ordinal() << 12) | (rn << 5) | rd;
-    }
-
-    public static int b(int opcode, int imm26) {
-        return (opcode << 26) | imm26;
-    }
-
-    public static int load_str_imm(int opcode, int imm9, int rn, int rt) {
-        return (opcode << 21) | (imm9 << 12) |(1 << 10) |(rn << 5) | rt;
-    }
-
-    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
-        bytes.write(value);
-        bytes.write(value >> 8);
-        bytes.write(value >> 16);
-        bytes.write(value >> 24);
-    }
-
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
@@ -277,7 +137,7 @@ public class arm extends Machine {
     static {
         long caller = ~CALLEE_SAVE;
         caller &= ~(1L<<RSP);
-        CALLER_SAVE_MASK = new RegMask(caller,1L<<FLAGS);
+        CALLER_SAVE_MASK = new RegMask(caller,1L<<(FLAGS-64));
     }
     static RegMask armCallerSave() { return CALLER_SAVE_MASK; }
     @Override public RegMask callerSave() { return armCallerSave(); }
@@ -324,52 +184,54 @@ public class arm extends Machine {
     // Instruction selection
     @Override public Node instSelect( Node n ) {
         return switch( n ) {
-            case AddFNode     addf  -> addf(addf);
-            case AddNode      add   -> add(add);
-            case AndNode      and   -> and(and);
-            case BoolNode     bool  -> cmp(bool);
-            case CallNode     call  -> call(call);
-            case CastNode     cast  -> new CastNode(cast);
-            case CallEndNode  cend  -> new CallEndARM(cend);
-            case CProjNode    c     -> new CProjNode(c);
-            case ConstantNode con   -> con(con);
-            case DivFNode     divf  -> new DivFARM(divf);
-            case DivNode      div   -> new DivARM(div);
-            case FunNode      fun   -> new FunARM(fun);
-            case IfNode       iff   -> jmp(iff);
-            case LoadNode     ld    -> ld(ld);
-            case MemMergeNode mem   -> new MemMergeNode(mem);
-            case MulFNode     mulf  -> new MulFARM(mulf);
-            case MulNode      mul   -> mul(mul);
-            case NewNode      nnn   -> new NewARM(nnn);
-            case NotNode      not   -> new NotARM(not);
-            case OrNode       or    ->  or(or);
-            case ParmNode     parm  -> new ParmARM(parm);
-            case PhiNode      phi   -> new PhiNode(phi);
-            case ProjNode     prj   -> prj(prj);
-            case ReadOnlyNode read  -> new ReadOnlyNode(read);
-            case ReturnNode   ret   -> new RetARM(ret,ret.fun());
-            case SarNode      sar   -> sar(sar);
-            case ShlNode      shl   -> shl(shl);
-            case ShrNode      shr   -> shr(shr);
-            case StartNode    start -> new StartNode(start);
-            case StopNode     stop  -> new StopNode(stop);
-            case StoreNode    st    -> st(st);
-            case SubFNode     subf  -> new SubFARM(subf);
-            case SubNode      sub   -> sub(sub);
-            case ToFloatNode  tfn   -> i2f8(tfn);
-            case XorNode      xor   -> xor(xor);
+        case AddFNode     addf  -> addf(addf);
+        case AddNode      add   -> add(add);
+        case AndNode      and   -> and(and);
+        case BoolNode     bool  -> cmp(bool);
+        case CallNode     call  -> call(call);
+        case CastNode     cast  -> new CastNode(cast);
+        case CallEndNode  cend  -> new CallEndARM(cend);
+        case CProjNode    c     -> new CProjNode(c);
+        case ConstantNode con   -> con(con);
+        case DivFNode     divf  -> new DivFARM(divf);
+        case DivNode      div   -> new DivARM(div);
+        case FunNode      fun   -> new FunARM(fun);
+        case IfNode       iff   -> jmp(iff);
+        case LoadNode     ld    -> ld(ld);
+        case MemMergeNode mem   -> new MemMergeNode(mem);
+        case MulFNode     mulf  -> new MulFARM(mulf);
+        case MulNode      mul   -> mul(mul);
+        case NewNode      nnn   -> new NewARM(nnn);
+        case OrNode       or   ->  or(or);
+        case ParmNode     parm  -> new ParmARM(parm);
+        case PhiNode      phi   -> new PhiNode(phi);
+        case ProjNode     prj   -> prj(prj);
+        case ReadOnlyNode read  -> new ReadOnlyNode(read);
+        case ReturnNode   ret   -> new RetARM(ret,ret.fun());
+        case SarNode      sar   -> sar(sar);
+        case ShlNode      shl   -> shl(shl);
+        case ShrNode      shr   -> shr(shr);
+        case StartNode    start -> new StartNode(start);
+        case StopNode     stop  -> new StopNode(stop);
+        case StoreNode    st    -> st(st);
+        case SubFNode     subf  -> new SubFARM(subf);
+        case SubNode      sub   -> sub(sub);
+        case ToFloatNode  tfn   -> i2f8(tfn);
+        case XorNode      xor   -> xor(xor);
 
-            case LoopNode     loop  -> new LoopNode(loop);
-            case RegionNode   region-> new RegionNode(region);
-            default -> throw Utils.TODO();
+        case LoopNode     loop  -> new LoopNode(loop);
+        case RegionNode   region-> new RegionNode(region);
+        default -> throw Utils.TODO();
         };
     }
 
     private Node mul(MulNode mul) {
+        Node rhs = mul.in(2);
+        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+            return new MulIARM(mul, toff);
+        }
         return new MulARM(mul);
     }
-
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
         return new SetARM(cmp, bool.op());
@@ -390,7 +252,7 @@ public class arm extends Machine {
         // Loads do not set the flags, and will need an explicit TEST
         if( !(iff.in(1) instanceof BoolNode) )
             iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
+        return new BranchARM(iff, ((BoolNode)iff.in(1)).op());
     }
 
     private Node _cmp(BoolNode bool) {
@@ -420,26 +282,26 @@ public class arm extends Machine {
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new SubIARM(sub, TypeInteger.constant(ti.value()))
+                ? new AddIARM(sub, TypeInteger.constant(-ti.value()))
                 : new SubARM(sub);
     }
 
     private Node and(AndNode and) {
-//        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-//            return new AndIARM(and, ti);
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new AndIARM(and, ti);
         return new AndARM(and);
     }
 
     private Node or(OrNode or) {
-//        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new OrIARM(or, ti);
+        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new OrIARM(or, ti);
 
         return new OrARM(or);
     }
 
     private Node xor(XorNode xor) {
-//        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new XorIARM(xor, ti);
+        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new XorIARM(xor, ti);
         return new XorARM(xor);
     }
 
@@ -457,21 +319,21 @@ public class arm extends Machine {
     }
 
     private Node sar(SarNode sar){
-//        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new AsrIARM(sar, ti);
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new AsrIARM(sar, ti);
         return new AsrARM(sar);
     }
 
     private Node shl(ShlNode shl) {
-//        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new LslIARM(shl, ti);
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new LslIARM(shl, ti);
         return new LslARM(shl);
 
     }
 
     private Node shr(ShrNode shr) {
-//        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new LsrIARM(shr, ti);
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
+            return new LsrIARM(shr, ti);
         return new LsrARM(shr);
     }
 
@@ -489,10 +351,15 @@ public class arm extends Machine {
     private static int off;
     private static Node idx;
     private Node st(StoreNode st) {
+        int imm=0;
         Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
+        // e.g store this                     s.cs[0] =  67; // C
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
             xval = null;
-        return new StoreARM(address(st),st.ptr(),idx,off,xval);
+            imm = (int)ti.value();
+            assert imm == ti.value(); // In 32-bit range
+        }
+        return new StoreARM(address(st),st.ptr(),idx,off,imm,xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder

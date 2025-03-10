@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -33,15 +32,7 @@ public class JmpX86 extends IfNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // linker sorts out target address
-        // JMP rel32
-        // TODO: relocs
-        int beforeSize = bytes.size();
-        // common opcode
-        bytes.write(0x0F);
-        bytes.write(x86_64_v2.jumpop(_bop));
-        x86_64_v2.imm(0, 32, bytes);
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     @Override public void asm(CodeGen code, SB sb) {

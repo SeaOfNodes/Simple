@@ -22,11 +22,7 @@ public class RetARM extends ReturnNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        int beforeSize = bytes.size();
-        // default it to x30
-        int body = arm.ret(3512256);
-        arm.push_4_bytes(body, bytes);
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     @Override public void asm(CodeGen code, SB sb) {

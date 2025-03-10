@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -27,23 +26,7 @@ public class ShlIX86 extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // REX.W + C1 /4 ib
-        // SHL r/m64, imm8
-        LRG sar_lrg = CodeGen.CODE._regAlloc.lrg(this);
-        short reg = sar_lrg.get_reg();
-
-        int beforeSize = bytes.size();
-
-        bytes.write(x86_64_v2.rex(0, reg, 0));
-        bytes.write(0xC1); // opcode
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x04, reg));
-
-        // immediate(4 bytes) 32 bits
-        int imm8 = (int)_ti.value();
-        x86_64_v2.imm(imm8, 8, bytes);
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form

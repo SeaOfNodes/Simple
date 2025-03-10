@@ -25,7 +25,7 @@ public class CallEndARM extends CallEndNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        return 0;
+        throw Utils.TODO();
     }
 
     @Override public void asm(CodeGen code, SB sb) {  }

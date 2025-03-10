@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -38,8 +37,7 @@ public class AndIARM  extends MachConcreteNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override
     public int encoding(ByteArrayOutputStream bytes) {
-        // force register form instead of imm form
-        return 0;
+        throw Utils.TODO();
     }
 
     // General form

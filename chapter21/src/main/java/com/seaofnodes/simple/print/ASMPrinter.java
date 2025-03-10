@@ -3,7 +3,6 @@ package com.seaofnodes.simple.print;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
 
@@ -45,7 +44,7 @@ public abstract class ASMPrinter {
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
         CFGNode bb = code._cfg.at(cfgidx);
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
-            sb.p(bb instanceof LoopNode ? "LOOP" : "L").p(bb._nid).p(":").nl();
+            sb.p(label(bb)).p(":").nl();
         if( bb instanceof CallNode ) return iadr;
         final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal();
 
@@ -56,7 +55,7 @@ public abstract class ASMPrinter {
                 break;
 
         if( nPhi>0 ) {
-            // Post-alloc phi prints all on one line
+            // Post- RegAlloc phi prints all on one line
             if( postAlloc ) {
                 sb.fix(4," ").p(" ").fix(encWidth,"").p("  ");
                 for( int i=0; i<nPhi; i++ ) {
@@ -67,6 +66,7 @@ public abstract class ASMPrinter {
                 sb.unchar().nl();
 
             } else {
+                // Pre- RegAlloc phi prints one line per
                 for( int j=0; j<nPhi; j++ ) {
                     PhiNode phi = (PhiNode)bb.out(j);
                     if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) continue; // Nothing for the hidden ones
@@ -85,20 +85,28 @@ public abstract class ASMPrinter {
 
         // All the non-phis
         for( int i=nPhi; i<bb.nOuts(); i++ )
-            iadr = doInst(iadr, sb,code,fun,bb,bb.out(i),postAlloc );
+            iadr = doInst(iadr, sb,code, cfgidx, bb.out(i),postAlloc );
 
         return iadr;
     }
 
-    static int doInst(int iadr, SB sb, CodeGen code, FunNode fun, CFGNode bb, Node n, boolean postAlloc ) {
+    static int doInst( int iadr, SB sb, CodeGen code, int cfgidx, Node n, boolean postAlloc ) {
         if( n instanceof CProjNode ) return iadr;
         if( n instanceof CalleeSaveNode && postAlloc ) return iadr;
+        if( n instanceof MemMergeNode ) return iadr;
 
         // All blocks ending in a Region will need to either fall into or jump
         // to this block.  Until the post-reg-alloc block layout cleanup, we
         // need to assume a jump.  There's no real hardware op here, yet.
-        if( n instanceof RegionNode && !(n instanceof FunNode) ) {
-            sb.hex4(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,"L"+n._nid).nl();
+        if( n instanceof RegionNode cfg && !(n instanceof FunNode) ) {
+            while( true ) {
+                CFGNode next = code._cfg.at(++cfgidx);
+                if( next == n ) return iadr; // Fall-through, no branch
+                if( next.nOuts()>1 )
+                    break;      // Has code in the block, need to jump around
+                // No code in the block, can fall through it
+            }
+            sb.hex4(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,label(cfg)).nl();
             return iadr;
         }
 
@@ -154,10 +162,15 @@ public abstract class ASMPrinter {
         if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
             for( Node proj : n._outputs ) {
                 assert proj instanceof ProjNode;
-                doInst(iadr,sb,code,fun,bb,proj,postAlloc);
+                doInst(iadr,sb,code, cfgidx, proj,postAlloc);
             }
         }
 
         return iadr;
     }
+
+    private static String label( CFGNode bb ) {
+        return (bb instanceof LoopNode ? "LOOP" : "L")+bb._nid;
+    }
+
 }

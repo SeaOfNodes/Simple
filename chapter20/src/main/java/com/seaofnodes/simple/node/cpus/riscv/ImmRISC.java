@@ -2,14 +2,13 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 import java.io.ByteArrayOutputStream;
 
-abstract public class ImmRISC extends MachConcreteNode implements MachNode {
+public abstract class ImmRISC extends MachConcreteNode implements MachNode {
     final int _imm;
     ImmRISC( Node add, int imm ) {
         super(add);
@@ -28,77 +27,9 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     }
 
     abstract int opcode();
-    abstract int func3();
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        int beforeSize = bytes.size();
-
-        LRG rg_1 = CodeGen.CODE._regAlloc.lrg(this);
-        LRG rg_2 = CodeGen.CODE._regAlloc.lrg(in(1));
-
-        short rd = rg_1.get_reg();
-        short reg_1 = rg_2.get_reg();
-
-        switch (this) {
-            case AddIRISC addIRISC-> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return  bytes.size() - beforeSize;
-            }
-            case AndIRISC andIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
-            }
-
-            case OrIRISC orIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
-            }
-
-            case XorIRISC xorIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
-            }
-
-            case SetIRISC setIRISC -> {
-             // zero reg encode it as zero
-//             if(reg_2 == riscv.ZERO) {
-//                 int body = riscv.i_type(opcode(), rd, func3(), reg_1, 0);
-//                 riscv.push_4_bytes(body, bytes);
-//                 return bytes.size() - beforeSize;
-//             }
-             // assume less than with imm
-             int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-             riscv.push_4_bytes(body, bytes);
-
-             return bytes.size() - beforeSize;
-            }
-
-            case SllIRISC sllIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
-            }
-
-            case SraIRISC sraIIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
-            }
-
-            case SrlIRISC srlIIRISC -> {
-                int body = riscv.i_type(opcode(), rd, func3(), reg_1, _imm);
-                riscv.push_4_bytes(body, bytes);
-                return bytes.size() - beforeSize;
-            }
-
-            default -> {
-            }
-        }
         throw Utils.TODO();
     }
 
