@@ -11,7 +11,9 @@ Chaitin's original: https://en.wikipedia.org/wiki/Register_allocation#CITEREFCha
 
 Briggs additions: https://dl.acm.org/doi/10.1145/177492.177575
 
-There are several other useful link that can be found by searching for Briggs
+Nice lecture slides pdf of Briggs/Chaitin: https://aktemur.github.io/cs544/lectures/chapter%2013%20registerAllocation.pdf
+
+There are several other useful links that can be found by searching for Briggs
 or Chaitin in combination.  Basically there was a spate of register allocation
 improvements in this era that made it into many high-end mainstream compilers.
 
@@ -48,7 +50,7 @@ allocation quality becomes heavily dependent on splitting and coloring
 heuristics.
 
 Hence, much of the "high theory" will be used to drive the core coloring
-algorithm, but much of the "actual success" will depend on a large collection
+algorithm, but much of the actual success will depend on a large collection
 of heuristics.
 
 ### Coloring Rounds
