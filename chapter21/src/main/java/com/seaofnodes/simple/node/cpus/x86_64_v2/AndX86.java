@@ -6,10 +6,8 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
-public class AndX86  extends MachConcreteNode implements MachNode{
-    AndX86(Node and) {
-        super(and);
-    }
+public class AndX86  extends MachConcreteNode implements MachNode {
+    AndX86(Node and) { super(and); }
     // Register mask allowed on input i.
     // This is the normal calling convention
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }
@@ -29,6 +27,5 @@ public class AndX86  extends MachConcreteNode implements MachNode{
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" & ").p(code.reg(in(2)));;
     }
-
     @Override public String op() { return "and"; }
 }

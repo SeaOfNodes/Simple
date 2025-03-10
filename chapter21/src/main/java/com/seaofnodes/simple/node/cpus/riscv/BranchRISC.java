@@ -9,7 +9,7 @@ import java.util.BitSet;
 
 // Conditional branch such as: BEQ
 public class BranchRISC extends IfNode implements MachNode {
-    final String _bop;
+    String _bop;
     // label is obtained implicitly
     BranchRISC( IfNode iff, String bop, Node n1, Node n2 ) {
         super(iff);
@@ -44,4 +44,6 @@ public class BranchRISC extends IfNode implements MachNode {
     @Override public String comment() {
         return "L"+cproj(1)._nid+", L"+cproj(0)._nid;
     }
+
+    @Override public void invert() { _bop = invert(_bop); }
 }

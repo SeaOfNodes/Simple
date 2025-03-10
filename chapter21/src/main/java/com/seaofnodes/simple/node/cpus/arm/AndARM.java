@@ -11,16 +11,11 @@ import com.seaofnodes.simple.node.Node;
 import java.io.ByteArrayOutputStream;
 
 public class AndARM extends MachConcreteNode implements MachNode {
-    AndARM(Node and) {
-        super(and);
-    }
+    AndARM(Node and) { super(and); }
 
     // Register mask allowed on input i.
     // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        assert i==1 || i==2;
-        return arm.RMASK;
-    }
+    @Override public RegMask regmap(int i) { return arm.RMASK; }
 
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return arm.RMASK; }
@@ -35,4 +30,5 @@ public class AndARM extends MachConcreteNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb){
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" & ").p(code.reg(in(2)));
     }
+    @Override public String op() { return "and"; }
 }

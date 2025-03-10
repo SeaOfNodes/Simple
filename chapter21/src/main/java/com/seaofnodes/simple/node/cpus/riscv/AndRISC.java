@@ -10,10 +10,8 @@ import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.lang.StringBuilder;
 
-public class AndRISC extends MachConcreteNode implements MachNode{
-    AndRISC(Node and) {
-        super(and);
-    }
+public class AndRISC extends MachConcreteNode implements MachNode {
+    AndRISC(Node and) { super(and); }
 
     // Register mask allowed on input i.
     // This is the normal calling convention
@@ -35,4 +33,5 @@ public class AndRISC extends MachConcreteNode implements MachNode{
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" & ").p(code.reg(in(2)));
     }
+    @Override public String op() { return "and"; }
 }

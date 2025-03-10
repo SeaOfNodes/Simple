@@ -4,13 +4,11 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-
 import java.io.ByteArrayOutputStream;
-
 
 // Jump on flags, uses flags
 public class BranchARM extends IfNode implements MachNode{
-    final String _bop;
+    String _bop;
     BranchARM(IfNode iff, String bop ) {
         super(iff);
         _bop = bop;
@@ -45,4 +43,5 @@ public class BranchARM extends IfNode implements MachNode{
     @Override public String comment() {
         return "L"+cproj(1)._nid+", L"+cproj(0)._nid;
     }
+    @Override public void invert() { _bop = invert(_bop); }
 }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
@@ -64,4 +65,19 @@ public class IfNode extends CFGNode implements MultiNode {
         return null;
     }
 
+    // MachNode variants need to support this and invert the conditional test.
+    // The following CProjs will be inverted by the caller.
+    public void invert() { throw Utils.TODO(); }
+
+    public static String invert( String bop ) {
+        return switch( bop ) {
+        case "<"  -> ">=";
+        case "<=" -> ">" ;
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">"  -> "<=";
+        case ">=" -> "<" ;
+        default -> throw Utils.TODO();
+        };
+    }
 }
