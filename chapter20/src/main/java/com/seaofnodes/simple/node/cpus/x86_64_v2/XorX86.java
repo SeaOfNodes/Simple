@@ -11,7 +11,6 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.ByteArrayOutputStream;
 
-
 public class XorX86 extends MachConcreteNode implements MachNode{
     XorX86(Node xor) {super(xor);}
 
@@ -23,23 +22,7 @@ public class XorX86 extends MachConcreteNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        // REX.W + 33 /r	XOR r64, r/m64
-
-        LRG xor_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG xor_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short reg1 = xor_rg_1.get_reg();
-        short reg2 = xor_rg_2.get_reg();
-
-        int beforeSize = bytes.size();
-
-        bytes.write(x86_64_v2.rex(reg1, reg2, 0));
-
-        bytes.write(0x33); // opcode
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1, reg2));
-
-        return bytes.size() - beforeSize;
+        throw Utils.TODO();
     }
 
     // General form
