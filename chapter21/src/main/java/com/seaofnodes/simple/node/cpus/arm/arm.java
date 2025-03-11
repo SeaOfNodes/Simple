@@ -297,8 +297,6 @@ public class arm extends Machine {
         return (opcode << 26) | imm26;
     }
 
-    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) { throw Utils.TODO(); }
-
     static RegMask callInMask(TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
@@ -481,7 +479,7 @@ public class arm extends Machine {
     private static int off;
     private static Node idx;
     private Node st(StoreNode st) {
-        Node xval = xval instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
+        Node xval = st.val() instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
         return new StoreARM(address(st),st.ptr(),idx,off,xval);
     }
 

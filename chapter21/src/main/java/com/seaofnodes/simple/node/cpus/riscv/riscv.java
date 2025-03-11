@@ -1,10 +1,7 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -14,7 +11,7 @@ public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int        ZERO=0,     RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int ZERO =  0,  RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
@@ -40,8 +37,6 @@ public class riscv extends Machine {
             "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
 
-    static int FLAGS = 0 ;
-
     // General purpose register mask: pointers and ints, not floats
     static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
     static final RegMask RMASK = new RegMask(RD_BITS);
@@ -50,7 +45,6 @@ public class riscv extends Machine {
     static final RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
     static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
-    static RegMask FLAGS_MASK = new RegMask(FLAGS);
     static final RegMask FMASK = new RegMask(FP_BITS);
 
     // Load/store mask; both GPR and FPR
@@ -107,7 +101,6 @@ public class riscv extends Machine {
     // R_type opcode: 0011 0011
     public static int R_TYPE = 0x33;
 
-
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
 
@@ -118,22 +111,36 @@ public class riscv extends Machine {
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
-
-    public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
-        return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3.ordinal() << 12) | (rd << 7) | opcode;
+    public static void r_type(Encoding enc, Node n, int opcode, int func3, int func7) {
+        short dst  = enc.reg(n);
+        short src1 = enc.reg(n.in(1));
+        short src2 = enc.reg(n.in(2));
+        int body = r_type(opcode,dst,func3,src1,src2,func7);
+        enc.add4(body);
     }
+    public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
+        return r_type(opcode,rd,func3.ordinal(),rs1,rs2,func7);
+    }
+    public static void rf_type(Encoding enc, Node n, int opcode, RM func3, int func7) {
+        short dst  = (short)(enc.reg(n      )-F_OFFSET);
+        short src1 = (short)(enc.reg(n.in(1))-F_OFFSET);
+        short src2 = (short)(enc.reg(n.in(2))-F_OFFSET);
+        int body = r_type(opcode,dst,func3,src1,src2,func7);
+        enc.add4(body);
+    }
+
 
     public static int u_type(int opcode, int rd, int imm) {
         return (imm << 12) | (rd << 7) | opcode;
     }
 
-    public static int i_type(int opcode, int rd, int func3, int rs1, int imm) {
-        return (imm << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
-    }
-
-    public static int i_type(int opcode, int rd, int func3, int rs1, int imm, int func7) {
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm12, int func7) {
         return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
+    public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
+        return i_type(opcode,rd,func3,rs1,imm,0);
+    }
+
 
     // S-type instructions(store)
     public static int s_type(int opcode, int offset1, int func3, int rs1, int rs2, int offset2) {
@@ -147,31 +154,24 @@ public class riscv extends Machine {
         return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
     }
 
-    public enum RM {RNE, // Round to Nearest, ties to Even
-        RTZ,  // Round towards Zero
-        RDN, // Round Down
-        RUP, // Round Up
-        DIRECT, // Round to Nearest, ties to Max Magnitude
+    public enum RM {
+        RNE,       // Round to Nearest, ties to Even
+        RTZ,       // Round towards Zero
+        RDN,       // Round Down
+        RUP,       // Round Up
+        DIRECT,    // Round to Nearest, ties to Max Magnitude
         RESERVED1, // Reserved for futue use
         RESERVED2, // Reserved for future use
-        DYN, // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
+        DYN,       // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
     }
 
-//    public enum FMT {S, // 32-bit single-precision
-//        D,  // 64-bit double-precision
-//        H, // 16-bit half-precision
-//        Q, // 128-bit quad-precision
-//    };
-
-    // slt, (0110011)
-    //
     // seqz ( sltiu rd, rs, 1 ) - 0001 0011
     static public int setop(String op) {
         return switch(op) {
-            case "==" -> 0x33;
-            case "<"  -> 0x33;
-            case "<="  -> 0x13;
-            default  ->  throw new IllegalArgumentException("Too many arguments");
+        case "<"  -> 0x33;
+        case "<=" -> 0x13;
+        case "==" -> 0x33;
+        default   -> throw Utils.TODO();
         };
     }
     // Since opcode is the same just return back func3
@@ -180,35 +180,30 @@ public class riscv extends Machine {
     // BLE: bge rt, rs, offset:
     static public int jumpop(String op) {
         return switch(op) {
-            case "=="  -> 0;
-            case "<"   -> 0x4;
-            case "<="  -> 0x5;
-            default  ->  throw new IllegalArgumentException("Too many arguments");
+        case "<"   -> 0x4;
+        case "<="  -> 0x5;
+        case "=="  -> 0;
+        default  ->  throw Utils.TODO();
         };
     }
     // Since opcode is the same just return back func3
     static public int fsetop(String op) {
         return switch(op) {
-            case "==" -> 0x2;
-            case "<"  -> 0x1;
-            case "<="  -> 0x0;
-            default  ->  throw new IllegalArgumentException("Too many arguments");
+        case "<"  -> 1;
+        case "<=" -> 0;
+        case "==" -> 2;
+        default   -> throw Utils.TODO();
         };
     }
-    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
-        bytes.write(value);
-        bytes.write(value >> 8);
-        bytes.write(value >> 16);
-        bytes.write(value >> 24);
-    }
+    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) { throw Utils.TODO(); }
 
-    public static void print_as_hex(ByteArrayOutputStream outputStream) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : outputStream.toByteArray()) {
-            hexString.append(String.format("%02X", b));  // Format as uppercase hex without space
-        }
-        System.out.println(hexString.toString());
-    }
+//    public static void print_as_hex(ByteArrayOutputStream outputStream) {
+//        StringBuilder hexString = new StringBuilder();
+//        for (byte b : outputStream.toByteArray()) {
+//            hexString.append(String.format("%02X", b));  // Format as uppercase hex without space
+//        }
+//        System.out.println(hexString.toString());
+//    }
 
 //    // rs1 - rs2
 //    public static int r_source(int rs1, int rs2) {
@@ -371,20 +366,34 @@ public class riscv extends Machine {
     }
 
     private Node cmp(BoolNode bool) {
-        // use zero reg or
-        // slti	Set Less Than Immediate	slti rd, rs1, imm
-        boolean imm = false;
-
-        if( bool.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff && (bool.op().equals("<"))) {
-            if(toff.value() == 0) imm = true;
-            return new SetIRISC(bool, (int)toff.value());
-        }
-
-        // Float variant
+        // Float variant directly implemented in hardware
         if( bool.isFloat() )
             return new SetFRISC(bool);
 
-        return new SetRISC(bool, imm);
+        // Only < and <u are implemented in hardware.
+        // x <  y - as-is
+        // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
+        // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
+
+        // x >  y - swap; y < x
+        // x >= y - swap and invert; !(x < y); `slt tmp=y,x;` then NOT.
+        // x != y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1` then NOT.
+
+        // The ">", ">=" and "!=" in Simple include a NotNode, which can be
+        // implemented with a XOR.  If one of the above is followed by a NOT
+        // we can remove the double XOR in the encodings.
+
+        boolean imm = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti);
+        return switch( bool.op() ) {
+        case "<" -> imm
+            ? new SetIRISC(bool, (int)ti.value(),false)
+            : new SetRISC(bool);
+        // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
+        case "<=" -> new XorIRISC(new SetRISC(bool.swap12()),1);
+        // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
+        case "==" -> new SetIRISC(new SubRISC(bool),1,true);
+        default -> throw Utils.TODO();
+        };
     }
 
     private Node con( ConstantNode con ) {

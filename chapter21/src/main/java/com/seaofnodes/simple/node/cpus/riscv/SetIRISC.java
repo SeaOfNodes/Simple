@@ -6,10 +6,12 @@ import com.seaofnodes.simple.node.BoolNode;
 // corresponds to slt,sltu,slti,sltiu, seqz
 public class SetIRISC extends ImmRISC {
     final String _bop;          // One of <,<=,==
-    SetIRISC( BoolNode bool, int imm ) {
+    final boolean _unsigned;    // slti vs sltiu
+    SetIRISC( BoolNode bool, int unsigned ) {
         super(bool,imm);
         assert !bool.isFloat();
         _bop = bool.op();
+        _unsigned = unsigned;
     }
     @Override int opcode() { return 19; }
     @Override int func3() { return 2; }
