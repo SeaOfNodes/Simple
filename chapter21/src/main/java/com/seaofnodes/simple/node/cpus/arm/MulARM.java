@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 // mulh signed multiply instruction(no-imm form)
-public class MulARM extends MachConcreteNode implements MachNode{
+public class MulARM extends MachConcreteNode implements MachNode {
     MulARM(Node mul) {super(mul);}
     @Override public String op() { return "mul"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }

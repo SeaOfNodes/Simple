@@ -8,7 +8,7 @@ import java.io.ByteArrayOutputStream;
 
 public class arm extends Machine {
 
-    // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
+    // ARM64
     @Override public String name() { return "arm"; }
 
     // GPR(S)
@@ -106,7 +106,8 @@ public class arm extends Machine {
     };
 
     // ARM ENCODING
-    public enum OPTION {UXTB,
+    public enum OPTION {
+        UXTB,
         UXTH,
         UXTX,
         SXTB,
@@ -116,10 +117,10 @@ public class arm extends Machine {
     }
 
     public enum STORE_LOAD_OPTION {
-        UXTW,
-        LSL,
-        SXTW,
-        SXTX
+        UXTW,  // base+ u32 index [<< logsize]
+        UXTX,  // base+ u64 index [<< logsize]
+        SXTW,  // base+ s32 index [<< logsize]
+        SXTX,  // base+ s64 index [<< logsize]
     }
 
     static public String invert(String op) {
@@ -152,14 +153,25 @@ public class arm extends Machine {
         NV
     }
 
+    // True if signed 9-bit immediate
+    private static boolean imm9(TypeInteger ti) {
+        // 55 = 64-9
+        return ti.isConstant() && ((ti.value()<<55)>>55) == ti.value();
+    }
+    // True if signed 12-bit immediate
+    private static boolean imm12(TypeInteger ti) {
+        // 52 = 64-12
+        return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
+    }
+
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
-    public static void imm_inst(Encoding enc, Node n, int opcode, int imm) {
+    public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));
-        int body = imm_inst(opcode, imm, reg_1, rd);
+        int body = imm_inst(opcode, imm12, reg1, self);
         enc.add4(body);
     }
 
@@ -172,7 +184,7 @@ public class arm extends Machine {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));
         short reg2 = enc.reg(n.in(2));
-        int body = r_reg(139, 0, reg2, 0,  reg1, self);
+        int body = r_reg(opcode, 0, reg2, 0,  reg1, self);
         enc.add4(body);
     }
 
@@ -217,9 +229,9 @@ public class arm extends Machine {
         return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
     }
     public static void f_scalar(Encoding enc, Node n, int op ) {
-        short self = enc.reg(n)      -D_OFFSET;
-        short reg1 = enc.reg(n.in(1))-D_OFFSET;
-        short reg2 = enc.reg(n.in(2))-D_OFFSET;
+        short self = (short)(enc.reg(n)      -D_OFFSET);
+        short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
+        short reg2 = (short)(enc.reg(n.in(2))-D_OFFSET);
         int body = f_scalar(30, 1, reg2, op,  reg1, self);
         enc.add4(body);
     }
@@ -228,19 +240,23 @@ public class arm extends Machine {
         return (opcode << 21) | (offset << 12) | (3 << 10) | (base << 5) | rt;
     }
 
-    // rt = reg to load into, rn = base reg, rm = register
-    public static int indr_adr(int opcode, int rm, STORE_LOAD_OPTION option, int s, int rn, int rt) {
-        return (opcode << 21) | (rm << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
+    // [Rptr+Roff]
+    public static int indr_adr(int opcode, int off, STORE_LOAD_OPTION option, int s, int ptr, int rt) {
+        return (opcode << 21) | (off << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (ptr << 5) | rt;
     }
-    public static void indr_adr( Encoding enc, Node n ) {
-        // CNC - NOT FOLDED INTO W/STORE AND load_str_imm variant
-        short self = enc.reg(n)      ;
-        short base = enc.reg(n.in(2));
-        short indx = enc.reg(n.in(3));
-        int body = arm.indr_adr(1987, indx, arm.STORE_LOAD_OPTION.SXTW, 0, base, self);
+    // [Rptr+imm9]
+    public static int load_str_imm(int opcode, int imm9, int ptr, int rt) {
+        return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
+    }
+    public static void ldst_encode( Encoding enc, MemOpARM n, int op, Node xval ) {
+        short ptr = enc.reg(n.ptr());
+        short off = enc.reg(n.off());
+        short val = enc.reg(xval)   ;
+        int body = n.off() == null
+            ? load_str_imm(op, off, ptr, val)
+            : indr_adr(op+1, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
         enc.add4(body);
     }
-
 
     // encoding for vcvt, size is encoded in operand
     // <Qd>, <Qm>
@@ -262,8 +278,8 @@ public class arm extends Machine {
         return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
     }
     public static void f_cmp(Encoding enc, Node n) {
-        short reg1 = enc.reg(n.in(1))-arm.D_OFFSET;
-        short reg2 = enc.reg(n.in(2))-arm.D_OFFSET;
+        short reg1 = (short)(enc.reg(n.in(1))-arm.D_OFFSET);
+        short reg2 = (short)(enc.reg(n.in(2))-arm.D_OFFSET);
         int body = f_cmp(30, 3, reg1,  reg2);
         enc.add4(body);
     }
@@ -279,10 +295,6 @@ public class arm extends Machine {
 
     public static int b(int opcode, int imm26) {
         return (opcode << 26) | imm26;
-    }
-
-    public static int load_str_imm(int opcode, int imm9, int rn, int rt) {
-        return (opcode << 21) | (imm9 << 12) |(1 << 10) |(rn << 5) | rt;
     }
 
     public static void push_4_bytes(int value, ByteArrayOutputStream bytes) { throw Utils.TODO(); }
@@ -366,9 +378,9 @@ public class arm extends Machine {
     // Instruction selection
     @Override public Node instSelect(Node n ) {
         return switch( n ) {
-        case AddFNode addf  -> new AddFARM(add);
-        case AddNode add    -> new AndARM(and);
-        case AndNode and    -> and(and);
+        case AddFNode addf  -> new AddFARM(addf);
+        case AddNode add    -> add(add);
+        case AndNode and    -> new AndARM(and);
         case BoolNode bool  -> cmp(bool);
         case CallNode call  -> call(call);
         case CastNode cast  -> new CastNode(cast);
@@ -382,13 +394,13 @@ public class arm extends Machine {
         case LoadNode ld    -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
         case MulFNode mulf  -> new MulFARM(mulf);
-        case MulNode mul    -> new MulArm(mul);
+        case MulNode mul    -> new MulARM(mul);
         case NewNode nnn    -> new NewARM(nnn);
         case NotNode not    -> new NotARM(not);
         case OrNode or      -> new OrARM(or);
         case ParmNode parm  -> new ParmARM(parm);
         case PhiNode phi    -> new PhiNode(phi);
-        case ProjNode prj   -> new ProjArm(prj);
+        case ProjNode prj   -> new ProjARM(prj);
         case ReadOnlyNode read  -> new ReadOnlyNode(read);
         case ReturnNode ret -> new RetARM(ret,ret.fun());
         case SarNode sar    -> new AsrARM(sar);
@@ -436,15 +448,15 @@ public class arm extends Machine {
     }
 
     private Node add(AddNode add) {
-        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff )
-            return new AddIARM(add, toff.value());
-        return new AddARM(add);
+        return add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti)
+            ? new AddIARM(add, (int)ti.value())
+            : new AddARM(add);
     }
 
     private Node sub(SubNode sub) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new SubIARM(sub, TypeInteger.constant(ti.value()))
-                : new SubARM(sub);
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
+            ? new SubIARM(sub, (int)ti.value())
+            : new SubARM(sub);
     }
 
     private Node con(ConstantNode con) {
@@ -483,7 +495,7 @@ public class arm extends Machine {
         // Skip/throw-away a ReadOnly, only used to typecheck
         if( base instanceof ReadOnlyNode read ) base = read.in(1);
         assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
-        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+        if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm9(ti) ) {
             off = (int)ti.value();
             assert off == ti.value(); // In 32-bit range
         } else {

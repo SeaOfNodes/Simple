@@ -56,6 +56,12 @@ public class Encoding {
     public void call( CallNode call ) {
         // TODO: record call relocation info
     }
+    public void alloc( NewNode nnn ) {
+        // TODO: record alloc relocation info
+    }
+    public void funcon( ConstantNode con ) {
+        // TODO: record alloc relocation info
+    }
 
 
     void encode() {

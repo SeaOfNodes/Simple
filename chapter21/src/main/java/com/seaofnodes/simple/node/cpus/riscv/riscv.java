@@ -300,13 +300,9 @@ public class riscv extends Machine {
 
     // True if signed 12-bit immediate
     private static boolean imm12(TypeInteger ti) {
-        return ti.isConstant() && ((ti.value()<<12)>>12) == ti.value();
+        // 52 = 64-12
+        return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
-
-    public static boolean fitsInSigned12Bits(TypeInteger ti) {
-        return ti.value() >= -2048 && ti.value() <= 2047;
-    }
-
 
     @Override public Node instSelect( Node n ) {
         return switch (n) {
@@ -357,13 +353,13 @@ public class riscv extends Machine {
     }
 
     private Node add(AddNode add) {
-        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) && imm12(ti) )
             return new AddIRISC(add, (int)ti.value());
         return new AddRISC(add);
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti) )
             return new AndIRISC(and, (int)ti.value());
         return new AndRISC(and);
     }
@@ -416,37 +412,37 @@ public class riscv extends Machine {
     }
 
     private Node or(OrNode or) {
-        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti) )
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti) )
             return new OrIRISC(or, (int)ti.value());
         return new OrRISC(or);
     }
 
     private Node xor(XorNode xor) {
-        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
             return new XorIRISC(xor, (int)ti.value());
         return new XorRISC(xor);
     }
 
     private Node sra(SarNode sar) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
             return new SraIRISC(sar, (int)ti.value());
         return new SraRISC(sar);
     }
 
     private Node srl(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
             return new SrlIRISC(shr, (int)ti.value());
         return new SrlRISC(shr);
     }
 
     private Node sll(ShlNode sll) {
-        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti))
+        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
             return new SllIRISC(sll, (int)ti.value());
         return new SllRISC(sll);
     }
 
     private Node sub(SubNode sub) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && fitsInSigned12Bits(ti)
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti)
             ? new AddIRISC(sub, (int)(-ti.value()))
             : new SubRISC(sub);
     }

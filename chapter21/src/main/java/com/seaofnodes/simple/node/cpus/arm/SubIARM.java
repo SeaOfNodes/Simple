@@ -18,11 +18,10 @@ public class SubIARM extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
     // Encoding is appended into the byte array; size is returned
-    @Override public void encoding( Encoding enc ) { imm_inst(enc,this,836,_imm); }
+    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,836,_imm); }
 
     // General form: "subi  rd = rs1 - imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" - #");
-        _ti.print(sb);
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" - #").p(_imm);
     }
 }
