@@ -1,14 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.BoolNode;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.NotNode;
 import com.seaofnodes.simple.node.MachNode;
-import java.io.ByteArrayOutputStream;
 
 
 public class NotX86 extends MachConcreteNode implements MachNode {
@@ -21,7 +18,7 @@ public class NotX86 extends MachConcreteNode implements MachNode {
     // NotNode(BoolNode) = Inverted BoolNode(1)
     // NotNode(NotNode(BoolNode)) = BoolNode(2)
     // anything else to test & setz(3)
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         int beforeSize = bytes.size();
 
         if(in(1) instanceof NotNode && in(1).in(1) instanceof BoolNode) {

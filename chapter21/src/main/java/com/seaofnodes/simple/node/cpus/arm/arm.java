@@ -1,14 +1,10 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-
 import java.io.ByteArrayOutputStream;
-
 
 public class arm extends Machine {
 
@@ -160,20 +156,47 @@ public class arm extends Machine {
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
+    public static void imm_inst(Encoding enc, Node n, int opcode, int imm) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+        int body = imm_inst(opcode, imm, reg_1, rd);
+        enc.add4(body);
+    }
 
     // for normal add, reg1, reg2 cases (reg-to-reg)
     // using shifted-reg form
     public static int r_reg(int opcode, int shift, int rm, int imm6, int rn, int rd) {
         return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) << (rn << 5) | rd;
     }
+    public static void r_reg(Encoding enc, Node n, int opcode) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+        short reg2 = enc.reg(n.in(2));
+        int body = r_reg(139, 0, reg2, 0,  reg1, self);
+        enc.add4(body);
+    }
 
     public static int shift_reg(int opcode, int rm, int op2, int rn, int rd) {
         return (opcode << 21) | (rm << 16) | (op2 << 10) | (rn << 5) | rd;
+    }
+    public static void shift_reg(Encoding enc, Node n, int op2) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+        short reg2 = enc.reg(n.in(2));
+        int body = shift_reg(1238, reg2, op2,  reg1, self);
+        enc.add4(body);
     }
 
     //  MUL can be considered an alias for MADD with the third operand Ra being set to 0
     public static int madd(int opcode, int rm, int ra, int rn, int rd) {
         return (opcode << 21) | (rm << 16) | (ra << 10) | (rn << 5) | rd;
+    }
+    public static void madd(Encoding enc, Node n, int opcode, int ra) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+        short reg2 = enc.reg(n.in(2));
+        int body = madd(opcode, reg2, ra,  reg1, self);
+        enc.add4(body);
     }
 
     // encodes movk
@@ -193,6 +216,13 @@ public class arm extends Machine {
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
         return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
     }
+    public static void f_scalar(Encoding enc, Node n, int op ) {
+        short self = enc.reg(n)      -D_OFFSET;
+        short reg1 = enc.reg(n.in(1))-D_OFFSET;
+        short reg2 = enc.reg(n.in(2))-D_OFFSET;
+        int body = f_scalar(30, 1, reg2, op,  reg1, self);
+        enc.add4(body);
+    }
 
     public static int load_adr(int opcode, int offset, int base, int rt) {
         return (opcode << 21) | (offset << 12) | (3 << 10) | (base << 5) | rt;
@@ -202,6 +232,15 @@ public class arm extends Machine {
     public static int indr_adr(int opcode, int rm, STORE_LOAD_OPTION option, int s, int rn, int rt) {
         return (opcode << 21) | (rm << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (rn << 5) | rt;
     }
+    public static void indr_adr( Encoding enc, Node n ) {
+        // CNC - NOT FOLDED INTO W/STORE AND load_str_imm variant
+        short self = enc.reg(n)      ;
+        short base = enc.reg(n.in(2));
+        short indx = enc.reg(n.in(3));
+        int body = arm.indr_adr(1987, indx, arm.STORE_LOAD_OPTION.SXTW, 0, base, self);
+        enc.add4(body);
+    }
+
 
     // encoding for vcvt, size is encoded in operand
     // <Qd>, <Qm>
@@ -217,9 +256,16 @@ public class arm extends Machine {
         return (opcode << 24) | (ftype << 22) | (2176 << 10) | (rn << 5) | rd;
     }
 
+
     // ftype = 3
     public static int f_cmp(int opcode, int ftype, int rm, int rn) {
         return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
+    }
+    public static void f_cmp(Encoding enc, Node n) {
+        short reg1 = enc.reg(n.in(1))-arm.D_OFFSET;
+        short reg2 = enc.reg(n.in(2))-arm.D_OFFSET;
+        int body = f_cmp(30, 3, reg1,  reg2);
+        enc.add4(body);
     }
 
     // Todo: maybe missing zero here after label << 5
@@ -239,12 +285,7 @@ public class arm extends Machine {
         return (opcode << 21) | (imm9 << 12) |(1 << 10) |(rn << 5) | rt;
     }
 
-    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) {
-        bytes.write(value);
-        bytes.write(value >> 8);
-        bytes.write(value >> 16);
-        bytes.write(value >> 24);
-    }
+    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) { throw Utils.TODO(); }
 
     static RegMask callInMask(TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
@@ -310,7 +351,7 @@ public class arm extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new com.seaofnodes.simple.node.cpus.arm.SplitARM(kind,round);  }
+    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
@@ -325,64 +366,64 @@ public class arm extends Machine {
     // Instruction selection
     @Override public Node instSelect(Node n ) {
         return switch( n ) {
-            case AddFNode addf  -> addf(addf);
-            case AddNode add   -> add(add);
-            case AndNode and   -> and(and);
-            case BoolNode bool  -> cmp(bool);
-            case CallNode call  -> call(call);
-            case CastNode cast  -> new CastNode(cast);
-            case CallEndNode cend  -> new com.seaofnodes.simple.node.cpus.arm.CallEndARM(cend);
-            case CProjNode c     -> new CProjNode(c);
-            case ConstantNode con   -> con(con);
-            case DivFNode divf  -> new com.seaofnodes.simple.node.cpus.arm.DivFARM(divf);
-            case DivNode div   -> new com.seaofnodes.simple.node.cpus.arm.DivARM(div);
-            case FunNode fun   -> new com.seaofnodes.simple.node.cpus.arm.FunARM(fun);
-            case IfNode       iff   -> jmp(iff);
-            case LoadNode ld    -> ld(ld);
-            case MemMergeNode mem   -> new MemMergeNode(mem);
-            case MulFNode mulf  -> new com.seaofnodes.simple.node.cpus.arm.MulFARM(mulf);
-            case MulNode mul   -> mul(mul);
-            case NewNode nnn   -> new com.seaofnodes.simple.node.cpus.arm.NewARM(nnn);
-            case NotNode not   -> new com.seaofnodes.simple.node.cpus.arm.NotARM(not);
-            case OrNode or    ->  or(or);
-            case ParmNode parm  -> new com.seaofnodes.simple.node.cpus.arm.ParmARM(parm);
-            case PhiNode phi   -> new PhiNode(phi);
-            case ProjNode prj   -> prj(prj);
-            case ReadOnlyNode read  -> new ReadOnlyNode(read);
-            case ReturnNode ret   -> new com.seaofnodes.simple.node.cpus.arm.RetARM(ret,ret.fun());
-            case SarNode sar   -> sar(sar);
-            case ShlNode shl   -> shl(shl);
-            case ShrNode shr   -> shr(shr);
-            case StartNode start -> new StartNode(start);
-            case StopNode stop  -> new StopNode(stop);
-            case StoreNode st    -> st(st);
-            case SubFNode subf  -> new com.seaofnodes.simple.node.cpus.arm.SubFARM(subf);
-            case SubNode sub   -> sub(sub);
-            case ToFloatNode tfn   -> i2f8(tfn);
-            case XorNode xor   -> xor(xor);
+        case AddFNode addf  -> new AddFARM(add);
+        case AddNode add    -> new AndARM(and);
+        case AndNode and    -> and(and);
+        case BoolNode bool  -> cmp(bool);
+        case CallNode call  -> call(call);
+        case CastNode cast  -> new CastNode(cast);
+        case CallEndNode cend -> new CallEndARM(cend);
+        case CProjNode c    -> new CProjNode(c);
+        case ConstantNode con -> con(con);
+        case DivFNode divf  -> new DivFARM(divf);
+        case DivNode div    -> new DivARM(div);
+        case FunNode fun    -> new FunARM(fun);
+        case IfNode iff     -> jmp(iff);
+        case LoadNode ld    -> ld(ld);
+        case MemMergeNode mem -> new MemMergeNode(mem);
+        case MulFNode mulf  -> new MulFARM(mulf);
+        case MulNode mul    -> new MulArm(mul);
+        case NewNode nnn    -> new NewARM(nnn);
+        case NotNode not    -> new NotARM(not);
+        case OrNode or      -> new OrARM(or);
+        case ParmNode parm  -> new ParmARM(parm);
+        case PhiNode phi    -> new PhiNode(phi);
+        case ProjNode prj   -> new ProjArm(prj);
+        case ReadOnlyNode read  -> new ReadOnlyNode(read);
+        case ReturnNode ret -> new RetARM(ret,ret.fun());
+        case SarNode sar    -> new AsrARM(sar);
+        case ShlNode shl    -> new LslARM(shl);
+        case ShrNode shr    -> new LsrARM(shr);
+        case StartNode start -> new StartNode(start);
+        case StopNode stop  -> new StopNode(stop);
+        case StoreNode st   -> st(st);
+        case SubFNode subf  -> new SubFARM(subf);
+        case SubNode sub    -> sub(sub);
+        case ToFloatNode tfn-> new I2F8ARM(tfn);
+        case XorNode xor    -> new XorARM(xor);
 
-            case LoopNode loop  -> new LoopNode(loop);
-            case RegionNode region-> new RegionNode(region);
-            default -> throw Utils.TODO();
+        case LoopNode loop  -> new LoopNode(loop);
+        case RegionNode region-> new RegionNode(region);
+        default -> throw Utils.TODO();
         };
-    }
-
-    private Node mul(MulNode mul) {
-        return new com.seaofnodes.simple.node.cpus.arm.MulARM(mul);
     }
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new com.seaofnodes.simple.node.cpus.arm.SetARM(cmp, bool.op());
+        return new SetARM(cmp, bool.op());
     }
-
-    private Node i2f8(ToFloatNode tfn) {
-        assert tfn.in(1)._type instanceof TypeInteger ti;
-        return new com.seaofnodes.simple.node.cpus.arm.I2F8ARM(tfn);
+    private Node _cmp(BoolNode bool) {
+        if( bool instanceof BoolNode.EQF ||
+            bool instanceof BoolNode.LTF ||
+            bool instanceof BoolNode.LEF )
+            return new CmpFARM(bool);
+        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
+            ? new CmpIARM(bool, (int)ti.value())
+            : new CmpARM(bool);
     }
 
     private Node ld(LoadNode ld) {
-        return new com.seaofnodes.simple.node.cpus.arm.LoadARM(address(ld), ld.ptr(), idx, off);
+        return new LoadARM(address(ld), ld.ptr(), idx, off);
     }
 
     private Node jmp(IfNode iff) {
@@ -391,109 +432,45 @@ public class arm extends Machine {
         // Loads do not set the flags, and will need an explicit TEST
         if( !(iff.in(1) instanceof BoolNode) )
             iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new com.seaofnodes.simple.node.cpus.arm.BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
-    }
-
-    private Node _cmp(BoolNode bool) {
-        if( bool instanceof BoolNode.EQF ||
-                bool instanceof BoolNode.LTF ||
-                bool instanceof BoolNode.LEF )
-            return new com.seaofnodes.simple.node.cpus.arm.CmpFARM(bool);
-
-
-        return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new com.seaofnodes.simple.node.cpus.arm.CmpIARM(bool, ti)
-                : new com.seaofnodes.simple.node.cpus.arm.CmpARM(bool);
-    }
-
-
-    private Node addf(AddFNode addf) {
-        return new com.seaofnodes.simple.node.cpus.arm.AddFARM(addf);
+        return new BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
     }
 
     private Node add(AddNode add) {
-        Node rhs = add.in(2);
-        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
-            return new com.seaofnodes.simple.node.cpus.arm.AddIARM(add, toff);
-        }
-        return new com.seaofnodes.simple.node.cpus.arm.AddARM(add);
+        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger toff )
+            return new AddIARM(add, toff.value());
+        return new AddARM(add);
     }
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new com.seaofnodes.simple.node.cpus.arm.SubIARM(sub, TypeInteger.constant(ti.value()))
-                : new com.seaofnodes.simple.node.cpus.arm.SubARM(sub);
-    }
-
-    private Node and(AndNode and) {
-//        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-//            return new AndIARM(and, ti);
-        return new AndARM(and);
-    }
-
-    private Node or(OrNode or) {
-//        if(or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new OrIARM(or, ti);
-
-        return new com.seaofnodes.simple.node.cpus.arm.OrARM(or);
-    }
-
-    private Node xor(XorNode xor) {
-//        if(xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new XorIARM(xor, ti);
-        return new com.seaofnodes.simple.node.cpus.arm.XorARM(xor);
+                ? new SubIARM(sub, TypeInteger.constant(ti.value()))
+                : new SubARM(sub);
     }
 
     private Node con(ConstantNode con) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-            case TypeInteger ti  -> new com.seaofnodes.simple.node.cpus.arm.IntARM(con);
-            case TypeFloat   tf  -> new com.seaofnodes.simple.node.cpus.arm.FloatARM(con);
-            case TypeFunPtr  tfp -> new com.seaofnodes.simple.node.cpus.arm.TFPARM(con);
-            case TypeMemPtr tmp -> new ConstantNode(con);
-            case TypeNil tn  -> throw Utils.TODO();
-            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-            case Type t -> new ConstantNode(con);
+        case TypeInteger ti  -> new IntARM(con);
+        case TypeFloat   tf  -> new FloatARM(con);
+        case TypeFunPtr  tfp -> new TFPARM(con);
+        case TypeMemPtr tmp -> new ConstantNode(con);
+        case TypeNil tn  -> throw Utils.TODO();
+        // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+        case Type t -> new ConstantNode(con);
         };
-    }
-
-    private Node sar(SarNode sar){
-//        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new AsrIARM(sar, ti);
-        return new com.seaofnodes.simple.node.cpus.arm.AsrARM(sar);
-    }
-
-    private Node shl(ShlNode shl) {
-//        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new LslIARM(shl, ti);
-        return new com.seaofnodes.simple.node.cpus.arm.LslARM(shl);
-
-    }
-
-    private Node shr(ShrNode shr) {
-//        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti)
-//            return new LsrIARM(shr, ti);
-        return new com.seaofnodes.simple.node.cpus.arm.LsrARM(shr);
     }
 
     private Node call(CallNode call){
         if(call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp)
-            return new com.seaofnodes.simple.node.cpus.arm.CallARM(call, tfp);
-        return new com.seaofnodes.simple.node.cpus.arm.CallRRARM(call);
+            return new CallARM(call, tfp);
+        return new CallRRARM(call);
     }
-
-    private Node prj(ProjNode prj) {
-        return new com.seaofnodes.simple.node.cpus.arm.ProjARM(prj);
-    }
-
 
     private static int off;
     private static Node idx;
     private Node st(StoreNode st) {
-        Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
-            xval = null;
-        return new com.seaofnodes.simple.node.cpus.arm.StoreARM(address(st),st.ptr(),idx,off,xval);
+        Node xval = xval instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
+        return new StoreARM(address(st),st.ptr(),idx,off,xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder

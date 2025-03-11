@@ -1,12 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 // fcvt.d.w
 // Converts a 32-bit signed integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
@@ -19,7 +15,7 @@ public class I2F8RISC extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return riscv.FMASK; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // fcvt.s.w
         LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
 

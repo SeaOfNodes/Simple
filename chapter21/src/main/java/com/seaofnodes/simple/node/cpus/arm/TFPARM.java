@@ -1,15 +1,10 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
-import java.io.ByteArrayOutputStream;
 
 public class TFPARM extends ConstantNode implements MachNode {
     TFPARM( ConstantNode con ) { super(con); }
@@ -20,7 +15,7 @@ public class TFPARM extends ConstantNode implements MachNode {
     @Override public RegMask outregmap() { return arm.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // Todo: relocs
         // LDR (immediate)
         LRG tfp_rg = CodeGen.CODE._regAlloc.lrg(this);

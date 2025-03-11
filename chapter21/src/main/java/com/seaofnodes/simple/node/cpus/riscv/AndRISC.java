@@ -1,19 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
 
 public class AndRISC extends MachConcreteNode implements MachNode {
     AndRISC(Node and) {
@@ -31,7 +22,7 @@ public class AndRISC extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return com.seaofnodes.simple.node.cpus.riscv.riscv.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // and AND R 0110011 0x7 0x00
         int beforeSize = bytes.size();
 

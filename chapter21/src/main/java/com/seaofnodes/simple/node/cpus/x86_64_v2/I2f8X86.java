@@ -1,12 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-
-import java.io.ByteArrayOutputStream;
 
 public class I2f8X86 extends MachConcreteNode implements MachNode {
     I2f8X86(Node i2f8 ) { super(i2f8); }
@@ -17,7 +13,7 @@ public class I2f8X86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // F2 0F 2A /r CVTSI2SD xmm1, r32/m32
         LRG self = CodeGen.CODE._regAlloc.lrg(this);
         LRG from = CodeGen.CODE._regAlloc.lrg(in(1));

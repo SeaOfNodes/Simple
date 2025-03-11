@@ -1,12 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 public class DivRISC extends MachConcreteNode implements MachNode{
     DivRISC(Node div) {super(div);}
@@ -19,7 +15,7 @@ public class DivRISC extends MachConcreteNode implements MachNode{
     @Override public RegMask outregmap() { return riscv.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // div DIV R 0110011 0x4 0x01
         LRG self  = CodeGen.CODE._regAlloc.lrg(this);
         LRG div_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));

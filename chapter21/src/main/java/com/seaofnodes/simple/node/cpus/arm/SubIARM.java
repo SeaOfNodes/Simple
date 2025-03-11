@@ -1,67 +1,28 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 public class SubIARM extends MachConcreteNode implements MachNode {
-    final TypeInteger _ti;
-
-    SubIARM(Node sub, TypeInteger ti) {
+    final int _imm;
+    SubIARM(Node sub, int imm) {
         super(sub);
         _inputs.pop();
-        _ti = ti;
+        _imm = imm;
     }
-
-    // Register mask allowed on input i.
-    @Override
-    public RegMask regmap(int i) {
-        // assert i== i;
-        return arm.RMASK;
-    }
-
-    // Register mask allowed as a result.  0 for no register.
-    @Override
-    public RegMask outregmap() {
-        return arm.RMASK;
-    }
-
+    @Override public String op() { return _imm == -1 ? "dec" : "subi"; }
+    @Override public RegMask regmap(int i) { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.RMASK; }
     // Encoding is appended into the byte array; size is returned
-    @Override
-    public int encoding(ByteArrayOutputStream bytes) {
-        // Todo: how to handle more than 12 bits
-        LRG rg_1 = CodeGen.CODE._regAlloc.lrg(this);
-        LRG rg_2 = CodeGen.CODE._regAlloc.lrg(in(1));
-
-        int beforeSize = bytes.size();
-
-        short rd = rg_1.get_reg();
-        short reg_1 = rg_2.get_reg();
-
-        int imm = (int)_ti.value();
-
-        int body = arm.imm_inst(836, imm, reg_1, rd);
-
-        arm.push_4_bytes(body, bytes);
-        return bytes.size() - beforeSize;
-    }
+    @Override public void encoding( Encoding enc ) { imm_inst(enc,this,836,_imm); }
 
     // General form: "subi  rd = rs1 - imm"
-    @Override
-    public void asm(CodeGen code, SB sb) {
+    @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" - #");
         _ti.print(sb);
     }
-
-    @Override
-    public String op() {
-        return (_ti.value() == -1 ? "dec" : "subi");
-    }
-
 }

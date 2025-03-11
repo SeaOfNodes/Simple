@@ -1,11 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import java.io.ByteArrayOutputStream;
 
 public class NewRISC extends NewNode implements MachNode {
     // A pre-zeroed chunk of memory.
@@ -17,7 +14,7 @@ public class NewRISC extends NewNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // call to malloc
         LRG call_self = CodeGen.CODE._regAlloc.lrg(this);
         short rd = call_self.get_reg();

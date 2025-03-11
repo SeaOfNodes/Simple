@@ -1,13 +1,12 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.CallNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFunPtr;
-import java.io.ByteArrayOutputStream;
 
 public class CallX86 extends CallNode implements MachNode {
     final TypeFunPtr _tfp;
@@ -31,7 +30,7 @@ public class CallX86 extends CallNode implements MachNode {
     @Override public TypeFunPtr tfp() { return _tfp; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         //  linker will fix this up
         bytes.write(0xe8);
         int beforeSize = bytes.size();

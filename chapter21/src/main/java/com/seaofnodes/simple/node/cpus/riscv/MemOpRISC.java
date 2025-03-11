@@ -1,14 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.LoadX86;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86;
 import com.seaofnodes.simple.type.*;
-import java.io.ByteArrayOutputStream;
+
 import java.lang.StringBuilder;
 import java.util.BitSet;
 
@@ -45,7 +41,7 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         throw Utils.TODO();
     }
 
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         switch (this) {
             case LoadRISC loadRISC -> {
                 // ld x2, 0(x3)  # Load the 64-bit value from memory address in x3 into x2

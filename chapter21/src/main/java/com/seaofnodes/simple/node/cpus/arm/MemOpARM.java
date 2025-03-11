@@ -1,17 +1,12 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.LoadRISC;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.*;
-import java.io.ByteArrayOutputStream;
+
 import java.lang.StringBuilder;
 import java.util.BitSet;
-import java.util.Optional;
 
 
 public abstract class MemOpARM extends MemOpNode implements MachNode {
@@ -52,12 +47,8 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         if(i == 4) return arm.MEM_MASK; // value
         throw Utils.TODO();
     }
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() {
-        throw Utils.TODO();
-    }
 
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         switch(this) {
             case LoadARM loadARM -> {
                 LRG load_rg = CodeGen.CODE._regAlloc.lrg(this);

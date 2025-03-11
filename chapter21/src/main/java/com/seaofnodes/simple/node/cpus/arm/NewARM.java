@@ -3,10 +3,9 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-
-import java.io.ByteArrayOutputStream;
 
 public class NewARM extends NewNode implements MachNode {
     // A pre-zeroed chunk of memory.
@@ -18,7 +17,7 @@ public class NewARM extends NewNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // mov x0, size
         // bl
         // Todo: relocs

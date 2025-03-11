@@ -35,19 +35,31 @@ public class Encoding {
 
     final ByteArrayOutputStream _bits;
 
-
     Encoding( CodeGen code ) {
         _code = code;
         _bits = new ByteArrayOutputStream();
     }
 
+    // Short cut to the defining register
+    public short reg(Node n) {
+        return _code._regAlloc.regnum(n);
+    }
+
+    // Little endian write of a 32b opcode
+    public void add4( int op ) {
+        _bits.write(op    );
+        _bits.write(op>> 8);
+        _bits.write(op>>16);
+        _bits.write(op>>24);
+    }
+
+    public void call( CallNode call ) {
+        // TODO: record call relocation info
+    }
+
 
     void encode() {
-        // Basic block layout.  Now that RegAlloc is finished, no more spill
-        // code will appear.  We can change our BB layout from RPO to something
-        // that minimizes actual branches, takes advantage of fall-through
-        // edges, and tries to help simple branch predictions: back branches
-        // are predicted taken, forward not-taken.
+        // Basic block layout
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         BitSet visit = _code.visit();
         for( Node n : _code._start._outputs )
@@ -61,13 +73,17 @@ public class Encoding {
         _code._cfg = rpo;       // Save the new ordering
 
         // Write encoding bits in order
-        //for( CFGNode bb : _code._cfg )
-        //    for( Node n : bb._outputs )
-        //        if( n instanceof MachNode mach )
-        //            throw Utils.TODO();
+        for( CFGNode bb : _code._cfg )
+            for( Node n : bb._outputs )
+                if( n instanceof MachNode mach )
+                    throw Utils.TODO();
     }
 
-    // Post-Order of CFG
+    // Basic block layout.  Now that RegAlloc is finished, no more spill code
+    // will appear.  We can change our BB layout from RPO to something that
+    // minimizes actual branches, takes advantage of fall-through edges, and
+    // tries to help simple branch predictions: back branches are predicted
+    // taken, forward not-taken.
     private static void _rpo_cfg(CFGNode bb, BitSet visit, Ary<CFGNode> rpo) {
         if( visit.get(bb._nid) ) return;
         visit.set(bb._nid);

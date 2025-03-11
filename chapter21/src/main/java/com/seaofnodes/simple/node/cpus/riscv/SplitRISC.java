@@ -1,12 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
-import java.io.ByteArrayOutputStream;
 
 public class SplitRISC extends SplitNode {
     SplitRISC( String kind, byte round ) { super(kind,round, new Node[2]); }
@@ -17,7 +13,7 @@ public class SplitRISC extends SplitNode {
     @Override public RegMask outregmap() { return riscv.SPLIT_MASK; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // add rd, x0, rs2
         LRG split_self = CodeGen.CODE._regAlloc.lrg(this);
         LRG split_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));

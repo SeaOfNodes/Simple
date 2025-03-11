@@ -2,12 +2,11 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.type.TypeFloat;
-import java.io.ByteArrayOutputStream;
 
 // Return
 public class RetX86 extends ReturnNode implements MachNode {
@@ -27,7 +26,7 @@ public class RetX86 extends ReturnNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // Without imm form
         // Near return
         int beforeSize = bytes.size();

@@ -2,15 +2,10 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFloat;
-import com.seaofnodes.simple.type.TypeInteger;
-
-import java.io.ByteArrayOutputStream;
 
 //FMOV (scalar, immediate)
 //Floating-point move immediate.
@@ -26,19 +21,13 @@ public class FloatARM extends ConstantNode implements MachNode {
     @Override public FloatARM copy() { return new FloatARM(this); }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        // ENCODING for the 64-bit to double-precision variant
-        // Todo: relocs for bigger values than 8 bit
-        int beforeSize = bytes.size();
-        LRG frd_self = CodeGen.CODE._regAlloc.lrg(this);
-
-        short rd_reg = frd_self.get_reg();
-        TypeFloat ti = (TypeFloat) _con;
-        // types is = 01 but includes extra 1 bit
-        int body = arm.f_mov(30, 3, (int)ti.value(), rd_reg - arm.D_OFFSET);
-
-        arm.push_4_bytes(body, bytes);
-        return bytes.size() - beforeSize;
+    @Override public void encoding( Encoding enc ) {
+        short self = (short)(enc.reg(this) - arm.D_OFFSET);
+        double d = ((TypeFloat)_con).value();
+        long x = Double.doubleToRawLongBits(d);
+        // Any number that can be expressed as +/-n * 2-r,where n and r are integers, 16 <= n <= 31, 0 <= r <= 7.
+        //arm.f_mov(30,3,imm8,self);
+        throw Utils.TODO();
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

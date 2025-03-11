@@ -1,13 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
-import java.io.ByteArrayOutputStream;
 
 public class SplitX86 extends SplitNode {
     SplitX86( String kind, byte round ) { super(kind,round, new Node[2]); }
@@ -21,7 +17,7 @@ public class SplitX86 extends SplitNode {
     // flags->flags.
     // Currently not handling flags
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // REX.W + 8B /r	MOV r64, r/m64
         LRG split_rg = CodeGen.CODE._regAlloc.lrg(this);
         LRG reg_1_rg = CodeGen.CODE._regAlloc.lrg(in(1));

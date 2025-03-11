@@ -2,8 +2,6 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
@@ -12,7 +10,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.Arrays;
 
 public class CodeGen {
     // Last created CodeGen as a global; used all over to avoid passing about a
@@ -299,34 +296,30 @@ public class CodeGen {
         return this;
     }
 
-    public static void print_as_hex(ByteArrayOutputStream outputStream) {
-
-        byte[] encodedBytes = outputStream.toByteArray();
-
-        for (byte b : encodedBytes) {
-
-            System.out.print(String.format("%02X", b));
-        }
-
-        System.out.println();
-    }
-
-    // Debug purposes for now
-    public CodeGen printENCODING() {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-            for(Node bb : CodeGen.CODE._cfg) {
-                for(Node n: bb.outs()) {
-                    if(n instanceof MachNode) {
-                        ((MachNode) n).encoding(outputStream);
-                    }
-                }
-            }
-
-        print_as_hex(outputStream);
-        // Get the raw bytes from the output stream
-        return this;
-    }
+    //public static void print_as_hex(ByteArrayOutputStream outputStream) {
+    //    byte[] encodedBytes = outputStream.toByteArray();
+    //    for (byte b : encodedBytes) {
+    //        System.out.print(String.format("%02X", b));
+    //    }
+    //    System.out.println();
+    //}
+    //
+    //// Debug purposes for now
+    //public CodeGen printENCODING() {
+    //    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    //
+    //    for(Node bb : CodeGen.CODE._cfg) {
+    //        for(Node n: bb.outs()) {
+    //            if(n instanceof MachNode) {
+    //                ((MachNode) n).encoding(outputStream);
+    //            }
+    //        }
+    //    }
+    //
+    //    print_as_hex(outputStream);
+    //    // Get the raw bytes from the output stream
+    //    return this;
+    //}
 
     public String reg(Node n) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {

@@ -1,10 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.codegen.*;
 
 public interface MachNode {
 
@@ -48,7 +45,7 @@ public interface MachNode {
     default Node copy() { return null; }
 
     // Encoding is appended into the byte array; size is returned
-    int encoding(ByteArrayOutputStream bytes);
+    void encoding( Encoding enc );
 
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.

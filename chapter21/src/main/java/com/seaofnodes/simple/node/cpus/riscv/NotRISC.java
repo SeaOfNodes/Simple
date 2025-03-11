@@ -2,12 +2,8 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 import com.seaofnodes.simple.node.MachConcreteNode;
 
@@ -18,7 +14,7 @@ public class NotRISC extends MachConcreteNode implements MachNode {
 
     @Override public int twoAddress( ) { return 0; }
 
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         //seqz rd, rs
         // sltiu rd, rs, 1
         int beforeSize = bytes.size();
@@ -38,4 +34,3 @@ public class NotRISC extends MachConcreteNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) { sb.p(code.reg(this)); }
     @Override public String op() { return "not"; }
 }
-

@@ -1,14 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
-import java.io.ByteArrayOutputStream;
 
 public class TFPRISC extends ConstantNode implements MachNode{
     TFPRISC(ConstantNode con) {super(con);}
@@ -21,7 +17,7 @@ public class TFPRISC extends ConstantNode implements MachNode{
     @Override public TFPRISC copy() { return new TFPRISC(this); }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // load function pointer into a reg
         // addi x2, x1, m
         // x1 is the base address.

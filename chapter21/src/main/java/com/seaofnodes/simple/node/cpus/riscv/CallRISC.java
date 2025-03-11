@@ -1,12 +1,9 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
-import java.io.ByteArrayOutputStream;
 
 public class CallRISC extends CallNode implements MachNode{
     final TypeFunPtr _tfp;
@@ -30,7 +27,7 @@ public class CallRISC extends CallNode implements MachNode{
     @Override public TypeFunPtr tfp() { return _tfp; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // combo of:
         //  auipc    ra,0x0
         //  jalr    ra # 0 <main>

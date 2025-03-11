@@ -1,15 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 public class XorIX86  extends MachConcreteNode implements MachNode {
 
@@ -27,7 +23,7 @@ public class XorIX86  extends MachConcreteNode implements MachNode {
     @Override public int twoAddress() { return 1; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // REX.W + 81 /6 id	XOR r/m64, imm32
         // REX.W + 83 /6 ib	XOR r/m64, imm8
         LRG xor_rg_1 = CodeGen.CODE._regAlloc.lrg(this);

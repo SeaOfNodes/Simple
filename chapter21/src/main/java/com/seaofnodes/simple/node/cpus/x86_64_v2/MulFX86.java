@@ -1,12 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-
-import java.io.ByteArrayOutputStream;
 
 public class MulFX86 extends MachConcreteNode implements MachNode {
     MulFX86( Node mulf) { super(mulf); }
@@ -21,7 +17,7 @@ public class MulFX86 extends MachConcreteNode implements MachNode {
     @Override public boolean commutes() { return true; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // F2 0F 59 /r MULSD xmm1,xmm2/m64
         LRG mul_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
         LRG mul_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));

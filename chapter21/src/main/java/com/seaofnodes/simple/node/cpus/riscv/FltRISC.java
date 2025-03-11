@@ -1,17 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.type.TypeFloat;
-import com.seaofnodes.simple.type.TypeInteger;
-
-import java.io.ByteArrayOutputStream;
 
 public class FltRISC extends ConstantNode implements MachNode{
     FltRISC(ConstantNode con) {
@@ -26,7 +19,7 @@ public class FltRISC extends ConstantNode implements MachNode{
     @Override public FltRISC copy() { return new FltRISC(this); }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         //fld rd,rs1,offset
 
         LRG fpr_con = CodeGen.CODE._regAlloc.lrg(this);

@@ -1,15 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 public class MulIX86 extends MachConcreteNode  implements MachNode {
     final TypeInteger _ti;
@@ -28,7 +24,7 @@ public class MulIX86 extends MachConcreteNode  implements MachNode {
     @Override public int twoAddress() { return 1; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // REX.W + 69 /r id	IMUL r64, r/m64, imm32
         // REX.W + 6B /r ib	IMUL r64, r/m64, imm8
         LRG mul_rg = CodeGen.CODE._regAlloc.lrg(this);

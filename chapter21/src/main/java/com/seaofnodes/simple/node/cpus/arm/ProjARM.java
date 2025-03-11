@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.ProjNode;
-import java.io.ByteArrayOutputStream;
 
 public class ProjARM extends ProjNode implements MachNode {
     ProjARM( ProjNode p ) { super(p); }
@@ -17,7 +16,7 @@ public class ProjARM extends ProjNode implements MachNode {
     }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         return 0;
     }
 }

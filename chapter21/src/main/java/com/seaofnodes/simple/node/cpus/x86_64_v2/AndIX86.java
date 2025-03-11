@@ -1,15 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
 
 public class AndIX86 extends MachConcreteNode implements MachNode {
     final TypeInteger _ti;
@@ -30,7 +24,7 @@ public class AndIX86 extends MachConcreteNode implements MachNode {
     @Override public int twoAddress() { return 1; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // REX.W + 81 /4 id	AND r/m64, imm32
         // REX.W + 83 /4 ib	AND r/m64, imm8
         LRG and_rg_1 = CodeGen.CODE._regAlloc.lrg(this);

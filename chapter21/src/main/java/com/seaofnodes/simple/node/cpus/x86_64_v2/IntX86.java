@@ -1,16 +1,12 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-
-import java.io.ByteArrayOutputStream;
 
 // Integer constants
 public class IntX86 extends ConstantNode implements MachNode {
@@ -31,7 +27,7 @@ public class IntX86 extends ConstantNode implements MachNode {
     @Override public Node copy() { return new IntX86(this); }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
+    @Override public void encoding( Encoding enc ) {
         // Simply move the constant into a GPR
         // Conditional encoding based on 64 or 32 bits
         //REX.W + C7 /0 id	MOV r/m64, imm32
