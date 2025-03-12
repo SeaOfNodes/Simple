@@ -11,7 +11,7 @@ public class SplitRISC extends SplitNode {
     @Override public void encoding( Encoding enc ) {
         short dst  = enc.reg(this );
         short src1 = enc.reg(in(1));
-        int body = riscv.r_type(riscv.R_TYPE,dst,0,src1,riscv.ZERO,0);
+        int body = riscv.r_type(riscv.OP,dst,0,src1,riscv.ZERO,0);
         enc.add4(body);
     }
 }

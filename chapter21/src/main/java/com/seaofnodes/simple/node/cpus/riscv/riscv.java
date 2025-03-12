@@ -97,9 +97,10 @@ public class riscv extends Machine {
             FA6_MASK,
             FA7_MASK
     };
-    //                 3   3
-    // R_type opcode: 0011 0011
-    public static int R_TYPE = 0x33;
+    //
+    // major opcode: OP
+    public static int OP    = 0b01_100_11;
+    public static int OP_FP = 0b11_100_11;
 
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
@@ -111,21 +112,18 @@ public class riscv extends Machine {
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
-    public static void r_type(Encoding enc, Node n, int opcode, int func3, int func7) {
+    public static void r_type(Encoding enc, Node n, int func3, int func7) {
         short dst  = enc.reg(n);
         short src1 = enc.reg(n.in(1));
         short src2 = enc.reg(n.in(2));
-        int body = r_type(opcode,dst,func3,src1,src2,func7);
+        int body = r_type(OP,dst,func3,src1,src2,func7);
         enc.add4(body);
-    }
-    public static int r_type(int opcode, int rd, RM func3, int rs1, int rs2, int func7) {
-        return r_type(opcode,rd,func3.ordinal(),rs1,rs2,func7);
     }
     public static void rf_type(Encoding enc, Node n, int opcode, RM func3, int func7) {
         short dst  = (short)(enc.reg(n      )-F_OFFSET);
         short src1 = (short)(enc.reg(n.in(1))-F_OFFSET);
         short src2 = (short)(enc.reg(n.in(2))-F_OFFSET);
-        int body = r_type(opcode,dst,func3,src1,src2,func7);
+        int body = r_type(OP_FP,dst,func3.ordinal(),src1,src2,func7);
         enc.add4(body);
     }
 
