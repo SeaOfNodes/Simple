@@ -142,21 +142,24 @@ public class riscv extends Machine {
     // 10-21 12 imm12
     // 22-26  5 src
     // 27-31  5 dst
-    public static int i_type(int opcode, int rd, int func3, int rs1, int imm12, int func7) {
-        // CNC - confused here, this ordering does not match these docs:
-        // https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-62.pdf
-        //return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
-        // CNC: my best read of docs
-        return (dst << 27) | (src << 22) | (imm12 << 10) | (func3 << 7) | opcode;
-    }
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-        return i_type(opcode,rd,func3,rs1,imm,0);
+        assert imm12 >= 0;      // Masked to high zero bits by caller
+        return  (imm12 << 20) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
+    //public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
+    //    return i_type(opcode,rd,func3,rs1,imm,0);
+    //}
 
 
     // S-type instructions(store)
     public static int s_type(int opcode, int offset1, int func3, int rs1, int rs2, int offset2) {
         return (offset2 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (offset1 << 7) | opcode;
+    }
+    public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
+        assert imm12 >= 0;      // Masked to high zero bits by caller
+        int imm_lo = imm12 & 0x1F;
+        int imm_hi = imm12 >> 5;
+        return (imm_hi << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm_lo << 7) | opcode;
     }
 
     // immf = first imm
@@ -332,7 +335,7 @@ public class riscv extends Machine {
         case MemMergeNode mem -> new MemMergeNode(mem);
         case MulFNode mulf -> new MulFRISC(mulf);
         case MulNode mul -> mul(mul);
-        case NewNode nnn -> new NewRISC(nnn);
+        case NewNode nnn -> nnn(nnn);
         case NotNode not -> new NotRISC(not);
         case OrNode or -> or(or);
         case ParmNode parm -> new ParmRISC(parm);
@@ -381,6 +384,10 @@ public class riscv extends Machine {
         if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
             return new CallRISC(call, tfp, new AUIPC(call, tfp));
         return new CallRRISC(call);
+    }
+    private Node nnn(NewNode nnn) {
+        // TODO: pass in the TFP for alloc
+        return new NewRISC(nnn, new AUIPC(nnn, null));
     }
 
     private Node cmp(BoolNode bool) {
