@@ -16,12 +16,11 @@ public class LoadX86 extends MemOpX86 {
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
-        bytes.write(x86_64_v2.rex(reg, base_reg, idx_reg));
-        bytes.write(0x8B); // opcode
+        enc.add1(x86_64_v2.rex(dst, ptr, idx));
+        enc.add1(0x8B); // opcode
 
-        // rsp is hard-coded here(0x04)
         // includes modrm internally
-        x86_64_v2.indirectAdr(_scale, idx_reg, base_reg, _off, reg, bytes);
+        x86_64_v2.indirectAdr(_scale, idx, ptr, _off, dst, enc);
     }
 
     // General form: "ldN  dst,[base + idx<<2 + 12]"

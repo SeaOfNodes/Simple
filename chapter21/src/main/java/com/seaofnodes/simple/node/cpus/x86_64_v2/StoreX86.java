@@ -27,14 +27,13 @@ public class StoreX86 extends MemOpX86 {
         short idx = enc.reg(idx());
         short src = enc.reg(val());
 
-        bytes.write(x86_64_v2.rex(src, ptr, idx));
+        enc.add1(x86_64_v2.rex(src, ptr, idx));
 
         // switch on opcode depending on instruction
-        if( src == -1 ) bytes.write(0xC7);  // opcode;
-        else bytes.write(0x89);
+        enc.add1( src == -1 ? 0xC7 : 0x89 );
 
-        x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, bytes);
-        if( src == -1 ) x86_64_v2.imm(_imm, 32, bytes);
+        x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, enc);
+        if( src == -1 ) enc.add4(_imm);
     }
 
     // General form: "stN  [base + idx<<2 + 12],val"

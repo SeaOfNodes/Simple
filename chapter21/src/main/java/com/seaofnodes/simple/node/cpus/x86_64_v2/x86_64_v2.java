@@ -156,23 +156,19 @@ public class x86_64_v2 extends Machine {
     public static int sib(int scale, int index, int base) {
         return (scale << 6) | ((index & 0x07) << 3) | base & 0x07;
     }
+
     // reg1 is reg(R)
-    // reg 2 is  r/mem(B)
+    // reg2 is r/mem(B)
     // reg3 is X(index)
     // reg4 is X(base)
 
     // 0 denotes no direct register
-    public static int rex(int reg, int base_rm, int index) {
+    public static int rex(int reg, int ptr, int idx) {
         // assuming 64 bit by default so: 0100 1000
-        boolean firstHigh = (reg >= 8 && reg <= 15);
-        boolean secondHigh = (base_rm >= 8 && base_rm <= 15);
-        boolean thirdHigh = (index >= 8 && index <= 15);
-
         int rex = REX_W; // Default REX.W
-
-        if (firstHigh) rex |= 0b00000100; // REX.R
-        if (secondHigh) rex |= 0b00000001; // REX.B
-        if (thirdHigh) rex |= 0b00000010; // REX.X
+        if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
+        if( 8 <= ptr && ptr <= 15 ) rex |= 0b00000001; // REX.B
+        if( 8 <= idx && idx <= 15 ) rex |= 0b00000010; // REX.X
         return rex;
     }
 
@@ -528,9 +524,6 @@ public class x86_64_v2 extends Machine {
 
     private Node _cmp(BoolNode bool) {
         // Float variant
-        if (bool instanceof BoolNode.EQF ||
-                bool instanceof BoolNode.LTF ||
-                bool instanceof BoolNode.LEF)
         if( bool.isFloat() )
             return new CmpFX86(bool);
 
