@@ -50,9 +50,9 @@ public class x86_64_v2 extends Machine {
     public static RegMask XMM0_MASK = new RegMask(XMM0);
 
     // Encoding
-    public static int REX_W = 0x48;
+    public static int REX_W  = 0x48;
     public static int REX_WR = 0x4C;
-    public static int REX_WRB = 0x4D;
+    public static int REX_WRB= 0x4D;
     public static int REX_WB = 0x49;
 
     public enum MOD {
@@ -60,25 +60,7 @@ public class x86_64_v2 extends Machine {
         INDIRECT_disp8, // [mem + 0x12]
         INDIRECT_disp32,// [mem + 0x12345678]
         DIRECT,          // mem
-    }
-
-    ;
-
-    // size =  size in bits
-    static public int imm(int imm, int size, ByteArrayOutputStream bytes) {
-        if (size == 8) {
-            bytes.write(imm & 0xFF);
-        } else if (size == 16) {
-            bytes.write(imm & 0xFF);
-            bytes.write((imm >> 8) & 0xFF);
-        } else if (size == 32) {
-            bytes.write(imm & 0xFF);
-            bytes.write((imm >> 8) & 0xFF);
-            bytes.write((imm >> 16) & 0xFF);
-            bytes.write((imm >> 24) & 0xFF);
-        }
-        return size;
-    }
+    };
 
     // 0F (returned_value)
     // 0F 94	SETE r/m8
@@ -86,23 +68,23 @@ public class x86_64_v2 extends Machine {
     // 0F 9E	SETLE r/m8
     static public int setop(String op) {
         return switch (op) {
-            case "==" -> 0x94;
-            case "<" -> 0x9C;
-            case "<=" -> 0X9E;
-            default -> throw new IllegalArgumentException("Too many arguments");
+        case "==" -> 0x94;
+        case "<"  -> 0x9C;
+        case "<=" -> 0X9E;
+        default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
 
     // Inverting IfNode
     static public String invert(String op) {
         return switch (op) {
-            case "==" -> "!=";
-            case "!=" -> "==";
-            case ">" -> "<=";
-            case "<" -> ">=";
-            case ">=" -> "<";
-            case "<=" -> ">";
-            default -> throw new IllegalStateException("Unexpected value: " + op);
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">" -> "<=";
+        case "<" -> ">=";
+        case ">=" -> "<";
+        case "<=" -> ">";
+        default -> throw new IllegalStateException("Unexpected value: " + op);
         };
     }
     // opcode included here
@@ -116,13 +98,13 @@ public class x86_64_v2 extends Machine {
 
     static public int jumpop(String op) {
         return switch (op) {
-            case "==" -> 0x84;
-            case "!=" -> 0x85;
-            case ">" -> 0x8F;
-            case "<" -> 0x8C;
-            case "<=" -> 0x8E;
-            case ">=" -> 0X8D;
-            default -> throw new IllegalArgumentException("Too many arguments");
+        case "==" -> 0x84;
+        case "!=" -> 0x85;
+        case ">"  -> 0x8F;
+        case "<"  -> 0x8C;
+        case "<=" -> 0x8E;
+        case ">=" -> 0X8D;
+        default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
 
@@ -184,7 +166,7 @@ public class x86_64_v2 extends Machine {
         MOD mod = MOD.INDIRECT;
         // is 1 byte enough or need more?
         if( offset != 0 )
-            mod = -128 <= offset && offset <= 127
+            mod = imm8(offset)
                 ? MOD.INDIRECT_disp8
                 : MOD.INDIRECT_disp32;
 
@@ -468,7 +450,7 @@ public class x86_64_v2 extends Machine {
 
             // lhs + rhs1
             if (toff.value() == 0) return add;
-            return new AddIX86(add, toff);
+            return new AddIX86(add, (int)toff.value());
         }
         return _lea(add, lhs, rhs, 0);
     }
@@ -583,11 +565,7 @@ public class x86_64_v2 extends Machine {
         return new MulX86(mul);
     }
 
-    public static int imm_size(long imm) {
-        if (imm >= Byte.MIN_VALUE && imm <= Byte.MAX_VALUE) return 8;
-        if (imm >= Integer.MIN_VALUE && imm <= Integer.MAX_VALUE) return 32;
-        return 64;
-    }
+    public static boolean imm8( long imm ) { return -128 <= imm && imm <= 127; }
 
     private Node or(OrNode or) {
         if (or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
@@ -646,8 +624,8 @@ public class x86_64_v2 extends Machine {
 
     private Node sub (SubNode sub ){
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
-                ? new AddIX86(sub, TypeInteger.constant(-ti.value()))
-                : new SubX86(sub);
+            ? new AddIX86(sub, (int)-ti.value())
+            : new SubX86(sub);
     }
 
     private Node xor (XorNode xor){
