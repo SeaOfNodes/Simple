@@ -19,20 +19,9 @@ public class RetRISC extends ReturnNode implements MachNode{
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-      // ret   | jalr x0, 0(x1)
-      // jalr Jump And Link Reg I 1100111 0x0
-
-      // destination reg:
-      int reg = riscv.ZERO;
-      int to_imm = riscv.RPC;
-
-      int beforeSize = bytes.size();
-
-      int body = riscv.i_type(riscv.I_JALR, reg, 0, to_imm, 0);
-
-      riscv.push_4_bytes(body, bytes);
-
-      return bytes.size() - beforeSize;
+        short rpc = enc.reg(this);
+        int body = riscv.i_type(0x67, riscv.ZERO, 0, rpc, 0);
+        enc.add4(body);
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -44,8 +33,8 @@ public class RetRISC extends ReturnNode implements MachNode{
                 sb.p(code.reg(in(i))).p("  ");
 
         // Post-allocation, if we did not get the expected return register, print what we got
-        else if( code._regAlloc.regnum(in(3)) != riscv.RPC )
-            sb.p("[").p(code.reg(in(3))).p("]");
+        else if( code._regAlloc.regnum(rpc()) != riscv.RPC )
+            sb.p("[").p(code.reg(rpc())).p("]");
     }
 
     // Correct Nodes outside the normal edges

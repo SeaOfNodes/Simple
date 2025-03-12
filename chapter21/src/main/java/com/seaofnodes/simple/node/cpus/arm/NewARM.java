@@ -13,7 +13,7 @@ public class NewARM extends NewNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     @Override public void encoding( Encoding enc ) {
-        enc.alloc(this);
+        enc.relo(this);
         enc.add4(arm.b(37, 0));
     }
 

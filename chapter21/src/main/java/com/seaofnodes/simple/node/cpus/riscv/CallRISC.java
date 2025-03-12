@@ -29,7 +29,7 @@ public class CallRISC extends CallNode implements MachNode {
     @Override public TypeFunPtr tfp() { return _tfp; }
 
     @Override public void encoding( Encoding enc ) {
-        enc.call(this);
+        enc.relo(this,_tfp);
         short rpc = enc.reg(this);
         // High half is where the TFP constant used to be, the last input
         short auipc = enc.reg(in(_inputs._len-1));

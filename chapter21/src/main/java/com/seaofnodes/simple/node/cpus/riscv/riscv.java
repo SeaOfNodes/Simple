@@ -109,8 +109,6 @@ public class riscv extends Machine {
 
     // Since riscv instructions are fixed we can just or them togehter
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
-        // CNC - confused here, this ordering does not match these docs:
-        // https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-62.pdf
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
     public static void r_type(Encoding enc, Node n, int opcode, int func3, int func7) {
@@ -133,18 +131,12 @@ public class riscv extends Machine {
 
 
     public static int u_type(int opcode, int rd, int imm20) {
-        return (imm << 12) | (rd << 7) | opcode;
+        return (imm20 << 12) | (rd << 7) | opcode;
     }
 
-    // Documentation says:
-    //  0- 6  7 opcode
-    //  7- 9  3 func3
-    // 10-21 12 imm12
-    // 22-26  5 src
-    // 27-31  5 dst
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-        assert imm12 >= 0;      // Masked to high zero bits by caller
-        return  (imm12 << 20) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+        assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
+        return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
     //public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
     //    return i_type(opcode,rd,func3,rs1,imm,0);
@@ -315,6 +307,13 @@ public class riscv extends Machine {
         // 52 = 64-12
         return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
+    // True if HIGH 20-bit signed immediate, with all zeros low.
+    static boolean imm20Exact(TypeInteger ti) {
+        // shift left 32 to clear out the upper 32 bits.
+        // shift right SIGNED to sign-extend upper 32 bits; then shift 12 more to clear out lower 12 bits.
+        // shift left 12 to re-center the bits.
+        return ti.isConstant() && (((ti.value()<<32)>>>44)<<12) == ti.value();
+    }
 
     @Override public Node instSelect( Node n ) {
         return switch (n) {
@@ -382,12 +381,12 @@ public class riscv extends Machine {
         // 4K range in 1op absolute
         // Since 4K is too small, we're going with 4G PC-relative in 2 ops
         if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
-            return new CallRISC(call, tfp, new AUIPC(call, tfp));
+            return new CallRISC(call, tfp, new AUIPC(tfp));
         return new CallRRISC(call);
     }
     private Node nnn(NewNode nnn) {
         // TODO: pass in the TFP for alloc
-        return new NewRISC(nnn, new AUIPC(nnn, null));
+        return new NewRISC(nnn, new AUIPC((TypeFunPtr)null));
     }
 
     private Node cmp(BoolNode bool) {
@@ -408,9 +407,8 @@ public class riscv extends Machine {
         // implemented with a XOR.  If one of the above is followed by a NOT
         // we can remove the double XOR in the encodings.
 
-        boolean imm = bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti);
         return switch( bool.op() ) {
-        case "<" -> imm
+        case "<" -> bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new SetIRISC(bool, (int)ti.value(),false)
             : new SetRISC(bool);
         // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
@@ -424,11 +422,18 @@ public class riscv extends Machine {
     private Node con( ConstantNode con ) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-        case TypeInteger ti -> imm12(ti)
-            ? new IntRISC(con)
-            : (imm20Exact(ti)
-               ? new LUI(con)
-               : new AddIRISC(new LUI(con),(int)ti.value()));
+        case TypeInteger ti -> {
+            if( imm12(ti) ) yield new IntRISC(con);
+            if( imm20Exact(ti) ) yield new LUI(ti);
+            long x = ti.value();
+            if( (x<<32)>>32 == x ) // Signed lower 32-bit immediate
+                // Here, the low 12 bits get sign-extended, which means if
+                // bit11 is set, the value is negative and lowers the LUI
+                // value.  Add a bit 12 to compensate
+                yield new AddIRISC(new LUI(((x>>12)&1)==1 ? TypeInteger.constant(x+0x1000) : ti), (int)(x & 0xFFF));
+            // Need more complex sequence for larger constants
+            throw Utils.TODO();
+        }
         case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
@@ -502,10 +507,8 @@ public class riscv extends Machine {
     }
 
     private Node st(StoreNode st) {
-        Node xval = st.val();
-        if( xval instanceof ConstantNode con && con._con == TypeInteger.ZERO )
-            xval = null;
-        return new StoreRISC(address(st),st.ptr(),off, idx == null ? st.ptr() : new AddRISC(st.ptr(), idx), xval);
+        Node xval = st.val() instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
+        return new StoreRISC(address(st), off, xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder

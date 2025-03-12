@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 
@@ -53,13 +54,19 @@ public class Encoding {
         _bits.write(op>>24);
     }
 
-    public void call( Node call ) {
+
+    // Relocation thinking:
+    // `encoding()` calls back with info (TFP needed, branch target needed).
+    // Record start of op & TFP/target info.
+
+    // During some future RELO phase, after TFP layout/targets known
+    // call back with `ReloNode.patch(byte[],src_offset,TFP,dst_offset)`
+    // X86 gets a special pass for expanding short jumps.
+
+    public void relo( Node relo, TypeFunPtr tfp ) {
         // TODO: record call relocation info
     }
-    public void alloc( NewNode nnn ) {
-        // TODO: record alloc relocation info
-    }
-    public void funcon( ConstantNode con ) {
+    public void relo( NewNode nnn ) {
         // TODO: record alloc relocation info
     }
 

@@ -19,7 +19,7 @@ public class CallRRISC extends CallNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short rpc = enc.reg(this);
         short src = enc.reg(in(_inputs._len-1));
-        int body = riscv.i_type(0x67, rpc, 0/*JALR.C*/, src, 0);
+        int body = riscv.i_type(0x67, rpc, 0, src, 0);
         enc.add4(body);
     }
 

@@ -5,7 +5,12 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 public class AddRISC extends MachConcreteNode implements MachNode {
-    AddRISC( Node add) {super(add); }
+    AddRISC( Node add ) { super(add); }
+    AddRISC( Node base, Node off ) {
+        super(new Node[3]);
+        _inputs.set(1,base);
+        _inputs.set(2,off );
+    }
     @Override public String op() { return "add"; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

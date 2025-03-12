@@ -26,7 +26,7 @@ public class CallARM extends CallNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        enc.call(this);         // Record relo info
+        enc.relo(this,_tfp);    // Record relo info
         enc.add4(arm.b(37,0));
     }
 
