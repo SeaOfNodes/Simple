@@ -1,64 +1,22 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.Node;
 
-
-public class SarX86 extends MachConcreteNode implements MachNode {
-    SarX86(Node sar) {
-        super(sar);
-    }
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
-    @Override
-    public RegMask regmap(int i) {
+public class SarX86 extends RegX86 {
+    SarX86( Node add ) { super(add); }
+    @Override public String op() { return "sar"; }
+    @Override public String glabel() { return ">>"; }
+    @Override public RegMask regmap(int i) {
         if (i == 1) return x86_64_v2.WMASK;
         if (i == 2) return x86_64_v2.RCX_MASK;
         throw Utils.TODO();
     }
-
-    // Register mask allowed as a result.  0 for no register.
-    @Override
-    public RegMask outregmap() {
-        return x86_64_v2.WMASK;
-    }
-
-    // Output is same register as input#1
-    @Override
-    public int twoAddress() {
-        return 1;
-    }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override
-    public void encoding( Encoding enc ) {
-        // REX.W + D3 /7
-        // CL must be second operand here
-        LRG sar_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG sar_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short reg1 = sar_rg_1.get_reg();
-
-        int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.rex(0, reg1, 0));
-        bytes.write(0xD3); // opcode
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x07, reg1));
-
-        return bytes.size() - beforeSize;
-
-    }
-
-    // General form
-    @Override
-    public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" >> ").p(code.reg(in(1)));
-    }
-
-    @Override
-    public String op() {
-        return "sar";
+    @Override int opcode() { return 0xD3; }
+    @Override public final void encoding( Encoding enc ) {
+        short dst = enc.reg(this ); // src1
+        short src = enc.reg(in(2)); // src2
+        enc.add1(x86_64_v2.rex(0, dst, 0));
+        enc.add1(opcode()); // opcode
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 7, dst));
     }
 }

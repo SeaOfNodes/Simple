@@ -12,7 +12,7 @@ public abstract class ImmX86 extends MachConcreteNode implements MachNode {
         _inputs.pop();          // Pop constant input off
         _imm = imm;
     }
-    @Override public RegMask regmap(int i) { return x86_64_v2.WMASK; }
+    @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public int twoAddress() { return 1; }
 
