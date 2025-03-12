@@ -109,6 +109,8 @@ public class riscv extends Machine {
 
     // Since riscv instructions are fixed we can just or them togehter
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
+        // CNC - confused here, this ordering does not match these docs:
+        // https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-62.pdf
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
     public static void r_type(Encoding enc, Node n, int opcode, int func3, int func7) {
@@ -130,12 +132,22 @@ public class riscv extends Machine {
     }
 
 
-    public static int u_type(int opcode, int rd, int imm) {
+    public static int u_type(int opcode, int rd, int imm20) {
         return (imm << 12) | (rd << 7) | opcode;
     }
 
+    // Documentation says:
+    //  0- 6  7 opcode
+    //  7- 9  3 func3
+    // 10-21 12 imm12
+    // 22-26  5 src
+    // 27-31  5 dst
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12, int func7) {
-        return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+        // CNC - confused here, this ordering does not match these docs:
+        // https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-62.pdf
+        //return  (imm << 25) | (func7 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+        // CNC: my best read of docs
+        return (dst << 27) | (src << 22) | (imm12 << 10) | (func3 << 7) | opcode;
     }
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
         return i_type(opcode,rd,func3,rs1,imm,0);
@@ -186,6 +198,7 @@ public class riscv extends Machine {
         default  ->  throw Utils.TODO();
         };
     }
+
     // Since opcode is the same just return back func3
     static public int fsetop(String op) {
         return switch(op) {
@@ -195,6 +208,7 @@ public class riscv extends Machine {
         default   -> throw Utils.TODO();
         };
     }
+
     public static void push_4_bytes(int value, ByteArrayOutputStream bytes) { throw Utils.TODO(); }
 
 //    public static void print_as_hex(ByteArrayOutputStream outputStream) {
@@ -348,20 +362,24 @@ public class riscv extends Machine {
     }
 
     private Node add(AddNode add) {
-        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) && imm12(ti) )
+        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) )
             return new AddIRISC(add, (int)ti.value());
         return new AddRISC(add);
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti) )
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
             return new AndIRISC(and, (int)ti.value());
         return new AndRISC(and);
     }
 
     private Node call(CallNode call) {
+        // Options here are:
+        // 4G range in 2ops and either PC-relative or absolute
+        // 4K range in 1op absolute
+        // Since 4K is too small, we're going with 4G PC-relative in 2 ops
         if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
-            return new CallRISC(call, tfp);
+            return new CallRISC(call, tfp, new AUIPC(call, tfp));
         return new CallRRISC(call);
     }
 
@@ -399,7 +417,11 @@ public class riscv extends Machine {
     private Node con( ConstantNode con ) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-        case TypeInteger ti  -> new IntRISC(con);
+        case TypeInteger ti -> imm12(ti)
+            ? new IntRISC(con)
+            : (imm20Exact(ti)
+               ? new LUI(con)
+               : new AddIRISC(new LUI(con),(int)ti.value()));
         case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
@@ -415,7 +437,6 @@ public class riscv extends Machine {
             if (bool.op().equals("<=")) return new BranchRISC(iff, bool.op(), bool.in(2), bool.in(1));
             return new BranchRISC(iff, bool.op(), bool.in(1), bool.in(2));
         }
-
         // Vs zero
         return new BranchRISC(iff, "==", iff.in(1), null);
     }
@@ -470,7 +491,7 @@ public class riscv extends Machine {
     }
 
     private Node ld(LoadNode ld) {
-        return new LoadRISC(address(ld),ld.ptr(),idx,off);
+        return new LoadRISC(address(ld),off);
     }
 
     private Node st(StoreNode st) {
@@ -484,19 +505,16 @@ public class riscv extends Machine {
     // pattern, but saving the bits in a *local* *global* here to keep mess
     // contained.
     private static int off;
-    private static Node idx;
     private <N extends MemOpNode> N address( N mop ) {
         off = 0;  // Reset
-        idx = null;
         Node base = mop.ptr();
         // Skip/throw-away a ReadOnly, only used to typecheck
         if( base instanceof ReadOnlyNode read ) base = read.in(1);
         assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
         if( mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) ) {
             off = (int)ti.value();
-            assert off == ti.value(); // In 32-bit range
         } else {
-            idx = mop.off();
+            base = new AddRISC(base,mop.off());
         }
         return mop;
     }

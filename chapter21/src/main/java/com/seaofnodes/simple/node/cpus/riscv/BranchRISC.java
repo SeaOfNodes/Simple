@@ -17,8 +17,9 @@ public class BranchRISC extends IfNode implements MachNode {
         _inputs.setX(2,n2);
     }
 
+    @Override public String op() { return "b"+_bop; }
     @Override public String label() { return op(); }
-
+    @Override public String comment() { return "L"+cproj(1)._nid+", L"+cproj(0)._nid; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return null; }
 
@@ -32,27 +33,12 @@ public class BranchRISC extends IfNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // Todo: relocs (for offset - immf)
-//        LRG branch_self = CodeGen.CODE._regAlloc.lrg(this);
-        LRG branch_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG branch_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        // no rd
-        short reg1 = branch_rg_1.get_reg();
-        short reg2 = branch_rg_2.get_reg();
-
-        int beforeSize = bytes.size();
-        int body = riscv.b_type(0x63, 0, riscv.jumpop(_bop), reg1, reg2, 0);
-        riscv.push_4_bytes(body, bytes);
-        return bytes.size() - beforeSize;
+        short src1 = enc.reg(in(1));
+        short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
+        int body = riscv.b_type(0x63, 0, riscv.jumpop(_bop), src1, src2, 0);
+        enc.add4(body);
     }
-
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2)));
-    }
-
-    @Override public String op() { return "b"+_bop; }
-
-    @Override public String comment() {
-        return "L"+cproj(1)._nid+", L"+cproj(0)._nid;
     }
 }

@@ -53,7 +53,7 @@ public class Encoding {
         _bits.write(op>>24);
     }
 
-    public void call( CallNode call ) {
+    public void call( Node call ) {
         // TODO: record call relocation info
     }
     public void alloc( NewNode nnn ) {
