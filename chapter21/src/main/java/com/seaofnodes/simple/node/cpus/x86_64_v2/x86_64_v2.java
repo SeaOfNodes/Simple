@@ -1,10 +1,7 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.LRG;
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -135,23 +132,22 @@ public class x86_64_v2 extends Machine {
     // Clear them
     public static void clear_bits(short reg1, short reg2, ByteArrayOutputStream bytes) {
         // use xor to clear them
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(REX_W);
         bytes.write(0x33); // opcode
-        bytes.write(x86_64_v2.modrm(MOD.DIRECT, reg1, reg2));
+        bytes.write(modrm(MOD.DIRECT, reg1, reg2));
     }
 
     public static void zero_extend(short reg1, short reg2, ByteArrayOutputStream bytes) {
-        bytes.write(x86_64_v2.REX_W);
+        bytes.write(REX_W);
         bytes.write(0x0F); // opcode
         bytes.write(0xB6); // opcode
 
-        bytes.write(x86_64_v2.modrm(MOD.DIRECT, reg1, reg2));
+        bytes.write(modrm(MOD.DIRECT, reg1, reg2));
     }
 
 
     public static int modrm(MOD mod, int reg, int m_r) {
         // combine all the bits
-
         return (mod.ordinal() << 6) | ((reg & 0x07) << 3) | m_r & 0x07;
     }
 
@@ -165,11 +161,6 @@ public class x86_64_v2 extends Machine {
     // reg3 is X(index)
     // reg4 is X(base)
 
-    public static void assert_imm_32(long imm_32) {
-        boolean enc32 = imm_32 >= Integer.MIN_VALUE && imm_32 <= Integer.MAX_VALUE;
-        assert enc32;
-    }
-
     // 0 denotes no direct register
     public static int rex(int reg, int base_rm, int index) {
         // assuming 64 bit by default so: 0100 1000
@@ -177,7 +168,7 @@ public class x86_64_v2 extends Machine {
         boolean secondHigh = (base_rm >= 8 && base_rm <= 15);
         boolean thirdHigh = (index >= 8 && index <= 15);
 
-        int rex = x86_64_v2.REX_W; // Default REX.W
+        int rex = REX_W; // Default REX.W
 
         if (firstHigh) rex |= 0b00000100; // REX.R
         if (secondHigh) rex |= 0b00000001; // REX.B
@@ -189,60 +180,37 @@ public class x86_64_v2 extends Machine {
     // Does not always generate SIB byte e.g index == -1.
     // -1 denotes empty value, not set - note 0 is different from -1 as it can represent rax.
     // Looks for best mod locally
-    public static void indirectAdr(int scale, short index, short base, int offset, int reg, ByteArrayOutputStream bytes) {
+    public static void indirectAdr( int scale, short index, short base, int offset, int reg, Encoding enc ) {
         // Assume indirect
-        assert base != -1;
-        assert base >= 0 && base < 16;
+        assert 0 <= base && base < 16;
         assert index != RSP;
-        assert_imm_32(offset);
 
         MOD mod = MOD.INDIRECT;
         // is 1 byte enough or need more?
-        if (offset != 0) {
-            if (offset >= -128 && offset <= 127) {
-                mod = MOD.INDIRECT_disp8;
-            } else {
-                mod = MOD.INDIRECT_disp32;
-            }
-        }
+        if( offset != 0 )
+            mod = -128 <= offset && offset <= 127
+                ? MOD.INDIRECT_disp8
+                : MOD.INDIRECT_disp32;
 
         // needs to pick optimal displacement mod if we want to encode base
-        if (mod == MOD.INDIRECT && (base == RBP || base == R13)) {
+        if( mod == MOD.INDIRECT && (base == RBP || base == R13) )
             mod = MOD.INDIRECT_disp8;
-        }
 
         // rsp is hard-coded here(0x04)
         // special encoding for [base +offset]
-        if (index == -1) {
+        if( index == -1 ) {
             // Case for mov reg, [disp] (load)
-            assert base != -1;
-//            if(base == -1 && scale == 0) {
-//                bytes.write(x86_64_v2.modrm(MOD.INDIRECT, reg == -1 ? 0 : reg, 0x4));
-//                bytes.write(x86_64_v2.sib(scale,  0x04, 0x05));
-//                x86_64_v2.imm(offset, 32, bytes);
-//                return;
-//            }
-            bytes.write(x86_64_v2.modrm(mod, reg == -1 ? 0 : reg, base));
-
-            // conditional offset encoding
-            if (mod == MOD.INDIRECT_disp8) {
-                x86_64_v2.imm(offset, 8, bytes);
-            } else if (mod == MOD.INDIRECT_disp32) {
-                x86_64_v2.imm(offset, 32, bytes);
-            }
-
-            return;
+            enc.add1(modrm(mod, reg == -1 ? 0 : reg, base));
+        } else {
+            enc.add1(modrm(mod, reg, 0x04));
+            enc.add1(sib(scale, index, base));
         }
 
-        bytes.write(x86_64_v2.modrm(mod, reg, 0x04));
-        bytes.write(x86_64_v2.sib(scale, index, base));
-
-        if (mod == MOD.INDIRECT_disp8) {
-            x86_64_v2.imm(offset, 8, bytes);
-        } else if (mod == MOD.INDIRECT_disp32) {
-            x86_64_v2.imm(offset, 32, bytes);
+        if( mod == MOD.INDIRECT_disp8 ) {
+            enc.add1(offset);
+        } else if( mod == MOD.INDIRECT_disp32 ) {
+            enc.add4(offset);
         }
-        // no offset if just MOD.INDIRECT
     }
 
     // Calling conv metadata
@@ -576,7 +544,7 @@ public class x86_64_v2 extends Machine {
 
         // Vs immediate
         if (rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (x86_64_v2.imm_size(ti.value()) == 64) return new CmpX86(bool);
+            if (imm_size(ti.value()) == 64) return new CmpX86(bool);
             return new CmpIX86(bool, ti);
             // x vs y
         }

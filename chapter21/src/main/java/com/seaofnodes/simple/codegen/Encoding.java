@@ -46,6 +46,8 @@ public class Encoding {
         return _code._regAlloc.regnum(n);
     }
 
+    public void add1( int op ) { _bits.write(op); }
+
     // Little endian write of a 32b opcode
     public void add4( int op ) {
         _bits.write(op    );
