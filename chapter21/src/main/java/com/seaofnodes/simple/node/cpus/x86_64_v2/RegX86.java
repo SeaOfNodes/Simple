@@ -10,7 +10,7 @@ public abstract class RegX86 extends MachConcreteNode {
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public int twoAddress() { return 1; }
     abstract int opcode();
-    @Override public final void encoding( Encoding enc ) {
+    @Override public void encoding( Encoding enc ) {
         // REX.W + 01 /r
         short dst = enc.reg(this ); // src1
         short src = enc.reg(in(2)); // src2

@@ -12,6 +12,7 @@ public class JmpX86 extends IfNode implements MachNode {
         _bop = bop;
     }
 
+    @Override public String op() { return "j"+_bop; }
     @Override public String label() { return op(); }
 
     @Override public void postSelect() {
@@ -28,25 +29,19 @@ public class JmpX86 extends IfNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        // linker sorts out target address
-        // JMP rel32
-        // TODO: relocs
-        int beforeSize = bytes.size();
+        enc.jump(this,cproj(0));
         // common opcode
-        bytes.write(0x0F);
-        bytes.write(x86_64_v2.jumpop(_bop));
-        x86_64_v2.imm(0, 32, bytes);
-        return bytes.size() - beforeSize;
+        enc.add1(0x0F);
+        enc.add1(x86_64_v2.jumpop(_bop));
+        enc.add4(0);            // Offset patched later
     }
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
-        if( src!="flags" )  sb.p(src);
+        if( src!="flags" ) sb.p(src);
+        Node prj = cproj(0);
+        sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
     }
 
-    @Override public String op() { return "j"+_bop; }
-
-    @Override public String comment() {
-        return "L"+cproj(1)._nid+", L"+cproj(0)._nid;
-    }
+    @Override public String comment() { return "L"+cproj(1)._nid; }
 }

@@ -9,7 +9,6 @@ public class ParmRISC extends ParmNode implements MachNode {
     final RegMask _rmask;
     ParmRISC(ParmNode parm) {
         super(parm);
-        // Assume int
         _rmask = riscv.callInMask(fun().sig(),_idx);
     }
     @Override public RegMask regmap(int i) { return null; }

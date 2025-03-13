@@ -11,6 +11,7 @@ public class NewARM extends NewNode implements MachNode {
     @Override public RegMask    regmap(int i) { return i == 1 ? arm. X0_MASK : null; }
     @Override public RegMask outregmap(int i) { return i == 1 ? arm. X0_MASK : null; }
     @Override public RegMask outregmap() { return null; }
+    @Override public RegMask killmap() { return arm.armCallerSave(); }
 
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);

@@ -174,12 +174,12 @@ public class x86_64_v2 extends Machine {
         if( mod == MOD.INDIRECT && (base == RBP || base == R13) )
             mod = MOD.INDIRECT_disp8;
 
-        // rsp is hard-coded here(0x04)
         // special encoding for [base +offset]
         if( index == -1 ) {
             // Case for mov reg, [disp] (load)
             enc.add1(modrm(mod, reg == -1 ? 0 : reg, base));
         } else {
+            // rsp is hard-coded here(0x04)
             enc.add1(modrm(mod, reg, 0x04));
             enc.add1(sib(scale, index, base));
         }
@@ -427,7 +427,7 @@ public class x86_64_v2 extends Machine {
     private Node add(AddNode add) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if (lhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 )
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val);
 
         if (rhs instanceof LoadNode ld && ld.nOuts() == 1)
@@ -435,22 +435,21 @@ public class x86_64_v2 extends Machine {
 
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
-        if (rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff) {
-
-            if (imm_size(toff.value()) == 64) {
+        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+            long imm = toff.value();
+            assert imm!=0;        // Folded in peeps
+            if( (int)imm != imm ) // Full 64bit immediate
                 return new AddX86(add);
-            }
-
-            if (lhs instanceof AddNode ladd)
+            // Now imm <= 32bits
+            if( lhs instanceof AddNode ladd )
                 // ((base + (idx << scale)) + off)
-                return _lea(add, ladd.in(1), ladd.in(2), toff.value());
-            if (lhs instanceof ShlNode shift)
+                return _lea(add, ladd.in(1), ladd.in(2), (int)imm);
+            if( lhs instanceof ShlNode shift )
                 // (idx << scale) + off; no base
-                return _lea(add, null, shift, toff.value());
+                return _lea(add, null, shift, (int)imm);
 
             // lhs + rhs1
-            if (toff.value() == 0) return add;
-            return new AddIX86(add, (int)toff.value());
+            return new AddIX86(add, imm);
         }
         return _lea(add, lhs, rhs, 0);
     }
@@ -499,7 +498,7 @@ public class x86_64_v2 extends Machine {
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
-    private Node cmp(BoolNode bool) {
+    private Node cmp( BoolNode bool ) {
         Node cmp = _cmp(bool);
         return new SetX86(cmp, bool.op());
     }

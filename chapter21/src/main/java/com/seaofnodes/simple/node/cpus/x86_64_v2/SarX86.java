@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
 
 public class SarX86 extends RegX86 {
@@ -12,7 +14,7 @@ public class SarX86 extends RegX86 {
         throw Utils.TODO();
     }
     @Override int opcode() { return 0xD3; }
-    @Override public final void encoding( Encoding enc ) {
+    @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this ); // src1
         short src = enc.reg(in(2)); // src2
         enc.add1(x86_64_v2.rex(0, dst, 0));

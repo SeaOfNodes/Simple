@@ -10,14 +10,15 @@ import com.seaofnodes.simple.node.MachNode;
 
 public class RetRISC extends ReturnNode implements MachNode{
     RetRISC(ReturnNode ret, FunNode fun) { super(ret, fun); fun.setRet(this); }
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
+    @Override public String op() { return "ret"; }
+    // Correct Nodes outside the normal edges
+    @Override public void postSelect() {
+        FunNode fun = (FunNode)rpc().in(0);
+        _fun = fun;
+        fun.setRet(this);
+    }
     @Override public RegMask regmap(int i) { return riscv.retMask(_fun.sig(),i); }
-    // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
-
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         short rpc = enc.reg(this);
         int body = riscv.i_type(0x67, riscv.ZERO, 0, rpc, 0);
@@ -36,13 +37,4 @@ public class RetRISC extends ReturnNode implements MachNode{
         else if( code._regAlloc.regnum(rpc()) != riscv.RPC )
             sb.p("[").p(code.reg(rpc())).p("]");
     }
-
-    // Correct Nodes outside the normal edges
-    @Override public void postSelect() {
-        FunNode fun = (FunNode)rpc().in(0);
-        _fun = fun;
-        fun.setRet(this);
-    }
-
-    @Override public String op() { return "ret"; }
 }
