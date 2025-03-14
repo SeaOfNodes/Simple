@@ -1,40 +1,28 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-
 
 // Load memory addressing on RISC
 // Support imm, reg(direct), or reg+off(indirect) addressing
 // Base = base - base pointer, offset is added to base
 // idx  = null
-// off  = off - offset added to base
-
+// off  = off - imm12 added to base
 public class LoadRISC extends MemOpRISC {
-    LoadRISC(LoadNode ld, Node base, Node idx, int off) {
-        super(ld, base, idx, off, 0);
-    }
-
-    @Override public RegMask regmap(int i) {
-        return riscv.RMASK;
-    }
-    // Wide mask loads both ints and floats; encoding varies.
+    LoadRISC(LoadNode ld, int off) { super(ld, off, null); }
+    @Override public String op() { return "ld" +_sz; }
+    @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.MEM_MASK; }
-
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    @Override public void encoding( Encoding enc ) {
+        short dst = xreg(enc);
+        short ptr = enc.reg(ptr());
+        int body = riscv.i_type(opcode(enc),  dst, func3(), ptr, _off);
+        enc.add4(body);
     }
 
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");
         asm_address(code,sb);
     }
-
-    @Override public String op() { return "ld" +_sz; }
 }

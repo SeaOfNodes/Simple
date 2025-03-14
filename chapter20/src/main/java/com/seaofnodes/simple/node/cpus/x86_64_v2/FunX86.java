@@ -17,6 +17,6 @@ public class FunX86 extends FunNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        return 0;
     }
 }

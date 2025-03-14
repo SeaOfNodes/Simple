@@ -1,11 +1,9 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
-import java.io.ByteArrayOutputStream;
 
 public class CallARM extends CallNode implements MachNode {
     final TypeFunPtr _tfp;
@@ -19,18 +17,17 @@ public class CallARM extends CallNode implements MachNode {
         _name = CodeGen.CODE.link(tfp)._name;
     }
 
+    @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
-    @Override public RegMask regmap(int i) {
-        return arm.callInMask(_tfp,i); // Normal argument
-    }
-    @Override public RegMask outregmap() { return null; }
-
     @Override public String name() { return _name; }
     @Override public TypeFunPtr tfp() { return _tfp; }
+    @Override public RegMask regmap(int i) { return arm.callInMask(_tfp,i); }
+    @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    @Override public void encoding( Encoding enc ) {
+        enc.relo(this,_tfp);    // Record relo info
+        enc.add4(arm.b(37,0));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -39,7 +36,4 @@ public class CallARM extends CallNode implements MachNode {
             sb.p(code.reg(arg(i))).p("  ");
         sb.unchar(2);
     }
-
-    @Override public String op() { return "call"; }
-
 }

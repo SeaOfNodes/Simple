@@ -1,11 +1,10 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import java.io.ByteArrayOutputStream;
+
 import java.lang.StringBuilder;
 import java.util.BitSet;
 
@@ -69,9 +68,6 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         if( i==4 ) return x86_64_v2.MEM_MASK; // value in GPR or XMM
         throw Utils.TODO();
     }
-
-    @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }
-
 
     // "[base + idx<<2 + 12]"
     SB asm_address(CodeGen code, SB sb) {

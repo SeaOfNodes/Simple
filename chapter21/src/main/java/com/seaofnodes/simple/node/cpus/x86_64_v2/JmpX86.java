@@ -1,21 +1,18 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 
 // Jump on flags, uses flags
 public class JmpX86 extends IfNode implements MachNode {
-    String _bop;
+    final String _bop;
     JmpX86( IfNode iff, String bop ) {
         super(iff);
         _bop = bop;
     }
 
+    @Override public String op() { return "j"+_bop; }
     @Override public String label() { return op(); }
 
     @Override public void postSelect() {
@@ -31,20 +28,20 @@ public class JmpX86 extends IfNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    @Override public void encoding( Encoding enc ) {
+        enc.jump(this,cproj(0));
+        // common opcode
+        enc.add1(0x0F);
+        enc.add1(x86_64_v2.jumpop(_bop));
+        enc.add4(0);            // Offset patched later
     }
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
-        if( src!="flags" )  sb.p(src);
+        if( src!="flags" ) sb.p(src);
+        Node prj = cproj(0);
+        sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
     }
 
-    @Override public String op() { return "j"+_bop; }
-
-    @Override public String comment() {
-        return "L"+cproj(1)._nid+", L"+cproj(0)._nid;
-    }
-
-    @Override public void invert() { _bop = invert(_bop); }
+    @Override public String comment() { return "L"+cproj(1)._nid; }
 }

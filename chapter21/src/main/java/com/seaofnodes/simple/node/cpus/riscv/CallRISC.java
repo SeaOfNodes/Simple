@@ -1,36 +1,40 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
-import java.io.ByteArrayOutputStream;
 
-public class CallRISC extends CallNode implements MachNode{
+public class CallRISC extends CallNode implements MachNode {
     final TypeFunPtr _tfp;
     final String _name;
-
-    CallRISC( CallNode call, TypeFunPtr tfp ) {
+    CallRISC( CallNode call, TypeFunPtr tfp, AUIPC auipc ) {
         super(call);
-        _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
+        _inputs.pop(); // Pop constant target
+        _inputs.add(auipc);     // Add high-half address
         _tfp = tfp;
         _name = CodeGen.CODE.link(tfp)._name;
     }
 
+    @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return riscv.callInMask(_tfp,i); // Normal argument
+        // Last call input is AUIPC
+        if( i == nIns()-1 ) return riscv.RMASK;
+        return riscv.callInMask(_tfp,i);
     }
-    @Override public RegMask outregmap() { return null; }
-
+    @Override public RegMask outregmap() { return riscv.RPC_MASK; }
     @Override public String name() { return _name; }
     @Override public TypeFunPtr tfp() { return _tfp; }
 
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    @Override public void encoding( Encoding enc ) {
+        enc.relo(this,_tfp);
+        short rpc = enc.reg(this);
+        // High half is where the TFP constant used to be, the last input
+        short auipc = enc.reg(in(_inputs._len-1));
+        int body = riscv.i_type(0x67, rpc, 0/*JALR.C*/, auipc, 0);
+        enc.add4(body);
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -39,6 +43,4 @@ public class CallRISC extends CallNode implements MachNode{
             sb.p(code.reg(arg(i))).p("  ");
         sb.unchar(2);
     }
-
-    @Override public String op() { return "call"; }
 }

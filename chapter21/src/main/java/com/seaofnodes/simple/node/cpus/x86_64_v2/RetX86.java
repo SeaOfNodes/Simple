@@ -1,35 +1,21 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.FunNode;
-import com.seaofnodes.simple.node.ReturnNode;
-import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.type.TypeFloat;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.*;
 
-// Return
 public class RetX86 extends ReturnNode implements MachNode {
     RetX86( ReturnNode ret, FunNode fun ) { super(ret, fun); fun.setRet(this); }
-
+    @Override public String op() { return "ret"; }
     // Correct Nodes outside the normal edges
     @Override public void postSelect() {
         FunNode fun = (FunNode)rpc().in(0);
         _fun = fun;
         fun.setRet(this);
     }
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
     @Override public RegMask regmap(int i) { return x86_64_v2.retMask(_fun.sig(),i); }
-    // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
-    }
+    @Override public void encoding( Encoding enc ) { enc.add1(0xC3); }
 
     @Override public void asm(CodeGen code, SB sb) {
         // Post code-gen, just print the "ret"
@@ -39,6 +25,4 @@ public class RetX86 extends ReturnNode implements MachNode {
             for( int i=2; i<nIns(); i++ )
                 sb.p(code.reg(in(i))).p("  ");
     }
-
-    @Override public String op() { return "ret"; }
 }

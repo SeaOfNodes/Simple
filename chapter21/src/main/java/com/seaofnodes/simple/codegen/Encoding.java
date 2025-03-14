@@ -3,6 +3,8 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.Type;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 
@@ -35,19 +37,58 @@ public class Encoding {
 
     final ByteArrayOutputStream _bits;
 
-
     Encoding( CodeGen code ) {
         _code = code;
         _bits = new ByteArrayOutputStream();
     }
 
+    // Short cut to the defining register
+    public short reg(Node n) {
+        return _code._regAlloc.regnum(n);
+    }
+
+    public void add1( int op ) { _bits.write(op); }
+
+    // Little endian write of a 32b opcode
+    public void add4( int op ) {
+        _bits.write(op    );
+        _bits.write(op>> 8);
+        _bits.write(op>>16);
+        _bits.write(op>>24);
+    }
+    public void add8( long i64 ) {
+        add4((int) i64     );
+        add4((int)(i64>>32));
+    }
+
+
+    // Relocation thinking:
+    // `encoding()` calls back with info (TFP needed, branch target needed).
+    // Record start of op & TFP/target info.
+
+    // During some future RELO phase, after TFP layout/targets known
+    // call back with `ReloNode.patch(byte[],src_offset,TFP,dst_offset)`
+    // X86 gets a special pass for expanding short jumps.
+
+    public void relo( Node relo, TypeFunPtr t ) {
+        // TODO: record call relocation info
+    }
+    public void relo( NewNode nnn ) {
+        // TODO: record alloc relocation info
+    }
+    // Store t as a 32/64 bit constant in the code space; generate RIP-relative
+    // addressing to load it
+    public void largeConstant( Node relo, Type t ) {
+        assert t.isConstant();
+        // TODO:
+    }
+    public void jump( IfNode jmp, CProjNode target ) {
+        // TDOO: also support 1-byte offset and short jump and compressing the binary
+        // TODO: record and patch
+    }
 
     void encode() {
-        // Basic block layout.  Now that RegAlloc is finished, no more spill
-        // code will appear.  We can change our BB layout from RPO to something
-        // that minimizes actual branches, takes advantage of fall-through
-        // edges, and tries to help simple branch predictions: back branches
-        // are predicted taken, forward not-taken.
+        // Basic block layout
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         BitSet visit = _code.visit();
         for( Node n : _code._start._outputs )
@@ -61,13 +102,17 @@ public class Encoding {
         _code._cfg = rpo;       // Save the new ordering
 
         // Write encoding bits in order
-        //for( CFGNode bb : _code._cfg )
-        //    for( Node n : bb._outputs )
-        //        if( n instanceof MachNode mach )
-        //            throw Utils.TODO();
+        for( CFGNode bb : _code._cfg )
+            for( Node n : bb._outputs )
+                if( n instanceof MachNode mach )
+                    throw Utils.TODO();
     }
 
-    // Post-Order of CFG
+    // Basic block layout.  Now that RegAlloc is finished, no more spill code
+    // will appear.  We can change our BB layout from RPO to something that
+    // minimizes actual branches, takes advantage of fall-through edges, and
+    // tries to help simple branch predictions: back branches are predicted
+    // taken, forward not-taken.
     private static void _rpo_cfg(CFGNode bb, BitSet visit, Ary<CFGNode> rpo) {
         if( visit.get(bb._nid) ) return;
         visit.set(bb._nid);

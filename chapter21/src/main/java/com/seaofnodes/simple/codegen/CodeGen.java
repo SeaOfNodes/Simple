@@ -2,8 +2,11 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
+
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
+
+import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -292,6 +295,32 @@ public class CodeGen {
         _tRegAlloc = (int)(System.currentTimeMillis() - t0);
         return this;
     }
+
+    //public static void print_as_hex(ByteArrayOutputStream outputStream) {
+    //    byte[] encodedBytes = outputStream.toByteArray();
+    //    for (byte b : encodedBytes) {
+    //        System.out.print(String.format("%02X", b));
+    //    }
+    //    System.out.println();
+    //}
+    //
+    //// Debug purposes for now
+    //public CodeGen printENCODING() {
+    //    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    //
+    //    for(Node bb : CodeGen.CODE._cfg) {
+    //        for(Node n: bb.outs()) {
+    //            if(n instanceof MachNode) {
+    //                ((MachNode) n).encoding(outputStream);
+    //            }
+    //        }
+    //    }
+    //
+    //    print_as_hex(outputStream);
+    //    // Get the raw bytes from the output stream
+    //    return this;
+    //}
+
     public String reg(Node n) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
             String s = _regAlloc.reg(n);
@@ -303,14 +332,14 @@ public class CodeGen {
     // ---------------------------
     // Encoding
     int _tEncode;
-    public Encoding _encoding;
     public CodeGen encode() {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
-        _encoding = new Encoding(this);
-        _encoding.encode();
-        _tEncode = (int)(System.currentTimeMillis() - t0);
+
+
+        //_tEncode = (int)(System.currentTimeMillis() - t0);
+        //throw Utils.TODO();
         return this;
     }
     // Encoded binary, no relocation info

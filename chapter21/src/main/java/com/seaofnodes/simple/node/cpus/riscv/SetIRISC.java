@@ -1,17 +1,17 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.node.BoolNode;
+import com.seaofnodes.simple.node.Node;
 
-// corresponds to slt,sltu,slti,sltiu, seqz
+// corresponds to slti,sltiu
 public class SetIRISC extends ImmRISC {
-    final String _bop;          // One of <,<=,==
-    SetIRISC( BoolNode bool, int imm ) {
-        super(bool,imm);
-        assert !bool.isFloat();
-        _bop = bool.op();
+    final boolean _unsigned;    // slti vs sltiu
+    SetIRISC( Node src, int imm12, boolean unsigned ) {
+        super(src,imm12);
+        _unsigned = unsigned;
     }
-    @Override int opcode() { throw Utils.TODO(); }
-    @Override public String glabel() { return _bop; }
-    @Override public String op() { return "set"+_bop; }
+    @Override public String op() { return "setlt" + (_unsigned ? "u":""); }
+    @Override public String glabel() { return op(); }
+    @Override int opcode() { return 19; }
+    @Override int func3() { return 2; }
 }

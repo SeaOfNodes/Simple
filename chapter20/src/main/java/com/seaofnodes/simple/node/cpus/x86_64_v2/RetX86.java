@@ -28,7 +28,12 @@ public class RetX86 extends ReturnNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+        // Without imm form
+        // Near return
+        int beforeSize = bytes.size();
+        bytes.write(0xC3); // opcode
+
+        return bytes.size() - beforeSize;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

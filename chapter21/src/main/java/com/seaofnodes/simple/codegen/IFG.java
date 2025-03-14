@@ -209,10 +209,8 @@ abstract public class IFG {
                 // Special case for Intel XOR used to zero.
                 if( m.isClone() )
                     alloc.fail(alloc.lrg((Node)m));
-                else if( !tlrg.sub(killMask) ) {
-                    tlrg._killed = true; // Failed by a kill-mask
+                else if( !tlrg.sub(killMask) )
                     alloc.fail(tlrg);
-                }
             }
         }
     }
