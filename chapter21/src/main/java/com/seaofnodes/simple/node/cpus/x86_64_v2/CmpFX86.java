@@ -6,29 +6,20 @@ import com.seaofnodes.simple.node.*;
 
 public class CmpFX86 extends MachConcreteNode implements MachNode {
     CmpFX86( Node cmp ) { super(cmp); }
-
-    @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.XMASK; }
+    @Override public String op() { return "cmpf"; }
+    @Override public RegMask regmap(int i) { return x86_64_v2.XMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        // 66 0F 2E /r UCOMISD xmm1, xmm2/m64
-        LRG cmp_rg_1 = CodeGen.CODE._regAlloc.lrg(in(1));
-        LRG cmp_rg_2 = CodeGen.CODE._regAlloc.lrg(in(2));
-
-        short reg1 = cmp_rg_1.get_reg();
-        short reg2 = cmp_rg_2.get_reg();
-
-        int beforeSize = bytes.size();
-        bytes.write(x86_64_v2.rex(reg1, reg2, 0));
+        short src1 = (short)(enc.reg(in(1)) - x86_64_v2.XMM_OFFSET);
+        short src2 = (short)(enc.reg(in(2)) - x86_64_v2.XMM_OFFSET);
+        enc.add1(x86_64_v2.rex(src1, src2, 0));
         // float opcode
-        bytes.write(0x66);
-        bytes.write(0x0F);
-        bytes.write(0x2E);
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, reg1 - x86_64_v2.XMM_OFFSET, reg2 - x86_64_v2.XMM_OFFSET));
-
-        return bytes.size() - beforeSize;
+        enc.add1(0x66);
+        enc.add1(0x0F);
+        enc.add1(0x2E);
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, src1, src2));
     }
 
     // General form: "cmp src1,src2"
@@ -37,6 +28,4 @@ public class CmpFX86 extends MachConcreteNode implements MachNode {
         if( dst!="flags" )  sb.p(dst).p(" = ");
         sb.p(code.reg(in(1))).p(", ").p(code.reg(in(2)));
     }
-
-    @Override public String op() { return "cmpf"; }
 }

@@ -16,9 +16,11 @@ public class NewRISC extends NewNode implements MachNode {
     @Override public RegMask    regmap(int i) { return i == 1 ? riscv.A0_MASK : null; }
     @Override public RegMask outregmap(int i) { return i == 1 ? riscv.A0_MASK : null; }
     @Override public RegMask outregmap() { return null; }
+    @Override public RegMask killmap() { return riscv.riscCallerSave(); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
+        enc.relo(this);
         short rpc = enc.reg(this);
         // High half is where the TFP constant used to be, the last input
         short auipc = enc.reg(in(_inputs._len-1));

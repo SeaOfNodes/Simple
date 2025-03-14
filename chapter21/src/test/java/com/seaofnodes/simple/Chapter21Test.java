@@ -42,4 +42,23 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
 
+    @Test
+    public void testArray1() {
+        String src =
+                """
+                int[] !ary = new int[arg];
+                // Fill [0,1,2,3,4,...]
+                for( int i=0; i<ary#; i++ )
+                    ary[i] = i;
+                // Fill [0,1,3,6,10,...]
+                for( int i=0; i<ary#-1; i++ )
+                    ary[i+1] += ary[i];
+                return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
+                """;
+        testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
+        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
+    }
+
+
 }

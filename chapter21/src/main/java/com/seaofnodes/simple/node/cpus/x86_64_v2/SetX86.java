@@ -4,7 +4,6 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
-// Compare immediate.  Sets flags.
 // Corresponds to the x86 instruction "sete && setne".
 // Use result of comparison without jump.
 public class SetX86 extends MachConcreteNode implements MachNode {
@@ -17,29 +16,31 @@ public class SetX86 extends MachConcreteNode implements MachNode {
         _inputs.push(cmp);
         _bop = bop;
     }
-
+    @Override public String op() { return "set"+_bop; }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // REX + 0F 94
-        LRG set_rg = CodeGen.CODE._regAlloc.lrg(this);
-        short reg = set_rg.get_reg();
+        short dst = enc.reg(this );
 
-//        // Clear bits prior
-//        x86_64_v2.clear_bits(reg, reg, bytes);
-
-        bytes.write(x86_64_v2.rex(0, reg, 0));
-        bytes.write(0x0F); // opcode
-
-        bytes.write(x86_64_v2.setop(_bop));
-
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, reg));
+        // Optional rex, for dst
+        if( dst >= 8 ) enc.add1(x86_64_v2.rex(0, dst, 0));
+        enc.add1(0x0F);         // opcode
+        enc.add1(switch (_bop) {
+            case "==" -> 0x94;  // SETE
+            case "<"  -> 0x9C;  // SETL
+            case "<=" -> 0X9E;  // SETLE
+            default -> throw Utils.TODO();
+            });
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, dst));
 
         // low 8 bites are set, now zero extend for next instruction
-        x86_64_v2.zero_extend(reg, reg, bytes);
-        return bytes.size();
+        if( dst >= 8 ) enc.add1(x86_64_v2.rex(0, dst, 0));
+        enc.add1(0x0F); // opcode
+        enc.add1(0xB6); // opcode
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, dst));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -47,7 +48,4 @@ public class SetX86 extends MachConcreteNode implements MachNode {
         String src = code.reg(in(1));
         if( src!="flags" )  sb.p(" = ").p(src);
     }
-
-    @Override public String op() { return "set"+_bop; }
-
 }

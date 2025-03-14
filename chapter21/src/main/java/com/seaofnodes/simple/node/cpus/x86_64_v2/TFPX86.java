@@ -2,39 +2,47 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFunPtr;
 
 // Function constants
 public class TFPX86 extends ConstantNode implements MachNode {
     TFPX86( ConstantNode con ) {  super(con); }
-    // Register mask allowed on input i.  0 for no register.
+    @Override public String op() {
+        return _con == Type.NIL ? "xor" : "ldx";
+    }
+    @Override public boolean isClone() { return true; }
+    @Override public Node copy() { return new TFPX86(this); }
     @Override public RegMask regmap(int i) { return null; }
-    // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public void encoding( Encoding enc ) {
-        int beforeSize = bytes.size();
-        // REX.W + 8D /r	LEA r64,m
-        // load function pointer into a reg
-        // opcode
-        LRG tfp_lrg = CodeGen.CODE._regAlloc.lrg(this);
-
-        // TODO: relocs
-        short tfp_reg = tfp_lrg.get_reg();
-        bytes.write(x86_64_v2.rex(0, 0, 0));
-        bytes.write(0x8D);
-
-        // hard-code rip here
-        bytes.write(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, tfp_reg, 0x05));
-        x86_64_v2.imm(0, 32, bytes);
-
-        return bytes.size() - beforeSize;
+    // Zero-set uses XOR kills flags
+    @Override public RegMask killmap() {
+        return _con == Type.NIL ? x86_64_v2.FLAGS_MASK : null;
     }
 
-    @Override public boolean isClone() { return true; }
+    @Override public void encoding( Encoding enc ) {
+        short dst = enc.reg(this);
+        // Short form for zero
+        if( _con==Type.NIL ) {
+            // XOR dst,dst.  Can skip REX is dst is low 8, makes this a 32b
+            // xor, which will also zero the high bits.
+            if( dst >= 8 ) enc.add1(x86_64_v2.rex(dst, dst, 0));
+            enc.add1(0x33); // opcode
+            enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, dst));
+            return;
+        }
+
+        enc.relo(this,(TypeFunPtr)_con);
+        // Simply move the constant into a GPR
+        // Conditional encoding based on 64 or 32 bits
+        //REX.W + C7 /0 id	MOV r/m64, imm32
+        enc.add1(x86_64_v2.rex(0, dst, 0));
+        enc.add1(0xC7); // 32 bits encoding
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x00, dst));
+        //enc.add4((int)imm);
+        throw Utils.TODO();
+    }
 
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.
@@ -45,12 +53,6 @@ public class TFPX86 extends ConstantNode implements MachNode {
         if( _con == Type.NIL )
             sb.p(reg).p(",").p(reg);
         else
-            _con.print(sb.p(reg).p(" #"));
-    }
-
-    @Override public String op() {
-        if( _con == Type.NIL )
-            return "xor";
-        return "ldx";           // Some fancier encoding
+            _con.print(sb.p(reg).p(" = #"));
     }
 }

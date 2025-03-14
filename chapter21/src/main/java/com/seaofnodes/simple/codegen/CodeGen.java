@@ -305,21 +305,21 @@ public class CodeGen {
     //}
     //
     //// Debug purposes for now
-    //public CodeGen printENCODING() {
-    //    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    //
-    //    for(Node bb : CodeGen.CODE._cfg) {
-    //        for(Node n: bb.outs()) {
-    //            if(n instanceof MachNode) {
-    //                ((MachNode) n).encoding(outputStream);
-    //            }
-    //        }
-    //    }
-    //
-    //    print_as_hex(outputStream);
-    //    // Get the raw bytes from the output stream
-    //    return this;
-    //}
+//    public CodeGen printENCODING() {
+//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//
+//        for(Node bb : CodeGen.CODE._cfg) {
+//            for(Node n: bb.outs()) {
+//                if(n instanceof MachNode) {
+//                    ((MachNode) n).encoding(E);
+//                }
+//            }
+//        }
+//
+//        print_as_hex(outputStream);
+//        // Get the raw bytes from the output stream
+//        return this;
+//    }
 
     public String reg(Node n) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {

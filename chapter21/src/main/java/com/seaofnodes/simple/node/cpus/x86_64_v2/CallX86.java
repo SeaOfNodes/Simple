@@ -18,26 +18,19 @@ public class CallX86 extends CallNode implements MachNode {
         _tfp = tfp;
         _name = CodeGen.CODE.link(tfp)._name;
     }
-
+    @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
-    @Override public RegMask regmap(int i) {
-        return x86_64_v2.callInMask(_tfp,i); // Normal argument
-    }
+    @Override public String name() { return _name; }
+    @Override public TypeFunPtr tfp() { return _tfp; }
+    @Override public RegMask regmap(int i) { return x86_64_v2.callInMask(_tfp,i);  }
     @Override public RegMask outregmap() { return null; }
     @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 
-    @Override public String name() { return _name; }
-    @Override public TypeFunPtr tfp() { return _tfp; }
-
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        //  linker will fix this up
-        bytes.write(0xe8);
-        int beforeSize = bytes.size();
-        // TODO: relocs
-        // address
-        bytes.write(0x00);
-        return bytes.size() - beforeSize;
+        enc.relo(this,_tfp);
+        enc.add1(0xe8);
+        enc.add4(0);            // Target patched at link time
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -46,7 +39,4 @@ public class CallX86 extends CallNode implements MachNode {
             sb.p(code.reg(in(i+2))).p("  ");
         sb.unchar(2);
     }
-
-    @Override public String op() { return "call"; }
-
 }

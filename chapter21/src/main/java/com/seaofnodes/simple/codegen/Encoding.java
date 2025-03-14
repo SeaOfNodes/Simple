@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.Type;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 
@@ -55,6 +56,10 @@ public class Encoding {
         _bits.write(op>>16);
         _bits.write(op>>24);
     }
+    public void add8( long i64 ) {
+        add4((int) i64     );
+        add4((int)(i64>>32));
+    }
 
 
     // Relocation thinking:
@@ -65,13 +70,22 @@ public class Encoding {
     // call back with `ReloNode.patch(byte[],src_offset,TFP,dst_offset)`
     // X86 gets a special pass for expanding short jumps.
 
-    public void relo( Node relo, TypeFunPtr tfp ) {
+    public void relo( Node relo, TypeFunPtr t ) {
         // TODO: record call relocation info
     }
     public void relo( NewNode nnn ) {
         // TODO: record alloc relocation info
     }
-
+    // Store t as a 32/64 bit constant in the code space; generate RIP-relative
+    // addressing to load it
+    public void largeConstant( Node relo, Type t ) {
+        assert t.isConstant();
+        // TODO:
+    }
+    public void jump( IfNode jmp, CProjNode target ) {
+        // TDOO: also support 1-byte offset and short jump and compressing the binary
+        // TODO: record and patch
+    }
 
     void encode() {
         // Basic block layout
