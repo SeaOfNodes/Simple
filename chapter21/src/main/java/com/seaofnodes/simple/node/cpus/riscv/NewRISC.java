@@ -11,9 +11,13 @@ public class NewRISC extends NewNode implements MachNode {
         _inputs.add(auipc);     // Add high-half address
     }
     @Override public String op() { return "alloc"; }
-    // Size and pointer result in standard calling convention; null for all the
-    // memory aliases edges
-    @Override public RegMask    regmap(int i) { return i == 1 ? riscv.A0_MASK : null; }
+    @Override public RegMask    regmap(int i) {
+        if( i == 1 ) return riscv.A0_MASK; // Size input
+        // Last call input is AUIPC
+        if( i == nIns()-1 ) return riscv.RMASK;
+        // In-between are mem aliases?
+        return null;
+    }
     @Override public RegMask outregmap(int i) { return i == 1 ? riscv.A0_MASK : null; }
     @Override public RegMask outregmap() { return null; }
     @Override public RegMask killmap() { return riscv.riscCallerSave(); }

@@ -39,7 +39,7 @@ public class Chapter21Test {
         String src = "return arg | 2;";
         testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
         testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
+        testCPU(src,"arm"      , "SystemV",0,"return (orr,arg,2);");
     }
 
 }
