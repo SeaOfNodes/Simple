@@ -20,7 +20,7 @@ public class RetRISC extends ReturnNode implements MachNode{
     @Override public RegMask regmap(int i) { return riscv.retMask(_fun.sig(),i); }
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
-        short rpc = enc.reg(this);
+        short rpc = enc.reg(rpc());
         int body = riscv.i_type(0x67, riscv.ZERO, 0, rpc, 0);
         enc.add4(body);
     }
