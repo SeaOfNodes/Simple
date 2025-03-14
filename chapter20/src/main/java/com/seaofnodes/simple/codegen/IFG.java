@@ -3,7 +3,6 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
 
@@ -13,7 +12,6 @@ abstract public class IFG {
 
     // Map from a Basic Block to Live-Out: {a map from a Live Range to a Def}
     private static final IdentityHashMap<CFGNode,IdentityHashMap<LRG,Node>> BBOUTS = new IdentityHashMap<>();
-    private static IdentityHashMap<LRG,Node> bbLiveOut( CFGNode bb ) { return BBOUTS.get(bb); }
     static void resetBBLiveOut() {
         for( IdentityHashMap<LRG,Node> bbout : BBOUTS.values() )
             bbout.clear();
@@ -105,6 +103,10 @@ abstract public class IFG {
                 do_node(alloc,n);
         }
 
+        // The bb head kills register, e.g. a CallEnd and caller-save registers
+        if( bb instanceof MachNode mach )
+            kills(alloc,mach);
+
         // Push live-sets backwards to priors in CFG.
         if( bb instanceof RegionNode )
             for( int i=1; i<bb.nIns(); i++ )
@@ -133,24 +135,22 @@ abstract public class IFG {
 
         // Interfere n with all live
         if( lrg!=null ) {
-            // Single-register defines *must* have their register; other live
-            // ranges *must* avoid this register, so instead of interfering we
-            // remove the single register from the other rmask.
-            RegMask mustMask = null;
-            boolean mustDef = n instanceof MachNode m && (mustMask=m.outregmap()).size1(); // Must define this register
+            if( n instanceof MachNode m )
+                kills(alloc,m);
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
-                assert !tlrg.unified();
+                assert tlrg.leader();
                 // Skip self
                 if( lrg != tlrg &&
                     // And register sets overlap
                     lrg._mask.overlap(tlrg._mask) )
-                    // Then tlrg and lrg interfere.
-                    // If lrg *must* get its register, make tlrg skip this register.
-                    if( mustDef ) {
-                        if( !tlrg.clr(mustMask.firstColor()) )
-                            alloc.fail(tlrg);
-                    } else addIFG(lrg,tlrg); // Add interference
+                    // Then tlrg and lrg interfere.  If lrg needs the single
+                    // last tlrg register at some point, either tlrg or lrg
+                    // must fail.  If *n* (a subset of lrg) needs the single
+                    // last tlrg register then only tlrg must fail.
+                    if( lrg.size1() && !tlrg.clr(lrg._mask.firstReg()) )
+                        alloc.fail(tlrg);
+                    else addIFG(lrg,tlrg); // Add interference
             }
         }
 
@@ -174,13 +174,11 @@ abstract public class IFG {
                 if( ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
-                        assert !tlrg.unified();
+                        assert tlrg.leader();
                         Node live = TMP.get(tlrg);
                         if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
-                            // Look at live value and see if it must-def same register.
-                            if( lmach.outregmap().size1() ||
-                                // Deny the register, since it absolutely must be used here
-                                !tlrg.clr(ni_mask.firstColor()) )
+                            // Deny the register, since it absolutely must be used here
+                            if( !tlrg.clr(ni_mask.firstReg()) )
                                 // Then direct reg-reg conflict between use here (at n.in(i)) and def (of tlrg) there.
                                 // Fail the older live range, it must move its register.
                                 alloc.fail( tlrg );
@@ -189,11 +187,35 @@ abstract public class IFG {
                 }
             }
 
-            // All inputs live
+            // All inputs live - except in self conflicts, where we keep the prior def alive
+            // until it goes.
             TMP.put(lrg1,def);
         }
     }
 
+    // Single-register defines *must* have their register; other live ranges
+    // *must* avoid this register, so instead of interfering we remove the
+    // single register from the other rmask.
+    private static void kills( RegAlloc alloc, MachNode m ) {
+        RegMask killMask = m.killmap();
+        if( killMask==null ) return;
+        // Kill registers with all live
+        for( LRG tlrg : TMP.keySet() ) {
+            assert tlrg.leader();
+            // Always, tlrg cannot use kills
+            if( tlrg._mask.overlap(killMask) ) {
+                // Disallow clone-ables from killing registers.  Just fail
+                // them and re-clone closer to target... so no kill.
+                // Special case for Intel XOR used to zero.
+                if( m.isClone() )
+                    alloc.fail(alloc.lrg((Node)m));
+                else if( !tlrg.sub(killMask) ) {
+                    tlrg._killed = true; // Failed by a kill-mask
+                    alloc.fail(tlrg);
+                }
+            }
+        }
+    }
 
     // Check for self-conflict live ranges.  These must split, and only happens
     // during the first round a particular LRG splits.
@@ -257,8 +279,9 @@ abstract public class IFG {
 
         // Convert the 2-D array of bits (a 1-D array of BitSets) into an
         // adjacency matrix.
-        int maxlrg = alloc._LRGS.length;
+        int maxlrg = alloc._LRGS.length, nlrgs=0;
         for( int i=1; i<maxlrg; i++ ) {
+            if( alloc._LRGS[i] != null ) nlrgs++;
             BitSet ifg = IFG.atX(i);
             if( ifg != null ) {
                 LRG lrg0 = alloc._LRGS[i];
@@ -277,21 +300,24 @@ abstract public class IFG {
         // - trivial, removed from IFG;           color_stack[0 to sptr]
         // - trivial, not (yet) removed from IFG; color_stack[sptr to swork]
         // - unknown;                             color_stack[work to maxlrg]
-        LRG[] color_stack = Arrays.copyOf(alloc._LRGS, alloc._LRGS.length);
-        // Gather trivial not-removed set.
-        int sptr = 1, swork = 1;
-        for( LRG lrg : alloc._LRGS )
-            if( lrg!=null && lrg.lowDegree() )
-                swap( color_stack, swork++, lrg._lrg );
+
+        // Gather all not-unified (not-null); separate trivial and non-trivial set.
+        int sptr = 0, swork = 0;
+        LRG[] color_stack = new LRG[nlrgs];
+        for( int i=0, j=0; i<maxlrg; i++ ) {
+            LRG lrg = alloc._LRGS[i];
+            if( lrg==null ) continue; // Unified lrgs are null here
+            color_stack[j++] = lrg;
+            if( lrg.lowDegree() ) swap(color_stack, swork++, j-1);
+        }
 
         // Pull all lrgs from IFG, in trivial order if possible
         while( sptr < color_stack.length ) {
-            // Out of trivial colorable, pick an at-risk to pull
-            if( sptr==swork )
-                swap(color_stack,sptr,pickRisky(color_stack,sptr));
+            // Swap best color up front
+            pickColor(color_stack,sptr,swork);
+
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
-            if( lrg==null ) continue;
             // If sptr was swork, then pulled an at-risk lrg
             if( sptr > swork )
                 swork = sptr;
@@ -313,7 +339,7 @@ abstract public class IFG {
         }
 
         // Reverse simplify (unstack the color stack), and set colors (registers) for live ranges
-        while( sptr > 1 ) {
+        while( sptr > 0 ) {
             LRG lrg = color_stack[--sptr];
             if( lrg==null ) continue;
             RegMaskRW rmask = lrg._mask.copy();
@@ -332,7 +358,7 @@ abstract public class IFG {
                 lrg._reg = -1;
             } else {
                 // Pick first available register
-                short reg = rmask.firstColor();
+                short reg = rmask.firstReg();
                 // Pick a "good" color from the choices.  Typically, biased-coloring
                 // removes some over-spilling.
                 if( rmask.size() > 1 ) reg = biasColor(alloc,lrg,reg,rmask);
@@ -343,35 +369,150 @@ abstract public class IFG {
         return alloc.success();
     }
 
-    private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
-        // Check chain of splits up the def-chain.  Take first allocated
-        // register, and if it's available in the mask, take it.
-        Node split = lrg._splitDef;
-        int idx=1;
-        while( split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0) ) {
-            short bias = alloc.lrg(split)._reg;
-            if( bias != -1 )
-                if( mask.test(bias) ) return bias; // Good bias
-                else break;                        // Not allowed on the def-side; break
-            split = split.in(idx);
-            idx=1;
-        }
-        // Same check for chain of splits down the use-chain.
-        split = lrg._splitUse;
-        while( split instanceof MachNode mach && (mach.isSplit() || (idx=mach.twoAddress())!=0) ) {
-            short bias = alloc.lrg(split)._reg;
-            if( bias != -1 )
-                if( mask.test(bias) ) return bias; // Good bias
-                else break;                        // Not allowed on the use-side
-            split = split.out(0);
-        }
-        return reg;
+    // Pick LRG from color stack
+    private static void pickColor(LRG[] color_stack, int sptr, int swork) {
+        // Out of trivial colorable, pick an at-risk to pull
+        if( sptr==swork )
+            swap(color_stack,sptr,pickRisky(color_stack,sptr));
+        // When coloring, we'd like to give more choices; so when coloring we'd
+        // like to see the single-def first (since no choices anyway), then
+        // non-split related (so more live ranges get colored), then
+        // split-related last, so they have more colors to bias towards.
+
+        // Working in reverse, pick first split-related with many regs, then
+        // those with some regs, then single-def.
+        int bidx=sptr;
+        LRG best=color_stack[bidx];
+        for( int idx = sptr+1; idx < swork; idx++ )
+            if( betterLRG(best,color_stack[idx]) )
+                best = color_stack[bidx=idx];
+        if( bidx != sptr )
+            swap(color_stack,sptr,bidx); // Pick best at sptr
+    }
+
+    private static boolean betterLRG( LRG best, LRG lrg ) {
+        // If single-def varies, keep the not-single-def
+        if( best.size1() != lrg.size1() )
+            return best.size1();
+        // If hasSplit varies, keep the hasSplit
+        if( best.hasSplit() != lrg.hasSplit() )
+            return lrg.hasSplit();
+        // Keep large register count
+        return best.size() < lrg.size();
     }
 
     // Pick a live range that hasn't already spilled, or has a single-def-
     // single-use that are not adjacent.
     private static int pickRisky( LRG[] color_stack, int sptr ) {
-        return sptr;
+        int best=sptr;
+        int bestScore = pickRiskyScore(color_stack[best]);
+        for( int i=sptr+1; i<color_stack.length; i++ ) {
+            if( bestScore == 999999 ) return best; // Already max score
+            int iScore = pickRiskyScore(color_stack[i]);
+            if( iScore > bestScore )
+                { best = i; bestScore = iScore; }
+        }
+        return best;
+    }
+
+    // Pick a live range to pull, that might not color.
+    //
+    // Picking a live range with a very large span, with defs and uses outside
+    // loops means spilling a relative cheap live range and getting that
+    // register over a large area.
+    //
+    // Picking a live range that is very close to coloring might allow it to
+    // color despite being risky.
+    private static int pickRiskyScore( LRG lrg ) {
+        // Always pick callee-save registers as being very large area recovered
+        // and very cheap to spill.
+        if( lrg._machDef instanceof CalleeSaveNode )
+            return 999998;
+        if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
+            lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
+            return 999999;
+
+        // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
+        // and "area" for benefit
+        return 1000;
+    }
+
+    private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
+        if( mask.size1() ) return reg;
+        // Check chain of splits up the def-chain.  Take first allocated
+        // register, and if it's available in the mask, take it.
+        Node defSplit = lrg._splitDef, useSplit = lrg._splitUse;
+        int tidx, cnt=0;
+
+        while( (tidx=biasable(defSplit)) != 0 || biasable(useSplit) != 0 ) {
+            if( cnt++ > 10 ) break;
+
+            if( tidx != 0 ) {
+                short bias = biasColor( alloc, defSplit, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) defSplit = null; // Kill this side, no more searching
+            } else defSplit = null;
+
+            if( biasable(useSplit) != 0 ) {
+                short bias = biasColor( alloc, useSplit, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) useSplit = null; // Kill this side, no more searching
+            } else useSplit = null;
+
+            if( defSplit != null ) {
+                short bias = biasColorNeighbors( alloc, defSplit, mask );
+                if( bias >= 0 ) return bias;
+                // Advance def side
+                defSplit = defSplit.in(tidx);
+            }
+
+            if( useSplit != null ) {
+                short bias = biasColorNeighbors( alloc, useSplit, mask );
+                if( bias >= 0 ) return bias;
+                useSplit = useSplit.out(0);
+            }
+
+        }
+        return mask.firstReg();
+    }
+
+    private static int biasable(Node split) {
+        if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode ) return 1;   // Yes biasable, advance is slot 1
+        if( !(split instanceof MachNode mach) ) return 0; // Not biasable
+        return mach.twoAddress();                         // Only biasable if 2-addr
+    }
+
+    // 3-way return:
+    // - good bias reg, take it & exit
+    // - this path is cutoff; do not search here anymore
+    // - advance this side
+    private static short biasColor( RegAlloc alloc, Node split, RegMask mask ) {
+        short bias = alloc.lrg(split)._reg;
+        if( bias != -1 ) {
+            if( mask.test(bias) ) return bias; // Good bias
+            else return -2;                    // Kill this side
+        } else return -1;                      // Advance this side
+    }
+
+    // Check if we can match "split" color, or else trim "mask" to colors
+    // "split" might get.
+    private static short biasColorNeighbors( RegAlloc alloc, Node split, RegMask mask ) {
+        LRG slrg = alloc.lrg(split);
+        if( slrg._adj == null ) return -1; // No trimming
+
+        // Can I limit my own choices to valid neighbor choices?
+        for( LRG alrg : slrg._adj ) {
+            int reg = alrg._reg;
+            if( reg == -1 && alrg._mask.size1() )
+                reg = alrg._mask.firstReg();
+            if( reg != -1 ) {
+                mask.clr(alrg._reg);
+                if( mask.size1() )
+                    return mask.firstReg();
+            }
+        }
+        return -1;              // No obvious color choice, but mask got trimmed
     }
 
     private static void swap( LRG[] ary, int x, int y ) {

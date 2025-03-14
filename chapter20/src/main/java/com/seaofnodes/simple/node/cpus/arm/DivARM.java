@@ -29,5 +29,5 @@ public class DivARM extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / ").p(code.reg(in(2)));
     }
 
-    @Override public String op() { return "sdiv"; }
+    @Override public String op() { return "div"; }
 }

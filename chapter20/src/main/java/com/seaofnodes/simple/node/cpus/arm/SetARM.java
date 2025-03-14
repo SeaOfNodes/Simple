@@ -34,7 +34,7 @@ public class SetARM extends MachConcreteNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this));
         String src = code.reg(in(1));
-        if( src!="FLAGS" )  sb.p(" = ").p(src);
+        if( src!="flags" )  sb.p(" = ").p(src);
     }
 
     @Override public String op() { return "set"+_bop; }

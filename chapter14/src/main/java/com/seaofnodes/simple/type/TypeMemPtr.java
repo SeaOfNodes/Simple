@@ -35,11 +35,11 @@ public class TypeMemPtr extends Type {
     public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
     public TypeMemPtr make_from(TypeStruct obj) { return make(obj, _nil); }
 
-    public static TypeMemPtr BOT = make(TypeStruct.BOT,true);
-    public static TypeMemPtr TOP = BOT.dual();
-    public static TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
-    public static TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
-    public static TypeMemPtr TEST= make(TypeStruct.TEST,false);
+    public static final TypeMemPtr BOT = make(TypeStruct.BOT,true);
+    public static final TypeMemPtr TOP = BOT.dual();
+    public static final TypeMemPtr NULLPTR = make(TypeStruct.TOP,true);
+    public static final TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
+    public static final TypeMemPtr TEST= make(TypeStruct.TEST,false);
     public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
 
     @Override

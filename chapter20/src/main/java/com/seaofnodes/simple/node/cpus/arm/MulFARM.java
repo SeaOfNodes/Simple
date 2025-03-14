@@ -4,19 +4,15 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
 import java.io.ByteArrayOutputStream;
 
 public class MulFARM extends MachConcreteNode implements MachNode{
     MulFARM(Node mulf) {super(mulf);}
 
     // Register mask allowed on input i.
-    @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.FMASK; }
+    @Override public RegMask regmap(int i) { assert i==1 || i==2; return arm.DMASK; }
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return riscv.FMASK; }
-    // Output is same register as input#1
-    @Override public int twoAddress() { return 1; }
+    @Override public RegMask outregmap() { return arm.DMASK; }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
@@ -32,4 +28,3 @@ public class MulFARM extends MachConcreteNode implements MachNode{
     @Override public String op() { return "mulf"; }
 
 }
-

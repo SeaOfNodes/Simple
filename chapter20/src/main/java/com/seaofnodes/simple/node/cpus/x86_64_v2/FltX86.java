@@ -10,18 +10,19 @@ import java.io.ByteArrayOutputStream;
 
 public class FltX86 extends ConstantNode implements MachNode {
     FltX86(ConstantNode con ) { super(con); }
+    @Override public String op() { return "fld"; }
 
     // Register mask allowed on input i.  0 for no register.
     @Override public RegMask regmap(int i) { return null; }
     // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
+    @Override public boolean isClone() { return true; }
+    @Override public FltX86 copy() { return new FltX86(this); }
 
     // Encoding is appended into the byte array; size is returned
     @Override public int encoding(ByteArrayOutputStream bytes) {
         throw Utils.TODO();
     }
-
-    @Override public boolean isClone() { return true; }
 
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.
@@ -31,7 +32,4 @@ public class FltX86 extends ConstantNode implements MachNode {
         _con.print(sb.p(code.reg(this)).p(" #"));
     }
 
-    @Override public String op() {
-        return "fld";           // Some fancier encoding
-    }
 }

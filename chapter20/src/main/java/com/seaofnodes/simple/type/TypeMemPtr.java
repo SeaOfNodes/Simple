@@ -42,11 +42,11 @@ public class TypeMemPtr extends TypeNil {
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}
-    public static TypeMemPtr BOT = make((byte)3, TypeStruct.BOT);
-    public static TypeMemPtr TOP = BOT.dual();
-    public static TypeMemPtr NOTBOT = make((byte)2,TypeStruct.BOT);
+    public static final TypeMemPtr BOT = make((byte)3, TypeStruct.BOT);
+    public static final TypeMemPtr TOP = BOT.dual();
+    public static final TypeMemPtr NOTBOT = make((byte)2,TypeStruct.BOT);
 
-    public static TypeMemPtr TEST= make((byte)2, TypeStruct.TEST);
+    public static final TypeMemPtr TEST= make((byte)2, TypeStruct.TEST);
     public static void gather(ArrayList<Type> ts) { ts.add(NOTBOT); ts.add(BOT); ts.add(TEST); }
 
     @Override

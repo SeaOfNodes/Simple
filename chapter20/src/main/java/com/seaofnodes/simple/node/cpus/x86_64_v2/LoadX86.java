@@ -14,7 +14,7 @@ public class LoadX86 extends MemOpX86 {
     @Override public String op() { return "ld"+_sz; }
 
     // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
+    @Override public RegMask outregmap() { return x86_64_v2.MEM_MASK; }
 
 
     // General form: "ldN  dst,[base + idx<<2 + 12]"
