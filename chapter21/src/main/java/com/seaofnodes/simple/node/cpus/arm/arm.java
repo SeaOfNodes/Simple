@@ -395,7 +395,7 @@ public class arm extends Machine {
         case MulNode mul    -> new MulARM(mul);
         case NewNode nnn    -> new NewARM(nnn);
         case NotNode not    -> new NotARM(not);
-        case OrNode or      -> new OrARM(or);
+        case OrNode or      -> or(or);
         case ParmNode parm  -> new ParmARM(parm);
         case PhiNode phi    -> new PhiNode(phi);
         case ProjNode prj   -> new ProjARM(prj);
@@ -475,6 +475,13 @@ public class arm extends Machine {
             return new CallARM(call, tfp);
         return new CallRRARM(call);
     }
+
+    private Node or(OrNode or) {
+        return or.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti)
+            ? new OrIARM(or, (int)ti.value())
+            : new OrARM(or);
+    }
+
 
     private static int off;
     private static Node idx;
