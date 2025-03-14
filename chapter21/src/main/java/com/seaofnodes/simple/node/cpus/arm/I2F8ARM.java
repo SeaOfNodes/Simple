@@ -10,9 +10,10 @@ public class I2F8ARM extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.DMASK; }
     @Override public void encoding( Encoding enc ) {
+        // SCVTF
         short self = (short)(enc.reg(this )-arm.D_OFFSET);
         short reg1 = enc.reg(in(1));
-        int body = arm.float_cast(158, 1, reg1, self);
+        int body = arm.float_cast(0b10011110, 1, reg1, self);
         enc.add4(body);
     }
 

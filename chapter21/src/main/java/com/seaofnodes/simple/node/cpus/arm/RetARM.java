@@ -15,7 +15,8 @@ public class RetARM extends ReturnNode implements MachNode {
     }
     @Override public RegMask regmap(int i) { return arm.retMask(_fun.sig(),i); }
     @Override public RegMask outregmap() { return null; }
-    @Override public void encoding( Encoding enc ) { enc.add4(arm.ret(3512256)); }
+    // RET
+    @Override public void encoding( Encoding enc ) { enc.add4(arm.ret(0b1101011001011111000000)); }
 
     @Override public void asm(CodeGen code, SB sb) {
         // Post code-gen, just print the "ret"

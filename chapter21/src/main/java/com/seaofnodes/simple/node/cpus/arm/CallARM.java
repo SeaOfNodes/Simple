@@ -24,10 +24,10 @@ public class CallARM extends CallNode implements MachNode {
     @Override public RegMask regmap(int i) { return arm.callInMask(_tfp,i); }
     @Override public RegMask outregmap() { return null; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.relo(this,_tfp);    // Record relo info
-        enc.add4(arm.b(37,0));
+        // BL
+        enc.add4(arm.b(0B100101,0)); // Target patched at link time
     }
 
     @Override public void asm(CodeGen code, SB sb) {

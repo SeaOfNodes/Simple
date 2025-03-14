@@ -17,7 +17,6 @@ public class IntARM extends ConstantNode implements MachNode {
     @Override public boolean isClone() { return true; }
     @Override public IntARM copy() { return new IntARM(this); }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         short self = enc.reg(this);
         long x = ((TypeInteger)_con).value();

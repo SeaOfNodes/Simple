@@ -17,8 +17,8 @@ public class SubIARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return _imm == -1 ? "dec" : "subi"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
-    // Encoding is appended into the byte array; size is returned
-    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,836,_imm); }
+
+    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,0b1101000100,_imm); }
 
     // General form: "subi  rd = rs1 - imm"
     @Override public void asm(CodeGen code, SB sb) {

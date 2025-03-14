@@ -18,9 +18,9 @@ public class NotARM extends MachConcreteNode implements MachNode{
         // subtracting zero from rs will just yield rs, it sets the zero flag and then it's used in cset
         short self = enc.reg(this );
         short reg1 = enc.reg(in(1));
-        int subs = arm.imm_inst(964, 0, reg1, self);
+        int subs = arm.imm_inst(0b1111000100, 0, reg1, self);
         enc.add4(subs);
-        int cset = arm.cond_set(1236, 31, arm.COND.EQ, 63, reg1);
+        int cset = arm.cond_set(0b10011010100, 31, arm.COND.EQ, 63, reg1);
         enc.add4(cset);
     }
 

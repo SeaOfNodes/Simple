@@ -16,7 +16,8 @@ public class AddIARM extends MachConcreteNode implements MachNode {
     }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
-    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,580,_imm); }
+    //ADD (immediate)
+    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,0b1001000100,_imm); }
     // General form: "addi  rd = rs1 + imm"
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + #").p(_imm);

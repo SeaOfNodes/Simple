@@ -195,7 +195,7 @@ public class arm extends Machine {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));
         short reg2 = enc.reg(n.in(2));
-        int body = shift_reg(1238, reg2, op2,  reg1, self);
+        int body = shift_reg(0b10011010110, reg2, op2, reg1, self);
         enc.add4(body);
     }
 
@@ -232,7 +232,7 @@ public class arm extends Machine {
         short self = (short)(enc.reg(n)      -D_OFFSET);
         short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
         short reg2 = (short)(enc.reg(n.in(2))-D_OFFSET);
-        int body = f_scalar(30, 1, reg2, op,  reg1, self);
+        int body = f_scalar(0b00011110, 1, reg2, op,  reg1, self);
         enc.add4(body);
     }
 
@@ -248,13 +248,14 @@ public class arm extends Machine {
     public static int load_str_imm(int opcode, int imm9, int ptr, int rt) {
         return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
     }
-    public static void ldst_encode( Encoding enc, MemOpARM n, int op, Node xval ) {
+    // Todo: provide op as binary here
+    public static void ldst_encode( Encoding enc, MemOpARM n, Node xval ) {
         short ptr = enc.reg(n.ptr());
         short off = enc.reg(n.off());
         short val = enc.reg(xval)   ;
         int body = n.off() == null
-            ? load_str_imm(op, off, ptr, val)
-            : indr_adr(op+1, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
+            ? load_str_imm(0b1111100101, off, ptr, val)
+            : indr_adr(0b11111000011, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
         enc.add4(body);
     }
 
@@ -280,7 +281,7 @@ public class arm extends Machine {
     public static void f_cmp(Encoding enc, Node n) {
         short reg1 = (short)(enc.reg(n.in(1))-arm.D_OFFSET);
         short reg2 = (short)(enc.reg(n.in(2))-arm.D_OFFSET);
-        int body = f_cmp(30, 3, reg1,  reg2);
+        int body = f_cmp(0b00011110, 3, reg1,  reg2);
         enc.add4(body);
     }
 

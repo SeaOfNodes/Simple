@@ -15,7 +15,6 @@ public class CallRRISC extends CallNode implements MachNode {
     }
     @Override public RegMask outregmap() { return null; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         short rpc = enc.reg(this);
         short src = enc.reg(in(_inputs._len-1));

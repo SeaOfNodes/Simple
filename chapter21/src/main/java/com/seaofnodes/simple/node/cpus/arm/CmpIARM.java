@@ -18,8 +18,9 @@ public class CmpIARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return _imm==0 ? "test" : "cmp"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.FLAGS_MASK; }
-    // Encoding is appended into the byte array; size is returned
-    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,964,_imm); }
+
+    // Conditional compare (immediate) alias for subss
+    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,0b1111000100,_imm); }
 
     // General form: "cmp  rs1, 1"
     @Override public void asm(CodeGen code, SB sb) {

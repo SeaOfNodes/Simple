@@ -41,7 +41,8 @@ public class BranchARM extends IfNode implements MachNode{
         case ">"  -> arm.COND.GE;
         default   -> throw Utils.TODO();
         };
-        int body = arm.b_cond(84, 0, cond);
+        // B.cond
+        int body = arm.b_cond(0b01010100, 0, cond);
         enc.add4(body);
     }
     @Override public void asm(CodeGen code, SB sb) {

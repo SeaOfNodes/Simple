@@ -9,10 +9,12 @@ public class AddFARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return "addf"; }
     @Override public RegMask regmap(int i) { return arm.DMASK; }
     @Override public RegMask outregmap() { return arm.DMASK; }
-    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,10); }
+
+    //FADD (scalar)
+    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,0b00011110); }
 
     // Default on double precision for now(64 bits)
-    // General form: "vadd.32  rd = src1 + src2
+    // General form: "addf  rd = src1 + src2
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" + ").p(code.reg(in(2)));
     }
