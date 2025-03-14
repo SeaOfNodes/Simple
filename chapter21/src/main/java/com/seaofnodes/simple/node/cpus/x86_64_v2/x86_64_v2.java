@@ -62,28 +62,15 @@ public class x86_64_v2 extends Machine {
         DIRECT,          // mem
     };
 
-    // 0F (returned_value)
-    // 0F 94	SETE r/m8
-    // 0F 9C	SETL r/m8
-    // 0F 9E	SETLE r/m8
-    static public int setop(String op) {
-        return switch (op) {
-        case "==" -> 0x94;
-        case "<"  -> 0x9C;
-        case "<=" -> 0X9E;
-        default -> throw new IllegalArgumentException("Too many arguments");
-        };
-    }
-
     // Inverting IfNode
     static public String invert(String op) {
         return switch (op) {
         case "==" -> "!=";
         case "!=" -> "==";
-        case ">" -> "<=";
-        case "<" -> ">=";
-        case ">=" -> "<";
-        case "<=" -> ">";
+        case ">"  -> "<=";
+        case "<"  -> ">=";
+        case ">=" -> "<" ;
+        case "<=" -> ">" ;
         default -> throw new IllegalStateException("Unexpected value: " + op);
         };
     }
@@ -107,26 +94,6 @@ public class x86_64_v2 extends Machine {
         default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
-
-    // Clear bits
-    // e.g before using setl
-    // setl sets low 8 bits the other bits are still the same from before
-    // Clear them
-    public static void clear_bits(short reg1, short reg2, ByteArrayOutputStream bytes) {
-        // use xor to clear them
-        bytes.write(REX_W);
-        bytes.write(0x33); // opcode
-        bytes.write(modrm(MOD.DIRECT, reg1, reg2));
-    }
-
-    public static void zero_extend(short reg1, short reg2, ByteArrayOutputStream bytes) {
-        bytes.write(REX_W);
-        bytes.write(0x0F); // opcode
-        bytes.write(0xB6); // opcode
-
-        bytes.write(modrm(MOD.DIRECT, reg1, reg2));
-    }
-
 
     public static int modrm(MOD mod, int reg, int m_r) {
         // combine all the bits
@@ -422,6 +389,8 @@ public class x86_64_v2 extends Machine {
         };
     }
 
+    public static boolean imm8( long imm ) { return -128 <= imm && imm <= 127; }
+    public static boolean imm32( long imm ) { return (int)imm==imm; }
 
     // Attempt a full LEA-style break down.
     private Node add(AddNode add) {
@@ -430,7 +399,7 @@ public class x86_64_v2 extends Machine {
         if( lhs instanceof LoadNode ld && ld.nOuts() == 1 )
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val);
 
-        if (rhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if(rhs instanceof LoadNode ld && ld.nOuts() == 1)
             throw Utils.TODO(); // Swap load sides
 
         // Attempt a full LEA-style break down.
@@ -449,49 +418,47 @@ public class x86_64_v2 extends Machine {
                 return _lea(add, null, shift, (int)imm);
 
             // lhs + rhs1
-            return new AddIX86(add, imm);
+            return new AddIX86(add, (int)imm);
         }
         return _lea(add, lhs, rhs, 0);
     }
 
 
     private Node addf(AddFNode addf) {
-        if (addf.in(1) instanceof LoadNode ld && ld.nOuts() == 1)
+        if(addf.in(1) instanceof LoadNode ld && ld.nOuts() == 1)
             return new AddFMemX86(addf, address(ld), ld.ptr(), idx, off, scale, addf.in(2));
 
-        if (addf.in(2) instanceof LoadNode ld && ld.nOuts() == 1)
+        if(addf.in(2) instanceof LoadNode ld && ld.nOuts() == 1)
             throw Utils.TODO(); // Swap load sides
 
         return new AddFX86(addf);
     }
 
 
-    private Node _lea(Node add, Node base, Node idx, long off) {
+    private Node _lea(Node add, Node base, Node idx, int off) {
         int scale = 0;
-        if (base instanceof ShlNode && !(idx instanceof ShlNode))
+        if( base instanceof ShlNode && !(idx instanceof ShlNode) )
             throw Utils.TODO(); // Bug in canonicalization, should on RHS
-        if (idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
-                shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3) {
+        if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
+            shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
             idx = shift.in(1);
             scale = ((int) tscale.value());
         }
         // (base + idx) + off
         return off == 0 && scale == 0
-                ? new AddX86(add)
-                : new LeaX86(add, base, idx, scale, off);
+            ? new AddX86(add)
+            : new LeaX86(add, base, idx, scale, off);
     }
 
 
     private Node and(AndNode and) {
-        if (and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new AndX86(and);
-            return new AndIX86(and, ti);
-            }
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
+            return new AndIX86(and, (int)ti.value());
         return new AndX86(and);
     }
 
     private Node call(CallNode call) {
-        if (call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp)
+        if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
             return new CallX86(call, tfp);
         return new CallRX86(call);
     }
@@ -510,23 +477,21 @@ public class x86_64_v2 extends Machine {
 
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
-        if (lhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if(lhs instanceof LoadNode ld && ld.nOuts() == 1)
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
-        if (rhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if(rhs instanceof LoadNode ld && ld.nOuts() == 1)
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true);
 
         // Vs immediate
-        if (rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new CmpX86(bool);
-            return new CmpIX86(bool, ti);
-            // x vs y
-        }
+        if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
+            return new CmpIX86(bool, (int)ti.value());
+        // x vs y
         return new CmpX86(bool);
     }
 
     private Node con(ConstantNode con) {
-        if (!con._con.isConstant()) return new ConstantNode(con); // Default unknown caller inputs
+        if(!con._con.isConstant()) return new ConstantNode(con); // Default unknown caller inputs
         return switch (con._con) {
             case TypeInteger ti -> new IntX86(con);
             case TypeFloat tf -> new FltX86(con);
@@ -547,7 +512,7 @@ public class x86_64_v2 extends Machine {
         // If/Bool combos will match to a Cmp/Set which sets flags.
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
-        if (!(iff.in(1) instanceof BoolNode))
+        if(!(iff.in(1) instanceof BoolNode))
             iff.setDef(1, new BoolNode.EQ(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
         return new JmpX86(iff, invert(((BoolNode) iff.in(1)).op()));
     }
@@ -557,20 +522,14 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node mul(MulNode mul) {
-        if (mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new MulX86(mul);
-            return new MulIX86(mul, ti);
-        }
+        if( mul.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
+            return new MulIX86(mul, (int)ti.value());
         return new MulX86(mul);
     }
 
-    public static boolean imm8( long imm ) { return -128 <= imm && imm <= 127; }
-
     private Node or(OrNode or) {
-        if (or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new OrX86(or);
-            return new OrIX86(or, ti);
-            }
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
+            return new OrIX86(or, (int)ti.value());
         return new OrX86(or);
     }
 
@@ -579,41 +538,34 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node sar(SarNode sar) {
-        if (sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new SarIX86(sar, TypeInteger.constant(ti.value() & 0x03f));
-            return new SarIX86(sar, ti);
-        }
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new SarIX86(sar, (int)(ti.value() & 0x03f) );
         return new SarX86(sar);
     }
 
     private Node shl(ShlNode shl) {
-        if (shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new ShlIX86(shl, TypeInteger.constant(ti.value() & 0x03f));
-            return new ShlIX86(shl, ti);
-        }
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShlIX86(shl, (int)(ti.value() & 0x03f) );
         return new ShlX86(shl);
     }
 
-    private Node shr(ShrNode shr) {
-        if (shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new ShrIX86(shr, TypeInteger.constant(ti.value() & 0x03f));
-            return new ShrIX86(shr, ti);
-        }
+    private Node shr( ShrNode shr ) {
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
+            return new ShrIX86(shr, (int)(ti.value() & 0x03f) );
         return new ShrX86(shr);
     }
 
     private Node st (StoreNode st ){
         // Look for "*ptr op= val"
         Node op = st.val();
-        if (op instanceof AddNode) {
-            if (op.in(1) instanceof LoadNode ld &&
-                    ld.in(0) == st.in(0) &&
-                    ld.mem() == st.mem() &&
-                    ld.ptr() == st.ptr() &&
-                    ld.off() == st.off()) {
-                if (op instanceof AddNode) {
+        if(op instanceof AddNode) {
+            if(op.in(1) instanceof LoadNode ld &&
+               ld.in(0) == st.in(0) &&
+               ld.mem() == st.mem() &&
+               ld.ptr() == st.ptr() &&
+               ld.off() == st.off()) {
+                if( op instanceof AddNode )
                     return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
-                }
                 throw Utils.TODO();
             }
         }
@@ -628,10 +580,8 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node xor (XorNode xor){
-        if (xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
-            if (imm_size(ti.value()) == 64) return new XorX86(xor);
-            return new XorIX86(xor, ti);
-            }
+        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
+            return new XorIX86(xor, (int)ti.value());
         return new XorX86(xor);
     }
 
@@ -645,19 +595,19 @@ public class x86_64_v2 extends Machine {
         idx = val = null;
         Node base = mop.ptr();
         // Skip/throw-away a ReadOnly, only used to typecheck
-        if (base instanceof ReadOnlyNode read) base = read.in(1);
+        if(base instanceof ReadOnlyNode read) base = read.in(1);
         assert !(base instanceof AddNode) && base._type instanceof TypeMemPtr; // Base ptr always, not some derived
-        if (mop.off() instanceof AddNode add && add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+        if(mop.off() instanceof AddNode add && add.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
             off = (int) ti.value();
             assert off == ti.value(); // In 32-bit range
             idx = add.in(1);
-            if (idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
+            if(idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
                     shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3) {
                 idx = shift.in(1);
                 scale = (int) tscale.value();
             }
         } else {
-            if (mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+            if(mop.off() instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
                 off = (int) ti.value();
                 assert off == ti.value(); // In 32-bit range
             } else {
@@ -669,7 +619,7 @@ public class x86_64_v2 extends Machine {
 
     private int imm (Node xval ){
         assert val == null && imm == 0;
-        if (xval instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
             val = null;
             imm = (int) ti.value();
             assert imm == ti.value(); // In 32-bit range
