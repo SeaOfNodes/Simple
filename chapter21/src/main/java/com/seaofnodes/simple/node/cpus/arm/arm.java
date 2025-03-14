@@ -164,8 +164,19 @@ public class arm extends Machine {
         return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
 
+
+    // Can we encode this in ARM's 12-bit LOGICAL immediate form?
+    // Some combination of shifted bit-masks.
+    private static int imm12Logical(TypeInteger ti) {
+        if( !ti.isConstant() ) return -1;
+        // TODO: THE REAL THING
+        // INVARIANT: always a positive thing
+        return -1;
+    }
+
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
+        assert opcode >=0 && imm12 >= 0 && rn >=0 && rd>=0; // Caller zeros high order bits
         return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
     public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
@@ -396,7 +407,7 @@ public class arm extends Machine {
         case MulNode mul    -> new MulARM(mul);
         case NewNode nnn    -> new NewARM(nnn);
         case NotNode not    -> new NotARM(not);
-        case OrNode or      -> new OrARM(or);
+        case OrNode or      -> or(or);
         case ParmNode parm  -> new ParmARM(parm);
         case PhiNode phi    -> new PhiNode(phi);
         case ProjNode prj   -> new ProjARM(prj);
@@ -476,6 +487,14 @@ public class arm extends Machine {
             return new CallARM(call, tfp);
         return new CallRRARM(call);
     }
+
+    private Node or(OrNode or) {
+        int imm12;
+        return or.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && (imm12 = imm12Logical(ti)) != -1
+            ? new OrIARM(or, imm12)
+            : new OrARM(or);
+    }
+
 
     private static int off;
     private static Node idx;
