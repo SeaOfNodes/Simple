@@ -105,7 +105,10 @@ public class Encoding {
         for( CFGNode bb : _code._cfg )
             for( Node n : bb._outputs )
                 if( n instanceof MachNode mach )
-                    throw Utils.TODO();
+                    mach.encoding(this);
+
+        // Patch RIP-relative encodings now
+        throw Utils.TODO();
     }
 
     // Basic block layout.  Now that RegAlloc is finished, no more spill code
