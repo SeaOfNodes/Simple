@@ -8,11 +8,12 @@ import java.util.BitSet;
 
 abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     final int _imm12;
-    ImmRISC( Node add, int imm12 ) {
+    ImmRISC( Node add, int imm12, boolean pop ) {
         super(add);
-        _inputs.pop();
         _imm12 = imm12;
+        if( pop ) _inputs.pop();
     }
+    ImmRISC( Node add, int imm12 ) { this(add,imm12,true); }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
 

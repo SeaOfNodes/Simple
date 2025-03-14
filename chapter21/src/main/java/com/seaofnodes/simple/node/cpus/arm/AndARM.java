@@ -8,6 +8,8 @@ import com.seaofnodes.simple.node.Node;
 
 public class AndARM extends MachConcreteNode implements MachNode {
     AndARM(Node and) { super(and); }
+    @Override public String op() { return "and"; }
+    @Override public String glabel() { return "&"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
     @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,138); }

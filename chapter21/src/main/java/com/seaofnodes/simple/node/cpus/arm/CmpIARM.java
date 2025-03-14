@@ -15,9 +15,18 @@ public class CmpIARM extends MachConcreteNode implements MachNode {
         _bop = bool.op();
         _imm = imm;
     }
+    CmpIARM( CmpIARM cmp ) {
+        super((Node)null);
+        addDef(null);
+        addDef(cmp.in(1));
+        _bop = cmp._bop;
+        _imm = cmp._imm;
+    }
     @Override public String op() { return _imm==0 ? "test" : "cmp"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.FLAGS_MASK; }
+    @Override public boolean isClone() { return true; }
+    @Override public Node copy() { return new CmpIARM(this); }
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,964,_imm); }
 

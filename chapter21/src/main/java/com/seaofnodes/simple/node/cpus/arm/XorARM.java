@@ -7,6 +7,7 @@ import com.seaofnodes.simple.node.*;
 public class XorARM extends MachConcreteNode implements MachNode{
     XorARM(Node xor) {super(xor);}
     @Override public String op() { return "xor"; }
+    @Override public String glabel() { return "^"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
     @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,202); }

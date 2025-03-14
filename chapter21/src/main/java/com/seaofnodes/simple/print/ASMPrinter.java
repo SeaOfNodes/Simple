@@ -99,7 +99,7 @@ public abstract class ASMPrinter {
         // to this block.  Until the post-reg-alloc block layout cleanup, we
         // need to assume a jump.  There's no real hardware op here, yet.
         if( n instanceof RegionNode cfg && !(n instanceof FunNode) ) {
-            while( true ) {
+            while( cfgidx < code._cfg._len-1 ) {
                 CFGNode next = code._cfg.at(++cfgidx);
                 if( next == n ) return iadr; // Fall-through, no branch
                 if( next.nOuts()>1 )

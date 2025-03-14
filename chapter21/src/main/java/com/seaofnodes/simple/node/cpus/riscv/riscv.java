@@ -368,8 +368,13 @@ public class riscv extends Machine {
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
-            return new AndIRISC(and, (int)ti.value());
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            if( imm12(ti) )
+                return new AndIRISC(and, (int)ti.value());
+            // Could be any size low bit mask
+            if( ti.value() == 0xFFFFFFFFL )
+                return new SrlIRISC(new SllIRISC(and,32),32,false);
+        }
         return new AndRISC(and);
     }
 
@@ -384,7 +389,7 @@ public class riscv extends Machine {
     }
     private Node nnn(NewNode nnn) {
         // TODO: pass in the TFP for alloc
-        return new NewRISC(nnn, new AUIPC((TypeFunPtr)null));
+        return new NewRISC(nnn, new AUIPC(null));
     }
 
     private Node cmp(BoolNode bool) {
@@ -428,8 +433,9 @@ public class riscv extends Machine {
                 // Here, the low 12 bits get sign-extended, which means if
                 // bit11 is set, the value is negative and lowers the LUI
                 // value.  Add a bit 12 to compensate
-                yield new AddIRISC(new LUI(((x>>12)&1)==1 ? TypeInteger.constant(x+0x1000) : ti), (int)(x & 0xFFF));
-            // Need more complex sequence for larger constants
+                yield new AddIRISC(new LUI(((x>>11)&1)==1 ? TypeInteger.constant(x+0x1000) : ti), (int)(x & 0xFFF));
+            // Need more complex sequence for larger constants... or a load
+            // from a constant pool, which does not need an extra register
             throw Utils.TODO();
         }
         case TypeFloat   tf  -> new FltRISC(con);
@@ -471,7 +477,7 @@ public class riscv extends Machine {
 
     private Node srl(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
-            return new SrlIRISC(shr, (int)ti.value());
+            return new SrlIRISC(shr, (int)ti.value(),true);
         return new SrlRISC(shr);
     }
 

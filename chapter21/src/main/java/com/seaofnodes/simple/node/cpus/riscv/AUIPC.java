@@ -23,6 +23,8 @@ public class AUIPC extends ConstantNode implements MachNode {
 
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);
-        _con.print(sb.p(reg).p(" = PC+#"));
+        sb.p(reg).p(" = PC+#");
+        if( _con == null ) sb.p("---");
+        else _con.print(sb);
     }
 }

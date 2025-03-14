@@ -281,6 +281,14 @@ public class RegAlloc {
         // For all conflicts
         for( Node def : conflicts ) {
             assert lrg(def)==lrg; // Might be conflict use-side
+            // Split before each use that extends the live range; i.e. is a
+            // Phi or two-address
+            for( int i=0; i<def._outputs._len; i++ ) {
+                Node use = def.out(i);
+                if( (use instanceof PhiNode phi && !(phi.region() instanceof LoopNode && phi.in(2)==def ) ) ||
+                        (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
+                    insertBefore( use, use._inputs.find(def), "use/self/use",round,lrg );
+            }
             // Split after the Phi which extends the LRG.  Split also before
             // Phi slot 1 (and not all inputs), because Phis extend the live range.
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
@@ -294,14 +302,6 @@ public class RegAlloc {
             // Split before two-address ops which extend the live range
             if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
                 insertBefore(def,mach.twoAddress(),"use/self/two",round,lrg);
-            // Split before each use that extends the live range; i.e. is a
-            // Phi or two-address
-            for( int i=0; i<def._outputs._len; i++ ) {
-                Node use = def.out(i);
-                if( (use instanceof PhiNode phi && !(phi.region() instanceof LoopNode && phi.in(2)==def ) ) ||
-                        (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
-                    insertBefore( use, use._inputs.find(def), "use/self/use",round,lrg );
-            }
         }
         return true;
     }

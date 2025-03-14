@@ -23,6 +23,7 @@ public class Chapter20Test {
         code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
+        code.asm();
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
@@ -42,7 +43,7 @@ public class Chapter20Test {
         String src = "return arg | 2;";
         testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
         testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (orr,arg,2);");
+        testCPU(src,"arm"      , "SystemV",0,"return (or,arg,2);");
     }
 
     @Test
@@ -62,7 +63,7 @@ return sqrt(arg) + sqrt(arg+2);
 """;
         testCPU(src,"x86_64_v2", "SystemV",26,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
-        testCPU(src,"arm"      , "SystemV",26,null);
+        testCPU(src,"arm"      , "SystemV",17,null);
     }
 
     @Test
@@ -82,7 +83,7 @@ flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
         testCPU(src,"x86_64_v2", "SystemV",25,null);
-        testCPU(src,"riscv"    , "SystemV",21,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
         testCPU(src,"arm"      , "SystemV",18,null);
     }
 
@@ -107,7 +108,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
         testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
         testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(mul,.[],1000));");
     }
 
     @Test
