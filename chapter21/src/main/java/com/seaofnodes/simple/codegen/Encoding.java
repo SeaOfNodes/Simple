@@ -35,11 +35,14 @@ public class Encoding {
     // - RIP-relative to external chunks have a zero offset; the matching
     //   relocation info will be used to patch the correct value.
 
-    final ByteArrayOutputStream _bits;
+    public class BAOS extends ByteArrayOutputStream { public byte[] buf() { return buf; } };
+    final public BAOS _bits;
+
+    public byte[] _opLen;
 
     Encoding( CodeGen code ) {
         _code = code;
-        _bits = new ByteArrayOutputStream();
+        _bits = new BAOS();
     }
 
     // Short cut to the defining register
@@ -100,15 +103,20 @@ public class Encoding {
             rpo.swap(i,rpo.size()-1-i);
         visit.clear();
         _code._cfg = rpo;       // Save the new ordering
+        _opLen = new byte[_code.UID()];
 
         // Write encoding bits in order
         for( CFGNode bb : _code._cfg )
             for( Node n : bb._outputs )
-                if( n instanceof MachNode mach )
+                if( n instanceof MachNode mach ) {
+                    int off = _bits.size();
                     mach.encoding(this);
+                    _opLen[n._nid] = (byte)(_bits.size()-off);
+                }
 
+        System.out.println(_code.asm());
         // Patch RIP-relative encodings now
-        throw Utils.TODO();
+        //throw Utils.TODO();
     }
 
     // Basic block layout.  Now that RegAlloc is finished, no more spill code

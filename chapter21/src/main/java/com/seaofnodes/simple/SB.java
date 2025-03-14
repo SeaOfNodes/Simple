@@ -29,6 +29,14 @@ public final class SB {
   public SB p( int    s ) { _sb.append(s); return this; }
   public SB p( long   s ) { _sb.append(s); return this; }
   public SB p( boolean s) { _sb.append(s); return this; }
+  // 2 hex digits
+  public SB hex2(int s) {
+    int digit = (s>>4) & 0xf;
+    _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
+    digit = s & 0xf;
+    _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
+    return this;
+  }
   // 4 hex digits
   public SB hex4(int s) {
     assert (s>>4*4)==0; // Fits in 16 bits

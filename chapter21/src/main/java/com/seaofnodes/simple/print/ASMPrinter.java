@@ -124,9 +124,14 @@ public abstract class ASMPrinter {
         sb.p(" ");
 
         // Encoding
-        int size = 1;           // TODO: Fake encoding size
-        iadr += size;
-        sb.fix(encWidth,"??");
+        if( code._encoding != null ) {
+            int size = code._encoding._opLen[n._nid];
+            for( int i=0; i<size; i++ )
+                sb.hex2(code._encoding._bits.buf()[iadr++]);
+            for( int i=size*2; i<encWidth; i++ )
+                sb.p(" ");
+        } else
+            sb.fix(encWidth,"");
         sb.p("  ");
 
         // Op; generally "ld4" or "call"
