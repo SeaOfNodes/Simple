@@ -32,17 +32,8 @@ public class BranchARM extends IfNode implements MachNode{
     @Override public void encoding( Encoding enc ) {
         // Assuming that condition flags are already set.  These flags are set
         // by comparison (or sub).  No need for regs because it uses flags
-        arm.COND cond = switch (_bop) {
-        case "==" -> arm.COND.EQ;
-        case "!=" -> arm.COND.NE;
-        case "<"  -> arm.COND.LE;
-        case "<=" -> arm.COND.LT;
-        case ">=" -> arm.COND.GT;
-        case ">"  -> arm.COND.GE;
-        default   -> throw Utils.TODO();
-        };
         // B.cond
-        int body = arm.b_cond(0b01010100, 0, cond);
+        int body = arm.b_cond(0b01010100, 0, arm.make_condition(_bop));
         enc.add4(body);
     }
     @Override public void asm(CodeGen code, SB sb) {

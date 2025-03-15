@@ -116,6 +116,10 @@ public class arm extends Machine {
         SXTX,
     }
 
+    static public int cset(int opcode, COND cond, int rn, int rd) {
+        return (opcode << 16) | (cond.ordinal() << 12) | (rn << 5) | rd;
+    }
+
     public enum STORE_LOAD_OPTION {
         UXTW,  // base+ u32 index [<< logsize]
         UXTX,  // base+ u64 index [<< logsize]
@@ -273,8 +277,16 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
+    public static int load_pc(int opcode, int offset, int rt) {
+        return (opcode << 24) | (offset << 5) | rt;
+    }
+    // int l
+    public static int adrp(int op, int imlo,int opcode, int imhi, int rd) {
+        return (op << 31) | (imlo << 29) |(opcode << 24) | (imhi << 5) | rd;
+    }
+
     public static int load_adr(int opcode, int offset, int base, int rt) {
-        return (opcode << 21) | (offset << 12) | (3 << 10) | (base << 5) | rt;
+        return (opcode << 22) | (offset << 10) | (base << 5) | rt;
     }
 
     // [Rptr+Roff]
@@ -322,6 +334,17 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
+    public static COND make_condition(String bop) {
+        return switch (bop) {
+            case "==" -> arm.COND.EQ;
+            case "!=" -> arm.COND.NE;
+            case "<"  -> arm.COND.LE;
+            case "<=" -> arm.COND.LT;
+            case ">=" -> arm.COND.GT;
+            case ">"  -> arm.COND.GE;
+            default   -> throw Utils.TODO();
+        };
+    }
     // Todo: maybe missing zero here after label << 5
     public static int b_cond(int opcode, int label, COND cond) {
         return (opcode << 24) | (label << 5) | cond.ordinal();
@@ -462,7 +485,7 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, bool.op());
+        return new SetARM(cmp, invert(bool.op()));
     }
     private Node _cmp(BoolNode bool) {
         if( bool instanceof BoolNode.EQF ||

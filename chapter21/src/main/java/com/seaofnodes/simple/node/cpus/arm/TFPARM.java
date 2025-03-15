@@ -16,11 +16,11 @@ public class TFPARM extends ConstantNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         enc.relo(this,(TypeFunPtr)_con);
         short self = enc.reg(this);
-        // Limit of 16bit address for function constants???
-        int body = arm.load_adr(0b11111000010,0,0,self);
-        enc.add4(body);
-        // Surely need to split into 2 ops?
-        throw Utils.TODO();
+        // adrp    x0, 0
+        int adrp = arm.adrp(1,0, 0b10000, 0,self);
+        // add     x0, x0, 0
+        arm.imm_inst(enc,this,0b1001000100,0);
+        enc.add4(adrp);
     }
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);
