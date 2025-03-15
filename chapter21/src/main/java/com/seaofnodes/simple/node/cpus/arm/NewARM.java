@@ -15,7 +15,8 @@ public class NewARM extends NewNode implements MachNode {
 
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);
-        enc.add4(arm.b(37, 0));
+        // bl
+        enc.add4(arm.b(0b100101, 0));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

@@ -9,7 +9,8 @@ public class SubARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return "sub"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
-    @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,203); }
+
+    @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,0b11001011); }
 
     // General form: "sub  # rd = rs1 - rs2"
     @Override public void asm(CodeGen code, SB sb) {

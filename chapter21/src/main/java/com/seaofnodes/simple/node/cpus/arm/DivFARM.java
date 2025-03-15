@@ -9,7 +9,9 @@ public class DivFARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return "divf"; }
     @Override public RegMask regmap(int i) { return arm.DMASK; }
     @Override public RegMask outregmap() {  return arm.DMASK; }
-    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,6); }
+
+    // FDIV (scalar)
+    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,0b000110); }
     // General form: "VDIF =  dst /= src"
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" / ").p(code.reg(in(2)));

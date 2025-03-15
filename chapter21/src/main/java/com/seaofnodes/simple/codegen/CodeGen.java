@@ -296,30 +296,36 @@ public class CodeGen {
         return this;
     }
 
-    //public static void print_as_hex(ByteArrayOutputStream outputStream) {
-    //    byte[] encodedBytes = outputStream.toByteArray();
-    //    for (byte b : encodedBytes) {
-    //        System.out.print(String.format("%02X", b));
-    //    }
-    //    System.out.println();
-    //}
-    //
+    public static void print_as_hex(Encoding enc) {
+        for (byte b : enc._bits.toByteArray()) {
+            System.out.print(String.format("%02X", b));
+        }
+        System.out.println();
+    }
+
+    public void print_as_hex() {
+        for (byte b : _encoding._bits.toByteArray()) {
+            System.out.print(String.format("%02X", b));
+        }
+        System.out.println();
+    }
+
     //// Debug purposes for now
-    //public CodeGen printENCODING() {
-    //    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    //
-    //    for(Node bb : CodeGen.CODE._cfg) {
-    //        for(Node n: bb.outs()) {
-    //            if(n instanceof MachNode) {
-    //                ((MachNode) n).encoding(outputStream);
-    //            }
-    //        }
-    //    }
-    //
-    //    print_as_hex(outputStream);
-    //    // Get the raw bytes from the output stream
-    //    return this;
-    //}
+//    public CodeGen printENCODING() {
+//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//
+//        for(Node bb : CodeGen.CODE._cfg) {
+//            for(Node n: bb.outs()) {
+//                if(n instanceof MachNode) {
+//                    ((MachNode) n).encoding(E);
+//                }
+//            }
+//        }
+//
+//        print_as_hex(outputStream);
+//        // Get the raw bytes from the output stream
+//        return this;
+//    }
 
     public String reg(Node n) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {

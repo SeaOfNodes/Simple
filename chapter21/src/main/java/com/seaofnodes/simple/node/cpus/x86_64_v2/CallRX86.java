@@ -16,7 +16,8 @@ public class CallRX86 extends CallNode implements MachNode {
     }
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
-        // 0xFF/2
+        // FF /2	CALL r/m64
+        // calls the function in the register
         short src = enc.reg(fptr());
         enc.add1(0xFF);
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT,2,src));

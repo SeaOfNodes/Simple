@@ -37,7 +37,6 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     abstract int opcode();
     abstract int func3();
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this );
         short src = enc.reg(in(1));

@@ -20,7 +20,6 @@ public class FloatARM extends ConstantNode implements MachNode {
     @Override public boolean isClone() { return true; }
     @Override public FloatARM copy() { return new FloatARM(this); }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
         double d = ((TypeFloat)_con).value();

@@ -9,4 +9,16 @@ This chapter has encodings for:
 
 ## Instruction Encodings
 
+## x86_64_v2
+*Source*: [^1] 
+
+## ARM
+
+## RISCV
+
 ### Lots of Bits
+
+
+[^1]: [Intel](smt here)
+
+[^2]: ()

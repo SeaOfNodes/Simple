@@ -14,12 +14,12 @@ public class FltRISC extends ConstantNode implements MachNode{
     @Override public RegMask outregmap() { return riscv.FMASK; }
     @Override public boolean isClone() { return true; }
     @Override public FltRISC copy() { return new FltRISC(this); }
-    // Encoding is appended into the byte array; size is returned
+
     @Override public void encoding( Encoding enc ) {
         enc.largeConstant(this,_con);
         short dst = (short)(enc.reg(this) - riscv.F_OFFSET);
         // AUIPC dst,#hi20_constant_pool
-        enc.add4(riscv.u_type(0x17, dst, 0));
+        enc.add4(riscv.u_type(0b0010111, dst, 0));
         // Load dst,[dst+#low12_constant_pool]
         enc.add4(riscv.i_type(0x07, dst, 0x03, dst, 0));
     }

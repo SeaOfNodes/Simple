@@ -9,7 +9,7 @@ public class MulFARM extends MachConcreteNode implements MachNode{
     @Override public String op() { return "mulf"; }
     @Override public RegMask regmap(int i) { return arm.DMASK; }
     @Override public RegMask outregmap() { return arm.DMASK; }
-    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,2); }
+    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,0b10); }
     // Default on double precision for now(64 bits)
     // General form: "VMUL.f32  rd = src1 * src2
     @Override public void asm(CodeGen code, SB sb) {

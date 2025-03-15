@@ -17,10 +17,12 @@ public class TFPRISC extends ConstantNode implements MachNode {
         enc.relo(this,(TypeFunPtr)_con);
         short dst = enc.reg(this);
         TypeFunPtr tfp = (TypeFunPtr)_con;
-        //int body = riscv.i_type(riscv.I_TYPE, dst, 0, riscv.ZERO, (int)(ti.value() & 0xFFF));
-        //enc.add4(body);
-        // Surely need to split into 2 ops?
-        throw Utils.TODO();
+        // auipc  t0,0
+        int auipc = riscv.u_type(0b0010111, dst, 0);
+        // addi   t1,t0 + #0
+        int addi = riscv.i_type(0b0010011, dst, 0, dst, 0);
+        enc.add4(auipc);
+        enc.add4(addi);
     }
 
     @Override public void asm(CodeGen code, SB sb) {
