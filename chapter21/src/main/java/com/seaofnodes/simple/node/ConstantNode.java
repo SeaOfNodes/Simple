@@ -48,7 +48,7 @@ public class ConstantNode extends Node {
             if( fun._name != null )
                 return sb.append("{ ").append(fun._name).append("}");
         }
-        return sb.append(_con.print(new SB()));
+        return sb.append(_con==null ? "---" : _con.print(new SB()));
     }
 
     @Override public boolean isConst() { return true; }

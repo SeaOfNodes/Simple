@@ -139,25 +139,25 @@ hashCode(s)+hashCode(s);""");
     @Test
     public void testBasic12() {
         CodeGen code = new CodeGen("return arg + 2.0;").parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (addf,(i2f8,arg),2.0f);", code._stop.toString());
+        assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
     public void testBasic13() {
         CodeGen code = new CodeGen("return arg - 2.0;").parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (subf,(i2f8,arg),2.0f);", code._stop.toString());
+        assertEquals("return (subf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
     public void testBasic14() {
         CodeGen code = new CodeGen("return arg * 2.0;").parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (mulf,(i2f8,arg),2.0f);", code._stop.toString());
+        assertEquals("return (mulf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
     public void testBasic15() {
         CodeGen code = new CodeGen("return arg / 2.0;").parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (mulf,(i2f8,arg),0.5f);", code._stop.toString());
+        assertEquals("return (mulf,(cvtf,arg),0.5f);", code._stop.toString());
     }
 
     @Test
@@ -188,7 +188,7 @@ return arg1 * arg;
                 return a + 2.0;
                 """
         ).parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return (addf,(i2f8,arg),2.0f);", code._stop.toString());
+        assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
@@ -340,7 +340,7 @@ flt farg = arg;
 return sqrt(farg);
 """);
         code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return Phi(Loop,(i2f8,arg),(mulf,(addf,(divf,i2f8,Phi_guess),Phi_guess),0.5f));", code.print());
+        assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
     };
 
 

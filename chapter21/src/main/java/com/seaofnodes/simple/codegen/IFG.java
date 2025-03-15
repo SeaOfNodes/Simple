@@ -207,8 +207,15 @@ abstract public class IFG {
                 // Disallow clone-ables from killing registers.  Just fail
                 // them and re-clone closer to target... so no kill.
                 // Special case for Intel XOR used to zero.
-                if( m.isClone() )
+                Node n = (Node)m;
+                CFGNode effUseBlk = n.out(0) instanceof PhiNode phi ? phi.region().cfg(phi._inputs.find(n)) : n.out(0).cfg0();
+                if( m.isClone() &&  // Must be clonable
+                    (n.nOuts()>1 || // Has many users OR
+                     // Only 1 user but effective use is remote block
+                     effUseBlk != n.cfg0() ))
+                    // Then fail the clonable; it should split or move
                     alloc.fail(alloc.lrg((Node)m));
+                // Else clonable cannot move
                 else if( !tlrg.sub(killMask) )
                     alloc.fail(tlrg);
             }

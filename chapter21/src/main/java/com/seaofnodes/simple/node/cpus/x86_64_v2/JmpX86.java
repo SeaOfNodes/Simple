@@ -40,7 +40,7 @@ public class JmpX86 extends IfNode implements MachNode {
         String src = code.reg(in(1));
         if( src!="flags" ) sb.p(src);
         Node prj = cproj(0);
-        sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
+        sb.p(prj instanceof LoopNode ? " LOOP" : " L").p(prj._nid);
     }
 
     @Override public String comment() { return "L"+cproj(1)._nid; }

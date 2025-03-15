@@ -39,6 +39,8 @@ public class BranchRISC extends IfNode implements MachNode {
         enc.add4(body);
     }
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2)));
+        sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2))).p(" ");
+        Node prj = cproj(0);
+        sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
     }
 }

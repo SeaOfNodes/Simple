@@ -202,24 +202,6 @@ public class riscv extends Machine {
         };
     }
 
-    public static void push_4_bytes(int value, ByteArrayOutputStream bytes) { throw Utils.TODO(); }
-
-//    public static void print_as_hex(ByteArrayOutputStream outputStream) {
-//        StringBuilder hexString = new StringBuilder();
-//        for (byte b : outputStream.toByteArray()) {
-//            hexString.append(String.format("%02X", b));  // Format as uppercase hex without space
-//        }
-//        System.out.println(hexString.toString());
-//    }
-
-//    // rs1 - rs2
-//    public static int r_source(int rs1, int rs2) {
-//        return (rs2 << 4) | rs1;
-//    }
-//    public static int r_func7(int f) {
-//        return f & 7;
-//    }
-
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
@@ -363,13 +345,18 @@ public class riscv extends Machine {
 
     private Node add(AddNode add) {
         if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) )
-            return new AddIRISC(add, (int)ti.value());
+            return new AddIRISC(add, (int)ti.value(),true);
         return new AddRISC(add);
     }
 
     private Node and(AndNode and) {
-        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) )
-            return new AndIRISC(and, (int)ti.value());
+        if( and.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti ) {
+            if( imm12(ti) )
+                return new AndIRISC(and, (int)ti.value());
+            // Could be any size low bit mask
+            if( ti.value() == 0xFFFFFFFFL )
+                return new SrlIRISC(new SllIRISC(and,32),32,false);
+        }
         return new AndRISC(and);
     }
 
@@ -384,7 +371,7 @@ public class riscv extends Machine {
     }
     private Node nnn(NewNode nnn) {
         // TODO: pass in the TFP for alloc
-        return new NewRISC(nnn, new AUIPC((TypeFunPtr)null));
+        return new NewRISC(nnn, new AUIPC(null));
     }
 
     private Node cmp(BoolNode bool) {
@@ -422,14 +409,17 @@ public class riscv extends Machine {
         return switch( con._con ) {
         case TypeInteger ti -> {
             if( imm12(ti) ) yield new IntRISC(con);
-            if( imm20Exact(ti) ) yield new LUI(ti);
             long x = ti.value();
-            if( (x<<32)>>32 == x ) // Signed lower 32-bit immediate
+            if( imm20Exact(ti) ) yield new LUI((int)x);
+            if( (x<<32)>>32 == x ) { // Signed lower 32-bit immediate
                 // Here, the low 12 bits get sign-extended, which means if
                 // bit11 is set, the value is negative and lowers the LUI
                 // value.  Add a bit 12 to compensate
-                yield new AddIRISC(new LUI(((x>>12)&1)==1 ? TypeInteger.constant(x+0x1000) : ti), (int)(x & 0xFFF));
-            // Need more complex sequence for larger constants
+                if( ((x>>11)&1)==1 ) x += 0x1000;
+                yield new AddIRISC(new LUI((int)(x & ~0xFFF)), (int)(x & 0xFFF),false);
+            }
+            // Need more complex sequence for larger constants... or a load
+            // from a constant pool, which does not need an extra register
             throw Utils.TODO();
         }
         case TypeFloat   tf  -> new FltRISC(con);
@@ -471,7 +461,7 @@ public class riscv extends Machine {
 
     private Node srl(ShrNode shr) {
         if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
-            return new SrlIRISC(shr, (int)ti.value());
+            return new SrlIRISC(shr, (int)ti.value(),true);
         return new SrlRISC(shr);
     }
 
@@ -483,7 +473,7 @@ public class riscv extends Machine {
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti)
-            ? new AddIRISC(sub, (int)(-ti.value()))
+            ? new AddIRISC(sub, (int)(-ti.value()),true)
             : new SubRISC(sub);
     }
 

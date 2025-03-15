@@ -40,7 +40,7 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
     // Wider mask to store both GPRs and FPRs
     @Override public RegMask regmap(int i) {
         // 0 - ctrl
-        // 1 - memory
+        if( i==1 ) return null; // memory
         if( i==2 ) return arm.RMASK; // ptr/base
         if( i==3 ) return arm.RMASK; // off/index
         if( i==4 ) return arm.RMASK; // value

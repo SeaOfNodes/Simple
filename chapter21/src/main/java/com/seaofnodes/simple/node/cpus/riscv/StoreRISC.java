@@ -23,7 +23,7 @@ public class StoreRISC extends MemOpRISC {
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask regmap(int i) {
         // 0 - ctrl
-        // 1 - mem
+        if( i==1 ) return null; // mem
         if( i==2 ) return riscv.RMASK; // ptr
         // 2 - index
         if( i==4 ) return riscv.MEM_MASK; // Wide mask to store GPR and FPR

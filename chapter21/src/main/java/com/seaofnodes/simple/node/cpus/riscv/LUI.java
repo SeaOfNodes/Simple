@@ -8,14 +8,14 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 // Load upper 20bits.
 public class LUI extends ConstantNode implements MachNode {
-    LUI( TypeInteger ti ) {
-        super(ti);
-        assert riscv.imm20Exact(ti);
+    LUI( int imm20 ) {
+        super(TypeInteger.constant(imm20));
+        assert riscv.imm20Exact((TypeInteger)_con);
     }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public LUI copy() { return new LUI((TypeInteger)_con); }
+    @Override public LUI copy() { return new LUI((int)((TypeInteger)_con).value()); }
     @Override public String op() { return "lui"; }
     @Override public void encoding( Encoding enc ) {
         long x = ((TypeInteger)_con).value();
@@ -27,6 +27,6 @@ public class LUI extends ConstantNode implements MachNode {
 
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);
-        _con.print(sb.p(reg).p(" = #"));
+        sb.p(reg).p(" = #").hex4((int)(((TypeInteger)_con).value()));
     }
 }
