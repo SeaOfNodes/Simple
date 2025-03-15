@@ -16,16 +16,12 @@ public class FltRISC extends ConstantNode implements MachNode{
     @Override public FltRISC copy() { return new FltRISC(this); }
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
+        enc.largeConstant(this,_con);
         short dst = (short)(enc.reg(this) - riscv.F_OFFSET);
-        double d = ((TypeFloat)_con).value();
-        long x = Double.doubleToRawLongBits(d);
-
-        // Encode as either a memory slot and load, or stuff into an integer
-        // register (probably 2 int ops), then a fmv.w.x so 3 ops.
-
-        //int body = riscv.i_type(0x07, dst, 0X03, fpr_reg - riscv.F_OFFSET, x);
-        //enc.push_add4(body);
-        throw Utils.TODO();
+        // AUIPC dst,#hi20_constant_pool
+        enc.add4(riscv.u_type(0x17, dst, 0));
+        // Load dst,[dst+#low12_constant_pool]
+        enc.add4(riscv.i_type(0x07, dst, 0x03, dst, 0));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

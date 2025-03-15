@@ -33,7 +33,7 @@ public class CallARM extends CallNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(_name);
         for( int i=0; i<nargs(); i++ )
-            sb.p(code.reg(arg(i))).p("  ");
+            sb.p(code.reg(arg(i+2))).p("  ");
         sb.unchar(2);
     }
 }

@@ -38,7 +38,7 @@ public abstract class ASMPrinter {
         return iadr;
     }
 
-    static private final int encWidth = 8;
+    static private final int encWidth = 10;
     static private final int opWidth = 5;
     static private final int argWidth = 30;
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
@@ -47,6 +47,7 @@ public abstract class ASMPrinter {
             sb.p(label(bb)).p(":").nl();
         if( bb instanceof CallNode ) return iadr;
         final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal();
+        final boolean postEncode= code._phase.ordinal() >=CodeGen.Phase.Encoding.ordinal();
 
         boolean once=false;
         for( Node n : bb.outs() ) {
@@ -73,20 +74,22 @@ public abstract class ASMPrinter {
         // All the non-phis
         for( int i=0; i<bb.nOuts(); i++ )
             if( !(bb.out(i) instanceof PhiNode) )
-                iadr = doInst(iadr, sb,code, cfgidx, bb.out(i),postAlloc );
+                iadr = doInst(iadr, sb,code, cfgidx, bb.out(i),postAlloc, postEncode );
 
         return iadr;
     }
 
-    static int doInst( int iadr, SB sb, CodeGen code, int cfgidx, Node n, boolean postAlloc ) {
+    static int doInst( int iadr, SB sb, CodeGen code, int cfgidx, Node n, boolean postAlloc, boolean postEncode ) {
         if( n instanceof CProjNode ) return iadr;
-        if( n instanceof CalleeSaveNode && postAlloc ) return iadr;
+        if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
+        if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
 
         // All blocks ending in a Region will need to either fall into or jump
         // to this block.  Until the post-reg-alloc block layout cleanup, we
         // need to assume a jump.  There's no real hardware op here, yet.
         if( n instanceof RegionNode cfg && !(n instanceof FunNode) ) {
+            if( postEncode ) return iadr; // All jumps inserted already
             while( cfgidx < code._cfg._len-1 ) {
                 CFGNode next = code._cfg.at(++cfgidx);
                 if( next == n ) return iadr; // Fall-through, no branch
@@ -108,16 +111,17 @@ public abstract class ASMPrinter {
 
         // ADDR ENCODING  Op--- dst = src op src       // Comment
         // 1234 abcdefgh  ld4   RAX = [Rbase + off]    // Comment
-        sb.hex2(iadr);
-        sb.p(" ");
+        sb.hex2(iadr).p(" ");
 
         // Encoding
+        int fatEncoding = 0;
         if( code._encoding != null ) {
             int size = code._encoding._opLen[n._nid];
-            for( int i=0; i<size; i++ )
+            for( int i=0; i<Math.min(size,encWidth>>1); i++ )
                 sb.hex1(code._encoding._bits.buf()[iadr++]);
             for( int i=size*2; i<encWidth; i++ )
                 sb.p(" ");
+            fatEncoding = size - (encWidth>>1); // Not-printed parts of encoding
         } else
             sb.fix(encWidth,"");
         sb.p("  ");
@@ -151,11 +155,20 @@ public abstract class ASMPrinter {
 
         sb.nl();
 
+
+        if( fatEncoding > 0 ) {
+            sb.hex2(iadr).p(" ");
+            for( int i=0; i<fatEncoding; i++ )
+                sb.hex1(code._encoding._bits.buf()[iadr++]);
+            sb.nl();
+        }
+
+
         // MultiNodes are immediately followed by projection(s)
         if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
             for( Node proj : n._outputs ) {
                 assert proj instanceof ProjNode;
-                doInst(iadr,sb,code, cfgidx, proj,postAlloc);
+                doInst(iadr,sb,code, cfgidx, proj,postAlloc,postEncode);
             }
         }
 

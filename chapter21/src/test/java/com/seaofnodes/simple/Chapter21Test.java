@@ -42,4 +42,24 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",0,"return (or,arg,2);");
     }
 
+    @Test
+    public void testNewtonFloat() {
+        String src =
+"""
+// Newtons approximation to the square root
+val sqrt = { flt x ->
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( next == guess ) return guess;
+        guess = next;
+    }
+};
+flt farg = arg;
+return sqrt(farg) + sqrt(farg+2.0);
+""";
+        testCPU(src,"x86_64_v2", "SystemV",25,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
+    }
 }

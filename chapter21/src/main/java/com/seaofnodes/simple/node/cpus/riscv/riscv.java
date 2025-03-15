@@ -170,24 +170,15 @@ public class riscv extends Machine {
         DYN,       // In instruction’s rm field, selects dynamic rounding mode; In Rounding Mode register, reserved
     }
 
-    // seqz ( sltiu rd, rs, 1 ) - 0001 0011
-    static public int setop(String op) {
-        return switch(op) {
-        case "<"  -> 0x33;
-        case "<=" -> 0x13;
-        case "==" -> 0x33;
-        default   -> throw Utils.TODO();
-        };
-    }
     // Since opcode is the same just return back func3
-    // BEQ: 01100011
-    // BLT: 01100011
-    // BLE: bge rt, rs, offset:
     static public int jumpop(String op) {
         return switch(op) {
+        case "=="  -> 0x0;
+        case "!="  -> 0x1;
         case "<"   -> 0x4;
         case "<="  -> 0x5;
-        case "=="  -> 0;
+        case "u<"  -> 0x6;
+        case "u<=" -> 0x7;
         default  ->  throw Utils.TODO();
         };
     }

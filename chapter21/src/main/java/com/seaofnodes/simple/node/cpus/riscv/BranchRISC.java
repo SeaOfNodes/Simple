@@ -8,7 +8,7 @@ import java.util.BitSet;
 
 // Conditional branch such as: BEQ
 public class BranchRISC extends IfNode implements MachNode {
-    final String _bop;
+    String _bop;
     // label is obtained implicitly
     BranchRISC( IfNode iff, String bop, Node n1, Node n2 ) {
         super(iff);
@@ -22,6 +22,7 @@ public class BranchRISC extends IfNode implements MachNode {
     @Override public String comment() { return "L"+cproj(1)._nid+", L"+cproj(0)._nid; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return null; }
+    @Override public void invert() { _bop = invert(_bop);  }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("if( "),visited).append(_bop);
@@ -32,6 +33,7 @@ public class BranchRISC extends IfNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
+        enc.jump(this,cproj(0));
         // Todo: relocs (for offset - immf)
         short src1 = enc.reg(in(1));
         short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
@@ -41,6 +43,8 @@ public class BranchRISC extends IfNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2))).p(" ");
         Node prj = cproj(0);
+        while( prj.nOuts() == 1 )
+            prj = prj.out(0);       // Skip empty blocks
         sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
     }
 }

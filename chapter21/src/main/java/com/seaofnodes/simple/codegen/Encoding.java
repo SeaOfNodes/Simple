@@ -45,7 +45,7 @@ public class Encoding {
         _bits = new BAOS();
     }
 
-    // Short cut to the defining register
+    // Shortcut to the defining register
     public short reg(Node n) {
         return _code._regAlloc.regnum(n);
     }
@@ -153,7 +153,15 @@ public class Encoding {
                 } // Else nothing
             } else if( tld > bld ) { // True enters a deeper loop
                 throw Utils.TODO();
-            } // Else True exits a loop, always forward and good
+            } else if( fld == bld && f.out(0) instanceof LoopNode ) { // Else True exits a loop, always forward and good
+                // if false is the loop backedge, make sure its true/taken
+                // Invert test and Proj fields
+                iff.invert();
+                t.invert();
+                f.invert();
+                CProjNode tmp=f; f=t; t=tmp; // Swap t/f
+
+            }
 
             // Always visit the False side last (so True side first), so that
             // when the False RPO visit returns, the IF is immediately next.

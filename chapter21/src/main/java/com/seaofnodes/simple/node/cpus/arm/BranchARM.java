@@ -7,7 +7,7 @@ import com.seaofnodes.simple.node.*;
 
 // Jump on flags, uses flags
 public class BranchARM extends IfNode implements MachNode{
-    final String _bop;
+    String _bop;
     BranchARM(IfNode iff, String bop ) {
         super(iff);
         _bop = bop;
@@ -27,9 +27,11 @@ public class BranchARM extends IfNode implements MachNode{
 
     @Override public RegMask regmap(int i) { assert i==1; return arm.FLAGS_MASK; }
     @Override public RegMask outregmap() { return null; }
+    @Override public void invert() { _bop = invert(_bop);  }
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
+        enc.jump(this,cproj(0));
         // Assuming that condition flags are already set.  These flags are set
         // by comparison (or sub).  No need for regs because it uses flags
         arm.COND cond = switch (_bop) {
@@ -47,9 +49,10 @@ public class BranchARM extends IfNode implements MachNode{
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
         if( src!="flags" ) sb.p(src);
-        else sb.p(" ");
         Node prj = cproj(0);
-        sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
+        while( prj.nOuts() == 1 )
+            prj = prj.out(0);       // Skip empty blocks
+        sb.p(prj instanceof LoopNode ? " LOOP" : " L").p(prj._nid);
     }
     @Override public String comment() { return "L"+cproj(1)._nid+", L"+cproj(0)._nid; }
 }

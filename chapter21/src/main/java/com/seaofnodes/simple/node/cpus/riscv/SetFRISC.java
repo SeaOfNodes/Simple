@@ -28,6 +28,6 @@ public class SetFRISC extends MachConcreteNode implements MachNode {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(code.reg(in(2)));
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(code.reg(in(2)));
     }
 }
