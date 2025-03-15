@@ -1,0 +1,3 @@
+#! /bin/sh
+
+java -ea -cp "build/classes/main:lib/hamcrest-core-1.3.jar:lib/junit-4.12.jar:build/classes/test" com.seaofnodes.simple.Simple $@
