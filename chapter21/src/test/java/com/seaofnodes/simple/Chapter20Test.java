@@ -10,6 +10,7 @@ import static org.junit.Assert.*;
 
 public class Chapter20Test {
 
+    //-3834621514626535010L
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
@@ -23,7 +24,6 @@ public class Chapter20Test {
         code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        code.asm();
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
             assertEquals(stop, code._stop.toString());

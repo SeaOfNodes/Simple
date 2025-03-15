@@ -32,8 +32,8 @@ public class NewRISC extends NewNode implements MachNode {
         enc.add4(body);
     }
 
-    // General form: "alloc #bytes"
+    // General form: "alloc #bytes  PC"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(size()));
+        sb.p(code.reg(size())).p(" ").p(code.reg(in(nIns()-1)));
     }
 }

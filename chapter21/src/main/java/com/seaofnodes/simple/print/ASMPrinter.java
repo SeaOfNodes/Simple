@@ -48,44 +48,32 @@ public abstract class ASMPrinter {
         if( bb instanceof CallNode ) return iadr;
         final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal();
 
-        // Count Phis
-        int nPhi=0;
-        for( ; nPhi<bb.nOuts(); nPhi++ )
-            if( !(bb.out(nPhi) instanceof PhiNode) )
-                break;
-
-        if( nPhi>0 ) {
-            // Post- RegAlloc phi prints all on one line
+        boolean once=false;
+        for( Node n : bb.outs() ) {
+            if( !(n instanceof PhiNode phi) ) continue;
+            if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) continue; // Nothing for the hidden ones
+            // Post-RegAlloc phi prints all on one line
             if( postAlloc ) {
-                sb.fix(4," ").p(" ").fix(encWidth,"").p("  ");
-                for( int i=0; i<nPhi; i++ ) {
-                    PhiNode phi = (PhiNode)bb.out(i);
-                    if( !(phi._type instanceof TypeMem || phi._type instanceof TypeRPC) ) // Nothing for the hidden ones
-                        sb.p(phi._label).p(':').p(code.reg(phi)).p(',');
-                }
-                sb.unchar().nl();
-
+                if( !once ) { once=true; sb.fix(4," ").p(" ").fix(encWidth,"").p("  "); }
+                sb.p(phi._label).p(':').p(code.reg(phi)).p(',');
             } else {
-                // Pre- RegAlloc phi prints one line per
-                for( int j=0; j<nPhi; j++ ) {
-                    PhiNode phi = (PhiNode)bb.out(j);
-                    if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) continue; // Nothing for the hidden ones
-                    sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ");
-                    sb.p(code.reg(phi));
-                    if( !(phi instanceof ParmNode) ) {
-                        sb.p(" = phi( ");
-                        for( int i=1; i<phi.nIns(); i++ )
-                            sb.p("N").p(phi.in(i)._nid).p(",");
-                        sb.unchar().p(" )");
-                    }
-                    sb.nl();
+                // Pre-RegAlloc phi prints one line per
+                sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ").p(code.reg(phi));
+                if( phi.getClass() == PhiNode.class ) {
+                    sb.p(" = phi( ");
+                    for( int i=1; i<phi.nIns(); i++ )
+                        sb.p("N").p(phi.in(i)._nid).p(",");
+                    sb.unchar().p(" )");
                 }
+                sb.nl();
             }
         }
+        if( once ) sb.unchar().nl();
 
         // All the non-phis
-        for( int i=nPhi; i<bb.nOuts(); i++ )
-            iadr = doInst(iadr, sb,code, cfgidx, bb.out(i),postAlloc );
+        for( int i=0; i<bb.nOuts(); i++ )
+            if( !(bb.out(i) instanceof PhiNode) )
+                iadr = doInst(iadr, sb,code, cfgidx, bb.out(i),postAlloc );
 
         return iadr;
     }
@@ -106,7 +94,7 @@ public abstract class ASMPrinter {
                     break;      // Has code in the block, need to jump around
                 // No code in the block, can fall through it
             }
-            sb.hex4(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,label(cfg)).nl();
+            sb.hex2(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,label(cfg)).nl();
             return iadr;
         }
 
@@ -120,14 +108,14 @@ public abstract class ASMPrinter {
 
         // ADDR ENCODING  Op--- dst = src op src       // Comment
         // 1234 abcdefgh  ld4   RAX = [Rbase + off]    // Comment
-        sb.hex4(iadr);
+        sb.hex2(iadr);
         sb.p(" ");
 
         // Encoding
         if( code._encoding != null ) {
             int size = code._encoding._opLen[n._nid];
             for( int i=0; i<size; i++ )
-                sb.hex2(code._encoding._bits.buf()[iadr++]);
+                sb.hex1(code._encoding._bits.buf()[iadr++]);
             for( int i=size*2; i<encWidth; i++ )
                 sb.p(" ");
         } else
