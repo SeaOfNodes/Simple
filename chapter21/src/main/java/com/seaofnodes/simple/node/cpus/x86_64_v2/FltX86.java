@@ -15,7 +15,7 @@ public class FltX86 extends ConstantNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.largeConstant(this,_con);
-        // Simply move the constant into a FPR
+        // Load the constant into a FPR
         // movsd xmm, [rip + 0]
         // F2 0F 10 /r MOVSD xmm1, m64
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);
@@ -32,6 +32,6 @@ public class FltX86 extends ConstantNode implements MachNode {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        _con.print(sb.p(code.reg(this)).p(" #"));
+        _con.print(sb.p(code.reg(this)).p(" = #"));
     }
 }

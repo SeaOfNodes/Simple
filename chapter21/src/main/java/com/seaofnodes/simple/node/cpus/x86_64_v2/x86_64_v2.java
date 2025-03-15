@@ -62,18 +62,6 @@ public class x86_64_v2 extends Machine {
         DIRECT,          // mem
     };
 
-    // Inverting IfNode
-    static public String invert(String op) {
-        return switch (op) {
-        case "==" -> "!=";
-        case "!=" -> "==";
-        case ">"  -> "<=";
-        case "<"  -> ">=";
-        case ">=" -> "<" ;
-        case "<=" -> ">" ;
-        default -> throw new IllegalStateException("Unexpected value: " + op);
-        };
-    }
     // opcode included here
     // 0F 84 cd	JE rel32
     // 0F 85 cd	JNE rel32
@@ -81,8 +69,6 @@ public class x86_64_v2 extends Machine {
     // 0F 8C cd	JL rel32
     // 0F 8E cd	JLE rel32
     // 0F 8D cd	JGE rel32
-
-
     static public int jumpop(String op) {
         return switch (op) {
         case "==" -> 0x84;
@@ -512,9 +498,10 @@ public class x86_64_v2 extends Machine {
         // If/Bool combos will match to a Cmp/Set which sets flags.
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
-        if(!(iff.in(1) instanceof BoolNode))
-            iff.setDef(1, new BoolNode.EQ(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
-        return new JmpX86(iff, invert(((BoolNode) iff.in(1)).op()));
+        BoolNode bool;
+        if( iff.in(1) instanceof BoolNode bool0 ) bool = bool0;
+        else iff.setDef(1, bool=new BoolNode.EQ(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
+        return new JmpX86(iff, bool.op());
     }
 
     private Node ld(LoadNode ld) {

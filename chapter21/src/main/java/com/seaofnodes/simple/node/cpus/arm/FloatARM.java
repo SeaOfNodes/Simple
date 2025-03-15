@@ -21,7 +21,7 @@ public class FloatARM extends ConstantNode implements MachNode {
     @Override public FloatARM copy() { return new FloatARM(this); }
 
     @Override public void encoding( Encoding enc ) {
-        short self = (short)(enc.reg(this) - arm.D_OFFSET);
+        short dst = (short)(enc.reg(this) - arm.D_OFFSET);
         double d = ((TypeFloat)_con).value();
         long x = Double.doubleToRawLongBits(d);
         // Any number that can be expressed as +/-n * 2-r,where n and r are integers, 16 <= n <= 31, 0 <= r <= 7.

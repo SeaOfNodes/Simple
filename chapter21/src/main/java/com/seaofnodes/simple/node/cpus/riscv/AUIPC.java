@@ -17,8 +17,7 @@ public class AUIPC extends ConstantNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         enc.relo(this,(TypeFunPtr)_con);
         short dst = enc.reg(this);
-        int auipc = riscv.u_type(0x17, dst, 0);
-        enc.add4(auipc);
+        enc.add4(riscv.u_type(0x17, dst, 0));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
