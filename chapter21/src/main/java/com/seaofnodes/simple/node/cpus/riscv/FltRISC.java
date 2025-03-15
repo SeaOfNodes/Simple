@@ -20,12 +20,15 @@ public class FltRISC extends ConstantNode implements MachNode{
         double d = ((TypeFloat)_con).value();
         long x = Double.doubleToRawLongBits(d);
 
-        // Encode as either a memory slot and load, or stuff into an integer
+        // Encode as ei ther a memory slot and load, or stuff into an integer
         // register (probably 2 int ops), then a fmv.w.x so 3 ops.
+        // auipc  t0,0
+        int auipc = riscv.u_type(0b0010111, dst, 0);
+        // fld     reg, reg, 0
+        int fld = riscv.i_type(0x07, dst - riscv.F_OFFSET, 0X03, dst - riscv.F_OFFSET, 0);
+        enc.add4(auipc);
+        enc.add4(fld);
 
-        //int body = riscv.i_type(0x07, dst, 0X03, fpr_reg - riscv.F_OFFSET, x);
-        //enc.push_add4(body);
-        throw Utils.TODO();
     }
 
     @Override public void asm(CodeGen code, SB sb) {
