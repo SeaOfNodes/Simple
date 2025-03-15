@@ -16,9 +16,10 @@ public class CallRRARM extends CallNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     @Override public void encoding( Encoding enc ) {
-        //enc.add4(arm.b(37, 0));
         // Needs a register, typically a jump-and-link-register opcode
-        throw Utils.TODO();
+        // blr
+        short self = enc.reg(this);
+        enc.add4(arm.blr(0b1101011000111111000000, self));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

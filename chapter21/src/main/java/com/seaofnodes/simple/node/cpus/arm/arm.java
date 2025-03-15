@@ -169,16 +169,42 @@ public class arm extends Machine {
     // Some combination of shifted bit-masks.
     private static int imm12Logical(TypeInteger ti) {
         if( !ti.isConstant() ) return -1;
-        // TODO: THE REAL THING
-        // INVARIANT: always a positive thing
-        return -1;
+        if( !ti.isConstant() ) return -1;
+        long val = ti.value();
+        if (val == 0 || val == -1) return -1; // Special cases are not allowed
+        int immr = 0;
+        // Rotate until we have 0[...]1
+        while (val < 0 || (val & 1)==0) {
+            val = (val >>> 63) | (val << 1);
+            immr++;
+        }
+        int size = 32;
+        long pattern = val;
+        // Is upper half of pattern the same as the lower?
+        while ((pattern & ((1L<<size)-1)) == (pattern >> size)) {
+            // Then only take one half
+            pattern >>= size;
+            size >>= 1;
+        }
+        size <<= 1;
+        int imms = Long.bitCount(pattern);
+        // Pattern should now be zeros followed by ones 0000011111
+        if (pattern != (1L<<imms)-1) return -1;
+        imms--;
+        if (size == 64) return 0x1000 | immr << 6 | imms;
+        return (32-size)<<1 | immr << 6 | imms;
     }
 
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         assert opcode >=0 && imm12 >= 0 && rn >=0 && rd>=0; // Caller zeros high order bits
-        return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
+        return (opcode << 23) | (imm12 << 10) | (rn << 5) | rd;
     }
+
+    public static int imm_shift(int opcode, int imm, int imms, int rn,  int rd)  {
+            return (opcode << 23) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
+    }
+
     public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));
@@ -305,6 +331,10 @@ public class arm extends Machine {
         return (opcode << 21) | (rm << 16) | (cond.ordinal() << 12) | (rn << 5) | rd;
     }
 
+    // Branch with Link to Register calls a subroutine at an address in a register, setting register X30 to PC+4.
+    public static int blr(int opcode, int rd) {
+        return opcode << 10 | rd << 5;
+    }
     public static int b(int opcode, int imm26) {
         return (opcode << 26) | imm26;
     }
@@ -390,7 +420,7 @@ public class arm extends Machine {
         return switch( n ) {
         case AddFNode addf  -> new AddFARM(addf);
         case AddNode add    -> add(add);
-        case AndNode and    -> new AndARM(and);
+        case AndNode and    -> and(and);
         case BoolNode bool  -> cmp(bool);
         case CallNode call  -> call(call);
         case CastNode cast  -> new CastNode(cast);
@@ -413,16 +443,16 @@ public class arm extends Machine {
         case ProjNode prj   -> new ProjARM(prj);
         case ReadOnlyNode read  -> new ReadOnlyNode(read);
         case ReturnNode ret -> new RetARM(ret,ret.fun());
-        case SarNode sar    -> new AsrARM(sar);
-        case ShlNode shl    -> new LslARM(shl);
-        case ShrNode shr    -> new LsrARM(shr);
+        case SarNode sar    -> asr(sar);
+        case ShlNode shl    -> lsl(shl);
+        case ShrNode shr    -> lsr(shr);
         case StartNode start -> new StartNode(start);
         case StopNode stop  -> new StopNode(stop);
         case StoreNode st   -> st(st);
         case SubFNode subf  -> new SubFARM(subf);
         case SubNode sub    -> sub(sub);
         case ToFloatNode tfn-> new I2F8ARM(tfn);
-        case XorNode xor    -> new XorARM(xor);
+        case XorNode xor    -> xor(xor);
 
         case LoopNode loop  -> new LoopNode(loop);
         case RegionNode region-> new RegionNode(region);
@@ -493,6 +523,38 @@ public class arm extends Machine {
         return or.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && (imm12 = imm12Logical(ti)) != -1
             ? new OrIARM(or, imm12)
             : new OrARM(or);
+    }
+
+    private Node xor(XorNode xor) {
+        int imm12;
+        return xor.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && (imm12 = imm12Logical(ti)) != -1
+                ? new XorIARM(xor, imm12)
+                : new XorARM(xor);
+    }
+
+    private Node and(AndNode and) {
+        int imm12;
+        return and.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && (imm12 = imm12Logical(ti)) != -1
+                ? new AndIARM(and, imm12)
+                : new AndARM(and);
+    }
+
+    private Node asr(SarNode asr) {
+        return asr.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && ti.value() >= 0 && ti.value() < 63
+                ? new AsrIARM(asr, (int)ti.value())
+                : new AsrARM(asr);
+    }
+
+    private Node lsl(ShlNode lsl) {
+        return lsl.in(2)  instanceof ConstantNode off && off._con instanceof TypeInteger ti && ti.value() >= 0 && ti.value() < 63
+                ? new LslIARM(lsl, (int)ti.value())
+                : new LslARM(lsl);
+    }
+
+    private Node lsr(ShrNode lsr) {
+        return lsr.in(2)  instanceof ConstantNode off && off._con instanceof TypeInteger ti && ti.value() >= 0 && ti.value() < 63
+                ? new LsrIARM(lsr, (int)ti.value())
+                : new LsrARM(lsr);
     }
 
 

@@ -296,19 +296,19 @@ public class CodeGen {
         return this;
     }
 
-//    public static void print_as_hex(Encoding enc) {
-//        for (byte b : enc._bits.toByteArray()) {
-//            System.out.print(String.format("%02X", b));
-//        }
-//        System.out.println();
-//    }
+    public static void print_as_hex(Encoding enc) {
+        for (byte b : enc._bits.toByteArray()) {
+            System.out.print(String.format("%02X", b));
+        }
+        System.out.println();
+    }
 
-//    public static void print_as_hex() {
-//        for (byte b : enc._bits.toByteArray()) {
-//            System.out.print(String.format("%02X", b));
-//        }
-//        System.out.println();
-//    }
+    public void print_as_hex() {
+        for (byte b : _encoding._bits.toByteArray()) {
+            System.out.print(String.format("%02X", b));
+        }
+        System.out.println();
+    }
 
     //// Debug purposes for now
 //    public CodeGen printENCODING() {
