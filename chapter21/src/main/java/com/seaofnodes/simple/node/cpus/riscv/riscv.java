@@ -425,8 +425,10 @@ public class riscv extends Machine {
     private Node jmp( IfNode iff ) {
         if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() ) {
             // if less than or equal switch inputs
-            if (bool.op().equals("<=")) return new BranchRISC(iff, bool.op(), bool.in(2), bool.in(1));
-            return new BranchRISC(iff, bool.op(), bool.in(1), bool.in(2));
+            String bop = bool.op();
+            if( bop.equals(">=") || bop.equals(">") )
+                return new BranchRISC(iff, IfNode.invert(bop), bool.in(2), bool.in(1));
+            return new BranchRISC(iff, bop, bool.in(1), bool.in(2));
         }
         // Vs zero
         return new BranchRISC(iff, "==", iff.in(1), null);
