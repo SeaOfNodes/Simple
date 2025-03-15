@@ -21,12 +21,13 @@ public class FloatARM extends ConstantNode implements MachNode {
     @Override public FloatARM copy() { return new FloatARM(this); }
 
     @Override public void encoding( Encoding enc ) {
+        enc.largeConstant(this,_con);
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
         double d = ((TypeFloat)_con).value();
         long x = Double.doubleToRawLongBits(d);
         // Any number that can be expressed as +/-n * 2-r,where n and r are integers, 16 <= n <= 31, 0 <= r <= 7.
-        //arm.f_mov(30,3,imm8,self);
-        throw Utils.TODO();
+        int body = arm.load_pc(0b01011100, 0, dst);
+        enc.add4(body);
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,
