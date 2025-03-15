@@ -46,5 +46,5 @@ public class BranchARM extends IfNode implements MachNode{
             prj = prj.out(0);       // Skip empty blocks
         sb.p(prj instanceof LoopNode ? " LOOP" : " L").p(prj._nid);
     }
-    @Override public String comment() { return "L"+cproj(1)._nid+", L"+cproj(0)._nid; }
+    @Override public String comment() { return "L"+cproj(1)._nid; }
 }

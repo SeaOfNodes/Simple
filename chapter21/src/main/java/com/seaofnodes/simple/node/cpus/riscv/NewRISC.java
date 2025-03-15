@@ -25,10 +25,9 @@ public class NewRISC extends NewNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);
-        short rpc = enc.reg(this);
         // High half is where the TFP constant used to be, the last input
-        short auipc = enc.reg(in(_inputs._len-1));
-        int body = riscv.i_type(0x67, rpc, 0/*JALR.C*/, auipc, 0);
+        short auipc = enc.reg(in(nIns()-1));
+        int body = riscv.i_type(0x67, riscv.RPC, 0, auipc, 0);
         enc.add4(body);
     }
 

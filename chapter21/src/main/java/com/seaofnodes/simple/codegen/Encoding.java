@@ -132,6 +132,7 @@ public class Encoding {
             CFGNode next = bb instanceof ReturnNode ? (CFGNode)bb.out(bb.nOuts()-1) : bb.uctrl();
             _rpo_cfg(next,visit,rpo);
         } else {
+            boolean invert = false;
             // Pick out the T/F projections
             CProjNode t = (CProjNode)bb.out(bb.nOuts()-1);
             CProjNode f = (CProjNode)bb.out(bb.nOuts()-2);
@@ -145,22 +146,20 @@ public class Encoding {
                     ((fld<bld && t.out(0)!=t.loop()) ||
                      // Jump to an empty block and fall into a busy block
                      (fld==bld && f.nOuts()==1)) ) {
-                    // Invert test and Proj fields
-                    iff.invert();
-                    t.invert();
-                    f.invert();
-                    CProjNode tmp=f; f=t; t=tmp; // Swap t/f
+                    invert = true;
                 } // Else nothing
             } else if( tld > bld ) { // True enters a deeper loop
                 throw Utils.TODO();
-            } else if( fld == bld && f.out(0) instanceof LoopNode ) { // Else True exits a loop, always forward and good
+            } else if( fld == bld && f.out(0) instanceof LoopNode ) { // Else True exits a loop
                 // if false is the loop backedge, make sure its true/taken
-                // Invert test and Proj fields
+                invert = true;
+            } // always forward and good
+            // Invert test and Proj fields
+            if( invert ) {
                 iff.invert();
                 t.invert();
                 f.invert();
                 CProjNode tmp=f; f=t; t=tmp; // Swap t/f
-
             }
 
             // Always visit the False side last (so True side first), so that

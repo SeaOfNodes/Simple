@@ -19,10 +19,15 @@ public class BranchRISC extends IfNode implements MachNode {
 
     @Override public String op() { return "b"+_bop; }
     @Override public String label() { return op(); }
-    @Override public String comment() { return "L"+cproj(1)._nid+", L"+cproj(0)._nid; }
+    @Override public String comment() { return "L"+cproj(1)._nid; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return null; }
-    @Override public void invert() { _bop = invert(_bop);  }
+    @Override public void invert() {
+        if( _bop.equals("<") || _bop.equals("<=") )
+            swap12();           // Cannot invert the test, so swap the operands
+        else
+            _bop = invert(_bop);
+    }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("if( "),visited).append(_bop);
@@ -31,7 +36,6 @@ public class BranchRISC extends IfNode implements MachNode {
         return sb.append(" )");
     }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,cproj(0));
         // Todo: relocs (for offset - immf)
@@ -45,6 +49,6 @@ public class BranchRISC extends IfNode implements MachNode {
         Node prj = cproj(0);
         while( prj.nOuts() == 1 )
             prj = prj.out(0);       // Skip empty blocks
-        sb.p(prj instanceof LoopNode ? "LOOP" : "L").p(prj._nid);
+        sb.p(prj instanceof LoopNode ? " LOOP" : " L").p(prj._nid);
     }
 }
