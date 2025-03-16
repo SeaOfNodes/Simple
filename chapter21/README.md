@@ -35,6 +35,7 @@ For *arm*(aarch64) we use this collection for the [encoding rules](https://docsm
 --- 
 ## Instruction Encodings
 
+
 ## AMD64
 
 #### REX PREFIX
@@ -44,7 +45,7 @@ For *arm*(aarch64) we use this collection for the [encoding rules](https://docsm
 #### Immediate
 #### Indirect
 
-*Source*: [^1] 
+=======
 
 ## ARM
 
