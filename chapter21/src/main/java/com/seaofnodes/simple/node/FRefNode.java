@@ -19,7 +19,7 @@ public class FRefNode extends ConstantNode {
 
     @Override public String uniqueName() { return "FRef_" + _nid; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append("FRef_").append(_n);
     }
 

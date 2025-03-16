@@ -78,6 +78,6 @@ return sqrt(farg) + sqrt(farg+2.0);
                 """;
         testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
         testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(mul,.[],1000));");
     }
 }

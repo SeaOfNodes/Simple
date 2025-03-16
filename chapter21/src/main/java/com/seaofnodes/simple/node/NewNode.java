@@ -39,7 +39,7 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("new ");
         return sb.append(_ptr._obj.str());
     }

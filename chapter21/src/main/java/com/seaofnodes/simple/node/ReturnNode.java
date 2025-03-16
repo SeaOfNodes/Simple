@@ -35,7 +35,7 @@ public class ReturnNode extends CFGNode {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("return ");
         if( expr()==null ) sb.append("----");
         else expr()._print0(sb, visited);

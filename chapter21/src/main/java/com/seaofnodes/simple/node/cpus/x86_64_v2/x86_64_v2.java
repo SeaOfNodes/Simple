@@ -312,15 +312,13 @@ public class x86_64_v2 extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override
-    public SplitNode split(String kind, byte round, LRG lrg) {
+    @Override public SplitNode split(String kind, byte round, LRG lrg) {
         return new SplitX86(kind, round);
     }
 
     // Return a MachNode unconditional branch
-    @Override
-    public CFGNode jump() {
-        throw Utils.TODO();
+    @Override public CFGNode jump() {
+        return new UJmpX86();
     }
 
     // Break an infinite loop

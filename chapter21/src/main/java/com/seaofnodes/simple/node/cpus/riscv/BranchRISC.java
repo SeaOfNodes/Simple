@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node.cpus.riscv;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-
 import java.util.BitSet;
 
 // Conditional branch such as: BEQ
@@ -46,9 +45,9 @@ public class BranchRISC extends IfNode implements MachNode {
     }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2))).p(" ");
-        Node prj = cproj(0);
+        CFGNode prj = cproj(0);
         while( prj.nOuts() == 1 )
-            prj = prj.out(0);       // Skip empty blocks
-        sb.p(prj instanceof LoopNode ? " LOOP" : " L").p(prj._nid);
+            prj = prj.uctrl();       // Skip empty blocks
+        sb.p(label(prj));
     }
 }

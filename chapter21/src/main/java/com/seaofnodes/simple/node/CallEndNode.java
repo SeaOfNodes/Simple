@@ -23,7 +23,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     public CallNode call() { return (CallNode)in(0); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("cend( ");
         sb.append( in(0) instanceof CallNode ? "Call, " : "----, ");
         for( int i=1; i<nIns()-1; i++ )
