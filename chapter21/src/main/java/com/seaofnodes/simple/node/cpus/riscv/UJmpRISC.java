@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.node.cpus.x86_64_v2;
+package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
@@ -7,8 +7,8 @@ import com.seaofnodes.simple.type.Type;
 import java.util.BitSet;
 
 // unconditional jump
-public class UJmpX86 extends CFGNode implements MachNode {
-    UJmpX86() { }
+public class UJmpRISC extends CFGNode implements MachNode {
+    UJmpRISC() { }
     @Override public String op() { return "jmp"; }
     @Override public String label() { return op(); }
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) {
@@ -20,8 +20,9 @@ public class UJmpX86 extends CFGNode implements MachNode {
     @Override public Node idealize() { throw Utils.TODO(); }
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,uctrl());
-        // E9 cd	JMP rel32
-        enc.add1(0xE9).add4(0);
+        // TODO: Unconditional jump
+        int body = riscv.b_type(0x63, 0, riscv.jumpop("<"), 0, 0, 0);
+        enc.add4(body);
     }
 
     @Override public void asm(CodeGen code, SB sb) {

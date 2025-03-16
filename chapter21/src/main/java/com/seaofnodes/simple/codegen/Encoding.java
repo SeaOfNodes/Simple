@@ -50,7 +50,7 @@ public class Encoding {
         return _code._regAlloc.regnum(n);
     }
 
-    public void add1( int op ) { _bits.write(op); }
+    public Encoding add1( int op ) { _bits.write(op); return this; }
 
     // Little endian write of a 32b opcode
     public void add4( int op ) {
@@ -85,7 +85,7 @@ public class Encoding {
         assert t.isConstant();
         // TODO:
     }
-    public void jump( IfNode jmp, CProjNode target ) {
+    public void jump( CFGNode jmp, CFGNode target ) {
         // TDOO: also support 1-byte offset and short jump and compressing the binary
         // TODO: record and patch
     }
@@ -124,12 +124,20 @@ public class Encoding {
     // minimizes actual branches, takes advantage of fall-through edges, and
     // tries to help simple branch predictions: back branches are predicted
     // taken, forward not-taken.
-    private static void _rpo_cfg(CFGNode bb, BitSet visit, Ary<CFGNode> rpo) {
+    private void _rpo_cfg(CFGNode bb, BitSet visit, Ary<CFGNode> rpo) {
         if( visit.get(bb._nid) ) return;
         visit.set(bb._nid);
         if( bb.nOuts()==0 ) return; // StopNode
         if( !(bb instanceof IfNode iff) ) {
             CFGNode next = bb instanceof ReturnNode ? (CFGNode)bb.out(bb.nOuts()-1) : bb.uctrl();
+            // If the *next* BB has already been visited, we require an
+            // unconditional backwards jump here
+            if( visit.get(next._nid) ) {
+                CFGNode jmp = _code._mach.jump();
+                jmp.setDefX(0,bb);
+                next.setDef(next._inputs.find(bb),jmp);
+                rpo.add(jmp);
+            }
             _rpo_cfg(next,visit,rpo);
         } else {
             boolean invert = false;

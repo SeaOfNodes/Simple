@@ -17,7 +17,7 @@ public class RegionNode extends CFGNode {
     public String label() { return "Region"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append(label());
     }
 

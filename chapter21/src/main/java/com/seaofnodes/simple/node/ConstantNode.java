@@ -42,7 +42,7 @@ public class ConstantNode extends Node {
     public String uniqueName() { return "Con_" + _nid; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( _con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
             FunNode fun = CodeGen.CODE.link(tfp);
             if( fun._name != null )

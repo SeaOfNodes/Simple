@@ -40,11 +40,11 @@ public class BranchARM extends IfNode implements MachNode{
     }
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
-        if( src!="flags" ) sb.p(src);
-        Node prj = cproj(0);
+        if( src!="flags" ) sb.p(src).p(" ");
+        CFGNode prj = cproj(0);
         while( prj.nOuts() == 1 )
-            prj = prj.out(0);       // Skip empty blocks
-        sb.p(prj instanceof LoopNode ? " LOOP" : " L").p(prj._nid);
+            prj = prj.uctrl();  // Skip empty blocks
+        sb.p(label(prj));
     }
     @Override public String comment() { return "L"+cproj(1)._nid; }
 }

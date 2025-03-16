@@ -262,7 +262,7 @@ public class riscv extends Machine {
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
-        throw Utils.TODO();
+        return new UJmpRISC();
     }
 
     // Create a split op; any register to any register, including stack slots
