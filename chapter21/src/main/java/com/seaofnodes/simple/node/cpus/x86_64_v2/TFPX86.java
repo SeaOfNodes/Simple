@@ -38,7 +38,7 @@ public class TFPX86 extends ConstantNode implements MachNode {
         enc.relo(this,(TypeFunPtr)_con);
         enc.add1(x86_64_v2.rex(dst, 0, 0));
         enc.add1(0x8D); // opcode
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, 0b101));
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101));
         enc.add4(0);
     }
 
