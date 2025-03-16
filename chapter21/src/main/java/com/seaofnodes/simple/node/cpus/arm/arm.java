@@ -431,7 +431,7 @@ public class arm extends Machine {
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
-        throw Utils.TODO();
+        return new UJmpARM();
     }
 
     // Break an infinite loop
