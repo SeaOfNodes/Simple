@@ -277,6 +277,7 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
+    // share same encoding with LDR (literal, SIMD&FP) flavour
     public static int load_pc(int opcode, int offset, int rt) {
         return (opcode << 24) | (offset << 5) | rt;
     }
