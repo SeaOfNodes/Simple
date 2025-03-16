@@ -20,10 +20,32 @@ public class IntARM extends ConstantNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short self = enc.reg(this);
         long x = ((TypeInteger)_con).value();
+        int opcode;
+        if(x >= 0) {
+            // movz
+            opcode = 0b110100101;
+        } else {
+            // movn
+            opcode = 0b100100101;
+            x = ~x; // invert x
+        }
         if( (short)x == x )
-            enc.add4(arm.mov(485, 0, (int)(x&0xFFFF), self));
-        else
-            throw Utils.TODO("Handle cases bigger than 16 bits");
+            enc.add4(arm.mov(opcode, 0, (int)(x&0xFFFF), self));
+        else if((int)x == x) {
+            // mov - load low 16 bits
+            enc.add4(arm.mov(opcode, 0, (int)(x), self));
+            // mov - load high 16 bits
+            enc.add4(arm.mov(485, 16, (int)(x), self));
+        }
+        else {
+            enc.add4(arm.mov(opcode, 0, (int)(x), self));
+
+            enc.add4(arm.mov(485, 16, (int)(x), self));
+
+            enc.add4(arm.mov(485, 32, (int)(x), self));
+
+            enc.add4(arm.mov(485, 48, (int)(x), self));
+        }
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

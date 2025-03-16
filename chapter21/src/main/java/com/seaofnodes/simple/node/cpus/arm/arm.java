@@ -252,7 +252,7 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
-    // encodes movk
+    // encodes movk, movn, and movz
     public static int mov(int opcode, int shift, int imm16, int rd) {
         return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
     }
