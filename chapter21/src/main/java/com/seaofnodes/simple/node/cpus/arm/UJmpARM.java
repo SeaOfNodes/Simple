@@ -20,8 +20,7 @@ public class UJmpARM extends CFGNode implements MachNode {
     @Override public Node idealize() { throw Utils.TODO(); }
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,uctrl());
-        // TODO: unconditional jump
-        int body = arm.b_cond(0b01010100, 0, arm.make_condition("<"));
+        int body = arm.b(0b01010100, 0);
         enc.add4(body);
     }
 

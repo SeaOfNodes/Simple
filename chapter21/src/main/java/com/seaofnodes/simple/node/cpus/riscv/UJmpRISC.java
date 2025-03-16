@@ -19,9 +19,9 @@ public class UJmpRISC extends CFGNode implements MachNode {
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }
     @Override public void encoding( Encoding enc ) {
+        // jal
         enc.jump(this,uctrl());
-        // TODO: Unconditional jump
-        int body = riscv.b_type(0x63, 0, riscv.jumpop("<"), 0, 0, 0);
+        int body = riscv.j_type(0b0110111, 0, 0);
         enc.add4(body);
     }
 
