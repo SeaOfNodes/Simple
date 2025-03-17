@@ -36,14 +36,27 @@ public class IntX86 extends ConstantNode implements MachNode {
         // Simply move the constant into a GPR
         // Conditional encoding based on 64 or 32 bits
         //REX.W + C7 /0 id	MOV r/m64, imm32
-        enc.add1(x86_64_v2.rex(0, dst, 0));
 
         long imm = ((TypeInteger)_con).value();
-        if( (int)imm == imm ) {
+        if (Integer.MIN_VALUE <= imm && imm < 0) {
+            // We need sign extension, so use imm32 into 64 bit register
+            // REX.W + C7 /0 id    MOV r/m64, imm32
+            enc.add1(x86_64_v2.rex(0, dst, 0));
             enc.add1(0xC7); // 32 bits encoding
             enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x00, dst));
             enc.add4((int)imm);
+        } else if (0 <= imm && imm <= 0xFFFFFFFFL) {
+            // We want zero extension into 64 bit register
+            // so move 32 bit into 32 bit register which zeros
+            // the upper bits in the 64 bit register.
+            // B8+ rd id     MOV r32, imm32
+            if (dst >= 8) enc.add1(0x41);
+            enc.add1(0xB8 + (dst & 0x07));
+            enc.add4((int)imm);
         } else {
+            // Just write the full 64 bit constant
+            // REX.W + B8+ rd io     MOV r64, imm64
+            enc.add1(x86_64_v2.rex(0, dst, 0));
             enc.add1(0xB8 + (dst & 0x07));
             enc.add8(imm);               // 64 bits encoding
         }

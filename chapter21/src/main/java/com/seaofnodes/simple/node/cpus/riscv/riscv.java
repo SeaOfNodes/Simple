@@ -131,7 +131,9 @@ public class riscv extends Machine {
     public static int u_type(int opcode, int rd, int imm20) {
         return (imm20 << 12) | (rd << 7) | opcode;
     }
-
+    public static int j_type(int opcode, int rd, int imm20) {
+        return imm20 << 12 | rd << 7 | opcode;
+    }
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
         assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;

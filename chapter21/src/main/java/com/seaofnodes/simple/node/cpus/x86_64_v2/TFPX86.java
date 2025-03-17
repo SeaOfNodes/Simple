@@ -33,15 +33,13 @@ public class TFPX86 extends ConstantNode implements MachNode {
             return;
         }
 
+        // lea to load function pointer address
+        // lea rax, [rip+disp32]
         enc.relo(this,(TypeFunPtr)_con);
-        // Simply move the constant into a GPR
-        // Conditional encoding based on 64 or 32 bits
-        //REX.W + C7 /0 id	MOV r/m64, imm32
-        enc.add1(x86_64_v2.rex(0, dst, 0));
-        enc.add1(0xC7); // 32 bits encoding
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0x00, dst));
-        //enc.add4((int)imm);
-        throw Utils.TODO();
+        enc.add1(x86_64_v2.rex(dst, 0, 0));
+        enc.add1(0x8D); // opcode
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101));
+        enc.add4(0);
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,
