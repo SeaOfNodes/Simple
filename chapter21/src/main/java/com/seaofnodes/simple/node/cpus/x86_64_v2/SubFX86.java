@@ -16,9 +16,10 @@ public class SubFX86 extends MachConcreteNode implements MachNode {
         // F2 0F 5C /r SUBSD xmm1, xmm2/m64
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);
         short src = (short)(enc.reg(in(2)) - x86_64_v2.XMM_OFFSET);
-        enc.add1(x86_64_v2.rex(dst, src,0));
         // Fopcode
         enc.add1(0xF2);
+        // rex prefix must come next (REX.W is not set)
+        enc.add1(x86_64_v2.rex(dst, src, 0,false));
         enc.add1(0x0F);
         enc.add1(0x5C);
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
