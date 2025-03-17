@@ -27,12 +27,10 @@ public class AddFMemX86 extends MemOpX86 {
         // F opcode
         enc.add1(0xF2);
         // rex prefix must come next (REX.W is not set)
-        int rex = x86_64_v2.rex(dst, ptr, idx, false);
-        if(rex != 0x40) enc.add1(rex);
+        x86_64_v2.rex_f(dst, ptr, idx, false, enc);
 
         // FP ADD
-        enc.add1(0x0F);
-        enc.add1(0x58);
+        enc.add1(0x0F).add1(0x58);
 
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, dst, enc);
     }

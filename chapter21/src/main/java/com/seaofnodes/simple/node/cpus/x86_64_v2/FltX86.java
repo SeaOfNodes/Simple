@@ -23,11 +23,9 @@ public class FltX86 extends ConstantNode implements MachNode {
         // Fopcode
         enc.add1(0xF2);
         // rex prefix must come next (REX.W is not set)
-        int rex = x86_64_v2.rex(dst, 0, 0,false);
-        if(rex != 0x40) enc.add1(rex);
+        x86_64_v2.rex_f(dst, 0, 0, false, enc);
 
-        enc.add1(0x0F);
-        enc.add1(0x10);
+        enc.add1(0x0F).add1(0x10);
 
         // hard-code rip here
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0x05));

@@ -306,7 +306,7 @@ public class riscv extends Machine {
         case LoadNode ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
         case MulFNode mulf -> new MulFRISC(mulf);
-        case MulNode mul -> mul(mul);
+        case MulNode mul -> new MulRISC(mul);
         case NewNode nnn -> nnn(nnn);
         case NotNode not -> new NotRISC(not);
         case OrNode or -> or(or);
@@ -437,37 +437,37 @@ public class riscv extends Machine {
     }
 
     private Node or(OrNode or) {
-        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti) )
+        if( or.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti))
             return new OrIRISC(or, (int)ti.value());
         return new OrRISC(or);
     }
 
     private Node xor(XorNode xor) {
-        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
+        if( xor.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti))
             return new XorIRISC(xor, (int)ti.value());
         return new XorRISC(xor);
     }
 
     private Node sra(SarNode sar) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti))
             return new SraIRISC(sar, (int)ti.value());
         return new SraRISC(sar);
     }
 
     private Node srl(ShrNode shr) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti))
             return new SrlIRISC(shr, (int)ti.value(),true);
         return new SrlRISC(shr);
     }
 
     private Node sll(ShlNode sll) {
-        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti))
+        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti))
             return new SllIRISC(sll, (int)ti.value());
         return new SllRISC(sll);
     }
 
     private Node sub(SubNode sub) {
-        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti) && imm12(ti)
+        return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new AddIRISC(sub, (int)(-ti.value()),true)
             : new SubRISC(sub);
     }
@@ -479,10 +479,6 @@ public class riscv extends Machine {
 
     private Node prj(ProjNode prj) {
         return new ProjRISC(prj);
-    }
-
-    private Node mul(MulNode mul) {
-                return new MulRISC(mul);
     }
 
     private Node ld(LoadNode ld) {
