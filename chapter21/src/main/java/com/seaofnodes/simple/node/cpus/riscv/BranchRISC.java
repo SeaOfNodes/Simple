@@ -6,7 +6,7 @@ import com.seaofnodes.simple.node.*;
 import java.util.BitSet;
 
 // Conditional branch such as: BEQ
-public class BranchRISC extends IfNode implements MachNode {
+public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     String _bop;
     // label is obtained implicitly
     BranchRISC( IfNode iff, String bop, Node n1, Node n2 ) {
@@ -40,9 +40,27 @@ public class BranchRISC extends IfNode implements MachNode {
         // Todo: relocs (for offset - immf)
         short src1 = enc.reg(in(1));
         short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
-        int body = riscv.b_type(0x63, 0, riscv.jumpop(_bop), src1, src2, 0);
-        enc.add4(body);
+        enc.add4(riscv.b_type(0x63, riscv.jumpop(_bop), src1, src2, 0));
     }
+
+    // Delta is from opcode start
+    @Override public byte encSize(int delta) {
+        if( -4*1024 <= delta && delta < 4*1024 ) return 4;
+        // 2 word encoding needs a tmp register, must teach RA
+        throw Utils.TODO();
+    }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        short src1 = enc.reg(in(1));
+        short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
+        if( opLen==4 ) {
+            enc.patch4(opStart,riscv.b_type(0x63, riscv.jumpop(_bop), src1, src2, delta));
+        } else {
+            throw Utils.TODO();
+        }
+    }
+
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2))).p(" ");
         CFGNode prj = cproj(0);

@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.Type;
 import java.util.BitSet;
 
 // unconditional jump
-public class UJmpARM extends CFGNode implements MachNode {
+public class UJmpARM extends CFGNode implements MachNode, RIPRelSize {
     UJmpARM() { }
     @Override public String op() { return "jmp"; }
     @Override public String label() { return op(); }
@@ -22,6 +22,22 @@ public class UJmpARM extends CFGNode implements MachNode {
         enc.jump(this,uctrl());
         int body = arm.b(0b01010100, 0);
         enc.add4(body);
+    }
+
+    // Delta is from opcode start
+    @Override public byte encSize(int delta) {
+        if( -(1<<26) <= delta && delta < (1<<26) ) return 4;
+        // 2 word encoding needs a tmp register, must teach RA
+        throw Utils.TODO();
+    }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        if( opLen==4 ) {
+            enc.patch4(opStart,arm.b(0b01010100, delta));
+        } else {
+            throw Utils.TODO();
+        }
     }
 
     @Override public void asm(CodeGen code, SB sb) {

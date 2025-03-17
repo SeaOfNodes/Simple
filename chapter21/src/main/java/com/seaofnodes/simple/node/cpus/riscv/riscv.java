@@ -107,6 +107,8 @@ public class riscv extends Machine {
 
     // 0110 0111
     public static int I_JALR = 0x67;
+    public static int J_JAL = 0b1101111;
+
 
     // Since riscv instructions are fixed we can just or them togehter
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
@@ -131,9 +133,22 @@ public class riscv extends Machine {
     public static int u_type(int opcode, int rd, int imm20) {
         return (imm20 << 12) | (rd << 7) | opcode;
     }
-    public static int j_type(int opcode, int rd, int imm20) {
-        return imm20 << 12 | rd << 7 | opcode;
+
+    public static int j_type(int opcode, int rd, int delta) {
+        assert -(1L<<20) <= delta && delta < (1L<<20);
+        // Messy branch offset encoding
+        // 31 30-21 20 19-12 11-7  6-0
+        // 20 10- 1 11 19-12 rpc   JAL
+        assert (delta&1)==0;    // Low bit is always zero, not encoded
+        int imm10_01 = (delta>> 1) & 0x3FF;
+        int imm11    = (delta>>11) &     1;
+        int imm12_19 = (delta>>12) &  0xFF;
+        int imm20    = (delta>>19) &     1;
+        int bits = imm20<<20 | imm12_19 << 12 | imm11 << 11 | imm10_01;
+        return bits << 12 | rd << 7 | opcode;
     }
+
+
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
         assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
@@ -154,11 +169,20 @@ public class riscv extends Machine {
         return (imm_hi << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm_lo << 7) | opcode;
     }
 
-    // immf = first imm
-    // immd = second imm
     // BRANCH
-    public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
-        return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
+    public static int b_type(int opcode, int func3, short rs1, short rs2, int delta) {
+        assert -4*1024 <= delta && delta < 4*1024;
+        assert (delta&1)==0;    // Low bit is always zero, not encoded
+        // Messy branch offset encoding
+        // 31 30 29 28 27 26 25 24-20 19-15 14-12 11 10  9  8  7  6-0
+        // 12 10  9  8  7  6  5 SRC2  SRC1  FUNC3  4  3  2  1 11  OP
+        int imm4_1 = (delta>> 1) & 0xF;
+        int imm10_5= (delta>> 5) &0x2F;
+        int imm11  = (delta>>11) &   1;
+        int imm12  = (delta>>12) &   1;
+        int imm5 = imm4_1<<4 | imm11;
+        int imm7 = imm12<<7 | imm10_5;
+        return (imm7 << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm5 << 7) | opcode;
     }
 
     public enum RM {

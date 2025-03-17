@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.Type;
 import java.util.BitSet;
 
 // unconditional jump
-public class UJmpRISC extends CFGNode implements MachNode {
+public class UJmpRISC extends CFGNode implements MachNode, RIPRelSize {
     UJmpRISC() { }
     @Override public String op() { return "jmp"; }
     @Override public String label() { return op(); }
@@ -19,10 +19,26 @@ public class UJmpRISC extends CFGNode implements MachNode {
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }
     @Override public void encoding( Encoding enc ) {
-        // jal
+        // Short form +/-4K:  beq r0,r0,imm12
+        // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
         enc.jump(this,uctrl());
-        int body = riscv.j_type(0b0110111, 0, 0);
-        enc.add4(body);
+        enc.add4(riscv.j_type(riscv.J_JAL, 0, 0));
+    }
+
+    // Delta is from opcode start
+    @Override public byte encSize(int delta) {
+        if( -(1L<<20) <= delta && delta < (1L<<20) ) return 4;
+        // 2 word encoding needs a tmp register, must teach RA
+        throw Utils.TODO();
+    }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        if( opLen==4 ) {
+            enc.patch4(opStart,riscv.j_type(riscv.J_JAL, 0, delta));
+        } else {
+            throw Utils.TODO();
+        }
     }
 
     @Override public void asm(CodeGen code, SB sb) {
