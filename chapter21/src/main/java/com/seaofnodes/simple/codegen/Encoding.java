@@ -51,7 +51,7 @@ public class Encoding {
         _code = code;
         _bits = new BAOS();
         _bigCons = new HashMap<>();
-         _jmps = new HashMap<>();
+        _jmps = new HashMap<>();
     }
 
     // Shortcut to the defining register
@@ -71,6 +71,18 @@ public class Encoding {
     public void add8( long i64 ) {
         add4((int) i64     );
         add4((int)(i64>>32));
+    }
+
+    // This buffer is invalid/moving until after all encodings are written
+    public byte[] bits() { return _bits.buf(); }
+
+    // 4 byte little-endian write
+    public void patch4( int idx, int val ) {
+        byte[] buf = _bits.buf();
+        buf[idx  ] = (byte)(val    );
+        buf[idx+1] = (byte)(val>> 8);
+        buf[idx+2] = (byte)(val>>16);
+        buf[idx+3] = (byte)(val>>24);
     }
 
 
@@ -98,14 +110,32 @@ public class Encoding {
         // TODO:
     }
     private final HashMap<CFGNode,CFGNode> _jmps;
-    public void jump( CFGNode jmp, CFGNode target ) {
-        // TDOO: also support 1-byte offset and short jump and compressing the binary
-        // TODO: record and patch
-    }
+    public void jump( CFGNode jmp, CFGNode target ) { _jmps.put(jmp,target); }
 
     void encode() {
         // Basic block layout: invert branches to keep blocks in-order; insert
-        // unconditional jumps.  Layout is still RPO but with more restrictions.
+        // unconditional jumps.  Attempt to keep backwards branches taken,
+        // forwards not-taken (this is the default prediction on most
+        // hardware).  Layout is still RPO but with more restrictions.
+        basicBlockLayout();
+
+        // Write encoding bits in order into a big byte array.
+        // Record opcode start and length.
+        writeEncodings();
+
+        // Short-form RIP-relative support: replace long encodings with short
+        // encodings and compact the code, changing all the offsets.
+        compactShortForm();
+
+        // Patch RIP-relative and local encodings now.
+        patchLocalRelocations();
+    }
+
+    // Basic block layout: invert branches to keep blocks in-order; insert
+    // unconditional jumps.  Attempt to keep backwards branches taken,
+    // forwards not-taken (this is the default prediction on most
+    // hardware).  Layout is still RPO but with more restrictions.
+    private void basicBlockLayout() {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         BitSet visit = _code.visit();
         for( Node n : _code._start._outputs )
@@ -118,27 +148,6 @@ public class Encoding {
             rpo.swap(i,rpo.size()-1-i);
         visit.clear();
         _code._cfg = rpo;       // Save the new ordering
-
-        // Write encoding bits in order
-        _opStart= new int [_code.UID()];
-        _opLen  = new byte[_code.UID()]; // Used during ASM printing
-        for( CFGNode bb : _code._cfg ) {
-            if( bb instanceof CProjNode ) _opStart[bb._nid] = _bits.size();
-            for( Node n : bb._outputs ) {
-                if( n instanceof MachNode mach ) {
-                    _opStart[n._nid] = _bits.size();
-                    mach.encoding( this );
-                    _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
-                }
-            }
-        }
-
-        System.out.println(_code.asm());
-
-        compactShortForm();
-
-        // Patch RIP-relative encodings now
-        throw Utils.TODO();
     }
 
     // Basic block layout.  Now that RegAlloc is finished, no more spill code
@@ -154,7 +163,7 @@ public class Encoding {
             CFGNode next = bb instanceof ReturnNode ? (CFGNode)bb.out(bb.nOuts()-1) : bb.uctrl();
             // If the *next* BB has already been visited, we require an
             // unconditional backwards jump here
-            if( visit.get(next._nid) ) {
+            if( visit.get(next._nid) && !(next instanceof StopNode) && !(bb.in(0) instanceof IfNode )) {
                 CFGNode jmp = _code._mach.jump();
                 jmp.setDefX(0,bb);
                 next.setDef(next._inputs.find(bb),jmp);
@@ -164,9 +173,11 @@ public class Encoding {
         } else {
             boolean invert = false;
             // Pick out the T/F projections
-            CProjNode t = (CProjNode)bb.out(bb.nOuts()-1);
-            CProjNode f = (CProjNode)bb.out(bb.nOuts()-2);
-            if( t._idx==1 ) { CProjNode tmp=f; f=t; t=tmp; }
+            CProjNode t = iff.cproj(0);
+            CProjNode f = iff.cproj(1);
+            //CProjNode t = (CProjNode)bb.out(bb.nOuts()-1);
+            //CProjNode f = (CProjNode)bb.out(bb.nOuts()-2);
+            //if( t._idx==1 ) { CProjNode tmp=f; f=t; t=tmp; }
             int tld = t.loopDepth(), fld = f.loopDepth(), bld = bb.loopDepth();
             // Decide entering or exiting a loop
             if( tld==bld ) {
@@ -203,12 +214,36 @@ public class Encoding {
     }
 
 
-    // Short-form RIP-relative support
-    void compactShortForm() {
+    // Write encoding bits in order into a big byte array.
+    // Record opcode start and length.
+    private void writeEncodings() {
+        _opStart= new int [_code.UID()];
+        _opLen  = new byte[_code.UID()];
+        for( CFGNode bb : _code._cfg ) {
+            if( !(bb instanceof MachNode) ) _opStart[bb._nid] = _bits.size();
+            for( Node n : bb._outputs ) {
+                if( n instanceof MachNode mach ) {
+                    _opStart[n._nid] = _bits.size();
+                    mach.encoding( this );
+                    _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
+                }
+            }
+        }
+    }
+
+
+    // Short-form RIP-relative support: replace long encodings with short
+    // encodings and compact the code, changing all the offsets.
+    private void compactShortForm() {
         int len = _code._cfg._len;
         int[] oldStarts = new int[len];
         for( int i=0; i<len; i++ )
             oldStarts[i] = _opStart[_code._cfg.at(i)._nid];
+
+        // TODO: Rewrite this algo to use the small "_jmps" list of just the
+        // jumps instead of walking all blocks.
+        // TODO2: Allow short encodings on non-jumps.  This algo doesn't
+        // really care jumps vs other rip-relative things.
 
         // Check the size of short jumps, adjust the block starts for a whole
         // pass over all blocks.  If some jumps go long, they might stretch the
@@ -221,6 +256,10 @@ public class Encoding {
                 _opStart[bb._nid] += slide;
                 if( bb instanceof RIPRelSize riprel ) {
                     CFGNode target = (CFGNode)bb.out(0);
+                    // Delta is from opStart to opStart.  X86 at least counts
+                    // the delta from the opEnd, but we don't have the end until
+                    // we decide the size - so the encSize has to deal
+                    assert _opStart[target._nid] > 0;
                     int delta = _opStart[target._nid] - _opStart[bb._nid];
                     byte opLen = riprel.encSize(delta);
                     if( _opLen[bb._nid] < opLen ) {
@@ -234,7 +273,7 @@ public class Encoding {
 
         // Copy/slide the bits to make space for all the longer branches
         int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
-        if( grow > 0 ) {
+        if( grow > 0 ) {        // If no short-form ops, nothing to do here
             int end = _bits.size();
             byte[] bits = new byte[end+grow];
             for( int i=len-1; i>=0; i-- ) {
@@ -248,4 +287,17 @@ public class Encoding {
             _bits.set(bits,bits.length);
         }
     }
+
+    // Patch local encodings now
+    private void patchLocalRelocations() {
+        // Walk all the jumps.  Re-patch them all now with but with the Real Offset
+        for( CFGNode jmp : _jmps.keySet() ) {
+            CFGNode target = jmp instanceof IfNode iff ? iff.cproj(0) : jmp.uctrl();
+            while( target.nOuts() == 1 ) // Skip empty blocks
+                target = target.uctrl();
+            int start = _opStart[jmp._nid];
+            ((RIPRelSize)jmp).patch(this, start, _opLen[jmp._nid], _opStart[target._nid] - start);
+        }
+    }
+
 }

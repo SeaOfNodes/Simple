@@ -36,7 +36,24 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
         //enc.add4(0);            // Offset patched later
     }
 
+    // Delta is from opcode start, but X86 measures from the end of the 2-byte encoding
     @Override public byte encSize(int delta) { return (byte)(x86_64_v2.imm8(delta-2) ? 2 : 6); }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        byte[] bits = enc.bits();
+        if( opLen==2 ) {
+            assert bits[opStart] == x86_64_v2.jumpop(_bop)-16;
+            delta -= 2;         // Offset from opcode END
+            assert (byte)delta==delta;
+            bits[opStart+1] = (byte)delta;
+        } else {
+            assert bits[opStart  ] == 0x0F;
+            assert bits[opStart+1] == x86_64_v2.jumpop(_bop);
+            delta -= 6;         // Offset from opcode END
+            enc.patch4(opStart+2,delta);
+        }
+    }
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
