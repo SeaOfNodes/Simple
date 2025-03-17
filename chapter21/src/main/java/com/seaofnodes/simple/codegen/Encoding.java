@@ -52,6 +52,7 @@ public class Encoding {
         _bits = new BAOS();
         _bigCons = new HashMap<>();
         _jmps = new HashMap<>();
+        _funcRelos = new HashMap<>();
     }
 
     // Shortcut to the defining register
@@ -94,8 +95,10 @@ public class Encoding {
     // call back with `ReloNode.patch(byte[],src_offset,TFP,dst_offset)`
     // X86 gets a special pass for expanding short jumps.
 
+    public final HashMap<Node,TypeFunPtr> _funcRelos;
     public void relo( Node relo, TypeFunPtr t ) {
         // TODO: record call relocation info
+        _funcRelos.put(relo, t);
     }
     public void relo( NewNode nnn ) {
         // TODO: record alloc relocation info
