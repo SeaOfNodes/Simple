@@ -50,6 +50,7 @@ public class x86_64_v2 extends Machine {
     public static RegMask XMM0_MASK = new RegMask(XMM0);
 
     // Encoding
+    public static int REX = 0x40;
     public static int REX_W  = 0x48;
     public static int REX_WR = 0x4C;
     public static int REX_WRB= 0x4D;
@@ -98,15 +99,25 @@ public class x86_64_v2 extends Machine {
     // reg4 is X(base)
 
     // 0 denotes no direct register
-    public static int rex(int reg, int ptr, int idx) {
+    public static int rex(int reg, int ptr, int idx, boolean wide) {
         // assuming 64 bit by default so: 0100 1000
-        int rex = REX_W; // Default REX.W
+        int rex = wide ? REX_W : REX;
         if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
         if( 8 <= ptr && ptr <= 15 ) rex |= 0b00000001; // REX.B
         if( 8 <= idx && idx <= 15 ) rex |= 0b00000010; // REX.X
         return rex;
     }
 
+    public static int rex(int reg, int ptr, int idx) {
+        return rex(reg, ptr, idx, true);
+    }
+
+    // rex for floats
+    // don't need to use REX if 0x40
+    public static void rexF(int reg, int ptr, int idx, boolean wide, Encoding enc) {
+        int rex = rex(reg, ptr, idx, wide);
+        if (rex != 0x40) enc.add1(rex);
+    }
     // Function used for encoding indirect memory addresses
     // Does not always generate SIB byte e.g index == -1.
     // -1 denotes empty value, not set - note 0 is different from -1 as it can represent rax.

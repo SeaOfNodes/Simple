@@ -17,11 +17,13 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
         // F2 0F 58 /r ADDSD xmm1, xmm2/m64
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);
         short src = (short)(enc.reg(in(2)) - x86_64_v2.XMM_OFFSET);
-        enc.add1(x86_64_v2.rex(dst, src,0));
         // Fopcode
         enc.add1(0xF2);
-        enc.add1(0x0F);
-        enc.add1(0x58);
+        // rex prefix must come next (REX.W is not set)
+        x86_64_v2.rexF(dst, src, 0, false, enc);
+
+        enc.add1(0x0F).add1(0x58);
+
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
     }
 

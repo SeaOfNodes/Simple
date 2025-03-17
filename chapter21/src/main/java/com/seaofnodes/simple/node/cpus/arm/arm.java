@@ -299,7 +299,7 @@ public class arm extends Machine {
         return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
     }
     // Todo: provide op as binary here
-    public static void ldst_encode( Encoding enc, MemOpARM n, Node xval ) {
+    public static void ldst_encode( Encoding enc, int opcode, MemOpARM n, Node xval ) {
         short ptr = enc.reg(n.ptr());
         short off = enc.reg(n.off());
         short val = enc.reg(xval)   ;
