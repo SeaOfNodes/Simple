@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 // Jump on flags, uses flags
-public class JmpX86 extends IfNode implements MachNode {
+public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     String _bop;
     JmpX86( IfNode iff, String bop ) {
         super(iff);
@@ -29,9 +29,14 @@ public class JmpX86 extends IfNode implements MachNode {
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,cproj(0));
-        enc.add1(0x0F).add1(x86_64_v2.jumpop(_bop));
-        enc.add4(0);            // Offset patched later
+        int op = x86_64_v2.jumpop(_bop);
+        enc.add1(op-16);      // Short form jump
+        enc.add1(0);          // Offset
+        //enc.add1(0x0F).add1(x86_64_v2.jumpop(_bop));
+        //enc.add4(0);            // Offset patched later
     }
+
+    @Override public byte encSize(int delta) { return (byte)(x86_64_v2.imm8(delta-2) ? 2 : 6); }
 
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));

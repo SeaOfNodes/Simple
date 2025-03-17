@@ -1,20 +1,23 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Ary;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFunPtr;
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashMap;
 
 
 /**
  *  Instruction encodings
- *
+ * <p>
  *  This class holds the encoding bits, plus the relocation information needed
  *  to move the code to a non-zero offset, or write to an external file (ELF).
- *
+ * <p>
  *  There are also a bunch of generic utilities for managing bits and bytes
  *  common in all encodings.
  */
@@ -35,14 +38,20 @@ public class Encoding {
     // - RIP-relative to external chunks have a zero offset; the matching
     //   relocation info will be used to patch the correct value.
 
-    public class BAOS extends ByteArrayOutputStream { public byte[] buf() { return buf; } };
+    public static class BAOS extends ByteArrayOutputStream {
+        public byte[] buf() { return buf; }
+        void set( byte[] buf0, int count0 ) { buf=buf0; count=count0; }
+    };
     final public BAOS _bits;
 
-    public byte[] _opLen;
+    public int [] _opStart;     // Start  of opcodes, by _nid
+    public byte[] _opLen;       // Length of opcodes, by _nid
 
     Encoding( CodeGen code ) {
         _code = code;
         _bits = new BAOS();
+        _bigCons = new HashMap<>();
+         _jmps = new HashMap<>();
     }
 
     // Shortcut to the defining register
@@ -81,42 +90,55 @@ public class Encoding {
     }
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
+
+    private final HashMap<Node,Type> _bigCons;
     public void largeConstant( Node relo, Type t ) {
         assert t.isConstant();
+        _bigCons.put(relo,t);
         // TODO:
     }
+    private final HashMap<CFGNode,CFGNode> _jmps;
     public void jump( CFGNode jmp, CFGNode target ) {
         // TDOO: also support 1-byte offset and short jump and compressing the binary
         // TODO: record and patch
     }
 
     void encode() {
-        // Basic block layout
+        // Basic block layout: invert branches to keep blocks in-order; insert
+        // unconditional jumps.  Layout is still RPO but with more restrictions.
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         BitSet visit = _code.visit();
         for( Node n : _code._start._outputs )
             if( n instanceof FunNode fun )
                 _rpo_cfg(fun, visit, rpo);
         rpo.add(_code._start);
+
         // Reverse in-place
         for( int i=0; i< rpo.size()>>1; i++ )
             rpo.swap(i,rpo.size()-1-i);
         visit.clear();
         _code._cfg = rpo;       // Save the new ordering
-        _opLen = new byte[_code.UID()];
 
         // Write encoding bits in order
-        for( CFGNode bb : _code._cfg )
-            for( Node n : bb._outputs )
+        _opStart= new int [_code.UID()];
+        _opLen  = new byte[_code.UID()]; // Used during ASM printing
+        for( CFGNode bb : _code._cfg ) {
+            if( bb instanceof CProjNode ) _opStart[bb._nid] = _bits.size();
+            for( Node n : bb._outputs ) {
                 if( n instanceof MachNode mach ) {
-                    int off = _bits.size();
-                    mach.encoding(this);
-                    _opLen[n._nid] = (byte)(_bits.size()-off);
+                    _opStart[n._nid] = _bits.size();
+                    mach.encoding( this );
+                    _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
                 }
+            }
+        }
 
         System.out.println(_code.asm());
+
+        compactShortForm();
+
         // Patch RIP-relative encodings now
-        //throw Utils.TODO();
+        throw Utils.TODO();
     }
 
     // Basic block layout.  Now that RegAlloc is finished, no more spill code
@@ -181,4 +203,49 @@ public class Encoding {
     }
 
 
+    // Short-form RIP-relative support
+    void compactShortForm() {
+        int len = _code._cfg._len;
+        int[] oldStarts = new int[len];
+        for( int i=0; i<len; i++ )
+            oldStarts[i] = _opStart[_code._cfg.at(i)._nid];
+
+        // Check the size of short jumps, adjust the block starts for a whole
+        // pass over all blocks.  If some jumps go long, they might stretch the
+        // distance for other jumps, so another pass is needed;
+        int slide= -1;
+        while( slide != 0) {    // While no fails
+            slide = 0;
+            for( int i=0; i<len; i++ ) {
+                CFGNode bb = _code._cfg.at(i);
+                _opStart[bb._nid] += slide;
+                if( bb instanceof RIPRelSize riprel ) {
+                    CFGNode target = (CFGNode)bb.out(0);
+                    int delta = _opStart[target._nid] - _opStart[bb._nid];
+                    byte opLen = riprel.encSize(delta);
+                    if( _opLen[bb._nid] < opLen ) {
+                        slide += opLen - _opLen[bb._nid];
+                        _opLen[bb._nid] = opLen;
+                    }
+                }
+            }
+        }
+
+
+        // Copy/slide the bits to make space for all the longer branches
+        int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
+        if( grow > 0 ) {
+            int end = _bits.size();
+            byte[] bits = new byte[end+grow];
+            for( int i=len-1; i>=0; i-- ) {
+                int start = oldStarts[i];
+                if( start==0 && i>1 ) continue;
+                int oldStart = oldStarts[i];
+                int newStart = _opStart[_code._cfg.at(i)._nid];
+                System.arraycopy(_bits.buf(),oldStart,bits,newStart,end-start);
+                end = start;
+            }
+            _bits.set(bits,bits.length);
+        }
+    }
 }
