@@ -50,7 +50,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
         sb.p(code.reg(this)).p(" = ");
         if( in(1) != null )
             sb.p(code.reg(in(1))).p(" + ");
-        sb.p(code.reg(in(2))).p("*").p(_scale);
+        sb.p(code.reg(in(2))).p("<<").p(_scale);
         if( _offset!=0 ) sb.p(" + #").p(_offset);
     }
 }

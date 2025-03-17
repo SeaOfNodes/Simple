@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.Type;
 import java.util.BitSet;
 
 // unconditional jump
-public class UJmpX86 extends CFGNode implements MachNode {
+public class UJmpX86 extends CFGNode implements MachNode, RIPRelSize {
     UJmpX86() { }
     @Override public String op() { return "jmp"; }
     @Override public String label() { return op(); }
@@ -20,9 +20,13 @@ public class UJmpX86 extends CFGNode implements MachNode {
     @Override public Node idealize() { throw Utils.TODO(); }
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,uctrl());
-        // E9 cd	JMP rel32
-        enc.add1(0xE9).add4(0);
+        // Short-form jump
+        enc.add1(0xEB).add1(0);
+        //// E9 cd	JMP rel32
+        //enc.add1(0xE9).add4(0);
     }
+
+    @Override public byte encSize(int delta) { return (byte)(x86_64_v2.imm8(delta) ? 2 : 6); }
 
     @Override public void asm(CodeGen code, SB sb) {
         CFGNode target = uctrl();

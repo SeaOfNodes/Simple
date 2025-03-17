@@ -64,10 +64,10 @@ public class x86_64_v2 extends Machine {
     };
 
     // opcode included here
-    // 0F 84 cd	JE rel32
+    // 0F 84 cd	JE  rel32
     // 0F 85 cd	JNE rel32
-    // 0F 8F cd	JG rel32
-    // 0F 8C cd	JL rel32
+    // 0F 8F cd	JG  rel32
+    // 0F 8C cd	JL  rel32
     // 0F 8E cd	JLE rel32
     // 0F 8D cd	JGE rel32
     static public int jumpop(String op) {
