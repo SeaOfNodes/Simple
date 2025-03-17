@@ -19,7 +19,9 @@ public class I2f8X86 extends MachConcreteNode implements MachNode {
         // Fopcode
         enc.add1(0xF2);
         // rex prefix must come next (REX.W is not set)
-        enc.add1(x86_64_v2.rex(dst, src, 0,false));
+        int rex = x86_64_v2.rex(dst, src, 0,false);
+        if(rex != 0x40) enc.add1(rex);
+
         enc.add1(0x0F);
         enc.add1(0x2A);
 

@@ -18,7 +18,9 @@ public class CmpFX86 extends MachConcreteNode implements MachNode {
         // float opcode
         enc.add1(0x66);
         // rex prefix must come next (REX.W is not set)
-        enc.add1(x86_64_v2.rex(src1, src2, 0,false));
+        int rex = x86_64_v2.rex(src1, src2, 0,false);
+        if(rex != 0x40) enc.add1(rex);
+
         enc.add1(0x0F);
         enc.add1(0x2E);
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, src1, src2));
