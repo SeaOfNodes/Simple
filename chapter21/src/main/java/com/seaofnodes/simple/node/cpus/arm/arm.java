@@ -299,13 +299,13 @@ public class arm extends Machine {
         return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
     }
     // Todo: provide op as binary here
-    public static void ldst_encode( Encoding enc, MemOpARM n, Node xval ) {
+    public static void ldst_encode( Encoding enc, int opcode, MemOpARM n, Node xval ) {
         short ptr = enc.reg(n.ptr());
         short off = enc.reg(n.off());
         short val = enc.reg(xval)   ;
         int body = n.off() == null
-            ? load_str_imm(0b1111100101, off, ptr, val)
-            : indr_adr(0b11111000011, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
+            ? load_str_imm(opcode, off, ptr, val)
+            : indr_adr(opcode+1, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
         enc.add4(body);
     }
 

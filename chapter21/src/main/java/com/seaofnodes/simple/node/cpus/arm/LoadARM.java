@@ -18,7 +18,7 @@ public class LoadARM extends MemOpARM{
     @Override public String op() { return "ld"+_sz; }
     @Override public RegMask outregmap() { return arm.MEM_MASK; }
     // ldr(immediate - unsigned offset) | ldr(register)
-    @Override public void encoding( Encoding enc ) { arm.ldst_encode(enc,this,this); }
+    @Override public void encoding( Encoding enc ) { arm.ldst_encode(enc,0b11111000010, this,this); }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");
         asm_address(code,sb);

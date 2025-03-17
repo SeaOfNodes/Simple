@@ -21,7 +21,7 @@ public class StoreARM extends MemOpARM {
     }
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask outregmap() { return null; }
-    @Override public void encoding( Encoding enc ) {   arm.ldst_encode(enc,this,val()); }
+    @Override public void encoding( Encoding enc ) {   arm.ldst_encode(enc,0b11111000000, this,val()); }
     @Override public void asm(CodeGen code, SB sb) {
         asm_address(code,sb).p(",");
         if( val()==null ) sb.p("#").p(_imm);
