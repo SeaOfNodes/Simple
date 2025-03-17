@@ -2,7 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.*;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -221,7 +221,7 @@ public class ElfFile {
                 Node r = _code._cfg.at(i);
                 int end = _code._encoding._opStart[r._nid] + _code._encoding._opLen[r._nid];
 
-                Symbol func = new Symbol(f._name, 3, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+                Symbol func = new Symbol(f._name, text._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
                 func._size = end - func_start;
                 func._value = func_start;
                 symbols.push(func);
@@ -230,6 +230,31 @@ public class ElfFile {
                 // next function starts where the last one ends
                 func_start = end;
             }
+        }
+    }
+
+    public final HashMap<Type,Symbol> _bigCons = new HashMap<>();
+    private void encodeConstants(SymbolSection symbols, DataSection rdata) {
+        int cnt = 0;
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            if (_bigCons.get(e.getValue()) != null) {
+                continue;
+            }
+
+            Symbol glob = new Symbol("GLOB$"+cnt, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+            glob._value = rdata._contents.size();
+            symbols.push(glob);
+
+            Type t = e.getValue();
+            if ( t instanceof TypeFloat tf ) {
+                write8(rdata._contents, Double.doubleToLongBits(tf._con));
+            } else {
+                throw Utils.TODO();
+            }
+
+            glob._size = rdata._contents.size() - glob._value;
+            _bigCons.put(e.getValue(), glob);
+            cnt++;
         }
     }
 
@@ -248,8 +273,14 @@ public class ElfFile {
         text._flags = SHF_ALLOC | SHF_WRITE | SHF_EXECINSTR;
         pushSection(text);
 
+        DataSection rdata = new DataSection(".rodata", 1 /* SHT_PROGBITS */);
+        rdata._flags = SHF_ALLOC;
+        pushSection(rdata);
+
         // populate function symbols
         encodeFunctions(symbols, text);
+        // populate big constants
+        encodeConstants(symbols, rdata);
 
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
@@ -262,6 +293,19 @@ public class ElfFile {
             write8(text_rela._contents, offset);
             // u64 info
             write8(text_rela._contents, ((long)sym_id << 32L) | 4L /* PLT32 */);
+            // i64 addend
+            write8(text_rela._contents, -4);
+        }
+        // relocations to constants
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            int nid    = e.getKey()._nid;
+            int sym_id = _bigCons.get(e.getValue())._index;
+            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
+
+            // u64 offset
+            write8(text_rela._contents, offset);
+            // u64 info
+            write8(text_rela._contents, ((long)sym_id << 32L) | 1L /* PC32 */);
             // i64 addend
             write8(text_rela._contents, -4);
         }

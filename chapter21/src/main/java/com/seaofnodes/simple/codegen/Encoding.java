@@ -97,7 +97,6 @@ public class Encoding {
 
     public final HashMap<Node,TypeFunPtr> _funcRelos;
     public void relo( Node relo, TypeFunPtr t ) {
-        // TODO: record call relocation info
         _funcRelos.put(relo, t);
     }
     public void relo( NewNode nnn ) {
@@ -106,7 +105,7 @@ public class Encoding {
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
 
-    private final HashMap<Node,Type> _bigCons;
+    public final HashMap<Node,Type> _bigCons;
     public void largeConstant( Node relo, Type t ) {
         assert t.isConstant();
         _bigCons.put(relo,t);
