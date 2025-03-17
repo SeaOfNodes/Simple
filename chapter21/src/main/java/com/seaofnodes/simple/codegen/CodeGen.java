@@ -25,6 +25,7 @@ public class CodeGen {
         LocalSched,             // Local schedule
         RegAlloc,               // Register allocation
         Encoding,               // Encoding
+        Export,                 // Export
     }
     public Phase _phase;
 
@@ -293,6 +294,14 @@ public class CodeGen {
         _regAlloc = new RegAlloc(this);
         _regAlloc.regAlloc();
         _tRegAlloc = (int)(System.currentTimeMillis() - t0);
+        return this;
+    }
+
+    public CodeGen exportELF() {
+        assert _phase == Phase.Encoding;
+        _phase = Phase.Export;
+        ElfFile obj = new ElfFile(this);
+        obj.export();
         return this;
     }
 
