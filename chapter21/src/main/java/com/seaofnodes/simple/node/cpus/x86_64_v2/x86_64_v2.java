@@ -99,9 +99,9 @@ public class x86_64_v2 extends Machine {
     // reg4 is X(base)
 
     // 0 denotes no direct register
-    public static int rex(int reg, int ptr, int idx, boolean W_SET) {
+    public static int rex(int reg, int ptr, int idx, boolean wide) {
         // assuming 64 bit by default so: 0100 1000
-        int rex = W_SET ? REX_W : REX;
+        int rex = wide ? REX_W : REX;
         if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
         if( 8 <= ptr && ptr <= 15 ) rex |= 0b00000001; // REX.B
         if( 8 <= idx && idx <= 15 ) rex |= 0b00000010; // REX.X
@@ -114,8 +114,8 @@ public class x86_64_v2 extends Machine {
 
     // rex for floats
     // don't need to use REX if 0x40
-    public static void rex_f(int reg, int ptr, int idx, boolean W_SET, Encoding enc) {
-        int rex = rex(reg, ptr, idx, W_SET);
+    public static void rexF(int reg, int ptr, int idx, boolean wide, Encoding enc) {
+        int rex = rex(reg, ptr, idx, wide);
         if (rex != 0x40) enc.add1(rex);
     }
     // Function used for encoding indirect memory addresses

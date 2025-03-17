@@ -20,7 +20,7 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
         // Fopcode
         enc.add1(0xF2);
         // rex prefix must come next (REX.W is not set)
-        x86_64_v2.rex_f(dst, src, 0, false, enc);
+        x86_64_v2.rexF(dst, src, 0, false, enc);
 
         enc.add1(0x0F).add1(0x58);
 
