@@ -1407,6 +1407,7 @@ public class Parser {
 
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
+        call.peephole();        // Rerun peeps after CallEnd, allows early inlining
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
