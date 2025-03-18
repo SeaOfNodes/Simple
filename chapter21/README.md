@@ -44,10 +44,13 @@
 This chapter will add instruction encodings.
 Instruction encoding refers to the representation of 
 machine instructions in a specific binary format defined by the 
-processor's instruction set architecture (ISA)
+processor's instruction set architecture (ISA).
 
-After we established instruction selection, we need to encode the instructions before we can write them
-into an ELF object file.
+
+After completing instruction selection, the next step is to encode the 
+instructions before writing them into an ELF object file.
+
+To avoid ambiguity, we define the sources  of the information we use to encode the instructions:
 
 Currently, we support these architectures:
 ### AMD64:
@@ -56,10 +59,8 @@ For *x86-64(amd64):*, we use the latest Intel manual for the [encoding rules](ht
 ### RISC-V:
 
 For *riscv* we currently target [RVA23U64](https://msyksphinz-self.github.io/riscv-isadoc/html/).
-- ARM
-Each of which has its own instruction encoding format.
 
-To avoid ambiguity, we define the sources  of the information we use to encode the instructions:
+
 
 ### ARMV8/AArch64 :
 For *arm*(aarch64) we use this collection for the [encoding rules](https://docsmirror.github.io/A64/2023-06/index.html).
@@ -93,11 +94,11 @@ As of now the bitstream is a simple BAOS stucture.
     enc.add4(0); // adds 4 bytes to the  bitstream
 }
 ```
-On *riscv* where the manual contains big endian encodings, this function also converts it to little-endian, for other architectures this stays the same.
+On *RISC-V*, where the documentation provides big-endian encodings, 
+this function also converts them to little-endian. For other architectures, no conversion is necessary.
 
 ## Endianness
-Both *ARM* *RISC-V* and *X86* are **little-endian** *in practice* architectures, which means that the least significant byte is stored first.
-We ensure that the encoding is done in little-endian format:
+ARM, RISC-V, and x86 are all little-endian architectures in practice, meaning the least significant byte is stored first. We ensure that instruction encodings are generated in little-endian format accordingly.
 
 ```java 
 // Little endian write of a 32b opcode
@@ -108,15 +109,15 @@ public void add4( int op ) {
     _bits.write(op>>24);
 }
 ```
-For example if we have this 32 bits encoding for fixed width instructions:
+For example, consider a 32-bit encoding for fixed-width instructions:
 *10110101100111101011001001101101*.
 
 We append the least significant byte first, then the next byte, and so on.
 ``` 
 _bits.write(op    );
 ```
-`_bits.write()` only appeds the least significant byte, by shifting it to the right we can manipulate it
-in a way so that the next byte becomes the least significant byte, and so on.
+
+`_bits.write()` only appends the least significant byte. By shifting the value to the right, we can bring the next byte into the least significant position, allowing us to write each byte in sequence.
 
 ## AMD64
 As opposed to riscv arhitectures, where the instruction width is fixed, *x86-64* has variable width instructions.
@@ -124,8 +125,7 @@ This is common with *CISC(Complex instruction set computer)* architectures, wher
 Since AMD64 supports many indirect addressing modes, the goal with CISC in general is to complete a task in as few lines of assembly as possible.
 
 ### REX PREFIX
-Since we target the 64 bit version of x86, we have to deal with this 
-prefix, otherwise its negligible in 32 bit mode.
+Since we are targeting the 64-bit version of x86, we need to handle this prefix. In 32-bit mode, however, it is typically unnecessary.
 
 Generally speaking the *REX* prefix must be encoded when:
  - using one of the extended registers (R8 to R15, XMM8 to XMM15, YMM8 to YMM15, CR8 to CR15 and DR8 to DR15);
@@ -134,7 +134,8 @@ Generally speaking the *REX* prefix must be encoded when:
 A *REX* prefix must not be encoded when:
  - using one of the high byte registers AH, CH, BH or DH.
 
-In all other cases, iti s ignored.
+*Note:* When encoding SSE instruction, the *REX* prefix(0x40) must come after the prefix.
+In all other cases, it is ignored.
 
 In Simple the REX prefix is just appneded to the beginning of the bit stream.
 The layout is the following:
@@ -285,7 +286,7 @@ if( x86_64_v2.imm8(_imm) ) enc.add1(_imm);
 else                       enc.add4(_imm);
 ```
 
-#### Indirect
+####  INDIRECT(MemOp)
 TBD
 
 #### Float
@@ -318,6 +319,7 @@ We see that `XMM0` corresponds to `RAX` and so on.
 #### Function constant
 To load a function constant we use lea which will load the address into the specified reg
 relative to the instruction pointer.
+`lea rax, [rip+disp32]`
 
 #### Conditional flags:
 The FLAGS register is the status register that contains the current state of an x86 CPU.
@@ -359,8 +361,7 @@ And then a conditional branch that is relying on the flags set by the comparison
 jne    1159 <square(int)+0x29>
 ``` 
 We'll see how this differs in ARM and RISCV.
---- 
-
+---
 
 ## ARM
 Arm instructions are all 32 bits wide, and are always little-endian.
@@ -420,7 +421,7 @@ After subbing in the values we get:
 
 > imms = (64 - _imm) - 1;
 
-Hence the `imms` value is `(64 - _imm) - 1`.
+Hence, the `imms` value is `(64 - _imm) - 1`.
 
 #### LSR(immediate)
 Same as *ASR*.
@@ -487,7 +488,7 @@ int body = arm.load_pc(0b01011100, 0, dst);
 
 #### Large constants
 
-##### INT: 
+##### INT: We can use different combinations of movs(movz, movk, movn) - this allows us to avoid PC relative loading.
 
 ##### FLOAT: We use the *LDR (immediate, SIMD&FP)* instruction relative to the 
 
@@ -522,9 +523,18 @@ operands and also sets the flags.
 
 Later on `b.ne` relies on this flag again when it attempts to conditionally execute a branch.
 
-#### Indirect
-TBD
+#### INDIRECT(MemOp)
+Arm supports the following indirect forms:
 
+[Load](https://docsmirror.github.io/A64/2023-06/ldr_reg_gen.html): `ldr dst, [base + index]` where both, base and index are registers.
+
+[Load](https://docsmirror.github.io/A64/2023-06/ldr_imm_gen.html): `ldr dst, [base + #offset]` where base is a register and the offset is an immediate.
+
+[Store](https://docsmirror.github.io/A64/2023-06/str_reg_gen.html): `str dst, [base + index]`
+
+[Store](https://docsmirror.github.io/A64/2023-06/strb_imm.html): `str dst, [base + #offset]`
+
+If the offset is not a con
 #### Branching 
 `B.cond` - branch [conditionally](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/Condition-codes?lang=en) to a label at a PC-relative offset.
 
@@ -533,37 +543,123 @@ TBD
 ---
 
 ## RISCV
+RISCV instructions are all 32 bits wide, and are always little-endian.
+RISCV is a RISC architecture, it prioritizes "register-to-register" forms.
 
-#### 
 #### Instruction formats
 
+##### R-TYPE
+This encoding format is used for reg-to-reg operations.
+Such as `AddRISC`, `MulRISC` etc.
+```java 
+public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
+     return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+}
+```
+
+##### I-TYPE
+This layout is used for immediate formats. Such as `AddIRISC`
+
+```java 
+ public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
+     assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
+     return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+ }
+```
+
+##### S-TYPE
+
+This encoding format is used for `StoreRISC`.
+
+```java
+public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
+  assert imm12 >= 0;      // Masked to high zero bits by caller
+  int imm_lo = imm12 & 0x1F;
+  int imm_hi = imm12 >> 5;
+  return (imm_hi << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm_lo << 7) | opcode;
+}
+```
+
+##### B-TYPE
+
+This encoding layout is used by `BranchRISC`.
+```java
+ // immf = first imm
+ // immd = second imm
+ // BRANCH
+public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
+     return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
+ }
+```
+
+##### U-TYPE
+This layout is used for `AUIPC` and `LUI`(upper immediate is 20-bits).
+
+```java 
+ public static int u_type(int opcode, int rd, int imm20) {
+     return (imm20 << 12) | (rd << 7) | opcode;
+ }
+```
+
+##### J-TYPE
+Used for unconditional jumps. (`UJmpRISC`)
+```java 
+ public static int j_type(int opcode, int rd, int imm20) {
+     return imm20 << 12 | rd << 7 | opcode;
+ }
+```
+
 #### FLOAT
+For loading float constants, we use indirect memory load(PC-relative).
+``` 
+AUIPC dst,#hi20_constant_pool
+Load dst,[dst+#low12_constant_pool]
+```
 
 #### INDIRECT(MemOp)
 
+[Load](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw): `lw rd,offset(rs1)`
+
+[Store](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw): `sw rs2,offset(rs1)`
+
 #### BRANCH
+RISC-V is unusual because branch instructions include the comparison and branch target in one instruction.
 
+#### Immediates
+We only encode the imm form for the *ALU* operations if they fit into 12 bits.(signed)
+Otherwise we do an extra load.
+(encode it in instruction)
+```
+ addiw	a5,a5,123
+```
+vs
+(do it with extra load):
+```
+addw a5,a5,a4
+```
 
-#### Large constants
+### FLOAT Constants
+- Stored in the **constant pool**.
+- Accessed via **PC-relative loads**.
 
-##### FLOAT: HANDLED ALREADY
-##### INT: HANDLED ALREADY
+### INT Constants
+- **12-bit constants**
+   - Use `ADDI`
+- **20-bit constants**
+   - Use `LUI`
+- **32-bit constants**
+   - Use `LUI` + `ADDI` combo
+   - 
 
 #### Function Constant
+In our RISC-V code, when we need to load a function-local constant, 
+we store the current PC into a register and use that as a base to access the constant. However, we usually try to avoid loads, since simple arithmetic like addition is faster and more efficient than accessing memory.
 
-#### LUI
-Constant hacking from cpp discord.
-
-
-
-
-
+```java 
+// auipc  t0,0
+// addi   t1,t0 + #0
+```
 ## Relocation
 
-### Lots of Bits
+## Local paches: TBD
 
-
-
-[^1]: [Intel](smt here)
-
-[^2]: ()

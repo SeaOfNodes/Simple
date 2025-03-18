@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 public class x86_64_v2 extends Machine {
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "x86_64_v2"; }
+    @Override public int defaultOpSize() { return 5; }
 
     public static int RAX = 0, RCX = 1, RDX = 2, RBX = 3, RSP = 4, RBP = 5, RSI = 6, RDI = 7;
     public static int R08 = 8, R09 = 9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
@@ -453,9 +454,9 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node call(CallNode call) {
-        if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
-            return new CallX86(call, tfp);
-        return new CallRX86(call);
+        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+            ? new CallX86(call, tfp)
+            : new CallRX86(call);
     }
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".

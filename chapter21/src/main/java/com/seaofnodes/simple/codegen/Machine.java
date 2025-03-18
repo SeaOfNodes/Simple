@@ -7,6 +7,8 @@ abstract public class Machine {
     public abstract String name();
     // Human-readable name for a register number, e.g. "RAX" or "R0"
     public abstract String reg( int reg );
+    // Default opcode size for printing; 4 bytes for most 32-bit risc chips
+    public int defaultOpSize() { return 4; }
     // Create a split op; any register to any register, including stack slots
     public abstract SplitNode split( String kind, byte round, LRG lrg);
     // List of caller-save registers

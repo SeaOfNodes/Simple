@@ -14,7 +14,7 @@ public class TFPARM extends ConstantNode implements MachNode {
     @Override public boolean isClone() { return true; }
     @Override public TFPARM copy() { return new TFPARM(this); }
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this,(TypeFunPtr)_con);
+        enc.relo(this);
         short self = enc.reg(this);
         // adrp    x0, 0
         int adrp = arm.adrp(1,0, 0b10000, 0,self);

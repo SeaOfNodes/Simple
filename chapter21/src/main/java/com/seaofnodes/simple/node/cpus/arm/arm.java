@@ -212,7 +212,7 @@ public class arm extends Machine {
     public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));
-        int body = imm_inst(opcode, imm12, reg1, self);
+        int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
         enc.add4(body);
     }
 
@@ -297,16 +297,6 @@ public class arm extends Machine {
     // [Rptr+imm9]
     public static int load_str_imm(int opcode, int imm9, int ptr, int rt) {
         return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
-    }
-    // Todo: provide op as binary here
-    public static void ldst_encode( Encoding enc, int opcode, MemOpARM n, Node xval ) {
-        short ptr = enc.reg(n.ptr());
-        short off = enc.reg(n.off());
-        short val = enc.reg(xval)   ;
-        int body = n.off() == null
-            ? load_str_imm(opcode, off, ptr, val)
-            : indr_adr(opcode+1, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
-        enc.add4(body);
     }
 
     // encoding for vcvt, size is encoded in operand
@@ -542,9 +532,9 @@ public class arm extends Machine {
     }
 
     private Node call(CallNode call){
-        if(call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp)
-            return new CallARM(call, tfp);
-        return new CallRRARM(call);
+        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+            ? new CallARM(call, tfp)
+            : new CallRRARM(call);
     }
 
     private Node or(OrNode or) {

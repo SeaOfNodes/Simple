@@ -38,7 +38,8 @@ public class UJmpX86 extends CFGNode implements MachNode, RIPRelSize {
             assert (byte)delta==delta;
             bits[opStart+1] = (byte)delta;
         } else {
-            assert bits[opStart  ] == (byte)0xE9;
+            assert bits[opStart] == (byte)0xEB;
+            bits[opStart] = (byte)0xE9; // Long form
             delta -= 5;         // Offset from opcode END
             enc.patch4(opStart+1,delta);
         }

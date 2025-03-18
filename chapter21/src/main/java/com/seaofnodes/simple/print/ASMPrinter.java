@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
@@ -38,10 +39,10 @@ public abstract class ASMPrinter {
         return iadr;
     }
 
-    static private final int encWidth = 10;
     static private final int opWidth = 5;
     static private final int argWidth = 30;
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
+        final int encWidth = code._mach.defaultOpSize()*2;
         CFGNode bb = code._cfg.at(cfgidx);
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p(label(bb)).p(":").nl();
@@ -84,6 +85,7 @@ public abstract class ASMPrinter {
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
+        final int encWidth = code._mach.defaultOpSize()*2;
 
         // All blocks ending in a Region will need to either fall into or jump
         // to this block.  Until the post-reg-alloc block layout cleanup, we
@@ -127,14 +129,16 @@ public abstract class ASMPrinter {
         sb.p("  ");
 
         // Op; generally "ld4" or "call"
-        sb.fix(opWidth, n instanceof MachNode mach ? mach.op() : n.label());
-        sb.p(" ");
+        sb.fix(opWidth, n instanceof MachNode mach ? mach.op() : n.label()).p(" ");
 
         // General asm args
+        String isMultiOp = null;
         if( n instanceof MachNode mach ) {
             int old = sb.len();
             mach.asm(code,sb);
-            sb.fix(argWidth-(sb.len()-old),""); // Pad out
+            int len = sb.len();
+            isMultiOp = isMultiOp(sb,old,len);
+            sb.fix(argWidth-(len-old),""); // Pad out
 
         } else if( !(n._type instanceof TypeMem) ) {
             // Room for some inputs
@@ -155,8 +159,33 @@ public abstract class ASMPrinter {
 
         sb.nl();
 
+        // Printing more op bits than fit
+        if( isMultiOp != null ) {
+            // Multiple ops, template style, no RA, no scheduling.  Print out
+            // one-line-per-newline, with encoding bits up front.
+            int size = code._encoding._opLen[n._nid];
+            int off = code._mach.defaultOpSize();
+            while( isMultiOp!=null ) {
+                sb.hex2(iadr).p(" ");
+                int len = Math.min(off,size);
+                for( int i=0; i<len; i++ )
+                    sb.hex1(code._encoding._bits.buf()[iadr++]);
+                off += code._mach.defaultOpSize();
+                sb.p("  ");
+                int x = isMultiOp.indexOf('\n');
+                if( x== -1 ) {  // Last line
+                    sb.p(isMultiOp).nl();
+                    isMultiOp = null;
+                } else {
+                    sb.p(isMultiOp.substring(0,x+1)); // Includes the newline
+                    isMultiOp = isMultiOp.substring(x+1);
+                }
 
-        if( fatEncoding > 0 ) {
+            }
+
+        } else if( fatEncoding > 0 ) {
+            // Extra bytes past the default encoding width, all put on a line by
+            // themselves.  X86 special for super long encodings
             sb.hex2(iadr).p(" ");
             for( int i=0; i<fatEncoding; i++ )
                 sb.hex1(code._encoding._bits.buf()[iadr++]);
@@ -177,6 +206,16 @@ public abstract class ASMPrinter {
 
     private static String label( CFGNode bb ) {
         return (bb instanceof LoopNode ? "LOOP" : "L")+bb._nid;
+    }
+
+    private static String isMultiOp(SB sb, int old, int len) {
+        for( int i=old; i<len; i++ )
+            if( sb.at(i)=='\n' ) {
+                String s = sb.subString(i+1,len);
+                sb.setLen(i);
+                return s;
+            }
+        return null;
     }
 
 }

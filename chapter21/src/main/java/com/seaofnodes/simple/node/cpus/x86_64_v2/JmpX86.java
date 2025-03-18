@@ -13,7 +13,7 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     }
     @Override public String op() { return "j"+_bop; }
     @Override public String label() { return op(); }
-    @Override public void postSelect() {
+    @Override public void postSelect(CodeGen code) {
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
@@ -48,9 +48,10 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
             assert (byte)delta==delta;
             bits[opStart+1] = (byte)delta;
         } else {
-            assert bits[opStart  ] == 0x0F;
-            assert bits[opStart+1] == x86_64_v2.jumpop(_bop);
+            assert bits[opStart] == x86_64_v2.jumpop(_bop)-16;
             delta -= 6;         // Offset from opcode END
+            bits[opStart] = 0x0F;
+            bits[opStart+1] = (byte)x86_64_v2.jumpop(_bop);
             enc.patch4(opStart+2,delta);
         }
     }

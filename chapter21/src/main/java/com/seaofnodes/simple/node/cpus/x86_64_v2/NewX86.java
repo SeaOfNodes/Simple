@@ -17,7 +17,7 @@ public class NewX86 extends NewNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this);
+        enc.external(this,"calloc");
         // E8 cd    CALL rel32;
         enc.add1(0xE8);
         enc.add4(0);            // offset
@@ -25,7 +25,7 @@ public class NewX86 extends NewNode implements MachNode {
 
     // General form: "alloc #bytes"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(size()));
+        sb.p("#calloc, ").p(code.reg(size()));
     }
 
 }

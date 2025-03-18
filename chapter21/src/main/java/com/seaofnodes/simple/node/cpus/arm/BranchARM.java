@@ -14,7 +14,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     @Override public String op() { return "j"+_bop; }
     @Override public String label() { return op(); }
 
-    @Override public void postSelect() {
+    @Override public void postSelect(CodeGen code) {
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
@@ -30,12 +30,11 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        enc.jump(this,cproj(0));
         // Assuming that condition flags are already set.  These flags are set
         // by comparison (or sub).  No need for regs because it uses flags
+        enc.jump(this,cproj(0));
         // B.cond
-        int body = arm.b_cond(0b01010100, 0, arm.make_condition(_bop));
-        enc.add4(body);
+        enc.add4( arm.b_cond(0b01010100, 0, arm.make_condition(_bop)) );
     }
 
     // Delta is from opcode start

@@ -42,18 +42,12 @@ public class Encoding {
         public byte[] buf() { return buf; }
         void set( byte[] buf0, int count0 ) { buf=buf0; count=count0; }
     };
-    final public BAOS _bits;
+    final public BAOS _bits = new BAOS();
 
     public int [] _opStart;     // Start  of opcodes, by _nid
     public byte[] _opLen;       // Length of opcodes, by _nid
 
-    Encoding( CodeGen code ) {
-        _code = code;
-        _bits = new BAOS();
-        _bigCons = new HashMap<>();
-        _jmps = new HashMap<>();
-        _funcRelos = new HashMap<>();
-    }
+    Encoding( CodeGen code ) { _code = code; }
 
     // Shortcut to the defining register
     public short reg(Node n) {
@@ -87,32 +81,41 @@ public class Encoding {
     }
 
 
-    // Relocation thinking:
-    // `encoding()` calls back with info (TFP needed, branch target needed).
-    // Record start of op & TFP/target info.
-
-    // During some future RELO phase, after TFP layout/targets known
-    // call back with `ReloNode.patch(byte[],src_offset,TFP,dst_offset)`
-    // X86 gets a special pass for expanding short jumps.
-
-    public final HashMap<Node,TypeFunPtr> _funcRelos;
-    public void relo( Node relo, TypeFunPtr t ) {
-        _funcRelos.put(relo, t);
+    // Nodes need "relocation" patching; things done after code is placed.
+    // Record src and dst Nodes.
+    private final HashMap<Node,CFGNode> _internals = new HashMap<>();
+    // Source is a Call, destination in the Fun.
+    public Encoding relo( CallNode call ) {
+        _internals.put(call,_code.link(call.tfp()));
+        return this;
     }
-    public void relo( NewNode nnn ) {
-        // TODO: record alloc relocation info
+    public Encoding relo( ConstantNode con ) {
+        TypeFunPtr tfp = (TypeFunPtr)con._con;
+        _internals.put(con,_code.link(tfp));
+        return this;
     }
+    public void jump( CFGNode jmp, CFGNode dst ) {
+        while( dst.nOuts() == 1 ) // Skip empty blocks
+            dst = dst.uctrl();
+        _internals.put(jmp,dst);
+    }
+
+
+    final HashMap<Node,String> _externals = new HashMap<>();
+    public Encoding external( Node call, String extern ) {
+        _externals.put(call,extern);
+        return this;
+    }
+
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
 
-    public final HashMap<Node,Type> _bigCons;
+    public final HashMap<Node,Type> _bigCons = new HashMap<>();
     public void largeConstant( Node relo, Type t ) {
         assert t.isConstant();
         _bigCons.put(relo,t);
         // TODO:
     }
-    private final HashMap<CFGNode,CFGNode> _jmps;
-    public void jump( CFGNode jmp, CFGNode target ) { _jmps.put(jmp,target); }
 
     void encode() {
         // Basic block layout: invert branches to keep blocks in-order; insert
@@ -222,9 +225,10 @@ public class Encoding {
         _opStart= new int [_code.UID()];
         _opLen  = new byte[_code.UID()];
         for( CFGNode bb : _code._cfg ) {
-            if( !(bb instanceof MachNode) ) _opStart[bb._nid] = _bits.size();
+            if( !(bb instanceof MachNode) || bb instanceof FunNode )
+                _opStart[bb._nid] = _bits.size();
             for( Node n : bb._outputs ) {
-                if( n instanceof MachNode mach ) {
+                if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
                     _opStart[n._nid] = _bits.size();
                     mach.encoding( this );
                     _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
@@ -292,13 +296,11 @@ public class Encoding {
 
     // Patch local encodings now
     private void patchLocalRelocations() {
-        // Walk all the jumps.  Re-patch them all now with but with the Real Offset
-        for( CFGNode jmp : _jmps.keySet() ) {
-            CFGNode target = jmp instanceof IfNode iff ? iff.cproj(0) : jmp.uctrl();
-            while( target.nOuts() == 1 ) // Skip empty blocks
-                target = target.uctrl();
-            int start = _opStart[jmp._nid];
-            ((RIPRelSize)jmp).patch(this, start, _opLen[jmp._nid], _opStart[target._nid] - start);
+        // Walk the local code-address relocations
+        for( Node src : _internals.keySet() ) {
+            Node dst = _internals.get(src);
+            int start = _opStart[src._nid];
+            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], _opStart[dst._nid] - start);
         }
     }
 

@@ -378,17 +378,13 @@ public class riscv extends Machine {
     }
 
     private Node call(CallNode call) {
-        // Options here are:
-        // 4G range in 2ops and either PC-relative or absolute
-        // 4K range in 1op absolute
-        // Since 4K is too small, we're going with 4G PC-relative in 2 ops
-        if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
-            return new CallRISC(call, tfp, new AUIPC(tfp));
-        return new CallRRISC(call);
+        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+            ? new CallRISC(call, tfp)
+            : new CallRRISC(call);
     }
     private Node nnn(NewNode nnn) {
         // TODO: pass in the TFP for alloc
-        return new NewRISC(nnn, new AUIPC(null));
+        return new NewRISC(nnn);
     }
 
     private Node cmp(BoolNode bool) {
