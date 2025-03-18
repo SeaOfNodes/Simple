@@ -26,7 +26,23 @@ public class UJmpX86 extends CFGNode implements MachNode, RIPRelSize {
         //enc.add1(0xE9).add4(0);
     }
 
-    @Override public byte encSize(int delta) { return (byte)(x86_64_v2.imm8(delta) ? 2 : 6); }
+    // Delta is from opcode start, but X86 measures from the end of the 2-byte encoding
+    @Override public byte encSize(int delta) { return (byte)(x86_64_v2.imm8(delta-2) ? 2 : 5); }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        byte[] bits = enc.bits();
+        if( opLen==2 ) {
+            assert bits[opStart] == (byte)0xEB;
+            delta -= 2;         // Offset from opcode END
+            assert (byte)delta==delta;
+            bits[opStart+1] = (byte)delta;
+        } else {
+            assert bits[opStart  ] == (byte)0xE9;
+            delta -= 5;         // Offset from opcode END
+            enc.patch4(opStart+1,delta);
+        }
+    }
 
     @Override public void asm(CodeGen code, SB sb) {
         CFGNode target = uctrl();

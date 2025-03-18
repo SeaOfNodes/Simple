@@ -4,9 +4,8 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
-
 // Jump on flags, uses flags
-public class BranchARM extends IfNode implements MachNode{
+public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     String _bop;
     BranchARM(IfNode iff, String bop ) {
         super(iff);
@@ -38,6 +37,23 @@ public class BranchARM extends IfNode implements MachNode{
         int body = arm.b_cond(0b01010100, 0, arm.make_condition(_bop));
         enc.add4(body);
     }
+
+    // Delta is from opcode start
+    @Override public byte encSize(int delta) {
+        if( -(1<<19) <= delta && delta < (1<<19) ) return 4;
+        // 2 word encoding needs a tmp register, must teach RA
+        throw Utils.TODO();
+    }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        if( opLen==4 ) {
+            enc.patch4(opStart,arm.b_cond(0b01010100, delta, arm.make_condition(_bop)));
+        } else {
+            throw Utils.TODO();
+        }
+    }
+
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
         if( src!="flags" ) sb.p(src).p(" ");

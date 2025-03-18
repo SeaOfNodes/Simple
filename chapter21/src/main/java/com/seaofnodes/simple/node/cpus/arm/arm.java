@@ -329,26 +329,29 @@ public class arm extends Machine {
         return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
     }
     public static void f_cmp(Encoding enc, Node n) {
-        short reg1 = (short)(enc.reg(n.in(1))-arm.D_OFFSET);
-        short reg2 = (short)(enc.reg(n.in(2))-arm.D_OFFSET);
+        short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
+        short reg2 = (short)(enc.reg(n.in(2))-D_OFFSET);
         int body = f_cmp(0b00011110, 3, reg1,  reg2);
         enc.add4(body);
     }
 
     public static COND make_condition(String bop) {
         return switch (bop) {
-            case "==" -> arm.COND.EQ;
-            case "!=" -> arm.COND.NE;
-            case "<"  -> arm.COND.LE;
-            case "<=" -> arm.COND.LT;
-            case ">=" -> arm.COND.GT;
-            case ">"  -> arm.COND.GE;
-            default   -> throw Utils.TODO();
+        case "==" -> COND.EQ;
+        case "!=" -> COND.NE;
+        case "<"  -> COND.LE;
+        case "<=" -> COND.LT;
+        case ">=" -> COND.GT;
+        case ">"  -> COND.GE;
+        default   -> throw Utils.TODO();
         };
     }
-    // Todo: maybe missing zero here after label << 5
-    public static int b_cond(int opcode, int label, COND cond) {
-        return (opcode << 24) | (label << 5) | cond.ordinal();
+    // Todo: maybe missing zero here after delta << 5
+    public static int b_cond(int opcode, int delta, COND cond) {
+        // 24-5 == 19bits offset range
+        assert -(1<<19) <= delta && delta < (1<<19);
+        delta &= (1L<<19)-1;    // Zero extend
+        return (opcode << 24) | (delta << 5) | cond.ordinal();
     }
 
     public static int cond_set(int opcode, int rm, COND cond, int rn, int rd) {
@@ -359,8 +362,10 @@ public class arm extends Machine {
     public static int blr(int opcode, int rd) {
         return opcode << 10 | rd << 5;
     }
-    public static int b(int opcode, int imm26) {
-        return (opcode << 26) | imm26;
+    public static int b(int opcode, int delta) {
+        assert -(1<<26) <= delta && delta < (1<<26);
+        delta &= (1L<<26)-1;    // Zero extend
+        return (opcode << 26) | delta;
     }
 
     static RegMask callInMask(TypeFunPtr tfp, int idx ) {
