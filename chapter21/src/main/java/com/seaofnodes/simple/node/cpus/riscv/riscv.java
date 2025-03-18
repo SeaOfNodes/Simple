@@ -384,7 +384,7 @@ public class riscv extends Machine {
     }
     private Node nnn(NewNode nnn) {
         // TODO: pass in the TFP for alloc
-        return new NewRISC(nnn, new AUIPC(null));
+        return new NewRISC(nnn);
     }
 
     private Node cmp(BoolNode bool) {

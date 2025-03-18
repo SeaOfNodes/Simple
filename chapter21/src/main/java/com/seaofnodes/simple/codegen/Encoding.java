@@ -82,17 +82,31 @@ public class Encoding {
 
 
     // Nodes need "relocation" patching; things done after code is placed.
-    private final Ary<Node> _internals = new Ary<>(Node.class);
-    public  final Ary<Node> _externals = new Ary<>(Node.class);
+    // Record src and dst Nodes.
+    private final HashMap<Node,CFGNode> _internals = new HashMap<>();
+    // Source is a Call, destination in the Fun.
     public Encoding relo( CallNode call ) {
-        (call.external() ? _externals : _internals).add(call);
+        _internals.put(call,_code.link(call.tfp()));
         return this;
     }
-    public Encoding reloTFP( ConstantNode con ) { _internals.add(con); return this; }
-
-    public void relo( NewNode nnn ) {
-        // TODO: record alloc relocation info
+    public Encoding relo( ConstantNode con ) {
+        TypeFunPtr tfp = (TypeFunPtr)con._con;
+        _internals.put(con,_code.link(tfp));
+        return this;
     }
+    public void jump( CFGNode jmp, CFGNode dst ) {
+        while( dst.nOuts() == 1 ) // Skip empty blocks
+            dst = dst.uctrl();
+        _internals.put(jmp,dst);
+    }
+
+
+    final HashMap<Node,String> _externals = new HashMap<>();
+    public Encoding external( Node call, String extern ) {
+        _externals.put(call,extern);
+        return this;
+    }
+
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
 
@@ -102,10 +116,6 @@ public class Encoding {
         _bigCons.put(relo,t);
         // TODO:
     }
-
-    // Local relocation info for patching local jumps, once targets are known.
-    private final HashMap<CFGNode,CFGNode> _jmps = new HashMap<>();
-    public void jump( CFGNode jmp, CFGNode target ) { _jmps.put(jmp,target); }
 
     void encode() {
         // Basic block layout: invert branches to keep blocks in-order; insert
@@ -286,27 +296,11 @@ public class Encoding {
 
     // Patch local encodings now
     private void patchLocalRelocations() {
-        // Walk all the jumps.  Re-patch them all now with but with the Real Offset
-        for( CFGNode jmp : _jmps.keySet() ) {
-            CFGNode target = jmp instanceof IfNode iff ? iff.cproj(0) : jmp.uctrl();
-            while( target.nOuts() == 1 ) // Skip empty blocks
-                target = target.uctrl();
-            int start = _opStart[jmp._nid];
-            ((RIPRelSize)jmp).patch(this, start, _opLen[jmp._nid], _opStart[target._nid] - start);
-        }
-
-
         // Walk the local code-address relocations
-        for( Node n : _internals ) {
-            TypeFunPtr tfp = n instanceof CallNode call ? call.tfp() : (TypeFunPtr)n._type;
-            FunNode fun = _code.link(tfp);
-            int start = _opStart[n._nid];
-            ((RIPRelSize)n).patch(this, start, _opLen[n._nid], _opStart[fun._nid] - start);
-        }
-
-        // Walk the external call relocations
-        for( Node call : _externals ) {
-          throw Utils.TODO();
+        for( Node src : _internals.keySet() ) {
+            Node dst = _internals.get(src);
+            int start = _opStart[src._nid];
+            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], _opStart[dst._nid] - start);
         }
     }
 

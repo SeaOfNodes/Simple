@@ -298,16 +298,6 @@ public class arm extends Machine {
     public static int load_str_imm(int opcode, int imm9, int ptr, int rt) {
         return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
     }
-    // Todo: provide op as binary here
-    public static void ldst_encode( Encoding enc, int opcode, MemOpARM n, Node xval ) {
-        short ptr = enc.reg(n.ptr());
-        short off = enc.reg(n.off());
-        short val = enc.reg(xval)   ;
-        int body = n.off() == null
-            ? load_str_imm(0b1111100101, off, ptr, val)
-            : indr_adr(0b11111000011, off, STORE_LOAD_OPTION.SXTX, 0, ptr, val);
-        enc.add4(body);
-    }
 
     // encoding for vcvt, size is encoded in operand
     // <Qd>, <Qm>

@@ -15,7 +15,7 @@ public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public AUIPC copy() { return new AUIPC((TypeFunPtr)_con); }
     @Override public String op() { return "auipc"; }
     @Override public void encoding( Encoding enc ) {
-        enc.reloTFP(this);
+        enc.relo(this);
         short dst = enc.reg(this);
         enc.add4(riscv.u_type(0x17, dst, 0));
     }

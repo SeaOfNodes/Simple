@@ -54,6 +54,7 @@ public final class SB {
       _sb.append( i < s.length() ? s.charAt(i) : ' ');
     return this;
   }
+  public char at(int idx ) { return _sb.charAt(idx); }
 
   // Not spelled "p" on purpose: too easy to accidentally say "p(1.0)" and
   // suddenly call the autoboxed version.
@@ -93,6 +94,8 @@ public final class SB {
   //
   public SB unchar() { return unchar(1); }
   public SB unchar(int x) { _sb.setLength(_sb.length()-x); return this; }
+  public SB setLen(int len) { _sb.setLength(len); return this; }
+  public String subString(int start, int end ) { return _sb.substring(start,end); }
 
   public SB clear() { _sb.setLength(0); return this; }
   public int len() { return _sb.length(); }

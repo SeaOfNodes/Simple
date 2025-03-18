@@ -284,10 +284,10 @@ public class ElfFile {
 
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
-        for( Node n : _code._encoding._externals) {
+        for( Node n : _code._encoding._externals.keySet()) {
             int nid    = n._nid;
-            TypeFunPtr tfp = n instanceof CallNode call ? call.tfp() : (TypeFunPtr)n._type;
-            int sym_id = _funcs.get(tfp)._index;
+            String extern = _code._encoding._externals.get(n);
+            int sym_id = _funcs.get(extern)._index;
             int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
 
             // u64 offset
