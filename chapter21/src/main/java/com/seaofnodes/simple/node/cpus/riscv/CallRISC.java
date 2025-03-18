@@ -28,24 +28,28 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public TypeFunPtr tfp() { return _tfp; }
 
     @Override public void encoding( Encoding enc ) {
+        // Short form +/-4K:  beq r0,r0,imm12
+        // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
         enc.relo(this);
         short rpc = enc.reg(this);
-        //// High half is where the TFP constant used to be, the last input
-        //short auipc = enc.reg(in(_inputs._len-1));
-        //enc.add4(riscv.i_type(0x67, rpc, 0, auipc, 0));
-        // TODO: JAL for range
-        throw Utils.TODO();
+        enc.add4(riscv.j_type(riscv.J_JAL, rpc, 0));
     }
 
-    // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding
-    @Override public byte encSize(int delta) { return 4; }
+    // Delta is from opcode start
+    @Override public byte encSize(int delta) {
+        if( -(1L<<20) <= delta && delta < (1L<<20) ) return 4;
+        // 2 word encoding needs a tmp register, must teach RA
+        throw Utils.TODO();
+    }
 
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
-        // High half is where the TFP constant used to be, the last input
-        short auipc = enc.reg(in(_inputs._len-1));
-        enc.patch4(opStart,riscv.i_type(0x67, rpc, 0, auipc, delta&0xFFF));
+        if( opLen==4 ) {
+            enc.patch4(opStart,riscv.j_type(riscv.J_JAL, rpc, delta));
+        } else {
+            throw Utils.TODO();
+        }
     }
 
     @Override public void asm(CodeGen code, SB sb) {
