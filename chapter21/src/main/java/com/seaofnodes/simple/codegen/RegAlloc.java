@@ -149,7 +149,8 @@ public class RegAlloc {
         byte round=0;
         while( !graphColor(round) ) {
             split(round);
-            assert round < 7; // Really expect to be done soon
+            if( round >= 7 )    // Really expect to be done soon
+                throw Utils.TODO("Allocator taking too long");
             round++;
         }
         postColor();                       // Remove no-op spills
@@ -238,7 +239,7 @@ public class RegAlloc {
             makeSplit("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, false/*true*/);
         // Split just before use
         if( lrg._1regUseCnt==1 )
-            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
+            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg,false);
         return true;
     }
 
@@ -421,7 +422,7 @@ public class RegAlloc {
         for( Node n : _ns ) assert !n.isDead();
     }
 
-    void insertBefore(Node n, int i, String kind, byte round, LRG lrg) {
+    void insertBefore(Node n, int i, String kind, byte round, LRG lrg, boolean skip) {
         Node def = n.in(i);
         // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
@@ -435,8 +436,11 @@ public class RegAlloc {
         }
         makeSplit(def,kind,round,lrg).insertBefore(n, i);
         // Skip split-of-split same block
-        if( def instanceof SplitNode && cfg==def.cfg0() )
+        if( skip && def instanceof SplitNode && cfg==def.cfg0() )
             n.in(i).setDefOrdered(1,def.in(1));
+    }
+    void insertBefore(Node n, int i, String kind, byte round, LRG lrg) {
+        insertBefore(n,i,kind,round,lrg,true);
     }
 
     private Node makeSplit( Node def, String kind, byte round, LRG lrg ) {

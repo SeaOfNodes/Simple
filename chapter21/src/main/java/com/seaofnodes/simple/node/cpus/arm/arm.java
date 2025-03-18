@@ -7,6 +7,10 @@ import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 
 public class arm extends Machine {
+    public arm( CodeGen code ) {
+        if( !"SystemV".equals(code._callingConv) )
+            throw new IllegalArgumentException("Unknown calling convention "+code._callingConv);
+    }
 
     // ARM64
     @Override public String name() { return "arm"; }

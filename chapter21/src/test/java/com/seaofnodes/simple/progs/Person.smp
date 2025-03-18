@@ -1,12 +1,12 @@
-
+// -*-java-*-
 struct Person {
-  int age;
+    int age;
 };
 
 val fcn = { Person?[] ps, int x ->
-  val tmp = ps[x];
-  if( ps[x] )
-    ps[x].age++;
+    val tmp = ps[x];
+    if( ps[x] )
+        ps[x].age++;
 };
 
 Person?[] !ps = new Person?[2];
