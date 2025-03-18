@@ -19,6 +19,6 @@ public class NewARM extends NewNode implements MachNode {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(size()));
+        sb.p("#calloc, ").p(code.reg(size()));
     }
 }

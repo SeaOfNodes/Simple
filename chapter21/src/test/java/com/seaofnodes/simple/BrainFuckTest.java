@@ -64,7 +64,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 return output;
 """;
         Chapter21Test.testCPU(src,"x86_64_v2", "SystemV",28,null);
-        Chapter21Test.testCPU(src,"riscv"    , "SystemV",14,null);
+        Chapter21Test.testCPU(src,"riscv"    , "SystemV",12,null);
         Chapter21Test.testCPU(src,"arm"      , "SystemV",12,null);
         //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }

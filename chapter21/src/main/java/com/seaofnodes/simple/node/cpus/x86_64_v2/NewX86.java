@@ -25,7 +25,7 @@ public class NewX86 extends NewNode implements MachNode {
 
     // General form: "alloc #bytes"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(size()));
+        sb.p("#calloc, ").p(code.reg(size()));
     }
 
 }

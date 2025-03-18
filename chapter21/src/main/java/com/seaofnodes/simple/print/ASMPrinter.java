@@ -138,7 +138,7 @@ public abstract class ASMPrinter {
             mach.asm(code,sb);
             int len = sb.len();
             isMultiOp = isMultiOp(sb,old,len);
-            sb.fix(argWidth-len,""); // Pad out
+            sb.fix(argWidth-(len-old),""); // Pad out
 
         } else if( !(n._type instanceof TypeMem) ) {
             // Room for some inputs
