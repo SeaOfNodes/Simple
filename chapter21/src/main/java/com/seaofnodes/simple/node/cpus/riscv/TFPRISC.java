@@ -14,7 +14,7 @@ public class TFPRISC extends ConstantNode implements MachNode {
     @Override public boolean isClone() { return true; }
     @Override public TFPRISC copy() { return new TFPRISC(this); }
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this,(TypeFunPtr)_con);
+        enc.reloTFP(this);
         short dst = enc.reg(this);
         TypeFunPtr tfp = (TypeFunPtr)_con;
         // auipc  t0,0

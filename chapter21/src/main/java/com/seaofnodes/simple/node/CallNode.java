@@ -50,6 +50,10 @@ public class CallNode extends CFGNode {
     // Error if not a TFP
     public TypeFunPtr tfp() { return (TypeFunPtr)fptr()._type; }
 
+    // Call is to an externally supplied code
+    public boolean external() { return false; }
+
+
     // Find the Call End from the Call
     public CallEndNode cend() {
         // Always in use slot 0

@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
 
-public class CallARM extends CallNode implements MachNode {
+public class CallARM extends CallNode implements MachNode, RIPRelSize {
     final TypeFunPtr _tfp;
     final String _name;
 
@@ -25,9 +25,17 @@ public class CallARM extends CallNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
 
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this,_tfp);    // Record relo info
+        enc.relo(this);
         // BL
-        enc.add4(arm.b(0B100101,0)); // Target patched at link time
+        enc.add4(arm.b(0b100101,0)); // Target patched at link time
+    }
+
+    // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding
+    @Override public byte encSize(int delta) { return 4; }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        enc.patch4(opStart,arm.b(0b100101,delta));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

@@ -542,9 +542,9 @@ public class arm extends Machine {
     }
 
     private Node call(CallNode call){
-        if(call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp)
-            return new CallARM(call, tfp);
-        return new CallRRARM(call);
+        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+            ? new CallARM(call, tfp)
+            : new CallRRARM(call);
     }
 
     private Node or(OrNode or) {

@@ -9,7 +9,7 @@ public interface MachNode {
     default Machine machine() { return CodeGen.CODE._mach; }
 
     // Run a post-instruction-selection action
-    default void postSelect() { }
+    default void postSelect( CodeGen code ) { }
 
     // Register mask allowed on input i.  0 for no register.
     RegMask regmap( int i );

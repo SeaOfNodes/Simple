@@ -230,7 +230,7 @@ public class CodeGen {
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
         if( x instanceof MachNode mach )
-            mach.postSelect();  // Post selection action
+            mach.postSelect(this);  // Post selection action
 
         // Updates forward edges only.
         n._outputs.clear();
@@ -297,6 +297,32 @@ public class CodeGen {
         return this;
     }
 
+    public String reg(Node n) {
+        if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
+            String s = _regAlloc.reg(n);
+            if( s!=null ) return s;
+        }
+        return "N"+ n._nid;
+    }
+
+    // ---------------------------
+    // Encoding
+    int _tEncode;
+    public Encoding _encoding;
+    public CodeGen encode() {
+        assert _phase == Phase.RegAlloc;
+        _phase = Phase.Encoding;
+        long t0 = System.currentTimeMillis();
+        _encoding = new Encoding(this);
+        _encoding.encode();
+        _tEncode = (int)(System.currentTimeMillis() - t0);
+        return this;
+    }
+    // Encoded binary, no relocation info
+    public byte[] binary() { throw Utils.TODO(); }
+
+    // ---------------------------
+    // Exporting to external formats
     public CodeGen exportELF() {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
@@ -304,6 +330,26 @@ public class CodeGen {
         obj.export();
         return this;
     }
+
+    // ---------------------------
+    SB asm(SB sb) { return ASMPrinter.print(sb,this); }
+    public String asm() { return asm(new SB()).toString(); }
+
+
+    // Testing shortcuts
+    public Node ctrl() { return _stop.ret().ctrl(); }
+    public Node expr() { return _stop.ret().expr(); }
+    public String print() { return _stop.print(); }
+
+    // Debugging helper
+    @Override public String toString() {
+        return _phase.ordinal() > Phase.Schedule.ordinal()
+            ? IRPrinter._prettyPrint( this )
+            : _stop.p(9999);
+    }
+
+    // Debugging helper
+    public Node f(int idx) { return _stop.find(idx); }
 
     public static void print_as_hex(Encoding enc) {
         for (byte b : enc._bits.toByteArray()) {
@@ -335,48 +381,4 @@ public class CodeGen {
 //        // Get the raw bytes from the output stream
 //        return this;
 //    }
-
-    public String reg(Node n) {
-        if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
-            String s = _regAlloc.reg(n);
-            if( s!=null ) return s;
-        }
-        return "N"+ n._nid;
-    }
-
-    // ---------------------------
-    // Encoding
-    int _tEncode;
-    public Encoding _encoding;
-    public CodeGen encode() {
-        assert _phase == Phase.RegAlloc;
-        _phase = Phase.Encoding;
-        long t0 = System.currentTimeMillis();
-        _encoding = new Encoding(this);
-        _encoding.encode();
-        _tEncode = (int)(System.currentTimeMillis() - t0);
-        return this;
-    }
-    // Encoded binary, no relocation info
-    public byte[] binary() { throw Utils.TODO(); }
-
-    // ---------------------------
-    SB asm(SB sb) { return ASMPrinter.print(sb,this); }
-    public String asm() { return asm(new SB()).toString(); }
-
-
-    // Testing shortcuts
-    public Node ctrl() { return _stop.ret().ctrl(); }
-    public Node expr() { return _stop.ret().expr(); }
-    public String print() { return _stop.print(); }
-
-    // Debugging helper
-    @Override public String toString() {
-        return _phase.ordinal() > Phase.Schedule.ordinal()
-            ? IRPrinter._prettyPrint( this )
-            : _stop.p(9999);
-    }
-
-    // Debugging helper
-    public Node f(int idx) { return _stop.find(idx); }
 }

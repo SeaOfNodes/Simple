@@ -453,9 +453,9 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node call(CallNode call) {
-        if( call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp )
-            return new CallX86(call, tfp);
-        return new CallRX86(call);
+        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+            ? new CallX86(call, tfp)
+            : new CallRX86(call);
     }
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".

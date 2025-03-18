@@ -13,7 +13,7 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     }
     @Override public String op() { return "j"+_bop; }
     @Override public String label() { return op(); }
-    @Override public void postSelect() {
+    @Override public void postSelect(CodeGen code) {
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
