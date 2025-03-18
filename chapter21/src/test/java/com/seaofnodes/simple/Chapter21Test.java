@@ -80,4 +80,23 @@ return sqrt(farg) + sqrt(farg+2.0);
         testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(mul,.[],1000));");
     }
+
+    @Test
+    public void testExport() {
+        CodeGen code = new CodeGen(
+            """
+// Newtons approximation to the square root
+val sqrt = { flt x ->
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( next == guess ) return guess;
+        guess = next;
+    }
+};
+flt farg = arg;
+return sqrt(farg) + sqrt(farg+2.0);
+            """);
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF();
+    }
 }
