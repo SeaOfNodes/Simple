@@ -192,7 +192,7 @@ public class CodeGen {
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
         String clzFile = base+"."+cpu+"."+cpu;
-        try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor().newInstance(); }
+        try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor(new Class[]{CodeGen.class}).newInstance(this); }
         catch( Exception e ) { throw new RuntimeException(e); }
 
         // Convert to machine ops

@@ -8,6 +8,7 @@ import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 
 public class x86_64_v2 extends Machine {
+    public x86_64_v2( CodeGen code ) {}
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
     @Override public String name() { return "x86_64_v2"; }
     @Override public int defaultOpSize() { return 5; }

@@ -53,8 +53,8 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         short off = enc.reg(off());
         short val = enc.reg(xval );
         int body = off() == null
-            ? arm.load_str_imm(0b1111100101, off, ptr, val)
-            : arm.indr_adr(0b11111000011, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
+            ? arm.load_str_imm(opcode, off, ptr, val)
+            : arm.indr_adr(opcode+1, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
         enc.add4(body);
     }
 

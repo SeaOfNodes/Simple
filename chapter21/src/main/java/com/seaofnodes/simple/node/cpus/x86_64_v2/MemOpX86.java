@@ -75,7 +75,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         if( idx() != null ) {
             sb.p("+").p(code.reg(idx()));
             if( _scale != 0 )
-                sb.p("<<").p(_scale);
+                sb.p("*").p((1<<_scale));
         }
         if( _off != 0 )
             sb.p("+").p(_off);

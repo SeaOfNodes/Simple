@@ -6,7 +6,7 @@ import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFunPtr;
 
-public class TFPRISC extends ConstantNode implements MachNode {
+public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
     TFPRISC(ConstantNode con) { super(con); }
     @Override public String op() { return "ldx"; }
     @Override public RegMask regmap(int i) { return null; }
@@ -24,6 +24,21 @@ public class TFPRISC extends ConstantNode implements MachNode {
         int addi = riscv.i_type(0b0010011, dst, 0, dst, 0);
         enc.add4(auipc);
         enc.add4(addi);
+    }
+
+    @Override public byte encSize(int delta) {
+        if( -(1L<<11) <= delta && delta < (1L<<11) ) return 4;
+        throw Utils.TODO();
+    }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        short rpc = enc.reg(this);
+        if( opLen==4 ) {
+            enc.patch4(opStart,riscv.j_type(riscv.J_JAL, rpc, delta));
+        } else {
+            throw Utils.TODO();
+        }
     }
 
     @Override public void asm(CodeGen code, SB sb) {
