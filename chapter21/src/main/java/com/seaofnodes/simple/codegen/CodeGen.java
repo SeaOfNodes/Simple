@@ -2,11 +2,10 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
-
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
-
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -323,11 +322,11 @@ public class CodeGen {
 
     // ---------------------------
     // Exporting to external formats
-    public CodeGen exportELF() {
+    public CodeGen exportELF(String fname) throws IOException {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
         ElfFile obj = new ElfFile(this);
-        obj.export();
+        obj.export(fname);
         return this;
     }
 

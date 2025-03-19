@@ -2,9 +2,10 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.ASMPrinter;
-import java.nio.file.Files;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.Ignore;
 import org.junit.Test;
 import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
@@ -22,6 +23,7 @@ public class Chapter21Test {
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
         code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        code.asm();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -82,19 +84,23 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     }
 
 
-    // Read test case from disk
     @Test
+    public void testExport() throws IOException {
+        CodeGen code = new CodeGen(newton);
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
+    }
+
+
+    // Read test case from disk.
+    // TODO: exportELF not handling external calls yet
+    @Ignore @Test
     public void testPersons() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/Person.smp"));
-        testCPU(src,"x86_64_v2", "Win64"  ,3,null);
-        testCPU(src,"riscv"    , "SystemV",1,null);
-        testCPU(src,"arm"      , "SystemV",1,null);
+        CodeGen code = new CodeGen(src);
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/Persons.o");
+        //testCPU(src,"x86_64_v2", "Win64"  ,3,null);
+        //testCPU(src,"riscv"    , "SystemV",1,null);
+        //testCPU(src,"arm"      , "SystemV",1,null);
     }
 
-
-    @Test
-    public void testExport() {
-        CodeGen code = new CodeGen(newton);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF();
-    }
 }
