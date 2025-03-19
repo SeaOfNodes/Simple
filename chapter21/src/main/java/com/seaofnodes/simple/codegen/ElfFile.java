@@ -258,7 +258,7 @@ public class ElfFile {
         }
     }
 
-    public void export() {
+    public void export(String fname) throws IOException {
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string
         strtab._contents.write(0);
@@ -375,13 +375,9 @@ public class ElfFile {
         }
         assert out.position() == size;
 
-        try {
-            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream("a.o"));
-            bos.write(out.array());
-            bos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(fname));
+        bos.write(out.array());
+        bos.close();
     }
 
 }

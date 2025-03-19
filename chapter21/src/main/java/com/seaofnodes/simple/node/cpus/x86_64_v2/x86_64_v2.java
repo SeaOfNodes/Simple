@@ -128,11 +128,13 @@ public class x86_64_v2 extends Machine {
         return rex(reg, ptr, idx, true);
     }
 
-    // rex for floats
-    // don't need to use REX if 0x40
-    public static void rexF(int reg, int ptr, int idx, boolean wide, Encoding enc) {
+    // rex for floats.  Return size (0 or 1)
+    // don't need to use REX if 0x40.
+    public static byte rexF(int reg, int ptr, int idx, boolean wide, Encoding enc) {
         int rex = rex(reg, ptr, idx, wide);
-        if (rex != 0x40) enc.add1(rex);
+        if (rex == 0x40) return 0;
+        enc.add1(rex);
+        return 1;
     }
     // Function used for encoding indirect memory addresses
     // Does not always generate SIB byte e.g index == -1.

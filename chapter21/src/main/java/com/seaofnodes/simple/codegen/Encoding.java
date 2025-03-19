@@ -4,12 +4,9 @@ import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.HashMap;
+import java.util.*;
 
 
 /**
@@ -71,6 +68,13 @@ public class Encoding {
         add4((int) i64     );
         add4((int)(i64>>32));
     }
+    public int read4(int idx) {
+        byte[] buf = _bits.buf();
+        return buf[idx] | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
+    }
+    public long read8(int idx) {
+        return (read4(idx) & 0xFFFFFFFFL) | read4(idx+4);
+    }
 
     // This buffer is invalid/moving until after all encodings are written
     public byte[] bits() { return _bits.buf(); }
@@ -82,6 +86,11 @@ public class Encoding {
         buf[idx+1] = (byte)(val>> 8);
         buf[idx+2] = (byte)(val>>16);
         buf[idx+3] = (byte)(val>>24);
+    }
+
+    void pad8() {
+        while( (_bits.size()+7 & -8) > _bits.size() )
+            _bits.write(0);
     }
 
 
@@ -115,10 +124,10 @@ public class Encoding {
     // addressing to load it
 
     public final HashMap<Node,Type> _bigCons = new HashMap<>();
+    public final HashMap<Node,Integer> _cpool = new HashMap<>();
     public void largeConstant( Node relo, Type t ) {
         assert t.isConstant();
         _bigCons.put(relo,t);
-        // TODO:
     }
 
     void encode() {
@@ -131,6 +140,10 @@ public class Encoding {
         // Write encoding bits in order into a big byte array.
         // Record opcode start and length.
         writeEncodings();
+
+        // Write any large constants into a constant pool; they
+        // are accessed by RIP-relative addressing.
+        writeConstantPool();
 
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
@@ -184,9 +197,6 @@ public class Encoding {
             // Pick out the T/F projections
             CProjNode t = iff.cproj(0);
             CProjNode f = iff.cproj(1);
-            //CProjNode t = (CProjNode)bb.out(bb.nOuts()-1);
-            //CProjNode f = (CProjNode)bb.out(bb.nOuts()-2);
-            //if( t._idx==1 ) { CProjNode tmp=f; f=t; t=tmp; }
             int tld = t.loopDepth(), fld = f.loopDepth(), bld = bb.loopDepth();
             // Decide entering or exiting a loop
             if( tld==bld ) {
@@ -239,11 +249,48 @@ public class Encoding {
                 }
             }
         }
+        pad8();
     }
 
+    // Write the constant pool
+    private void writeConstantPool() {
+        // TODO: Check for cpool dups
+        HashSet<Type> ts = new HashSet<>();
+        for( Type t : _bigCons.values() ) {
+            if( ts.contains(t) )
+                throw Utils.TODO(); // Dup!  Compress!
+            ts.add(t);
+        }
 
-    // Short-form RIP-relative support: replace long encodings with short
-    // encodings and compact the code, changing all the offsets.
+        // Write the 8-byte constants
+        for( Node relo : _bigCons.keySet() ) {
+            Type t = _bigCons.get(relo);
+            if( t.log_size()==3 ) {
+                // Map from relo to constant start
+                _cpool.put(relo,_bits.size());
+                long x = t instanceof TypeInteger ti
+                    ? ti.value()
+                    : Double.doubleToRawLongBits(((TypeFloat)t).value());
+                add8(x);
+            }
+        }
+
+        // Write the 4-byte constants
+        for( Node relo : _bigCons.keySet() ) {
+            Type t = _bigCons.get(relo);
+            if( t.log_size()==2 ) {
+                // Map from relo to constant start
+                _cpool.put(relo,_bits.size());
+                int x = t instanceof TypeInteger ti
+                    ? (int)ti.value()
+                    : Float.floatToRawIntBits((float)((TypeFloat)t).value());
+                add4(x);
+            }
+        }
+    }
+
+    // Short-form RIP-relative support: replace short encodings with long
+    // encodings and expand the code, changing all the offsets.
     private void compactShortForm() {
         int len = _code._cfg._len;
         int[] oldStarts = new int[len];
@@ -257,8 +304,8 @@ public class Encoding {
 
         // Check the size of short jumps, adjust the block starts for a whole
         // pass over all blocks.  If some jumps go long, they might stretch the
-        // distance for other jumps, so another pass is needed;
-        int slide= -1;
+        // distance for other jumps, so another pass is needed.
+        int slide = -1;
         while( slide != 0) {    // While no fails
             slide = 0;
             for( int i=0; i<len; i++ ) {
@@ -272,12 +319,20 @@ public class Encoding {
                     assert _opStart[target._nid] > 0;
                     int delta = _opStart[target._nid] - _opStart[bb._nid];
                     byte opLen = riprel.encSize(delta);
+                    // Recorded size is smaller than the current size?
                     if( _opLen[bb._nid] < opLen ) {
+                        // Start sliding the code down; record slide amount and new size
                         slide += opLen - _opLen[bb._nid];
                         _opLen[bb._nid] = opLen;
                     }
                 }
             }
+
+            // CPool padding is non-linear; in rare cases padding can force a
+            // larger size...  which will shrink the padding and allow the
+            // short form to work.  Too bad.
+            if( !_cpool.isEmpty() )
+                pad8();
         }
 
 
@@ -303,9 +358,15 @@ public class Encoding {
         // Walk the local code-address relocations
         for( Node src : _internals.keySet() ) {
             Node dst = _internals.get(src);
+            int target = _opStart[dst._nid];
+            int start  = _opStart[src._nid];
+            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+        }
+
+        for( Node src : _cpool.keySet() ) {
+            int target = _cpool.get(src);
             int start = _opStart[src._nid];
-            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], _opStart[dst._nid] - start);
+            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
         }
     }
-
 }

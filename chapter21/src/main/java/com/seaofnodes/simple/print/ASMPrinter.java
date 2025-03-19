@@ -3,9 +3,9 @@ package com.seaofnodes.simple.print;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeMem;
-import com.seaofnodes.simple.type.TypeRPC;
+import com.seaofnodes.simple.type.*;
 
 public abstract class ASMPrinter {
 
@@ -18,6 +18,34 @@ public abstract class ASMPrinter {
         for( int i=0; i<code._cfg._len; i++ )
             if( code._cfg.at(i) instanceof FunNode fun )
                 iadr = print(iadr,sb,code,fun,i);
+
+        // Skip padding
+        while( ((iadr+7) & -8) > iadr )
+            iadr++;
+
+        // constant pool
+        Encoding enc = code._encoding;
+        if( !enc._bigCons.isEmpty() ) {
+            sb.p("--- Constant Pool ------").nl();
+            for( Node relo : enc._bigCons.keySet() ) {
+                Type t = enc._bigCons.get(relo);
+                if( t.log_size()==3 ) {
+                    sb.hex2(iadr).p("  ").hex8(enc.read8(iadr)).p(" ");
+                    t.print(sb).nl();
+                    iadr += 8;
+                }
+            }
+            for( Node relo : enc._bigCons.keySet() ) {
+                Type t = enc._bigCons.get(relo);
+                if( t.log_size()==2 ) {
+                    sb.hex2(iadr).p("  ").hex4(enc.read4(iadr)).fix(9,"");
+                    t.print(sb).nl();
+                    iadr += 4;
+                }
+            }
+        }
+
+
         return sb;
     }
 

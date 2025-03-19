@@ -68,6 +68,7 @@ JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
+	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 

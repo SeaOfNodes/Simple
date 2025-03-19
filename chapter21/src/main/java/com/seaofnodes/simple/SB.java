@@ -41,13 +41,9 @@ public final class SB {
   public SB hex2(int s) { return hex1(s>> 8).hex1(s); }
   // 4 bytes, 8 hex digits, 32 bits, Big Endian
   public SB hex4(int s) { return hex2(s>>16).hex2(s); }
-  //public SB hex4(int s) {
-  //for( int i=0; i<8; i++ ) {
-  //  int digit = (s>>((7-i)*4)) & 0xf;
-  //  _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
-  //}
-  //return this;
-  //
+  // 8 bytes, 16 hex digits, 64 bits, Big Endian
+    public SB hex8(long s) { return hex4((int)(s>>32)).hex4((int)s); }
+
   // Fixed width field
   public SB fix( int sz, String s ) {
     for( int i=0; i<sz; i++ )

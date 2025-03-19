@@ -9,14 +9,11 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 //FMOV (scalar, immediate)
 //Floating-point move immediate.
-public class FloatARM extends ConstantNode implements MachNode {
+public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
     FloatARM(ConstantNode con) { super(con); }
-    // Register mask allowed on input i.  0 for no register.
+    @Override public String op() { return "ld8"; }
     @Override public RegMask regmap(int i) { return null; }
-
-    // General int registers
     @Override public RegMask outregmap() { return arm.DMASK; }
-
     @Override public boolean isClone() { return true; }
     @Override public FloatARM copy() { return new FloatARM(this); }
 
@@ -25,9 +22,16 @@ public class FloatARM extends ConstantNode implements MachNode {
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
         double d = ((TypeFloat)_con).value();
         long x = Double.doubleToRawLongBits(d);
-        // Any number that can be expressed as +/-n * 2-r,where n and r are integers, 16 <= n <= 31, 0 <= r <= 7.
-        int body = arm.load_pc(0b01011100, 0, dst);
-        enc.add4(body);
+        enc.add4(arm.load_pc(0b01011100, 0, dst));
+    }
+
+    // Delta is from opcode start.
+    @Override public byte encSize(int delta) { return 4;  }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        short dst = (short)(enc.reg(this) - arm.D_OFFSET);
+        enc.add4(arm.load_pc(0b01011100, delta, dst));
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,
@@ -35,10 +39,7 @@ public class FloatARM extends ConstantNode implements MachNode {
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        _con.print(sb.p(code.reg(this)).p(" #"));
+        _con.print(sb.p(code.reg(this)).p(" = #"));
     }
 
-    @Override public String op() {
-        return "fld";           // Some fancier encoding
-    }
 }
