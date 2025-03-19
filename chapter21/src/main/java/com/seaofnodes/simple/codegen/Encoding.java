@@ -56,6 +56,10 @@ public class Encoding {
 
     public Encoding add1( int op ) { _bits.write(op); return this; }
 
+    public void add2( int op ) {
+        _bits.write(op    );
+        _bits.write(op>> 8);
+    }
     // Little endian write of a 32b opcode
     public void add4( int op ) {
         _bits.write(op    );
