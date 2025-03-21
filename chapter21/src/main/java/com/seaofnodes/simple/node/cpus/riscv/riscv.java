@@ -28,9 +28,9 @@ public class riscv extends Machine {
     static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
     static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
-    static final int MAX_REG = 61;
+    static final int MAX_REG = 64;
 
-    static final int F_OFFSET = 31;
+    static final int F_OFFSET = 32;
 
     static final String[] REGS = new String[] {
             "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
@@ -245,6 +245,21 @@ public class riscv extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
+    // Return the max stack slot used by this signature, or 0
+    static short maxSlot( TypeFunPtr tfp ) {
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=0; i<tfp.nargs(); i++ )
+            if( tfp.arg(i) instanceof TypeFloat )
+                fcnt++;
+        if( fcnt >= XMMS.length )
+            throw Utils.TODO();
+        RegMask[] cargs = CALLINMASK;
+        if( tfp.nargs()-fcnt >= cargs.length )
+            throw Utils.TODO();
+        return 0;               // No stack args
+    }
+
     // callee saved(riscv)
     static final long CALLEE_SAVE =
         (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
@@ -289,8 +304,15 @@ public class riscv extends Machine {
     }
 
     @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*8+"]";
     }
+
+    // Stack slots, in units of 8 bytes.
+    @Override public int stackSlot( int reg ) {
+        return reg < REGS.length ? -1 : reg-REGS.length;
+    }
+
+
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

@@ -141,9 +141,15 @@ public class RegAlloc {
 
     public void regAlloc() {
         // Insert callee-save registers
-        for( CFGNode bb : _code._cfg )
+        FunNode lastFun=null;
+        for( CFGNode bb : _code._cfg ) {
             if( bb instanceof FunNode fun )
-                insertCalleeSave(fun);
+                insertCalleeSave(lastFun=fun);
+            // Leaf routine, or not?
+            // X86 requires 16b RSP aligned if NOT leaf
+            if( bb instanceof CallNode ) lastFun._hasCalls = true;
+        }
+
 
         // Top driver: repeated rounds of coloring and splitting.
         byte round=0;
@@ -460,11 +466,21 @@ public class RegAlloc {
     // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
     private void postColor() {
+        int maxSlot = -1;
         for( CFGNode bb : _code._cfg ) { // For all ops
+            if( bb instanceof FunNode )
+                maxSlot = -1;
+            if( bb instanceof ReturnNode ret )
+                ret.fun()._maxSlot = (short)maxSlot;
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
+                if( lrg(n)!=null ) {
+                    int slot = _code._mach.stackSlot(lrg(n)._reg);
+                    maxSlot = Math.max(maxSlot,slot);
+                }
+
                 if( !(n instanceof SplitNode lo) ) continue;
-                int defreg = lrg(n      )._reg;
+                int defreg = lrg(n     )._reg;
                 int usereg = lrg(n.in(1))._reg;
                 // Attempt to bypass split
                 if( defreg != usereg && splitBypass(bb,j,n,defreg) )

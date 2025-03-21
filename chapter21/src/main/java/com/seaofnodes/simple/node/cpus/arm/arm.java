@@ -42,7 +42,11 @@ public class arm extends Machine {
             "flags"
     };
     @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*8+"]";
+    }
+    // Stack slots, in units of 8 bytes.
+    @Override public int stackSlot( int reg ) {
+        return reg < REGS.length ? -1 : reg-REGS.length;
     }
 
     // from (x0-x30)

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
@@ -13,7 +14,6 @@ public class SplitX86 extends SplitNode {
 
     // Need to handle 8 cases: . reg->reg, reg->xmm, reg->flags, xmm->reg, xmm->xmm, xmm->flags, flags->reg, flags->xmm,
     // flags->flags.
-    // Currently not handling flags
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // REX.W + 8B /r	MOV r64, r/m64
@@ -39,10 +39,34 @@ public class SplitX86 extends SplitNode {
             return;
         }
 
+        // Flag for being either XMM or stack
         boolean dstX = dst >= x86_64_v2.XMM_OFFSET;
         boolean srcX = src >= x86_64_v2.XMM_OFFSET;
-        if( dstX ) dst -= x86_64_v2.XMM_OFFSET;
-        if( srcX ) src -= x86_64_v2.XMM_OFFSET;
+
+        // Stack spills
+        if( dst >= x86_64_v2.MAX_REG ) {
+            if( src >= x86_64_v2.MAX_REG )
+                throw Utils.TODO(); // Very rare stack-stack move
+            // TODO: Missing FP 0x66 prefix
+            if( srcX ) { src -= (short)x86_64_v2.XMM_OFFSET;  enc.add1(0x66); }
+            int off = enc._fun.computeStackSlot(dst - x86_64_v2.MAX_REG)*8;
+            enc.add1(x86_64_v2.rex(src, x86_64_v2.RSP, -1));
+            enc.add1( 0x89 );
+            x86_64_v2.indirectAdr(0, (short)-1, (short)x86_64_v2.RSP, off, src, enc);
+            return;
+        }
+        if( src >= x86_64_v2.MAX_REG ) {
+            if( dstX ) { dst -= (short)x86_64_v2.XMM_OFFSET;  enc.add1(0x66); }
+            int off = enc._fun.computeStackSlot(src - x86_64_v2.MAX_REG)*8;
+            enc.add1(x86_64_v2.rex(dst, x86_64_v2.RSP, -1));
+            enc.add1( 0x8B );
+            x86_64_v2.indirectAdr(0, (short)-1, (short)x86_64_v2.RSP, off, dst, enc);
+            return;
+        }
+
+        // reg-reg move.  Adjust numbering for GPR vs FPR reg set
+        if( dstX ) dst -= (short) x86_64_v2.XMM_OFFSET;
+        if( srcX ) src -= (short) x86_64_v2.XMM_OFFSET;
 
         // 0x66 if moving between register classes
         if( dstX ^ srcX )  enc.add1(0x66);

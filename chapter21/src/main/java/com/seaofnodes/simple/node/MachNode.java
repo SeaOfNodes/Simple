@@ -52,9 +52,6 @@ public interface MachNode {
     // Just something like "R17=[R18+12] // Load array base".
     // General form: "dst=src+src".
     default void asm(CodeGen code, SB sb) { throw Utils.TODO(); }
-    // Multi-op encodings, printing 1 op per line.  Template-style,
-    // no RA, no scheduling.
-    default void asm(CodeGen code, SB sb, int multiN) {  }
 
     // Human readable opcode; e.g. "ld4" or "call".
     default String op() { throw Utils.TODO(); }
