@@ -35,7 +35,13 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.j_type(riscv.J_JAL, rpc, delta));
+            // AUIPC (upper 20 bits)
+            // opstart of add
+            int next = opStart + opLen;
+            enc.patch4(opStart,riscv.u_type(0b0010111, rpc, delta));
+            // addi(low 12 bits)
+            enc.patch4(next,riscv.i_type(0b0010011, rpc, 0, rpc, delta & 0xFFF));
+            // addi
         } else {
             throw Utils.TODO();
         }
