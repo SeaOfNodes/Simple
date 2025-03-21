@@ -109,6 +109,20 @@ public class x86_64_v2 extends Machine {
         if( 8 <= idx && idx <= 15 ) rex |= 0b00000010; // REX.X
         return rex;
     }
+    // return opcode for optimised immediate store
+    public static int selectOpcodeForImmStore(long imm) {
+        if(imm8(imm)) return 0xC6;
+        if(imm16(imm)) return 0xC7;
+        if(imm32(imm)) return 0xC7;
+        return -1;
+    }
+    // return the size of the immediate
+    public static int imm_size(long imm) {
+        if(imm8(imm)) return 8;
+        if(imm16(imm)) return 16;
+        if(imm32(imm)) return 32;
+        return 64;
+    }
 
     public static int rex(int reg, int ptr, int idx) {
         return rex(reg, ptr, idx, true);
@@ -410,16 +424,17 @@ public class x86_64_v2 extends Machine {
     }
 
     public static boolean imm8( long imm ) { return -128 <= imm && imm <= 127; }
+    public static boolean imm16(long imm) {return -32768 <= imm && imm <= 32767; }
     public static boolean imm32( long imm ) { return (int)imm==imm; }
 
     // Attempt a full LEA-style break down.
     private Node add(AddNode add) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 )
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val);
 
-        if(rhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
             throw Utils.TODO(); // Swap load sides
 
         // Attempt a full LEA-style break down.

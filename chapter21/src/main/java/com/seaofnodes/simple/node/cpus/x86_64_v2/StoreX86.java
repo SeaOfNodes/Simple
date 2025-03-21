@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
 import java.util.BitSet;
@@ -27,13 +28,27 @@ public class StoreX86 extends MemOpX86 {
         short idx = enc.reg(idx());
         short src = enc.reg(val());
 
-        enc.add1(x86_64_v2.rex(src, ptr, idx));
+        int imm_op = x86_64_v2.selectOpcodeForImmStore(_imm);
+        if(src == -1 && _imm != 0) {
+            if(imm_op == -1)         {enc.add1(x86_64_v2.rex(src, ptr, idx));enc.add1(0xC7); }
+            else enc.add1(imm_op);
+        } else {
 
-        // switch on opcode depending on instruction
-        enc.add1( src == -1 ? 0xC7 : 0x89 );
+            if(_declaredType.log_size() == 0) enc.add1(0x88);
+            if(_declaredType.log_size() == 1) enc.add1(0x89);
+            if(_declaredType.log_size() == 2) enc.add1(0x89);
+            if(_declaredType.log_size() == 3) {enc.add1(x86_64_v2.rex(src, ptr, idx)); enc.add1(0x89);}
+        }
 
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, enc);
-        if( src == -1 ) enc.add4(_imm);
+        if( src == -1 ) {
+            switch (x86_64_v2.imm_size(_imm)) {
+                case 8: enc.add1(_imm); break;
+                case 16: enc.add2(_imm); break;
+                case 32: enc.add4(_imm); break;
+                case 64: enc.add8(_imm); break;
+            }
+        }
     }
 
     // General form: "stN  [base + idx<<2 + 12],val"

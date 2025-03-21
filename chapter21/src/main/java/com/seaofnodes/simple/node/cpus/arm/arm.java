@@ -224,6 +224,13 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
+    public static int imm_inst_l(Encoding enc, Node n, int opcode, int imm12) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+        int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
+        return body;
+    }
+
     // for normal add, reg1, reg2 cases (reg-to-reg)
     // using shifted-reg form
     public static int r_reg(int opcode, int shift, int rm, int imm6, int rn, int rd) {
