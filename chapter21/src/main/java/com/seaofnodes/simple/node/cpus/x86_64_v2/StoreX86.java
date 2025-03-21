@@ -33,9 +33,11 @@ public class StoreX86 extends MemOpX86 {
             if(imm_op == -1)         {enc.add1(x86_64_v2.rex(src, ptr, idx));enc.add1(0xC7); }
             else enc.add1(imm_op);
         } else {
-            enc.add1(x86_64_v2.rex(src, ptr, idx));
-            // switch on opcode depending on instruction
-            enc.add1( 0x89 );
+
+            if(_declaredType.log_size() == 0) enc.add1(0x88);
+            if(_declaredType.log_size() == 1) enc.add1(0x89);
+            if(_declaredType.log_size() == 2) enc.add1(0x89);
+            if(_declaredType.log_size() == 3) {enc.add1(x86_64_v2.rex(src, ptr, idx)); enc.add1(0x89);}
         }
 
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, enc);

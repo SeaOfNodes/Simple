@@ -410,10 +410,10 @@ public class x86_64_v2 extends Machine {
     private Node add(AddNode add) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 )
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val);
 
-        if(rhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
             throw Utils.TODO(); // Swap load sides
 
         // Attempt a full LEA-style break down.
