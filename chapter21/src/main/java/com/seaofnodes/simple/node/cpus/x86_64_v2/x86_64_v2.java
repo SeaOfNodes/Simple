@@ -13,8 +13,8 @@ public class x86_64_v2 extends Machine {
     @Override public String name() { return "x86_64_v2"; }
     @Override public int defaultOpSize() { return 5; }
 
-    public static int RAX = 0, RCX = 1, RDX = 2, RBX = 3, RSP = 4, RBP = 5, RSI = 6, RDI = 7;
-    public static int R08 = 8, R09 = 9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
+    public static final int RAX = 0, RCX = 1, RDX =  2, RBX =  3, RSP =  4, RBP =  5, RSI =  6, RDI =  7;
+    public static final int R08 = 8, R09 = 9, R10 = 10, R11 = 11, R12 = 12, R13 = 13, R14 = 14, R15 = 15;
 
     public static final int XMM0  = 16, XMM1  = 17, XMM2  = 18, XMM3  = 19, XMM4  = 20, XMM5  = 21, XMM6  = 22, XMM7  = 23;
     public static final int XMM8  = 24, XMM9  = 25, XMM10 = 26, XMM11 = 27, XMM12 = 28, XMM13 = 29, XMM14 = 30, XMM15 = 31;
@@ -132,7 +132,7 @@ public class x86_64_v2 extends Machine {
     // don't need to use REX if 0x40.
     public static byte rexF(int reg, int ptr, int idx, boolean wide, Encoding enc) {
         int rex = rex(reg, ptr, idx, wide);
-        if (rex == 0x40) return 0;
+        if (rex == REX) return 0;
         enc.add1(rex);
         return 1;
     }
@@ -186,11 +186,17 @@ public class x86_64_v2 extends Machine {
             "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
             "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
             "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
-            "flags", "[rsp-4]",
+            "flags",
     };
     @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*4+"]";
+        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*8+"]";
     }
+
+    // Stack slots, in units of 8 bytes.
+    @Override public int stackSlot( int reg ) {
+        return reg < REGS.length ? -1 : reg-REGS.length;
+    }
+
 
     // WIN64(param passing)
     static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
@@ -241,6 +247,25 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
+    // Return the max stack slot used by this signature, or 0
+    static short maxSlot( TypeFunPtr tfp ) {
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=0; i<tfp.nargs(); i++ )
+            if( tfp.arg(i) instanceof TypeFloat )
+                fcnt++;
+        if( fcnt >= XMMS4.length )
+            throw Utils.TODO();
+        RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
+        case "SystemV" -> CALLINMASK_SYSTEMV;
+        case "Win64"   -> CALLINMASK_WIN64;
+        default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
+        };
+        if( tfp.nargs()-fcnt >= cargs.length )
+            throw Utils.TODO();
+        return 0;               // No stack args
+    }
+
     // Return single int/ptr register.  Used by CallEnd output and Return input.
     static RegMask retMask( TypeFunPtr tfp ) {
         return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
@@ -250,9 +275,9 @@ public class x86_64_v2 extends Machine {
     // caller saved(systemv)
     static final long SYSTEM5_CALLER_SAVE =
         (1L<< RAX) | (1L<< RCX) | (1L<< RDX) |
-                (1L << RDI) | (1L << RSI) |
-                (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11) |
-                (1L << FLAGS) |           // Flags are killed
+        (1L << RDI) | (1L << RSI) |
+        (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11) |
+        (1L << FLAGS) |           // Flags are killed
         // All FP regs are killed
         FP_BITS;
     static final RegMask SYSTEM5_CALLER_SAVE_MASK = new RegMask(SYSTEM5_CALLER_SAVE);
@@ -269,16 +294,13 @@ public class x86_64_v2 extends Machine {
 
     static RegMask x86CallerSave() {
         return switch (CodeGen.CODE._callingConv) {
-            case "SystemV" -> SYSTEM5_CALLER_SAVE_MASK;
-            case "Win64" -> WIN64_CALLER_SAVE_MASK;
-            default -> throw new IllegalArgumentException("Unknown calling convention: " + CodeGen.CODE._callingConv);
+        case "SystemV" -> SYSTEM5_CALLER_SAVE_MASK;
+        case "Win64" -> WIN64_CALLER_SAVE_MASK;
+        default -> throw new IllegalArgumentException("Unknown calling convention: " + CodeGen.CODE._callingConv);
         };
     }
 
-    @Override
-    public RegMask callerSave() {
-        return x86CallerSave();
-    }
+    @Override public RegMask callerSave() { return x86CallerSave(); }
 
     static final RegMask SYSTEM5_CALLEE_SAVE_MASK;
     static final RegMask   WIN64_CALLEE_SAVE_MASK;
@@ -306,7 +328,6 @@ public class x86_64_v2 extends Machine {
         };
     }
     @Override public RegMask calleeSave() { return x86CalleeSave(); }
-
 
     static final RegMask[] WIN64_RET_MASKS, SYS5_RET_MASKS;
     static {

@@ -161,4 +161,38 @@ public class FunNode extends RegionNode {
         if( in ) body.set(n._nid);
         return in;
     }
+
+
+    // | CALLER |
+    // |        |
+    // | argN+1 | // slot 1, callER +32
+    // | argN   | // slot 0, callER +24
+    // +--------+ // OLD FRAME
+    // |  PAD   | // Alignment pad  +16
+    // | callee | // slot 3, callEE + 8
+    // | callee | // slot 2, callEE + 0
+    // +--------+ // RSP
+
+    // TODO: lower this field into a generic FunMachNode.
+    // Replace all FunXXX variants with FunMachNode.
+
+    // Function may call other functions?  X86 requires 16b aligned SP on
+    // outbound calls, but not leaf.  Set during an unrelated RA scan.
+    public boolean _hasCalls;
+
+    // Max observed spill slot, set during RA postcolor
+    public short _maxSlot = -1;
+    // Max argument slot, set during early Encoding.
+    public short _maxArgSlot = -1;
+    // Frame adjust, including padding, st during early Encoding
+    public short _frameAdjust;
+
+
+    // Convert a stack slot, based on the frame, into an offset.  Stack layout
+    // is the same for all CPUs; X86 will pre-spill the RPC.
+    public final int computeStackSlot(int slotN) {
+        return slotN < _maxArgSlot
+            ? slotN + _frameAdjust
+            : slotN - _maxArgSlot;
+    }
 }

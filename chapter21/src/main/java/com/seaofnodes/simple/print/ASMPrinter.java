@@ -56,7 +56,8 @@ public abstract class ASMPrinter {
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
 
-
+        if( fun._frameAdjust != 0 )
+            iadr = doInst(iadr,sb,code,cfgidx,fun,true,true);
         while( !(code._cfg.at(cfgidx) instanceof ReturnNode) )
             iadr = doBlock(iadr,sb,code,fun,cfgidx++);
 
@@ -113,7 +114,8 @@ public abstract class ASMPrinter {
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
-        final int encWidth = code._mach.defaultOpSize()*2;
+        final int dopz = code._mach.defaultOpSize();
+        final int encWidth = dopz*2;
 
         // All blocks ending in a Region will need to either fall into or jump
         // to this block.  Until the post-reg-alloc block layout cleanup, we
@@ -192,13 +194,14 @@ public abstract class ASMPrinter {
             // Multiple ops, template style, no RA, no scheduling.  Print out
             // one-line-per-newline, with encoding bits up front.
             int size = code._encoding._opLen[n._nid];
-            int off = code._mach.defaultOpSize();
+            int off = Math.min(size,dopz);
             while( isMultiOp!=null ) {
                 sb.hex2(iadr).p(" ");
-                int len = Math.min(off,size);
+                int len = Math.min(size-off,dopz);
                 for( int i=0; i<len; i++ )
                     sb.hex1(code._encoding._bits.buf()[iadr++]);
-                off += code._mach.defaultOpSize();
+                off += len;
+                for( int i=size-off; i<dopz; i++ ) sb.p("  ");
                 sb.p("  ");
                 int x = isMultiOp.indexOf('\n');
                 if( x== -1 ) {  // Last line

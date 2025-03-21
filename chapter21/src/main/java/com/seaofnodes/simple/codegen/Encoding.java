@@ -235,12 +235,19 @@ public class Encoding {
 
     // Write encoding bits in order into a big byte array.
     // Record opcode start and length.
+    public FunNode _fun;        // Currently encoding function
     private void writeEncodings() {
         _opStart= new int [_code.UID()];
         _opLen  = new byte[_code.UID()];
         for( CFGNode bb : _code._cfg ) {
-            if( !(bb instanceof MachNode) || bb instanceof FunNode )
+            if( !(bb instanceof MachNode mach0) )
                 _opStart[bb._nid] = _bits.size();
+            else if( bb instanceof FunNode fun ) {
+                _fun = fun;     // Currently encoding function
+                _opStart[bb._nid] = _bits.size();
+                mach0.encoding( this );
+                _opLen[bb._nid] = (byte) (_bits.size() - _opStart[bb._nid]);
+            }
             for( Node n : bb._outputs ) {
                 if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
                     _opStart[n._nid] = _bits.size();
@@ -367,6 +374,35 @@ public class Encoding {
             int target = _cpool.get(src);
             int start = _opStart[src._nid];
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+        }
+    }
+
+
+    // Actual stack layout is up to each CPU.
+    // X86, with too many args & spills:
+    // | CALLER |
+    // |  argN  | // slot 1, required by callER
+    // +--------+
+    // |  RPC   | // slot 0, required by callER
+    // | callee | // slot 3, callEE
+    // | callee | // slot 2, callEE
+    // |  PAD16 |
+    // +--------+
+
+    // RISC/ARM, with too many args & spills:
+    // | CALLER |
+    // |  argN  | // slot 0, required by callER
+    // +--------+
+    // | callee | // slot 3, callEE: might be RPC
+    // | callee | // slot 2, callEE
+    // | callee | // slot 1, callEE
+    // |  PAD16 |
+    // +--------+
+    private void frameSize() {
+        for( Node n : _code._start.outs() ) {
+            if( n instanceof FunNode fun ) {
+                throw Utils.TODO();
+            }
         }
     }
 }

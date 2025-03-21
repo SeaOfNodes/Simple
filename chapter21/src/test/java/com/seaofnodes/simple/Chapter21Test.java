@@ -23,7 +23,6 @@ public class Chapter21Test {
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
         code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
-        code.asm();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
