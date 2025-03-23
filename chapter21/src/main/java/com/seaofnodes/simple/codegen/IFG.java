@@ -125,18 +125,18 @@ abstract public class IFG {
             TMP.remove(lrg);    // Kill def
         }
 
+        // Phis use and define the same live range, i.e. these LRGs already
+        // marked conflicted, no need to mark again
         if( n instanceof PhiNode )
             return;
-        // A copy does not define a new value, and the src and dst can use the
-        // same register.  Remove the input from TMP/liveout set before
-        // interfering.
-        //if( n instanceof MachNode m && m.isSplit() )
-        //    TMP.remove(alloc.lrg(n.in(1))); // Kill spill-use
+
+        // Kill any killed registers; milli-code routines like New can kill
+        // will not being a CFG.
+        if( n instanceof MachNode m )
+            kills(alloc,m);
 
         // Interfere n with all live
         if( lrg!=null ) {
-            if( n instanceof MachNode m )
-                kills(alloc,m);
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
                 assert tlrg.leader();
@@ -148,7 +148,7 @@ abstract public class IFG {
                     // last tlrg register at some point, either tlrg or lrg
                     // must fail.  If *n* (a subset of lrg) needs the single
                     // last tlrg register then only tlrg must fail.
-                    if( lrg.size1() && !tlrg.clr(lrg._mask.firstReg()) )
+                    if( ((MachNode)n).outregmap().size1() && !tlrg.clr(lrg._mask.firstReg()) )
                         alloc.fail(tlrg);
                     else addIFG(lrg,tlrg); // Add interference
             }
@@ -412,7 +412,7 @@ abstract public class IFG {
         int best=sptr;
         int bestScore = pickRiskyScore(color_stack[best]);
         for( int i=sptr+1; i<color_stack.length; i++ ) {
-            if( bestScore == 999999 ) return best; // Already max score
+            if( bestScore == 1000000 ) return best; // Already max score
             int iScore = pickRiskyScore(color_stack[i]);
             if( iScore > bestScore )
                 { best = i; bestScore = iScore; }
@@ -429,13 +429,24 @@ abstract public class IFG {
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
     private static int pickRiskyScore( LRG lrg ) {
+        // Pick single-def clonables that are not right next to their single-use
+        if( !lrg._multiDef && lrg._machDef.isClone() ) {
+            Node def = ((Node)lrg._machDef);
+            Node use = ((Node)lrg._machUse);
+            CFGNode cfg = def.cfg0();
+            if( cfg != use.cfg0() || // Different blocks OR
+              // Same block, but not close
+              cfg._outputs.find(def) < cfg._outputs.find(use)+1 )
+                return 1000000;
+        }
+
         // Always pick callee-save registers as being very large area recovered
         // and very cheap to spill.
         if( lrg._machDef instanceof CalleeSaveNode )
-            return 999998;
+            return 1000000-2;
         if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
-            return 999999;
+            return 1000000-1;
 
         // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
         // and "area" for benefit

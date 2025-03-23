@@ -18,6 +18,12 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
         addDef(cmp.in(1));
         _imm = cmp._imm;
     }
+    CmpIX86( Node lhs, int imm, double ignore ) {
+        super(lhs);
+        _inputs.del(1);
+        _imm = imm;
+    }
+
     @Override public String op() { return _imm==0 ? "test" : "cmp"; }
     @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }

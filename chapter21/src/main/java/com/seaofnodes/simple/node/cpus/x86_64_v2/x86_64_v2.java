@@ -274,7 +274,7 @@ public class x86_64_v2 extends Machine {
 
     // caller saved(systemv)
     static final long SYSTEM5_CALLER_SAVE =
-        (1L<< RAX) | (1L<< RCX) | (1L<< RDX) |
+        (1L << RAX) | (1L << RCX) | (1L << RDX) |
         (1L << RDI) | (1L << RSI) |
         (1L << R08) | (1L << R09) | (1L << R10) | (1L << R11) |
         (1L << FLAGS) |           // Flags are killed
@@ -295,7 +295,7 @@ public class x86_64_v2 extends Machine {
     static RegMask x86CallerSave() {
         return switch (CodeGen.CODE._callingConv) {
         case "SystemV" -> SYSTEM5_CALLER_SAVE_MASK;
-        case "Win64" -> WIN64_CALLER_SAVE_MASK;
+        case "Win64"   ->   WIN64_CALLER_SAVE_MASK;
         default -> throw new IllegalArgumentException("Unknown calling convention: " + CodeGen.CODE._callingConv);
         };
     }
@@ -501,27 +501,36 @@ public class x86_64_v2 extends Machine {
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
+    private static boolean invert;
     private Node cmp( BoolNode bool ) {
+        invert = false;
         Node cmp = _cmp(bool);
-        return new SetX86(cmp, bool.op());
+        return new SetX86(cmp, invert ? IfNode.invert(bool.op()) : bool.op());
     }
 
     private Node _cmp(BoolNode bool) {
         // Float variant
         if( bool.isFloat() )
             return new CmpFX86(bool);
-
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
-        if(lhs instanceof LoadNode ld && ld.nOuts() == 1)
+
+        // Vs memory
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
-        if(rhs instanceof LoadNode ld && ld.nOuts() == 1)
+        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true);
 
         // Vs immediate
         if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
             return new CmpIX86(bool, (int)ti.value());
+
+        if( lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) ) {
+            invert = true;
+            return new CmpIX86(bool, (int)ti.value(), 0.5);
+        }
+
         // x vs y
         return new CmpX86(bool);
     }

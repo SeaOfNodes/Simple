@@ -213,7 +213,7 @@ public class RegAlloc {
 
         // Register mask when empty; split around defs and uses with limited
         // register masks.
-        if( lrg._mask.isEmpty() ) {
+        if( lrg._mask.isEmpty() && (!lrg._multiDef || lrg._1regUseCnt==1) ) {
             if( lrg._1regDefCnt <= 1 &&
                 lrg._1regUseCnt <= 1 &&
                 (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
@@ -244,8 +244,8 @@ public class RegAlloc {
             //   st4 [V1],len - No good, must split around
             makeSplit("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, false/*true*/);
         // Split just before use
-        if( lrg._1regUseCnt==1 )
-            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg,false);
+        if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
+            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg,true);
         return true;
     }
 
@@ -376,13 +376,15 @@ public class RegAlloc {
             } else {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ ) {
-                    if( lrgSame(n.in(i),lrg) && // This is a LRG use
-                        // splitting in inner loop or at loop border
-                        (min==max || n.cfg0().loopDepth() <= min) &&
+                    boolean sizeN=false;
+                    // This is a LRG use
+                    // splitting in inner loop or at loop border
+                    if( lrgSame( n.in( i ), lrg ) &&
+                        (min == max || (n.in(i) instanceof MachNode mach && mach.isClone()) || n.cfg0().loopDepth() <= min) )
                         // Not a single-use split same block already
-                        !(n.in(i) instanceof SplitNode && n.in(i).nOuts()==1 && n.cfg0()==n.in(i).cfg0()) )
+                        //!(n.in(i) instanceof SplitNode && n.in(i).nOuts()==1 && n.cfg0()==n.in(i).cfg0() && (sizeN=!((MachNode)n).regmap(i).size1())) )
                         // Split before in this block
-                        insertBefore( n, i, "use/loop/use", round,lrg );
+                        insertBefore( n, i, "use/loop/use", round,lrg, sizeN );
                 }
             }
         }
@@ -433,7 +435,7 @@ public class RegAlloc {
         // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
         // Def is a split ?
-        if( def instanceof SplitNode ) {
+        if( skip && def instanceof SplitNode ) {
             boolean singleReg = n instanceof MachNode mach && mach.regmap(i).size1();
             // Same block, multiple registers, split is only used by n,
             // assume this is good enough and do not split again.

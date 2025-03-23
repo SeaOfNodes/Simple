@@ -1,6 +1,9 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.Ignore;
 import org.junit.Test;
 import static com.seaofnodes.simple.Main.PORTS;
@@ -21,44 +24,9 @@ return 0;
 
 
     @Test
-    public void testString() {
-        CodeGen code = new CodeGen(
-"""
-struct String {
-    u8[] cs;
-    int _hashCode;
-};
-
-val equals = { String self, String s ->
-    if( self == s ) return true;
-    if( self.cs# != s.cs# ) return false;
-    for( int i=0; i< self.cs#; i++ )
-        if( self.cs[i] != s.cs[i] )
-            return false;
-    return true;
-};
-
-val hashCode = { String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
-};
-
-val _hashCodeString = { String self ->
-    int hash=0;
-    if( self.cs ) {
-        for( int i=0; i< self.cs#; i++ )
-            hash = hash*31 + self.cs[i];
-    }
-    if( !hash ) hash = 123456789;
-    return hash;
-};
-
-String !s = new String { cs = new u8[17]; };
-s.cs[0] =  67; // C
-s.cs[1] = 108; // l
-hashCode(s)+hashCode(s);""");
-        code.parse().opto().typeCheck().GCM().localSched();
+    public void testString() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
         assertEquals("Stop[ return (#2+#2); return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
         assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
@@ -324,53 +292,18 @@ return A[1];
     }
 
     @Test
-    public void testNewton() {
-        CodeGen code = new CodeGen(
-"""
-// Newtons approximation to the square root
-val sqrt = { flt x ->
-    flt guess = x;
-    while( 1 ) {
-        flt next = (x/guess + guess)/2;
-        if( next == guess ) return guess;
-        guess = next;
-    }
-};
-flt farg = arg;
-return sqrt(farg);
-""");
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
+    public void testNewton() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
+            + "flt farg = arg;  return sqrt(farg);";
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
         assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
     };
 
 
     @Test
-    public void sieveOfEratosthenes() {
-        CodeGen code = new CodeGen(
-"""
-var ary = new bool[arg], primes = new int[arg];
-var nprimes=0, p=0;
-// Find primes while p^2 < arg
-for( p=2; p*p < arg; p++ ) {
-    // skip marked non-primes
-    while( ary[p] ) p++;
-    // p is now a prime
-    primes[nprimes++] = p;
-    // Mark out the rest non-primes
-    for( int i = p + p; i < ary#; i += p )
-        ary[i] = true;
-}
-// Now just collect the remaining primes, no more marking
-for( ; p < arg; p++ )
-    if( !ary[p] )
-        primes[nprimes++] = p;
-// Copy/shrink the result array
-var !rez = new int[nprimes];
-for( int j=0; j<nprimes; j++ )
-    rez[j] = primes[j];
-return rez;
-""");
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
+    public void sieveOfEratosthenes() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
         assertEquals("return [int];", code.print());
         //assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
