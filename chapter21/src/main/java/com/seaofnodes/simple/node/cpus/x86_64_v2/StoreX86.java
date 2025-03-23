@@ -5,6 +5,8 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
+import com.seaofnodes.simple.type.TypeFloat;
+
 import java.util.BitSet;
 
 public class StoreX86 extends MemOpX86 {
@@ -33,11 +35,12 @@ public class StoreX86 extends MemOpX86 {
             if(imm_op == -1)         {enc.add1(x86_64_v2.rex(src, ptr, idx));enc.add1(0xC7); }
             else enc.add1(imm_op);
         } else {
-
-            if(_declaredType.log_size() == 0) enc.add1(0x88);
-            if(_declaredType.log_size() == 1) enc.add1(0x89);
-            if(_declaredType.log_size() == 2) enc.add1(0x89);
-            if(_declaredType.log_size() == 3) {enc.add1(x86_64_v2.rex(src, ptr, idx)); enc.add1(0x89);}
+            if(_declaredType == TypeFloat.F32) {src -= (short)x86_64_v2.XMM_OFFSET; enc.add1(0xF3); enc.add1(0x0F); enc.add1(0x11);}
+            else if(_declaredType == TypeFloat.F64) {src -= (short)x86_64_v2.XMM_OFFSET; enc.add1(0xF2); enc.add1(0x0F); enc.add1(0x11);}
+            else if(_declaredType.log_size() == 0) enc.add1(0x88);
+            else if(_declaredType.log_size() == 1) enc.add1(0x89);
+            else if(_declaredType.log_size() == 2) enc.add1(0x89);
+            else if(_declaredType.log_size() == 3) {enc.add1(x86_64_v2.rex(src, ptr, idx)); enc.add1(0x89);}
         }
 
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, enc);

@@ -38,13 +38,29 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         if( _declaredType == TypeInteger.BOOL) func3=4; // LBU
         if( _declaredType == TypeInteger.U16 ) func3=5; // LHU
         if( _declaredType == TypeInteger.U32 ) func3=6; // LWU
+        // float
+        if(_declaredType == TypeFloat.F32) func3 = 2; // fLW   fSW
+        if(_declaredType == TypeFloat.F64) func3 = 3; // fLD   fSD
         if( _declaredType instanceof TypeMemPtr ) func3=6; // 4 byte pointers, assumed unsigned?
         if( func3 == -1 ) throw Utils.TODO();
         return func3;
     }
 
     // 7 bits, 00 000 11 or 00 001 11 for FP
-    int opcode(Encoding enc) { return enc.reg(this ) < riscv.F_OFFSET ? 3 : 7; }
+    int opcode(Encoding enc) {
+        if(enc.reg(this) < riscv.F_OFFSET) return 3;
+        else {
+            if(this instanceof LoadRISC) {
+                // opcode is same for 32 bit and 64 bits
+                return 7;
+            }
+            if(this instanceof StoreRISC) {
+                // opcode is the same for 32 bit and 64 bits
+                return 39;
+            }
+        }
+        return enc.reg(this ) < riscv.F_OFFSET ? 3 : 7;
+    }
     short xreg(Encoding enc) {
         short xreg = enc.reg(this );
         return xreg < riscv.F_OFFSET ? xreg : (short)(xreg-riscv.F_OFFSET);

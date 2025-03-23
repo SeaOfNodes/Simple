@@ -19,15 +19,18 @@ public class SplitRISC extends SplitNode {
 
         if( dst >= riscv.MAX_REG ) {
             // Store to SP
-            if( src >= riscv.MAX_REG )
+            if( src >= riscv.MAX_REG ) {
                 throw Utils.TODO(); // Very rare stack-stack move
+            }
+
             int off = enc._fun.computeStackSlot(dst - riscv.MAX_REG)*8;
-            throw Utils.TODO();
+            // store 64 bit values
+            enc.add4(riscv.s_type(39, 3, riscv.SP, dst, off));
         }
         if( src >= riscv.MAX_REG ) {
             // Load from SP
             int off = enc._fun.computeStackSlot(src - riscv.MAX_REG)*8;
-            throw Utils.TODO();
+            enc.add4(riscv.i_type(7, dst, 3,riscv.SP, off));
         }
         // pick opcode based on regs
         if( !dstX && !srcX ) {
@@ -35,13 +38,17 @@ public class SplitRISC extends SplitNode {
             enc.add4(riscv.r_type(riscv.OP,dst,0,src,riscv.ZERO,0));
         } else if( dstX && srcX ) {
             // FPR->FPR
-            throw Utils.TODO();
+            // Can do: FPR->GPR->FPR
+            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b1110001));
+            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b0100000));
         } else if( dstX && !srcX ) {
             //GPR->FPR
-            throw Utils.TODO();
+            // fmv.d.x
+            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b0100000));
         } else if( !dstX && srcX ) {
             //FPR->GPR
-            throw Utils.TODO();
+            //fmv.x.d
+            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b1110001));
         }
 
     }

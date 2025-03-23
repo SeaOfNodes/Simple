@@ -4,6 +4,7 @@ import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.type.TypeFloat;
 
 // Load memory addressing on ARM
 // Support imm, reg(direct), or reg+off(indirect) addressing
@@ -18,7 +19,13 @@ public class LoadARM extends MemOpARM{
     @Override public String op() { return "ld"+_sz; }
     @Override public RegMask outregmap() { return arm.MEM_MASK; }
     // ldr(immediate - unsigned offset) | ldr(register)
-    @Override public void encoding( Encoding enc ) { ldst_encode(enc,0b11111000010,this); }
+    @Override public void encoding( Encoding enc ) {
+        if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
+            ldst_encode(enc, 0b1111110101, 0b11111100011, this, true);
+        } else {
+            ldst_encode(enc, 0b1111100101, 0b11111000011, this, false);
+        }
+    }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");
         asm_address(code,sb);

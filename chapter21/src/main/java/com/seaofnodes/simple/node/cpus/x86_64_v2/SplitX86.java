@@ -14,7 +14,6 @@ public class SplitX86 extends SplitNode {
 
     // Need to handle 8 cases: . reg->reg, reg->xmm, reg->flags, xmm->reg, xmm->xmm, xmm->flags, flags->reg, flags->xmm,
     // flags->flags.
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // REX.W + 8B /r	MOV r64, r/m64
         short dst = enc.reg(this );

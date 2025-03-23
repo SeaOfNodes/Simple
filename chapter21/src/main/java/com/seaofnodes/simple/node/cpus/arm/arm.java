@@ -27,6 +27,7 @@ public class arm extends Machine {
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
+    static final int MAX_REG = 64;
     static final int D_OFFSET = 31;
     static final int FLAGS = 64;
 
@@ -210,11 +211,11 @@ public class arm extends Machine {
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         assert opcode >=0 && imm12 >= 0 && rn >=0 && rd>=0; // Caller zeros high order bits
-        return (opcode << 23) | (imm12 << 10) | (rn << 5) | rd;
+        return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
 
     public static int imm_shift(int opcode, int imm, int imms, int rn,  int rd)  {
-            return (opcode << 23) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
+            return (opcode << 22) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
     }
 
     public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
@@ -222,6 +223,20 @@ public class arm extends Machine {
         short reg1 = enc.reg(n.in(1));
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
         enc.add4(body);
+    }
+
+    public static void imm_inst_n(Encoding enc, Node n, int opcode, int imm13) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+
+        int body = imm_inst_n(opcode, imm13, reg1, self);
+        enc.add4(body);
+    }
+
+    // nth bit comes from immediate and not opcode
+    public static int imm_inst_n(int opcode, int imm13, int rn, int rd) {
+        assert 0 <= imm13 && imm13 <= 0x1FFF;
+        return (opcode << 23) | (imm13 << 10) | (rn << 5) | rd;
     }
 
     public static int imm_inst_l(Encoding enc, Node n, int opcode, int imm12) {
@@ -272,6 +287,10 @@ public class arm extends Machine {
         return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
     }
 
+    public static int mov_reg(int opcode, int src, int dst) {
+        return (opcode  << 21) | (src << 16) | 0b11111 << 5 | dst;
+    }
+
     public static int ret(int opcode) {
         return (opcode << 10);
     }
@@ -283,6 +302,13 @@ public class arm extends Machine {
 
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
         return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
+    }
+
+    public static int f_mov_reg(int opcode, int rn, int rd) {
+        return (opcode << 24) | (0b01100000010000 << 10) | (rn << 5) | rd;
+    }
+    public static int f_mov_general(int opcode, int ftype, int rmode, int opcode1, int rn, int rd) {
+        return (opcode << 24) |(ftype << 22) | (1 << 21) | (rmode << 19) | (opcode1 << 16) | (rn << 5) | rd;
     }
     public static void f_scalar(Encoding enc, Node n, int op ) {
         short self = (short)(enc.reg(n)      -D_OFFSET);
@@ -310,8 +336,8 @@ public class arm extends Machine {
         return (opcode << 21) | (off << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (ptr << 5) | rt;
     }
     // [Rptr+imm9]
-    public static int load_str_imm(int opcode, int imm9, int ptr, int rt) {
-        return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
+    public static int load_str_imm(int opcode, int imm12, int ptr, int rt) {
+        return (opcode << 22) | (imm12 << 10)  |(ptr << 5) | rt;
     }
 
     // encoding for vcvt, size is encoded in operand

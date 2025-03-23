@@ -19,7 +19,6 @@ public abstract class ImmX86 extends MachConcreteNode implements MachNode {
     abstract int opcode();
     abstract int mod();
 
-    // Encoding is appended into the byte array; size is returned
     @Override public final void encoding( Encoding enc ) {
         short dst = enc.reg(this); // Also src1
         enc.add1(x86_64_v2.rex(0, dst, 0));

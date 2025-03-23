@@ -10,7 +10,6 @@ public class CmpFX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { return x86_64_v2.XMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // UCOMISD
         short src1 = (short)(enc.reg(in(1)) - x86_64_v2.XMM_OFFSET);

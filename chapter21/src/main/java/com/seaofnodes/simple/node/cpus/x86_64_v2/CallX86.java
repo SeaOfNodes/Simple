@@ -24,7 +24,6 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     @Override public RegMask outregmap() { return null; }
     @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.relo(this).add1(0xe8).add4(0);
     }

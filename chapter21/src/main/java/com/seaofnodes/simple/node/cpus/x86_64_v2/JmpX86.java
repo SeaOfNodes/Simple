@@ -27,7 +27,6 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     @Override public RegMask outregmap() { return null; }
     @Override public void invert() { _bop = invert(_bop);  }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,cproj(0));
         int op = x86_64_v2.jumpop(_bop);

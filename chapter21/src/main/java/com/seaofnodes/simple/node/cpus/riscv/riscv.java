@@ -106,13 +106,12 @@ public class riscv extends Machine {
     //
     // major opcode: OP
     public static int OP    = 0b01_100_11;
-    public static int OP_FP = 0b11_100_11;
+    public static int OP_FP = 0b10_100_11;
 
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
 
     // 0110 0111
-    public static int I_JALR = 0x67;
     public static int J_JAL = 0b1101111;
 
 
@@ -127,7 +126,7 @@ public class riscv extends Machine {
         int body = r_type(OP,dst,func3,src1,src2,func7);
         enc.add4(body);
     }
-    public static void rf_type(Encoding enc, Node n, int opcode, RM func3, int func7) {
+    public static void rf_type(Encoding enc, Node n, RM func3, int func7) {
         short dst  = (short)(enc.reg(n      )-F_OFFSET);
         short src1 = (short)(enc.reg(n.in(1))-F_OFFSET);
         short src2 = (short)(enc.reg(n.in(2))-F_OFFSET);

@@ -20,7 +20,7 @@ public class XorIARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.RMASK; }
 
     // General form: "xori  rd = rs1 ^ imm"
-    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,0b110100100,_imm); }
+    @Override public void encoding( Encoding enc ) { arm.imm_inst_n(enc,this,0b110100100,_imm); }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" ^ #").p(_imm);
     }

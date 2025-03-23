@@ -12,7 +12,6 @@ public class MulX86 extends MachConcreteNode implements MachNode {
     @Override public int twoAddress() { return 1; }
     @Override public boolean commutes() { return true; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // REX.W + 0F AF /r	IMUL r64, r/m64
         short dst = enc.reg(this ); // src1

@@ -10,7 +10,6 @@ public class I2f8X86 extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.WMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // F2 0F 2A /r CVTSI2SD xmm1, r32/m32
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);

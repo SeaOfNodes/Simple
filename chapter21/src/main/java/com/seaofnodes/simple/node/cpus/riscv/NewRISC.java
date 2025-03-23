@@ -21,8 +21,9 @@ public class NewRISC extends NewNode implements MachNode {
         // Generic external encoding; 2 ops.
         enc.external(this,"calloc");
         // A1 is a caller-save, allowed to crush building external address
+        // auipc
         enc.add4(riscv.u_type(0x17, riscv.A1, 0));
-        enc.add4(riscv.i_type(0x67, riscv.RPC, riscv.I_JALR, riscv.A1, 0));
+        enc.add4(riscv.i_type(0x67, riscv.RPC, 0, riscv.A1, 0));
     }
 
     // General form: "alloc #bytes  PC"
