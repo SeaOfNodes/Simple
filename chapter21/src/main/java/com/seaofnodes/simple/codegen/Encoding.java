@@ -185,7 +185,7 @@ public class Encoding {
             CFGNode next = bb instanceof ReturnNode ? (CFGNode)bb.out(bb.nOuts()-1) : bb.uctrl();
             // If the *next* BB has already been visited, we require an
             // unconditional backwards jump here
-            if( visit.get(next._nid) && !(next instanceof StopNode) && !(bb.in(0) instanceof IfNode )) {
+            if( visit.get(next._nid) && !(next instanceof StopNode) ) {
                 CFGNode jmp = _code._mach.jump();
                 jmp.setDefX(0,bb);
                 next.setDef(next._inputs.find(bb),jmp);
