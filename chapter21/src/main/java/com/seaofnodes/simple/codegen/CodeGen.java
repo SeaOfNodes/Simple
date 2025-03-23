@@ -48,7 +48,6 @@ public class CodeGen {
         P = new Parser(this,arg);
     }
 
-
     // ---------------------------
     /**
      *  A counter, for unique node id generation.  Starting with value 1, to
