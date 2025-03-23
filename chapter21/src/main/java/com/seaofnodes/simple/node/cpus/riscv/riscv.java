@@ -17,10 +17,10 @@ public class riscv extends Machine {
     @Override public String name() {return "riscv";}
 
     // Using ABI names instead of register names
-    public static int ZERO =  0,  RPC=  1,  SP =  2,  GP =  3,  TP =  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int ZERO =  0,  RPC=  1,  SP =  2,  S12=  3,  S13=  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
-    public static int S8   = 24,  S9 = 25,  S10 = 26, S11 = 27, T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
+    public static int S8   = 24,  S9 = 25,  S10= 26,  S11= 27,  T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
     static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
@@ -33,7 +33,7 @@ public class riscv extends Machine {
     static final int F_OFFSET = 32;
 
     static final String[] REGS = new String[] {
-            "zero","rpc"  , "sp"  , "gp"  , "tp"  , "t0"  , "t1"  , "t2"  ,
+            "zero","rpc"  , "sp"  , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
             "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
             "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
             "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
@@ -265,6 +265,7 @@ public class riscv extends Machine {
         (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
         (1L<< S4) | (1L<< S5) | (1L<< S6 ) | (1L<< S7 ) |
         (1L<< S8) | (1L<< S9) | (1L<< S10) | (1L<< S11) |
+        (1L<<S12) | (1L<<S13) |
         (1L<<FS0) | (1L<<FS1) | (1L<<FS2 ) | (1L<<FS3 ) |
         (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
         (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
@@ -530,19 +531,19 @@ public class riscv extends Machine {
     }
 
     private Node ld(LoadNode ld) {
-        return new LoadRISC(address(ld),off);
+        return new LoadRISC(ld,address(ld),off);
     }
 
     private Node st(StoreNode st) {
         Node xval = st.val() instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
-        return new StoreRISC(address(st), off, xval);
+        return new StoreRISC(st,address(st), off, xval);
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder
     // pattern, but saving the bits in a *local* *global* here to keep mess
     // contained.
     private static int off;
-    private <N extends MemOpNode> N address( N mop ) {
+    private Node address( MemOpNode mop ) {
         off = 0;  // Reset
         Node base = mop.ptr();
         // Skip/throw-away a ReadOnly, only used to typecheck
@@ -552,8 +553,9 @@ public class riscv extends Machine {
             off = (int)ti.value();
         } else {
             base = new AddRISC(base,mop.off());
+            base._type = mop.ptr()._type;
         }
-        return mop;
+        return base;
     }
 
 }

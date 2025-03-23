@@ -10,10 +10,10 @@ import java.util.BitSet;
 public abstract class MemOpRISC extends MemOpNode implements MachNode {
     final int _off;             // Limit 12 bits
     final char _sz = (char)('0'+(1<<_declaredType.log_size()));
-    MemOpRISC(MemOpNode mop, int off, Node val) {
+    MemOpRISC(MemOpNode mop, Node base, int off, Node val) {
         super(mop,mop);
-        assert mop.ptr()._type instanceof TypeMemPtr && !(mop.ptr() instanceof AddNode);
-        _inputs.setX(2, mop.ptr() );
+        assert base._type instanceof TypeMemPtr;
+        _inputs.setX(2, base ); // Base can be an Add, is no longer raw object base
         _inputs.setX(3, null);  // Never an index
         _inputs.setX(4, val );
         _off = off;

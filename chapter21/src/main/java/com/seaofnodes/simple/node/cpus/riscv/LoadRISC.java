@@ -10,7 +10,7 @@ import com.seaofnodes.simple.node.*;
 // idx  = null
 // off  = off - imm12 added to base
 public class LoadRISC extends MemOpRISC {
-    LoadRISC(LoadNode ld, int off) { super(ld, off, null); }
+    LoadRISC(LoadNode ld, Node base, int off) { super(ld, base, off, null); }
     @Override public String op() { return "ld" +_sz; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.MEM_MASK; }
