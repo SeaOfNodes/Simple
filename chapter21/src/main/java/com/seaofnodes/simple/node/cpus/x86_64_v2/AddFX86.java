@@ -12,7 +12,6 @@ public class AddFX86 extends MachConcreteNode implements MachNode {
     @Override public int twoAddress() { return 1; }
     @Override public boolean commutes() { return true; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // F2 0F 58 /r ADDSD xmm1, xmm2/m64
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);

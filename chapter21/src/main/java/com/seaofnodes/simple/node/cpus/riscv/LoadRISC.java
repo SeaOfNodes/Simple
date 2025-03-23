@@ -17,7 +17,7 @@ public class LoadRISC extends MemOpRISC {
     @Override public void encoding( Encoding enc ) {
         short dst = xreg(enc);
         short ptr = enc.reg(ptr());
-        int body = riscv.i_type(opcode(enc),  dst, func3(), ptr, _off);
+        int body = riscv.i_type(opcode(enc), dst, func3(), ptr, _off);
         enc.add4(body);
     }
 

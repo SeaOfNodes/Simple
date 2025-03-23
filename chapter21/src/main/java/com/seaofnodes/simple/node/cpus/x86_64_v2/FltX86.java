@@ -13,7 +13,6 @@ public class FltX86 extends ConstantNode implements MachNode, RIPRelSize {
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new FltX86(this); }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // Load the constant into a FPR
         // movsd xmm, [rip + 0]

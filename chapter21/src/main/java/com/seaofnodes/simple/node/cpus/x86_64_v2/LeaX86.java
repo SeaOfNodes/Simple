@@ -22,7 +22,6 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // REX.W + 8D /r	LEA r64,m
         short dst = enc.reg(this);

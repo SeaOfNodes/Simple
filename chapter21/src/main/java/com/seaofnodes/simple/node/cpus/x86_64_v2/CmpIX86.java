@@ -23,7 +23,7 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new CmpIX86(this); }
-    // Encoding is appended into the byte array; size is returned
+
     @Override public final void encoding( Encoding enc ) {
         short dst = enc.reg(this); // Also src1
         enc.add1(x86_64_v2.rex(0, dst, 0));

@@ -11,7 +11,6 @@ public class SubFX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
     @Override public int twoAddress() { return 1; }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // F2 0F 5C /r SUBSD xmm1, xmm2/m64
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);

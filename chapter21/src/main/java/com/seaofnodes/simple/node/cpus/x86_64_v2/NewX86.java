@@ -15,7 +15,6 @@ public class NewX86 extends NewNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
     @Override public RegMask killmap() { return x86_64_v2.x86CallerSave(); }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         enc.external(this,"calloc");
         // E8 cd    CALL rel32;

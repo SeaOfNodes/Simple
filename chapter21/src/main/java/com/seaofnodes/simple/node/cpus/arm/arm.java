@@ -27,6 +27,7 @@ public class arm extends Machine {
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
+    static final int MAX_REG = 64;
     static final int D_OFFSET = 31;
     static final int FLAGS = 64;
 
@@ -286,6 +287,10 @@ public class arm extends Machine {
         return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
     }
 
+    public static int mov_reg(int opcode, int src, int dst) {
+        return (opcode  << 21) | (src << 16) | 0b11111 << 5 | dst;
+    }
+
     public static int ret(int opcode) {
         return (opcode << 10);
     }
@@ -297,6 +302,13 @@ public class arm extends Machine {
 
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
         return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
+    }
+
+    public static int f_mov_reg(int opcode, int rn, int rd) {
+        return (opcode << 24) | (0b01100000010000 << 10) | (rn << 5) | rd;
+    }
+    public static int f_mov_general(int opcode, int ftype, int rmode, int opcode1, int rn, int rd) {
+        return (opcode << 24) |(ftype << 22) | (1 << 21) | (rmode << 19) | (opcode1 << 16) | (rn << 5) | rd;
     }
     public static void f_scalar(Encoding enc, Node n, int op ) {
         short self = (short)(enc.reg(n)      -D_OFFSET);
