@@ -48,18 +48,11 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
 
     // 7 bits, 00 000 11 or 00 001 11 for FP
     int opcode(Encoding enc) {
-        if(enc.reg(this) < riscv.F_OFFSET) return 3;
-        else {
-            if(this instanceof LoadRISC) {
-                // opcode is same for 32 bit and 64 bits
-                return 7;
-            }
-            if(this instanceof StoreRISC) {
-                // opcode is the same for 32 bit and 64 bits
-                return 39;
-            }
-        }
-        return enc.reg(this ) < riscv.F_OFFSET ? 3 : 7;
+        if( enc.reg(this) < riscv.F_OFFSET ) return 3;
+        else if( this instanceof StoreRISC )
+            // opcode is the same for 32 bit and 64 bits
+            return 39;
+        return 7;
     }
     short xreg(Encoding enc) {
         short xreg = enc.reg(this );

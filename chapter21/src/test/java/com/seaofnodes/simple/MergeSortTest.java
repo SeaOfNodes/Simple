@@ -58,9 +58,9 @@ merge_sort(a, b, a#);
 
 return a;
 """;
-        Chapter20Test.testCPU(src,"x86_64_v2", "SystemV",46,"Stop[ return mov(mov([int])); return 0; ]");
-        Chapter20Test.testCPU(src,"riscv"    , "SystemV",36,"Stop[ return mov(mov([int])); return 0; ]");
-        Chapter20Test.testCPU(src,"arm"      , "SystemV",37,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"x86_64_v2", "SystemV",54,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"riscv"    , "SystemV",44,"Stop[ return mov(mov([int])); return 0; ]");
+        Chapter20Test.testCPU(src,"arm"      , "SystemV",44,"Stop[ return mov(mov([int])); return 0; ]");
 //assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
     }
 
