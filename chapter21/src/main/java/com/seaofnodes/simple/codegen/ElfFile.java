@@ -133,7 +133,7 @@ public class ElfFile {
 
     public static class SymbolSection extends Section {
         Ary<Symbol> _symbols = new Ary<>(Symbol.class);
-        int _nonlocal_symbols;
+        Ary<Symbol> _loc = new Ary<>(Symbol.class);
 
         SymbolSection(String name, int type) {
             super(name, type);
@@ -145,19 +145,17 @@ public class ElfFile {
             _link = 1;
 
             // number of non-local symbols
-            _info = _nonlocal_symbols;
+            _info = _loc.len() + 1;
 
             super.writeHeader(out);
         }
 
         void push(Symbol s) {
             if ((s._info >> 4) != SYM_BIND_LOCAL) {
-                _nonlocal_symbols += 1;
+                _symbols.push(s);
+            } else {
+                _loc.push(s);
             }
-
-            _symbols.push(s);
-            // symbols are effectively "1-based" (NULL symbol)
-            s._index = _symbols.len();
         }
 
         @Override
@@ -165,15 +163,20 @@ public class ElfFile {
             for( int i = 0; i < SYMBOL_SIZE/4; i++ ) {
                 out.putInt(0);
             }
-
+            int num=1;
+            for( Symbol s : _loc ) {
+                s._index = num++;
+                s.writeHeader(out);
+            }
             for( Symbol s : _symbols ) {
+                s._index = num++;
                 s.writeHeader(out);
             }
         }
 
         @Override
             int size() {
-            return (1 + _symbols.len()) * SYMBOL_SIZE;
+            return (1 + _symbols.len() + _loc.len()) * SYMBOL_SIZE;
         }
     }
 
@@ -318,6 +321,7 @@ public class ElfFile {
         // populate string table
         for( Section s : _sections ) { s._name_pos = writeCString(strtab, s._name); }
         for( Symbol s : symbols._symbols ) { s._name_pos = writeCString(strtab, s._name); }
+        for( Symbol s : symbols._loc ) { s._name_pos = writeCString(strtab, s._name); }
 
         int idx = 1;
         for( Section s : _sections ) {
