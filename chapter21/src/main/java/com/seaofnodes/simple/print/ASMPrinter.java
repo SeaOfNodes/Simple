@@ -25,7 +25,7 @@ public abstract class ASMPrinter {
 
         // constant pool
         Encoding enc = code._encoding;
-        if( !enc._bigCons.isEmpty() ) {
+        if(  enc!=null && !enc._bigCons.isEmpty() ) {
             sb.p("--- Constant Pool ------").nl();
             for( Node relo : enc._bigCons.keySet() ) {
                 Type t = enc._bigCons.get(relo);
@@ -190,7 +190,7 @@ public abstract class ASMPrinter {
         sb.nl();
 
         // Printing more op bits than fit
-        if( isMultiOp != null ) {
+        if( isMultiOp != null && code._encoding != null ) {
             // Multiple ops, template style, no RA, no scheduling.  Print out
             // one-line-per-newline, with encoding bits up front.
             int size = code._encoding._opLen[n._nid];
