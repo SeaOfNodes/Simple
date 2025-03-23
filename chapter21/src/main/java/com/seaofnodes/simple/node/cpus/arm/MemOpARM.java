@@ -47,14 +47,14 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         throw Utils.TODO();
     }
 
-    // Shared encoding for loads and stores
-    public void ldst_encode( Encoding enc, int opcode, Node xval ) {
+    // Shared encoding for loads and stores(int and float)
+    public void ldst_encode( Encoding enc, int opcode_imm, int opcode_reg, Node xval, boolean float_type ) {
         short ptr = enc.reg(ptr());
         short off = enc.reg(off());
-        short val = enc.reg(xval );
+        short val = enc.reg(xval);
         int body = off() == null
-            ? arm.load_str_imm(opcode, off, ptr, val)
-            : arm.indr_adr(opcode+1, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
+            ? arm.load_str_imm(opcode_imm, _off, ptr, val)
+            : arm.indr_adr(opcode_reg, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
         enc.add4(body);
     }
 

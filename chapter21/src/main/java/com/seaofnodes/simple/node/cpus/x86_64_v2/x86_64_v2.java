@@ -434,8 +434,9 @@ public class x86_64_v2 extends Machine {
         if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val);
 
-        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
-            throw Utils.TODO(); // Swap load sides
+//        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3) {
+//            throw Utils.TODO(); // Swap load sides
+//        }
 
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
@@ -463,8 +464,8 @@ public class x86_64_v2 extends Machine {
         if(addf.in(1) instanceof LoadNode ld && ld.nOuts() == 1)
             return new AddFMemX86(addf, address(ld), ld.ptr(), idx, off, scale, addf.in(2));
 
-        if(addf.in(2) instanceof LoadNode ld && ld.nOuts() == 1)
-            throw Utils.TODO(); // Swap load sides
+//        if(addf.in(2) instanceof LoadNode ld && ld.nOuts() == 1)
+//            throw Utils.TODO(); // Swap load sides
 
         return new AddFX86(addf);
     }

@@ -210,11 +210,11 @@ public class arm extends Machine {
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         assert opcode >=0 && imm12 >= 0 && rn >=0 && rd>=0; // Caller zeros high order bits
-        return (opcode << 23) | (imm12 << 10) | (rn << 5) | rd;
+        return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
 
     public static int imm_shift(int opcode, int imm, int imms, int rn,  int rd)  {
-            return (opcode << 23) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
+            return (opcode << 22) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
     }
 
     public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
@@ -222,6 +222,20 @@ public class arm extends Machine {
         short reg1 = enc.reg(n.in(1));
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
         enc.add4(body);
+    }
+
+    public static void imm_inst_n(Encoding enc, Node n, int opcode, int imm13) {
+        short self = enc.reg(n);
+        short reg1 = enc.reg(n.in(1));
+
+        int body = imm_inst_n(opcode, imm13, reg1, self);
+        enc.add4(body);
+    }
+
+    // nth bit comes from immediate and not opcode
+    public static int imm_inst_n(int opcode, int imm13, int rn, int rd) {
+        assert 0 <= imm13 && imm13 <= 0x1FFF;
+        return (opcode << 23) | (imm13 << 10) | (rn << 5) | rd;
     }
 
     public static int imm_inst_l(Encoding enc, Node n, int opcode, int imm12) {
@@ -310,8 +324,8 @@ public class arm extends Machine {
         return (opcode << 21) | (off << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (ptr << 5) | rt;
     }
     // [Rptr+imm9]
-    public static int load_str_imm(int opcode, int imm9, int ptr, int rt) {
-        return (opcode << 21) | (imm9 << 12) |(1 << 10) |(ptr << 5) | rt;
+    public static int load_str_imm(int opcode, int imm12, int ptr, int rt) {
+        return (opcode << 22) | (imm12 << 10)  |(ptr << 5) | rt;
     }
 
     // encoding for vcvt, size is encoded in operand

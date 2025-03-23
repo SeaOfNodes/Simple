@@ -4,6 +4,7 @@ import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.StoreNode;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.type.TypeFloat;
 
 // Store memory addressing on ARM
 // Support imm, reg(direct), or reg+off(indirect) addressing
@@ -21,7 +22,13 @@ public class StoreARM extends MemOpARM {
     }
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask outregmap() { return null; }
-    @Override public void encoding( Encoding enc ) {  ldst_encode(enc,0b11111000000, val()); }
+    @Override public void encoding( Encoding enc ) {
+        if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
+            ldst_encode(enc, 0b1111110100,0b11111100001, val(), true);
+        } else {
+            ldst_encode(enc, 0b1111100100, 0b11111000001, val(), false);
+        }
+    }
     @Override public void asm(CodeGen code, SB sb) {
         asm_address(code,sb).p(",");
         if( val()==null ) sb.p("#").p(_imm);

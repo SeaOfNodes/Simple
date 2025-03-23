@@ -22,7 +22,7 @@ public class AsrIARM extends MachConcreteNode implements MachNode {
         short rd = enc.reg(this);
         short rn = enc.reg(in(1));
         assert _imm > 0;
-        enc.add4(arm.imm_shift(0b100100110,_imm, 0b111111, rn, rd));
+        enc.add4(arm.imm_shift(0b1001001101,_imm, 0b111111, rn, rd));
     }
     // General form: "asri  rd = rs1 >> imm"
     @Override public void asm(CodeGen code, SB sb) {
