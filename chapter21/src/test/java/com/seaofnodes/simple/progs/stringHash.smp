@@ -1,0 +1,36 @@
+// -*- mode: java;  -*-
+struct String {
+    u8[] cs;
+    int _hashCode;
+};
+
+// Compare two Strings
+val equals = { String self, String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { String self ->
+    int hash=0;
+    if( self.cs )
+        for( int i=0; i< self.cs#; i++ )
+            hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+
+String !s = new String { cs = new u8[17]; };
+s.cs[0] =  67; // C
+s.cs[1] = 108; // l
+hashCode(s)+hashCode(s);

@@ -1,6 +1,9 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -210,41 +213,8 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     }
 
     @Test
-    public void sieveOEratosthenes() {
-        CodeGen code = new CodeGen(
-"""
-int[] !ary = new int[arg], !primes = new int[arg];
-int nprimes = 0, p=2;
-// Find primes while p^2 < arg
-while( p*p < arg ) {
-    // skip marked non-primes
-    while( ary[p]==1 ) p = p + 1;
-    // p is now a prime
-    primes[nprimes] = p;  nprimes = nprimes + 1;
-    // Mark out the rest non-primes
-    int i = p + p;
-    while( i < ary# ) {
-        ary[i] = 1;
-        i = i + p;
-    }
-    p = p + 1;
-}
-// Now just collect the remaining primes, no more marking
-while( p < arg ) {
-    if( ary[p] == 0 ) {
-        primes[nprimes] = p;  nprimes = nprimes + 1;
-    }
-    p = p + 1;
-}
-// Copy/shrink the result array
-int[] !rez = new int[nprimes];
-int j = 0;
-while( j < nprimes ) {
-    rez[j] = primes[j];
-    j = j + 1;
-}
-return rez;
-""");
+    public void sieveOEratosthenes() throws IOException {
+        CodeGen code = new CodeGen(Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp")));
         code.parse().opto();
         assertEquals("return [int];", code.print());
         assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));

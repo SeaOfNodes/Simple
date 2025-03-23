@@ -1,32 +1,29 @@
-
-int[] !ary = new int[arg], !primes = new int[arg];
+// -*- mode: java;  -*-
+// The main Sieve array
+bool[] !ary = new bool[arg];
+// The primes less than arg
+int[] !primes = new int[arg>>1];
+// Number of primes so far, searching at index p
 int nprimes = 0, p=2;
 // Find primes while p^2 < arg
 while( p*p < arg ) {
     // skip marked non-primes
-    while( ary[p]==1 ) p = p + 1;
+    while( ary[p] ) p++;
     // p is now a prime
-    primes[nprimes] = p;  nprimes = nprimes + 1;
+    primes[nprimes++] = p;
     // Mark out the rest non-primes
-    int i = p + p;
-    while( i < ary# ) {
-        ary[i] = 1;
-        i = i + p;
-    }
-    p = p + 1;
+    for( int i = p + p; i < ary#; i+= p )
+        ary[i] = true;
+    p++;
 }
+
 // Now just collect the remaining primes, no more marking
-while( p < arg ) {
-    if( ary[p] == 0 ) {
-        primes[nprimes] = p;  nprimes = nprimes + 1;
-    }
-    p = p + 1;
-}
+for( ; p < arg; p++ )
+    if( !ary[p] )
+        primes[nprimes++] = p;
+
 // Copy/shrink the result array
 int[] !rez = new int[nprimes];
-int j = 0;
-while( j < nprimes ) {
+for( int j=0; j < nprimes; j++ )
     rez[j] = primes[j];
-    j = j + 1;
-}
 return rez;

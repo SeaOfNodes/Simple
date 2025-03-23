@@ -44,39 +44,26 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
 
-    public static final String newton = """
-// Newtons approximation to the square root
-val sqrt = { flt x ->
-    flt guess = x;
-    while( 1 ) {
-        flt next = (x/guess + guess)/2;
-        if( next == guess ) return guess;
-        guess = next;
-    }
-};
-flt farg = arg;
-return sqrt(farg) + sqrt(farg+2.0);
-""";
-
     @Test
-    public void testNewtonFloat() {
-        testCPU(newton,"x86_64_v2", "SystemV",25,null);
-        testCPU(newton,"riscv"    , "SystemV",17,null);
-        testCPU(newton,"arm"      , "SystemV",18,null);
+    public void testNewtonFloat() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
+            + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
+        testCPU(src,"x86_64_v2", "SystemV",25,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
     }
 
     @Test
-    public void testArray1() {
-        String src = """
-int[] !ary = new int[arg];
-// Fill [0,1,2,3,4,...]
-for( int i=0; i<ary#; i++ )
-    ary[i] = i;
-// Fill [0,1,3,6,10,...]
-for( int i=0; i<ary#-1; i++ )
-    ary[i+1] += ary[i];
-return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
-""";
+    public void testString() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",18,null);
+        testCPU(src,"riscv"    , "SystemV", 3,null);
+        testCPU(src,"arm"      , "SystemV", 3,null);
+    }
+
+    @Test
+    public void testArray1() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
         testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
         testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(mul,.[],1000));");
@@ -85,7 +72,9 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 
     @Test
     public void testExport() throws IOException {
-        CodeGen code = new CodeGen(newton);
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
+            + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
+        CodeGen code = new CodeGen(src);
         code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
     }
 
