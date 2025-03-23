@@ -17,9 +17,10 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
         Node set = in(1);
         Node cmp = set.in(1);
         // Bypass an expected Set and just reference the cmp directly
-        if( set instanceof SetX86 && (cmp instanceof CmpX86 || cmp instanceof CmpIX86 || cmp instanceof CmpMemX86 || cmp instanceof CmpFX86) )
-            _inputs.set(1,cmp);
-        else
+        if( set instanceof SetX86 setx && (cmp instanceof CmpX86 || cmp instanceof CmpIX86 || cmp instanceof CmpMemX86 || cmp instanceof CmpFX86) ) {
+            _inputs.set( 1, cmp );
+            _bop = setx._bop;
+        } else
             throw Utils.TODO();
     }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
