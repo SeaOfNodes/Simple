@@ -40,8 +40,8 @@ public class Chapter20Test {
 
     @Test public void testAlloc0() {
         testCPU("return new u8[arg];","x86_64_v2", "SystemV",3,"return [u8];");
-        testCPU("return new u8[arg];","riscv"    , "SystemV",7,"return [u8];");
-        testCPU("return new u8[arg];","arm"      , "SystemV",7,"return [u8];");
+        testCPU("return new u8[arg];","riscv"    , "SystemV",5,"return [u8];");
+        testCPU("return new u8[arg];","arm"      , "SystemV",5,"return [u8];");
     }
 
     @Test public void testBasic1() {
@@ -66,9 +66,9 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",26,null);
+        testCPU(src,"x86_64_v2", "SystemV",23,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
-        testCPU(src,"arm"      , "SystemV",17,null);
+        testCPU(src,"arm"      , "SystemV",19,null);
     }
 
     @Test
@@ -85,7 +85,7 @@ return sqrt(arg) + sqrt(arg+2);
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
         testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
         testCPU(src,"riscv"    , "SystemV",6,"return .[];");
-        testCPU(src,"arm"      , "SystemV",6,"return .[];");
+        testCPU(src,"arm"      , "SystemV",4,"return .[];");
     }
 
 
@@ -103,7 +103,7 @@ return sqrt(arg) + sqrt(arg+2);
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV",17,null);
+        testCPU(src,"riscv"    , "SystemV",20,null);
         testCPU(src,"arm"      , "SystemV",16,null);
     }
 

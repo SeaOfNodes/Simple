@@ -173,6 +173,8 @@ public class RegAlloc {
             BuildLRG.run(round,this) && // if no hard register conflicts
             // Build Interference Graph
             IFG.build(round,this) &&    // If no self conflicts or uncolorable
+            // Conservative coalesce copies
+            Coalesce.coalesce(round,this) &&
             // Color attempt
             IFG.color(round,this);      // If colorable
     }

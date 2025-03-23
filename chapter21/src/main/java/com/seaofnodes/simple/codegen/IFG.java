@@ -19,7 +19,7 @@ abstract public class IFG {
     static final IdentityHashMap<LRG,Node> TMP = new IdentityHashMap<>();
 
     // Inteference Graph: Array of Bitsets
-    private static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
+    static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
     static void resetIFG() {
         for( BitSet bs : IFG )
             if( bs!=null ) bs.clear();
@@ -148,9 +148,10 @@ abstract public class IFG {
                     // last tlrg register at some point, either tlrg or lrg
                     // must fail.  If *n* (a subset of lrg) needs the single
                     // last tlrg register then only tlrg must fail.
-                    if( ((MachNode)n).outregmap().size1() && !tlrg.clr(lrg._mask.firstReg()) )
-                        alloc.fail(tlrg);
-                    else addIFG(lrg,tlrg); // Add interference
+                    if( ((MachNode)n).outregmap().size1() ) {
+                        if( !tlrg.clr(lrg._mask.firstReg()) ) // Clear bit, no interference
+                            alloc.fail(tlrg);                 // Clearing drives mask to empty
+                    } else addIFG(lrg,tlrg); // Add interference
             }
         }
 
@@ -281,22 +282,10 @@ abstract public class IFG {
     // If there's no spare color we'll have to spill this at-risk live range.
 
     public static boolean color(int round, RegAlloc alloc) {
-
-        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
-        // adjacency matrix.
         int maxlrg = alloc._LRGS.length, nlrgs=0;
-        for( int i=1; i<maxlrg; i++ ) {
-            if( alloc._LRGS[i] != null ) nlrgs++;
-            BitSet ifg = IFG.atX(i);
-            if( ifg != null ) {
-                LRG lrg0 = alloc._LRGS[i];
-                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
-                    LRG lrg1 = alloc._LRGS[lrg];
-                    lrg0.addNeighbor(lrg1);
-                    lrg1.addNeighbor(lrg0);
-                }
-            }
-        }
+        for( int i=1; i<maxlrg; i++ )
+            if( alloc._LRGS[i] != null )
+                nlrgs++;
 
         // Simplify
 
@@ -429,7 +418,8 @@ abstract public class IFG {
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
     private static int pickRiskyScore( LRG lrg ) {
-        // Pick single-def clonables that are not right next to their single-use
+        // Pick single-def clonables that are not right next to their single-use.
+        // Failing to color these will clone them closer to their uses.
         if( !lrg._multiDef && lrg._machDef.isClone() ) {
             Node def = ((Node)lrg._machDef);
             Node use = ((Node)lrg._machUse);

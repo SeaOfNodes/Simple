@@ -418,6 +418,20 @@ public class arm extends Machine {
         }
         throw Utils.TODO(); // Pass on stack slot
     }
+    // Return the max stack slot used by this signature, or 0
+    static short maxSlot( TypeFunPtr tfp ) {
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=0; i<tfp.nargs(); i++ )
+            if( tfp.arg(i) instanceof TypeFloat )
+                fcnt++;
+        if( fcnt >= XMMS.length )
+            throw Utils.TODO();
+        RegMask[] cargs = CALLINMASK;
+        if( tfp.nargs()-fcnt >= cargs.length )
+            throw Utils.TODO();
+        return 0;               // No stack args
+    }
 
     static final long CALLEE_SAVE =
             1L<<X19 |

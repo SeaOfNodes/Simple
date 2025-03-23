@@ -6,7 +6,9 @@ import com.seaofnodes.simple.node.*;
 
 public class RetARM extends ReturnNode implements MachNode {
     RetARM(ReturnNode ret, FunNode fun) { super(ret, fun); fun.setRet(this); }
-    @Override public String op() { return "ret"; }
+    @Override public String op() {
+        return ((FunARM)fun())._frameAdjust > 0 ? "addi" : "ret";
+    }
     // Correct Nodes outside the normal edges
     @Override public void postSelect(CodeGen code) {
         FunNode fun = (FunNode)rpc().in(0);
@@ -16,9 +18,17 @@ public class RetARM extends ReturnNode implements MachNode {
     @Override public RegMask regmap(int i) { return arm.retMask(_fun.sig(),i); }
     @Override public RegMask outregmap() { return null; }
     // RET
-    @Override public void encoding( Encoding enc ) { enc.add4(arm.ret(0b1101011001011111000000)); }
+    @Override public void encoding( Encoding enc ) {
+        int frameAdjust = ((FunARM)fun())._frameAdjust;
+        if( frameAdjust > 0 )
+            enc.add4(arm.imm_inst(0b1001000100, (frameAdjust*-8)&0xFFF, arm.RSP, arm.RSP));
+        enc.add4(arm.ret(0b1101011001011111000000));
+    }
 
     @Override public void asm(CodeGen code, SB sb) {
+        int frameAdjust = ((FunARM)fun())._frameAdjust;
+        if( frameAdjust>0 )
+            sb.p("rsp += #").p(frameAdjust*-8).p("\nret");
         // Post code-gen, just print the "ret"
         if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
             // Prints return reg (either X0 or D0), RPC (always R30) and
