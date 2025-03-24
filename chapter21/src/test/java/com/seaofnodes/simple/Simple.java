@@ -43,10 +43,10 @@ Options:
   --dump-after-parse         - dump intermediate representation after parse
   --dump-after-opto          - dump intermediate representation after opto pass
   --dump-after-type-check    - dump intermediate representation after type check pass
-  --dump-after-instr_select  - dump intermediate representation after instrution selection pass
+  --dump-after-instr-select  - dump intermediate representation after instrution selection pass
   --dump-after-gcm           - dump intermediate representation after GCM pass
   --dump-after-local-sched   - dump intermediate representation after local scheduling pass
-  --dump-after-reg_alloc     - dump intermediate representation after register allocation pass
+  --dump-after-reg-alloc     - dump intermediate representation after register allocation pass
   --dump-after-encode        - dump intermediate representation after encoding pass
   --dump-after-all           - dump intermediate representation after all passes
   --dot                      - dump grapical representation of intermediate code into *.dot file(s)
@@ -157,7 +157,7 @@ loop:   for (int i = 0; i < args.length; i++) {
                     case "--dump-after-instr-select": dump |= DUMP_AFTER_INSTR_SELECT; break;
                     case "--dump-after-gcm":          dump |= DUMP_AFTER_GCM; break;
                     case "--dump-after-local-sched":  dump |= DUMP_AFTER_LOCAL_SCHED; break;
-                    case "--dump-after-reg_alloc":    dump |= DUMP_AFTER_REG_ALLOC; break;
+                    case "--dump-after-reg-alloc":    dump |= DUMP_AFTER_REG_ALLOC; break;
                     case "--dump-after-encode":       dump |= DUMP_AFTER_ENCODE; break;
                     case "--dump-after-all":          dump |= DUMP_AFTER_ALL; break;
                     case "--dot":                     dump |= DUMP_DOT; break;
