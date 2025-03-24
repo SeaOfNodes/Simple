@@ -53,6 +53,7 @@ Options:
   -S                         - dump generated assembler code
   --eval ...                 - evaluate the compiled code in emulator
   --run ...                  - run the compiled code natively
+  --dump-size                - print the size of generated code
   --dump-time                - print compilation and execution times
   --cpu <cpu-name>           - use specific CPU (x86_64_v2, riscv, arm)
   --abi <abi-name>           - use speific ABI variant (SystemV)
@@ -157,6 +158,7 @@ Options:
         boolean do_eval = false;
         boolean do_run = false;
         boolean do_codegen = false;
+        boolean do_print_size = false;
         boolean do_print_time = false;
         int dump = 0;
         int first_arg = 0;
@@ -188,6 +190,7 @@ loop:   for (int i = 0; i < args.length; i++) {
                     case "-S":                        dump |= DUMP_DISASSEMBLE; break;
                     case "--eval":                    do_eval = true; first_arg = i + 1; break loop;
                     case "--run":                     do_run = true; first_arg = i + 1; break loop;
+                    case "--dump-size":               do_print_size = true; break;
                     case "--dump-time":               do_print_time = true; break;
                     case "--cpu":                     if (cpu != null
                                                        || i + 1 >= args.length
@@ -217,7 +220,7 @@ loop:   for (int i = 0; i < args.length; i++) {
             System.exit(1);
         }
 
-        if (do_run || (dump & DUMP_DISASSEMBLE) != 0) {
+        if (do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size) {
             if (cpu == null) cpu = system_cpu;
             if (abi == null) abi = system_abi;
             if (cpu == null || abi == null) {
@@ -270,6 +273,10 @@ loop:   for (int i = 0; i < args.length; i++) {
 
         if (do_codegen && (dump & DUMP_DISASSEMBLE) != 0) {
             System.out.println(code.asm());
+        }
+
+        if (do_print_size) {
+             System.out.println(String.format("Code Size: %d", code._encoding._bits.size()));
         }
 
         if (do_print_time) {
