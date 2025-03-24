@@ -156,7 +156,7 @@ public class CodeGen {
 
     // ---------------------------
     // Last check for bad programs
-    int _tTypeCheck;
+    public int _tTypeCheck;
     public CodeGen typeCheck() {
         // Demand phase Opto for cleaning up dead control flow at least,
         // required for the following GCM.
@@ -249,7 +249,7 @@ public class CodeGen {
 
     // ---------------------------
     // Control Flow Graph in RPO order.
-    int _tGCM;
+    public int _tGCM;
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
@@ -270,7 +270,7 @@ public class CodeGen {
 
     // ---------------------------
     // Local (basic block) scheduler phase, a classic list scheduler
-    int _tLocal;
+    public int _tLocal;
     public CodeGen localSched() {
         assert _phase == Phase.Schedule;
         _phase = Phase.LocalSched;
@@ -283,7 +283,7 @@ public class CodeGen {
 
     // ---------------------------
     // Register Allocation
-    int _tRegAlloc;
+    public int _tRegAlloc;
     public RegAlloc _regAlloc;
     public CodeGen regAlloc() {
         assert _phase == Phase.LocalSched;
@@ -305,7 +305,7 @@ public class CodeGen {
 
     // ---------------------------
     // Encoding
-    int _tEncode;
+    public int _tEncode;
     public Encoding _encoding;
     public CodeGen encode() {
         assert _phase == Phase.RegAlloc;

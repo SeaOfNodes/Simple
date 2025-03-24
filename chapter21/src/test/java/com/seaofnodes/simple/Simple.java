@@ -53,6 +53,7 @@ Options:
   -S                         - dump generated assembler code
   --eval ...                 - evaluate the compiled code in emulator
   --run ...                  - run the compiled code natively
+  --dump-time                - print compilation and execution times
   --cpu <cpu-name>           - use specific CPU (x86_64_v2, riscv, arm)
   --abi <abi-name>           - use speific ABI variant (SystemV)
   --target                   - print native CPU and ABI
@@ -123,6 +124,28 @@ Options:
         }
     }
 
+    static void print_compilation_times(CodeGen code) {
+        double t, total = 0;
+
+        total += t = code._tParse / 1e3;
+        System.out.println(String.format("Parsing Time:               %.3f sec", t));
+        total += t = code._tOpto / 1e3;
+        System.out.println(String.format("Optimization Time:          %.3f sec", t));
+        total += t = code._tTypeCheck / 1e3;
+        System.out.println(String.format("Type Checking Time:         %.3f sec", t));
+        total += t = code._tInsSel / 1e3;
+        System.out.println(String.format("Instruction Selection Time: %.3f sec", t));
+        total += t = code._tGCM / 1e3;
+        System.out.println(String.format("GCM Time:                   %.3f sec", t));
+        total += t = code._tLocal / 1e3;
+        System.out.println(String.format("Local Scheduling Time:      %.3f sec", t));
+        total += t = code._tRegAlloc / 1e3;
+        System.out.println(String.format("Register Allocation Time:   %.3f sec", t));
+        total += t = code._tEncode / 1e3;
+        System.out.println(String.format("Instruction Encoding Time:  %.3f sec", t));
+        System.out.println(String.format("TOTAL COMPILATION TIME:     %.3f sec", total));
+    }
+
     static String getInput() {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         return reader.lines().collect(Collectors.joining("\n"));
@@ -134,6 +157,7 @@ Options:
         boolean do_eval = false;
         boolean do_run = false;
         boolean do_codegen = false;
+        boolean do_print_time = false;
         int dump = 0;
         int first_arg = 0;
         String src = null;
@@ -164,6 +188,7 @@ loop:   for (int i = 0; i < args.length; i++) {
                     case "-S":                        dump |= DUMP_DISASSEMBLE; break;
                     case "--eval":                    do_eval = true; first_arg = i + 1; break loop;
                     case "--run":                     do_run = true; first_arg = i + 1; break loop;
+                    case "--dump-time":               do_print_time = true; break;
                     case "--cpu":                     if (cpu != null
                                                        || i + 1 >= args.length
                                                        || args[i + 1].charAt(0) == '-') bad_usage();
@@ -247,10 +272,19 @@ loop:   for (int i = 0; i < args.length; i++) {
             System.out.println(code.asm());
         }
 
+        if (do_print_time) {
+            print_compilation_times(code);
+        }
+
         if (do_eval) {
             // TODO: Support for evaluation of functions with different argument numbers and types
+            long t = System.currentTimeMillis();
             long arg = (first_arg < args.length) ? Integer.valueOf(args[first_arg]) : 0;
             System.out.println(Eval2.eval(code, arg, 100000));
+            if (do_print_time) {
+                System.out.println(String.format("EXECUTION TIME:             %.3f sec",
+                    (System.currentTimeMillis() - t) / 1e3));
+            }
         } else if (do_run) {
             if (cpu != system_cpu || abi != system_abi) {
                 System.err.println("ERROR: cannot run code on not native target");
