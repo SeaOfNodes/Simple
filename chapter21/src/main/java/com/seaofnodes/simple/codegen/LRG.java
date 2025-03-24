@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 
 import java.util.IdentityHashMap;
@@ -151,7 +152,10 @@ public class LRG {
         _splitUse = deepSplit(_splitUse,lrg._splitUse);
 
         // Fold together masks
-        _mask = _mask.and(lrg._mask);
+        RegMask mask = _mask.and(lrg._mask);
+        if( mask==null )
+            mask = _mask.copy().and(lrg._mask);
+        _mask = mask;
         return this;
     }
 

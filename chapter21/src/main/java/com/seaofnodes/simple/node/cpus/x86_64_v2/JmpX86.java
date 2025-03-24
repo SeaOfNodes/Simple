@@ -60,7 +60,7 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
         String src = code.reg(in(1));
         if( src!="flags" ) sb.p(src).p(" ");
         CFGNode prj = cproj(0); // 0 is True is jump target
-        while( prj.nOuts() == 1 )
+        while( prj.nOuts() == 1 && !(prj instanceof ReturnNode) )
             prj = prj.uctrl(); // Skip empty blocks
         sb.p(label(prj));
     }
