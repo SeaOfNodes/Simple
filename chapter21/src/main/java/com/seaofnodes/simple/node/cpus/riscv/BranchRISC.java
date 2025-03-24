@@ -9,7 +9,7 @@ import java.util.BitSet;
 public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     String _bop;
     // label is obtained implicitly
-    BranchRISC( IfNode iff, String bop, Node n1, Node n2 ) {
+    public BranchRISC( IfNode iff, String bop, Node n1, Node n2 ) {
         super(iff);
         _bop = bop;
         _inputs.setX(1,n1);

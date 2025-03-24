@@ -69,7 +69,7 @@ public class riscv extends Machine {
     public static RegMask A6_MASK = new RegMask(A6);
     public static RegMask A7_MASK = new RegMask(A7);
 
-    static final RegMask RPC_MASK = new RegMask(RPC);
+    public static final RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
     public static RegMask FA0_MASK = new RegMask(FA0);
@@ -328,12 +328,12 @@ public class riscv extends Machine {
     }
 
     // True if signed 12-bit immediate
-    private static boolean imm12(TypeInteger ti) {
+    public static boolean imm12(TypeInteger ti) {
         // 52 = 64-12
         return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
     // True if HIGH 20-bit signed immediate, with all zeros low.
-    static boolean imm20Exact(TypeInteger ti) {
+    public static boolean imm20Exact(TypeInteger ti) {
         // shift left 32 to clear out the upper 32 bits.
         // shift right SIGNED to sign-extend upper 32 bits; then shift 12 more to clear out lower 12 bits.
         // shift left 12 to re-center the bits.

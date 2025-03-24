@@ -44,7 +44,7 @@ public interface MachNode {
     // Make a clone of a cheap instruction
     default Node copy() { return null; }
 
-    // Encoding is appended into the byte array; size is returned
+    // Encoding is appended, relocations gathered.
     void encoding( Encoding enc );
 
     // Human-readable form appended to the SB.  Things like the encoding,
