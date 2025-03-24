@@ -56,13 +56,13 @@ public class Compile {
                 extern double testMy(double);
                 
                 int main(int argc, char** argv) {
-                    printf("%f\\n", testMy(4.0));
+                    printf("%f\\n", testMy(2.0));
                     return 0;
                 }
                 
                 """);
         assertEquals(0, p.waitFor());
-        assertEquals("2.000000\n", new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+        assertEquals("1.414214\n", new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
     }
 
 }
