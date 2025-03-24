@@ -20,7 +20,7 @@ public class Compile {
         boolean USE_WSL = System.getProperty("os.name").startsWith("Windows");
         CodeGen code = new CodeGen(simple);
         code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode();
-        for (var n:code._start._outputs) if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
+        if (c != null) for (var n:code._start._outputs) if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
         code.exportELF("test.o");
         var params = new ArrayList<String>();
         if (USE_WSL) params.add("wsl.exe");
