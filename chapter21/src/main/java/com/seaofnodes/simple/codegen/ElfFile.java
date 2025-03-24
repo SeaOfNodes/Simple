@@ -283,7 +283,7 @@ public class ElfFile {
         // populate function symbols
         encodeFunctions(symbols, text);
         // populate big constants
-        encodeConstants(symbols, rdata);
+        // encodeConstants(symbols, rdata);
 
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
@@ -301,7 +301,7 @@ public class ElfFile {
             write8(text_rela._contents, -4);
         }
         // relocations to constants
-        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+        if (false) for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
             int nid    = e.getKey()._nid;
             int sym_id = _bigCons.get(e.getValue())._index;
             int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
