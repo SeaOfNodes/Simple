@@ -181,7 +181,7 @@ public class riscv extends Machine {
         int imm10_5= (delta>> 5) &0x2F;
         int imm11  = (delta>>11) &   1;
         int imm12  = (delta>>12) &   1;
-        int imm5 = imm4_1<<4 | imm11;
+        int imm5 = imm4_1<<1 | imm11;
         int imm7 = imm12<<7 | imm10_5;
         return (imm7 << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm5 << 7) | opcode;
     }
