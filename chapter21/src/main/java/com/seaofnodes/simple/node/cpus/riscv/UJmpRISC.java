@@ -8,7 +8,7 @@ import java.util.BitSet;
 
 // unconditional jump
 public class UJmpRISC extends CFGNode implements MachNode, RIPRelSize {
-    UJmpRISC() { }
+    //UJmpRISC() { }
     @Override public String op() { return "jmp"; }
     @Override public String label() { return op(); }
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) {

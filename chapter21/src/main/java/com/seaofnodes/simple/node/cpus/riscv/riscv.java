@@ -5,8 +5,6 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.io.ByteArrayOutputStream;
-
 public class riscv extends Machine {
 
     public riscv(CodeGen code) {
@@ -69,7 +67,7 @@ public class riscv extends Machine {
     public static RegMask A6_MASK = new RegMask(A6);
     public static RegMask A7_MASK = new RegMask(A7);
 
-    static final RegMask RPC_MASK = new RegMask(RPC);
+    public static final RegMask RPC_MASK = new RegMask(RPC);
 
     // Float arguments masks
     public static RegMask FA0_MASK = new RegMask(FA0);
@@ -107,6 +105,7 @@ public class riscv extends Machine {
     // major opcode: OP
     public static int OP    = 0b01_100_11;
     public static int OP_FP = 0b10_100_11;
+    public static int OP_CUSTOM0 = 0b00_010_11;
 
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
@@ -158,9 +157,6 @@ public class riscv extends Machine {
         assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
-    //public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-    //    return i_type(opcode,rd,func3,rs1,imm,0);
-    //}
 
 
     // S-type instructions(store)
@@ -328,12 +324,12 @@ public class riscv extends Machine {
     }
 
     // True if signed 12-bit immediate
-    private static boolean imm12(TypeInteger ti) {
+    public static boolean imm12(TypeInteger ti) {
         // 52 = 64-12
         return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
     // True if HIGH 20-bit signed immediate, with all zeros low.
-    static boolean imm20Exact(TypeInteger ti) {
+    public static boolean imm20Exact(TypeInteger ti) {
         // shift left 32 to clear out the upper 32 bits.
         // shift right SIGNED to sign-extend upper 32 bits; then shift 12 more to clear out lower 12 bits.
         // shift left 12 to re-center the bits.

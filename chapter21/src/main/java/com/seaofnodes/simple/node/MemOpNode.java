@@ -9,6 +9,12 @@ import java.util.BitSet;
 
 /**
  * Convenience common base for Load and Store.
+ *
+ * 0 - Control
+ * 1 - Memory
+ * 2 - Base of object, OOP
+ * 3 - Offset, integer types
+ * 4 - Value, for Stores only
  */
 public abstract class MemOpNode extends Node {
 

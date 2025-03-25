@@ -84,7 +84,7 @@ public class RegMask {
 
     boolean isEmpty() { return _bits0==0 && _bits1==0; }
 
-    boolean test( int reg ) {
+    public boolean test( int reg ) {
         return ((reg<64 ? (_bits0 >> reg) : (_bits1 >> (reg-64))) & 1)  != 0;
     }
 
