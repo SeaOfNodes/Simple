@@ -22,7 +22,7 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
     @Override public String label() { return op(); }
     Node val() { return in(4); } // Only for stores
 
-    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    @Override public StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }

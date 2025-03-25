@@ -5,8 +5,6 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.io.ByteArrayOutputStream;
-
 public class riscv extends Machine {
 
     public riscv(CodeGen code) {
@@ -107,6 +105,7 @@ public class riscv extends Machine {
     // major opcode: OP
     public static int OP    = 0b01_100_11;
     public static int OP_FP = 0b10_100_11;
+    public static int OP_CUSTOM0 = 0b00_010_11;
 
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
@@ -158,9 +157,6 @@ public class riscv extends Machine {
         assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
-    //public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-    //    return i_type(opcode,rd,func3,rs1,imm,0);
-    //}
 
 
     // S-type instructions(store)
