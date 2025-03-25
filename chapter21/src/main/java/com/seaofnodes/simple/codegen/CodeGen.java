@@ -317,7 +317,7 @@ public class CodeGen {
         return this;
     }
     // Encoded binary, no relocation info
-    public byte[] binary() { throw Utils.TODO(); }
+    public byte[] binary() { return _encoding.bits(); }
 
     // ---------------------------
     // Exporting to external formats
