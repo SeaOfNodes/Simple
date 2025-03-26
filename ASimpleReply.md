@@ -8,9 +8,11 @@ Looking at the design choices, it seems clear to me that V8 hobbled itself from 
 
 ## Effects 
 *Equivalence class aliasing* is a powerful tool, and a key part of SoN.  It appears to me that V8 threw this away from the start, and then spent the next several years dealing with its lack.
+
 #### "Too many nodes on the effects chain"
 Equivalence class aliasing comes for free, literally free, in any strongly typed language.  It comes directly out of the parser (be it JVM bytecodes, Simple, C), and need not be ever touched again.  With it, Java/Simple/C have very sparse and clean effects chains.  Definitely not "too many".
 JS is *not* strongly typed, so there's an engineering tradeoff being made.  I was under the believe that V8 (and other JS engines) used *specialization* aggressively to bring back strong typing in code regions; in those areas again ECA should just work directly.
+
 #### "Managing the effect and control chains manually is hard"
 Equivalence class aliasing is *directly* represented in SoN, as just normal nodes and edges.  There's no special handling for it anywhere, the normal graph maintenance functions manipulate those nodes and edges just the same as they do anything else.  Two nodes that might alias directly have connecting edges, nodes that do not - do not, and hence *cannot* be influenced about what happens in other alias classes.
 As result of those two observations (free to obtain from strong typing, normal node/edge maintenance) this form of effect handling is been vastly simpler to build and maintain, and vastly faster to use than any other compiled I've ever worked on - and that's quite a few.  25yrs of C2 on Java shows that it can be very effective for performance and plenty fast in a JIT.
@@ -19,9 +21,9 @@ Me thinks V8 did itself no favors here.
 
 ## Control on Effect nodes
 Guard tests for correctness: either null checks on fields or range checks on arrays.  Perhaps for JS (and certainly C2/Java) also some type/specialization checks.  C2 also adds a control edge to guard effect nodes.  These then get optimized away (controlling edge removed) in one of two generic ways:
-*Lattice*: For null and type checks there is a Node `Type` which includes things like null-ness or sub-classing.  Not-null pointers are known not-null based on the type; null checks against them constant-fold, etc.  (The `Types` form a *lattice* with strong properties like symmetric, complete, bounded (ranked), and meet is commutative and associative.)
+(1) *Lattice*: For null and type checks there is a Node `Type` which includes things like null-ness or sub-classing.  Not-null pointers are known not-null based on the type; null checks against them constant-fold, etc.  (The `Types` form a *lattice* with strong properties like symmetric, complete, bounded (ranked), and meet is commutative and associative.)
 After a guarding test we can lift the type - using a Cast tied to the guard test, where the Cast does a lattice *join* (not *meet*).  Effect nodes that need that guard pick up the Cast on the base pointer - not the control edge. If, later, we prove the Cast's *join* is useless e.g. `_t.join(in(1)._type)==_t`, the Cast constant folds away, and the effect Node can now float more freely.  This analysis (comes as part of the normal c-prop) removes > 90% of Java's casting needs.
-The other generic test is range-checks, which start life as a direct control edge dependency.  These generally do not trivially fold away - something with all constant sizes and array indices might, but mostly no.  Then C2 runs *Range Check Elimination*, a special pass just for Java safe arrays, and removes dynamically nearly all of them.  I would expect to see the same come from any serious safe-language optimization.
+(2) The other generic test is range-checks, which start life as a direct control edge dependency.  These generally do not trivially fold away - something with all constant sizes and array indices might, but mostly no.  Then C2 runs *Range Check Elimination*, a special pass just for Java safe arrays, and removes dynamically nearly all of them.  I would expect to see the same come from any serious safe-language optimization.
 
 ## Debugging
 Yeah, don't use graphs to debug.  Use normal ASCII dumps like the ones being shown in this article.  That's what *I* do anyways.  Certainly I didn't have access to fast easy graph layouts back when C2 started, I just debugged it "the normal way".
