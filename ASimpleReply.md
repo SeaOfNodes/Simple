@@ -21,8 +21,11 @@ Me thinks V8 did itself no favors here.
 
 ## Control on Effect nodes
 Guard tests for correctness: either null checks on fields or range checks on arrays.  Perhaps for JS (and certainly C2/Java) also some type/specialization checks.  C2 also adds a control edge to guard effect nodes.  These then get optimized away (controlling edge removed) in one of two generic ways:
+
 (1) *Lattice*: For null and type checks there is a Node `Type` which includes things like null-ness or sub-classing.  Not-null pointers are known not-null based on the type; null checks against them constant-fold, etc.  (The `Types` form a *lattice* with strong properties like symmetric, complete, bounded (ranked), and meet is commutative and associative.)
+
 After a guarding test we can lift the type - using a Cast tied to the guard test, where the Cast does a lattice *join* (not *meet*).  Effect nodes that need that guard pick up the Cast on the base pointer - not the control edge. If, later, we prove the Cast's *join* is useless e.g. `_t.join(in(1)._type)==_t`, the Cast constant folds away, and the effect Node can now float more freely.  This analysis (comes as part of the normal c-prop) removes > 90% of Java's casting needs.
+
 (2) The other generic test is range-checks, which start life as a direct control edge dependency.  These generally do not trivially fold away - something with all constant sizes and array indices might, but mostly no.  Then C2 runs *Range Check Elimination*, a special pass just for Java safe arrays, and removes dynamically nearly all of them.  I would expect to see the same come from any serious safe-language optimization.
 
 ## Debugging
