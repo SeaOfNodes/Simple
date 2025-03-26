@@ -29,7 +29,10 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("if( "),visited).append(_bop);
+        sb.append("if( ");
+        if( in(1)==null ) sb.append("0");
+        else in(1)._print0(sb,visited);
+        sb.append(_bop);
         if( in(2)==null ) sb.append("0");
         else in(2)._print0(sb,visited);
         return sb.append(" )");
