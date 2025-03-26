@@ -12,7 +12,7 @@ Looking at the design choices, it seems clear to me that V8 hobbled itself from 
 #### "Too many nodes on the effects chain"
 Equivalence class aliasing comes for free, literally free, in any strongly typed language.  It comes directly out of the parser (be it JVM bytecodes, Simple, C), and need not be ever touched again.  With it, Java/Simple/C have very sparse and clean effects chains.  Definitely not "too many".
 
-JS is *not* strongly typed, so there's an engineering tradeoff being made.  I was under the believe that V8 (and other JS engines) used *specialization* aggressively to bring back strong typing in code regions; in those areas again ECA should just work directly.
+JS is *not* strongly typed, so there's an engineering tradeoff being made.  I was under the belief that V8 (and other JS engines) used *specialization* aggressively to bring back strong typing in code regions; in those areas again ECA should just work directly.
 
 #### "Managing the effect and control chains manually is hard"
 Equivalence class aliasing is *directly* represented in SoN, as just normal nodes and edges.  There's no special handling for it anywhere, the normal graph maintenance functions manipulate those nodes and edges just the same as they do anything else.  Two nodes that might alias directly have connecting edges, nodes that do not - do not, and hence *cannot* be influenced about what happens in other alias classes.
