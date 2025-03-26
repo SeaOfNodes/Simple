@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 public class AddRISC extends MachConcreteNode implements MachNode {
-    AddRISC( Node add ) { super(add); }
+    public AddRISC( Node add ) { super(add); }
     AddRISC( Node base, Node off ) {
         super(new Node[3]);
         _inputs.set(1,base);
