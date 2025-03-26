@@ -62,7 +62,9 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2))).p(" ");
+        String src1 = in(1)==null ? "#0" : code.reg(in(1));
+        String src2 = in(2)==null ? "#0" : code.reg(in(2));
+        sb.p(src1).p(" ").p(_bop).p(" ").p(src2).p(" ");
         CFGNode prj = cproj(0);
         while( prj.nOuts() == 1 )
             prj = prj.uctrl();       // Skip empty blocks

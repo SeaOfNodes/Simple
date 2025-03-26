@@ -27,7 +27,7 @@ abstract public class BuildLRG {
                                 break;
                     // If none, make one.
                     if( lrg==null ) lrg = alloc.newLRG(n);
-                    if( phi instanceof MachNode mach ) defLRG(alloc,n);
+                    if( phi instanceof MachNode ) defLRG(alloc,n);
                     // Pass 2: everybody uses the same LRG
                     lrg=alloc.union(lrg,phi);
                     for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
