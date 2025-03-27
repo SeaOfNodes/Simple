@@ -183,13 +183,17 @@ public class Encoding {
         if( bb.nOuts()==0 ) return; // StopNode
         if( !(bb instanceof IfNode iff) ) {
             CFGNode next = bb instanceof ReturnNode ? (CFGNode)bb.out(bb.nOuts()-1) : bb.uctrl();
-            // If the *next* BB has already been visited, we require an
-            // unconditional backwards jump here
+            // If the *next* BB has already been visited, we may need an
+            // unconditional jump here
             if( visit.get(next._nid) && !(next instanceof StopNode) ) {
-                CFGNode jmp = _code._mach.jump();
-                jmp.setDefX(0,bb);
-                next.setDef(next._inputs.find(bb),jmp);
-                rpo.add(jmp);
+                // If all the blocks, in RPO order, to our target
+                // are empty, we will fall in and not need a jump.
+                if( next instanceof LoopNode || !isEmptyBackwardsScan(rpo,next) ) {
+                    CFGNode jmp = _code._mach.jump();
+                    jmp.setDefX(0,bb);
+                    next.setDef(next._inputs.find(bb),jmp);
+                    rpo.add(jmp);
+                }
             }
             _rpo_cfg(next,visit,rpo);
         } else {
@@ -232,6 +236,12 @@ public class Encoding {
         rpo.add(bb);
     }
 
+    private static boolean isEmptyBackwardsScan(Ary<CFGNode> rpo, CFGNode next) {
+        for( int i=rpo._len-1; rpo.at(i)!=next; i-- )
+            if( rpo.at(i).nOuts()!=1 )
+                return false;
+        return true;
+    }
 
     // Write encoding bits in order into a big byte array.
     // Record opcode start and length.

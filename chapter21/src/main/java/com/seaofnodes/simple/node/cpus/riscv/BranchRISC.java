@@ -43,7 +43,7 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         // Todo: relocs (for offset - immf)
         short src1 = enc.reg(in(1));
         short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
-        enc.add4(riscv.b_type(0x63, riscv.jumpop(_bop), src1, src2, 0));
+        enc.add4(riscv.b_type(riscv.OP_BRANCH, riscv.jumpop(_bop), src1, src2, 0));
     }
 
     // Delta is from opcode start
@@ -58,7 +58,7 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         short src1 = enc.reg(in(1));
         short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.b_type(0x63, riscv.jumpop(_bop), src1, src2, delta));
+            enc.patch4(opStart,riscv.b_type(riscv.OP_BRANCH, riscv.jumpop(_bop), src1, src2, delta));
         } else {
             throw Utils.TODO();
         }
