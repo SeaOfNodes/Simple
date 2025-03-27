@@ -69,6 +69,10 @@ public class ElfFile {
         // top 4bits are the "bind", bottom 4 are "type"
         int _info;
 
+        // bind 1011
+        // 00001111
+        // 10110000
+
         Symbol(String name, int parent, int bind, int type) {
             _name = name;
             _parent = parent;
@@ -78,6 +82,7 @@ public class ElfFile {
         void writeHeader(ByteBuffer out) {
             out.putInt(_name_pos);         // name
             out.put((byte) _info);         // info
+            // default visibility
             out.put((byte) 0);             // other
             out.putShort((short) _parent); // shndx
             out.putLong(_value);           // value
@@ -140,7 +145,7 @@ public class ElfFile {
         }
 
         @Override
-            void writeHeader(ByteBuffer out) {
+        void writeHeader(ByteBuffer out) {
             // points to string table section
             _link = 1;
 
@@ -160,6 +165,7 @@ public class ElfFile {
 
         @Override
             void write(ByteBuffer out) {
+            // Index 0 both designates the first entry in the table and serves as the undefined symbol index
             for( int i = 0; i < SYMBOL_SIZE/4; i++ ) {
                 out.putInt(0);
             }
@@ -169,7 +175,6 @@ public class ElfFile {
                 s.writeHeader(out);
             }
             for( Symbol s : _symbols ) {
-                s._index = num++;
                 s.writeHeader(out);
             }
         }
@@ -210,6 +215,7 @@ public class ElfFile {
         s._index = _sections._len;
     }
 
+    /* creates function and stores where it starts*/
     private final HashMap<TypeFunPtr,Symbol> _funcs = new HashMap<>();
     private void encodeFunctions(SymbolSection symbols, DataSection text) {
         int func_start = 0;
@@ -271,6 +277,7 @@ public class ElfFile {
         SymbolSection symbols = new SymbolSection(".symtab", 2 /* SHT_STRTAB */);
         pushSection(symbols);
 
+        // zero flag by default
         // we've already constructed this entire section in the encoding phase
         DataSection text = new DataSection(".text", 1 /* SHT_PROGBITS */, _code._encoding._bits);
         text._flags = SHF_ALLOC | SHF_WRITE | SHF_EXECINSTR;
@@ -283,7 +290,7 @@ public class ElfFile {
         // populate function symbols
         encodeFunctions(symbols, text);
         // populate big constants
-        // encodeConstants(symbols, rdata);
+        encodeConstants(symbols, rdata);
 
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
@@ -300,29 +307,12 @@ public class ElfFile {
             // i64 addend
             write8(text_rela._contents, -4);
         }
-        // relocations to constants
-        if (false) for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
-            int nid    = e.getKey()._nid;
-            int sym_id = _bigCons.get(e.getValue())._index;
-            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
 
-            // u64 offset
-            write8(text_rela._contents, offset);
-            // u64 info
-            write8(text_rela._contents, ((long)sym_id << 32L) | 1L /* PC32 */);
-            // i64 addend
-            write8(text_rela._contents, -4);
-        }
         text_rela._flags = SHF_INFO_LINK;
         text_rela._link = 2;
         text_rela._info = text._index;
-        pushSection(text_rela);
 
-        // populate string table
-        for( Section s : _sections ) { s._name_pos = writeCString(strtab, s._name); }
-        for( Symbol s : symbols._symbols ) { s._name_pos = writeCString(strtab, s._name); }
-        for( Symbol s : symbols._loc ) { s._name_pos = writeCString(strtab, s._name); }
-
+        // calculate local indexes first
         int idx = 1;
         for( Section s : _sections ) {
             Symbol sym = new Symbol(s._name, idx++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
@@ -331,6 +321,36 @@ public class ElfFile {
             sym._size = s.size();
             symbols.push(sym);
         }
+        // now we can do global one
+        int num = symbols._loc.len() + 1 + 1; // second one for the not yet added local symbol that would push everything up by one
+        for( Symbol s : symbols._symbols ) {
+            s._index = num++;
+        }
+        // relocations to constants
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            int nid    = e.getKey()._nid;
+            int sym_id = _bigCons.get(e.getValue())._index;
+            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
+
+            // u64 offset
+            write8(text_rela._contents, offset);
+            // u64 info
+            write8(text_rela._contents, ((long)sym_id << 32L) | 2L /* PC32 */);
+            // i64 addend
+            write8(text_rela._contents, -4);
+        }
+        // Symbol for text_rela
+        Symbol sym = new Symbol(text_rela._name, 1 + _sections.len() + 1, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
+        sym._name_pos = text_rela._name_pos;
+        sym._size = text_rela.size();
+        symbols.push(sym);
+
+        pushSection(text_rela);
+
+        // populate string table
+        for( Section s : _sections ) { s._name_pos = writeCString(strtab, s._name); }
+        for( Symbol s : symbols._symbols ) { s._name_pos = writeCString(strtab, s._name); }
+        for( Symbol s : symbols._loc ) { s._name_pos = writeCString(strtab, s._name); }
 
         int size = 64; // ELF header
         // size of all section data
