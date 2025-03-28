@@ -225,6 +225,12 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
+    // for cases where rs1 and dst are the same, eg add x0, x0, 1
+    public static void imm_inst(Encoding enc, int opcode, int imm12, int self) {
+        int body = imm_inst(opcode, imm12&0xFFF, self, self);
+        enc.add4(body);
+    }
+
     public static void imm_inst_n(Encoding enc, Node n, int opcode, int imm13) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));
@@ -239,6 +245,12 @@ public class arm extends Machine {
         return (opcode << 23) | (imm13 << 10) | (rn << 5) | rd;
     }
 
+   public static int imm_inst_l(int opcode, int imm12, int self) {
+        int body = imm_inst(opcode, imm12&0xFFF, self, self);
+        return body;
+    }
+
+    // for cases where rs1 and dst are the same, eg add x0, x0, 1
     public static int imm_inst_l(Encoding enc, Node n, int opcode, int imm12) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n.in(1));

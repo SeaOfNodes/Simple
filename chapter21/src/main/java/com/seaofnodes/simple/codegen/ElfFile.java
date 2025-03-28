@@ -169,9 +169,8 @@ public class ElfFile {
             for( int i = 0; i < SYMBOL_SIZE/4; i++ ) {
                 out.putInt(0);
             }
-            int num=1;
+            // index is already set
             for( Symbol s : _loc ) {
-                s._index = num++;
                 s.writeHeader(out);
             }
             for( Symbol s : _symbols ) {
@@ -242,31 +241,6 @@ public class ElfFile {
         }
     }
 
-    public final HashMap<Type,Symbol> _bigCons = new HashMap<>();
-    private void encodeConstants(SymbolSection symbols, DataSection rdata) {
-        int cnt = 0;
-        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
-            if (_bigCons.get(e.getValue()) != null) {
-                continue;
-            }
-
-            Symbol glob = new Symbol("GLOB$"+cnt, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
-            glob._value = rdata._contents.size();
-            symbols.push(glob);
-
-            Type t = e.getValue();
-            if ( t instanceof TypeFloat tf ) {
-                write8(rdata._contents, Double.doubleToLongBits(tf._con));
-            } else {
-                throw Utils.TODO();
-            }
-
-            glob._size = rdata._contents.size() - glob._value;
-            _bigCons.put(e.getValue(), glob);
-            cnt++;
-        }
-    }
-
     public void export(String fname) throws IOException {
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string
@@ -289,15 +263,34 @@ public class ElfFile {
 
         // populate function symbols
         encodeFunctions(symbols, text);
-        // populate big constants
-        encodeConstants(symbols, rdata);
 
+        int idx = 1;
+        for( Section s : _sections ) {
+            Symbol sym = new Symbol(s._name, idx++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
+            // we can reuse the same name pos from the actual section
+            sym._name_pos = s._name_pos;
+            sym._size = s.size();
+            symbols.push(sym);
+        }
+
+        // calculate local index
+        int num = 1;
+        for( Symbol s : symbols._loc ) {
+            s._index = num++;
+        }
+        int start_global = symbols._loc.size();
+        for(Symbol a: symbols._symbols) {
+            a._index = start_global++;
+        }
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
         for( Node n : _code._encoding._externals.keySet()) {
             int nid    = n._nid;
             String extern = _code._encoding._externals.get(n);
-            int sym_id = _funcs.get(extern)._index;
+            if(!extern.isEmpty()) throw Utils.TODO();
+            // Todo: fix this up later when external functions will be in TU
+            //int sym_id = _funcs.get(extern)._index;
+            int sym_id = 0;
             int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
 
             // u64 offset
@@ -311,41 +304,12 @@ public class ElfFile {
         text_rela._flags = SHF_INFO_LINK;
         text_rela._link = 2;
         text_rela._info = text._index;
+        pushSection(text_rela);
 
-        // calculate local indexes first
-        int idx = 1;
-        for( Section s : _sections ) {
-            Symbol sym = new Symbol(s._name, idx++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
-            // we can reuse the same name pos from the actual section
-            sym._name_pos = s._name_pos;
-            sym._size = s.size();
-            symbols.push(sym);
-        }
-        // now we can do global one
-        int num = symbols._loc.len() + 1 + 1; // second one for the not yet added local symbol that would push everything up by one
-        for( Symbol s : symbols._symbols ) {
-            s._index = num++;
-        }
-        // relocations to constants
-        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
-            int nid    = e.getKey()._nid;
-            int sym_id = _bigCons.get(e.getValue())._index;
-            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
-
-            // u64 offset
-            write8(text_rela._contents, offset);
-            // u64 info
-            write8(text_rela._contents, ((long)sym_id << 32L) | 2L /* PC32 */);
-            // i64 addend
-            write8(text_rela._contents, -4);
-        }
-        // Symbol for text_rela
-        Symbol sym = new Symbol(text_rela._name, 1 + _sections.len() + 1, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
+        Symbol sym = new Symbol(text_rela._name, idx++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
         sym._name_pos = text_rela._name_pos;
         sym._size = text_rela.size();
         symbols.push(sym);
-
-        pushSection(text_rela);
 
         // populate string table
         for( Section s : _sections ) { s._name_pos = writeCString(strtab, s._name); }

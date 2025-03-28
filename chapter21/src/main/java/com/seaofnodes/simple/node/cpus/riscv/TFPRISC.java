@@ -34,7 +34,7 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
-        if( opLen==4 ) {
+        if( opLen==8 ) {
             // AUIPC (upper 20 bits)
             // opstart of add
             int next = opStart + opLen;
@@ -43,6 +43,7 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
             enc.patch4(next,riscv.i_type(0b0010011, rpc, 0, rpc, delta & 0xFFF));
             // addi
         } else {
+             // should not happen as one instruction is 4 byte, and TFP arm encodes 2.
             throw Utils.TODO();
         }
     }
