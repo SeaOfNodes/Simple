@@ -29,7 +29,10 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("if( "),visited).append(_bop);
+        sb.append("if( ");
+        if( in(1)==null ) sb.append("0");
+        else in(1)._print0(sb,visited);
+        sb.append(_bop);
         if( in(2)==null ) sb.append("0");
         else in(2)._print0(sb,visited);
         return sb.append(" )");
@@ -40,7 +43,7 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         // Todo: relocs (for offset - immf)
         short src1 = enc.reg(in(1));
         short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
-        enc.add4(riscv.b_type(0x63, riscv.jumpop(_bop), src1, src2, 0));
+        enc.add4(riscv.b_type(riscv.OP_BRANCH, riscv.jumpop(_bop), src1, src2, 0));
     }
 
     // Delta is from opcode start
@@ -55,14 +58,16 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         short src1 = enc.reg(in(1));
         short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.b_type(0x63, riscv.jumpop(_bop), src1, src2, delta));
+            enc.patch4(opStart,riscv.b_type(riscv.OP_BRANCH, riscv.jumpop(_bop), src1, src2, delta));
         } else {
             throw Utils.TODO();
         }
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(in(1))).p(" ").p(_bop).p(" ").p(in(2)==null ? "#0" : code.reg(in(2))).p(" ");
+        String src1 = in(1)==null ? "#0" : code.reg(in(1));
+        String src2 = in(2)==null ? "#0" : code.reg(in(2));
+        sb.p(src1).p(" ").p(_bop).p(" ").p(src2).p(" ");
         CFGNode prj = cproj(0);
         while( prj.nOuts() == 1 )
             prj = prj.uctrl();       // Skip empty blocks

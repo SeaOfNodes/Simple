@@ -9,8 +9,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 // 12-bit integer constant.  Larger constants are made up in the instruction
 // selection by adding with a LUI.
 public class IntRISC extends ConstantNode implements MachNode {
-    IntRISC(ConstantNode con) { super(con); }
-    public IntRISC(TypeInteger con) { super(con); }
+    public IntRISC(ConstantNode con) { super(con); }
     @Override public String op() { return "ldi"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

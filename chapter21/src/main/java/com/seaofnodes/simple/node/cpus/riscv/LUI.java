@@ -8,7 +8,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 // Load upper 20bits.
 public class LUI extends ConstantNode implements MachNode {
-    LUI( int imm20 ) {
+    public LUI( int imm20 ) {
         super(TypeInteger.constant(imm20));
         assert riscv.imm20Exact((TypeInteger)_con);
     }

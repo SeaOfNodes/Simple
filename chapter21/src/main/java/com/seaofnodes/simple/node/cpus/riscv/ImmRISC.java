@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
 abstract public class ImmRISC extends MachConcreteNode implements MachNode {
-    final int _imm12;
+    public final int _imm12;
     ImmRISC( Node add, int imm12, boolean pop ) {
         super(add);
         _imm12 = imm12;

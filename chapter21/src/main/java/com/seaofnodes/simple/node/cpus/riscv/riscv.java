@@ -106,6 +106,7 @@ public class riscv extends Machine {
     public static int OP    = 0b01_100_11;
     public static int OP_FP = 0b10_100_11;
     public static int OP_CUSTOM0 = 0b00_010_11;
+    public static int OP_BRANCH  = 0b11_000_11;
 
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
@@ -178,11 +179,11 @@ public class riscv extends Machine {
         // 31 30 29 28 27 26 25 24-20 19-15 14-12 11 10  9  8  7  6-0
         // 12 10  9  8  7  6  5 SRC2  SRC1  FUNC3  4  3  2  1 11  OP
         int imm4_1 = (delta>> 1) & 0xF;
-        int imm10_5= (delta>> 5) &0x2F;
+        int imm10_5= (delta>> 5) &0x3F;
         int imm11  = (delta>>11) &   1;
         int imm12  = (delta>>12) &   1;
         int imm5 = imm4_1<<1 | imm11;
-        int imm7 = imm12<<7 | imm10_5;
+        int imm7 = imm12<<6 | imm10_5;
         return (imm7 << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm5 << 7) | opcode;
     }
 
