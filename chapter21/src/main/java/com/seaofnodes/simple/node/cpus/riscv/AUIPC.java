@@ -17,7 +17,7 @@ public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);
         short dst = enc.reg(this);
-        enc.add4(riscv.u_type(0x17, dst, 0));
+        enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding

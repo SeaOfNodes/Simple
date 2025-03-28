@@ -21,7 +21,7 @@ public class LUI extends ConstantNode implements MachNode {
         long x = ((TypeInteger)_con).value();
         int imm20 = (int)(x>>12) & 0xFFFFF;
         short dst = enc.reg(this);
-        int lui = riscv.u_type(0x17, dst, imm20);
+        int lui = riscv.u_type(riscv.OP_LUI, dst, imm20);
         enc.add4(lui);
     }
 
