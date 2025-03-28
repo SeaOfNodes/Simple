@@ -1,5 +1,6 @@
 
 A Simple Reply to https://www.reddit.com/r/Compilers/comments/1jjldhu/land_ahoy_leaving_the_sea_of_nodes/
+
 Because reddit crashes when I try to post this.
 
 ## prolog
