@@ -116,6 +116,16 @@ public class riscv extends Machine {
     public static int OP_BRANCH  = 0b11_000_11;
     public static int OP_RESERVED= 0b11_010_11;
 
+    public static int OP_CALL    = 0b11_001_11;
+
+    // major opcode: Store-Load
+    public static int LOAD_FLOAT  = 0b00_001_11;
+    public static int LOAD_GPR    = 0b00_000_11;
+    public static int STORE_FLOAT = 0b01_001_11;
+    public static int STORE_GPR   = 0b01_000_11;
+
+    public static int FLOAT_COMMON = 0b10_100_11;
+
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
 

@@ -14,7 +14,7 @@ public class I2F8RISC extends MachConcreteNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short dst  = (short)(enc.reg(this )-riscv.F_OFFSET);
         short src1 =         enc.reg(in(1));
-        int body = riscv.r_type(0b1010011,dst,riscv.RM.RNE.ordinal(),src1,0,0x69);
+        int body = riscv.r_type(riscv.FLOAT_COMMON,dst,riscv.RM.RNE.ordinal(),src1,0,0x69);
         enc.add4(body);
     }
     @Override public void asm(CodeGen code, SB sb) {
