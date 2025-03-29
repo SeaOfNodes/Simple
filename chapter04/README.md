@@ -234,10 +234,10 @@ two arrows down the graph to the first point they meet.
 
 In the table above `Con1` and `Con2` represent two distinct integer values, and serve to explain the rules below.
 
-* The `meet` of `IntTop` with any integer constant is that constant.
-* The `meet` of `IntBot` with any integer value is `IntBot`.
-* The `meet` of any integer with itself is that integer.
-* The `meet` of two unrelated integer constants is `IntBot`.
+* `meet`ing `IntTop` with any integer constant produces that constant.
+* `meet`ing `IntBot` with any integer value produces `IntBot`.
+* `meet`ing of any integer with itself produces that integer.
+* `meet`ing of two unrelated integer constants produces `IntBot`.
 
 Currently, all our integer valued nodes are either a constant or a `IntBot` integer type.
 When we start optimizing loops, we will start seeing `IntTop` values.
