@@ -149,8 +149,14 @@ public abstract class ASMPrinter {
         int fatEncoding = 0;
         if( code._encoding != null ) {
             int size = code._encoding._opLen[n._nid];
-            for( int i=0; i<Math.min(size,encWidth>>1); i++ )
-                sb.hex1(code._encoding._bits.buf()[iadr++]);
+            if( code._asmLittle )
+                for( int i=0; i<Math.min(size,dopz); i++ )
+                    sb.hex1(code._encoding._bits.buf()[iadr++]);
+            else {
+                iadr += Math.min(size,dopz);
+                for( int i=0; i<Math.min(size,dopz); i++ )
+                    sb.hex1(code._encoding._bits.buf()[iadr-i-1]);
+            }
             for( int i=size*2; i<encWidth; i++ )
                 sb.p(" ");
             fatEncoding = size - (encWidth>>1); // Not-printed parts of encoding

@@ -226,6 +226,7 @@ public abstract class Node {
     }
 
     // Breaks the edge invariants, used temporarily
+    @SuppressWarnings("unchecked")
     protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
@@ -274,6 +275,7 @@ public abstract class Node {
     // Add bogus null use to keep node alive
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
+    @SuppressWarnings("unchecked")
     public <N extends Node> N unkeep() {
         delUse(null);
         return (N)this;
@@ -493,6 +495,7 @@ public abstract class Node {
         return old;
     }
 
+    @SuppressWarnings("unchecked")
     public <N extends Node> N init() { _type = compute(); return (N)this; }
 
     /**

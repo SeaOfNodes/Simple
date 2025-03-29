@@ -58,7 +58,7 @@ abstract public class Coalesce {
                     // Most constrained mask
                     RegMask mask = v1._mask==v2._mask ? v1._mask : v1._mask.copy().and(v2._mask);
                     // Check for capacity
-                    if( (v2._adj==null ? 0 : v2._adj._len) >= mask.size() ) {
+                    if( v2._adj!=null && v2._adj._len >= mask.size() ) {
                         // Fails capacity, will not be trivial colorable
                         v2._adj.setLen(v2len);
                         continue;
