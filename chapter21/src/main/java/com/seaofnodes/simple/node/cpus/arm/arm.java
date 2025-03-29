@@ -90,6 +90,79 @@ public class arm extends Machine {
     static final RegMask D6_MASK = new RegMask(D6);
     static final RegMask D7_MASK = new RegMask(D7);
 
+    // major opcode: OP
+    public static int OP_ADD       = 0b10_001_011;
+    public static int OPF_ADD      = 0b00_011_110;
+    public static int OPI_ADD      = 0b10_010_00100;
+
+    public static int OP_UJMP      = 0b01010100;
+
+    public static int OP_ADRP      = 0b10000;
+
+    public static int OP_ASR       = 0b1010;
+    public static int OPI_ASR      = 0b10_0100_1101;
+
+    public static int OP_LSL       = 0b1000;
+    public static int OPI_LSL       =0b1101001101;
+
+
+    public static int OP_LSR        = 0b1001;
+    public static int OPI_LSR       = 0b1101001101;
+
+    public static int OP_BRANCH    = 0b01_0101_00;
+    public static int OP_CALL      = 0b10_010_1;
+
+    public static int OP_CALLRARM  = 0b1101011000111111000000;
+
+    public static int OP_SUBS      = 0b1111000100;
+    public static int OP_CSET      = 0b10011010100;
+    public static int OP_CMP       = 0b11101011;
+    public static int OPI_CMP      = 0b1111000100;
+
+    public static int OP_DIV       = 0b10011010110;
+    public static int OPF_DIV      = 0b000110;
+
+    public static int OP_MUL       = 0b10011011000;
+    public static int OPF_MUL      =  0b10;
+
+    public static int OPF_ARM      = 0b01011100;
+
+    public static int OP_FLOAT_C   = 0b10011110;
+
+    public static int OP_XOR       = 0b11001010;
+    public static int OPI_XOR      = 0b110100100;
+
+    public static int OP_AND       = 0b10_0010_10;
+    public static int OPI_AND      = 0b10_0100_100;
+
+    public static int OP_OR        = 0b10101010;
+    public static int OPI_OR       = 0b101100100;
+
+    public static int OP_SUB       = 0b11001011;
+    public static int OPF_SUB      = 0b1110;
+
+    public static int OP_MOVK      = 0b111100101;
+    public static int OP_MOVN      = 0b100100101;
+    public static int OP_MOVZ      = 0b110100101;
+
+    public static int OP_RET       = 0b1101011001011111000000;
+    // Store/load opcodes
+    public static int OP_LOAD_R    = 0b11111000011;
+    public static int OP_LOAD_IMM  = 0b1111100101;
+
+    public static int OPF_LOAD_R    = 0b11111100011;
+    public static int OPF_LOAD_IMM  = 0b1111110101;
+
+    public static int OP_STORE_R    = 0b11111000001;
+    public static int OP_STORE_IMM  = 0b1111100100;
+
+    public static int OPF_STORE_R    = 0b11111100001;
+    public static int OPF_STORE_IMM  = 0b1111110100;
+
+    public static int OP_FMOV        = 0b10011110;
+    public static int OP_FMOV_REG    = 0b00011110;
+    // https://docsmirror.github.io/A64/2023-06/mov_orr_log_shift.html
+    public static int OP_MOV         = 0b10101010000;
     // Calling convention; returns a machine-specific register
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
@@ -123,6 +196,10 @@ public class arm extends Machine {
         SXTH,
         SXTW,
         SXTX,
+    }
+
+    static public int cset(int opcode, int rm, COND cond, int rn, int rd) {
+        return (opcode << 21) | (rm << 15) | (cond.ordinal() << 12) | (rn << 5) | rd;
     }
 
     static public int cset(int opcode, COND cond, int rn, int rd) {
@@ -581,7 +658,7 @@ public class arm extends Machine {
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
-            ? new SubIARM(sub, (int)ti.value())
+            ? new AddIARM(sub, (int)(-ti.value()))
             : new SubARM(sub);
     }
 

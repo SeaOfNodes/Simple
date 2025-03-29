@@ -29,7 +29,7 @@ public class RetRISC extends ReturnNode implements MachNode {
         if( frameAdjust > 0 )
             enc.add4(riscv.i_type(riscv.I_TYPE, riscv.SP, 0, riscv.SP, (frameAdjust*-8) & 0xFFF));
         short rpc = enc.reg(rpc());
-        enc.add4(riscv.i_type(0x67, riscv.ZERO, 0, rpc, 0));
+        enc.add4(riscv.i_type(riscv.OP_CALL, riscv.ZERO, 0, rpc, 0));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

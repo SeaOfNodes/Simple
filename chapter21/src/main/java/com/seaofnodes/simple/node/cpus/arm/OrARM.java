@@ -11,7 +11,7 @@ public class OrARM extends MachConcreteNode implements MachNode {
     @Override public String glabel() { return "|"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
-    @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,0b10101010); }
+    @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,arm.OP_OR); }
     // General form:  #rd = rs1 & rs2
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" | ").p(code.reg(in(2)));

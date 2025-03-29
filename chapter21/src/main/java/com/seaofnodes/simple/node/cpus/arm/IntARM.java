@@ -33,11 +33,11 @@ public class IntARM extends ConstantNode implements MachNode {
         if(nb0 >= nb1) {
             // More 0 blocks then F blocks, use movz
             pattern = 0;
-            op = 0b110100101;
+            op = arm.OP_MOVZ;
         } else {
             // More F blocks then 0 blocks, use movn
             pattern = 0xFFFF;
-            op = 0b100100101;
+            op = arm.OP_MOVN;
         }
         int invert = pattern;
         for (int i=0; i<4; i++) {
@@ -45,11 +45,11 @@ public class IntARM extends ConstantNode implements MachNode {
             x >>= 16;
             if (block != pattern) {
                 enc.add4(arm.mov(op, i, block ^ invert, self));
-                op = 0b111100101;
+                op = arm.OP_MOVK;
                 invert = 0;
             }
         }
-        if (op != 0b111100101) {
+        if (op != arm.OP_MOVK) {
             // All blocks are the same, special case
             enc.add4(arm.mov(op, 0, 0, self));
         }

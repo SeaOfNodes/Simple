@@ -27,7 +27,7 @@ public class FunARM  extends FunNode implements MachNode {
         _maxArgSlot = arm.maxSlot(enc._fun.sig());
         _frameAdjust = (short) (_maxSlot+1 - _maxArgSlot);
         if( _frameAdjust == 0 ) return; // Skip if no frame adjust
-        enc.add4(arm.imm_inst(0b1001000100, (_frameAdjust*8)&0xFFF, arm.RSP, arm.RSP));
+        enc.add4(arm.imm_inst(arm.OPI_ADD, (_frameAdjust*8)&0xFFF, arm.RSP, arm.RSP));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

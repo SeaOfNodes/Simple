@@ -19,9 +19,9 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
         enc.largeConstant(this,_con);
         short dst = (short)(enc.reg(this) - riscv.F_OFFSET);
         // AUIPC dst,#hi20_constant_pool
-        enc.add4(riscv.u_type(0b0010111, dst, 0));
+        enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
         // Load dst,[dst+#low12_constant_pool]
-        enc.add4(riscv.i_type(0x07, dst, 0x03, dst, 0));
+        enc.add4(riscv.i_type(riscv.LOAD_GPR, dst, 0b11, dst, 0));
     }
 
     // Delta is from opcode start.
@@ -32,9 +32,9 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = (short)(enc.reg(this) - riscv.F_OFFSET);
         // AUIPC dst,#hi20_constant_pool
-        enc.patch4(opStart  , riscv.u_type(0b0010111, dst, delta));
+        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, delta));
         // Load dst,[dst+#low12_constant_pool]
-        enc.patch4(opStart+4, riscv.i_type(0x07, dst, 0x03, dst, delta));
+        enc.patch4(opStart+4, riscv.i_type(riscv.LOAD_GPR, dst, 0b11, dst, delta));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

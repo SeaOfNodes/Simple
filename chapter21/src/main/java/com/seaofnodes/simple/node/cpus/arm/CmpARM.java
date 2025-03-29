@@ -11,7 +11,7 @@ public class CmpARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.FLAGS_MASK; }
 
     // SUBS (shifted register)
-    @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,0b11101011); }
+    @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,arm.OP_CMP); }
 
     // General form: "cmp  rs1, rs2"
     @Override public void asm(CodeGen code, SB sb) {

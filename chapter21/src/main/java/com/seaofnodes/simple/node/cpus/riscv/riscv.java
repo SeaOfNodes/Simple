@@ -101,7 +101,7 @@ public class riscv extends Machine {
             FA6_MASK,
             FA7_MASK
     };
-    //
+
     // major opcode: OP
     public static int OP_CUSTOM0 = 0b00_010_11;
     public static int OP_AUIPC   = 0b00_101_11;
@@ -115,6 +115,16 @@ public class riscv extends Machine {
 
     public static int OP_BRANCH  = 0b11_000_11;
     public static int OP_RESERVED= 0b11_010_11;
+
+    public static int OP_CALL    = 0b11_001_11;
+
+    // major opcode: Store-Load
+    public static int LOAD_FLOAT  = 0b00_001_11;
+    public static int LOAD_GPR    = 0b00_000_11;
+    public static int STORE_FLOAT = 0b01_001_11;
+    public static int STORE_GPR   = 0b01_000_11;
+
+    public static int FLOAT_COMMON = 0b10_100_11;
 
     //I_type opcode: 0010 0011
     public static int I_TYPE = 0x13;
@@ -134,6 +144,7 @@ public class riscv extends Machine {
         int body = r_type(OP,dst,func3,src1,src2,func7);
         enc.add4(body);
     }
+
     public static void rf_type(Encoding enc, Node n, RM func3, int func7) {
         short dst  = (short)(enc.reg(n      )-F_OFFSET);
         short src1 = (short)(enc.reg(n.in(1))-F_OFFSET);

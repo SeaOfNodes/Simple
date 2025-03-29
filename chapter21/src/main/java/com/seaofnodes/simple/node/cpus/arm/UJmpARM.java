@@ -20,7 +20,7 @@ public class UJmpARM extends CFGNode implements MachNode, RIPRelSize {
     @Override public Node idealize() { throw Utils.TODO(); }
     @Override public void encoding( Encoding enc ) {
         enc.jump(this,uctrl());
-        int body = arm.b(0b01010100, 0);
+        int body = arm.b(arm.OP_UJMP, 0);
         enc.add4(body);
     }
 
@@ -34,7 +34,7 @@ public class UJmpARM extends CFGNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         if( opLen==4 ) {
-            enc.patch4(opStart,arm.b(0b01010100, delta));
+            enc.patch4(opStart,arm.b(arm.OP_UJMP, delta));
         } else {
             throw Utils.TODO();
         }

@@ -15,7 +15,7 @@ public class OrIARM extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { return arm.RMASK; }
     @Override public RegMask outregmap() { return arm.RMASK; }
     @Override public void encoding( Encoding enc ) {
-        arm.imm_inst_n(enc, this, 0b101100100, _imm);
+        arm.imm_inst_n(enc, this, arm.OPI_OR, _imm);
     }
     // General form: "ori  rd = rs1 | imm"
     @Override public void asm(CodeGen code, SB sb) {

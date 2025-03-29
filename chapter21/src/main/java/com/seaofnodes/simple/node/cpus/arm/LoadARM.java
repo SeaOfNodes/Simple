@@ -21,9 +21,9 @@ public class LoadARM extends MemOpARM{
     // ldr(immediate - unsigned offset) | ldr(register)
     @Override public void encoding( Encoding enc ) {
         if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
-            ldst_encode(enc, 0b1111110101, 0b11111100011, this, true);
+            ldst_encode(enc, arm.OPF_LOAD_IMM, arm.OPF_LOAD_R, this, true);
         } else {
-            ldst_encode(enc, 0b1111100101, 0b11111000011, this, false);
+            ldst_encode(enc, arm.OP_LOAD_IMM, arm.OP_LOAD_R, this, false);
         }
     }
     @Override public void asm(CodeGen code, SB sb) {

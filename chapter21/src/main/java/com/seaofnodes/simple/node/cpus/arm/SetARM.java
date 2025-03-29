@@ -21,7 +21,7 @@ public class SetARM extends MachConcreteNode implements MachNode {
 
     // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
-        int body = arm.cset(0b1001101010011111, arm.make_condition(_bop), 0b0111111, enc.reg(this));
+        int body = arm.cset(arm.OP_CSET,0b11111, arm.make_condition(_bop), 0b0111111, enc.reg(this));
         enc.add4(body);
     }
 

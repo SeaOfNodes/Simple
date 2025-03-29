@@ -34,7 +34,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
         // by comparison (or sub).  No need for regs because it uses flags
         enc.jump(this,cproj(0));
         // B.cond
-        enc.add4( arm.b_cond(0b01010100, 0, arm.make_condition(_bop)) );
+        enc.add4( arm.b_cond(arm.OP_BRANCH, 0, arm.make_condition(_bop)) );
     }
 
     // Delta is from opcode start
@@ -47,7 +47,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         if( opLen==4 ) {
-            enc.patch4(opStart,arm.b_cond(0b01010100, delta, arm.make_condition(_bop)));
+            enc.patch4(opStart,arm.b_cond(arm.OP_BRANCH, delta, arm.make_condition(_bop)));
         } else {
             throw Utils.TODO();
         }

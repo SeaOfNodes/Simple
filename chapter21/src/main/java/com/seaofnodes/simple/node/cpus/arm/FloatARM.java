@@ -22,7 +22,7 @@ public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
         double d = ((TypeFloat)_con).value();
         long x = Double.doubleToRawLongBits(d);
-        enc.add4(arm.load_pc(0b01011100, 0, dst));
+        enc.add4(arm.load_pc(arm.OPF_ARM, 0, dst));
     }
 
     // Delta is from opcode start.
@@ -31,7 +31,7 @@ public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
-        enc.add4(arm.load_pc(0b01011100, delta, dst));
+        enc.add4(arm.load_pc(arm.OPF_ARM, delta, dst));
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

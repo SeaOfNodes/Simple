@@ -30,10 +30,18 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
     // func3 is based on load/store size and extend
     int func3() {
         int func3 = -1;
-        if( _declaredType == TypeInteger. I8 ) func3=0; // LB   SB
-        if( _declaredType == TypeInteger.I16 ) func3=1; // LH   SH
-        if( _declaredType == TypeInteger.I32 ) func3=2; // LW   SW
-        if( _declaredType == TypeInteger.BOT ) func3=3; // LD   SD
+        // no unsigned flavour for store, so both signed and unsigned trigger the same
+        if(this instanceof StoreRISC) {
+            if( _declaredType == TypeInteger. I8 || _declaredType == TypeInteger.U8) func3=0; //   SB
+            if( _declaredType == TypeInteger.I16 || _declaredType == TypeInteger.U16 ) func3=1; // SH
+            if( _declaredType == TypeInteger.I32 || _declaredType == TypeInteger.U32) func3=2; //  SW
+            if( _declaredType == TypeInteger.BOT ) func3=3; //   SD
+            return func3;
+        }
+        if( _declaredType == TypeInteger. I8 ) func3=0; // LB
+        if( _declaredType == TypeInteger.I16 ) func3=1; // LH
+        if( _declaredType == TypeInteger.I32 ) func3=2; // LW
+        if( _declaredType == TypeInteger.BOT ) func3=3; // LD
         if( _declaredType == TypeInteger. U8 ) func3=4; // LBU
         if( _declaredType == TypeInteger.BOOL) func3=4; // LBU
         if( _declaredType == TypeInteger.U16 ) func3=5; // LHU
@@ -48,14 +56,21 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
 
     // 7 bits, 00 000 11 or 00 001 11 for FP
     int opcode(Encoding enc) {
-        if( enc.reg(this) < riscv.F_OFFSET ) return 3;
-        else if( this instanceof StoreRISC )
-            // opcode is the same for 32 bit and 64 bits
-            return 39;
-        return 7;
+        boolean isStore = this instanceof StoreRISC;
+        boolean isLoad = this instanceof LoadRISC;
+        short reg = enc.reg(isStore? val(): this);
+        assert reg != -1;
+        boolean isFloat = enc.reg(val()) >= riscv.F_OFFSET;
+
+        if (isStore) return isFloat ? 39 : 35;
+        if (isLoad) return isFloat ? 7 : 3;
+
+        return 0;
     }
     short xreg(Encoding enc) {
-        short xreg = enc.reg(this );
+        boolean isStore = this instanceof StoreRISC;
+        short xreg = enc.reg(isStore? val() : this );
+        assert xreg != -1;
         return xreg < riscv.F_OFFSET ? xreg : (short)(xreg-riscv.F_OFFSET);
     }
 

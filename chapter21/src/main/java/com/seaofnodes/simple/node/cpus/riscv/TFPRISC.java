@@ -19,9 +19,9 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
         short dst = enc.reg(this);
         TypeFunPtr tfp = (TypeFunPtr)_con;
         // auipc  t0,0
-        int auipc = riscv.u_type(0b0010111, dst, 0);
+        int auipc = riscv.u_type(riscv.OP_AUIPC, dst, 0);
         // addi   t1,t0 + #0
-        int addi = riscv.i_type(0b0010011, dst, 0, dst, 0);
+        int addi = riscv.i_type(riscv.I_TYPE, dst, 0, dst, 0);
         enc.add4(auipc);
         enc.add4(addi);
     }
@@ -38,9 +38,9 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
             // AUIPC (upper 20 bits)
             // opstart of add
             int next = opStart + opLen;
-            enc.patch4(opStart,riscv.u_type(0b0010111, rpc, delta));
+            enc.patch4(opStart,riscv.u_type(riscv.OP_AUIPC, rpc, delta));
             // addi(low 12 bits)
-            enc.patch4(next,riscv.i_type(0b0010011, rpc, 0, rpc, delta & 0xFFF));
+            enc.patch4(next,riscv.i_type(riscv.I_TYPE, rpc, 0, rpc, delta & 0xFFF));
             // addi
         } else {
              // should not happen as one instruction is 4 byte, and TFP arm encodes 2.

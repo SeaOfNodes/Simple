@@ -21,8 +21,8 @@ public class RetARM extends ReturnNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         int frameAdjust = ((FunARM)fun())._frameAdjust;
         if( frameAdjust > 0 )
-            enc.add4(arm.imm_inst(0b1001000100, (frameAdjust*-8)&0xFFF, arm.RSP, arm.RSP));
-        enc.add4(arm.ret(0b1101011001011111000000));
+            enc.add4(arm.imm_inst(arm.OPI_ADD, (frameAdjust*-8)&0xFFF, arm.RSP, arm.RSP));
+        enc.add4(arm.ret(arm.OP_RET));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
