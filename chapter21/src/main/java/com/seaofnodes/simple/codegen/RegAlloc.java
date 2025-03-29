@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.IdentityHashMap;
 
 /**
@@ -206,7 +207,7 @@ public class RegAlloc {
             split(round,lrg);
     }
 
-    // Split this live range
+    // Split this live range, top level heuristic
     boolean split( byte round, LRG lrg ) {
         assert lrg.leader();  // Already rolled up
 
@@ -220,8 +221,11 @@ public class RegAlloc {
                 lrg._1regUseCnt <= 1 &&
                 (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
                 return splitEmptyMaskSimple(round,lrg);
-            // Default to splitByLoop
-            //return splitEmptyMask(round,lrg);
+            // Repeated single-reg uses from a single def.  Special for archs
+            // with more fixed regs.
+            if( !lrg._multiDef && lrg._1regDefCnt <= 1 && lrg._1regUseCnt > 2 )
+                if( splitEmptyMaskByUse(round,lrg) )
+                    return true;
         }
 
         // Generic split-by-loop depth.
@@ -244,39 +248,69 @@ public class RegAlloc {
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            makeSplit("def/empty1",round,lrg).insertAfter((Node)lrg._machDef, false/*true*/);
+            makeSplit("def/empty1",round,lrg).insertAfterAndReplace((Node)lrg._machDef, false/*true*/);
         // Split just before use
         if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg,true);
         return true;
     }
 
-    // Split live range with an empty mask.  Specifically forces splits at
-    // single-register defs or uses everywhere.
-    boolean splitEmptyMask( byte round, LRG lrg ) {
-        findAllLRG(lrg);
-        // If no single-use or single-def, assume this is a complete register
-        // kill and force spilling everywhere.
-        boolean all = lrg._killed || (lrg._1regDefCnt + lrg._1regUseCnt)==0;
-        for( Node n : _ns ) {
-            if( !(n instanceof MachNode mach) ) continue;
-            // Find def of spilling live range; spilling everywhere, OR
-            // single-register DEF and not cloneable (since these will clone
-            // before every use)
-            if( lrg(n)==lrg && (all || (!mach.isClone() && mach.outregmap().size1() )) )
-                makeSplit(n,"def/empty2",round,lrg).insertAfter(n,true);
-            // Find all uses
-            for( int i=1; i<n.nIns(); i++ ) {
-                Node def = n.in(i);
-                // Skip any new splits inserted just this pass
-                while( def instanceof SplitNode && lrg(def)==null )
-                    def = def.in(1);
-                // Main def (past splits) is of the spilling lrg, and spilling
-                // single-register USE (or everywhere)
-                if( lrg(def)==lrg && (all || mach.regmap(i).size1()) )
-                    insertBefore(n,i,"use/empty2",round,lrg);
+    // Single-def live range with an empty mask.  There are many single-reg
+    // uses.  Theory is there's many repeats if the same reg amongst the uses.
+    // In of splitting once per use, start by splitting into groups based on
+    // required input register.
+    boolean splitEmptyMaskByUse( byte round, LRG lrg ) {
+        Node def = (Node)lrg._machDef;
+
+        // Look at each use, and break into non-overlapping register classes.
+        Ary<RegMask> rclass = new Ary<>(RegMask.class);
+        boolean done=false;
+        while( !done ) {
+            done = true;
+            for( Node use : def._outputs )
+                if( use instanceof MachNode mach )
+                    for( int i=1; i<use.nIns(); i++ )
+                        if( use.in(i)==def )
+                            done = putIntoRegClass( rclass, mach.regmap(i) );
+        }
+
+        // See how many register classes we split into
+        if( rclass._len <= 1 ) return false;
+
+        // Split by class
+        for( RegMask rmask : rclass ) {
+            Node split = makeSplit(def,"popular",round,lrg);
+            split.insertAfter( def );
+            // all uses by class to split
+            for( int j=0; j < def._outputs._len; j++ ) {
+                Node use = def._outputs.at(j);
+                if( use instanceof MachNode mach ) {
+                    // Check all use inputs for n, in case there's several
+                    for( int i = 1; i < use.nIns(); i++ )
+                        // Find a def input, and check register class
+                        if( use.in( i ) == def && mach.regmap( i ).overlap( rmask ) )
+                            // Modify use to use the split version specialized to this rclass
+                            { use.setDef( i, split ); j--; break; }
+                }
             }
         }
+        return true;
+    }
+
+
+    // Put use into a register class, perhaps adding a class or perhaps
+    // narrowing a class (and causing a repeat)
+    private static boolean putIntoRegClass( Ary<RegMask> rclass, RegMask rmask ) {
+        for( int i=0; i<rclass._len; i++ ) {
+            RegMask omask = rclass.at(i);
+            if( omask.and(rmask) == omask ) return true; // Within the same register class
+            if( omask.overlap(rmask) ) {
+                rclass.set(i,new RegMask(omask.copy().and(rmask)));
+                return false;   // Need go again
+            }
+        }
+        // Add a new class, no need to go again
+        rclass.push(rmask);
         return true;
     }
 
@@ -303,7 +337,7 @@ public class RegAlloc {
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
                 SplitNode split = makeSplit("def/self",round,lrg);
-                split.insertAfter(def,false);
+                split.insertAfterAndReplace(def,false);
                 if( split.nOuts()==0 )
                     split.kill();
                 insertBefore(phi,1,"use/self/phi",round,lrg);
@@ -360,7 +394,7 @@ public class RegAlloc {
                     // Single user is already a split
                     !(n.nOuts()==1 && n.out(0) instanceof SplitNode) )
                     // Split after def in min loop nest
-                    makeSplit("def/loop",round,lrg).insertAfter(n,false);
+                    makeSplit("def/loop",round,lrg).insertAfterAndReplace(n,false);
             }
 
             // PhiNodes check all CFG inputs

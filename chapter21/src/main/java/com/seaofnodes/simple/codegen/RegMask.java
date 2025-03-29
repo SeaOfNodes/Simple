@@ -32,6 +32,7 @@ public class RegMask {
     }
     public RegMask(long bits ) { _bits0 = bits; }
     public RegMask(long bits0, long bits1 ) { _bits0 = bits0; _bits1 = bits1; }
+    public RegMask(RegMask r) { _bits0 = r._bits0; _bits1 = r._bits1; }
     private RegMask() { _bits0 = _bits1 = 0; }
 
     // AND, with copy-on-write if changing
