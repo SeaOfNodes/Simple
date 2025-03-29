@@ -34,7 +34,7 @@ public class StoreRISC extends MemOpRISC {
     @Override public void encoding( Encoding enc ) {
         short val = xreg(enc);
         short ptr = enc.reg(ptr());
-        int body = riscv.s_type(opcode(enc), func3()&3, ptr, val, _off);
+        int body = riscv.s_type(opcode(enc), func3()&7, ptr, val, _off);
         enc.add4(body);
     }
 

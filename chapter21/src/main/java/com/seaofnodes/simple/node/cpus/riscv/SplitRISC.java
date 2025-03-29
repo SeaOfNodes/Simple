@@ -25,12 +25,14 @@ public class SplitRISC extends SplitNode {
 
             int off = enc._fun.computeStackSlot(dst - riscv.MAX_REG)*8;
             // store 64 bit values
-            enc.add4(riscv.s_type(39, 3, riscv.SP, dst, off));
+            enc.add4(riscv.s_type(35, 3, riscv.SP, src, off));
+            return;
         }
         if( src >= riscv.MAX_REG ) {
             // Load from SP
             int off = enc._fun.computeStackSlot(src - riscv.MAX_REG)*8;
-            enc.add4(riscv.i_type(7, dst, 3,riscv.SP, off));
+            enc.add4(riscv.i_type(3, dst, 3,riscv.SP, off));
+            return;
         }
         // pick opcode based on regs
         if( !dstX && !srcX ) {
@@ -39,16 +41,16 @@ public class SplitRISC extends SplitNode {
         } else if( dstX && srcX ) {
             // FPR->FPR
             // Can do: FPR->GPR->FPR
-            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b1110001));
-            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b0100000));
-        } else if( dstX && !srcX ) {
+            enc.add4(riscv.r_type(0b1010011, dst, 0, src - riscv.F_OFFSET, 0, 0b1110001));
+            enc.add4(riscv.r_type(0b1010011, dst - riscv.F_OFFSET, 0, src, 0, 0b0100000));
+        } else if(!srcX && dstX) {
             //GPR->FPR
             // fmv.d.x
-            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b0100000));
-        } else if( !dstX && srcX ) {
+            enc.add4(riscv.r_type(0b1010011, dst - riscv.F_OFFSET, 0, src, 0, 0b1111001));
+        } else if(srcX && !dstX) {
             //FPR->GPR
             //fmv.x.d
-            enc.add4(riscv.r_type(0b1010011, dst, 0, src, 0, 0b1110001));
+            enc.add4(riscv.r_type(0b1010011, dst, 0, src - riscv.F_OFFSET, 0, 0b1110001));
         }
 
     }
