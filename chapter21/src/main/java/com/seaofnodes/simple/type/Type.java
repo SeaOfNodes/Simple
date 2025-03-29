@@ -103,6 +103,7 @@ public class Type {
     // checks with every type compare, only during interning.
 
     // Factory method which interns "this"
+    @SuppressWarnings("unchecked")
     public  <T extends Type> T intern() {
         T nnn = (T)INTERN.get(this);
         if( nnn==null )

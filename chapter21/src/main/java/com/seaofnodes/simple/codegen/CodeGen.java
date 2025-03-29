@@ -10,6 +10,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
+@SuppressWarnings("unchecked")
 public class CodeGen {
     // Last created CodeGen as a global; used all over to avoid passing about a
     // "context".
