@@ -151,7 +151,6 @@ public class RegAlloc {
             if( bb instanceof CallNode ) lastFun._hasCalls = true;
         }
 
-
         // Top driver: repeated rounds of coloring and splitting.
         byte round=0;
         while( !graphColor(round) ) {
@@ -203,7 +202,11 @@ public class RegAlloc {
         // independently... which generally requires a full pass over the
         // program for each failing live range.  i.e., might be a lot of
         // passes.
-        for( LRG lrg : _failed.keySet() )
+
+        // Sort, to avoid non-deterministic HashMap ordering
+        LRG[] splits = _failed.keySet().toArray(new LRG[0]);
+        Arrays.sort(splits, (x,y) -> x._lrg - y._lrg );
+        for( LRG lrg : splits )
             split(round,lrg);
     }
 
