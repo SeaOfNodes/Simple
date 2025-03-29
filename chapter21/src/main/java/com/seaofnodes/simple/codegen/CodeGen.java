@@ -331,6 +331,7 @@ public class CodeGen {
     }
 
     // ---------------------------
+    public boolean _asmLittle=true;
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }
     public String asm() { return asm(new SB()).toString(); }
 
