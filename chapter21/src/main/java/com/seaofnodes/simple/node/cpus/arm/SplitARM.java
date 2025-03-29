@@ -24,31 +24,31 @@ public class SplitARM extends SplitNode {
                 throw Utils.TODO();
             }
             int off = enc._fun.computeStackSlot(dst - arm.MAX_REG)*8;
-            enc.add4(arm.load_str_imm(0b1111100100, off, src, dst));
+            enc.add4(arm.load_str_imm(arm.OP_STORE_IMM, off, src, dst));
         }
 
         if(src >= arm.MAX_REG) {
             // Load from SP
             int off = enc._fun.computeStackSlot(src - arm.MAX_REG) * 8;
-            enc.add4(arm.load_str_imm(0b1111100101, off, src, dst));
+            enc.add4(arm.load_str_imm(arm.OP_LOAD_IMM, off, src, dst));
         }
 
         // pick opcode based on regs
         if(!dstX && !srcX) {
             // GPR->GPR
-            enc.add4(arm.mov_reg(0b10101010000, src, dst));
+            enc.add4(arm.mov_reg(arm.OP_MOV, src, dst));
         } else if(dstX && srcX) {
             // FPR->FPR
             // fmov reg
-            enc.add4(arm.f_mov_reg(0b00011110, src,dst));
+            enc.add4(arm.f_mov_reg(arm.OP_FMOV_REG, src,dst));
         } else if(dstX && !srcX) {
             // GPR->FPR
             // FMOV(general) 64 bits to DOUBLE-PRECISION
-            enc.add4(arm.f_mov_general(0b10011110, 0b01, 0, 0b111, src, dst));
+            enc.add4(arm.f_mov_general(arm.OP_FMOV, 0b01, 0, 0b111, src, dst));
         } else if(!dstX && srcX) {
             //FPF->GPR
             // FMOV(general) DOUBLE-PRECISION to 64 bits
-            enc.add4(arm.f_mov_general(0b10011110, 0b01, 0, 0b110, src, dst));
+            enc.add4(arm.f_mov_general(arm.OP_FMOV, 0b01, 0, 0b110, src, dst));
         }
     }
 }

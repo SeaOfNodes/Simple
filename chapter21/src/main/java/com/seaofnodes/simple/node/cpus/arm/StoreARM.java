@@ -24,9 +24,9 @@ public class StoreARM extends MemOpARM {
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
         if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
-            ldst_encode(enc, 0b1111110100,0b11111100001, val(), true);
+            ldst_encode(enc, arm.OPF_STORE_IMM,arm.OPF_STORE_R, val(), true);
         } else {
-            ldst_encode(enc, 0b1111100100, 0b11111000001, val(), false);
+            ldst_encode(enc, arm.OP_STORE_IMM, arm.OP_STORE_R, val(), false);
         }
     }
     @Override public void asm(CodeGen code, SB sb) {

@@ -20,7 +20,7 @@ public class LsrIARM extends MachConcreteNode implements MachNode {
         short rd = enc.reg(this);
         short rn = enc.reg(in(1));
         assert _imm > 0;
-        enc.add4(arm.imm_shift(0b1101001101,_imm, 0b111111, rn,rd));
+        enc.add4(arm.imm_shift(arm.OPI_LSR,_imm, 0b111111, rn,rd));
     }
     // General form: "lsri  rd = rs1 >>> imm"
     @Override public void asm(CodeGen code, SB sb) {

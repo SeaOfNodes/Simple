@@ -101,7 +101,7 @@ public class riscv extends Machine {
             FA6_MASK,
             FA7_MASK
     };
-    //
+
     // major opcode: OP
     public static int OP_CUSTOM0 = 0b00_010_11;
     public static int OP_AUIPC   = 0b00_101_11;
@@ -144,6 +144,7 @@ public class riscv extends Machine {
         int body = r_type(OP,dst,func3,src1,src2,func7);
         enc.add4(body);
     }
+
     public static void rf_type(Encoding enc, Node n, RM func3, int func7) {
         short dst  = (short)(enc.reg(n      )-F_OFFSET);
         short src1 = (short)(enc.reg(n.in(1))-F_OFFSET);

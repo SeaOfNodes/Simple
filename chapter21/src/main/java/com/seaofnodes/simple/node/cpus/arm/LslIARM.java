@@ -24,7 +24,7 @@ public class LslIARM extends MachConcreteNode implements MachNode {
         assert _imm > 0;
         // UBFM <Xd>, <Xn>, #(-<shift> MOD 64), #(63-<shift>)
         // immr must be (-<shift> MOD 64) = 64 - shift
-        enc.add4(arm.imm_shift(0b1101001101, 64 - _imm, (64 - _imm) - 1, rn, rd));
+        enc.add4(arm.imm_shift(arm.OPI_LSL, 64 - _imm, (64 - _imm) - 1, rn, rd));
     }
     // General form: "lsli  rd = rs1 << imm"
     @Override public void asm(CodeGen code, SB sb) {
