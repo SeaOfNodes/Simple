@@ -119,31 +119,31 @@ The graph:
   return.  It is manually set to null, which calls `setDef` to kill the node
   (and killed nodes are not part of the program and not visualized).
 
-```
-    ctrl(null);             // Kill control
-```
+  ```
+  ctrl(null);             // Kill control
+  ```
 
 - The `arg` projection node is not included in the cluster because arg is a
   constant.  The `arg` was originally defined by a ProjNode; but when peephole
   is called the computed type is a constant, and the ProjNode gets replaced
   with a ConstantNode:
     
-```java
-public final Node peephole( ) {
-    Type type = _type = compute(); 
-    /*   type = {TypeInteger@1527} "2"  */
+  ```java
+  public final Node peephole( ) {
+      Type type = _type = compute(); 
+      /*   type = {TypeInteger@1527} "2"  */
 
-    if (_disablePeephole)
-        return this;
+      if (_disablePeephole)
+          return this;
     
-    // ProjNode is not a constant unlike its type.
-    if (!(this instanceof ConstantNode) && type.isConstant())
-        /* Create Constant(2) */
-        return deadCodeElim(new ConstantNode(type).peephole());
+      // ProjNode is not a constant unlike its type.
+      if (!(this instanceof ConstantNode) && type.isConstant())
+          /* Create Constant(2) */
+          return deadCodeElim(new ConstantNode(type).peephole());
     
-    /* won't get called */
-    ...
-```
+      /* won't get called */
+      ...
+  ```
 
 If you don't pass an argument you get `TypeInteger.BOT`
 
