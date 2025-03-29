@@ -254,7 +254,7 @@ public class RegAlloc {
             makeSplit("def/empty1",round,lrg).insertAfterAndReplace((Node)lrg._machDef, false/*true*/);
         // Split just before use
         if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
-            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg,true);
+            insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
     }
 
@@ -394,10 +394,10 @@ public class RegAlloc {
                 (min==max || n.cfg0().loopDepth() <= min) ) {
                 // Cloneable constants will be cloned at uses, not after def
                 if( !(n instanceof MachNode mach && mach.isClone()) &&
-                    // Single user is already a split
-                    !(n.nOuts()==1 && n.out(0) instanceof SplitNode) )
+                    // Single user is already a split adjacent
+                    !(n.nOuts()==1 && n.out(0) instanceof SplitNode split && sameBlockNoClobber(split) ) )
                     // Split after def in min loop nest
-                    makeSplit("def/loop",round,lrg).insertAfterAndReplace(n,false);
+                    makeSplit("def/loop",round,lrg).insertAfterAndReplace(n,true);
             }
 
             // PhiNodes check all CFG inputs
@@ -415,15 +415,12 @@ public class RegAlloc {
             } else {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ ) {
-                    boolean sizeN=false;
                     // This is a LRG use
                     // splitting in inner loop or at loop border
                     if( lrgSame( n.in( i ), lrg ) &&
                         (min == max || (n.in(i) instanceof MachNode mach && mach.isClone()) || n.cfg0().loopDepth() <= min) )
-                        // Not a single-use split same block already
-                        //!(n.in(i) instanceof SplitNode && n.in(i).nOuts()==1 && n.cfg0()==n.in(i).cfg0() && (sizeN=!((MachNode)n).regmap(i).size1())) )
                         // Split before in this block
-                        insertBefore( n, i, "use/loop/use", round,lrg, sizeN );
+                        insertBefore( n, i, "use/loop/use", round,lrg, false );
                 }
             }
         }
@@ -559,5 +556,22 @@ public class RegAlloc {
         }
         lo.setDefOrdered(1,hi.in(1));
         return true;
+    }
+
+    private boolean sameBlockNoClobber( SplitNode split ) {
+        Node def = split.in(1);
+        CFGNode cfg = def.cfg0();
+        if( cfg != split.cfg0() ) return false; // Not same block
+        // Get multinode head
+        Node def0 = def instanceof MultiNode ? def.in(0) : def;
+        int defreg = lrg(def)._reg;
+        if( defreg == -1 ) defreg = lrg(def)._mask.firstReg();
+        for( int idx = cfg._outputs.find(split) -1; idx >= 0; idx-- ) {
+            Node n = cfg.out(idx);
+            if( n==def0 ) return true;    // No clobbers
+            if( lrg(n)!=null && lrg(n)._reg == defreg )
+                return false;   // Clobbered
+        }
+        throw Utils.TODO();
     }
 }
