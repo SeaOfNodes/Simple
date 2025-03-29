@@ -13,7 +13,7 @@
    - [Displacement](#displacement)
    - [Immediate](#immediate)
    - [Float](#float)
-   - [Indirect](#indirect)
+   - [Indirect](#indirectmemop)
    - [Conditional flags](#conditional-flags)
 4. [ARM](#arm)
    - [Reg-form](#reg-form)
@@ -22,20 +22,20 @@
         - [LSL(immediate)](#lslimmediate)
         - [LSR(immediate)](#lsrimmediate)
      
-   - [Logical immediates](#logical-immediates)
+   - [Logical Immediates](#logical-immediates)
    - [Float](#float)
    - [Function constant](#function-constant)
    - [Immediate](#immediate)
    - [Conditional flags](#conditional-flags)
-   - [Indirect](#indirect)
-   - [Branching](#branching)
+   - [Indirect](#indirectmemop-1)
+   - [Branching](#branching-)
    - [Rip relative](#rip-relative)
    - [Compare](#compare)
 
 5. [RISCV](#riscv)
    - [Instruction formats](#instruction-formats)
    - [FLOAT](#float)
-   - [INDIRECT(MemOp)](#indirectmemop)
+   - [Indirect](#indirectmemop-2)
    - [BRANCH](#branch)
    - [Function Constant](#function-constant)
    - [LUI](#lui)
@@ -122,7 +122,7 @@ _bits.write(op    );
 ## AMD64
 As opposed to riscv arhitectures, where the instruction width is fixed, *x86-64* has variable width instructions.
 This is common with *CISC(Complex instruction set computer)* architectures, where the instruction width can vary from 1 to 15 bytes.
-Since AMD64 supports many indirect addressing modes, the goal with CISC in general is to complete a task in as few lines of assembly as possible.
+Since AMD64 supports many indirect addressing modes, the goal with *CISC* in general is to complete a task in as few lines of assembly as possible.
 
 ### REX PREFIX
 Since we are targeting the 64-bit version of x86, we need to handle this prefix. In 32-bit mode, however, it is typically unnecessary.
@@ -134,10 +134,10 @@ Generally speaking the *REX* prefix must be encoded when:
 A *REX* prefix must not be encoded when:
  - using one of the high byte registers AH, CH, BH or DH.
 
-*Note:* When encoding SSE instruction, the *REX* prefix(0x40) must come after the prefix.
+*Note:* When encoding SSE instruction, the *REX* prefix(0x40) must come after the `SSE`prefix.
 In all other cases, it is ignored.
 
-In Simple the REX prefix is just appneded to the beginning of the bit stream.
+In Simple, the REX prefix is just appended to the beginning of the bit stream(except SEE float instructions).
 The layout is the following:
 
 | **Field** | **Length** | **Description**                                                                 |
@@ -155,13 +155,14 @@ The layout is the following:
     ...
 ``` 
 ```java
-public static int rex(int reg, int ptr, int idx) {
+public static int rex(int reg, int ptr, int idx, boolean wide) {
     // assuming 64 bit by default so: 0100 1000
-    int rex = REX_W; // Default REX.W
+    int rex = wide ? REX_W : REX;
     if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
     if( 8 <= ptr && ptr <= 15 ) rex |= 0b00000001; // REX.B
     if( 8 <= idx && idx <= 15 ) rex |= 0b00000010; // REX.X
     return rex;
+}
 
     ... 
     enc.add1(x86_64_v2.rex(dst, src, 0));
@@ -240,13 +241,13 @@ The SIB byte has the following fields:
 
 It has the same layout as the MODR/M byte.
 ```java 
-    public static int sib(int scale, int index, int base) {
-        return (scale << 6) | ((index & 0x07) << 3) | base & 0x07;
-    }
+public static int sib(int scale, int index, int base) {
+    return (scale << 6) | ((index & 0x07) << 3) | base & 0x07;
+}
 ```
 
-``` 
-           enc.add1(x86_64_v2.sib(_scale, idx, x86_64_v2.RBP));
+```java
+enc.add1(x86_64_v2.sib(_scale, idx, x86_64_v2.RBP));
 ```
 
 #### Displacement
@@ -287,7 +288,8 @@ else                       enc.add4(_imm);
 ```
 
 ####  INDIRECT(MemOp)
-TBD
+X86-64 support multiple indirect addressing modes:
+
 
 #### Float
 For float operations we use `SEE SIMD` instructions that operate on scalar single precision floating0-point values located in the
@@ -427,7 +429,7 @@ Hence, the `imms` value is `(64 - _imm) - 1`.
 Same as *ASR*.
 
 
-#### Logical immediates 
+#### Logical Immediates 
 Logical immediates refer to *andi, xori, orri*.
 
 ```java 
@@ -535,7 +537,7 @@ Arm supports the following indirect forms:
 [Store](https://docsmirror.github.io/A64/2023-06/strb_imm.html): `str dst, [base + #offset]`
 
 If the offset is not a con
-#### Branching 
+#### Branching
 `B.cond` - branch [conditionally](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/Condition-codes?lang=en) to a label at a PC-relative offset.
 
 > cond = is one of the standard conditions.

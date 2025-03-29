@@ -20,8 +20,8 @@ public class TFPARM extends ConstantNode implements MachNode, RIPRelSize {
         // adrp    x0, 0
         int adrp = arm.adrp(1,0, 0b10000, 0,self);
         // add     x0, x0, 0
-        arm.imm_inst(enc,this,0b1001000100,0);
         enc.add4(adrp);
+        arm.imm_inst(enc,0b1001000100,0, 0);
     }
 
     @Override public byte encSize(int delta) {
@@ -32,15 +32,16 @@ public class TFPARM extends ConstantNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
-        if(opLen ==4 ) {
+        if(opLen == 8 ) {
             // opstart of add
             int next = opStart + opLen;
             int adrp_delta = delta >> 12;
             // patch upper 20 bits via adrp
             enc.patch4(opStart, arm.adrp(1, adrp_delta & 0b11, 0b10000, adrp_delta >> 2, rpc));
             // low 12 bits via add
-            enc.patch4(next, arm.imm_inst_l(enc, this, 0b1001000100, delta & 0xfff));
+            enc.patch4(next, arm.imm_inst_l(0b1001000100, delta & 0xfff, rpc));
         } else {
+            // should not happen as one instruction is 4 byte, and TFP arm encodes 2.
             throw Utils.TODO();
         }
     }
