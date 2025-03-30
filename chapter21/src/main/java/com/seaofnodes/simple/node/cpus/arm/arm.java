@@ -199,10 +199,15 @@ public class arm extends Machine {
     }
 
     static public int cset(int opcode, int rm, COND cond, int rn, int rd) {
+        assert 0 <= rm && rm < 32;
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
         return (opcode << 21) | (rm << 15) | (cond.ordinal() << 12) | (rn << 5) | rd;
     }
 
     static public int cset(int opcode, COND cond, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
         return (opcode << 16) | (cond.ordinal() << 12) | (rn << 5) | rd;
     }
 
@@ -287,17 +292,21 @@ public class arm extends Machine {
 
     // sh is encoded in opcdoe
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
-        assert opcode >=0 && imm12 >= 0 && rn >=0 && rd>=0; // Caller zeros high order bits
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
+        assert opcode >=0 && imm12 >= 0; // Caller zeros high order bits
         return (opcode << 22) | (imm12 << 10) | (rn << 5) | rd;
     }
 
     public static int imm_shift(int opcode, int imm, int imms, int rn,  int rd)  {
-            return (opcode << 22) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
+        return (opcode << 22) | (1 << 22) | (imm << 16) | (imms << 10) | (rn << 5) | rd;
     }
 
-    public static void imm_inst(Encoding enc, Node n, int opcode, int imm12) {
+    public static void imm_inst(Encoding enc, Node n,Node n2,  int opcode, int imm12) {
         short self = enc.reg(n);
-        short reg1 = enc.reg(n.in(1));
+        short reg1 = enc.reg(n2);
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
         enc.add4(body);
     }
@@ -308,9 +317,9 @@ public class arm extends Machine {
         enc.add4(body);
     }
 
-    public static void imm_inst_n(Encoding enc, Node n, int opcode, int imm13) {
+    public static void imm_inst_n(Encoding enc, Node n, Node n2, int opcode, int imm13) {
         short self = enc.reg(n);
-        short reg1 = enc.reg(n.in(1));
+        short reg1 = enc.reg(n2);
 
         int body = imm_inst_n(opcode, imm13, reg1, self);
         enc.add4(body);
@@ -318,14 +327,16 @@ public class arm extends Machine {
 
     // nth bit comes from immediate and not opcode
     public static int imm_inst_n(int opcode, int imm13, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
         assert 0 <= imm13 && imm13 <= 0x1FFF;
         return (opcode << 23) | (imm13 << 10) | (rn << 5) | rd;
     }
 
-   public static int imm_inst_l(int opcode, int imm12, int self) {
+    public static int imm_inst_l(int opcode, int imm12, int self) {
         int body = imm_inst(opcode, imm12&0xFFF, self, self);
         return body;
-    }
+   }
 
     // for cases where rs1 and dst are the same, eg add x0, x0, 1
     public static int imm_inst_l(Encoding enc, Node n, int opcode, int imm12) {
@@ -338,17 +349,23 @@ public class arm extends Machine {
     // for normal add, reg1, reg2 cases (reg-to-reg)
     // using shifted-reg form
     public static int r_reg(int opcode, int shift, int rm, int imm6, int rn, int rd) {
+        assert 0 <= rm && rm < 32;
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
         return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) << (rn << 5) | rd;
-    }
-    public static void r_reg(Encoding enc, Node n, int opcode) {
-        short self = enc.reg(n);
-        short reg1 = enc.reg(n.in(1));
-        short reg2 = enc.reg(n.in(2));
-        int body = r_reg(opcode, 0, reg2, 0,  reg1, self);
-        enc.add4(body);
+   }
+   public static void r_reg(Encoding enc, Node n, int opcode) {
+       short self = enc.reg(n);
+       short reg1 = enc.reg(n.in(1));
+       short reg2 = enc.reg(n.in(2));
+       int body = r_reg(opcode, 0, reg2, 0,  reg1, self >= 32 ? reg1: self);
+       enc.add4(body);
     }
 
     public static int shift_reg(int opcode, int rm, int op2, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rm && rm < 32;
+        assert 0 <= rd && rd < 32;
         return (opcode << 21) | (rm << 16) | (op2 << 10) | (rn << 5) | rd;
     }
     public static void shift_reg(Encoding enc, Node n, int op2) {
@@ -361,6 +378,9 @@ public class arm extends Machine {
 
     //  MUL can be considered an alias for MADD with the third operand Ra being set to 0
     public static int madd(int opcode, int rm, int ra, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
+        assert 0 <= rm && rm < 32;
         return (opcode << 21) | (rm << 16) | (ra << 10) | (rn << 5) | rd;
     }
     public static void madd(Encoding enc, Node n, int opcode, int ra) {
@@ -373,11 +393,13 @@ public class arm extends Machine {
 
     // encodes movk, movn, and movz
     public static int mov(int opcode, int shift, int imm16, int rd) {
+        assert 0 <= rd && rd < 32;
         return (opcode << 23) | (shift << 21) | (imm16 << 5) | rd;
     }
 
-    public static int mov_reg(int opcode, int src, int dst) {
-        return (opcode  << 21) | (src << 16) | 0b11111 << 5 | dst;
+    public static int mov_reg(int opcode, int src, int rd) {
+        assert 0 <= rd && rd < 32;
+        return (opcode  << 21) | (src << 16) | 0b11111 << 5 | rd;
     }
 
     public static int ret(int opcode) {
@@ -385,18 +407,21 @@ public class arm extends Machine {
     }
 
     // FMOV (scalar, immediate)
-    public static int f_mov(int opcode, int ftype,  int imm8, int rd) {
-        return (opcode << 24) | (ftype << 21) |(imm8 << 13) | (128 << 5) | rd;
-    }
-
     public static int f_scalar(int opcode, int ftype, int rm, int op, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
+        assert 0 <= rm && rm < 32;
         return (opcode << 24) | (ftype << 22) | (1 << 21) | (rm << 16) | (op << 10) | (rn << 5) | rd;
     }
 
     public static int f_mov_reg(int opcode, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
         return (opcode << 24) | (0b01100000010000 << 10) | (rn << 5) | rd;
     }
     public static int f_mov_general(int opcode, int ftype, int rmode, int opcode1, int rn, int rd) {
+        assert 0 <= rn && rn < 32;
+        assert 0 <= rd && rd < 32;
         return (opcode << 24) |(ftype << 22) | (1 << 21) | (rmode << 19) | (opcode1 << 16) | (rn << 5) | rd;
     }
     public static void f_scalar(Encoding enc, Node n, int op ) {
@@ -413,19 +438,20 @@ public class arm extends Machine {
     }
     // int l
     public static int adrp(int op, int imlo,int opcode, int imhi, int rd) {
+        assert 0 <= rd && rd < 32;
         return (op << 31) | (imlo << 29) |(opcode << 24) | (imhi << 5) | rd;
-    }
-
-    public static int load_adr(int opcode, int offset, int base, int rt) {
-        return (opcode << 22) | (offset << 10) | (base << 5) | rt;
     }
 
     // [Rptr+Roff]
     public static int indr_adr(int opcode, int off, STORE_LOAD_OPTION option, int s, int ptr, int rt) {
+        assert 0 <= ptr && ptr < 32;
+        assert 0 <= rt &&  rt  < 32;
         return (opcode << 21) | (off << 16) | (option.ordinal() << 13) | (s << 12) | (2 << 10) | (ptr << 5) | rt;
     }
     // [Rptr+imm9]
     public static int load_str_imm(int opcode, int imm12, int ptr, int rt) {
+        assert 0 <= ptr && ptr < 32;
+        assert 0 <= rt &&  rt  < 32;
         return (opcode << 22) | (imm12 << 10)  |(ptr << 5) | rt;
     }
 
@@ -440,12 +466,16 @@ public class arm extends Machine {
                 (vd << 12) | (0x01100010 << 4) | vm;
     }
     public static int float_cast(int opcode, int ftype, int rn, int rd) {
+        assert 0 <= rd &&  rd < 32;
+        assert 0 <= rn &&  rn  < 32;
         return (opcode << 24) | (ftype << 22) | (2176 << 10) | (rn << 5) | rd;
     }
 
 
     // ftype = 3
     public static int f_cmp(int opcode, int ftype, int rm, int rn) {
+        assert 0 <= rn && rn  < 32;
+        assert 0 <= rm && rm  < 32;
         return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
     }
     public static void f_cmp(Encoding enc, Node n) {
@@ -475,11 +505,14 @@ public class arm extends Machine {
     }
 
     public static int cond_set(int opcode, int rm, COND cond, int rn, int rd) {
+        assert 0 <= rd &&  rd < 32;
+        assert 0 <= rn &&  rn  < 32;
         return (opcode << 21) | (rm << 16) | (cond.ordinal() << 12) | (rn << 5) | rd;
     }
 
     // Branch with Link to Register calls a subroutine at an address in a register, setting register X30 to PC+4.
     public static int blr(int opcode, int rd) {
+        assert 0 <= rd && rd < 32;
         return opcode << 10 | rd << 5;
     }
     public static int b(int opcode, int delta) {
