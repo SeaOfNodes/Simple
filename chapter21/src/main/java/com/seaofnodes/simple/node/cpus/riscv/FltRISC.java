@@ -21,7 +21,9 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
         // AUIPC dst,#hi20_constant_pool
         enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
         // Load dst,[dst+#low12_constant_pool]
-        enc.add4(riscv.i_type(riscv.LOAD_GPR, dst, 0b11, dst, 0));
+        enc.add4(riscv.i_type(riscv.OP_LOAD, dst, 0b11, dst, 0));
+        // Need a GPR for AUIPC, but dst is a FPR
+        throw Utils.TODO();
     }
 
     // Delta is from opcode start.
@@ -34,7 +36,7 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
         // AUIPC dst,#hi20_constant_pool
         enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, delta));
         // Load dst,[dst+#low12_constant_pool]
-        enc.patch4(opStart+4, riscv.i_type(riscv.LOAD_GPR, dst, 0b11, dst, delta));
+        enc.patch4(opStart+4, riscv.i_type(riscv.OP_LOAD, dst, 0b11, dst, delta));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
