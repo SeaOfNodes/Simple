@@ -1,0 +1,18 @@
+
+{ i32 byte[] i64 -> i64 } write = extern;
+byte[] buf = new byte[100];
+buf[ 0] = 'H';
+buf[ 1] = 'e';
+buf[ 2] = 'l';
+buf[ 3] = 'l';
+buf[ 4] = 'o';
+buf[ 5] = ',';
+buf[ 6] = 'W';
+buf[ 7] = 'o';
+buf[ 8] = 'r';
+buf[ 9] = 'l';
+buf[10] = 'd';
+buf[11] = '!';
+buf[12] = '\n';
+
+return write(0,buf,12);

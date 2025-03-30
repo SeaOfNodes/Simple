@@ -284,7 +284,7 @@ public class RegAlloc {
         for( RegMask rmask : rclass ) {
             Node split = makeSplit(def,"popular",round,lrg);
             split.insertAfter( def );
-            if( split.nIns()>1 )  split.setDef(1,def);
+            if( split.nIns()>1 ) split.setDef(1,def);
             // all uses by class to split
             for( int j=0; j < def._outputs._len; j++ ) {
                 Node use = def._outputs.at(j);

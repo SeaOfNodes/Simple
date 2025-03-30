@@ -12,7 +12,7 @@ public abstract class RegX86 extends MachConcreteNode {
     abstract int opcode();
     @Override public void encoding( Encoding enc ) {
         // REX.W + 01 /r
-        short dst = enc.reg(this ); // src1
+        short dst = enc.reg(in(1)); // src1
         short src = enc.reg(in(2)); // src2
         enc.add1(x86_64_v2.rex(dst, src, 0));
         enc.add1(opcode()); // opcode
