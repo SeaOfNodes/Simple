@@ -109,7 +109,7 @@ public class x86_64_v2 extends Machine {
         // assuming 64 bit by default so: 0100 1000
         assert 0 <= reg && reg < 16;
         assert 0 <= ptr && ptr < 16;
-        assert 0 <= idx && idx < 16;
+        assert -1 <= idx && idx < 16;
 
         int rex = wide ? REX_W : REX;
         if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
@@ -534,7 +534,7 @@ public class x86_64_v2 extends Machine {
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
         if( rhs instanceof LoadNode ld && ld.nOuts() == 1 )
-            return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true);
+            return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate
         if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
@@ -624,9 +624,7 @@ public class x86_64_v2 extends Machine {
                ld.mem() == st.mem() &&
                ld.ptr() == st.ptr() &&
                ld.off() == st.off()) {
-                if( op instanceof AddNode )
-                    return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
-                throw Utils.TODO();
+               return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
             }
         }
 
