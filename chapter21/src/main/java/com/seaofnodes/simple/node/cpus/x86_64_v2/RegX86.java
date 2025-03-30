@@ -14,6 +14,7 @@ public abstract class RegX86 extends MachConcreteNode {
         // REX.W + 01 /r
         short dst = enc.reg(in(1)); // src1
         short src = enc.reg(in(2)); // src2
+
         enc.add1(x86_64_v2.rex(dst, src, 0));
         enc.add1(opcode()); // opcode
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));

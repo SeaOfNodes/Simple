@@ -31,7 +31,7 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
     @Override public Node copy() { return new CmpIX86(this); }
 
     @Override public final void encoding( Encoding enc ) {
-        short dst = enc.reg(this); // Also src1
+        short dst = enc.reg(in(1)); // Also src1
         enc.add1(x86_64_v2.rex(0, dst, 0));
         // opcode; 0x81 or 0x83; 0x69 or 0x6B
         enc.add1( 0x81 + (x86_64_v2.imm8(_imm) ? 2 : 0) );

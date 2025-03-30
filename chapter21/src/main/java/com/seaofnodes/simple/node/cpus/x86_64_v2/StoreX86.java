@@ -31,6 +31,7 @@ public class StoreX86 extends MemOpX86 {
         short src = enc.reg(val());
 
         int imm_op = x86_64_v2.selectOpcodeForImmStore(_imm);
+
         if(src == -1 && _imm != 0) {
             if(imm_op == -1)         {enc.add1(x86_64_v2.rex(src, ptr, idx));enc.add1(0xC7); }
             else enc.add1(imm_op);

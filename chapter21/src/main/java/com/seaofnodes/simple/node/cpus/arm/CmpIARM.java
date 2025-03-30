@@ -28,7 +28,7 @@ public class CmpIARM extends MachConcreteNode implements MachNode {
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new CmpIARM(this); }
     // Encoding is appended into the byte array; size is returned
-    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,this,arm.OPI_CMP,_imm); }
+    @Override public void encoding( Encoding enc ) { arm.imm_inst(enc,in(1),in(1), arm.OPI_CMP,_imm); }
 
     // General form: "cmp  rs1, 1"
     @Override public void asm(CodeGen code, SB sb) {
