@@ -66,6 +66,7 @@ public class RegMask {
 
 
     public short firstReg() {
+        if( isEmpty() ) return -1;
         return (short)(_bits0 != 0
                        ? Long.numberOfTrailingZeros(_bits0)
                        : Long.numberOfTrailingZeros(_bits1)+64);

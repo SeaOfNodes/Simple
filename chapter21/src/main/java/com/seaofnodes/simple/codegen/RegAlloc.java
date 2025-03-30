@@ -251,7 +251,7 @@ public class RegAlloc {
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            makeSplit("def/empty1",round,lrg).insertAfterAndReplace((Node)lrg._machDef, false/*true*/);
+            makeSplit("def/empty1",round,lrg).insertAfterAndReplace((Node)lrg._machDef, this, false/*true*/);
         // Split just before use
         if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
@@ -341,7 +341,7 @@ public class RegAlloc {
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
                 SplitNode split = makeSplit("def/self",round,lrg);
-                split.insertAfterAndReplace(def,false);
+                split.insertAfterAndReplace(def,this,false);
                 if( split.nOuts()==0 )
                     split.kill();
                 insertBefore(phi,1,"use/self/phi",round,lrg);
@@ -398,7 +398,7 @@ public class RegAlloc {
                     // Single user is already a split adjacent
                     !(n.nOuts()==1 && n.out(0) instanceof SplitNode split && sameBlockNoClobber(split) ) )
                     // Split after def in min loop nest
-                    makeSplit("def/loop",round,lrg).insertAfterAndReplace(n,true);
+                    makeSplit("def/loop",round,lrg).insertAfterAndReplace(n,this,true);
             }
 
             // PhiNodes check all CFG inputs
@@ -559,14 +559,15 @@ public class RegAlloc {
         return true;
     }
 
-    private boolean sameBlockNoClobber( SplitNode split ) {
+    public boolean sameBlockNoClobber( SplitNode split ) {
         Node def = split.in(1);
         CFGNode cfg = def.cfg0();
         if( cfg != split.cfg0() ) return false; // Not same block
         // Get multinode head
-        Node def0 = def instanceof MultiNode ? def.in(0) : def;
+        Node def0 = def instanceof ProjNode ? def.in(0) : def;
         int defreg = lrg(def)._reg;
         if( defreg == -1 ) defreg = lrg(def)._mask.firstReg();
+        if( defreg == -1 ) return false; // no allowed registers -> clobbered
         for( int idx = cfg._outputs.find(split) -1; idx >= 0; idx-- ) {
             Node n = cfg.out(idx);
             if( n==def0 ) return true;    // No clobbers

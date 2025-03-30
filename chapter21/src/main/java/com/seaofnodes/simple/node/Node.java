@@ -10,6 +10,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.util.*;
 import java.util.function.Function;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
+import com.seaofnodes.simple.codegen.RegAlloc;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -321,13 +322,12 @@ public abstract class Node {
 
     // Replace uses of `def` with `this`, and insert `this` immediately after
     // `def` in the basic block.
-    public void insertAfterAndReplace( Node def, boolean must ) {
+    public void insertAfterAndReplace( Node def, RegAlloc r, boolean must ) {
         CFGNode cfg = insertAfter(def);
         for( int j=def.nOuts()-1; j>=0; j-- ) {
             // Can we avoid a split of a split?  'this' split is used by
             // another split in the same block.
-            if( !must && def.out(j) instanceof SplitNode split && def.out(j).cfg0()==cfg &&
-                !split._kind.contains("self") )
+            if( !must && def.out(j) instanceof SplitNode split && r.sameBlockNoClobber(split) )
                 continue;
             Node use = def._outputs.del(j);
             use.unlock();
