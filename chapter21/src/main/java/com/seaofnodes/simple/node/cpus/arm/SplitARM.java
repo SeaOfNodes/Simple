@@ -24,6 +24,7 @@ public class SplitARM extends SplitNode {
                 throw Utils.TODO();
             }
             int off = enc._fun.computeStackSlot(dst - arm.MAX_REG)*8;
+            if( srcX ) src -= arm.D_OFFSET;
             enc.add4(arm.load_str_imm(arm.OP_STORE_IMM, off, arm.RSP, src));
             return;
         }
@@ -31,6 +32,7 @@ public class SplitARM extends SplitNode {
         if(src >= arm.MAX_REG) {
             // Load from SP
             int off = enc._fun.computeStackSlot(src - arm.MAX_REG) * 8;
+            if( dstX ) dst -= arm.D_OFFSET;
             enc.add4(arm.load_str_imm(arm.OP_LOAD_IMM, off, arm.RSP, dst));
             return;
         }

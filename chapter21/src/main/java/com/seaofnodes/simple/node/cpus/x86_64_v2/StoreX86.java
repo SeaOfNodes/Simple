@@ -30,11 +30,11 @@ public class StoreX86 extends MemOpX86 {
         short idx = enc.reg(idx());
         short src = enc.reg(val());
 
-        int imm_op = x86_64_v2.selectOpcodeForImmStore(_imm);
-
-        if(src == -1 && _imm != 0) {
-            if(imm_op == -1)         {enc.add1(x86_64_v2.rex(src, ptr, idx));enc.add1(0xC7); }
-            else enc.add1(imm_op);
+        if( src == -1 && _imm != 0 ) {
+            // return opcode for optimised immediate store
+            if( x86_64_v2.imm8(_imm) ) enc.add1(0xC6);
+            else if( x86_64_v2.imm32(_imm) ) enc.add1(0xC7);
+            else enc.add1(x86_64_v2.rex(-1, ptr, idx)).add1(0xC7);
         } else {
             if(_declaredType == TypeFloat.F32) {src -= (short)x86_64_v2.XMM_OFFSET; enc.add1(0xF3); enc.add1(0x0F); enc.add1(0x11);}
             else if(_declaredType == TypeFloat.F64) {src -= (short)x86_64_v2.XMM_OFFSET; enc.add1(0xF2); enc.add1(0x0F); enc.add1(0x11);}

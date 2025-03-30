@@ -24,56 +24,23 @@ public class LoadX86 extends MemOpX86 {
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
 
-        if (_declaredType != TypeInteger.U32 && _declaredType != TypeFloat.F32 && _declaredType != TypeFloat.F64) {
-            enc.add1(x86_64_v2.rex(dst, ptr, idx == -1 ? 0: idx));
-        }
+        if( _declaredType != TypeInteger.U32 && _declaredType != TypeFloat.F32 && _declaredType != TypeFloat.F64 )
+            enc.add1(x86_64_v2.rex(dst, ptr, idx));
 
-        if(_declaredType instanceof TypeMemPtr) {
-            throw Utils.TODO();
-        }
+        if( _declaredType.isa(TypeFloat.F64) )
+            dst -= (short)x86_64_v2.XMM_OFFSET;
 
-        else if(_declaredType == TypeFloat.F32) {
-            // F3 0F 10 /r MOVSS xmm1, m32
-            enc.add1(0xF3);
-            enc.add1(0x0F);
-            enc.add1(0x10);
-            dst -= (short)x86_64_v2.XMM_OFFSET;
-        }
-        else if(_declaredType == TypeFloat.F64) {
-            //  F2 0F 10 /r MOVSD xmm1, m64
-            enc.add1(0xF2);
-            enc.add1(0x0F);
-            enc.add1(0x10);
-            dst -= (short)x86_64_v2.XMM_OFFSET;
-        }
-        else if(_declaredType == TypeInteger.I8) {
-            // sign extend: REX.W + 0F BE /r	MOVSX r64, r/m8
-            enc.add1(0x0F);
-            enc.add1(0xBE);
-        } else if(_declaredType == TypeInteger.I16) {
-            // sign extend: REX.W + 0F BF /r	MOVSX r64, r/m16
-            enc.add1(0x0F);
-            enc.add1(0xBF);
-        } else if(_declaredType == TypeInteger.I32) {
-            // sign extend: REX.W + 63 /r	MOVSXD r64, r/m32
-            enc.add1(0x63);
-        } else if(_declaredType == TypeInteger.U8) {
-            // zero extend: REX.W + 0F B6 /r	MOVZX r64, r/m8
-            enc.add1(0x0F);
-            enc.add1(0xB6);
-        } else if(_declaredType == TypeInteger.U16) {
-            // zero extend:   REX.W + 0F B7 /r	MOVZX r64, r/m16
-            enc.add1(0x0F);
-            enc.add1(0xB7);
-        } else if(_declaredType == TypeInteger.U32) {
-            // zero extend:   8B /r	MOV r32, r/m32
-            enc.add1(0x8B);
-        } else if(_declaredType == TypeInteger.BOT) {
-            // REX.W + 8B /r    MOV r64, r/m64
-            enc.add1(0x8B);
-        } else {
-            throw Utils.TODO();
-        }
+        if( false ) ;
+        else if( _declaredType == TypeFloat.F32  ) enc.add1(0xF3).add1(0x0F).add1(0x10); // F3 0F 10 /r MOVSS xmm1, m32
+        else if( _declaredType == TypeFloat.F64  ) enc.add1(0xF2).add1(0x0F).add1(0x10); // F2 0F 10 /r MOVSD xmm1, m64
+        else if( _declaredType == TypeInteger.I8 ) enc.add1(0x0F).add1(0xBE); // sign extend: REX.W + 0F BE /r MOVSX r64, r/m8
+        else if( _declaredType == TypeInteger.I16) enc.add1(0x0F).add1(0xBF); // sign extend: REX.W + 0F BF /r MOVSX r64, r/m16
+        else if( _declaredType == TypeInteger.I32) enc.add1(0x63);            // sign extend: REX.W + 63 /r    MOVSXD r64, r/m32
+        else if( _declaredType == TypeInteger.U8 ) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
+        else if( _declaredType == TypeInteger.U16) enc.add1(0x0F).add1(0xB7); // zero extend: REX.W + 0F B7 /r MOVZX r64, r/m16
+        // Covers U32, I64/BOT, TMP
+        else if( _declaredType.log_size()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32
+        else throw Utils.TODO();
 
         // includes modrm internally
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, dst, enc);

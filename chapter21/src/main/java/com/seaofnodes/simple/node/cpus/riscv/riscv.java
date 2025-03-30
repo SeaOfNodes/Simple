@@ -485,6 +485,7 @@ public class riscv extends Machine {
             // from a constant pool, which does not need an extra register
             throw Utils.TODO();
         }
+        // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
         case TypeMemPtr  tmp -> throw Utils.TODO();
