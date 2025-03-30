@@ -186,9 +186,14 @@ public class Encoding {
             // If the *next* BB has already been visited, we may need an
             // unconditional jump here
             if( visit.get(next._nid) && !(next instanceof StopNode) ) {
-                // If all the blocks, in RPO order, to our target
-                // are empty, we will fall in and not need a jump.
-                if( next instanceof LoopNode || !isEmptyBackwardsScan(rpo,next) ) {
+                boolean needJump = next instanceof LoopNode
+                    // If backwards to a loop, and the block has statements,
+                    // will need a jump.  Empty blocks can just backwards branch.
+                    ? (bb.nOuts()>1)
+                    // Forwards jump.  If all the blocks, in RPO order, to our
+                    // target are empty, we will fall in and not need a jump.
+                    : !isEmptyBackwardsScan(rpo,next);
+                if( needJump ) {
                     CFGNode jmp = _code._mach.jump();
                     jmp.setDefX(0,bb);
                     next.setDef(next._inputs.find(bb),jmp);
@@ -230,8 +235,13 @@ public class Encoding {
             // when the False RPO visit returns, the IF is immediately next.
             // When the RPO is reversed, the fall-through path will always be
             // following the IF.
-            _rpo_cfg(t,visit,rpo);
-            _rpo_cfg(f,visit,rpo);
+            if( t.nOuts()==1 ) {
+                _rpo_cfg(f,visit,rpo);
+                _rpo_cfg(t,visit,rpo);
+            } else {
+                _rpo_cfg(t,visit,rpo);
+                _rpo_cfg(f,visit,rpo);
+            }
         }
         rpo.add(bb);
     }
