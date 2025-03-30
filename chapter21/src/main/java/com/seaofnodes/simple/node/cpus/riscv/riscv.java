@@ -135,6 +135,9 @@ public class riscv extends Machine {
 
     // Since riscv instructions are fixed we can just or them togehter
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
+        assert 0 <= rs1 && rs1 < 32;
+        assert 0 <= rs2 && rs2 < 32;
+        assert 0 <= rd &&  rd  < 32;
         return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
     public static void r_type(Encoding enc, Node n, int func3, int func7) {
@@ -155,11 +158,13 @@ public class riscv extends Machine {
 
 
     public static int u_type(int opcode, int rd, int imm20) {
+        assert 0 <= rd && rd < 32;
         return (imm20 << 12) | (rd << 7) | opcode;
     }
 
     public static int j_type(int opcode, int rd, int delta) {
         assert -(1L<<20) <= delta && delta < (1L<<20);
+        assert 0 <= rd && rd < 32;
         // Messy branch offset encoding
         // 31 30-21 20 19-12 11-7  6-0
         // 20 10- 1 11 19-12 rpc   JAL
@@ -174,16 +179,17 @@ public class riscv extends Machine {
 
 
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-        assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
+        assert 0 <= rd  &&  rd < 32;
+        assert 0 <= rs1 &&  rs1  < 32;
+        assert opcode >= 0 && func3 >=0 && imm12 >= 0; // Zero-extend by caller
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
 
 
     // S-type instructions(store)
-    public static int s_type(int opcode, int offset1, int func3, int rs1, int rs2, int offset2) {
-        return (offset2 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (offset1 << 7) | opcode;
-    }
     public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
+        assert 0 <= rs1 &&  rs1 < 32;
+        assert 0 <= rs2 &&  rs2 < 32;
         assert imm12 >= 0;      // Masked to high zero bits by caller
         int imm_lo = imm12 & 0x1F;
         int imm_hi = imm12 >> 5;
@@ -192,6 +198,8 @@ public class riscv extends Machine {
 
     // BRANCH
     public static int b_type(int opcode, int func3, short rs1, short rs2, int delta) {
+        assert 0 <= rs1 && rs1 < 32;
+        assert 0 <= rs2 && rs2 < 32;
         assert -4*1024 <= delta && delta < 4*1024;
         assert (delta&1)==0;    // Low bit is always zero, not encoded
         // Messy branch offset encoding

@@ -25,6 +25,7 @@ public class CmpMemX86 extends MemOpX86 {
 
         // includes modrm
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src == -1 ? 7 : src, enc);
+
         if( src == -1 ) enc.add4(_imm);
     }
 

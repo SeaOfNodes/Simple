@@ -1,12 +1,14 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 public class LoadX86 extends MemOpX86 {
     LoadX86( LoadNode ld, Node base, Node idx, int off, int scale ) {
@@ -19,29 +21,34 @@ public class LoadX86 extends MemOpX86 {
         // Zero extension for u8, u16 and u32 but sign extension i8, i16, i32
         // Use movsx and movzx
 
+        CodeGen.print_as_hex(enc);
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
 
         if (_declaredType != TypeInteger.U32 && _declaredType != TypeFloat.F32 && _declaredType != TypeFloat.F64) {
-            enc.add1(x86_64_v2.rex(dst, ptr, idx));
+            enc.add1(x86_64_v2.rex(dst, ptr, idx == -1 ? 0: idx));
         }
 
-        if(_declaredType == TypeFloat.F32) {
+        if(_declaredType instanceof TypeMemPtr) {
+            throw Utils.TODO();
+        }
+
+        else if(_declaredType == TypeFloat.F32) {
             // F3 0F 10 /r MOVSS xmm1, m32
             enc.add1(0xF3);
             enc.add1(0x0F);
             enc.add1(0x10);
             dst -= (short)x86_64_v2.XMM_OFFSET;
         }
-        if(_declaredType == TypeFloat.F64) {
+        else if(_declaredType == TypeFloat.F64) {
             //  F2 0F 10 /r MOVSD xmm1, m64
             enc.add1(0xF2);
             enc.add1(0x0F);
             enc.add1(0x10);
             dst -= (short)x86_64_v2.XMM_OFFSET;
         }
-        if(_declaredType == TypeInteger.I8) {
+        else if(_declaredType == TypeInteger.I8) {
             // sign extend: REX.W + 0F BE /r	MOVSX r64, r/m8
             enc.add1(0x0F);
             enc.add1(0xBE);
@@ -66,6 +73,8 @@ public class LoadX86 extends MemOpX86 {
         } else if(_declaredType == TypeInteger.BOT) {
             // REX.W + 8B /r    MOV r64, r/m64
             enc.add1(0x8B);
+        } else {
+            throw Utils.TODO();
         }
 
         // includes modrm internally

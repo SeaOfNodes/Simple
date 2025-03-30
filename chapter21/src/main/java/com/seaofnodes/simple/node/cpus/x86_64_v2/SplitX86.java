@@ -18,7 +18,9 @@ public class SplitX86 extends SplitNode {
         // REX.W + 8B /r	MOV r64, r/m64
         short dst = enc.reg(this );
         short src = enc.reg(in(1));
-
+        if(_nid == 69) {
+            CodeGen.print_as_hex(enc);
+        }
         if( dst == x86_64_v2.FLAGS ) {
             // mov reg, flags
             // push rcx

@@ -86,12 +86,16 @@ public class x86_64_v2 extends Machine {
 
     public static int modrm(MOD mod, int reg, int m_r) {
         // combine all the bits
+        assert 0 <= reg  &&  reg < 16;
+        assert 0 <= m_r  &&  m_r < 16;
         return (mod.ordinal() << 6) | ((reg & 0x07) << 3) | m_r & 0x07;
     }
 
     // 00 000 000
     // same bit-layout as modrm
     public static int sib(int scale, int index, int base) {
+        assert 0 <= base  &&  base < 16;
+        assert 0 <= index && index < 16;
         return (scale << 6) | ((index & 0x07) << 3) | base & 0x07;
     }
 
@@ -103,6 +107,10 @@ public class x86_64_v2 extends Machine {
     // 0 denotes no direct register
     public static int rex(int reg, int ptr, int idx, boolean wide) {
         // assuming 64 bit by default so: 0100 1000
+        assert 0 <= reg && reg < 16;
+        assert 0 <= ptr && ptr < 16;
+        assert 0 <= idx && idx < 16;
+
         int rex = wide ? REX_W : REX;
         if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
         if( 8 <= ptr && ptr <= 15 ) rex |= 0b00000001; // REX.B
@@ -153,16 +161,22 @@ public class x86_64_v2 extends Machine {
                 : MOD.INDIRECT_disp32;
 
         // needs to pick optimal displacement mod if we want to encode base
+        // when we only have base = RSP then we still need displacement added so ti becomes: [RSP+RSP*1+0x0]
+        // RSP as index in this case is special and refers to: [base + disp8]
         if( mod == MOD.INDIRECT && (base == RBP || base == R13) )
             mod = MOD.INDIRECT_disp8;
 
         // special encoding for [base +offset]
         if( index == -1 ) {
             // Case for mov reg, [disp] (load)
-            enc.add1(modrm(mod, reg == -1 ? 0 : reg, base));
+            enc.add1(modrm(offset == 0 ? MOD.INDIRECT_disp8 : mod, reg == -1 ? 0 : reg, x86_64_v2.RSP));
+            enc.add1(x86_64_v2.sib(scale, x86_64_v2.RSP, base));
+            // special case
+            // still add zero it is part of SIB byte
+            if(offset == 0) enc.add1(offset);
         } else {
             // rsp is hard-coded here(0x04)
-            enc.add1(modrm(mod, reg, 0x04));
+            enc.add1(modrm(mod, reg, x86_64_v2.RSP));
             enc.add1(sib(scale, index, base));
         }
 
