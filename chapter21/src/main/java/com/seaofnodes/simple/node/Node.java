@@ -226,6 +226,7 @@ public abstract class Node {
     }
 
     // Breaks the edge invariants, used temporarily
+    @SuppressWarnings("unchecked")
     protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
@@ -274,6 +275,7 @@ public abstract class Node {
     // Add bogus null use to keep node alive
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
+    @SuppressWarnings("unchecked")
     public <N extends Node> N unkeep() {
         delUse(null);
         return (N)this;
@@ -300,9 +302,8 @@ public abstract class Node {
         kill();
     }
 
-    // Replace uses of `def` with `this`, and insert `this` immediately after
-    // `def` in the basic block.
-    public void insertAfter( Node def, boolean must ) {
+    // insert `this` immediately after `def` in the same basic block.
+    public CFGNode insertAfter( Node def ) {
         CFGNode cfg = def.cfg0();
         int i = cfg._outputs.find(def)+1;
         if( cfg instanceof CallEndNode ) {
@@ -315,6 +316,13 @@ public abstract class Node {
         while( cfg.out(i) instanceof PhiNode || cfg.out(i) instanceof CalleeSaveNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
+        return cfg;
+    }
+
+    // Replace uses of `def` with `this`, and insert `this` immediately after
+    // `def` in the basic block.
+    public void insertAfterAndReplace( Node def, boolean must ) {
+        CFGNode cfg = insertAfter(def);
         for( int j=def.nOuts()-1; j>=0; j-- ) {
             // Can we avoid a split of a split?  'this' split is used by
             // another split in the same block.
@@ -487,6 +495,7 @@ public abstract class Node {
         return old;
     }
 
+    @SuppressWarnings("unchecked")
     public <N extends Node> N init() { _type = compute(); return (N)this; }
 
     /**

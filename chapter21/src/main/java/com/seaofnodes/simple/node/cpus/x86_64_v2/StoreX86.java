@@ -47,10 +47,10 @@ public class StoreX86 extends MemOpX86 {
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, enc);
         if( src == -1 ) {
             switch (x86_64_v2.imm_size(_imm)) {
-                case 8: enc.add1(_imm); break;
-                case 16: enc.add2(_imm); break;
-                case 32: enc.add4(_imm); break;
-                case 64: enc.add8(_imm); break;
+            case 8: enc.add1(_imm); break;
+            case 16: enc.add2(_imm); break;
+            case 32: enc.add4(_imm); break;
+            case 64: enc.add8(_imm); break;
             }
         }
     }

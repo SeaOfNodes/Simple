@@ -62,6 +62,8 @@ public class LRG {
     // Adjacent Live Range neighbors.  Only valid during coloring
     Ary<LRG> _adj;
 
+    public int nadj() { return _adj==null ? 0 : _adj._len; }
+
     void addNeighbor(LRG lrg) {
         if( _adj==null ) _adj = new Ary<>(LRG.class);
         _adj.push(lrg);
@@ -80,7 +82,7 @@ public class LRG {
     }
 
     // More registers than neighbors
-    boolean lowDegree() { return (_adj==null ? 0 : _adj._len) < _mask.size(); }
+    boolean lowDegree() { return nadj() < _mask.size(); }
 
     LRG( short lrg ) { _lrg = lrg; _reg = -1; }
 
