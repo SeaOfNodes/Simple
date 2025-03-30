@@ -106,6 +106,7 @@ public class riscv extends Machine {
     public static int OP_LOAD    = 0b00_000_11;
     public static int OP_LOADFP  = 0b00_001_11;
     public static int OP_CUSTOM0 = 0b00_010_11;
+    public static int OP_IMM     = 0b00_100_11;
     public static int OP_AUIPC   = 0b00_101_11;
 
     public static int OP_STORE   = 0b01_000_11;
@@ -118,17 +119,9 @@ public class riscv extends Machine {
     public static int OP_FP      = 0b10_100_11;
 
     public static int OP_BRANCH  = 0b11_000_11;
+    public static int OP_JALR    = 0b11_001_11;
     public static int OP_RESERVED= 0b11_010_11;
-
-    public static int OP_CALL    = 0b11_001_11;
-
-
-
-    //I_type opcode: 0010 0011
-    public static int I_TYPE = 0x13;
-
-    // 0110 0111
-    public static int J_JAL = 0b1101111;
+    public static int OP_JAL     = 0b11_011_11;
 
 
     // Since riscv instructions are fixed we can just or them togehter
@@ -171,7 +164,7 @@ public class riscv extends Machine {
         int imm11    = (delta>>11) &     1;
         int imm12_19 = (delta>>12) &  0xFF;
         int imm20    = (delta>>19) &     1;
-        int bits = imm20<<20 | imm12_19 << 12 | imm11 << 11 | imm10_01;
+        int bits = imm20<<19 | imm10_01 << 9 | imm11 << 8 | imm12_19;
         return bits << 12 | rd << 7 | opcode;
     }
 
