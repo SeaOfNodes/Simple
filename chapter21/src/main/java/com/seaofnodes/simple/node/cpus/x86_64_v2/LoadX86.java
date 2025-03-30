@@ -20,8 +20,6 @@ public class LoadX86 extends MemOpX86 {
         // REX.W + 8B /r	MOV r64, r/m64
         // Zero extension for u8, u16 and u32 but sign extension i8, i16, i32
         // Use movsx and movzx
-
-        CodeGen.print_as_hex(enc);
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());

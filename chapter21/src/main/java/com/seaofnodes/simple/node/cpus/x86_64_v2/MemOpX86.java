@@ -14,7 +14,7 @@ import java.util.BitSet;
 //   mem      - memory dependence edge
 //   base     - Basic object pointer
 //   idx/null - Scaled index offset, or null if none
-//   val/null - Value to store, as part of a op-to-mem or op-from-mem.  Null for loads, or if an immediate is being used
+//   val/null - Value to store, as part of an op-to-mem or op-from-mem.  Null for loads, or if an immediate is being used
 // Constants:
 //   offset   - offset added to base.  Can be zero.
 //   scale    - scale on index; only 0,1,2,4,8 allowed, 0 is only when index is null
