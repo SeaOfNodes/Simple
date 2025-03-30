@@ -21,7 +21,7 @@ public class RegMaskRW extends RegMask {
         _bits1 &= ~mask._bits1;
         return this;
     }
-    public RegMaskRW union( RegMask mask ) {
+    public RegMaskRW or( RegMask mask ) {
         if( mask!=null ) {
             _bits0 |= mask._bits0;
             _bits1 |= mask._bits1;
