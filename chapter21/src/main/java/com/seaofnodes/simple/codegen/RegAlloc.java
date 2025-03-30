@@ -284,10 +284,11 @@ public class RegAlloc {
         for( RegMask rmask : rclass ) {
             Node split = makeSplit(def,"popular",round,lrg);
             split.insertAfter( def );
+            if( split.nIns()>1 )  split.setDef(1,def);
             // all uses by class to split
             for( int j=0; j < def._outputs._len; j++ ) {
                 Node use = def._outputs.at(j);
-                if( use instanceof MachNode mach ) {
+                if( use instanceof MachNode mach && use!=split ) {
                     // Check all use inputs for n, in case there's several
                     for( int i = 1; i < use.nIns(); i++ )
                         // Find a def input, and check register class
