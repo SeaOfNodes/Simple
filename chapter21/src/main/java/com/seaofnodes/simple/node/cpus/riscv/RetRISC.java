@@ -41,7 +41,7 @@ public class RetRISC extends ReturnNode implements MachNode {
             // Prints return reg (either A0 or FA0), RPC (always R1) and then
             // the callee-save registers.
             for( int i=2; i<nIns(); i++ )
-                sb.p(code.reg(in(i))).p("  ");
+                sb.p(in(i)==null ? "---" : code.reg(in(i))).p("  ");
 
         // Post-allocation, if we did not get the expected return register, print what we got
         else if( code._regAlloc.regnum(rpc()) != riscv.RPC )

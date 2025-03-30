@@ -37,7 +37,7 @@ abstract public class Coalesce {
                 if( v1 != v2 ) {
                     LRG ov1 = v1, ov2 = v2;
                     // Get the smaller neighbor count in v1
-                    if( (v1._adj==null ? 0 : v1._adj._len) > (v2._adj==null ? 0 : v2._adj._len) )
+                    if( v1.nadj() > v2.nadj() )
                         { v1 = v2; v2 = alloc.lrg(n); }
                     int v2len = v2._adj==null ? 0 : v2._adj._len;
                     // See that they do not conflict (coalescing would make a self-conflict)
@@ -58,9 +58,9 @@ abstract public class Coalesce {
                     // Most constrained mask
                     RegMask mask = v1._mask==v2._mask ? v1._mask : v1._mask.copy().and(v2._mask);
                     // Check for capacity
-                    if( v2._adj!=null && v2._adj._len >= mask.size() ) {
+                    if( v2.nadj() >= mask.size() ) {
                         // Fails capacity, will not be trivial colorable
-                        v2._adj.setLen(v2len);
+                        if( v2._adj!=null ) v2._adj.setLen(v2len);
                         continue;
                     }
 
