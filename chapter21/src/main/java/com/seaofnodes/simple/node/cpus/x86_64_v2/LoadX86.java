@@ -1,12 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFloat;
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.*;
 
 public class LoadX86 extends MemOpX86 {
     LoadX86( LoadNode ld, Node base, Node idx, int off, int scale ) {
@@ -60,12 +59,14 @@ public class LoadX86 extends MemOpX86 {
             // zero extend:   REX.W + 0F B7 /r	MOVZX r64, r/m16
             enc.add1(0x0F);
             enc.add1(0xB7);
-        } else if(_declaredType == TypeInteger.U32) {
+        } else if(_declaredType == TypeInteger.U32 ) {
             // zero extend:   8B /r	MOV r32, r/m32
             enc.add1(0x8B);
-        } else if(_declaredType == TypeInteger.BOT) {
+        } else if(_declaredType == TypeInteger.BOT  || _declaredType instanceof TypeMemPtr) {
             // REX.W + 8B /r    MOV r64, r/m64
             enc.add1(0x8B);
+        } else {
+            throw Utils.TODO();
         }
 
         // includes modrm internally
