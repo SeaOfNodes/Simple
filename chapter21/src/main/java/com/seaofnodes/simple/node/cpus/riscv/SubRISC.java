@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 public class SubRISC extends MachConcreteNode implements MachNode {
-    SubRISC( Node sub ) { super(sub); }
+    public SubRISC( Node sub ) { super(sub); }
     @Override public String op() { return "sub"; }
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

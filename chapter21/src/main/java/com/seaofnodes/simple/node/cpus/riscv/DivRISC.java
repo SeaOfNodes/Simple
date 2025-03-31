@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 public class DivRISC extends MachConcreteNode implements MachNode{
-    DivRISC(Node div) {super(div);}
+    public DivRISC(Node div) {super(div);}
     @Override public String op() { return "div"; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
