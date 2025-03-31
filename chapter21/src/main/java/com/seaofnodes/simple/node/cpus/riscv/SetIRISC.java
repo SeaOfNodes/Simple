@@ -12,6 +12,6 @@ public class SetIRISC extends ImmRISC {
     }
     @Override public String op() { return "setlt" + (_unsigned ? "u":""); }
     @Override public String glabel() { return  "<"+ (_unsigned ? "u":""); }
-    @Override int opcode() { return 19; }
-    @Override int func3() { return 2; }
+    @Override int opcode() { return riscv.OP_IMM; }
+    @Override int func3() { return _unsigned ? 3: 2; }
 }

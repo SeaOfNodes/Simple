@@ -181,6 +181,8 @@ public class riscv extends Machine {
     public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
         assert 0 <= rs1 &&  rs1 < 32;
         assert 0 <= rs2 &&  rs2 < 32;
+        assert 0 <= func3;
+
         assert imm12 >= 0;      // Masked to high zero bits by caller
         int imm_lo = imm12 & 0x1F;
         int imm_hi = imm12 >> 5;
@@ -451,9 +453,9 @@ public class riscv extends Machine {
         return switch( bool.op() ) {
         case "<" -> bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new SetIRISC(bool, (int)ti.value(),false)
-            : new SetRISC(bool);
+            : new SetRISC(bool, bool.op());
         // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
-        case "<=" -> new XorIRISC(new SetRISC(bool.swap12()),1);
+        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), bool.op()),1);
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
         case "==" -> new SetIRISC(new SubRISC(bool),1,true);
         default -> throw Utils.TODO();

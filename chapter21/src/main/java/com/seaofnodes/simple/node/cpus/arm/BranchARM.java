@@ -28,7 +28,6 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     @Override public RegMask outregmap() { return null; }
     @Override public void invert() { _bop = invert(_bop);  }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // Assuming that condition flags are already set.  These flags are set
         // by comparison (or sub).  No need for regs because it uses flags
