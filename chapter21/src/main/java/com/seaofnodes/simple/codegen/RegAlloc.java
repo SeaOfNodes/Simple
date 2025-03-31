@@ -343,7 +343,7 @@ public class RegAlloc {
                 SplitNode split = makeSplit("def/self",round,lrg);
                 insertAfterAndReplace(split,def,false);
                 if( split.nOuts()==0 )
-                    split.kill();
+                    split.killOrdered();
                 insertBefore(phi,1,"use/self/phi",round,lrg);
             }
             // Split before two-address ops which extend the live range

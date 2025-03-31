@@ -268,6 +268,15 @@ public abstract class Node {
         assert isDead();        // Really dead now
     }
 
+    // Preserve CFG use-ordering when killing
+    public void killOrdered() {
+        CFGNode cfg = cfg0();
+        cfg._outputs.remove(cfg._outputs.find(this));
+        _inputs.set(0,null);
+        kill();
+    }
+
+
     // Mostly used for asserts and printing.
     public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
@@ -336,7 +345,7 @@ public abstract class Node {
         use.setDefOrdered(uidx,this);
     }
 
-    public void setDefOrdered(int idx, Node def) {
+    public void setDefOrdered( int idx, Node def) {
         // If old is dying, remove from CFG ordered
         Node old = in(idx);
         if( old!=null && old.nOuts()==1 ) {
