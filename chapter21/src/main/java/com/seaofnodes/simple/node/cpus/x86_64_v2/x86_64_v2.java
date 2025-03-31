@@ -165,7 +165,7 @@ public class x86_64_v2 extends Machine {
         if( index == -1 ) {
             // Case for mov reg, [disp] (load)
             enc.add1(modrm(offset == 0 ? MOD.INDIRECT_disp8 : mod, reg, x86_64_v2.RSP));
-            enc.add1(x86_64_v2.sib(scale, x86_64_v2.RSP, base));
+            enc.add1(sib(scale, x86_64_v2.RSP, base));
             // special case
             // still add zero it is part of SIB byte
             if(offset == 0) enc.add1(offset);

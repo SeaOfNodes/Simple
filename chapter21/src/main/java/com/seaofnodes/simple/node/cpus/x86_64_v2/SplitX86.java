@@ -5,6 +5,9 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFloat;
+import com.seaofnodes.simple.type.TypeInteger;
 
 public class SplitX86 extends SplitNode {
     SplitX86( String kind, byte round ) { super(kind,round, new Node[2]); }
@@ -23,6 +26,7 @@ public class SplitX86 extends SplitNode {
             // push rcx
             // popf (Pop the top of the stack into the FLAGS register)
             // 50+rd	PUSH r64
+            if( src >= 8 ) x86_64_v2.rex(0,src,0,true);
             enc.add1(0x50 + src);
             // popf
             enc.add1(0x9D);
@@ -33,6 +37,7 @@ public class SplitX86 extends SplitNode {
             // pushf; pop reg
             enc.add1(0x9C);
             // 58+ rd	POP r64
+            if( dst >= 8 ) x86_64_v2.rex(0,dst,0,true);
             enc.add1(0x58 + dst);
             return;
         }
@@ -45,20 +50,13 @@ public class SplitX86 extends SplitNode {
         if( dst >= x86_64_v2.MAX_REG ) {
             if( src >= x86_64_v2.MAX_REG )
                 throw Utils.TODO(); // Very rare stack-stack move
-            // TODO: Missing FP 0x66 prefix
-            if( srcX ) { src -= (short)x86_64_v2.XMM_OFFSET;  enc.add1(0x66); }
             int off = enc._fun.computeStackSlot(dst - x86_64_v2.MAX_REG)*8;
-            enc.add1(x86_64_v2.rex(src, x86_64_v2.RSP, -1));
-            enc.add1( 0x89 );
-            x86_64_v2.indirectAdr(0, (short)-1, (short)x86_64_v2.RSP, off, src, enc);
+            StoreX86.encVal(enc, srcX ? TypeFloat.F64 : TypeInteger.BOT, (short)x86_64_v2.RSP, (short)-1/*index*/, src, off, 0);
             return;
         }
         if( src >= x86_64_v2.MAX_REG ) {
-            if( dstX ) { dst -= (short)x86_64_v2.XMM_OFFSET;  enc.add1(0x66); }
             int off = enc._fun.computeStackSlot(src - x86_64_v2.MAX_REG)*8;
-            enc.add1(x86_64_v2.rex(dst, x86_64_v2.RSP, -1));
-            enc.add1( 0x8B );
-            x86_64_v2.indirectAdr(0, (short)-1, (short)x86_64_v2.RSP, off, dst, enc);
+            LoadX86.enc(enc, dstX ? TypeFloat.F64 : TypeInteger.BOT, dst, (short)x86_64_v2.RSP, (short)-1, off, 0);
             return;
         }
 
