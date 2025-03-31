@@ -10,7 +10,6 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.util.*;
 import java.util.function.Function;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
-import com.seaofnodes.simple.codegen.RegAlloc;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -304,7 +303,7 @@ public abstract class Node {
     }
 
     // insert `this` immediately after `def` in the same basic block.
-    public CFGNode insertAfter( Node def ) {
+    public void insertAfter( Node def ) {
         CFGNode cfg = def.cfg0();
         int i = cfg._outputs.find(def)+1;
         if( cfg instanceof CallEndNode ) {
@@ -317,25 +316,6 @@ public abstract class Node {
         while( cfg.out(i) instanceof PhiNode || cfg.out(i) instanceof CalleeSaveNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        return cfg;
-    }
-
-    // Replace uses of `def` with `this`, and insert `this` immediately after
-    // `def` in the basic block.
-    public void insertAfterAndReplace( Node def, RegAlloc r, boolean must ) {
-        CFGNode cfg = insertAfter(def);
-        for( int j=def.nOuts()-1; j>=0; j-- ) {
-            // Can we avoid a split of a split?  'this' split is used by
-            // another split in the same block.
-            if( !must && def.out(j) instanceof SplitNode split && r.sameBlockNoClobber(split) )
-                continue;
-            Node use = def._outputs.del(j);
-            use.unlock();
-            int idx = use._inputs.find(def);
-            use._inputs.set(idx,this);
-            addUse(use);
-        }
-        if( nIns()>1 ) setDef(1,def);
     }
 
     // Insert this in front of use.in(uidx) with this, and insert this
