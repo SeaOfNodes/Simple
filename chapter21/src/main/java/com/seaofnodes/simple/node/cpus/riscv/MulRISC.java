@@ -6,7 +6,7 @@ import com.seaofnodes.simple.node.*;
 
 // mulh signed multiply instruction(no-imm form)
 public class MulRISC extends MachConcreteNode implements MachNode{
-    MulRISC(Node mul) {super(mul);}
+    public MulRISC(Node mul) {super(mul);}
     @Override public String op() { return "mul"; }
     @Override public RegMask regmap(int i) { assert i==1 || i==2; return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

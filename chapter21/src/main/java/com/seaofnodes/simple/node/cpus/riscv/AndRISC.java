@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 public class AndRISC extends MachConcreteNode implements MachNode {
-    AndRISC(Node and) { super(and); }
+    public AndRISC(Node and) { super(and); }
     @Override public String op() { return "and"; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
