@@ -108,9 +108,7 @@ public class Encoding {
         return this;
     }
     public void jump( CFGNode jmp, CFGNode dst ) {
-        while( dst.nOuts() == 1 ) // Skip empty blocks
-            dst = dst.uctrl();
-        _internals.put(jmp,dst);
+        _internals.put(jmp,dst.uctrlSkipEmpty());
     }
 
 
@@ -235,7 +233,7 @@ public class Encoding {
             // when the False RPO visit returns, the IF is immediately next.
             // When the RPO is reversed, the fall-through path will always be
             // following the IF.
-            if( t.nOuts()==1 ) {
+            if( t.nOuts()==1 && !invert ) {
                 _rpo_cfg(f,visit,rpo);
                 _rpo_cfg(t,visit,rpo);
             } else {
@@ -339,7 +337,7 @@ public class Encoding {
                 CFGNode bb = _code._cfg.at(i);
                 _opStart[bb._nid] += slide;
                 if( bb instanceof RIPRelSize riprel ) {
-                    CFGNode target = (CFGNode)bb.out(0);
+                    CFGNode target = ((CFGNode)bb.out(0)).uctrlSkipEmpty();
                     // Delta is from opStart to opStart.  X86 at least counts
                     // the delta from the opEnd, but we don't have the end until
                     // we decide the size - so the encSize has to deal

@@ -56,9 +56,8 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
         if( src!="flags" ) sb.p(src).p(" ");
-        CFGNode prj = cproj(0);
-        while( prj.nOuts() == 1 )
-            prj = prj.uctrl();  // Skip empty blocks
+        CFGNode prj = cproj(0).uctrlSkipEmpty();
+        if( !prj.blockHead() ) prj = prj.cfg0();
         sb.p(label(prj));
     }
     @Override public String comment() { return "L"+cproj(1)._nid; }

@@ -23,6 +23,7 @@ public class Chapter21Test {
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
         code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        String s = code.asm();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -69,6 +70,13 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }
 
+    @Test
+    public void testFib() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",24,null);
+        testCPU(src,"riscv"    , "SystemV",16,null);
+        testCPU(src,"arm"      , "SystemV",16,null);
+    }
 
     @Test
     public void testExport() throws IOException {
