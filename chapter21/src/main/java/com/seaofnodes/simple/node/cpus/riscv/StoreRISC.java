@@ -32,10 +32,11 @@ public class StoreRISC extends MemOpRISC {
     @Override public RegMask outregmap() { return null; }
 
     @Override public void encoding( Encoding enc ) {
-        short val = xreg(enc);
+        short val = enc.reg(val());
         short ptr = enc.reg(ptr());
-        int body = riscv.s_type(opcode(enc), func3()&7, ptr, val, _off);
-        enc.add4(body);
+        int op = val >= riscv.F_OFFSET ? riscv.OP_STOREFP : riscv.OP_STORE;
+        if( val >= riscv.F_OFFSET  ) val -= riscv.F_OFFSET;
+        enc.add4(riscv.s_type(op, func3()&7, ptr, val, _off));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

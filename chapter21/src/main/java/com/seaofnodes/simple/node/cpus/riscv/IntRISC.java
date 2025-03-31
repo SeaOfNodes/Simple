@@ -20,7 +20,7 @@ public class IntRISC extends ConstantNode implements MachNode {
         TypeInteger ti = (TypeInteger)_con;
         // Explicit truncation of larger immediates; this will sign-extend on
         // load and this is handled during instruction selection.
-        enc.add4(riscv.i_type(riscv.I_TYPE, dst, 0, riscv.ZERO, (int)(ti.value() & 0xFFF)));
+        enc.add4(riscv.i_type(riscv.OP_IMM, dst, 0, riscv.ZERO, (int)(ti.value() & 0xFFF)));
     }
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);

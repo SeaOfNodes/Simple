@@ -23,7 +23,7 @@ public class NewRISC extends NewNode implements MachNode {
         // A1 is a caller-save, allowed to crush building external address
         // auipc
         enc.add4(riscv.u_type(riscv.OP_AUIPC, riscv.A1, 0));
-        enc.add4(riscv.i_type(riscv.OP_CALL, riscv.RPC, 0, riscv.A1, 0));
+        enc.add4(riscv.i_type(riscv.OP_JALR, riscv.RPC, 0, riscv.A1, 0));
     }
 
     // General form: "alloc #bytes  PC"

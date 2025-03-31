@@ -23,7 +23,7 @@ public class SetFRISC extends MachConcreteNode implements MachNode {
         short dst  =         enc.reg(this );
         short src1 = (short)(enc.reg(in(1))-riscv.F_OFFSET);
         short src2 = (short)(enc.reg(in(2))-riscv.F_OFFSET);
-        int body = riscv.r_type(riscv.FLOAT_COMMON,dst,riscv.fsetop(_bop),src1,src2,0);
+        int body = riscv.r_type(riscv.OP_FP,dst,riscv.fsetop(_bop),src1,src2,0);
         enc.add4(body);
     }
 

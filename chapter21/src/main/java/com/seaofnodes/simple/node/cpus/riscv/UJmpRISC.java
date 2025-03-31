@@ -22,7 +22,7 @@ public class UJmpRISC extends CFGNode implements MachNode, RIPRelSize {
         // Short form +/-4K:  beq r0,r0,imm12
         // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
         enc.jump(this,uctrl());
-        enc.add4(riscv.j_type(riscv.J_JAL, 0, 0));
+        enc.add4(riscv.j_type(riscv.OP_JAL, 0, 0));
     }
 
     // Delta is from opcode start
@@ -35,7 +35,7 @@ public class UJmpRISC extends CFGNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.j_type(riscv.J_JAL, 0, delta));
+            enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, 0, delta));
         } else {
             throw Utils.TODO();
         }

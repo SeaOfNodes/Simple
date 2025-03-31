@@ -8,7 +8,7 @@ public class AddIRISC extends ImmRISC {
     public AddIRISC( Node add, int imm12, boolean pop ) { super(add,imm12,pop); }
     @Override public String op() { return "addi"; }
     @Override public String glabel() { return "+"; }
-    @Override int opcode() {  return riscv.I_TYPE; }
+    @Override int opcode() {  return riscv.OP_IMM; }
     @Override int func3() {return 0;}
     @Override public AddIRISC copy() {
         // Clone the AddI, using the same inputs-only code used during inst select.

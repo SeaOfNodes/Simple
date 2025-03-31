@@ -9,7 +9,7 @@ import java.util.BitSet;
 
 public abstract class MemOpRISC extends MemOpNode implements MachNode {
     final int _off;             // Limit 12 bits
-    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
+    final char _sz;
     MemOpRISC(MemOpNode mop, Node base, int off, Node val) {
         super(mop,mop);
         assert base._type instanceof TypeMemPtr;
@@ -17,6 +17,7 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         _inputs.setX(3, null);  // Never an index
         _inputs.setX(4, val );
         _off = off;
+        _sz = (char)('0'+(1<<_declaredType.log_size()));
     }
 
     @Override public String label() { return op(); }
@@ -52,26 +53,6 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         if( _declaredType instanceof TypeMemPtr ) func3=6; // 4 byte pointers, assumed unsigned?
         if( func3 == -1 ) throw Utils.TODO();
         return func3;
-    }
-
-    // 7 bits, 00 000 11 or 00 001 11 for FP
-    int opcode(Encoding enc) {
-        boolean isStore = this instanceof StoreRISC;
-        boolean isLoad = this instanceof LoadRISC;
-        short reg = enc.reg(isStore? val(): this);
-        assert reg != -1;
-        boolean isFloat = enc.reg(val()) >= riscv.F_OFFSET;
-
-        if (isStore) return isFloat ? 39 : 35;
-        if (isLoad) return isFloat ? 7 : 3;
-
-        return 0;
-    }
-    short xreg(Encoding enc) {
-        boolean isStore = this instanceof StoreRISC;
-        short xreg = enc.reg(isStore? val() : this );
-        assert xreg != -1;
-        return xreg < riscv.F_OFFSET ? xreg : (short)(xreg-riscv.F_OFFSET);
     }
 
     // Register mask allowed on input i.

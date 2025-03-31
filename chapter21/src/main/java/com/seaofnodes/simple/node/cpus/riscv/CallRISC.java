@@ -32,7 +32,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
         // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
         enc.relo(this);
         short rpc = enc.reg(this);
-        enc.add4(riscv.j_type(riscv.J_JAL, rpc, 0));
+        enc.add4(riscv.j_type(riscv.OP_JAL, rpc, 0));
     }
 
     // Delta is from opcode start
@@ -46,7 +46,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.j_type(riscv.J_JAL, rpc, delta));
+            enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, rpc, delta));
         } else {
             throw Utils.TODO();
         }

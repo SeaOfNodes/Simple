@@ -85,6 +85,7 @@ public class x86_64_v2 extends Machine {
     }
 
     public static int modrm(MOD mod, int reg, int m_r) {
+        if( reg == -1 ) reg=0;  // Missing reg in this flavor
         // combine all the bits
         assert 0 <= reg  &&  reg < 16;
         assert 0 <= m_r  &&  m_r < 16;
@@ -107,23 +108,17 @@ public class x86_64_v2 extends Machine {
     // 0 denotes no direct register
     public static int rex(int reg, int ptr, int idx, boolean wide) {
         // assuming 64 bit by default so: 0100 1000
-        assert 0 <= reg && reg < 16;
-        assert 0 <= ptr && ptr < 16;
-        assert 0 <= idx && idx < 16;
+        assert -1 <= reg && reg < 16;
+        assert -1 <= ptr && ptr < 16;
+        assert -1 <= idx && idx < 16;
 
         int rex = wide ? REX_W : REX;
-        if( 8 <= reg && reg <= 15 ) rex |= 0b00000100; // REX.R
-        if( 8 <= ptr && ptr <= 15 ) rex |= 0b00000001; // REX.B
-        if( 8 <= idx && idx <= 15 ) rex |= 0b00000010; // REX.X
+        if( 8 <= reg ) rex |= 0b00000100; // REX.R
+        if( 8 <= ptr ) rex |= 0b00000001; // REX.B
+        if( 8 <= idx ) rex |= 0b00000010; // REX.X
         return rex;
     }
-    // return opcode for optimised immediate store
-    public static int selectOpcodeForImmStore(long imm) {
-        if(imm8(imm)) return 0xC6;
-        if(imm16(imm)) return 0xC7;
-        if(imm32(imm)) return 0xC7;
-        return -1;
-    }
+
     // return the size of the immediate
     public static int imm_size(long imm) {
         if(imm8(imm)) return 8;
@@ -169,7 +164,7 @@ public class x86_64_v2 extends Machine {
         // special encoding for [base +offset]
         if( index == -1 ) {
             // Case for mov reg, [disp] (load)
-            enc.add1(modrm(offset == 0 ? MOD.INDIRECT_disp8 : mod, reg == -1 ? 0 : reg, x86_64_v2.RSP));
+            enc.add1(modrm(offset == 0 ? MOD.INDIRECT_disp8 : mod, reg, x86_64_v2.RSP));
             enc.add1(x86_64_v2.sib(scale, x86_64_v2.RSP, base));
             // special case
             // still add zero it is part of SIB byte
@@ -534,7 +529,7 @@ public class x86_64_v2 extends Machine {
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
         if( rhs instanceof LoadNode ld && ld.nOuts() == 1 )
-            return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true);
+            return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate
         if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
@@ -624,9 +619,7 @@ public class x86_64_v2 extends Machine {
                ld.mem() == st.mem() &&
                ld.ptr() == st.ptr() &&
                ld.off() == st.off()) {
-                if( op instanceof AddNode )
-                    return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
-                throw Utils.TODO();
+               return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
             }
         }
 
