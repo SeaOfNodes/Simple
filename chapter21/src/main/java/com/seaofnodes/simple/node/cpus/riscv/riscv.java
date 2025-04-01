@@ -451,9 +451,9 @@ public class riscv extends Machine {
         return switch( bool.op() ) {
         case "<" -> bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new SetIRISC(bool, (int)ti.value(),false)
-            : new SetRISC(bool);
+            : new SetRISC(bool, false);
         // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
-        case "<=" -> new XorIRISC(new SetRISC(bool.swap12()),1);
+        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1);
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
         case "==" -> new SetIRISC(new SubRISC(bool),1,true);
         default -> throw Utils.TODO();
