@@ -442,6 +442,22 @@ public class RegAlloc {
         int min = (int)ld;
         int max = (int)(ld>>32);
         int d = cfg.loopDepth();
+        // if n will lower the min loop and is in the tail end of the loop
+        // header, splitting "around" the loop will not help.  Treat n as being
+        // in the loop.
+        if( d < min ) {
+            if( cfg.uctrl() instanceof LoopNode loop && loop.entry()==cfg ) {
+                for( int i=cfg.nOuts()-2; i>=0; i-- ) {
+                    Node out = cfg.out(i);
+                    if( n==out )
+                        { d = loop.loopDepth(); break; } // Treat n as being "in the loop"
+                    if( !((out instanceof MachNode mach && mach.isClone()) || out instanceof SplitNode ) )
+                        break;  // Treat b as "normal", out of loop
+                }
+            }
+        }
+
+        // lower min, raise max, and re-fold
         min = Math.min(min,d);
         max = Math.max(max,d);
         return ((long)max<<32) | min;
