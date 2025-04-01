@@ -68,9 +68,8 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         String src1 = in(1)==null ? "#0" : code.reg(in(1));
         String src2 = in(2)==null ? "#0" : code.reg(in(2));
         sb.p(src1).p(" ").p(_bop).p(" ").p(src2).p(" ");
-        CFGNode prj = cproj(0);
-        while( prj.nOuts() == 1 )
-            prj = prj.uctrl();       // Skip empty blocks
+        CFGNode prj = cproj(0).uctrlSkipEmpty();
+        if( !prj.blockHead() ) prj = prj.cfg0();
         sb.p(label(prj));
     }
 }

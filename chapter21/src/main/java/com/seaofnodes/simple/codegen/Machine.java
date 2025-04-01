@@ -16,7 +16,7 @@ abstract public class Machine {
     // Return a MachNode unconditional branch
     public abstract CFGNode jump();
     // Break an infinite loop
-    public abstract IfNode never( CFGNode ctrl );
+    public abstract NeverNode never( CFGNode ctrl );
     // Instruction select from ideal nodes
     public abstract Node instSelect( Node n );
 

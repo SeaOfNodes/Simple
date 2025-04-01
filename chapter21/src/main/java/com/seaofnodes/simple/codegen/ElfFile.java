@@ -3,15 +3,11 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-
-import java.util.Map;
-import java.util.HashMap;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.io.IOException;
-import java.io.FileOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.BufferedOutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ElfFile {
 
@@ -222,9 +218,8 @@ public class ElfFile {
             Node bb = _code._cfg.at(i);
             if( bb instanceof FunNode f ) {
                 // skip until the function ends
-                while( !(_code._cfg.at(i) instanceof ReturnNode) ) {
+                while( !(_code._cfg.at(i) instanceof ReturnNode) )
                     i++;
-                }
 
                 Node r = _code._cfg.at(i);
                 int end = _code._encoding._opStart[r._nid] + _code._encoding._opLen[r._nid];
@@ -363,7 +358,9 @@ public class ElfFile {
         }
         assert out.position() == size;
 
-        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(fname));
+        File file = new File(fname);
+        file.getParentFile().mkdirs();
+        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
         bos.write(out.array());
         bos.close();
     }

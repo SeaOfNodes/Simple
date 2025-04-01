@@ -268,6 +268,15 @@ public abstract class Node {
         assert isDead();        // Really dead now
     }
 
+    // Preserve CFG use-ordering when killing
+    public void killOrdered() {
+        CFGNode cfg = cfg0();
+        cfg._outputs.remove(cfg._outputs.find(this));
+        _inputs.set(0,null);
+        kill();
+    }
+
+
     // Mostly used for asserts and printing.
     public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
@@ -303,7 +312,7 @@ public abstract class Node {
     }
 
     // insert `this` immediately after `def` in the same basic block.
-    public CFGNode insertAfter( Node def ) {
+    public void insertAfter( Node def ) {
         CFGNode cfg = def.cfg0();
         int i = cfg._outputs.find(def)+1;
         if( cfg instanceof CallEndNode ) {
@@ -316,26 +325,6 @@ public abstract class Node {
         while( cfg.out(i) instanceof PhiNode || cfg.out(i) instanceof CalleeSaveNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        return cfg;
-    }
-
-    // Replace uses of `def` with `this`, and insert `this` immediately after
-    // `def` in the basic block.
-    public void insertAfterAndReplace( Node def, boolean must ) {
-        CFGNode cfg = insertAfter(def);
-        for( int j=def.nOuts()-1; j>=0; j-- ) {
-            // Can we avoid a split of a split?  'this' split is used by
-            // another split in the same block.
-            if( !must && def.out(j) instanceof SplitNode split && def.out(j).cfg0()==cfg &&
-                !split._kind.contains("self") )
-                continue;
-            Node use = def._outputs.del(j);
-            use.unlock();
-            int idx = use._inputs.find(def);
-            use._inputs.set(idx,this);
-            addUse(use);
-        }
-        if( nIns()>1 ) setDef(1,def);
     }
 
     // Insert this in front of use.in(uidx) with this, and insert this
@@ -356,7 +345,7 @@ public abstract class Node {
         use.setDefOrdered(uidx,this);
     }
 
-    public void setDefOrdered(int idx, Node def) {
+    public void setDefOrdered( int idx, Node def) {
         // If old is dying, remove from CFG ordered
         Node old = in(idx);
         if( old!=null && old.nOuts()==1 ) {

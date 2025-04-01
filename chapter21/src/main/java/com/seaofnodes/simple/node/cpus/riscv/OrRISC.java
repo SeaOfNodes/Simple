@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
 public class OrRISC extends MachConcreteNode implements MachNode {
-    OrRISC(Node or) { super(or); }
+    public OrRISC(Node or) { super(or); }
     @Override public String op() { return "or"; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

@@ -170,8 +170,8 @@ public class riscv extends Machine {
 
 
     public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-        assert 0 <= rd  &&  rd < 32;
-        assert 0 <= rs1 &&  rs1  < 32;
+        assert 0 <= rd  &&  rd  < 32;
+        assert 0 <= rs1 &&  rs1 < 32;
         assert opcode >= 0 && func3 >=0 && imm12 >= 0; // Zero-extend by caller
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
@@ -340,9 +340,7 @@ public class riscv extends Machine {
     @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
 
     // Break an infinite loop
-    @Override public IfNode never( CFGNode ctrl ) {
-        throw Utils.TODO();
-    }
+    @Override public NeverNode never( CFGNode ctrl ) { return new NJmpRISC(ctrl);}
 
     // True if signed 12-bit immediate
     public static boolean imm12(TypeInteger ti) {
@@ -453,9 +451,9 @@ public class riscv extends Machine {
         return switch( bool.op() ) {
         case "<" -> bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new SetIRISC(bool, (int)ti.value(),false)
-            : new SetRISC(bool, bool.op());
+            : new SetRISC(bool, false);
         // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
-        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), bool.op()),1);
+        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1);
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
         case "==" -> new SetIRISC(new SubRISC(bool),1,true);
         default -> throw Utils.TODO();

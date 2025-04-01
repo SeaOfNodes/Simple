@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.CastNode;
 import com.seaofnodes.simple.node.MachNode;
 
 public class CastRISC extends CastNode implements MachNode {
-    CastRISC( CastNode cast ) { super(cast); }
+    public CastRISC( CastNode cast ) { super(cast); }
     @Override public String op() { return label(); }
     @Override public RegMask regmap(int i) { assert i==1; return RegMask.FULL; }
     @Override public RegMask outregmap() { return RegMask.FULL; }

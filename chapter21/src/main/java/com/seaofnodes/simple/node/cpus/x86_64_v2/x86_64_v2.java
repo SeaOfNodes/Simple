@@ -165,7 +165,7 @@ public class x86_64_v2 extends Machine {
         if( index == -1 ) {
             // Case for mov reg, [disp] (load)
             enc.add1(modrm(offset == 0 ? MOD.INDIRECT_disp8 : mod, reg, x86_64_v2.RSP));
-            enc.add1(x86_64_v2.sib(scale, x86_64_v2.RSP, base));
+            enc.add1(sib(scale, x86_64_v2.RSP, base));
             // special case
             // still add zero it is part of SIB byte
             if(offset == 0) enc.add1(offset);
@@ -381,8 +381,7 @@ public class x86_64_v2 extends Machine {
     }
 
     // Break an infinite loop
-    @Override
-    public IfNode never(CFGNode ctrl) {
+    @Override public NeverNode never(CFGNode ctrl) {
         throw Utils.TODO();
     }
 
@@ -390,45 +389,45 @@ public class x86_64_v2 extends Machine {
     @Override
     public Node instSelect(Node n) {
         return switch (n) {
-            case AddFNode addf -> addf(addf);
-            case AddNode add -> add(add);
-            case AndNode and -> and(and);
-            case BoolNode bool -> cmp(bool);
-            case CallEndNode cend -> new CallEndX86(cend);
-            case CallNode call -> call(call);
-            case CastNode cast -> new CastX86(cast);
-            case CProjNode c -> new CProjNode(c);
-            case ConstantNode con -> con(con);
-            case DivFNode divf -> new DivFX86(divf);
-            case DivNode div -> new DivX86(div);
-            case FunNode fun -> new FunX86(fun);
-            case IfNode iff -> jmp(iff);
-            case LoadNode ld -> ld(ld);
-            case MemMergeNode mem -> new MemMergeNode(mem);
-            case MulFNode mulf -> new MulFX86(mulf);
-            case MulNode mul -> mul(mul);
-            case NewNode nnn -> new NewX86(nnn);
-            case NotNode not -> new NotX86(not);
-            case OrNode or -> or(or);
-            case ParmNode parm -> new ParmX86(parm);
-            case PhiNode phi -> new PhiNode(phi);
-            case ProjNode prj -> prj(prj);
-            case ReadOnlyNode read -> new ReadOnlyNode(read);
-            case ReturnNode ret -> new RetX86(ret, ret.fun());
-            case SarNode sar -> sar(sar);
-            case ShlNode shl -> shl(shl);
-            case ShrNode shr -> shr(shr);
-            case StartNode start -> new StartNode(start);
-            case StopNode stop -> new StopNode(stop);
-            case StoreNode st -> st(st);
-            case SubFNode subf -> new SubFX86(subf);
-            case SubNode sub -> sub(sub);
-            case ToFloatNode tfn -> i2f8(tfn);
-            case XorNode xor -> xor(xor);
+        case AddFNode addf -> addf(addf);
+        case AddNode add -> add(add);
+        case AndNode and -> and(and);
+        case BoolNode bool -> cmp(bool);
+        case CallEndNode cend -> new CallEndX86(cend);
+        case CallNode call -> call(call);
+        case CastNode cast -> new CastX86(cast);
+        case CProjNode c -> new CProjNode(c);
+        case ConstantNode con -> con(con);
+        case DivFNode divf -> new DivFX86(divf);
+        case DivNode div -> new DivX86(div);
+        case FunNode fun -> new FunX86(fun);
+        case IfNode iff -> jmp(iff);
+        case LoadNode ld -> ld(ld);
+        case MemMergeNode mem -> new MemMergeNode(mem);
+        case MulFNode mulf -> new MulFX86(mulf);
+        case MulNode mul -> mul(mul);
+        case NewNode nnn -> new NewX86(nnn);
+        case NotNode not -> new NotX86(not);
+        case OrNode or -> or(or);
+        case ParmNode parm -> new ParmX86(parm);
+        case PhiNode phi -> new PhiNode(phi);
+        case ProjNode prj -> prj(prj);
+        case ReadOnlyNode read -> new ReadOnlyNode(read);
+        case ReturnNode ret -> new RetX86(ret, ret.fun());
+        case SarNode sar -> sar(sar);
+        case ShlNode shl -> shl(shl);
+        case ShrNode shr -> shr(shr);
+        case StartNode start -> new StartNode(start);
+        case StopNode stop -> new StopNode(stop);
+        case StoreNode st -> st(st);
+        case SubFNode subf -> new SubFX86(subf);
+        case SubNode sub -> sub(sub);
+        case ToFloatNode tfn -> i2f8(tfn);
+        case XorNode xor -> xor(xor);
 
-            case LoopNode loop -> new LoopNode(loop);
-            case RegionNode region -> new RegionNode(region);
-            default -> throw Utils.TODO();
+        case LoopNode loop -> new LoopNode(loop);
+        case RegionNode region -> new RegionNode(region);
+        default -> throw Utils.TODO();
         };
     }
 

@@ -6,7 +6,7 @@ import com.seaofnodes.simple.node.*;
 
 // Right Shift Arithmetic
 public class SraRISC extends MachConcreteNode implements MachNode {
-    SraRISC(Node sra) { super(sra); }
+    public SraRISC(Node sra) { super(sra); }
     @Override public String op() { return "sar"; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

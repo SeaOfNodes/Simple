@@ -23,28 +23,32 @@ public class LoadX86 extends MemOpX86 {
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
+        enc(enc, _declaredType, dst, ptr, idx, _off, _scale);
+    }
 
-        if( _declaredType != TypeInteger.U32 && _declaredType != TypeFloat.F32 && _declaredType != TypeFloat.F64 )
+    static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {
+        if( decl != TypeInteger.U32 && decl != TypeFloat.F32 && decl != TypeFloat.F64 )
             enc.add1(x86_64_v2.rex(dst, ptr, idx));
 
-        if( _declaredType.isa(TypeFloat.F64) )
+        if( decl.isa(TypeFloat.F64) )
             dst -= (short)x86_64_v2.XMM_OFFSET;
 
         if( false ) ;
-        else if( _declaredType == TypeFloat.F32  ) enc.add1(0xF3).add1(0x0F).add1(0x10); // F3 0F 10 /r MOVSS xmm1, m32
-        else if( _declaredType == TypeFloat.F64  ) enc.add1(0xF2).add1(0x0F).add1(0x10); // F2 0F 10 /r MOVSD xmm1, m64
-        else if( _declaredType == TypeInteger.I8 ) enc.add1(0x0F).add1(0xBE); // sign extend: REX.W + 0F BE /r MOVSX r64, r/m8
-        else if( _declaredType == TypeInteger.I16) enc.add1(0x0F).add1(0xBF); // sign extend: REX.W + 0F BF /r MOVSX r64, r/m16
-        else if( _declaredType == TypeInteger.I32) enc.add1(0x63);            // sign extend: REX.W + 63 /r    MOVSXD r64, r/m32
-        else if( _declaredType == TypeInteger.U8 ) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
-        else if( _declaredType == TypeInteger.U16) enc.add1(0x0F).add1(0xB7); // zero extend: REX.W + 0F B7 /r MOVZX r64, r/m16
+        else if( decl == TypeFloat.F32  ) enc.add1(0xF3).add1(0x0F).add1(0x10); // F3 0F 10 /r MOVSS xmm1, m32
+        else if( decl == TypeFloat.F64  ) enc.add1(0xF2).add1(0x0F).add1(0x10); // F2 0F 10 /r MOVSD xmm1, m64
+        else if( decl == TypeInteger.I8 ) enc.add1(0x0F).add1(0xBE); // sign extend: REX.W + 0F BE /r MOVSX r64, r/m8
+        else if( decl == TypeInteger.I16) enc.add1(0x0F).add1(0xBF); // sign extend: REX.W + 0F BF /r MOVSX r64, r/m16
+        else if( decl == TypeInteger.I32) enc.add1(0x63);            // sign extend: REX.W + 63 /r    MOVSXD r64, r/m32
+        else if( decl == TypeInteger.U8 ) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
+        else if( decl == TypeInteger.U16) enc.add1(0x0F).add1(0xB7); // zero extend: REX.W + 0F B7 /r MOVZX r64, r/m16
         // Covers U32, I64/BOT, TMP
-        else if( _declaredType.log_size()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32
+        else if( decl.log_size()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32
         else throw Utils.TODO();
 
         // includes modrm internally
-        x86_64_v2.indirectAdr(_scale, idx, ptr, _off, dst, enc);
+        x86_64_v2.indirectAdr(scale, idx, ptr, off, dst, enc);
     }
+
 
     // General form: "ldN  dst,[base + idx<<2 + 12]"
     @Override public void asm(CodeGen code, SB sb) {

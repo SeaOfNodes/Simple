@@ -6,7 +6,7 @@ import com.seaofnodes.simple.node.*;
 
 // Right Shift Logical
 public class SrlRISC extends MachConcreteNode implements MachNode {
-    SrlRISC(Node srli) { super(srli); }
+    public SrlRISC(Node srli) { super(srli); }
     @Override public String op() { return "shr"; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

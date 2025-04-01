@@ -32,8 +32,6 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
         int op = x86_64_v2.jumpop(_bop);
         enc.add1(op-16);      // Short form jump
         enc.add1(0);          // Offset
-        //enc.add1(0x0F).add1(x86_64_v2.jumpop(_bop));
-        //enc.add4(0);            // Offset patched later
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 2-byte encoding
@@ -59,9 +57,8 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     @Override public void asm(CodeGen code, SB sb) {
         String src = code.reg(in(1));
         if( src!="flags" ) sb.p(src).p(" ");
-        CFGNode prj = cproj(0); // 0 is True is jump target
-        while( prj.nOuts() == 1 && !(prj instanceof ReturnNode) )
-            prj = prj.uctrl(); // Skip empty blocks
+        CFGNode prj = cproj(0).uctrlSkipEmpty(); // 0 is True is jump target
+        if( !prj.blockHead() ) prj = prj.cfg0();
         sb.p(label(prj));
     }
 

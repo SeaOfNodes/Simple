@@ -251,7 +251,7 @@ public class RegAlloc {
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            makeSplit("def/empty1",round,lrg).insertAfterAndReplace((Node)lrg._machDef, false/*true*/);
+            insertAfterAndReplace( makeSplit("def/empty1",round,lrg), (Node)lrg._machDef, false/*true*/);
         // Split just before use
         if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
@@ -341,9 +341,9 @@ public class RegAlloc {
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
                 SplitNode split = makeSplit("def/self",round,lrg);
-                split.insertAfterAndReplace(def,false);
+                insertAfterAndReplace(split,def,false);
                 if( split.nOuts()==0 )
-                    split.kill();
+                    split.killOrdered();
                 insertBefore(phi,1,"use/self/phi",round,lrg);
             }
             // Split before two-address ops which extend the live range
@@ -398,7 +398,7 @@ public class RegAlloc {
                     // Single user is already a split adjacent
                     !(n.nOuts()==1 && n.out(0) instanceof SplitNode split && sameBlockNoClobber(split) ) )
                     // Split after def in min loop nest
-                    makeSplit("def/loop",round,lrg).insertAfterAndReplace(n,true);
+                    insertAfterAndReplace( makeSplit("def/loop",round,lrg), n,true);
             }
 
             // PhiNodes check all CFG inputs
@@ -488,6 +488,24 @@ public class RegAlloc {
         insertBefore(n,i,kind,round,lrg,true);
     }
 
+    // Replace uses of `def` with `split`, and insert `split` immediately after
+    // `def` in the basic block.
+    public void insertAfterAndReplace( Node split, Node def, boolean must ) {
+        split.insertAfter(def);
+        if( split.nIns()>1 ) split.setDef(1,def);
+        for( int j=def.nOuts()-1; j>=0; j-- ) {
+            Node use = def.out(j);
+            if( use==split ) continue; // Skip self
+            // Can we avoid a split of a split?  'this' split is used by
+            // another split in the same block.
+            if( !must && use instanceof SplitNode split2 && sameBlockNoClobber(split2) )
+                continue;
+            int idx = use._inputs.find(def);
+            use.setDefOrdered(idx,split);
+            if( j < def.nOuts() ) j++;
+        }
+    }
+
     private Node makeSplit( Node def, String kind, byte round, LRG lrg ) {
         Node split = def instanceof MachNode mach && mach.isClone()
             ? mach.copy()
@@ -559,14 +577,16 @@ public class RegAlloc {
         return true;
     }
 
-    private boolean sameBlockNoClobber( SplitNode split ) {
+
+    public boolean sameBlockNoClobber( SplitNode split ) {
         Node def = split.in(1);
         CFGNode cfg = def.cfg0();
         if( cfg != split.cfg0() ) return false; // Not same block
         // Get multinode head
-        Node def0 = def instanceof MultiNode ? def.in(0) : def;
+        Node def0 = def instanceof ProjNode ? def.in(0) : def;
         int defreg = lrg(def)._reg;
         if( defreg == -1 ) defreg = lrg(def)._mask.firstReg();
+        if( defreg == -1 ) return false; // no allowed registers -> clobbered
         for( int idx = cfg._outputs.find(split) -1; idx >= 0; idx-- ) {
             Node n = cfg.out(idx);
             if( n==def0 ) return true;    // No clobbers

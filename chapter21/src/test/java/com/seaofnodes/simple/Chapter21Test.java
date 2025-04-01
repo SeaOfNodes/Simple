@@ -69,6 +69,13 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }
 
+    @Test
+    public void testFib() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",24,null);
+        testCPU(src,"riscv"    , "SystemV",16,null);
+        testCPU(src,"arm"      , "SystemV",16,null);
+    }
 
     @Test
     public void testExport() throws IOException {

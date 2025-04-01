@@ -2,9 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMem;
 import java.util.BitSet;
 import java.util.HashSet;
 
@@ -45,28 +46,32 @@ public class LoopNode extends RegionNode {
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        NeverNode iff = new NeverNode(back());
+        NeverNode iff = CodeGen.CODE._mach == null
+            ? new NeverNode(back()) // Ideal never-branch
+            : CodeGen.CODE._mach.never(back()); // Machine never-branch
         for( Node use : _outputs )
             if( use instanceof PhiNode )
                 iff.addDef(use);
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
         setDef(2,f);
+        iff._ltree = t._ltree = f._ltree = _ltree;
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
         ReturnNode ret = fun.ret();
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
-        if( ctrl._type != Type.XCONTROL ) {
+        if( ctrl!=null && ctrl._type != Type.XCONTROL ) {
             // Perfect aligned exit?
             if( !(ctrl instanceof RegionNode r &&
                   mem  instanceof PhiNode pmem && pmem.region()==r &&
                   expr instanceof PhiNode prez && prez.region()==r ) ) {
                 // Nope, insert an aligned exit layer
-                ctrl = new RegionNode(_loc,null,ctrl).init();
-                mem  = new    PhiNode((RegionNode)ctrl,mem ).init();
-                expr = new    PhiNode((RegionNode)ctrl,expr).init();
+                RegionNode r = new RegionNode(_loc,null,ctrl).init();
+                ctrl = r;  r._ltree = _ltree;
+                mem  = new PhiNode(r,mem ).init();
+                expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit
             ctrl.addDef(t  );
