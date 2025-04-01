@@ -114,6 +114,7 @@ public abstract class ASMPrinter {
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
+        if( n.getClass() == ConstantNode.class ) return iadr; // Default placeholders
         final int dopz = code._mach.defaultOpSize();
         final int encWidth = dopz*2;
 

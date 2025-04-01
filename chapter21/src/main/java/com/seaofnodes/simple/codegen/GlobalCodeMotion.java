@@ -226,6 +226,7 @@ public abstract class GlobalCodeMotion {
     // Least loop depth first, then largest idepth
     private static boolean better( CFGNode lca, CFGNode best ) {
         return lca.loopDepth() < best.loopDepth() ||
+                lca instanceof NeverNode ||
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
