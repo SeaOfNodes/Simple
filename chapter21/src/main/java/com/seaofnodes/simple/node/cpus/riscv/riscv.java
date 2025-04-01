@@ -338,9 +338,7 @@ public class riscv extends Machine {
     @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
 
     // Break an infinite loop
-    @Override public IfNode never( CFGNode ctrl ) {
-        throw Utils.TODO();
-    }
+    @Override public NeverNode never( CFGNode ctrl ) { return new NJmpRISC(ctrl);}
 
     // True if signed 12-bit immediate
     public static boolean imm12(TypeInteger ti) {

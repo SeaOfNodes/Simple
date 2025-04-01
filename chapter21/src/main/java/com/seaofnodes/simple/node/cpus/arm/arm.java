@@ -607,7 +607,7 @@ public class arm extends Machine {
     }
 
     // Break an infinite loop
-    @Override public IfNode never(CFGNode ctrl ) {
+    @Override public NeverNode never(CFGNode ctrl ) {
         throw Utils.TODO();
     }
 
