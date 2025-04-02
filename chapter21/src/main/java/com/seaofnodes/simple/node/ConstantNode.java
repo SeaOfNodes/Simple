@@ -60,7 +60,7 @@ public class ConstantNode extends Node {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) {
+    public boolean eq(Node n) {
         ConstantNode con = (ConstantNode)n; // Contract
         return _con==con._con;
     }
