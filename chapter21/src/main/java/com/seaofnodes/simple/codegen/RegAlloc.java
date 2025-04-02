@@ -332,7 +332,8 @@ public class RegAlloc {
             // Phi or two-address
             for( int i=0; i<def._outputs._len; i++ ) {
                 Node use = def.out(i);
-                if( (use instanceof PhiNode phi && !(phi.region() instanceof LoopNode && phi.in(2)==def ) ) ||
+                if( (use instanceof PhiNode phi &&
+                     !(phi.region() instanceof LoopNode loop && phi.in(2)==def && def.cfg0().idepth() > loop.idepth() ) ) ||
                         (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
                     insertBefore( use, use._inputs.find(def), "use/self/use",round,lrg );
             }
@@ -606,6 +607,7 @@ public class RegAlloc {
         for( int idx = cfg._outputs.find(split) -1; idx >= 0; idx-- ) {
             Node n = cfg.out(idx);
             if( n==def0 ) return true;    // No clobbers
+            if( lrg(n) == lrg(def) ) return false; // Self conflict
             if( lrg(n)!=null && lrg(n)._reg == defreg )
                 return false;   // Clobbered
         }
