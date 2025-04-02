@@ -181,6 +181,8 @@ public class riscv extends Machine {
     public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
         assert 0 <= rs1 &&  rs1 < 32;
         assert 0 <= rs2 &&  rs2 < 32;
+        assert 0 <= func3;
+
         assert imm12 >= 0;      // Masked to high zero bits by caller
         int imm_lo = imm12 & 0x1F;
         int imm_hi = imm12 >> 5;

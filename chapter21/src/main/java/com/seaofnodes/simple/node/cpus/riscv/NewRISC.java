@@ -16,7 +16,6 @@ public class NewRISC extends NewNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
     @Override public RegMask killmap() { return riscv.riscCallerSave(); }
 
-    // Encoding is appended into the byte array; size is returned
     @Override public void encoding( Encoding enc ) {
         // Generic external encoding; 2 ops.
         enc.external(this,"calloc");

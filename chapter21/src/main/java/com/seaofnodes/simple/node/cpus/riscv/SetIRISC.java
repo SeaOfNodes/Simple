@@ -13,5 +13,5 @@ public class SetIRISC extends ImmRISC {
     @Override public String op() { return "slt" + (_unsigned ? "u":"") + "i"; }
     @Override public String glabel() { return  "<"+ (_unsigned ? "u":""); }
     @Override int opcode() { return 0b0010011; }
-    @Override int func3() { return _unsigned ? 0b011 : 0x010; }
+    @Override int func3() { return _unsigned ? 0b011 : 0b010; }
 }

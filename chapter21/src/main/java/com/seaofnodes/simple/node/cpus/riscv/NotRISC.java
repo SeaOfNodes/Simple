@@ -10,7 +10,7 @@ public class NotRISC extends ImmRISC {
     @Override public RegMask outregmap() { return riscv.RMASK;  }
     @Override public String op() { return "not"; }
     // sltiu: x <u 1 ? 1 : 0;  only zero is unsigned-less-than 1
-    @Override int opcode() { return 19; }
+    @Override int opcode() { return riscv.OP_IMM; }
     @Override int func3() { return 2; }
     @Override public void asm(CodeGen code, SB sb) { sb.p(code.reg(this)); }
 }
