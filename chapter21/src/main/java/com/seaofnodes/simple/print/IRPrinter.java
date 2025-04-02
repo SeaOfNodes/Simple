@@ -16,6 +16,7 @@ public abstract class IRPrinter {
     // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
     public static SB printLine( Node n, SB sb ) {
+        if( n==null ) return sb;
         sb.p("%4d %-7.7s ".formatted(n._nid,n.label()));
         if( n._inputs==null )
             return sb.p("DEAD\n");

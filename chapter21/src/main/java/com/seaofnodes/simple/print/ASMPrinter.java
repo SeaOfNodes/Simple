@@ -71,7 +71,7 @@ public abstract class ASMPrinter {
     static private final int opWidth = 5;
     static private final int argWidth = 30;
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
-        final int encWidth = code._mach.defaultOpSize()*2;
+        final int encWidth = code._mach==null ? 2 : code._mach.defaultOpSize()*2;
         CFGNode bb = code._cfg.at(cfgidx);
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p(label(bb)).p(":").nl();
@@ -110,12 +110,12 @@ public abstract class ASMPrinter {
     }
 
     static int doInst( int iadr, SB sb, CodeGen code, int cfgidx, Node n, boolean postAlloc, boolean postEncode ) {
-        if( n instanceof CProjNode ) return iadr;
+        if( n==null || n instanceof CProjNode ) return iadr;
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
         if( n.getClass() == ConstantNode.class ) return iadr; // Default placeholders
-        final int dopz = code._mach.defaultOpSize();
+        final int dopz = code._mach==null ? 2 : code._mach.defaultOpSize();
         final int encWidth = dopz*2;
 
         // All blocks ending in a Region will need to either fall into or jump

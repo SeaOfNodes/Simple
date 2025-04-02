@@ -108,7 +108,7 @@ public abstract class CFGNode extends Node {
 
     LoopTree _ltree;
     public int _pre;            // Pre-order numbers for loop tree finding
-    private static class LoopTree {
+    static class LoopTree {
         LoopTree _par;
         final LoopNode _head;
         int _depth;

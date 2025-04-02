@@ -40,7 +40,7 @@ public class LoopNode extends RegionNode {
         while( x != this ) {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
-                if( other!=null && other.loopDepth() < loopDepth() )
+                if( other!=null && other._ltree != _ltree && nested(_ltree,other._ltree) )
                     return stop; // Found an exit, not an infinite loop
             }
             x = x.idom();
@@ -86,4 +86,12 @@ public class LoopNode extends RegionNode {
 
         return stop;
     }
+
+    private static boolean nested(LoopTree inner, LoopTree outer) {
+        for( ; inner!=null; inner = inner._par )
+            if( inner == outer )
+                return true;
+        return false;
+    }
+
 }

@@ -56,7 +56,7 @@ public abstract class GlobalCodeMotion {
                     FunNode fun = null;
                     boolean done=true;
                     for( Node use : con.outs() ) {
-                        FunNode fun2 = use.cfg0().fun();
+                        FunNode fun2 = use instanceof ReturnNode ret ? ret.fun() : use.cfg0().fun();
                         if( fun==null || fun==fun2 ) fun=fun2;
                         else { done=false; break; }
                     }

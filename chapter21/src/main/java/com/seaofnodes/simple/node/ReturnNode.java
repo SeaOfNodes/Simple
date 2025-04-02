@@ -29,7 +29,7 @@ public class ReturnNode extends CFGNode {
     public Node mem () { return in(1); }
     public Node expr() { return in(2); }
     public Node rpc () { return in(3); }
-    public FunNode fun() { return _fun; }
+    @Override public FunNode fun() { return _fun; }
 
     @Override
     public String label() { return "Return"; }

@@ -250,6 +250,7 @@ public class Encoding {
                 _rpo_cfg(f,visit,rpo);
             }
         }
+        assert rpo._len>0 || bb instanceof ReturnNode;
         rpo.add(bb);
     }
 
