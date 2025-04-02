@@ -14,17 +14,13 @@ public class NJmpRISC extends NeverNode implements MachNode, RIPRelSize {
     @Override public String label() { return op(); }
     @Override public String comment() { return "L"+cproj(1)._nid; }
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return sb.append("jmp "); }
-    @Override public RegMask regmap(int i) {
-        if( i!=3 ) return null;
-        TypeFunPtr tfp = cproj(0).uctrl().fun().sig();
-        return riscv.retMask(tfp,2);
-    }
+    @Override public RegMask regmap(int i) { throw Utils.TODO(); }
     @Override public RegMask outregmap() { return null; }
 
     @Override public void encoding( Encoding enc ) {
         // Short form +/-4K:  beq r0,r0,imm12
         // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
-        enc.jump(this,cproj(1));
+        enc.jump(this,cproj(0));
         enc.add4(riscv.j_type(riscv.OP_JAL, 0, 0));
     }
 
@@ -45,6 +41,6 @@ public class NJmpRISC extends NeverNode implements MachNode, RIPRelSize {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(label(cproj(1).uctrl()));
+        sb.p(label(cproj(0).uctrl()));
     }
 }

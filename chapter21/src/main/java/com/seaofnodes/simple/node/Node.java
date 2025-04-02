@@ -334,6 +334,8 @@ public abstract class Node {
         int i;
         if( use instanceof PhiNode phi ) {
             cfg = phi.region().cfg(uidx);
+            if( cfg instanceof CProjNode && cfg.in(0) instanceof NeverNode nvr )
+                cfg = nvr.cfg0();
             i = cfg.nOuts()-1;
         } else {
             i = cfg._outputs.find(use);

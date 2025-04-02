@@ -159,8 +159,11 @@ public class Encoding {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         BitSet visit = _code.visit();
         for( Node n : _code._start._outputs )
-            if( n instanceof FunNode fun )
+            if( n instanceof FunNode fun ) {
+                int x = rpo._len;
                 _rpo_cfg(fun, visit, rpo);
+                assert rpo.at(x) instanceof ReturnNode;
+            }
         rpo.add(_code._start);
 
         // Reverse in-place
@@ -227,13 +230,19 @@ public class Encoding {
                 t.invert();
                 f.invert();
                 CProjNode tmp=f; f=t; t=tmp; // Swap t/f
+                int d=tld; tld=fld; fld=d;   // Swap depth
             }
 
-            // Always visit the False side last (so True side first), so that
+            // Whichever side is visited first becomes last in the RPO.  With
+            // no loops, visit the False side last (so True side first) so that
             // when the False RPO visit returns, the IF is immediately next.
             // When the RPO is reversed, the fall-through path will always be
             // following the IF.
-            if( t.nOuts()==1 && !invert ) {
+
+            // If loops are involved, attempt to keep them in a line.  Visit
+            // the exits first, so they follow the loop body when the order gets
+            // reversed.
+            if( fld < tld || (fld==tld && f.nOuts()==1) ) {
                 _rpo_cfg(f,visit,rpo);
                 _rpo_cfg(t,visit,rpo);
             } else {
