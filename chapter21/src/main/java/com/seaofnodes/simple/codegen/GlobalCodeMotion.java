@@ -24,7 +24,7 @@ public abstract class GlobalCodeMotion {
         schedEarly(code);
 
         // Break up shared global constants by functions
-        breakUpGlobalConstants(code);
+        breakUpGlobalConstants(code._start);
 
         code._visit.clear();
         schedLate (code);
@@ -45,11 +45,12 @@ public abstract class GlobalCodeMotion {
     }
 
     // Break up shared global constants by functions
-    private static void breakUpGlobalConstants( CodeGen code ) {
+    private static void breakUpGlobalConstants( Node start ) {
         // For all global constants
-        for( int i=0; i< code._start.nOuts(); i++ ) {
-            Node con = code._start.out(i);
+        for( int i=0; i< start.nOuts(); i++ ) {
+            Node con = start.out(i);
             if( con instanceof MachNode mach && mach.isClone() ) {
+                breakUpGlobalConstants(con);
                 // While constant has users in different functions
                 while( true ) {
                     // Find a function user, and another function
@@ -61,7 +62,11 @@ public abstract class GlobalCodeMotion {
                         else { done=false; break; }
                     }
                     // Single function user, so this constant is not shared
-                    if( done ) { i--; con.setDef(0,fun); break; }
+                    if( done ) {
+                        if( con.in(0)==start ) i--;
+                        con.setDef(0,fun);
+                        break;
+                    }
                     // Move function users to a private constant
                     Node con2 = mach.copy();  // Private constant clone
                     con2._inputs.set(0,null); // Preserve edge invariants from clone
