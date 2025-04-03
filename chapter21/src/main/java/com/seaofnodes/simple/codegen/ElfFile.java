@@ -236,6 +236,30 @@ public class ElfFile {
         }
     }
 
+    public final HashMap<Type, Symbol> _bigCons = new HashMap<>();
+    private void encodeConstants(SymbolSection symbols, DataSection rdata) {
+        int cnt = 0;
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            if (_bigCons.get(e.getValue()) != null) {
+                continue;
+            }
+
+            Symbol glob = new Symbol("GLOB$"+cnt, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+            glob._value = rdata._contents.size();
+            symbols.push(glob);
+
+            Type t = e.getValue();
+            if ( t instanceof TypeFloat tf ) {
+                write8(rdata._contents, Double.doubleToLongBits(tf._con));
+            } else {
+                throw Utils.TODO();
+            }
+
+            glob._size = rdata._contents.size() - glob._value;
+            _bigCons.put(e.getValue(), glob);
+            cnt++;
+        }
+    }
     public void export(String fname) throws IOException {
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string
@@ -258,6 +282,8 @@ public class ElfFile {
 
         // populate function symbols
         encodeFunctions(symbols, text);
+        // populate big constants
+        encodeConstants(symbols, rdata);
 
         int idx = 1;
         for( Section s : _sections ) {
@@ -292,6 +318,20 @@ public class ElfFile {
             write8(text_rela._contents, offset);
             // u64 info
             write8(text_rela._contents, ((long)sym_id << 32L) | 4L /* PLT32 */);
+            // i64 addend
+            write8(text_rela._contents, -4);
+        }
+
+        // relocations to constants
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            int nid    = e.getKey()._nid;
+            int sym_id = _bigCons.get(e.getValue())._index;
+            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
+
+            // u64 offset
+            write8(text_rela._contents, offset);
+            // u64 info
+            write8(text_rela._contents, ((long)sym_id << 32L) | 2L /* PC32 */);
             // i64 addend
             write8(text_rela._contents, -4);
         }

@@ -4,7 +4,7 @@ import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 
-public class FltX86 extends ConstantNode implements MachNode, RIPRelSize {
+public class FltX86 extends ConstantNode implements MachNode{
     private byte _encSize;
     FltX86(ConstantNode con ) { super(con); }
     @Override public String op() { return "ld8"; }
@@ -28,17 +28,6 @@ public class FltX86 extends ConstantNode implements MachNode, RIPRelSize {
         // hard-code rip here
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0x05));
         enc.add4(0);
-    }
-
-    // Delta is from opcode start
-    @Override public byte encSize(int delta) {
-        // TODO: 1-byte RIP offset?
-        return (byte)_encSize;
-    }
-
-    // Delta is from opcode start
-    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        enc.patch4(opStart+opLen-4,delta-opLen);
     }
 
     @Override public void asm(CodeGen code, SB sb) {

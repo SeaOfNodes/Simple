@@ -139,9 +139,8 @@ public class Encoding {
         // Record opcode start and length.
         writeEncodings();
 
-        // Write any large constants into a constant pool; they
+        // ELF handles big constants, they
         // are accessed by RIP-relative addressing.
-        writeConstantPool();
 
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
