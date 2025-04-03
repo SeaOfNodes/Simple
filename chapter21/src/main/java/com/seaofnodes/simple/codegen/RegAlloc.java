@@ -410,7 +410,7 @@ public class RegAlloc {
                         // splitting in inner loop or at loop border
                         (min==max || phi.region().cfg(i).loopDepth() <= min) &&
                         // and not around the backedge of a loop (bad place to force a split, hard to remove)
-                        !(phi.region() instanceof LoopNode && i==2) )
+                        !(phi.region() instanceof LoopNode && i==2 && (phi.in(i) instanceof PhiNode pp && pp.region()==phi.region())) )
                         // Split before phi-use in prior block
                         insertBefore(phi,i, "use/loop/phi",round,lrg);
 
