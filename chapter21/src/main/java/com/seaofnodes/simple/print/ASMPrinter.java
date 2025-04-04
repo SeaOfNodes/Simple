@@ -27,20 +27,34 @@ public abstract class ASMPrinter {
         Encoding enc = code._encoding;
         if(  enc!=null && !enc._bigCons.isEmpty() ) {
             sb.p("--- Constant Pool ------").nl();
-            for( Node relo : enc._bigCons.keySet() ) {
-                Type t = enc._bigCons.get(relo);
-                if( t.log_size()==3 ) {
-                    sb.hex2(iadr).p("  ").hex8(enc.read8(iadr)).p(" ");
-                    t.print(sb).nl();
-                    iadr += 8;
-                }
-            }
-            for( Node relo : enc._bigCons.keySet() ) {
-                Type t = enc._bigCons.get(relo);
-                if( t.log_size()==2 ) {
-                    sb.hex2(iadr).p("  ").hex4(enc.read4(iadr)).fix(9,"");
-                    t.print(sb).nl();
-                    iadr += 4;
+            // By log size
+            for( int log = 3; log >= 0; log-- ) {
+                for( Node relo : enc._bigCons.keySet() ) {
+                    Type t = enc._bigCons.get(relo);
+                    if( t.log_size()==log ) {
+                        sb.hex2(iadr).p("  ");
+                        if( t instanceof TypeTuple tt ) {
+                            for( Type tx : tt._types ) {
+                                switch( log ) {
+                                case 0: sb.hex1(enc.read1(iadr)); break;
+                                case 1: sb.hex2(enc.read2(iadr)); break;
+                                case 2: sb.hex4(enc.read4(iadr)); break;
+                                case 3: sb.hex8(enc.read8(iadr)); break;
+                                }
+                                iadr += (1<<log);
+                                sb.p(" ");
+                            }
+                        } else {
+                            switch( log ) {
+                            case 0: sb.hex1(enc.read1(iadr)).fix(9-1,""); break;
+                            case 1: sb.hex2(enc.read2(iadr)).fix(9-2,""); break;
+                            case 2: sb.hex4(enc.read4(iadr)).fix(9-4,""); break;
+                            case 3: sb.hex8(enc.read8(iadr)).p(" "); break;
+                            }
+                            iadr += (1<<log);
+                        }
+                        t.print(sb).nl();
+                    }
                 }
             }
         }

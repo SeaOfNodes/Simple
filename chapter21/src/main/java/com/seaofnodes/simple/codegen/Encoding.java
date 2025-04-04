@@ -68,9 +68,17 @@ public class Encoding {
         add4((int) i64     );
         add4((int)(i64>>32));
     }
+    public int read1(int idx) {
+        byte[] buf = _bits.buf();
+        return (buf[idx]&0xFF);
+    }
+    public int read2(int idx) {
+        byte[] buf = _bits.buf();
+        return (buf[idx]&0xFF) | (buf[idx+1]&0xFF) <<8;
+    }
     public int read4(int idx) {
         byte[] buf = _bits.buf();
-        return buf[idx] | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
+        return (buf[idx]&0xFF) | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
     }
     public long read8(int idx) {
         return (read4(idx) & 0xFFFFFFFFL) | read4(idx+4);
@@ -363,36 +371,44 @@ public class Encoding {
             ts.add(t);
         }
 
-        // Write the 8-byte constants
-        for( Node relo : _bigCons.keySet() ) {
-            Type t = _bigCons.get(relo);
-            if( t.log_size()==3 ) {
-                long x = t instanceof TypeInteger ti
-                    ? ti.value()
-                    : Double.doubleToRawLongBits(((TypeFloat)t).value());
-                // Map from relo to constant start
-                //if( elf ) _cbits.write8(x);
-                //else {
-                // Else local patch
-                _cpool.put(relo,_bits.size());
-                add8(x);
-                //}
-            }
-        }
-
-        // Write the 4-byte constants
-        for( Node relo : _bigCons.keySet() ) {
-            Type t = _bigCons.get(relo);
-            if( t.log_size()==2 ) {
-                // Map from relo to constant start
-                _cpool.put(relo,_bits.size());
-                int x = t instanceof TypeInteger ti
-                    ? (int)ti.value()
-                    : Float.floatToRawIntBits((float)((TypeFloat)t).value());
-                add4(x);
+        // By log size
+        for( int log = 3; log >= 0; log-- ) {
+            // Write the 8-byte constants
+            for( Node relo : _bigCons.keySet() ) {
+                Type t = _bigCons.get(relo);
+                if( t.log_size()==log ) {
+                    // Map from relo to constant start
+                    // Else local patch
+                    int target = _bits.size();
+                    int start = _opStart[relo._nid];
+                    ((RIPRelSize)relo).patch(this, start, _opLen[relo._nid], target - start);
+                    if( t instanceof TypeTuple tt ) {
+                        for( Type tx : tt._types )
+                            addN(log,tx);
+                    } else
+                        addN(log,t);
+                    //if( elf ) _cbits.write8(x);
+                    //else {
+                    //}
+                }
             }
         }
     }
+
+    private void addN( int log, Type t ) {
+        long x = t instanceof TypeInteger ti
+            ? ti.value()
+            : log==3
+            ? Double.doubleToRawLongBits(    ((TypeFloat)t).value())
+            : Float.floatToRawIntBits((float)((TypeFloat)t).value());
+        switch(log) {
+        case 0: add1((int)x); break;
+        case 1: add2((int)x); break;
+        case 2: add4((int)x); break;
+        case 3: add8(     x); break;
+        }
+    }
+
 
     // Patch local encodings now
     private void patchLocalRelocations() {
