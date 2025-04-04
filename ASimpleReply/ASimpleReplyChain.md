@@ -17,8 +17,6 @@ https://gist.github.com/DadaIsCrazy/8ce07d409f8f74bad7b36e74b77a3129
 
 ### Cliff's Reply(2):
 
-(first, this reply-chain to gather all the parts)
-
 https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/ASimpleReply2.md
 
 
