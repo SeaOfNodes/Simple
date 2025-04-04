@@ -88,8 +88,8 @@ public class Encoding {
         buf[idx+3] = (byte)(val>>24);
     }
 
-    void pad8() {
-        while( (_bits.size()+7 & -8) > _bits.size() )
+    void pad(int n) {
+        while( (_bits.size()+n-1 & -n) > _bits.size() )
             _bits.write(0);
     }
 
@@ -120,9 +120,7 @@ public class Encoding {
 
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
-
     public final HashMap<Node,Type> _bigCons = new HashMap<>();
-    public final HashMap<Node,Integer> _cpool = new HashMap<>();
     public void largeConstant( Node relo, Type t ) {
         assert t.isConstant();
         _bigCons.put(relo,t);
@@ -139,13 +137,13 @@ public class Encoding {
         // Record opcode start and length.
         writeEncodings();
 
-        // Write any large constants into a constant pool; they
-        // are accessed by RIP-relative addressing.
-        writeConstantPool();
-
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
+
+        // Write any large constants into a constant pool; they
+        // are accessed by RIP-relative addressing.
+        writeConstantPool(true);
 
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
@@ -271,6 +269,7 @@ public class Encoding {
             if( !(bb instanceof MachNode mach0) )
                 _opStart[bb._nid] = _bits.size();
             else if( bb instanceof FunNode fun ) {
+                pad(16);
                 _fun = fun;     // Currently encoding function
                 _opStart[bb._nid] = _bits.size();
                 mach0.encoding( this );
@@ -284,44 +283,7 @@ public class Encoding {
                 }
             }
         }
-        pad8();
-    }
-
-    // Write the constant pool
-    private void writeConstantPool() {
-        // TODO: Check for cpool dups
-        HashSet<Type> ts = new HashSet<>();
-        for( Type t : _bigCons.values() ) {
-            if( ts.contains(t) )
-                throw Utils.TODO(); // Dup!  Compress!
-            ts.add(t);
-        }
-
-        // Write the 8-byte constants
-        for( Node relo : _bigCons.keySet() ) {
-            Type t = _bigCons.get(relo);
-            if( t.log_size()==3 ) {
-                // Map from relo to constant start
-                _cpool.put(relo,_bits.size());
-                long x = t instanceof TypeInteger ti
-                    ? ti.value()
-                    : Double.doubleToRawLongBits(((TypeFloat)t).value());
-                add8(x);
-            }
-        }
-
-        // Write the 4-byte constants
-        for( Node relo : _bigCons.keySet() ) {
-            Type t = _bigCons.get(relo);
-            if( t.log_size()==2 ) {
-                // Map from relo to constant start
-                _cpool.put(relo,_bits.size());
-                int x = t instanceof TypeInteger ti
-                    ? (int)ti.value()
-                    : Float.floatToRawIntBits((float)((TypeFloat)t).value());
-                add4(x);
-            }
-        }
+        pad(16);
     }
 
     // Short-form RIP-relative support: replace short encodings with long
@@ -367,7 +329,7 @@ public class Encoding {
             // larger size...  which will shrink the padding and allow the
             // short form to work.  Too bad.
             if( !_cpool.isEmpty() )
-                pad8();
+                pad(8);
         }
 
 
@@ -385,6 +347,50 @@ public class Encoding {
                 end = start;
             }
             _bits.set(bits,bits.length);
+        }
+    }
+
+    // Write the constant pool; either into the code space
+    // and patch locally, or into another BAOS for emission
+    // to the ELF file.
+    public final HashMap<Node,Integer> _cpool = new HashMap<>();
+    public final BAOS _cbits = new BAOS();
+    private void writeConstantPool(boolean elf) {
+        HashSet<Type> ts = new HashSet<>();
+        for( Type t : _bigCons.values() ) {
+            if( ts.contains(t) )
+                throw Utils.TODO(); // Dup!  Compress!
+            ts.add(t);
+        }
+
+        // Write the 8-byte constants
+        for( Node relo : _bigCons.keySet() ) {
+            Type t = _bigCons.get(relo);
+            if( t.log_size()==3 ) {
+                long x = t instanceof TypeInteger ti
+                    ? ti.value()
+                    : Double.doubleToRawLongBits(((TypeFloat)t).value());
+                // Map from relo to constant start
+                //if( elf ) _cbits.write8(x);
+                //else {
+                // Else local patch
+                _cpool.put(relo,_bits.size());
+                add8(x);
+                //}
+            }
+        }
+
+        // Write the 4-byte constants
+        for( Node relo : _bigCons.keySet() ) {
+            Type t = _bigCons.get(relo);
+            if( t.log_size()==2 ) {
+                // Map from relo to constant start
+                _cpool.put(relo,_bits.size());
+                int x = t instanceof TypeInteger ti
+                    ? (int)ti.value()
+                    : Float.floatToRawIntBits((float)((TypeFloat)t).value());
+                add4(x);
+            }
         }
     }
 

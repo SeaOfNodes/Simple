@@ -213,26 +213,18 @@ public class ElfFile {
     /* creates function and stores where it starts*/
     private final HashMap<TypeFunPtr,Symbol> _funcs = new HashMap<>();
     private void encodeFunctions(SymbolSection symbols, DataSection text) {
-        int func_start = 0;
         for( int i=0; i<_code._cfg._len; i++ ) {
-            Node bb = _code._cfg.at(i);
-            if( bb instanceof FunNode f ) {
-                // skip until the function ends
-                while( !(_code._cfg.at(i) instanceof ReturnNode) )
-                    i++;
+            if( !(_code._cfg.at(i) instanceof FunNode fun) ) continue;
+            // skip until the function ends
+            while( !(_code._cfg.at(i) instanceof ReturnNode ret) )
+                i++;
+            int end = _code._encoding._opStart[ret._nid] + _code._encoding._opLen[ret._nid];
 
-                Node r = _code._cfg.at(i);
-                int end = _code._encoding._opStart[r._nid] + _code._encoding._opLen[r._nid];
-
-                Symbol func = new Symbol(f._name, text._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
-                func._size = end - func_start;
-                func._value = func_start;
-                symbols.push(func);
-                _funcs.put(f.sig(), func);
-
-                // next function starts where the last one ends
-                func_start = end;
-            }
+            Symbol func = new Symbol(fun._name, text._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+            func._value = _code._encoding._opStart[fun._nid];
+            func._size = end - func._value;
+            symbols.push(func);
+            _funcs.put(fun.sig(), func);
         }
     }
 
