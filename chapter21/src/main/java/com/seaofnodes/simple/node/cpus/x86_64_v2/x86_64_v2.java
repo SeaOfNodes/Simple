@@ -502,17 +502,19 @@ public class x86_64_v2 extends Machine {
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
-    private static boolean swap;
+    private static boolean swap, unsigned;
     private Node cmp( BoolNode bool ) {
-        swap = false;
+        swap = unsigned = false;
         Node cmp = _cmp(bool);
-        return new SetX86(cmp, swap ? IfNode.swap(bool.op()) : bool.op());
+        return new SetX86(cmp, swap ? IfNode.swap(bool.op()) : bool.op(), unsigned);
     }
 
     private Node _cmp(BoolNode bool) {
         // Float variant
-        if( bool.isFloat() )
+        if( bool.isFloat() ) {
+            unsigned = true;
             return new CmpFX86(bool);
+        }
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
 
