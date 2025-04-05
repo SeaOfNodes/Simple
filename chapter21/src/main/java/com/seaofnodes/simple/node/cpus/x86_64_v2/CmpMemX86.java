@@ -15,13 +15,14 @@ public class CmpMemX86 extends MemOpX86 {
     @Override public void encoding( Encoding enc ) {
         // REX.W + 81 /7 id	CMP r/m64, imm32 | REX.W + 39 /r	CMP r/m64,r64
         // CMP [mem], imm32
+
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
         short src = enc.reg(val());
 
         enc.add1(x86_64_v2.rex(src, ptr, idx));
         // opcode varies by immediate
-        enc.add1( src == -1 ? 0x39 : 0x81 );
+        enc.add1( src == -1 ? 0x81 : 0x39);
 
         // includes modrm
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src == -1 ? 7 : src, enc);

@@ -314,8 +314,8 @@ public class CodeGen {
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
         _encoding = new Encoding(this);
-        _encoding.encode();
         _JIT = jit;
+        _encoding.encode();
         _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
     }

@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.RetX86;
 import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 import java.util.*;
@@ -142,6 +143,7 @@ public class Encoding {
         // ELF handles big constants, they
         // are accessed by RIP-relative addressing.
 
+        if(_code._JIT) writeConstantPool();
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
@@ -267,6 +269,7 @@ public class Encoding {
             }
             for( Node n : bb._outputs ) {
                 if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
+
                     _opStart[n._nid] = _bits.size();
                     mach.encoding( this );
                     _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
