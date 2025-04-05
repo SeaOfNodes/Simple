@@ -40,7 +40,7 @@ public class LoopNode extends RegionNode {
         while( x != this ) {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
-                if( other!=null && other.loopDepth() < loopDepth() )
+                if( other!=null && other._ltree != _ltree && nested(_ltree,other._ltree) )
                     return stop; // Found an exit, not an infinite loop
             }
             x = x.idom();
@@ -49,18 +49,16 @@ public class LoopNode extends RegionNode {
         NeverNode iff = CodeGen.CODE._mach == null
             ? new NeverNode(back()) // Ideal never-branch
             : CodeGen.CODE._mach.never(back()); // Machine never-branch
-        for( Node use : _outputs )
-            if( use instanceof PhiNode )
-                iff.addDef(use);
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
-        setDef(2,f);
-        iff._ltree = t._ltree = f._ltree = _ltree;
+        setDef(2,t);
+        iff._ltree = t._ltree = _ltree;
+        ReturnNode ret = fun.ret();
+        f._ltree = ret._ltree;
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
-        ReturnNode ret = fun.ret();
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
         if( ctrl!=null && ctrl._type != Type.XCONTROL ) {
             // Perfect aligned exit?
@@ -74,11 +72,11 @@ public class LoopNode extends RegionNode {
                 expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit
-            ctrl.addDef(t  );
+            ctrl.addDef(f  );
             mem .addDef(top);
             expr.addDef(top);
         } else {
-            ctrl = t;
+            ctrl = f;
             mem  = top;
             expr = top;
         }
@@ -88,4 +86,12 @@ public class LoopNode extends RegionNode {
 
         return stop;
     }
+
+    private static boolean nested(LoopTree inner, LoopTree outer) {
+        for( ; inner!=null; inner = inner._par )
+            if( inner == outer )
+                return true;
+        return false;
+    }
+
 }

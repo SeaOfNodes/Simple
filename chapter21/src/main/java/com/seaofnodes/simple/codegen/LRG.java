@@ -137,6 +137,7 @@ public class LRG {
 
         if( _machUse==null ) {
             _machUse = lrg._machUse;
+            _uidx = lrg._uidx;
         } else if( lrg._machUse!=null ) {
             if( _machUse != lrg._machUse ) _multiUse=true;
             if( _1regUseCnt==0 ) {

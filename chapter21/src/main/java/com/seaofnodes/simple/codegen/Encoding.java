@@ -4,7 +4,6 @@ import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.x86_64_v2.RetX86;
 import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 import java.util.*;
@@ -69,9 +68,17 @@ public class Encoding {
         add4((int) i64     );
         add4((int)(i64>>32));
     }
+    public int read1(int idx) {
+        byte[] buf = _bits.buf();
+        return (buf[idx]&0xFF);
+    }
+    public int read2(int idx) {
+        byte[] buf = _bits.buf();
+        return (buf[idx]&0xFF) | (buf[idx+1]&0xFF) <<8;
+    }
     public int read4(int idx) {
         byte[] buf = _bits.buf();
-        return buf[idx] | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
+        return (buf[idx]&0xFF) | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
     }
     public long read8(int idx) {
         return (read4(idx) & 0xFFFFFFFFL) | read4(idx+4);
@@ -89,8 +96,8 @@ public class Encoding {
         buf[idx+3] = (byte)(val>>24);
     }
 
-    void pad8() {
-        while( (_bits.size()+7 & -8) > _bits.size() )
+    void pad(int n) {
+        while( (_bits.size()+n-1 & -n) > _bits.size() )
             _bits.write(0);
     }
 
@@ -121,9 +128,7 @@ public class Encoding {
 
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
-
     public final HashMap<Node,Type> _bigCons = new HashMap<>();
-    public final HashMap<Node,Integer> _cpool = new HashMap<>();
     public void largeConstant( Node relo, Type t ) {
         assert t.isConstant();
         _bigCons.put(relo,t);
@@ -143,7 +148,7 @@ public class Encoding {
         // ELF handles big constants, they
         // are accessed by RIP-relative addressing.
 
-        if(_code._JIT) writeConstantPool();
+        if(_code._JIT) writeConstantPool(true);
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
@@ -160,8 +165,11 @@ public class Encoding {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         BitSet visit = _code.visit();
         for( Node n : _code._start._outputs )
-            if( n instanceof FunNode fun )
+            if( n instanceof FunNode fun ) {
+                int x = rpo._len;
                 _rpo_cfg(fun, visit, rpo);
+                assert rpo.at(x) instanceof ReturnNode;
+            }
         rpo.add(_code._start);
 
         // Reverse in-place
@@ -228,13 +236,19 @@ public class Encoding {
                 t.invert();
                 f.invert();
                 CProjNode tmp=f; f=t; t=tmp; // Swap t/f
+                int d=tld; tld=fld; fld=d;   // Swap depth
             }
 
-            // Always visit the False side last (so True side first), so that
+            // Whichever side is visited first becomes last in the RPO.  With
+            // no loops, visit the False side last (so True side first) so that
             // when the False RPO visit returns, the IF is immediately next.
             // When the RPO is reversed, the fall-through path will always be
             // following the IF.
-            if( t.nOuts()==1 && !invert ) {
+
+            // If loops are involved, attempt to keep them in a line.  Visit
+            // the exits first, so they follow the loop body when the order gets
+            // reversed.
+            if( fld < tld || (fld==tld && f.nOuts()==1) ) {
                 _rpo_cfg(f,visit,rpo);
                 _rpo_cfg(t,visit,rpo);
             } else {
@@ -242,6 +256,7 @@ public class Encoding {
                 _rpo_cfg(f,visit,rpo);
             }
         }
+        assert rpo._len>0 || bb instanceof ReturnNode;
         rpo.add(bb);
     }
 
@@ -262,6 +277,7 @@ public class Encoding {
             if( !(bb instanceof MachNode mach0) )
                 _opStart[bb._nid] = _bits.size();
             else if( bb instanceof FunNode fun ) {
+                pad(16);
                 _fun = fun;     // Currently encoding function
                 _opStart[bb._nid] = _bits.size();
                 mach0.encoding( this );
@@ -269,51 +285,13 @@ public class Encoding {
             }
             for( Node n : bb._outputs ) {
                 if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
-
                     _opStart[n._nid] = _bits.size();
                     mach.encoding( this );
                     _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
                 }
             }
         }
-        pad8();
-    }
-
-    // Write the constant pool
-    private void writeConstantPool() {
-        // TODO: Check for cpool dups
-        HashSet<Type> ts = new HashSet<>();
-        for( Type t : _bigCons.values() ) {
-            if( ts.contains(t) )
-                throw Utils.TODO(); // Dup!  Compress!
-            ts.add(t);
-        }
-
-        // Write the 8-byte constants
-        for( Node relo : _bigCons.keySet() ) {
-            Type t = _bigCons.get(relo);
-            if( t.log_size()==3 ) {
-                // Map from relo to constant start
-                _cpool.put(relo,_bits.size());
-                long x = t instanceof TypeInteger ti
-                    ? ti.value()
-                    : Double.doubleToRawLongBits(((TypeFloat)t).value());
-                add8(x);
-            }
-        }
-
-        // Write the 4-byte constants
-        for( Node relo : _bigCons.keySet() ) {
-            Type t = _bigCons.get(relo);
-            if( t.log_size()==2 ) {
-                // Map from relo to constant start
-                _cpool.put(relo,_bits.size());
-                int x = t instanceof TypeInteger ti
-                    ? (int)ti.value()
-                    : Float.floatToRawIntBits((float)((TypeFloat)t).value());
-                add4(x);
-            }
-        }
+        pad(16);
     }
 
     // Short-form RIP-relative support: replace short encodings with long
@@ -359,7 +337,7 @@ public class Encoding {
             // larger size...  which will shrink the padding and allow the
             // short form to work.  Too bad.
             if( !_cpool.isEmpty() )
-                pad8();
+                pad(8);
         }
 
 
@@ -379,6 +357,58 @@ public class Encoding {
             _bits.set(bits,bits.length);
         }
     }
+
+    // Write the constant pool; either into the code space
+    // and patch locally, or into another BAOS for emission
+    // to the ELF file.
+    public final HashMap<Node,Integer> _cpool = new HashMap<>();
+    public final BAOS _cbits = new BAOS();
+    private void writeConstantPool(boolean elf) {
+        HashSet<Type> ts = new HashSet<>();
+        for( Type t : _bigCons.values() ) {
+            if( ts.contains(t) )
+                throw Utils.TODO(); // Dup!  Compress!
+            ts.add(t);
+        }
+
+        // By log size
+        for( int log = 3; log >= 0; log-- ) {
+            // Write the 8-byte constants
+            for( Node relo : _bigCons.keySet() ) {
+                Type t = _bigCons.get(relo);
+                if( t.log_size()==log ) {
+                    // Map from relo to constant start
+                    // Else local patch
+                    int target = _bits.size();
+                    int start = _opStart[relo._nid];
+                    ((RIPRelSize)relo).patch(this, start, _opLen[relo._nid], target - start);
+                    if( t instanceof TypeTuple tt ) {
+                        for( Type tx : tt._types )
+                            addN(log,tx);
+                    } else
+                        addN(log,t);
+                    //if( elf ) _cbits.write8(x);
+                    //else {
+                    //}
+                }
+            }
+        }
+    }
+
+    private void addN( int log, Type t ) {
+        long x = t instanceof TypeInteger ti
+            ? ti.value()
+            : log==3
+            ? Double.doubleToRawLongBits(    ((TypeFloat)t).value())
+            : Float.floatToRawIntBits((float)((TypeFloat)t).value());
+        switch(log) {
+        case 0: add1((int)x); break;
+        case 1: add2((int)x); break;
+        case 2: add4((int)x); break;
+        case 3: add8(     x); break;
+        }
+    }
+
 
     // Patch local encodings now
     private void patchLocalRelocations() {

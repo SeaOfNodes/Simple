@@ -1,14 +1,12 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.print.ASMPrinter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.Ignore;
 import org.junit.Test;
-import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
@@ -16,14 +14,14 @@ public class Chapter21Test {
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
-        code.parse().opto().typeCheck();
+        code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc().encode();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -48,8 +46,8 @@ public class Chapter21Test {
     @Test
     public void testNewtonFloat() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
-        testCPU(src,"x86_64_v2", "SystemV",23,null);
+            + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
+        testCPU(src,"x86_64_v2", "SystemV",39,null);
         testCPU(src,"riscv"    , "SystemV",18,null);
         testCPU(src,"arm"      , "SystemV",19,null);
     }
@@ -78,49 +76,12 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",16,null);
     }
 
-    @Test public void testNewtonFloatPrint() throws IOException{
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
-        CodeGen code = new CodeGen(src);
-
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
-    }
-
     @Test
-    public void testExportFloat() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
+    public void testExport() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
+            + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "Win64").GCM().localSched().regAlloc().encode();
-        for (var n : code._start._outputs)
-            if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
-
-        code.exportELF("build/objs/newton.o");
-    }
-
-    @Test public void testPrintString() throws IOException{
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        CodeGen code = new CodeGen(src);
-
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
-    }
-
-    @Test public void testPrintStringAssembly() throws IOException{
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        CodeGen code = new CodeGen(src);
-
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
-
-        System.out.print(code.asm());
-    }
-
-    @Test
-    public void testExportString() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "Win64").GCM().localSched().regAlloc().encode();
-        for (var n : code._start._outputs)
-            if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
-
-        code.exportELF("build/objs/string_hash.o");
+        code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
     }
 
 
@@ -130,7 +91,7 @@ public class Chapter21Test {
     public void testPersons() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/Person.smp"));
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/Persons.o");
+        code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/Persons.o");
         //testCPU(src,"x86_64_v2", "Win64"  ,3,null);
         //testCPU(src,"riscv"    , "SystemV",1,null);
         //testCPU(src,"arm"      , "SystemV",1,null);

@@ -193,7 +193,7 @@ for(;;) {
 """);
         code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return Top;", code._stop.toString());
-        assertEquals(null, Eval2.eval(code,  0));
+        assertEquals("null", Eval2.eval(code,  0));
     }
 
 

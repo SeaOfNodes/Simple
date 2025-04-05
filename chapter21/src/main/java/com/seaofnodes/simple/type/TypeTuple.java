@@ -55,6 +55,21 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
+    @Override public boolean isConstant() {
+        for( Type t : _types )
+            if( !t.isConstant() )
+                return false;
+        return true;
+    }
+
+    @Override public int log_size() {
+        assert isConstant();
+        int log_size = 0;
+        for( Type t : _types )
+            log_size = Math.max(log_size,t.log_size());
+        return log_size;
+    }
+
     public Type ret() { assert _types.length==3; return _types[2]; }
 
     @Override public String str() { return print(new SB()).toString(); }

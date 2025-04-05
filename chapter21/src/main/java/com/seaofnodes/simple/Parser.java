@@ -1670,6 +1670,7 @@ public class Parser {
             while( Character.isDigit(c=nextChar()) ) ;
             if( !(c=='e' || c=='.') )
                 return --_position - old;
+            if( peek() == '-' ) nextChar();
             while( Character.isDigit(c=nextChar()) || c=='e' || c=='.' ) ;
             return -(--_position - old);
         }

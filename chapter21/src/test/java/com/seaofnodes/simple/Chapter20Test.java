@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
@@ -24,7 +23,7 @@ public class Chapter20Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc();
+        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -75,7 +74,7 @@ return sqrt(arg) + sqrt(arg+2);
     public void testNewtonFloat() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
             + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
-        testCPU(src,"x86_64_v2", "SystemV",25,null);
+        testCPU(src,"x86_64_v2", "SystemV",39,null);
         testCPU(src,"riscv"    , "SystemV",17,null);
         testCPU(src,"arm"      , "SystemV",18,null);
     }

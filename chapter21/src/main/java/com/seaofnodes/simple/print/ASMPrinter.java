@@ -27,20 +27,34 @@ public abstract class ASMPrinter {
         Encoding enc = code._encoding;
         if(  enc!=null && !enc._bigCons.isEmpty() ) {
             sb.p("--- Constant Pool ------").nl();
-            for( Node relo : enc._bigCons.keySet() ) {
-                Type t = enc._bigCons.get(relo);
-                if( t.log_size()==3 ) {
-                    sb.hex2(iadr).p("  ").hex8(enc.read8(iadr)).p(" ");
-                    t.print(sb).nl();
-                    iadr += 8;
-                }
-            }
-            for( Node relo : enc._bigCons.keySet() ) {
-                Type t = enc._bigCons.get(relo);
-                if( t.log_size()==2 ) {
-                    sb.hex2(iadr).p("  ").hex4(enc.read4(iadr)).fix(9,"");
-                    t.print(sb).nl();
-                    iadr += 4;
+            // By log size
+            for( int log = 3; log >= 0; log-- ) {
+                for( Node relo : enc._bigCons.keySet() ) {
+                    Type t = enc._bigCons.get(relo);
+                    if( t.log_size()==log ) {
+                        sb.hex2(iadr).p("  ");
+                        if( t instanceof TypeTuple tt ) {
+                            for( Type tx : tt._types ) {
+                                switch( log ) {
+                                case 0: sb.hex1(enc.read1(iadr)); break;
+                                case 1: sb.hex2(enc.read2(iadr)); break;
+                                case 2: sb.hex4(enc.read4(iadr)); break;
+                                case 3: sb.hex8(enc.read8(iadr)); break;
+                                }
+                                iadr += (1<<log);
+                                sb.p(" ");
+                            }
+                        } else {
+                            switch( log ) {
+                            case 0: sb.hex1(enc.read1(iadr)).fix(9-1,""); break;
+                            case 1: sb.hex2(enc.read2(iadr)).fix(9-2,""); break;
+                            case 2: sb.hex4(enc.read4(iadr)).fix(9-4,""); break;
+                            case 3: sb.hex8(enc.read8(iadr)).p(" "); break;
+                            }
+                            iadr += (1<<log);
+                        }
+                        t.print(sb).nl();
+                    }
                 }
             }
         }
@@ -71,7 +85,7 @@ public abstract class ASMPrinter {
     static private final int opWidth = 5;
     static private final int argWidth = 30;
     static int doBlock(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
-        final int encWidth = code._mach.defaultOpSize()*2;
+        final int encWidth = code._mach==null ? 2 : code._mach.defaultOpSize()*2;
         CFGNode bb = code._cfg.at(cfgidx);
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p(label(bb)).p(":").nl();
@@ -110,11 +124,12 @@ public abstract class ASMPrinter {
     }
 
     static int doInst( int iadr, SB sb, CodeGen code, int cfgidx, Node n, boolean postAlloc, boolean postEncode ) {
-        if( n instanceof CProjNode ) return iadr;
+        if( n==null || n instanceof CProjNode ) return iadr;
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
-        final int dopz = code._mach.defaultOpSize();
+        if( n.getClass() == ConstantNode.class ) return iadr; // Default placeholders
+        final int dopz = code._mach==null ? 2 : code._mach.defaultOpSize();
         final int encWidth = dopz*2;
 
         // All blocks ending in a Region will need to either fall into or jump

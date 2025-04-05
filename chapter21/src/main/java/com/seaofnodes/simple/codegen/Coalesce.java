@@ -10,20 +10,6 @@ import java.util.IdentityHashMap;
 abstract public class Coalesce {
 
     public static boolean coalesce( int round, RegAlloc alloc ) {
-        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
-        // adjacency matrix.
-        int maxlrg = alloc._LRGS.length;
-        for( int i=1; i<maxlrg; i++ ) {
-            BitSet ifg = IFG.IFG.atX(i);
-            if( ifg != null ) {
-                LRG lrg0 = alloc._LRGS[i];
-                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
-                    LRG lrg1 = alloc._LRGS[lrg];
-                    lrg0.addNeighbor(lrg1);
-                    lrg1.addNeighbor(lrg0);
-                }
-            }
-        }
 
         // Walk all the splits, looking for coalesce chances
         boolean progress = false;

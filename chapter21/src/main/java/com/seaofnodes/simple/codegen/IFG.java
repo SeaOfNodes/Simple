@@ -79,6 +79,8 @@ abstract public class IFG {
         while( !WORK.isEmpty() )
             do_block(round,alloc,WORK.pop());
 
+        if( alloc.success() )
+            convert2DAdjacency(alloc);
         return alloc.success();
     }
 
@@ -266,6 +268,24 @@ abstract public class IFG {
     }
 
 
+    static void convert2DAdjacency( RegAlloc alloc ) {
+        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
+        // adjacency matrix.
+        int maxlrg = alloc._LRGS.length;
+        for( int i=1; i<maxlrg; i++ ) {
+            BitSet ifg = IFG.atX(i);
+            if( ifg != null ) {
+                LRG lrg0 = alloc._LRGS[i];
+                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
+                    LRG lrg1 = alloc._LRGS[lrg];
+                    lrg0.addNeighbor(lrg1);
+                    lrg1.addNeighbor(lrg0);
+                }
+            }
+        }
+    }
+
+
     // ------------------------------------------------------------------------
     // Color the inference graph.
 
@@ -447,35 +467,39 @@ abstract public class IFG {
         if( mask.size1() ) return reg;
         // Check chain of splits up the def-chain.  Take first allocated
         // register, and if it's available in the mask, take it.
-        Node defSplit = lrg._splitDef, useSplit = lrg._splitUse;
-        int tidx, cnt=0;
+        Node def = lrg._splitDef, use = lrg._splitUse;
+        int tidx=0, cnt=0;
 
-        while( (tidx=biasable(defSplit)) != 0 || biasable(useSplit) != 0 ) {
+        while( def != null || use != null ) {
             if( cnt++ > 10 ) break;
 
-            if( tidx != 0 ) {
-                short bias = biasColor( alloc, defSplit, mask );
+            if( def != null ) {
+                short bias = biasColor( alloc, def, mask );
                 if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) defSplit = null; // Kill this side, no more searching
-            } else defSplit = null;
-
-            if( biasable(useSplit) != 0 ) {
-                short bias = biasColor( alloc, useSplit, mask );
-                if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) useSplit = null; // Kill this side, no more searching
-            } else useSplit = null;
-
-            if( defSplit != null ) {
-                short bias = biasColorNeighbors( alloc, defSplit, mask );
-                if( bias >= 0 ) return bias;
-                // Advance def side
-                defSplit = defSplit.in(tidx);
+                if( bias == -2 ) def = null; // Kill this side, no more searching
+                else if( (tidx=biasable(def)) == 0 ) def = null;
             }
 
-            if( useSplit != null ) {
-                short bias = biasColorNeighbors( alloc, useSplit, mask );
+            if( use != null ) {
+                short bias = biasColor( alloc, use, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) use = null; // Kill this side, no more searching
+                else if( biasable(use)==0 ) use = null;
+            }
+
+            if( def != null ) {
+                short bias = biasColorNeighbors( alloc, def, mask );
                 if( bias >= 0 ) return bias;
-                useSplit = useSplit.out(0);
+                // Advance def side
+                def = def.in(tidx);
+                if( alloc.lrg(def)==null ) def=null;
+            }
+
+            if( use != null ) {
+                short bias = biasColorNeighbors( alloc, use, mask );
+                if( bias >= 0 ) return bias;
+                use = use.out(0);
+                if( biasable(use)==0 ) use=null;
             }
 
         }
@@ -484,7 +508,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode ) return 1;   // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Yes biasable, advance is slot 1
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }
@@ -509,7 +533,7 @@ abstract public class IFG {
 
         // Can I limit my own choices to valid neighbor choices?
         for( LRG alrg : slrg._adj ) {
-            int reg = alrg._reg;
+            short reg = alrg._reg;
             if( reg == -1 && alrg._mask.size1() )
                 reg = alrg._mask.firstReg();
             if( reg != -1 ) {
