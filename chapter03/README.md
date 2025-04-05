@@ -167,10 +167,12 @@ scope and deeper indices representing more nested scopes.
 Popping returns the current scope and moves to the outer one. 
 There is a direct one-to-one mapping between each index and its corresponding scope.
 
-The first nested scope(04-08)
+The first nested scope(04-08):
+
 ![Graph4](./docs/03-graph4.svg)
 
-The second nested scope(09-13)
+The second nested scope(09-13):
+
 ![Graph5](./docs/03-graph5.svg)
 
  - In both cases the index which represents the deepness of the scope is 1.

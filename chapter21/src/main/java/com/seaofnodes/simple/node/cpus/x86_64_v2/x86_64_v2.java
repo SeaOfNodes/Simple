@@ -146,31 +146,24 @@ public class x86_64_v2 extends Machine {
     public static void indirectAdr( int scale, short index, short base, int offset, int reg, Encoding enc ) {
         // Assume indirect
         assert 0 <= base && base < 16;
-        assert index != RSP;
+        assert -1 <= index && index < 16 && index != RSP;
 
         MOD mod = MOD.INDIRECT;
         // is 1 byte enough or need more?
         if( offset != 0 )
             mod = imm8(offset)
-                ? MOD.INDIRECT_disp8
-                : MOD.INDIRECT_disp32;
+                    ? MOD.INDIRECT_disp8
+                    : MOD.INDIRECT_disp32;
 
-        // needs to pick optimal displacement mod if we want to encode base
-        // when we only have base = RSP then we still need displacement added so ti becomes: [RSP+RSP*1+0x0]
-        // RSP as index in this case is special and refers to: [base + disp8]
-        if( mod == MOD.INDIRECT && (base == RBP || base == R13) )
+        if( mod == MOD.INDIRECT && (base == RBP || base == R13) ) {
             mod = MOD.INDIRECT_disp8;
+        } else if( index == -1 && (base == RSP || base == R12) ) {
+            index = RSP;
+        }
 
-        // special encoding for [base +offset]
         if( index == -1 ) {
-            // Case for mov reg, [disp] (load)
-            enc.add1(modrm(offset == 0 ? MOD.INDIRECT_disp8 : mod, reg, x86_64_v2.RSP));
-            enc.add1(sib(scale, x86_64_v2.RSP, base));
-            // special case
-            // still add zero it is part of SIB byte
-            if(offset == 0) enc.add1(offset);
+            enc.add1(modrm(mod, reg, base));
         } else {
-            // rsp is hard-coded here(0x04)
             enc.add1(modrm(mod, reg, x86_64_v2.RSP));
             enc.add1(sib(scale, index, base));
         }
@@ -592,20 +585,20 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node sar(SarNode sar) {
-        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new SarIX86(sar, (int)(ti.value() & 0x03f) );
+        if( sar.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm8(ti.value()))
+            return new SarIX86(sar, (int)(ti.value() & 0xff) );
         return new SarX86(sar);
     }
 
     private Node shl(ShlNode shl) {
-        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new ShlIX86(shl, (int)(ti.value() & 0x03f) );
+        if( shl.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm8(ti.value()))
+            return new ShlIX86(shl, (int)(ti.value() & 0xff) );
         return new ShlX86(shl);
     }
 
     private Node shr( ShrNode shr ) {
-        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti )
-            return new ShrIX86(shr, (int)(ti.value() & 0x03f) );
+        if( shr.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm8(ti.value()) )
+            return new ShrIX86(shr, (int)(ti.value() & 0xff) );
         return new ShrX86(shr);
     }
 

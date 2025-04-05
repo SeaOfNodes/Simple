@@ -308,15 +308,20 @@ public class CodeGen {
     // ---------------------------
     // Encoding
     public int _tEncode;
+    public boolean _JIT;
     public Encoding _encoding;
-    public CodeGen encode() {
+    public CodeGen encode(boolean jit) {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
         _encoding = new Encoding(this);
+        _JIT = jit;
         _encoding.encode();
         _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
+    }
+    public CodeGen encode() {
+        return encode(false);
     }
     // Encoded binary, no relocation info
     public byte[] binary() { return _encoding.bits(); }

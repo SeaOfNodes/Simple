@@ -228,6 +228,30 @@ public class ElfFile {
         }
     }
 
+    public final HashMap<Type, Symbol> _bigCons = new HashMap<>();
+    private void encodeConstants(SymbolSection symbols, DataSection rdata) {
+        int cnt = 0;
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            if (_bigCons.get(e.getValue()) != null) {
+                continue;
+            }
+
+            Symbol glob = new Symbol("GLOB$"+cnt, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+            glob._value = rdata._contents.size();
+            symbols.push(glob);
+
+            Type t = e.getValue();
+            if ( t instanceof TypeFloat tf ) {
+                write8(rdata._contents, Double.doubleToLongBits(tf._con));
+            } else {
+                throw Utils.TODO();
+            }
+
+            glob._size = rdata._contents.size() - glob._value;
+            _bigCons.put(e.getValue(), glob);
+            cnt++;
+        }
+    }
     public void export(String fname) throws IOException {
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string
@@ -253,6 +277,8 @@ public class ElfFile {
 
         // populate function symbols
         encodeFunctions(symbols, text);
+        // populate big constants
+        encodeConstants(symbols, rdata);
 
         int idx = 1;
         for( Section s : _sections ) {
@@ -267,8 +293,9 @@ public class ElfFile {
         int num = 1;
         for( Symbol s : symbols._loc )
             s._index = num++;
+        // extra space for .rela.text
         int start_global = symbols._loc.size();
-        for(Symbol a: symbols._symbols)
+        for(Symbol a: symbols._symbols) {
             a._index = start_global++;
 
         // create .text relocations
@@ -276,16 +303,31 @@ public class ElfFile {
         for( Node n : _code._encoding._externals.keySet()) {
             int nid    = n._nid;
             String extern = _code._encoding._externals.get(n);
-            if(!extern.isEmpty()) throw Utils.TODO();
-            // Todo: fix this up later when external functions will be in TU
-            //int sym_id = _funcs.get(extern)._index;
-            int sym_id = 0;
+
+            Symbol sym = new Symbol(extern, 0, SYM_BIND_GLOBAL, SYM_TYPE_NOTYPE);
+            sym._index = start_global++;
+            symbols.push(sym);
+
             int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
 
             // u64 offset
             write8(text_rela._contents, offset);
             // u64 info
-            write8(text_rela._contents, ((long)sym_id << 32L) | 4L /* PLT32 */);
+            write8(text_rela._contents, ((long)sym._index << 32L) | 4L /* PLT32 */);
+            // i64 addend
+            write8(text_rela._contents, -4);
+        }
+
+        // relocations to constants
+        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
+            int nid    = e.getKey()._nid;
+            int sym_id = _bigCons.get(e.getValue())._index;
+            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
+
+            // u64 offset
+            write8(text_rela._contents, offset);
+            // u64 info
+            write8(text_rela._contents, ((long)sym_id << 32L) | 2L /* PC32 */);
             // i64 addend
             write8(text_rela._contents, -4);
         }
@@ -295,7 +337,7 @@ public class ElfFile {
         text_rela._info = text._index;
         pushSection(text_rela);
 
-        Symbol sym = new Symbol(text_rela._name, idx++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
+        Symbol sym = new Symbol(text_rela._name, num, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
         sym._name_pos = text_rela._name_pos;
         sym._size = text_rela.size();
         symbols.push(sym);
