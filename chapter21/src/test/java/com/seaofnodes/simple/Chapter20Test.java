@@ -74,7 +74,7 @@ return sqrt(arg) + sqrt(arg+2);
     public void testNewtonFloat() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
             + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
-        testCPU(src,"x86_64_v2", "SystemV",23,null);
+        testCPU(src,"x86_64_v2", "SystemV",39,null);
         testCPU(src,"riscv"    , "SystemV",17,null);
         testCPU(src,"arm"      , "SystemV",18,null);
     }

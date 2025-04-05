@@ -77,13 +77,14 @@ public class SplitX86 extends SplitNode {
             enc.add1(0x0F);
             enc.add1(0x28);
         } else if( dstX && !srcX ) {
-            // xmm->reg (66 REX.W 0F 6E /r MOVQ xmm, r/m64)
+            // reg->xmm (66 REX.W 0F 6E /r MOVQ xmm, r/m64)
             enc.add1(0x0F);
             enc.add1(0x6E);
         } else if( !dstX && srcX ) {
-            // reg->xmm(66 REX.W 0F 7E /r MOVQ r/m64, xmm)
+            // xmm->reg(66 0F 7E /r MOVQ r/m64, xmm)
             enc.add1(0x0F);
             enc.add1(0x7E);
+            short tmp=src; src=dst; dst=tmp;
         }
 
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
