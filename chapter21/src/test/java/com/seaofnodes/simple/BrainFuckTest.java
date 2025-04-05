@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static com.seaofnodes.simple.Main.PORTS;
 
 public class BrainFuckTest {
 

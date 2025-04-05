@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.Ignore;
 import org.junit.Test;
-import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
@@ -22,7 +21,7 @@ public class Chapter21Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc().encode();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
@@ -82,7 +81,7 @@ public class Chapter21Test {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
             + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
+        code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
     }
 
 
@@ -92,7 +91,7 @@ public class Chapter21Test {
     public void testPersons() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/Person.smp"));
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/Persons.o");
+        code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/Persons.o");
         //testCPU(src,"x86_64_v2", "Win64"  ,3,null);
         //testCPU(src,"riscv"    , "SystemV",1,null);
         //testCPU(src,"arm"      , "SystemV",1,null);

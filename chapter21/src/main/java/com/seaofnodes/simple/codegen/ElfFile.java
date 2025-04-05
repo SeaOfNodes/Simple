@@ -351,7 +351,8 @@ public class ElfFile {
         assert out.position() == size;
 
         File file = new File(fname);
-        file.getParentFile().mkdirs();
+        if( file.getParentFile()!=null )
+          file.getParentFile().mkdirs();
         BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
         bos.write(out.array());
         bos.close();

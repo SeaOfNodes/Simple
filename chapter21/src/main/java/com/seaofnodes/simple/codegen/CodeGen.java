@@ -12,6 +12,7 @@ import java.util.IdentityHashMap;
 
 @SuppressWarnings("unchecked")
 public class CodeGen {
+    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
     // Last created CodeGen as a global; used all over to avoid passing about a
     // "context".
     public static CodeGen CODE;
@@ -181,7 +182,8 @@ public class CodeGen {
 
     // Convert to target hardware nodes
     public int _tInsSel;
-    public CodeGen instSelect( String base, String cpu, String callingConv ) {
+    public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
+    public CodeGen instSelect( String cpu, String callingConv, String base ) {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
         _phase = Phase.InstSelect;
 

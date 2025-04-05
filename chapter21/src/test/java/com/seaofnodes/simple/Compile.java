@@ -2,24 +2,21 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.FunNode;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import org.junit.Ignore;
+import org.junit.Test;
 import static org.junit.Assert.*;
-
-import static com.seaofnodes.simple.Main.PORTS;
 
 public class Compile {
 
     private static Process run(String simple, String c) throws IOException, InterruptedException {
         boolean USE_WSL = System.getProperty("os.name").startsWith("Windows");
         CodeGen code = new CodeGen(simple);
-        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode();
+        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode();
         if (c != null) for (var n:code._start._outputs) if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
         code.exportELF("test.o");
         var params = new ArrayList<String>();
@@ -50,16 +47,16 @@ public class Compile {
                     }
                 };
                 ""","""
-                
+
                 #include <stdio.h>
-                
+
                 extern double testMy(double);
-                
+
                 int main(int argc, char** argv) {
                     printf("%f\\n", testMy(2.0));
                     return 0;
                 }
-                
+
                 """);
         assertEquals(0, p.waitFor());
         assertEquals("1.414214\n", new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
