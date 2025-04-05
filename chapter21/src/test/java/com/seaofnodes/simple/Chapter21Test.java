@@ -48,7 +48,7 @@ public class Chapter21Test {
     @Test
     public void testNewtonFloat() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
+            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
         testCPU(src,"x86_64_v2", "SystemV",23,null);
         testCPU(src,"riscv"    , "SystemV",18,null);
         testCPU(src,"arm"      , "SystemV",19,null);
@@ -86,7 +86,7 @@ public class Chapter21Test {
     }
 
     @Test
-    public void testExport() throws IOException {
+    public void testExportFloat() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
         CodeGen code = new CodeGen(src);
         code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "Win64").GCM().localSched().regAlloc().encode();
@@ -94,6 +94,33 @@ public class Chapter21Test {
             if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
 
         code.exportELF("build/objs/newton.o");
+    }
+
+    @Test public void testPrintString() throws IOException{
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        CodeGen code = new CodeGen(src);
+
+        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
+    }
+
+    @Test public void testPrintStringAssembly() throws IOException{
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        CodeGen code = new CodeGen(src);
+
+        code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
+
+        System.out.print(code.asm());
+    }
+
+    @Test
+    public void testExportString() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        CodeGen code = new CodeGen(src);
+        code.parse().opto().typeCheck().instSelect(PORTS, "x86_64_v2", "Win64").GCM().localSched().regAlloc().encode();
+        for (var n : code._start._outputs)
+            if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
+
+        code.exportELF("build/objs/string_hash.o");
     }
 
 
