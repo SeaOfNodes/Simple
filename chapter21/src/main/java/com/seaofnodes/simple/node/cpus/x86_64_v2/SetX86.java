@@ -8,13 +8,15 @@ import com.seaofnodes.simple.node.*;
 // Use result of comparison without jump.
 public class SetX86 extends MachConcreteNode implements MachNode {
     final String _bop;          // One of <,<=,==
+    final boolean _unsigned;
     // Constructor expects input is an X86 and not an Ideal node.
-    SetX86( Node cmp, String bop ) {
+    SetX86( Node cmp, String bop, boolean unsigned ) {
         super(cmp);
         _inputs.setLen(1);   // Pop the cmp inputs
         // Replace with the matched cmp
         _inputs.push(cmp);
         _bop = bop;
+        _unsigned = unsigned;
     }
     @Override public String op() { return "set"+_bop; }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
@@ -29,8 +31,8 @@ public class SetX86 extends MachConcreteNode implements MachNode {
         enc.add1(0x0F);         // opcode
         enc.add1(switch (_bop) {
             case "==" -> 0x94;  // SETE
-            case "<"  -> 0x9C;  // SETL
-            case "<=" -> 0X9E;  // SETLE
+            case "<"  -> _unsigned ? 0x92 : 0x9C;  // SETB /SETL
+            case "<=" -> _unsigned ? 0x96 : 0x9E;  // SETBE/SETLE
             default -> throw Utils.TODO();
             });
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, dst));

@@ -19,7 +19,6 @@ public class FltX86 extends ConstantNode implements MachNode, RIPRelSize{
         // F2 0F 10 /r MOVSD xmm1, m64
         _encSize = 1/*Fop*/+0/*REX*/+2/*op*/+1/*MODRM*/+4/*offset*/;
         short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);
-        enc.largeConstant(this,_con);
         // Fopcode
         enc.add1(0xF2);
         // rex prefix must come next (REX.W is not set)
@@ -28,6 +27,7 @@ public class FltX86 extends ConstantNode implements MachNode, RIPRelSize{
         // hard-code rip here
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0x05));
         enc.add4(0);
+        enc.largeConstant(this,_con,_encSize-4,2/*ELF encoding PC32*/);
     }
 
     // Delta is from opcode start

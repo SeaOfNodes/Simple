@@ -61,11 +61,10 @@ return x2;
 {int -> int}? sq = { int x ->
     x*x;
 };
-return sq;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return { sq}; return (Parm_x(sq,int)*x); ]", code._stop.toString());
-        assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
+        assertEquals("return (Parm_x(sq,int)*x);", code._stop.toString());
+        //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
     @Test

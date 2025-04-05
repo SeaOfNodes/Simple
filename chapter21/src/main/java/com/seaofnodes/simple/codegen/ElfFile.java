@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.codegen.Encoding.BAOS;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -118,7 +119,7 @@ public class ElfFile {
             out.putLong(size());       // size
             out.putInt(_link);         // link
             out.putInt(_info);         // info
-            out.putLong(1);            // addralign
+            out.putLong(16);           // addralign
             if (_type == 2) {
                 out.putLong(SYMBOL_SIZE);// entsize
             } else if (_type == 4) {
@@ -160,7 +161,7 @@ public class ElfFile {
         }
 
         @Override
-            void write(ByteBuffer out) {
+        void write(ByteBuffer out) {
             // Index 0 both designates the first entry in the table and serves as the undefined symbol index
             for( int i = 0; i < SYMBOL_SIZE/4; i++ ) {
                 out.putInt(0);
@@ -175,7 +176,7 @@ public class ElfFile {
         }
 
         @Override
-            int size() {
+        int size() {
             return (1 + _symbols.len() + _loc.len()) * SYMBOL_SIZE;
         }
     }
@@ -228,30 +229,6 @@ public class ElfFile {
         }
     }
 
-    public final HashMap<Type, Symbol> _bigCons = new HashMap<>();
-    private void encodeConstants(SymbolSection symbols, DataSection rdata) {
-        int cnt = 0;
-        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
-            if (_bigCons.get(e.getValue()) != null) {
-                continue;
-            }
-
-            Symbol glob = new Symbol("GLOB$"+cnt, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
-            glob._value = rdata._contents.size();
-            symbols.push(glob);
-
-            Type t = e.getValue();
-            if ( t instanceof TypeFloat tf ) {
-                write8(rdata._contents, Double.doubleToLongBits(tf._con));
-            } else {
-                throw Utils.TODO();
-            }
-
-            glob._size = rdata._contents.size() - glob._value;
-            _bigCons.put(e.getValue(), glob);
-            cnt++;
-        }
-    }
     public void export(String fname) throws IOException {
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string
@@ -268,14 +245,16 @@ public class ElfFile {
         text._flags = SHF_ALLOC | SHF_WRITE | SHF_EXECINSTR;
         pushSection(text);
 
-        DataSection rdata = new DataSection(".rodata", 1 /* SHT_PROGBITS */);
+        // Build and write constant pool
+        BAOS cpool = new BAOS();
+        Encoding enc = _code._encoding;
+        enc.writeConstantPool(cpool,false);
+        DataSection rdata = new DataSection(".rodata", 1 /* SHT_PROGBITS */, cpool);
         rdata._flags = SHF_ALLOC;
         pushSection(rdata);
 
         // populate function symbols
         encodeFunctions(symbols, text);
-        // populate big constants
-        encodeConstants(symbols, rdata);
 
         int idx = 1;
         for( Section s : _sections ) {
@@ -288,25 +267,26 @@ public class ElfFile {
 
         // calculate local index
         int num = 1;
-        for( Symbol s : symbols._loc ) {
+        for( Symbol s : symbols._loc )
             s._index = num++;
-        }
         // extra space for .rela.text
-        int start_global = num + 1;
-        for(Symbol a: symbols._symbols) {
+        int start_global = num+1; // Add one to skip the final .rela.text local symbol
+        for( Symbol a: symbols._symbols )
             a._index = start_global++;
-        }
+        int bigConIdx = start_global;
+        start_global += enc._bigCons.size();
+
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
-        for( Node n : _code._encoding._externals.keySet()) {
+        for( Node n : enc._externals.keySet()) {
             int nid    = n._nid;
-            String extern = _code._encoding._externals.get(n);
+            String extern = enc._externals.get(n);
 
             Symbol sym = new Symbol(extern, 0, SYM_BIND_GLOBAL, SYM_TYPE_NOTYPE);
             sym._index = start_global++;
             symbols.push(sym);
 
-            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
+            int offset = enc._opStart[nid] + enc._opLen[nid] - 4;
 
             // u64 offset
             write8(text_rela._contents, offset);
@@ -316,17 +296,15 @@ public class ElfFile {
             write8(text_rela._contents, -4);
         }
 
-        // relocations to constants
-        for (Map.Entry<Node,Type> e : _code._encoding._bigCons.entrySet()) {
-            int nid    = e.getKey()._nid;
-            int sym_id = _bigCons.get(e.getValue())._index;
-            int offset = _code._encoding._opStart[nid] + _code._encoding._opLen[nid] - 4;
-
-            // u64 offset
-            write8(text_rela._contents, offset);
-            // u64 info
-            write8(text_rela._contents, ((long)sym_id << 32L) | 2L /* PC32 */);
-            // i64 addend
+        // Write relocations for the constant pool
+        for( Encoding.Relo relo : enc._bigCons.values() ) {
+            Symbol glob = new Symbol("GLOB$"+bigConIdx, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+            glob._value = relo._target;
+            glob._size = 1 << relo._t.log_size();
+            glob._index = bigConIdx++;
+            symbols.push(glob);
+            write8(text_rela._contents, relo._opStart+relo._off);
+            write8(text_rela._contents, ((long)glob._index << 32L) | relo._elf );
             write8(text_rela._contents, -4);
         }
 
@@ -335,7 +313,7 @@ public class ElfFile {
         text_rela._info = text._index;
         pushSection(text_rela);
 
-        Symbol sym = new Symbol(text_rela._name, num, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
+        Symbol sym = new Symbol(text_rela._name, num++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
         sym._name_pos = text_rela._name_pos;
         sym._size = text_rela.size();
         symbols.push(sym);

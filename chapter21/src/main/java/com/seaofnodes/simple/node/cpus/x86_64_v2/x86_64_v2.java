@@ -502,17 +502,19 @@ public class x86_64_v2 extends Machine {
 
     // Because X86 flags, a normal ideal Bool is 2 X86 ops: a "cmp" and at "setz".
     // Ideal If reading from a setz will skip it and use the "cmp" instead.
-    private static boolean invert;
+    private static boolean swap, unsigned;
     private Node cmp( BoolNode bool ) {
-        invert = false;
+        swap = unsigned = false;
         Node cmp = _cmp(bool);
-        return new SetX86(cmp, invert ? IfNode.invert(bool.op()) : bool.op());
+        return new SetX86(cmp, swap ? IfNode.swap(bool.op()) : bool.op(), unsigned);
     }
 
     private Node _cmp(BoolNode bool) {
         // Float variant
-        if( bool.isFloat() )
+        if( bool.isFloat() ) {
+            unsigned = true;
             return new CmpFX86(bool);
+        }
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
 
@@ -528,7 +530,7 @@ public class x86_64_v2 extends Machine {
             return new CmpIX86(bool, (int)ti.value());
 
         if( lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) ) {
-            invert = true;
+            swap = true;
             return new CmpIX86(bool, (int)ti.value(), 0.5);
         }
 
@@ -560,7 +562,7 @@ public class x86_64_v2 extends Machine {
         // Loads do not set the flags, and will need an explicit TEST
         BoolNode bool;
         if( iff.in(1) instanceof BoolNode bool0 ) bool = bool0;
-        else iff.setDef(1, bool=new BoolNode.EQ(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
+        else iff.setDef(1, bool=new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
         return new JmpX86(iff, bool.op());
     }
 

@@ -69,6 +69,7 @@ public class IfNode extends CFGNode implements MultiNode {
     // The following CProjs will be inverted by the caller.
     public void invert() { throw Utils.TODO(); }
 
+    // Negate the sense of a test
     public static String invert( String bop ) {
         return switch( bop ) {
         case "<"  -> ">=";
@@ -77,6 +78,19 @@ public class IfNode extends CFGNode implements MultiNode {
         case "!=" -> "==";
         case ">"  -> "<=";
         case ">=" -> "<" ;
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Swap compare operands
+    public static String swap( String bop ) {
+        return switch( bop ) {
+        case "<"  -> ">" ;
+        case "<=" -> ">=";
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">"  -> "<" ;
+        case ">=" -> "<=";
         default -> throw Utils.TODO();
         };
     }
