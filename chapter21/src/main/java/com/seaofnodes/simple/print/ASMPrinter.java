@@ -29,11 +29,11 @@ public abstract class ASMPrinter {
             sb.p("--- Constant Pool ------").nl();
             // By log size
             for( int log = 3; log >= 0; log-- ) {
-                for( Node relo : enc._bigCons.keySet() ) {
-                    Type t = enc._bigCons.get(relo);
-                    if( t.log_size()==log ) {
+                for( Node op : enc._bigCons.keySet() ) {
+                    Encoding.Relo relo = enc._bigCons.get(op);
+                    if( relo._t.log_size()==log ) {
                         sb.hex2(iadr).p("  ");
-                        if( t instanceof TypeTuple tt ) {
+                        if( relo._t instanceof TypeTuple tt ) {
                             for( Type tx : tt._types ) {
                                 switch( log ) {
                                 case 0: sb.hex1(enc.read1(iadr)); break;
@@ -53,7 +53,7 @@ public abstract class ASMPrinter {
                             }
                             iadr += (1<<log);
                         }
-                        t.print(sb).nl();
+                        relo._t.print(sb).nl();
                     }
                 }
             }

@@ -10,9 +10,6 @@ public class LinkMem {
         // are accessed by RIP-relative addressing.
         _code._encoding.writeConstantPool(_code._encoding._bits,true);
 
-        // Patch RIP-relative and local encodings now.
-        _code._encoding.patchLocalRelocations();
-
         return _code;
     }
 }

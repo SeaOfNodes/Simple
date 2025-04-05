@@ -293,7 +293,7 @@ return A[1];
     @Test
     public void testNewton() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg;  return sqrt(farg);";
+            + "flt farg = arg;  return test_sqrt(farg);";
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
         assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
     };

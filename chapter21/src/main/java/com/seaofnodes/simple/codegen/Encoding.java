@@ -44,8 +44,19 @@ public class Encoding {
     public int [] _opStart;     // Start  of opcodes, by _nid
     public byte[] _opLen;       // Length of opcodes, by _nid
 
-    // Big Constant relocation info
-    public final HashMap<Node,Type> _bigCons = new HashMap<>();
+    // Big Constant relocation info.
+    public static class Relo {
+        public final Node _op;
+        public final Type _t;          // Constant type
+        public final byte _off;        // Offset from start of opcode
+        public final byte _elf;        // ELF relocation type, e.g. 2/PC32
+        public int _target;      // Where constant is finally placede
+        public int _opStart;     // Opcode start
+        Relo( Node op, Type t, byte off, byte elf ) {
+            _op=op;  _t=t;  _off=off; _elf=elf;
+        }
+    }
+    public final HashMap<Node,Relo> _bigCons = new HashMap<>();
 
     Encoding( CodeGen code ) { _code = code; }
 
@@ -135,9 +146,11 @@ public class Encoding {
 
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it
-    public void largeConstant( Node relo, Type t ) {
+    public void largeConstant( Node relo, Type t, int off, int elf ) {
         assert t.isConstant();
-        _bigCons.put(relo,t);
+        assert (byte)off == off;
+        assert (byte)elf == elf;
+        _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));
     }
 
     void encode() {
@@ -151,13 +164,12 @@ public class Encoding {
         // Record opcode start and length.
         writeEncodings();
 
-        // ELF handles big constants, they
-        // are accessed by RIP-relative addressing.
-
-        if(_code._JIT) writeConstantPool(true);
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
+
+        // Patch RIP-relative and local encodings now.
+        patchLocalRelocations();
 
     }
 
@@ -364,8 +376,8 @@ public class Encoding {
 
     // Write the constant pool into the BAOS and optionally patch locally
     void writeConstantPool( BAOS bits, boolean patch ) {
-        HashSet<Type> ts = new HashSet<>();
-        for( Type t : _bigCons.values() ) {
+        HashSet<Relo> ts = new HashSet<>();
+        for( Relo t : _bigCons.values() ) {
             if( ts.contains(t) )
                 throw Utils.TODO(); // Dup!  Compress!
             ts.add(t);
@@ -375,21 +387,21 @@ public class Encoding {
         // By log size
         for( int log = 3; log >= 0; log-- ) {
             // Write the 8-byte constants
-            for( Node relo : _bigCons.keySet() ) {
-                Type t = _bigCons.get(relo);
-                if( t.log_size()==log ) {
+            for( Node op : _bigCons.keySet() ) {
+                Relo relo = _bigCons.get(op);
+                if( relo._t.log_size()==log ) {
                     // Map from relo to constant start and patch
-                    if( patch ) {
-                        int target = _bits.size();
-                        int start = _opStart[relo._nid];
-                        ((RIPRelSize)relo).patch(this, start, _opLen[relo._nid], target - start);
-                    }
+                    relo._target = bits.size();
+                    relo._opStart= _opStart[op._nid];
+                    // Go ahead and locally patch in-memory
+                    if( patch )
+                        ((RIPRelSize)op).patch(this, relo._opStart, _opLen[op._nid], relo._target - relo._opStart);
                     // Put constant into code space.
-                    if( t instanceof TypeTuple tt ) // Constant tuples put all entries
+                    if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries
                         for( Type tx : tt._types )
                             addN(log,tx,bits);
                     else
-                        addN(log,t,bits);
+                        addN(log,relo._t,bits);
                 }
             }
         }
