@@ -4,7 +4,6 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -327,8 +326,8 @@ public class CodeGen {
     public CodeGen exportELF(String fname) throws IOException {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
-        ElfFile obj = new ElfFile(this);
-        obj.export(fname);
+        if( fname == null ) new LinkMem(this).link(); // In memory patching
+        else new ElfFile(this).export(fname); // External ELF file
         return this;
     }
 

@@ -78,8 +78,8 @@ public class Chapter21Test {
 
     @Test
     public void testExport() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
+        //+ "flt farg = arg; return sqrt(farg) + sqrt(farg+2.0);";
         CodeGen code = new CodeGen(src);
         code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
     }

@@ -3,11 +3,11 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.codegen.Encoding.BAOS;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
-import java.util.Map;
 
 public class ElfFile {
 
@@ -118,7 +118,7 @@ public class ElfFile {
             out.putLong(size());       // size
             out.putInt(_link);         // link
             out.putInt(_info);         // info
-            out.putLong(1);            // addralign
+            out.putLong(16);           // addralign
             if (_type == 2) {
                 out.putLong(SYMBOL_SIZE);// entsize
             } else if (_type == 4) {
@@ -160,7 +160,7 @@ public class ElfFile {
         }
 
         @Override
-            void write(ByteBuffer out) {
+        void write(ByteBuffer out) {
             // Index 0 both designates the first entry in the table and serves as the undefined symbol index
             for( int i = 0; i < SYMBOL_SIZE/4; i++ ) {
                 out.putInt(0);
@@ -175,7 +175,7 @@ public class ElfFile {
         }
 
         @Override
-            int size() {
+        int size() {
             return (1 + _symbols.len() + _loc.len()) * SYMBOL_SIZE;
         }
     }
@@ -244,7 +244,10 @@ public class ElfFile {
         text._flags = SHF_ALLOC | SHF_WRITE | SHF_EXECINSTR;
         pushSection(text);
 
-        DataSection rdata = new DataSection(".rodata", 1 /* SHT_PROGBITS */);
+        // Build and write constant pool
+        BAOS cpool = new BAOS();
+        _code._encoding.writeConstantPool(cpool,false);
+        DataSection rdata = new DataSection(".rodata", 1 /* SHT_PROGBITS */, cpool);
         rdata._flags = SHF_ALLOC;
         pushSection(rdata);
 
@@ -262,13 +265,12 @@ public class ElfFile {
 
         // calculate local index
         int num = 1;
-        for( Symbol s : symbols._loc ) {
+        for( Symbol s : symbols._loc )
             s._index = num++;
-        }
         int start_global = symbols._loc.size();
-        for(Symbol a: symbols._symbols) {
+        for(Symbol a: symbols._symbols)
             a._index = start_global++;
-        }
+
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
         for( Node n : _code._encoding._externals.keySet()) {
