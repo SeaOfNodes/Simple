@@ -20,9 +20,9 @@ public abstract class TestC {
     default -> throw Utils.TODO("Map Yer CPU Port Here");
     };
 
-    public static void run( String file ) throws Exception { run(file,""); }
+    public static void run( String file ) throws IOException { run(file,""); }
 
-    public static void run( String file, String expected ) throws Exception {
+    public static void run( String file, String expected ) throws IOException {
         run("src/test/java/com/seaofnodes/simple/progs",file,expected);
     }
 

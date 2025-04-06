@@ -29,18 +29,28 @@ public class Chapter21Test {
             assertEquals(stop, code._stop.toString());
     }
 
-    private static void testAllCPUs( String src, int spills, String stop ) {
-        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
-        testCPU(src,"riscv"    , "SystemV",spills,stop);
-        testCPU(src,"arm"      , "SystemV",spills,stop);
-    }
-
 
     @Test public void testBasic1() {
         String src = "return arg | 2;";
         testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
         testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
+    }
+
+    @Test
+    public void testArray1() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",7,"return .[];");
+        testCPU(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
+    }
+
+    @Test
+    public void testFib() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",24,null);
+        testCPU(src,"riscv"    , "SystemV",16,null);
+        testCPU(src,"arm"      , "SystemV",16,null);
     }
 
     @Test
@@ -52,7 +62,7 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",19,null);
     }
 
-    @Test public void testNewtonExport() throws Exception {
+    @Test public void testNewtonExport() throws IOException {
         String result = """
 0  0.000000
 1  1.000000
@@ -76,36 +86,11 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV", 6,null);
     }
 
-    @Test
-    public void testStringExport() throws Exception { TestC.run("stringHash"); }
+    @Test public void testStringExport() throws IOException { TestC.run("stringHash"); }
 
-    @Test
-    public void testArray1() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",7,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
-    }
-
-    @Test
-    public void testFib() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",24,null);
-        testCPU(src,"riscv"    , "SystemV",16,null);
-        testCPU(src,"arm"      , "SystemV",16,null);
-    }
-
-
-    // Read test case from disk.
-    // TODO: exportELF not handling external calls yet
-    @Ignore @Test
-    public void testPersons() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/Person.smp"));
-        CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/Persons.o");
-        //testCPU(src,"x86_64_v2", "Win64"  ,3,null);
-        //testCPU(src,"riscv"    , "SystemV",1,null);
-        //testCPU(src,"arm"      , "SystemV",1,null);
+    @Test public void testSieve() throws IOException {
+        String primes = "[2, 3, ]";
+        TestC.run("sieve",primes);
     }
 
 }

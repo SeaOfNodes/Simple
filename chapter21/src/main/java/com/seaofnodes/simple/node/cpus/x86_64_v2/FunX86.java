@@ -33,7 +33,7 @@ public class FunX86 extends FunNode implements MachNode {
         if( sz == 0 ) return; // Skip if no frame adjust
 
         // opcode: 0x83, addi rsp with immediate 8
-        enc.add1( 0x83 );
+        enc.add1( x86_64_v2.REX_W ).add1( 0x83 );
         enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, x86_64_v2.RSP) );
         enc.add1(sz*8);
     }
