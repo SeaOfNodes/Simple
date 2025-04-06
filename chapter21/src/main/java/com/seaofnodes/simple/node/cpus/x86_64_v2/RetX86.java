@@ -22,7 +22,7 @@ public class RetX86 extends ReturnNode implements MachNode {
         if( frameAdjust > 0 ) {
             enc.add1( x86_64_v2.REX_W ).add1( 0x83 );
             enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, x86_64_v2.RSP) );
-            enc.add1(frameAdjust*-8);
+            enc.add1(frameAdjust*8);
         }
         enc.add1(0xC3);
     }

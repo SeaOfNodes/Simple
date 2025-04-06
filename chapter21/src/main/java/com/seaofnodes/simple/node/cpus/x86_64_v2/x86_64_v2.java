@@ -59,10 +59,10 @@ public class x86_64_v2 extends Machine {
     public static int REX_WB = 0x49;
 
     public enum MOD {
-        INDIRECT, //  [mem]
-        INDIRECT_disp8, // [mem + 0x12]
-        INDIRECT_disp32,// [mem + 0x12345678]
-        DIRECT,          // mem
+        INDIRECT,               //  [mem]
+        INDIRECT_disp8,         // [mem + 0x12]
+        INDIRECT_disp32,        // [mem + 0x12345678]
+        DIRECT,                 // mem
     };
 
     // opcode included here
@@ -249,8 +249,8 @@ public class x86_64_v2 extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Return the max stack slot used by this signature, or 0
-    static short maxSlot( TypeFunPtr tfp ) {
+    // Return the max stack slot used by this signature, or 1 (for RPC)
+    static short maxArgSlot( TypeFunPtr tfp ) {
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=0; i<tfp.nargs(); i++ )
@@ -265,12 +265,7 @@ public class x86_64_v2 extends Machine {
         };
         if( tfp.nargs()-fcnt >= cargs.length )
             throw Utils.TODO();
-        return 0;               // No stack args
-    }
-
-    // Return single int/ptr register.  Used by CallEnd output and Return input.
-    static RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
+        return 1;               // No stack args, plus RPC
     }
 
 

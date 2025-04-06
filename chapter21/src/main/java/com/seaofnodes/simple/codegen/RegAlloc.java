@@ -550,7 +550,7 @@ public class RegAlloc {
                 Node n = bb.out(j);
                 if( lrg(n)!=null ) {
                     int slot = _code._mach.stackSlot(lrg(n)._reg);
-                    maxSlot = Math.max(maxSlot,slot);
+                    maxSlot = Math.max(maxSlot,slot+1);
                 }
 
                 if( !(n instanceof SplitNode lo) ) continue;
