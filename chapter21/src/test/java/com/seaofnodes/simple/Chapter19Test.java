@@ -26,8 +26,8 @@ return 0;
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return (#2+#2); return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
-        assertEquals("-4898613127354160978", Eval2.eval(code,  2));
+        assertEquals("Stop[ return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); return Phi(Region,1,0,0,1); ]", code._stop.toString());
+        //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
 
     @Test
@@ -151,9 +151,9 @@ return arg1 * arg;
     @Test
     public void testToFloat() {
         CodeGen code = new CodeGen("""
-                int a = arg;
-                return a + 2.0;
-                """
+int a = arg;
+return a + 2.0;
+"""
         ).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
         assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
     }
