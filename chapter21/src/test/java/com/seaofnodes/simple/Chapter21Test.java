@@ -52,13 +52,32 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",19,null);
     }
 
+    @Test public void testNewtonExport() throws Exception {
+        String result = """
+0  0.000000
+1  1.000000
+2  1.414214
+3  1.732051
+4  2.000000
+5  2.236068
+6  2.449490
+7  2.645751
+8  2.828427
+9  3.000000
+""";
+        TestC.run("newtonFloat",result);
+    }
+
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV",18,null);
-        testCPU(src,"arm"      , "SystemV",17,null);
+        testCPU(src,"x86_64_v2", "SystemV", 1,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
+        testCPU(src,"arm"      , "SystemV", 6,null);
     }
+
+    @Test
+    public void testStringExport() throws Exception { TestC.run("stringHash"); }
 
     @Test
     public void testArray1() throws IOException {
@@ -74,13 +93,6 @@ public class Chapter21Test {
         testCPU(src,"x86_64_v2", "SystemV",24,null);
         testCPU(src,"riscv"    , "SystemV",16,null);
         testCPU(src,"arm"      , "SystemV",16,null);
-    }
-
-    @Test
-    public void testExport() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
-        CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect( "x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode().exportELF("build/objs/newton.o");
     }
 
 

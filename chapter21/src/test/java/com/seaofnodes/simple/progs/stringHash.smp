@@ -29,8 +29,3 @@ val _hashCodeString = { String self ->
     if( !hash ) hash = 123456789;
     return hash;
 };
-
-String !s = new String { cs = new u8[17]; };
-s.cs[0] =  67; // C
-s.cs[1] = 108; // l
-hashCode(s)+hashCode(s);

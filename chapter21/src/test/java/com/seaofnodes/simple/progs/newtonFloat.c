@@ -1,0 +1,17 @@
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+
+extern double test_sqrt(double);
+
+int main( int argc, char** argv ) {
+  double epsilon = 1e-50;
+  for( int i=0; i<10; i++ ) {
+    double d = sqrt(i), expect = sqrt(i);
+    double delta = abs(d-expect);
+    printf("%d  %f\n",i,d);
+    if( delta > 1e-50 )
+      return 1;
+  }
+  return 0;
+}
