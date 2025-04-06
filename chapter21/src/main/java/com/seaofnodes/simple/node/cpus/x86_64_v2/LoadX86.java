@@ -41,7 +41,7 @@ public class LoadX86 extends MemOpX86 {
         else if( decl == TypeInteger.I8 ) enc.add1(0x0F).add1(0xBE); // sign extend: REX.W + 0F BE /r MOVSX r64, r/m8
         else if( decl == TypeInteger.I16) enc.add1(0x0F).add1(0xBF); // sign extend: REX.W + 0F BF /r MOVSX r64, r/m16
         else if( decl == TypeInteger.I32) enc.add1(0x63);            // sign extend: REX.W + 63 /r    MOVSXD r64, r/m32
-        else if( decl == TypeInteger.U8 ) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
+        else if( decl == TypeInteger.U8 || decl == TypeInteger.BOOL) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
         else if( decl == TypeInteger.U16) enc.add1(0x0F).add1(0xB7); // zero extend: REX.W + 0F B7 /r MOVZX r64, r/m16
         // Covers U32, I64/BOT, TMP
         else if( decl.log_size()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32

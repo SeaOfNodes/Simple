@@ -26,7 +26,7 @@ public class SplitX86 extends SplitNode {
             // push rcx
             // popf (Pop the top of the stack into the FLAGS register)
             // 50+rd	PUSH r64
-            if( src >= 8 ) enc.add1(x86_64_v2.rexF(0,src,0,true, enc));
+            if( src >= 8 ) x86_64_v2.rexF(0,src,0,false,enc);
             enc.add1(0x50 + src);
             // popf
             enc.add1(0x9D);
@@ -37,7 +37,7 @@ public class SplitX86 extends SplitNode {
             // pushf; pop reg
             enc.add1(0x9C);
             // 58+ rd	POP r64
-            if( dst >= 8 ) enc.add1(x86_64_v2.rexF(0,dst,0,true, enc));
+            if( dst >= 8 ) x86_64_v2.rexF(0,dst,0,true, enc);
             enc.add1(0x58 + dst);
             return;
         }
