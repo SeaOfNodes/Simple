@@ -17,6 +17,7 @@ public class TypeTuple extends Type {
     public static final TypeTuple START= make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
     public static final TypeTuple MAIN = make(TypeInteger.BOT);
     public static final TypeTuple RET  = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
+    public static final TypeTuple CALLOC = make(TypeInteger.BOT,TypeInteger.BOT);
 
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});
     public static final TypeTuple IF_NEITHER = make(new Type[]{Type.XCONTROL,Type.XCONTROL});
