@@ -27,15 +27,17 @@ public class LoadX86 extends MemOpX86 {
     }
 
     static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {
-        if( decl != TypeInteger.U32 && decl != TypeFloat.F32 && decl != TypeFloat.F64 )
-            enc.add1(x86_64_v2.rex(dst, ptr, idx));
+        if( decl == TypeFloat.F32) enc.add1(0xF3);
+        if( decl == TypeFloat.F64) enc.add1(0xF2);
 
         if( decl.isa(TypeFloat.F64) )
             dst -= (short)x86_64_v2.XMM_OFFSET;
 
+        x86_64_v2.rexF(dst, ptr, idx, decl != TypeInteger.U32 && decl != TypeFloat.F32 && decl != TypeFloat.F64, enc);
+
         if( false ) ;
-        else if( decl == TypeFloat.F32  ) enc.add1(0xF3).add1(0x0F).add1(0x10); // F3 0F 10 /r MOVSS xmm1, m32
-        else if( decl == TypeFloat.F64  ) enc.add1(0xF2).add1(0x0F).add1(0x10); // F2 0F 10 /r MOVSD xmm1, m64
+        else if( decl == TypeFloat.F32  ) enc.add1(0x0F).add1(0x10); // F3 0F 10 /r MOVSS xmm1, m32
+        else if( decl == TypeFloat.F64  ) enc.add1(0x0F).add1(0x10); // F2 0F 10 /r MOVSD xmm1, m64
         else if( decl == TypeInteger.I8 ) enc.add1(0x0F).add1(0xBE); // sign extend: REX.W + 0F BE /r MOVSX r64, r/m8
         else if( decl == TypeInteger.I16) enc.add1(0x0F).add1(0xBF); // sign extend: REX.W + 0F BF /r MOVSX r64, r/m16
         else if( decl == TypeInteger.I32) enc.add1(0x63);            // sign extend: REX.W + 63 /r    MOVSXD r64, r/m32
