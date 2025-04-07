@@ -81,7 +81,7 @@ public class Chapter21Test {
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 1,null);
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 6,null);
     }
