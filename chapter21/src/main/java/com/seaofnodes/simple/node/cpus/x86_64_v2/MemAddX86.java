@@ -23,7 +23,7 @@ public class MemAddX86 extends MemOpX86 {
 
         enc.add1(x86_64_v2.rex(src, ptr, idx));
         // opcode
-        enc.add1( src == -1 ? 0x01 : 0x81 );
+        enc.add1( src == -1 ? 0x81: 0x01);
 
         // includes modrm
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src == -1 ? 0 : src, enc);

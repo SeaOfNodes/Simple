@@ -93,4 +93,13 @@ public class Chapter21Test {
         TestC.run("sieve",primes);
     }
 
+    @Test public void testFibExport() throws IOException {
+        String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
+        TestC.run("fib", fib);
+    }
+
+    @Test public void testBrainFuck() throws IOException {
+        String brain_fuck = "Hello World!\n";
+        TestC.run("brain_fuck", brain_fuck);
+    }
 }

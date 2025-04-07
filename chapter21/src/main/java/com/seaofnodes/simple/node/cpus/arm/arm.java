@@ -93,9 +93,10 @@ public class arm extends Machine {
     // major opcode: OP
     public static int OP_ADD       = 0b10_001_011;
     public static int OPF_ADD      = 0b00_011_110;
+    public static int OPF_OP_ADD   = 0b00_101_0;
     public static int OPI_ADD      = 0b10_010_00100;
 
-    public static int OP_UJMP      = 0b01010100;
+    public static int OP_UJMP      = 0b000101;
 
     public static int OP_ADRP      = 0b10000;
 

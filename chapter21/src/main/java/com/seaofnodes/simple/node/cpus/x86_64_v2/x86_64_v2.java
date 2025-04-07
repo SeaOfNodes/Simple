@@ -514,10 +514,10 @@ public class x86_64_v2 extends Machine {
         Node rhs = bool.in(2);
 
         // Vs memory
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3 )
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld._declaredType) )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
-        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3 )
+        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld._declaredType))
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate

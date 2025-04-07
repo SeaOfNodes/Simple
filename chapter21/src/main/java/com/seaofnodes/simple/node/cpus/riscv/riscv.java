@@ -124,7 +124,7 @@ public class riscv extends Machine {
     public static int OP_JAL     = 0b11_011_11;
 
 
-    // Since riscv instructions are fixed we can just or them togehter
+    // Since riscv instructions are fixed we can just or them together
     public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
         assert 0 <= rs1 && rs1 < 32;
         assert 0 <= rs2 && rs2 < 32;
