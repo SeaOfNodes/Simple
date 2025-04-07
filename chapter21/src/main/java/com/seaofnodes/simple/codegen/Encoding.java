@@ -337,11 +337,10 @@ public class Encoding {
                     slide += (newStart+15 & -16)-newStart;
                 }
                 _opStart[bb._nid] += slide;
-                for( Node n : bb._outputs ) {
-                    if( n instanceof MachNode && !(n instanceof CFGNode) ) {
+                // Slide down all other (non-CFG) ops in the block
+                for( Node n : bb._outputs )
+                    if( n instanceof MachNode && !(n instanceof CFGNode) )
                         _opStart[n._nid] += slide;
-                    }
-                }
                 if( bb instanceof RIPRelSize riprel ) {
                     CFGNode target = ((CFGNode)bb.out(0)).uctrlSkipEmpty();
                     // Delta is from opStart to opStart.  X86 at least counts
