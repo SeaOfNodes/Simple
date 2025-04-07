@@ -184,7 +184,7 @@ public class FunNode extends RegionNode {
     public short _maxSlot = -1;
     // Max argument slot, set during early Encoding.
     public short _maxArgSlot = -1;
-    // Frame adjust, including padding, st during early Encoding
+    // Frame adjust, including padding, set during early Encoding
     public short _frameAdjust;
 
 

@@ -303,8 +303,8 @@ return A[1];
     public void sieveOfEratosthenes() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
-        assertEquals("return [int];", code.print());
-        //assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+        assertEquals("return [u32];", code.print());
+        //assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
 

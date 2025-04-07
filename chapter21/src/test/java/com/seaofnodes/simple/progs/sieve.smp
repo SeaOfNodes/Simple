@@ -3,7 +3,7 @@
 val sieve = { int N ->
     bool[] !ary = new bool[N];
     // The primes less than N
-    int[] !primes = new int[N>>1];
+    u32[] !primes = new u32[N>>1];
     // Number of primes so far, searching at index p
     int nprimes = 0, p=2;
     // Find primes while p^2 < N
@@ -24,7 +24,7 @@ val sieve = { int N ->
             primes[nprimes++] = p;
 
     // Copy/shrink the result array
-    int[] !rez = new int[nprimes];
+    u32[] !rez = new u32[nprimes];
     for( int j=0; j < nprimes; j++ )
         rez[j] = primes[j];
     return rez;

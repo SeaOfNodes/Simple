@@ -31,16 +31,20 @@ public class StoreX86 extends MemOpX86 {
         short src = enc.reg(val());
 
         if( src == -1 ) {
-            // return opcode for optimised immediate store
-            if( x86_64_v2.imm8(_imm) ) enc.add1(0xC6);
-            else if( x86_64_v2.imm32(_imm) ) enc.add1(0xC7);
-            else enc.add1(x86_64_v2.rex(-1, ptr, idx)).add1(0xC7);
+            int log = _declaredType.log_size();
+            x86_64_v2.rexF(-1, ptr, idx, log==3, enc);
+            switch( log ) {
+            case 0: enc           .add1(0xC6); break;
+            case 1: enc.add1(0x66).add1(0xC7); break;
+            case 2: enc           .add1(0xC7); break;
+            case 3: enc           .add1(0xC7); break;
+            }
             x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src, enc);
-            switch (x86_64_v2.imm_size(_imm)) {
-            case  8: enc.add1(_imm); break;
-            case 16: enc.add2(_imm); break;
-            case 32: enc.add4(_imm); break;
-            case 64: enc.add8(_imm); break;
+            switch( log ) {
+            case 0: enc.add1(_imm); break;
+            case 1: enc.add2(_imm); break;
+            case 2: enc.add4(_imm); break;
+            case 3: enc.add8(_imm); break;
             }
         } else {
             encVal(enc,_declaredType,ptr,idx,src,_off,_scale);
@@ -52,12 +56,16 @@ public class StoreX86 extends MemOpX86 {
         if( decl instanceof TypeFloat ) {
             src -= (short)x86_64_v2.XMM_OFFSET;
             enc.add1( decl==TypeFloat.F32 ? 0xF3 : 0xF2 ).add1(0x0F).add1(0x11);
+        } else {
+            int log = decl.log_size();
+            x86_64_v2.rexF(src,ptr,idx,log==3,enc);
+            switch( log ) {
+            case 0: enc           .add1(0x88); break;
+            case 1: enc.add1(0x66).add1(0x89); break;
+            case 2: enc           .add1(0x89); break;
+            case 3: enc           .add1(0x89); break;
+            }
         }
-        else if( decl.log_size() == 0 ) enc.add1(0x88);
-        else if( decl.log_size() == 1 ) enc.add1(0x89);
-        else if( decl.log_size() == 2 ) enc.add1(0x89);
-        else if( decl.log_size() == 3 ) enc.add1(x86_64_v2.rex(src, ptr, idx)).add1(0x89);
-
         x86_64_v2.indirectAdr(scale, idx, ptr, off, src, enc);
     }
 

@@ -217,8 +217,8 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
         CodeGen code = new CodeGen(src+"return sieve(arg);");
         code.parse().opto();
-        assertEquals("return [int];", code.print());
-        assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+        assertEquals("return [u32];", code.print());
+        assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
     @Test
