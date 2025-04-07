@@ -99,7 +99,7 @@ public class Chapter21Test {
     }
 
     @Test public void testBrainFuck() throws IOException {
-        String brain_fuck = "Hello world!";
+        String brain_fuck = "Hello World!\n";
         TestC.run("brain_fuck", brain_fuck);
     }
 }
