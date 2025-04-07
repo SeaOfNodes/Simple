@@ -6,6 +6,11 @@ The original link I copied from:
 
 https://studio.youtube.com/channel/UCbutMk6cKrH8q4sJyQHGPVQ/comments/inbox?filter=%5B%5D
 
+The whole replace chain:
+
+https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/ASimpleReplyChain.md
+
+
 
 Type checks: to give an example:
 
