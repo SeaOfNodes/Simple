@@ -19,6 +19,17 @@ https://gist.github.com/DadaIsCrazy/8ce07d409f8f74bad7b36e74b77a3129
 
 https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/ASimpleReply2.md
 
+### Dadal's Reply(2):
+
+https://studio.youtube.com/channel/UCbutMk6cKrH8q4sJyQHGPVQ/comments/inbox?filter=%5B%5D
+https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/DadalReply2.md
+
+
+### Cliff's Reply(3)
+
+https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/ASimpleReply2.md
+
+
 
 
 [room for more conversations]
