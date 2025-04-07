@@ -27,7 +27,7 @@ https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/DadalReply2.md
 
 ### Cliff's Reply(3)
 
-https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/ASimpleReply2.md
+https://github.com/SeaOfNodes/Simple/blob/main/ASimpleReply/ASimpleReply3.md
 
 
 
