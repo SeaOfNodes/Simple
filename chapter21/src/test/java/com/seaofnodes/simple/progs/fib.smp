@@ -9,5 +9,3 @@ val fib = {int n ->
     }
     return f2;
 };
-
-fib(10);
