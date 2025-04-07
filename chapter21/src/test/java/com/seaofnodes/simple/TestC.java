@@ -44,6 +44,7 @@ public abstract class TestC {
         params.add("gcc");
         params.add(cfile);
         params.add(sofile);
+        params.add("-lm");
         params.add("-o");
         params.add(efile);
         Process gcc = new ProcessBuilder(params.toArray(String[]::new)).redirectErrorStream(true).start();
