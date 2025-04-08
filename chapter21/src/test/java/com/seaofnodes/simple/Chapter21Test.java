@@ -99,7 +99,17 @@ public class Chapter21Test {
     }
 
     @Test public void testBrainFuck() throws IOException {
-        String brain_fuck = "Hello World!\n";
+        String brain_fuck = "Hello World!\r\n";
         TestC.run("brain_fuck", brain_fuck);
+    }
+
+    @Test public void testPerson() throws IOException {
+        String person = "6\n";
+        TestC.run("person", person);
+    }
+
+    @Test public void testArgCount() throws IOException {
+        String arg_count = "";
+        TestC.run("arg_count", arg_count);
     }
 }
