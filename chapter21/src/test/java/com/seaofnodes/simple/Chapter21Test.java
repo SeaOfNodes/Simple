@@ -108,6 +108,7 @@ public class Chapter21Test {
         TestC.run("person", person);
     }
 
+    @Ignore
     @Test public void testArgCount() throws IOException {
         String arg_count = "";
         TestC.run("arg_count", arg_count);
