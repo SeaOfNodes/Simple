@@ -121,6 +121,6 @@ public class RegionNode extends CFGNode {
     public boolean inProgress() { return nIns()>1 && in(nIns()-1) == null; }
 
     // Never equal if inProgress
-    @Override boolean eq( Node n ) { return !inProgress(); }
+    @Override public boolean eq( Node n ) { return !inProgress(); }
 
 }

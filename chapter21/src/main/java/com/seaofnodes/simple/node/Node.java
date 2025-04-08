@@ -585,7 +585,7 @@ public abstract class Node {
     }
     // Subclasses add extra checks (such as ConstantNodes have same constant),
     // and can assume "this!=n" and has the same Java class.
-    boolean eq( Node n ) { return true; }
+    public boolean eq( Node n ) { return true; }
 
 
     // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
