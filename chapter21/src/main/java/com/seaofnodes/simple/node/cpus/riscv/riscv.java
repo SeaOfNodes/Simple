@@ -497,7 +497,7 @@ public class riscv extends Machine {
             return new BranchRISC(iff, bop, bool.in(1), bool.in(2));
         }
         // Vs zero
-        return new BranchRISC(iff, "==", iff.in(1), null);
+        return new BranchRISC(iff, "!=", iff.in(1), null);
     }
 
     private Node or(OrNode or) {

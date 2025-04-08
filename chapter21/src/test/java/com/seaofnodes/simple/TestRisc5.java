@@ -10,12 +10,12 @@ import java.io.IOException;
 // Runs 32-bit R5 code in an emulator
 public abstract class TestRisc5 {
 
-    public static EvalRisc5 run( String file, int steps, int arg ) throws IOException {
-        return run("src/test/java/com/seaofnodes/simple/progs",file,steps, arg);
+    public static EvalRisc5 build( String file, int arg ) throws IOException {
+        return build("src/test/java/com/seaofnodes/simple/progs",file, arg);
     }
 
     // Compile and run a simple program
-    public static EvalRisc5 run( String dir, String file, int steps, int arg ) throws IOException {
+    public static EvalRisc5 build( String dir, String file, int arg ) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( "riscv", "SystemV").GCM().localSched().regAlloc().encode();
@@ -32,11 +32,7 @@ public abstract class TestRisc5 {
         // Initial incoming int arg
         R5.regs[riscv.A0] = arg;
         // malloc memory starts at 64K and goes up
-
-        // Run until stopped or steps
-        int trap = R5.step(steps);
-        Assert.assertEquals(0,trap); // Exit for steps, not trap
-
         return R5;
     }
+
 }

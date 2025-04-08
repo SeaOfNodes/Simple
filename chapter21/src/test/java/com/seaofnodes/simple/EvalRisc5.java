@@ -27,19 +27,21 @@ public class EvalRisc5 {
     //#endif
 
     // Little endian
-    public int ld1s(int x) { return _buf[x  ]     ; }
-    public int ld1z(int x) { return _buf[x  ]&0xFF; }
-    public int ld2s(int x) { return ld1z(x) | ld1s(x+1)<< 8; }
-    public int ld2z(int x) { return ld1z(x) | ld1z(x+1)<< 8; }
-    public int ld4s(int x) { return ld2z(x) | ld2s(x+2)<<16; }
+    public int  ld1s(int x) { return _buf[x  ]     ; }
+    public int  ld1z(int x) { return _buf[x  ]&0xFF; }
+    public int  ld2s(int x) { return ld1z(x) | ld1s(x+1)<< 8; }
+    public int  ld2z(int x) { return ld1z(x) | ld1z(x+1)<< 8; }
+    public int  ld4s(int x) { return ld2z(x) | ld2s(x+2)<<16; }
+    public long ld8 (int x) { return (long)ld4s(x)&0xFFFFFFFFL | ((long)ld4s(x+4))<<32; }
 
-    public void st1(int x, int val) { _buf[x] = (byte)val; }
-    public void st2(int x, int val) { st1(x,val); st1(x+1,val>> 8); }
-    public void st4(int x, int val) { st2(x,val); st2(x+2,val>>16); }
+    public void st1(int x, int  val) { _buf[x] = (byte)val; }
+    public void st2(int x, int  val) { st1(x,val); st1(x+1,val>> 8); }
+    public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
+    public void st8(int x, long val) { st4(x,(int)val); st2(x+4,(int)(val>>32)); }
 
 
     // GPRs
-    final int[] regs = new int[32];
+    final long[] regs = new long[32];
 
     // PC
     int _pc;
@@ -55,7 +57,7 @@ public class EvalRisc5 {
 
     public int step( int maxops ) {
         int trap = 0;
-        int rval = 0;
+        long rval = 0;
         int pc = _pc;
         int cycle = _cycle;
 
@@ -95,7 +97,7 @@ public class EvalRisc5 {
                 int imm = ir >> 20;
                 int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0);
                 rval = pc + 4;
-                pc = ( (regs[ (ir >> 15) & 0x1f ] + imm_se) & ~1) - 4;
+                pc = ( ((int)regs[ (ir >> 15) & 0x1f ] + imm_se) & ~1) - 4;
                 // Return from top-level ; exit sim
                 if( pc+4==0 ) {
                     if( rdid!=0 ) regs[rdid] = rval;
@@ -106,29 +108,28 @@ public class EvalRisc5 {
             case 0x63: { // Branch (0b1100011)
                 int immm4 = ((ir & 0xf00)>>7) | ((ir & 0x7e000000)>>20) | ((ir & 0x80) << 4) | ((ir >> 31)<<12);
                 if( (immm4 & 0x1000)!=0 ) immm4 |= 0xffffe000;
-                int rs1 = regs[(ir >> 15) & 0x1f];
-                int rs2 = regs[(ir >> 20) & 0x1f];
+                long rs1 = regs[(ir >> 15) & 0x1f];
+                long rs2 = regs[(ir >> 20) & 0x1f];
                 immm4 = pc + immm4 - 4;
                 rdid = 0;
                 switch( ( ir >> 12 ) & 0x7 ) {
                     // BEQ, BNE, BLT, BGE, BLTU, BGEU
                 case 0: if( rs1 == rs2 ) pc = immm4; break;
                 case 1: if( rs1 != rs2 ) pc = immm4; break;
-                case 4: if( rs1 < rs2 ) pc = immm4; break;
-                case 5: if( rs1 >= rs2 ) pc = immm4; break; //BGE
-                case 6: if( (int)rs1 < (int)rs2 ) pc = immm4; break;   //BLTU
-                case 7: if( (int)rs1 >= (int)rs2 ) pc = immm4; break;  //BGEU
+                case 4: if( rs1 <  rs2 ) pc = immm4; break;
+                case 5: if( rs1 >= rs2 ) pc = immm4; break;
+                case 6: if( Long.compareUnsigned(rs1,rs2) <  0 ) pc = immm4; break;  //BLTU
+                case 7: if( Long.compareUnsigned(rs1,rs2) >= 0 ) pc = immm4; break;  //BGEU
                 default: trap = (2+1);
                 }
                 break;
             }
             case 0x03: { // Load (0b0000011)
-                int rs1 = regs[(ir >> 15) & 0x1f];
+                int rs1 = (int)regs[(ir >> 15) & 0x1f]; // Address chop to 32b
                 int imm = ir >> 20;
                 int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0 );
                 int rsval = rs1 + imm_se;
 
-                rsval -= 0;
                 if( rsval >= _buf.length-3 ) {
                     trap = (5+1);
                     rval = rsval;
@@ -138,6 +139,7 @@ public class EvalRisc5 {
                     case 0: rval = ld1s( rsval ); break;
                     case 1: rval = ld2s( rsval ); break;
                     case 2: rval = ld4s( rsval ); break;
+                    case 3: rval = ld8 ( rsval ); break;
                     case 4: rval = ld1z( rsval ); break;
                     case 5: rval = ld2z( rsval ); break;
                     default: trap = (2+1);
@@ -146,11 +148,11 @@ public class EvalRisc5 {
                 break;
             }
             case 0x23: { // Store 0b0100011
-                int rs1 = regs[(ir >> 15) & 0x1f];
-                int rs2 = regs[(ir >> 20) & 0x1f];
+                int  rs1 = (int)regs[(ir >> 15) & 0x1f]; // Address chop to 32b
+                long rs2 = regs[(ir >> 20) & 0x1f];
                 int addy = ( ( ir >> 7 ) & 0x1f ) | ( ( ir & 0xfe000000 ) >> 20 );
                 if( (addy & 0x800)!=0 ) addy |= 0xfffff000;
-                addy += rs1 - 0;
+                addy += rs1;
                 rdid = 0;
 
                 if( addy >= _buf.length-3 ) {
@@ -158,9 +160,10 @@ public class EvalRisc5 {
                     rval = addy;
                 } else {
                     switch( ( ir >> 12 ) & 0x7 ) { //SB, SH, SW
-                    case 0: st1( addy, rs2 ); break;
-                    case 1: st2( addy, rs2 ); break;
-                    case 2: st4( addy, rs2 ); break;
+                    case 0: st1( addy, (int)rs2 ); break;
+                    case 1: st2( addy, (int)rs2 ); break;
+                    case 2: st4( addy, (int)rs2 ); break;
+                    case 3: st8( addy,      rs2 ); break;
                     default: trap = (2+1);
                     }
                 }
@@ -170,9 +173,9 @@ public class EvalRisc5 {
             case 0x33: { // Op           0b0110011
                 int imm = ir >> 20;
                 imm = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0);
-                int rs1 = regs[(ir >> 15) & 0x1f];
+                long rs1 = regs[(ir >> 15) & 0x1f];
                 boolean is_reg = (ir & 0x20)!=0;
-                int rs2 = is_reg ? regs[imm & 0x1f] : imm;
+                long rs2 = is_reg ? regs[imm & 0x1f] : imm;
 
                 if( is_reg && ( ir & 0x02000000 )!=0 ) {
                     switch( (ir>>12)&7 ) { //0x02000000 = RV32M
@@ -208,8 +211,8 @@ public class EvalRisc5 {
                 break;
 
             case 0x2f: { // RV32A (0b00101111)
-                int rs1 = regs[(ir >> 15) & 0x1f];
-                int rs2 = regs[(ir >> 20) & 0x1f];
+                long rs1 = regs[(ir >> 15) & 0x1f];
+                long rs2 = regs[(ir >> 20) & 0x1f];
                 int irmid = ( ir>>27 ) & 0x1f;
 
                 // We don't implement load/store from UART or CLNT with RV32A here.
@@ -217,14 +220,14 @@ public class EvalRisc5 {
                     trap = (7+1); //Store/AMO access fault
                     rval = rs1;
                 } else {
-                    rval = ld4s( rs1 );
+                    rval = ld4s( (int)rs1 );
 
                     // Referenced a little bit of https://github.com/franzflasch/riscv_em/blob/master/src/core/core.c
                     boolean dowrite = true;
                     switch( irmid )                                            {
                     case 2: //LR.W (0b00010)
                         dowrite = false;
-                        _extraflags = (_extraflags & 0x07) | (rs1<<3);
+                        _extraflags = (_extraflags & 0x07) | (int)(rs1<<3);
                         break;
                     case 3: { //SC.W (0b00011) (Make sure we have a slot, and, it's valid)
                         boolean xflag = _extraflags >> 3 != ( rs1 & 0x1fffffff );
@@ -243,7 +246,7 @@ public class EvalRisc5 {
                     case 28: rs2 = Math.max( rs2, rval ); break; //AMOMAXU.W (0b11100)
                     default: trap = (2+1); dowrite = false; break; //Not supported.
                     }
-                    if( dowrite ) st4( rs1, rs2 );
+                    if( dowrite ) st4( (int)rs1, (int)rs2 );
                 }
                 break;
             }

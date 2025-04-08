@@ -52,7 +52,7 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         // float
         if(_declaredType == TypeFloat.F32) func3 = 2; // fLW   fSW
         if(_declaredType == TypeFloat.F64) func3 = 3; // fLD   fSD
-        if( _declaredType instanceof TypeMemPtr ) func3=6; // 4 byte pointers, assumed unsigned?
+        if( _declaredType instanceof TypeMemPtr ) func3=3; // 8 byte pointers
         if( func3 == -1 ) throw Utils.TODO();
         return func3;
     }

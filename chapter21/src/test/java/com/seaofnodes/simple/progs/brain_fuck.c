@@ -11,7 +11,7 @@ extern AryInt* brain_fuck();
 int main() {
   AryInt* ps = brain_fuck();
 
-    printf("%.*s", ps->len, ps->data);
+  printf("%.*s", ps->len, ps->data);
 
   return 0;
 }

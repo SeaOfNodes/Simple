@@ -98,19 +98,46 @@ public class Chapter21Test {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib);
 
-        EvalRisc5 R5 = TestRisc5.run("fib", 1000, 8);
-        // Return register A0 holds 55
+        EvalRisc5 R5 = TestRisc5.build("fib", 8);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
     }
 
     @Test public void testBrainFuck() throws IOException {
-        String brain_fuck = "Hello World!\r\n";
+        String brain_fuck = "Hello World!\n";
         TestC.run("brain_fuck", brain_fuck);
     }
 
     @Test public void testPerson() throws IOException {
         String person = "6\n";
         TestC.run("person", person);
+
+        // Memory layout starting at PS:
+        int ps = 1<<16;         // Person array pointer
+        // Person[3] = { len,pad,P0,P1,P2 }; // sizeof = 4*8
+        // P0 = { age } // sizeof=8
+        int p0 = ps+4*8+0*8;
+        // P1 = { age } // sizeof=8
+        int p1 = ps+4*8+1*8;
+        // P2 = { age } // sizeof=8
+        int p2 = ps+4*8+2*8;
+        EvalRisc5 R5 = TestRisc5.build("person", ps);
+        R5.regs[riscv.A1] = 1;  // Index 1
+        R5.st4(ps,3);           // Length
+        R5.st8(ps+1*8,p0);
+        R5.st8(ps+2*8,p1);
+        R5.st8(ps+3*8,p2);
+        R5.st8(p0, 5); // age= 5
+        R5.st8(p1,17); // age=17
+        R5.st8(p2,60); // age=60
+
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals( 5+0,R5.ld8(p0));
+        assertEquals(17+1,R5.ld8(p1));
+        assertEquals(60+0,R5.ld8(p2));
     }
 
     @Ignore
