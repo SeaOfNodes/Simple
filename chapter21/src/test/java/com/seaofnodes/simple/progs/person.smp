@@ -8,8 +8,3 @@ val fcn = { Person?[] ps, int x ->
     if( ps[x] )
         ps[x].age++;
 };
-
-Person?[] !ps = new Person?[2];
-ps[0] = new Person;
-ps[1] = new Person;
-fcn(ps,1);

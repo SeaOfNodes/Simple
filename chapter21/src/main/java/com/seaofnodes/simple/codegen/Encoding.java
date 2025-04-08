@@ -359,6 +359,7 @@ public class Encoding {
             }
         }
 
+
         // Copy/slide the bits to make space for all the longer branches
         int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
         if( grow > 0 ) {        // If no short-form ops, nothing to do here
