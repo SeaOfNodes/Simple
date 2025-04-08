@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.print.ASMPrinter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -96,6 +97,10 @@ public class Chapter21Test {
     @Test public void testFibExport() throws IOException {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib);
+
+        EvalRisc5 R5 = TestRisc5.run("fib", 1000, 8);
+        // Return register A0 holds 55
+        assertEquals(55,R5.regs[riscv.A0]);
     }
 
     @Test public void testBrainFuck() throws IOException {
