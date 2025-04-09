@@ -149,7 +149,7 @@ public class MemMergeNode extends Node {
         }
     }
 
-    @Override boolean eq( Node n ) {
+    @Override public boolean eq( Node n ) {
         return this==n || !_inProgress;
     }
 }

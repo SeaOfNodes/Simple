@@ -58,7 +58,7 @@ public abstract class MemOpNode extends Node {
 
 
     @Override
-    boolean eq(Node n) {
+    public boolean eq(Node n) {
         MemOpNode mem = (MemOpNode)n; // Invariant
         return _alias==mem._alias;    // When comparing types error to use "equals"; always use "=="
     }
