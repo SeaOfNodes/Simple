@@ -23,14 +23,16 @@ public class FunARM  extends FunNode implements MachNode {
     // |  PAD16 |
     // +--------+
     @Override public void encoding( Encoding enc ) {
-        // Stack frame size: _maxSlot - max(arg), padded to 16.
-        _maxArgSlot = arm.maxSlot(enc._fun.sig());
-        _frameAdjust = (short) (_maxSlot+1 - _maxArgSlot);
-        if( _frameAdjust == 0 ) return; // Skip if no frame adjust
-        enc.add4(arm.imm_inst(arm.OPI_ADD, (_frameAdjust*8)&0xFFF, arm.RSP, arm.RSP));
+        // Size of local stack frame.
+        // Can be negative if the stack args passed are never referenced
+        int sz = Math.max(_maxSlot - _maxArgSlot,0);
+        sz = ((sz+1) & -2)+1;   // Pad to 16
+        if( _frameAdjust != 0 )
+            enc.add4(arm.imm_inst(arm.OPI_ADD, (_frameAdjust*8)&0xFFF, arm.RSP, arm.RSP));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p("rsp += #").p(_frameAdjust*8);
+        if( _frameAdjust != 0 )
+            sb.p("rsp += #").p(_frameAdjust*8);
     }
 }

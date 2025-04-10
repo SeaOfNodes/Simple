@@ -261,8 +261,7 @@ public class riscv extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
 
-    // Return the max stack slot used by this signature, or 0
-    static short maxSlot( TypeFunPtr tfp ) {
+    @Override public short maxArgSlot( TypeFunPtr tfp ) {
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=0; i<tfp.nargs(); i++ )
@@ -321,7 +320,7 @@ public class riscv extends Machine {
     }
 
     @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*8+"]";
+        return reg < REGS.length ? REGS[reg] : "[stk#"+(reg-REGS.length)+"]";
     }
 
     // Stack slots, in units of 8 bytes.

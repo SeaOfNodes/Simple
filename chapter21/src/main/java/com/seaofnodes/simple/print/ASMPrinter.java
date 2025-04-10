@@ -64,6 +64,8 @@ public abstract class ASMPrinter {
     }
 
     private static int print(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
+        FunNode old = code._encoding._fun;
+        code._encoding._fun = fun; // Useful printing after RA
         // Function header
         sb.nl().p("---");
         if( fun._name != null ) sb.p(fun._name).p(" ");
@@ -71,7 +73,7 @@ public abstract class ASMPrinter {
         sb.p("---------------------------").nl();
 
         if( fun._frameAdjust != 0 )
-            iadr = doInst(iadr,sb,code,cfgidx,fun,true,true);
+            iadr = doInst(iadr,sb,code,fun,cfgidx,fun,true,true);
         while( !(code._cfg.at(cfgidx) instanceof ReturnNode) )
             iadr = doBlock(iadr,sb,code,fun,cfgidx++);
 
@@ -79,6 +81,7 @@ public abstract class ASMPrinter {
         sb.p("---");
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
+        code._encoding._fun = old;
         return iadr;
     }
 
@@ -100,10 +103,10 @@ public abstract class ASMPrinter {
             // Post-RegAlloc phi prints all on one line
             if( postAlloc ) {
                 if( !once ) { once=true; sb.fix(4," ").p(" ").fix(encWidth,"").p("  "); }
-                sb.p(phi._label).p(':').p(code.reg(phi)).p(',');
+                sb.p(phi._label).p(':').p(code.reg(phi,fun)).p(',');
             } else {
                 // Pre-RegAlloc phi prints one line per
-                sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ").p(code.reg(phi));
+                sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ").p(code.reg(phi,fun));
                 if( phi.getClass() == PhiNode.class ) {
                     sb.p(" = phi( ");
                     for( int i=1; i<phi.nIns(); i++ )
@@ -118,12 +121,12 @@ public abstract class ASMPrinter {
         // All the non-phis
         for( int i=0; i<bb.nOuts(); i++ )
             if( !(bb.out(i) instanceof PhiNode) )
-                iadr = doInst(iadr, sb,code, cfgidx, bb.out(i),postAlloc, postEncode );
+                iadr = doInst(iadr, sb,code, fun, cfgidx, bb.out(i),postAlloc, postEncode );
 
         return iadr;
     }
 
-    static int doInst( int iadr, SB sb, CodeGen code, int cfgidx, Node n, boolean postAlloc, boolean postEncode ) {
+    static int doInst( int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx, Node n, boolean postAlloc, boolean postEncode ) {
         if( n==null || n instanceof CProjNode ) return iadr;
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
@@ -152,7 +155,7 @@ public abstract class ASMPrinter {
         // get indent slightly and just print their index & node#
         if( n instanceof ProjNode proj ) {
             if( proj._type instanceof TypeMem ) return iadr; // Nothing for the hidden ones
-            sb.fix(4," ").p(" ").fix(encWidth,"").p("    ").fix(opWidth,proj._label==null ? "---" : proj._label).p(" ").p(code.reg(n)).nl();
+            sb.fix(4," ").p(" ").fix(encWidth,"").p("    ").fix(opWidth,proj._label==null ? "---" : proj._label).p(" ").p(code.reg(n,fun)).nl();
             return iadr;
         }
 
@@ -249,7 +252,7 @@ public abstract class ASMPrinter {
         if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
             for( Node proj : n._outputs ) {
                 assert proj instanceof ProjNode;
-                doInst(iadr,sb,code, cfgidx, proj,postAlloc,postEncode);
+                doInst(iadr,sb,code,fun, cfgidx, proj,postAlloc,postEncode);
             }
         }
 

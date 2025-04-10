@@ -140,9 +140,8 @@ public class Chapter21Test {
         assertEquals(60+0,R5.ld8(p2));
     }
 
-    @Ignore
     @Test public void testArgCount() throws IOException {
-        String arg_count = "";
+        String arg_count = "153.900000\n";
         TestC.run("arg_count", arg_count);
     }
 }

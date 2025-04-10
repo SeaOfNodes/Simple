@@ -24,9 +24,9 @@ public class FunX86 extends FunNode implements MachNode {
     // | callee | // slot 2, callEE
     // +--------+
     @Override public void encoding( Encoding enc ) {
-        // Stack frame size: _maxSlot - max(arg), padded to 16.
-        _maxArgSlot = x86_64_v2.maxArgSlot(enc._fun.sig());
-        int sz = _maxSlot - _maxArgSlot;
+        // Stack frame size: _maxSlot - max(arg).
+        // Can be negative if the stack args passed are never referenced
+        int sz = Math.max(_maxSlot - _maxArgSlot,0);
         // If non-leaf function, pad to 16b
         if( _hasCalls ) sz = ((sz+1) & -2)+1;
         assert x86_64_v2.imm8(sz*8);

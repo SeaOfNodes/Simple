@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
 import com.seaofnodes.simple.type.Type;
@@ -92,6 +93,7 @@ public class SplitX86 extends SplitNode {
 
     // General form: "mov  dst = src"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));
+        FunNode fun = code._encoding._fun;
+        sb.p(code.reg(this,fun)).p(" = ").p(code.reg(in(1),fun));
     }
 }

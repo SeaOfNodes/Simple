@@ -51,6 +51,29 @@ public class RegAlloc {
     //   - If color fails:
     //   - - Split uncolorable LRGs
 
+    // RA gives all registers a number, starting at 0.  Stack slots continue
+    // this numbering going up from the last register number.  Common register
+    // numbers are 0-15 for GPRs, 16-31 for FPRs, 32 for flags, and stack slots
+    // starting at register#33 going up.  These numbers are machine-specific,
+    // YMMV, etc; e.g. RPC is only in stack slot 0 on X86; other cpus start
+    // with the rpc in a register which may spill into any generic spill slot.
+
+    // For ease of reading & printing, stack slots start again at slot#0 - but
+    // during RA they are actually biased by CPU.MAX_REG.
+
+    // Stack Layout during Reg Alloc:
+    //
+    // Stack
+    // Num   -- Caller ------
+    // N+1   argN
+    //       ...
+    // 1     arg0
+    // -------- Callee -------
+    // 0     RPC
+    // N+M   PAD
+    // N+    Spills
+    // N+2   Spills
+
     // Top-level program graph structure
     final CodeGen _code;
 
@@ -130,11 +153,18 @@ public class RegAlloc {
     }
 
     // Printable register number for node n
-    String reg( Node n ) {
+    String reg( Node n ) { return reg(n,null); }
+    String reg( Node n, FunNode fun ) {
         LRG lrg = lrg(n);
         if( lrg==null ) return null;
+        // No register yet, use LRG
         if( lrg._reg == -1 ) return "V"+lrg._lrg;
-        return _code._mach.reg(lrg._reg);
+        // Chosen machine register unless stack-slot and past RA
+        int slot = _code._mach.stackSlot(lrg._reg);
+        if( slot == -1 || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || fun==null )
+            return _code._mach.reg(lrg._reg);
+        // Stack-slot past RA uses the frame layout logic
+        return "[rsp+"+fun.computeStackSlot(slot)*8+"]";
     }
 
     // -----------------------
@@ -542,9 +572,11 @@ public class RegAlloc {
     private void postColor() {
         int maxSlot = -1;
         for( CFGNode bb : _code._cfg ) { // For all ops
-            if( bb instanceof FunNode )
-                maxSlot = -1;
-            if( bb instanceof ReturnNode ret )
+            if( bb instanceof FunNode fun ) {
+                fun._maxArgSlot = _code._mach.maxArgSlot(fun.sig());
+                maxSlot = -1;   // Reset for new function
+            }
+            if( bb instanceof ReturnNode ret ) // Capture max seen
                 ret.fun()._maxSlot = (short)maxSlot;
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
