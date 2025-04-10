@@ -3,6 +3,20 @@
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) it to the previous chapter.
 
 
+## Meta-Issues / Code-Dev Issues of Instruction Selection, Register Allocation and Encodings
+
+The output of Instruction Selection - the mapping from idealized Simple Nodes
+to machine-specific ones - is difficult to test in bulk without an execution
+strategy.  We won't have an execution stratgy until all three of Instruction
+Selection, Register Allocation and Encodings are done.  Hence in and around the
+completion of Encoding we expect to find lots of bugs in Instruction Selection
+and Register Allocation.  We certainly hand-inspect the output and fix obvious
+problems, but still lots bugs linger until we can actually run the code.
+
+This means that other chapters have updates and bug-fixes to the work being
+described here.
+
+
 ## Portable Compilation
 
 A new abstract `Machine` class is added, one per unique CPU port.  `Machine`
