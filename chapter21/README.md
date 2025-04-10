@@ -13,6 +13,15 @@ bugs linger until we can actually run the code.
 This means that other chapters have updates and bug-fixes to the work being
 described here.
 
+Encodings are an entirely bit-picky nit-picky affair.  There's no real rocket
+science here, but instead there's an boundless opportunity for off-by-1 errors.
+If you find a bug here, do not be surprised!  Its almost surely a "shallow"
+bug... and there's bound to be a few until Simple gets more programmer hours
+under its belt.
+
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21) it to the previous chapter.
 
 # Table of Contents
 
@@ -20,7 +29,7 @@ described here.
 2. [Infrastructure](#infrastructure)
 3. [AMD64](#amd64)
    - [REX PREFIX](#rex-prefix)
-   - [LARGE CONSTANT](#large-constants)
+   - [Large constants](#large-constants)
    - [MODR/M](#modrm)
    - [SIB](#sib)
    - [Displacement](#displacement)
@@ -47,9 +56,9 @@ described here.
 
 5. [RISCV](#riscv)
    - [Instruction formats](#instruction-formats)
-   - [FLOAT](#float)
+   - [Float](#float)
    - [Indirect](#indirectmemop-2)
-   - [BRANCH](#branch)
+   - [Branch](#branch)
    - [Function Constant](#function-constant)
    - [LUI](#lui)
    - [Large constants](#large-constants)
@@ -74,7 +83,7 @@ For *x86-64(amd64):*, we use the latest Intel manual for the [encoding rules](ht
 For *riscv* we currently target [RVA23U64](https://msyksphinz-self.github.io/riscv-isadoc/html/).
 
 ### ARMV8/AArch64 :
-For *arm*(aarch64) we use this collection for the [encoding rules](https://docsmirror.github.io/A64/2023-06/index.html).
+For *arm*(aarch64) we use this collection for the [encoding rules](https://docsmirror.github.io/A64/20a23-06/index.html).
 *Note*: We only support 64 bits ARM encodings.
 
 --- 
@@ -112,6 +121,7 @@ On *RISC-V*, where the documentation provides big-endian encodings,
 this function also converts them to little-endian. For other architectures, no conversion is necessary.
 
 ## Endianness
+
 ARM, RISC-V, and x86 are all little-endian architectures in practice, meaning
 the least significant byte is stored first. We ensure that instruction
 encodings are generated in little-endian format accordingly.

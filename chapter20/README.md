@@ -88,8 +88,8 @@ Coloring proceeds in rounds until we get a coloring:
   also have a set of reaching defs per-block.
   
 - Color the interference graph.  Nodes (live ranges) in the graph which are
-  strictly low degree (more available registers than neighbors) will guaranteed
-  get a color.  These can be removed from the graph - since they will
+  strictly low degree (more available registers than neighbors) are guaranteed
+  to get a color.  These can be removed from the graph - since they will
   guaranteed get a register (color) because they have so few conflicting
   neighbors.  Removing these trivial nodes makes more nodes go trivial, and
   this process repeats until either we run out (and are guaranteed a coloring)
