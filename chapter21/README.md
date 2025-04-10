@@ -689,5 +689,89 @@ we store the current PC into a register and use that as a base to access the con
 
 ## Relocation
 
-## Local paches: TBD
+Relocation allows code to be *relocated* to a new code offset.  Code often
+refers to other code and data; `call` instructions target subroutines,
+`branches` target other instructions, large constants are often loaded from a
+`constant pool`.
+
+### Local Relocation
+
+Local relocation patches up local, or self-referential, code; the most common
+form is branch targets.  When writing instructions into the `BAOS` (bit stream)
+forwards branches towards future instructions have an unknown offsert - the
+offset depends on the size of the encodings in between the branch and target.
+For `riscv` and `arm` targets this sounds easy (and instructions are 4 bytes,
+so just count instructions)... except that some encodings use multiple
+instructions so are not actually 4 bytes long.  For X86's wild psuedo-random
+instruction lengths the act of figuring out the opcode length is just as hard
+as writing the opcode in the first place.
+
+Alson X86 adds another wrinkle: short and long form branches.  If a branch
+target lies within a signed byte range (+/-127) X86 will use a 2 byte branch
+encoding, else a 6 byte encoding.  Simple includes a pass to compact these
+branches and use 2 bytes wherever possible - but this pass has to slide code
+around to make space for the extra 4 bytes as needed, which changes all the
+other branch offsets.
+
+Once the code is finally settled into "shape", a local relocation pass is made
+to update all the self-references.  Basically, the branch offsets in the byte
+array get overwritten with the actual values.
+
+At the end of this pass, the code is locally correct at some offset (generally
+0), but this is not the end - code is often *linked* against other code
+generated in other compilations, and again various offsets will need to be
+adjusted.
+
+### Global Relocation
+
+Code in one compilation unit wants to call code in another... this requires a
+*global relocation*.  A common example is a *loader* loading an *ELF* file,
+which mostly happens every time a new program is run, and requires the
+relocation information to be stored to disk (in e.g. the ELF file).  JIT
+systems will neeed to do this as well across different compilations, although
+the relocation information can stay in memory.
+
+#### Getting Relocations to All Agree
+
+Since the relocations can be written to disk, the disk format, loader and "code
+shape" all have to agree.  Suppose we want to call from one compilation unit to
+another - e.g. the program is calling `malloc` from `libc`.  The caller is a
+Simple using a machine-specific version of generic `CallNode` with the target
+being C-compiled code.  During loading, the placement of the `call` and `libc`
+is determined by the loader; the two different blocks of code are written into
+memory in some order (generally with lots of other blocks of code).  Now we
+need to patch the `call`'s target to be `malloc` in the `libc` block of code.
+
+For an X86 external call, the encoding is a 5-byte instruction, one byte of
+opcode and 4 bytes of PC-relative target address.  The needed patch is the
+delta between the X86-specific `call` instruction *end* and the start of
+`malloc`, and is written directly on the last 4 bytes of the `call`.  The
+encoding type in the ELF file has to describe this.
+
+For a RISCV external call, the encoding is 2 4-byte instructions each carrying
+some of the bits.  The `LUI` loads the target upper 20 bits, and then the
+`JALR` adds in the lower 12 bits (32-bit absolute target range).  The `LUI`
+might be replaced with a `AUIPC` to get a 32-bit pc-relative range.  Patching
+here updates 20bits in one instruction and 12bits in another.  Again the ELF
+file encoding type has to describe this; using a X86-style patch here will just
+crush the wrong bits and make a broken program.
+
+#### Large Constants
+
+Large constants are those which cannot be easily directly loaded into a
+register, and instead are loaded from memory.  For security reasons they are
+often kept in a seperate address space with e.g. read-only permissions instead
+of execute permissions.  This means their final address, relative to the code,
+varies according to placement - same as for calls crossing compilation units.
+
+Also large constants can be shared across compilation units (one can imagine
+repeated uses of `pi` in HPC codes); sharing reduces cache footprint.  In any
+case, one the locations of the code and constants are known, the code needs to
+be patched to load at the correct offset.  Like the `call` example above, the
+load instruction variant and patch variant all need to agree.  An X86 might use
+either a 4-byte address or an 8-byte address depending on X86 variant; the
+RISCV probably uses some variant of an `LUI` and a `Load`, with the immediate
+split into 20/12 bits.  Also the RISCV probably wants to "share" the constant
+pool 20 bits in the same `LUI`, but have different loads for different
+constants coming out of the same pool.  
 
