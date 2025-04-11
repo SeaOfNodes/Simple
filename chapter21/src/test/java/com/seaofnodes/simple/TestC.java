@@ -79,6 +79,10 @@ public abstract class TestC {
         Process smp = new ProcessBuilder(bin).redirectErrorStream(true).start();
         try { error = (byte)smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(smp.getInputStream().readAllBytes());
+        if( error!=0 ) {
+            System.err.println("exec error code: "+error);
+            System.err.println(result);
+        }
         assertEquals( 0, error );
         assertEquals(expected,result);
     }
