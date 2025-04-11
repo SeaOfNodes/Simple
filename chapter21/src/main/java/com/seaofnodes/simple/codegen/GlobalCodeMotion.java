@@ -160,15 +160,15 @@ public abstract class GlobalCodeMotion {
                         continue outer; // Nope, await all uses done
 
                 // Loads need their memory inputs' uses also done
-                if( n instanceof LoadNode ld )
-                    for( Node memuse : ld.mem()._outputs )
+                if( n instanceof MemLoad ld )
+                    for( Node memuse : ((MemOpNode)ld).mem()._outputs )
                         if( late[memuse._nid]==null &&
                             // New makes new memory, never crushes load memory
                             !(memuse instanceof NewNode) &&
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use indirectly defines memory
-                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
+                             (memuse._type instanceof TypeTuple tt && tt._types[((MemOpNode)ld)._alias] instanceof TypeMem)) )
                             continue outer;
 
                 // All uses done, schedule
@@ -181,7 +181,7 @@ public abstract class GlobalCodeMotion {
                     work.push(def);
                     // if the def has a load use, maybe the load can fire
                     for( Node ld : def._outputs )
-                        if( ld instanceof LoadNode && late[ld._nid]==null )
+                        if( ld instanceof MemLoad && late[ld._nid]==null )
                             work.push(ld);
                 }
         }
@@ -197,7 +197,7 @@ public abstract class GlobalCodeMotion {
               lca = use_block(n,use, late)._idom(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
-        if( n instanceof LoadNode load )
+        if( n instanceof MemLoad && n instanceof MemOpNode load )
             lca = find_anti_dep(lca,load,early,late);
 
         // Walk up from the LCA to the early, looking for best place.  This is
@@ -235,7 +235,7 @@ public abstract class GlobalCodeMotion {
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
-    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
+    private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
         for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
@@ -243,9 +243,9 @@ public abstract class GlobalCodeMotion {
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
-            case StoreNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+            case MemStore ms:
+                assert late[mem._nid]!=null;
+                lca = anti_dep(load,late[mem._nid],mem.cfg0(),lca,mem);
                 break;
             case CallNode st:
                 assert late[st._nid]!=null;
@@ -259,7 +259,7 @@ public abstract class GlobalCodeMotion {
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
                 break;
             case NewNode st: break;
-            case LoadNode ld: break; // Loads do not cause anti-deps on other loads
+            case MemLoad ld: break; // Loads do not cause anti-deps on other loads
             case ReturnNode ret: break; // Load must already be ahead of Return
             case MemMergeNode ret: break; // Mem uses now on ScopeMin
             case NeverNode never: break;
@@ -270,7 +270,7 @@ public abstract class GlobalCodeMotion {
     }
 
     //
-    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
+    private static CFGNode anti_dep( MemOpNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
         // Walk store blocks "reach" from its scheduled location to its earliest
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
