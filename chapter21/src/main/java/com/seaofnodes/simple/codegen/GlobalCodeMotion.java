@@ -243,9 +243,9 @@ public abstract class GlobalCodeMotion {
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
-            case StoreNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+            case MemStore ms:
+                assert late[mem._nid]!=null;
+                lca = anti_dep(load,late[mem._nid],mem.cfg0(),lca,mem);
                 break;
             case CallNode st:
                 assert late[st._nid]!=null;

@@ -8,7 +8,7 @@ import java.util.BitSet;
  * Store represents setting a value to a memory based object, in chapter 10
  * this means a field inside a struct.
  */
-public class StoreNode extends MemOpNode {
+public class StoreNode extends MemOpNode implements MemStore {
 
     private final boolean _init; // Initializing writes are allowed to write null
 

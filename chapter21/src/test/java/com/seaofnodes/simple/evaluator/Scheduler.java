@@ -273,10 +273,10 @@ public class Scheduler {
             for(var in:data.node._inputs) {
                 if (in!=null) update(d(in), data.block);
             }
-            if (data.node instanceof StoreNode s) {
+            if (data.node instanceof MemStore s) {
                 // Store nodes have anti-deps to load nodes.
                 // So decrease the uses of these loads when the store is placed.
-                for (var out: s.in(1)._outputs) {
+                for (var out: ((Node)s).in(1)._outputs) {
                     if (out instanceof LoadNode) od(out).ifPresent(this::decUsers);
                 }
             }
@@ -471,7 +471,7 @@ public class Scheduler {
             } else {
                 for (var in : node._inputs) if (in != null && !(in instanceof CFGNode)) markAlive(dataQueue, in, false);
             }
-            if (node instanceof StoreNode) mem.push(data);
+            if (node instanceof MemStore) mem.push(data);
         }
         // Handle store nodes and increase load with an anti-dep to the store.
         while (!mem.isEmpty()) {
