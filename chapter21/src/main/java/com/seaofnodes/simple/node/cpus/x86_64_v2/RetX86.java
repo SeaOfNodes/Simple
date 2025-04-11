@@ -30,7 +30,7 @@ public class RetX86 extends ReturnNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         int frameAdjust = ((FunX86)fun())._frameAdjust;
         if( frameAdjust>0 )
-            sb.p("rsp += #").p(frameAdjust*-8).p("\nret");
+            sb.p("rsp += #").p(frameAdjust*8).p("\nret");
         // Post code-gen, just print the "ret"
         if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
             // Prints return reg (either RAX or XMM0), RPC (always [rsp-4]) and

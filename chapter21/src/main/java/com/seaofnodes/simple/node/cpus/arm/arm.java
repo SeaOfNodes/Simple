@@ -27,9 +27,9 @@ public class arm extends Machine {
     static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
-    static final int MAX_REG = 64;
-    static final int D_OFFSET = 31;
     static final int FLAGS = 64;
+    static final int MAX_REG = 65;
+    static final int D_OFFSET = 31;
 
     static final String[] REGS = new String[] {
             "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
@@ -43,7 +43,7 @@ public class arm extends Machine {
             "flags"
     };
     @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*8+"]";
+        return reg < REGS.length ? REGS[reg] : "[stk#"+(reg-REGS.length)+"]";
     }
     // Stack slots, in units of 8 bytes.
     @Override public int stackSlot( int reg ) {
@@ -542,7 +542,7 @@ public class arm extends Machine {
         throw Utils.TODO(); // Pass on stack slot
     }
     // Return the max stack slot used by this signature, or 0
-    static short maxSlot( TypeFunPtr tfp ) {
+    @Override public short maxArgSlot( TypeFunPtr tfp ) {
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=0; i<tfp.nargs(); i++ )

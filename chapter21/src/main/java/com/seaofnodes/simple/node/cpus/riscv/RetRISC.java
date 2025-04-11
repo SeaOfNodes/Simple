@@ -26,16 +26,16 @@ public class RetRISC extends ReturnNode implements MachNode {
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
         int frameAdjust = fun()._frameAdjust;
-        if( frameAdjust > 0 )
-            enc.add4(riscv.i_type(riscv.OP_IMM, riscv.SP, 0, riscv.SP, (frameAdjust*-8) & 0xFFF));
+        if( frameAdjust != 0 )
+            enc.add4(riscv.i_type(riscv.OP_IMM, riscv.SP, 0, riscv.SP, (frameAdjust*8) & 0xFFF));
         short rpc = enc.reg(rpc());
         enc.add4(riscv.i_type(riscv.OP_JALR, riscv.ZERO, 0, rpc, 0));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
         int frameAdjust = fun()._frameAdjust;
-        if( frameAdjust>0 )
-            sb.p("rsp += #").p(frameAdjust*-8).p("\nret");
+        if( frameAdjust!=0 )
+            sb.p("rsp += #").p(frameAdjust*8).p("\nret");
         // Post code-gen, just print the "ret"
         if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
             // Prints return reg (either A0 or FA0), RPC (always R1) and then

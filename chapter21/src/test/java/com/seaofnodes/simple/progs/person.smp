@@ -4,7 +4,6 @@ struct Person {
 };
 
 val fcn = { Person?[] ps, int x ->
-    val tmp = ps[x];
     if( ps[x] )
         ps[x].age++;
 };

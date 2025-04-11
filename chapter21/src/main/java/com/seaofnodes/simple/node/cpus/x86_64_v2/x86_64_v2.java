@@ -36,7 +36,7 @@ public class x86_64_v2 extends Machine {
     static RegMask RPC_MASK = new RegMask(RPC);
 
     static final long SPILLS = -(1L << MAX_REG);
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | (1L<<FLAGS) | SPILLS, -1L );
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS /* | (1L<<FLAGS)*/ | SPILLS, -1L );
 
     // Load/store mask; both GPR and FPR
     static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
@@ -175,12 +175,6 @@ public class x86_64_v2 extends Machine {
         }
     }
 
-    // Calling conv metadata
-    public int GPR_COUNT_CONV_WIN64 = 4; // RCX, RDX, R9, R9
-    public int XMM_COUNT_CONV_WIN64 = 4; // XMM0L, XMM1L, XMM2L, XMM3L
-
-    public int GPR_COUNT_CONV_SYSTEM_V = 6; // RDI, RSI, RDX, RCX, R8, R9
-    public int XMM_COUNT_CONV_SYSTEM_V = 4; // XMM0, XMM1, XMM2, XMM3 ....
     // Human-readable name for a register number, e.g. "RAX".
     // Hard crash for bad register number, fix yer bugs!
     public static final String[] REGS = new String[]{
@@ -191,7 +185,7 @@ public class x86_64_v2 extends Machine {
             "flags",
     };
     @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[rsp+"+(reg-REGS.length)*8+"]";
+        return reg < REGS.length ? REGS[reg] : "[stk#"+(reg-REGS.length)+"]";
     }
 
     // Stack slots, in units of 8 bytes.
@@ -199,17 +193,91 @@ public class x86_64_v2 extends Machine {
         return reg < REGS.length ? -1 : reg-REGS.length;
     }
 
+    // Limit of float args passed in registers
+    static RegMask[] XMMS8 = new RegMask[]{
+        new RegMask(XMM0), new RegMask(XMM1), new RegMask(XMM2), new RegMask(XMM3),
+        new RegMask(XMM4), new RegMask(XMM5), new RegMask(XMM6), new RegMask(XMM7),
+    };
 
-    // WIN64(param passing)
-    static RegMask[] CALLINMASK_WIN64 = new RegMask[] {
+    // Map from function signature and argument index to register.
+    // Used to set input registers to CallNodes, and ParmNode outputs.
+    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+        if( idx==0 ) return RPC_MASK;
+        if( idx==1 ) return null;
+        return switch( CodeGen.CODE._callingConv ) {
+        case "SystemV" -> callSys5 (tfp,idx);
+        case "Win64"   -> callWin64(tfp,idx);
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Maximum stack args used by this signature, +1 for RPC
+    @Override public short maxArgSlot( TypeFunPtr tfp ) {
+        return switch( CodeGen.CODE._callingConv ) {
+        case "SystemV" -> maxArgSlotSys5 (tfp);
+        case "Win64"   -> maxArgSlotWin64(tfp);
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Win64 - max *4* args in registers of all kinds; after that on stack.
+    // Stack args land in increasing memory order with empty/mirror slots for
+    // every register.
+    //
+    // foo( int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, ... )
+    //
+    // -- Prior Frame --
+    // i6
+    // f5
+    // i4
+    // empty mirror, XMM3= f3
+    // empty mirror, R08 = i2
+    // empty mirror, XMM1= f1
+    // empty mirror, RCX = i0
+    // -- Caller Frame; 16b align --
+    // RPC
+    // PAD/ALIGN
+    // -- Callee Frame; 16b align --
+    static RegMask[] WIN64_CALL = new RegMask[] {
         RCX_MASK,
         RDX_MASK,
         R08_MASK,
         R09_MASK,
     };
 
+    static RegMask callWin64(TypeFunPtr tfp, int idx ) {
+        // idx 2,3,4,5 passed in registers, with stack slot mirrors.
+        // idx >= 6 passed on stack, starting at slot#1 (#0 reserved for RPC).
+        if( idx >= 6 )
+            return new RegMask(MAX_REG+1/*RPC*/+(idx-2));
+        return tfp.arg(idx-2) instanceof TypeFloat
+            ? XMMS8     [idx-2]
+            : WIN64_CALL[idx-2];
+    }
+    static short maxArgSlotWin64(TypeFunPtr tfp) {
+        return (short)(1/*RPC*/+ tfp.nargs());
+    }
+
+    // Sys5: max 6 GPRs and 8 FPRS filled first.  Extra args land in increasing
+    // memory order as needed - no mirror space.
+    //
+    // foo( int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, ... )
+    // RDI =i0, RSI =i2, RDX =i4, RCX =i6, R08 =i8, R09 =i10
+    // XMM0=f1, XMM1=f3, XMM2=f5, XMM3=f7, XMM4=f9, XMM5=f11, XMM6=f13, XMM7=f15
+    //
+    // -- Prior Frame --
+    // f18
+    // i18
+    // f17
+    // i16
+    // i14
+    // i12
+    // -- Caller Frame; 16b align --
+    // RPC
+    // PAD/ALIGN
+    // -- Callee Frame; 16b align --
     // SystemV(param passing)
-    static RegMask[] CALLINMASK_SYSTEMV = new RegMask[] {
+    static RegMask[] SYS5_CALL = new RegMask[] {
         RDI_MASK,
         RSI_MASK,
         RDX_MASK,
@@ -218,56 +286,28 @@ public class x86_64_v2 extends Machine {
         R09_MASK,
     };
 
-    // Limit of float args passed in registers
-    static RegMask[] XMMS4 = new RegMask[]{
-        new RegMask(XMM0), new RegMask(XMM1), new RegMask(XMM2), new RegMask(XMM3),
-    };
-
-    // Map from function signature and argument index to register.
-    // Used to set input registers to CallNodes, and ParmNode outputs.
-    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
-        if( idx==0 ) return RPC_MASK;
-        if( idx==1 ) return null;
-        // Count floats in signature up to index
-        int fcnt=0;
-        for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat )
-                fcnt++;
-        // Floats up to XMMS in XMM registers
-        if( tfp.arg(idx-2) instanceof TypeFloat ) {
-            if( fcnt < XMMS4.length )
-                return XMMS4[fcnt];
-        } else {
-            RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
-            case "SystemV" -> CALLINMASK_SYSTEMV;
-            case "Win64"   -> CALLINMASK_WIN64;
-            default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
-            };
-            if( idx-2-fcnt < cargs.length )
-                return cargs[idx-2-fcnt];
+    static RegMask callSys5(TypeFunPtr tfp, int idx ) {
+        // First 6 integers passed in registers: rdi,rsi,rdx,rcx,r08,r09
+        // First 8 floats passed in registers: xmm0-xmm7
+        int icnt=0, fcnt=0;     // Count of ints, floats
+        for( int i=2; i<idx; i++ ) {
+            if( tfp.arg(i-2) instanceof TypeFloat ) fcnt++;
+            else icnt++;
         }
-        throw Utils.TODO(); // Pass on stack slot
+        int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
+        return tfp.arg(idx-2) instanceof TypeFloat
+            ? fcnt<8 ? XMMS8    [fcnt] : new RegMask(MAX_REG+1/*RPC*/+nstk)
+            : icnt<6 ? SYS5_CALL[icnt] : new RegMask(MAX_REG+1/*RPC*/+nstk);
     }
-
-    // Return the max stack slot used by this signature, or 1 (for RPC)
-    static short maxArgSlot( TypeFunPtr tfp ) {
-        // Count floats in signature up to index
-        int fcnt=0;
-        for( int i=0; i<tfp.nargs(); i++ )
-            if( tfp.arg(i) instanceof TypeFloat )
-                fcnt++;
-        if( fcnt >= XMMS4.length )
-            throw Utils.TODO();
-        RegMask[] cargs = switch( CodeGen.CODE._callingConv ) {
-        case "SystemV" -> CALLINMASK_SYSTEMV;
-        case "Win64"   -> CALLINMASK_WIN64;
-        default        -> throw new IllegalArgumentException("Unknown calling convention: "+CodeGen.CODE._callingConv);
-        };
-        if( tfp.nargs()-fcnt >= cargs.length )
-            throw Utils.TODO();
-        return 1;               // No stack args, plus RPC
+    static short maxArgSlotSys5(TypeFunPtr tfp) {
+        int icnt=0, fcnt=0;     // Count of ints, floats
+        for( int i=0; i<tfp.nargs(); i++ ) {
+            if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
+            else icnt++;
+        }
+        int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
+        return (short)(1/*RPC*/+nstk);
     }
-
 
     // caller saved(systemv)
     static final long SYSTEM5_CALLER_SAVE =

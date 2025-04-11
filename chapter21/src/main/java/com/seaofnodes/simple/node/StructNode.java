@@ -39,7 +39,7 @@ public class StructNode extends Node {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) { return _ts == ((StructNode)n)._ts; }
+    public boolean eq(Node n) { return _ts == ((StructNode)n)._ts; }
 
     @Override
     int hash() { return _ts==null ? 0 : _ts.hashCode(); }

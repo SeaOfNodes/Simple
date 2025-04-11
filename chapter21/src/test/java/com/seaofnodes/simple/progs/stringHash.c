@@ -11,6 +11,7 @@ typedef struct String {
 } String;
 
 
+__attribute__ ((CALL_CONV))
 extern bool equals(String*st1, String*st2);
 
 int main() {

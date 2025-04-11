@@ -3,6 +3,20 @@
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) it to the previous chapter.
 
 
+## Meta-Issues / Code-Dev Issues of Instruction Selection, Register Allocation and Encodings
+
+The output of Instruction Selection - the mapping from idealized Simple Nodes
+to machine-specific ones - is difficult to test in bulk without an execution
+strategy.  We won't have an execution stratgy until all three of Instruction
+Selection, Register Allocation and Encodings are done.  Hence in and around the
+completion of Encoding we expect to find lots of bugs in Instruction Selection
+and Register Allocation.  We certainly hand-inspect the output and fix obvious
+problems, but still lots bugs linger until we can actually run the code.
+
+This means that other chapters have updates and bug-fixes to the work being
+described here.
+
+
 ## Portable Compilation
 
 A new abstract `Machine` class is added, one per unique CPU port.  `Machine`
@@ -24,8 +38,8 @@ implementation at least the ability to add CPU ports lazily.
 
 ## Machine Specific Nodes
 
-We add a notion of "machine specific" Nodes, which implement the `Mach`
-interface.  `Mach` nodes define incoming and outgoing registers for every
+We add a notion of "machine specific" Nodes, which implement the `MachNode`
+interface.  `MachNode` nodes define incoming and outgoing registers for every
 instruction, their bit encodings and user representations.  Later we'll add
 function unit information for a better local schedule.
 
@@ -110,11 +124,11 @@ E.g `lea` is not present.
 
 
 ### Branching
-In `x86_64_v2`, branching requires a comparison instruction to set flags, 
-followed by a jump instruction that uses those flags. 
-In contrast, RISC-V includes all necessary operands within the 
-branch instruction itself, eliminating the need for a separate 
-comparison step.
+
+In `x86_64_v2`, branching requires a comparison instruction to set flags,
+followed by a jump instruction that uses those flags.  In contrast, RISC-V
+includes all necessary operands within the branch instruction itself,
+eliminating the need for a separate comparison step.
 
 E.g
 ```
@@ -122,9 +136,10 @@ beq x10, x11, some_label
 ```
 
 `CBranchRISC` implements this behavior.
-### No R-Flags
-No R-flags exist in RiSC-V. To obtain similar functionality:
 
+### No R-Flags
+
+No R-flags exist in RiSC-V. To obtain similar functionality:
 We can set the value of registers based on the result of the comparison this way explicitly.
 ```
 xor     a0, a0, a1
@@ -135,8 +150,9 @@ The `seqz` instruction will set `a0` to 1 if `a0` is zero from the previous oper
 This matches `SetRISC` in the `nodes/cpus/riscv` port.
 
 ### Fixed instruction length
-RISC-V instructions have fixed length of 32 bits(in most cases) which means that we can benefit
-from displacements in the encoding side.
+
+RISC-V instructions have fixed length of 32 bits(in most cases) which means
+that we can benefit from displacements in the encoding side.
 
 E.g
 ```

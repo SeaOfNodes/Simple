@@ -1,7 +1,6 @@
-val addAll = { int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n,  int o ->
-  return a+b+c+d+e+f+g+h+i+j+k+l+m+n+o;
-};
-
-val test = { ->
-  return addAll(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15) + addAll(16,17,18,19,20,21,22,23,24,25,26,27,28,29,30);
+// -*- mode: java;  -*-
+val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, int x8, flt f9, int i10, flt f11, int i12, flt f13, int i14, flt f15, int x16, flt f17 int x18, flt f19 ->
+    return
+    i0 + f1+ i2+ f3+ i4+ f5+ i6+ f7+ x8 +f9 +
+    i10+f11+i12+f13+i14+f15+x16+f17+x18+f19 ;
 };

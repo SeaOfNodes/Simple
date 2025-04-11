@@ -297,9 +297,11 @@ public class CodeGen {
         return this;
     }
 
-    public String reg(Node n) {
+    // Human readable register name
+    public String reg(Node n) { return reg(n,null); }
+    public String reg(Node n, FunNode fun) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
-            String s = _regAlloc.reg(n);
+            String s = _regAlloc.reg(n,fun);
             if( s!=null ) return s;
         }
         return "N"+ n._nid;

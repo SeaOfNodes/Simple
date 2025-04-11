@@ -176,7 +176,7 @@ public class PhiNode extends Node {
     }
 
     // Never equal if inProgress
-    @Override boolean eq( Node n ) {
+    @Override public boolean eq( Node n ) {
         return !inProgress();
     }
 

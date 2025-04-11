@@ -57,8 +57,10 @@ public class StoreX86 extends MemOpX86 {
             src -= (short)x86_64_v2.XMM_OFFSET;
             enc.add1( decl==TypeFloat.F32 ? 0xF3 : 0xF2 ).add1(0x0F).add1(0x11);
         } else {
+            // byte stores from sil, dil, bpl, spl need a rex
             int log = decl.log_size();
-            x86_64_v2.rexF(src,ptr,idx,log==3,enc);
+            if( log == 0 && src >= x86_64_v2.RSP ) enc.add1(x86_64_v2.rex(src,ptr,idx,false));
+            else x86_64_v2.rexF(src,ptr,idx,log==3,enc);
             switch( log ) {
             case 0: enc           .add1(0x88); break;
             case 1: enc.add1(0x66).add1(0x89); break;

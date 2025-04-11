@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 
+__attribute__ ((CALL_CONV))
 extern double test_sqrt(double);
 
 int main( int argc, char** argv ) {

@@ -180,7 +180,7 @@ public class FunNode extends RegionNode {
     // outbound calls, but not leaf.  Set during an unrelated RA scan.
     public boolean _hasCalls;
 
-    // Max observed spill slot, set during RA postcolor
+    // One more than largest spill slot, set during RA postcolor.
     public short _maxSlot = -1;
     // Max argument slot, set during early Encoding.
     public short _maxArgSlot = -1;

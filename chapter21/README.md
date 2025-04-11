@@ -1,5 +1,27 @@
 # Chapter 21: Instruction Encoding and ELF
 
+## Meta-Issues / Code-Dev Issues of Instruction Selection, Register Allocation and Encodings
+
+The output of Encodings - conversion of machine Nodes to instruction bits - is
+difficult to test in bulk without an execution strategy.  We won't have an
+execution stratgy until all three of Instruction Selection, Register Allocation
+and Encodings are done.  Hence in and around the completion of Encoding we
+expect to find lots of bugs in Instruction Selection and Register Allocation.
+We certainly hand-inspect the output and fix obvious problems, but still lots
+bugs linger until we can actually run the code.
+
+This means that other chapters have updates and bug-fixes to the work being
+described here.
+
+Encodings are an entirely bit-picky nit-picky affair.  There's no real rocket
+science here, but instead there's an boundless opportunity for off-by-1 errors.
+If you find a bug here, do not be surprised!  Its almost surely a "shallow"
+bug... and there's bound to be a few until Simple gets more programmer hours
+under its belt.
+
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21) it to the previous chapter.
 
 # Table of Contents
 
@@ -7,7 +29,7 @@
 2. [Infrastructure](#infrastructure)
 3. [AMD64](#amd64)
    - [REX PREFIX](#rex-prefix)
-   - [LARGE CONSTANT](#large-constants)
+   - [Large constants](#large-constants)
    - [MODR/M](#modrm)
    - [SIB](#sib)
    - [Displacement](#displacement)
@@ -34,17 +56,16 @@
 
 5. [RISCV](#riscv)
    - [Instruction formats](#instruction-formats)
-   - [FLOAT](#float)
+   - [Float](#float)
    - [Indirect](#indirectmemop-2)
-   - [BRANCH](#branch)
+   - [Branch](#branch)
    - [Function Constant](#function-constant)
    - [LUI](#lui)
    - [Large constants](#large-constants)
 
-This chapter will add instruction encodings.
-Instruction encoding refers to the representation of 
-machine instructions in a specific binary format defined by the 
-processor's instruction set architecture (ISA).
+This chapter will add instruction encodings.  Instruction encoding refers to
+the representation of machine instructions in a specific binary format defined
+by the processor's instruction set architecture (ISA).
 
 
 After completing instruction selection, the next step is to encode the 
@@ -53,6 +74,7 @@ instructions before writing them into an ELF object file.
 To avoid ambiguity, we define the sources  of the information we use to encode the instructions:
 
 Currently, we support these architectures:
+
 ### AMD64:
 For *x86-64(amd64):*, we use the latest Intel manual for the [encoding rules](https://www.felixcloutier.com/x86/).
 
@@ -60,10 +82,8 @@ For *x86-64(amd64):*, we use the latest Intel manual for the [encoding rules](ht
 
 For *riscv* we currently target [RVA23U64](https://msyksphinz-self.github.io/riscv-isadoc/html/).
 
-
-
 ### ARMV8/AArch64 :
-For *arm*(aarch64) we use this collection for the [encoding rules](https://docsmirror.github.io/A64/2023-06/index.html).
+For *arm*(aarch64) we use this collection for the [encoding rules](https://docsmirror.github.io/A64/20a23-06/index.html).
 *Note*: We only support 64 bits ARM encodings.
 
 --- 
@@ -73,8 +93,9 @@ For *arm*(aarch64) we use this collection for the [encoding rules](https://docsm
 
 ## Infrastructure
 
-The instruction selection phase creates the machine friendly nodes from ideal nodes.
-These machine friendly nodes define an *encoding* function that is called from the Encoding driver found in CodeGen.
+The instruction selection phase creates the machine friendly nodes from ideal
+nodes.  These machine friendly nodes define an *encoding* function that is
+called from the Encoding driver found in CodeGen.
 
 ```java
 for( CFGNode bb : _code._cfg )
@@ -85,9 +106,11 @@ for( CFGNode bb : _code._cfg )
             _opLen[n._nid] = (byte)(_bits.size()-off);
     }
 ```
-Based on the selected target, we either need to look out for little endian or big endian encodings.
-These are being handled by `add4` which adds to the bit stream in the correct order.
-As of now the bitstream is a simple BAOS stucture.
+
+Based on the selected target, we either need to look out for little endian or
+big endian encodings.  These are being handled by `add4` which adds to the bit
+stream in the correct order.  As of now the bitstream is a simple BAOS
+stucture.
 
 ```java
 @Override public void encoding( Encoding enc ) {
@@ -98,7 +121,10 @@ On *RISC-V*, where the documentation provides big-endian encodings,
 this function also converts them to little-endian. For other architectures, no conversion is necessary.
 
 ## Endianness
-ARM, RISC-V, and x86 are all little-endian architectures in practice, meaning the least significant byte is stored first. We ensure that instruction encodings are generated in little-endian format accordingly.
+
+ARM, RISC-V, and x86 are all little-endian architectures in practice, meaning
+the least significant byte is stored first. We ensure that instruction
+encodings are generated in little-endian format accordingly.
 
 ```java 
 // Little endian write of a 32b opcode
@@ -117,28 +143,37 @@ We append the least significant byte first, then the next byte, and so on.
 _bits.write(op    );
 ```
 
-`_bits.write()` only appends the least significant byte. By shifting the value to the right, we can bring the next byte into the least significant position, allowing us to write each byte in sequence.
+`_bits.write()` only appends the least significant byte.  By shifting the value
+to the right, we can bring the next byte into the least significant position,
+allowing us to write each byte in sequence.
+
 
 ## AMD64
-As opposed to riscv arhitectures, where the instruction width is fixed, *x86-64* has variable width instructions.
-This is common with *CISC(Complex instruction set computer)* architectures, where the instruction width can vary from 1 to 15 bytes.
-Since AMD64 supports many indirect addressing modes, the goal with *CISC* in general is to complete a task in as few lines of assembly as possible.
+
+As opposed to riscv arhitectures, where the instruction width is fixed,
+*x86-64* has variable width instructions.  This is common with *CISC(Complex
+instruction set computer)* architectures, where the instruction width can vary
+from 1 to 15 bytes.  Since AMD64 supports many indirect addressing modes, the
+goal with *CISC* in general is to complete a task in as few lines of assembly
+as possible.
 
 ### REX PREFIX
-Since we are targeting the 64-bit version of x86, we need to handle this prefix. In 32-bit mode, however, it is typically unnecessary.
+
+Since we are targeting the 64-bit version of x86, we need to handle this
+prefix. In 32-bit mode, however, it is typically unnecessary.
 
 Generally speaking the *REX* prefix must be encoded when:
  - using one of the extended registers (R8 to R15, XMM8 to XMM15, YMM8 to YMM15, CR8 to CR15 and DR8 to DR15);
  - using 64-bit operand size and the instruction does not default to 64-bit operand size(most ALU ops)
 
 A *REX* prefix must not be encoded when:
- - using one of the high byte registers AH, CH, BH or DH.
+ - using one of the high byte registers AH, CH, BH or DH (not done currently in Simple)
 
-*Note:* When encoding SSE instruction, the *REX* prefix(0x40) must come after the `SSE`prefix.
-In all other cases, it is ignored.
+*Note:* When encoding SSE instruction, the *REX* prefix(0x40) must come after
+the `SSE`prefix.  In all other cases, it is ignored.
 
-In Simple, the REX prefix is just appended to the beginning of the bit stream(except SEE float instructions).
-The layout is the following:
+In Simple, the REX prefix is just appended to the beginning of the bit stream
+(except SEE float instructions).  The layout is the following:
 
 | **Field** | **Length** | **Description**                                                                 |
 |:---------:|:----------:|---------------------------------------------------------------------------------|
@@ -151,9 +186,8 @@ The layout is the following:
 
 ```java 
     public static int REX_W  = 0x48;
-
-    ...
 ``` 
+
 ```java
 public static int rex(int reg, int ptr, int idx, boolean wide) {
     // assuming 64 bit by default so: 0100 1000
@@ -166,7 +200,6 @@ public static int rex(int reg, int ptr, int idx, boolean wide) {
 
     ... 
     enc.add1(x86_64_v2.rex(dst, src, 0));
-}
 ```
 
 Setting THE `W` bit gives us:
@@ -181,7 +214,7 @@ enc.add1(opcode()); // opcode
 
 | **Field**     | **Length** | **Description**                                                                                                                                                                                                                                                                                                                                                                                                  |
 |:-------------:|:----------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **MODRM.mod** | 2 bits     | In general, when this field is `b11`, then register-direct addressing mode is used; otherwise register-indirect addressing mode is used.                                                                                                                                                                                                                                                                        |
+| **MODRM.mod** | 2 bits     | In general, when this field is `b11`, then register-direct addressing mode is used; otherwise register-indirect addressing mode is used.                                                  
 | **MODRM.reg** | 3 bits     | This field can have one of two values:<br><br>• A 3-bit opcode extension, which is used by some instructions but has no further meaning other than distinguishing the instruction from other instructions.<br><br>• A 3-bit register reference, which can be used as the source or the destination of an instruction (depending on the instruction). The referenced register depends on the operand-size of the instruction and the instruction itself. The `REX.R`, `VEX.~R` or `XOP.~R` field can extend this field with 1 most-significant bit to 4 bits total. |
 | **MODRM.rm**  | 3 bits     | Specifies a direct or indirect register operand, optionally with a displacement. The `REX.B`, `VEX.~B` or `XOP.~B` field can extend this field with 1 most-significant bit to 4 bits total.                                                                                                                                                                                                                     |
 
@@ -194,10 +227,10 @@ The first thing we need for the modrm byte is the 2 bits mod.
 The layout for mod is the following:
 ```
 public enum MOD {
-INDIRECT, //  [mem]
-INDIRECT_disp8, // [mem + 0x12]
-INDIRECT_disp32,// [mem + 0x12345678]
-DIRECT,          // mem
+    INDIRECT,       // [mem]
+    INDIRECT_disp8, // [mem + 0x12]
+    INDIRECT_disp32,// [mem + 0x12345678]
+    DIRECT,         //  mem
 };
 ```
 
@@ -492,7 +525,7 @@ int body = arm.load_pc(0b01011100, 0, dst);
 
 ##### INT: We can use different combinations of movs(movz, movk, movn) - this allows us to avoid PC relative loading.
 
-##### FLOAT: We use the *LDR (immediate, SIMD&FP)* instruction relative to the 
+##### FLOAT: We use the *LDR (immediate, SIMD&FP)* instruction relative to the PC
 
 
 #### Function constant 
@@ -661,7 +694,94 @@ we store the current PC into a register and use that as a base to access the con
 // auipc  t0,0
 // addi   t1,t0 + #0
 ```
+
+
+
 ## Relocation
 
-## Local paches: TBD
+Relocation allows code to be *relocated* to a new code offset.  Code often
+refers to other code and data; `call` instructions target subroutines,
+`branches` target other instructions, large constants are often loaded from a
+`constant pool`.
+
+### Local Relocation
+
+Local relocation patches up local, or self-referential, code; the most common
+form is branch targets.  When writing instructions into the `BAOS` (bit stream)
+forwards branches towards future instructions have an unknown offsert - the
+offset depends on the size of the encodings in between the branch and target.
+For `riscv` and `arm` targets this sounds easy (and instructions are 4 bytes,
+so just count instructions)... except that some encodings use multiple
+instructions so are not actually 4 bytes long.  For X86's wild psuedo-random
+instruction lengths the act of figuring out the opcode length is just as hard
+as writing the opcode in the first place.
+
+Alson X86 adds another wrinkle: short and long form branches.  If a branch
+target lies within a signed byte range (+/-127) X86 will use a 2 byte branch
+encoding, else a 6 byte encoding.  Simple includes a pass to compact these
+branches and use 2 bytes wherever possible - but this pass has to slide code
+around to make space for the extra 4 bytes as needed, which changes all the
+other branch offsets.
+
+Once the code is finally settled into "shape", a local relocation pass is made
+to update all the self-references.  Basically, the branch offsets in the byte
+array get overwritten with the actual values.
+
+At the end of this pass, the code is locally correct at some offset (generally
+0), but this is not the end - code is often *linked* against other code
+generated in other compilations, and again various offsets will need to be
+adjusted.
+
+### Global Relocation
+
+Code in one compilation unit wants to call code in another... this requires a
+*global relocation*.  A common example is a *loader* loading an *ELF* file,
+which mostly happens every time a new program is run, and requires the
+relocation information to be stored to disk (in e.g. the ELF file).  JIT
+systems will neeed to do this as well across different compilations, although
+the relocation information can stay in memory.
+
+#### Getting Relocations to All Agree
+
+Since the relocations can be written to disk, the disk format, loader and "code
+shape" all have to agree.  Suppose we want to call from one compilation unit to
+another - e.g. the program is calling `malloc` from `libc`.  The caller is a
+Simple using a machine-specific version of generic `CallNode` with the target
+being C-compiled code.  During loading, the placement of the `call` and `libc`
+is determined by the loader; the two different blocks of code are written into
+memory in some order (generally with lots of other blocks of code).  Now we
+need to patch the `call`'s target to be `malloc` in the `libc` block of code.
+
+For an X86 external call, the encoding is a 5-byte instruction, one byte of
+opcode and 4 bytes of PC-relative target address.  The needed patch is the
+delta between the X86-specific `call` instruction *end* and the start of
+`malloc`, and is written directly on the last 4 bytes of the `call`.  The
+encoding type in the ELF file has to describe this.
+
+For a RISCV external call, the encoding is 2 4-byte instructions each carrying
+some of the bits.  The `LUI` loads the target upper 20 bits, and then the
+`JALR` adds in the lower 12 bits (32-bit absolute target range).  The `LUI`
+might be replaced with a `AUIPC` to get a 32-bit pc-relative range.  Patching
+here updates 20bits in one instruction and 12bits in another.  Again the ELF
+file encoding type has to describe this; using a X86-style patch here will just
+crush the wrong bits and make a broken program.
+
+#### Large Constants
+
+Large constants are those which cannot be easily directly loaded into a
+register, and instead are loaded from memory.  For security reasons they are
+often kept in a seperate address space with e.g. read-only permissions instead
+of execute permissions.  This means their final address, relative to the code,
+varies according to placement - same as for calls crossing compilation units.
+
+Also large constants can be shared across compilation units (one can imagine
+repeated uses of `pi` in HPC codes); sharing reduces cache footprint.  In any
+case, one the locations of the code and constants are known, the code needs to
+be patched to load at the correct offset.  Like the `call` example above, the
+load instruction variant and patch variant all need to agree.  An X86 might use
+either a 4-byte address or an 8-byte address depending on X86 variant; the
+RISCV probably uses some variant of an `LUI` and a `Load`, with the immediate
+split into 20/12 bits.  Also the RISCV probably wants to "share" the constant
+pool 20 bits in the same `LUI`, but have different loads for different
+constants coming out of the same pool.  
 

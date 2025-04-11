@@ -6,12 +6,13 @@ typedef struct AryInt {
     unsigned char data[];
 } AryInt;
 
+__attribute__ ((CALL_CONV))
 extern AryInt* brain_fuck();
 
 int main() {
   AryInt* ps = brain_fuck();
 
-    printf("%.*s", ps->len, ps->data);
+  printf("%.*s", ps->len, ps->data);
 
   return 0;
 }

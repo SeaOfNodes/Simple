@@ -2,6 +2,7 @@
 #include <stdbool.h>
 
 
+__attribute__ ((CALL_CONV))
 extern int fib(int x);
 
 int main() {

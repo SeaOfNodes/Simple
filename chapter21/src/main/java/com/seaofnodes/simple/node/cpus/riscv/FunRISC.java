@@ -23,14 +23,16 @@ public class FunRISC extends FunNode implements MachNode {
     // |  PAD16 |
     // +--------+
     @Override public void encoding( Encoding enc ) {
-        // Stack frame size: _maxSlot - max(arg), padded to 16.
-        _maxArgSlot = riscv.maxSlot(enc._fun.sig());
-        _frameAdjust = (short) (_maxSlot+1 - _maxArgSlot);
-        if( _frameAdjust == 0 ) return; // Skip if no frame adjust
-        enc.add4(riscv.i_type(riscv.OP_IMM, riscv.SP, 0, riscv.SP, (_frameAdjust*8) & 0xFFF));
+        // Size of local stack frame.
+        // Can be negative if the stack args passed are never referenced
+        int sz = Math.max(_maxSlot - _maxArgSlot,0);
+        sz = ((sz+1) & -2)+1;   // Pad to 16
+        if( _frameAdjust != 0 )
+            enc.add4(riscv.i_type(riscv.OP_IMM, riscv.SP, 0, riscv.SP, (_frameAdjust*-8) & 0xFFF));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p("rsp += #").p(_frameAdjust*8);
+        if( _frameAdjust != 0 )
+            sb.p("rsp += #").p(_frameAdjust*-8);
     }
 }

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFunPtr;
 
 abstract public class Machine {
     // Human readable machine name.  Something like "x86-64" or "arm" or "risc5"
@@ -19,6 +20,9 @@ abstract public class Machine {
     public abstract NeverNode never( CFGNode ctrl );
     // Instruction select from ideal nodes
     public abstract Node instSelect( Node n );
+
+    // Maximum stack slot (or 0) for the args in this TFP.
+    public abstract short maxArgSlot(TypeFunPtr tfp);
 
     // Convert a register to a zero-based stack *slot*, or -1.
     // Stack slots are assumed 8 bytes each.

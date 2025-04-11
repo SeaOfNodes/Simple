@@ -76,7 +76,7 @@ public class NewNode extends Node implements MultiNode {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) { return this == n; }
+    public boolean eq(Node n) { return this == n; }
 
     @Override
     int hash() { return _ptr.hashCode(); }

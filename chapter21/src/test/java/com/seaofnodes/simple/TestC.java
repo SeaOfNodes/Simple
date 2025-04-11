@@ -29,26 +29,42 @@ public abstract class TestC {
     // Compile and run a simple program
     public static void run( String dir, String file, String expected ) throws IOException {
         // Files
-        String cfile = dir+"/"+file+".c"  ;
-        String sfile = dir+"/"+file+".smp";
-        String sofile = "build/objs/"+file+"S.o";
-        String efile = "build/objs/"+file;
+        String  cfile = dir+"/"+file+".c"  ;
+        String  sfile = dir+"/"+file+".smp";
+        String  efile = "build/objs/"+file;
 
         // Compile and export Simple
         String src = Files.readString(Path.of(sfile));
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( CPU_PORT, CALL_CONVENTION).GCM().localSched().regAlloc().encode().exportELF(sofile);
+
+        // On X86, compile both win64 and sys5 variants
+        if( CPU_PORT.equals("x86_64_v2") ) {
+            _run(src,"Win64"  ,"ms_abi"  ,cfile,efile,"W",expected);
+            _run(src,"SystemV","sysv_abi",cfile,efile,"S",expected);
+        } else {
+            _run(src,CALL_CONVENTION,"",cfile,efile,"S",expected);
+        }
+    }
+
+    static void _run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected ) throws IOException {
+        String bin = efile+xtn;
+        String obj = bin+".o";
+        // Compile simple, emit ELF
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( CPU_PORT, simple_conv).GCM().localSched().regAlloc().encode().exportELF(obj);
 
         // Compile the C program
-        var params = new Ary<>(String.class);
-        //if (USE_WSL) params.add("wsl.exe");
-        params.add("gcc");
-        params.add(cfile);
-        params.add(sofile);
-        params.add("-lm");
-        params.add("-g");
-        params.add("-o");
-        params.add(efile);
-        Process gcc = new ProcessBuilder(params.toArray(String[]::new)).redirectErrorStream(true).start();
+        var params = new String[] {
+            //if (USE_WSL) "wsl.exe";
+            "gcc",
+            cfile,
+            obj,
+            "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
+            "-g",
+            "-o",
+            bin,
+            "-D",
+            "CALL_CONV="+c_conv,
+        };
+        Process gcc = new ProcessBuilder(params).redirectErrorStream(true).start();
         byte error;
         try { error = (byte)gcc.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         String result = new String(gcc.getInputStream().readAllBytes());
@@ -60,9 +76,13 @@ public abstract class TestC {
         //assertTrue(result.isEmpty()); // No data in error stream
 
         // Execute results
-        Process smp = new ProcessBuilder(efile).redirectErrorStream(true).start();
+        Process smp = new ProcessBuilder(bin).redirectErrorStream(true).start();
         try { error = (byte)smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(smp.getInputStream().readAllBytes());
+        if( error!=0 ) {
+            System.err.println("exec error code: "+error);
+            System.err.println(result);
+        }
         assertEquals( 0, error );
         assertEquals(expected,result);
     }

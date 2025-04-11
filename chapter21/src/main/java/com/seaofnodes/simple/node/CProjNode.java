@@ -60,7 +60,7 @@ public class CProjNode extends CFGNode {
     }
 
     @Override
-    boolean eq( Node n ) { return _idx == ((CProjNode)n)._idx; }
+    public boolean eq( Node n ) { return _idx == ((CProjNode)n)._idx; }
 
     @Override
     int hash() { return _idx; }
