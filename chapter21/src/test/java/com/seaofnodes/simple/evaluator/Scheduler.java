@@ -248,20 +248,20 @@ public class Scheduler {
             assert data.block != null;
             assert data.users == 0;
 
-            if (data.node instanceof LoadNode l) {
+            if (data.node instanceof MemLoad l) {
                 assert isValid(data);
                 // Handle anti-deps of load nodes.
                 // At this point all anti-dep nodes are scheduled,
                 // but they did not refine the placement
                 // so do that now.
-                var mem = l.in(1);
+                var mem = data.node.in(1);
                 for(var out : mem._outputs) {
                     if (out instanceof PhiNode p) {
                         var r = p.in(0);
                         for (int i = 1; i < p.nIns(); i++) {
                             if (p.in(i) == mem) optionalRefinePlacement(data, r.in(i));
                         }
-                    } else if (!(out instanceof LoadNode)) {
+                    } else if (!(out instanceof MemLoad)) {
                         optionalRefinePlacement(data, out);
                     }
                 }
@@ -277,7 +277,7 @@ public class Scheduler {
                 // Store nodes have anti-deps to load nodes.
                 // So decrease the uses of these loads when the store is placed.
                 for (var out: ((Node)s).in(1)._outputs) {
-                    if (out instanceof LoadNode) od(out).ifPresent(this::decUsers);
+                    if (out instanceof MemLoad) od(out).ifPresent(this::decUsers);
                 }
             }
         }
@@ -478,7 +478,7 @@ public class Scheduler {
             var data = mem.pop();
             node = data.node;
             for(var out:node.in(1)._outputs) {
-                if (out instanceof LoadNode) od(out).ifPresent(d->d.users++);
+                if (out instanceof MemLoad) od(out).ifPresent(d->d.users++);
             }
         }
     }
