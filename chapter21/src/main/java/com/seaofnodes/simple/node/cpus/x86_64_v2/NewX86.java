@@ -27,9 +27,6 @@ public class NewX86 extends NewNode implements MachNode {
     @Override public RegMask killmap() { return x86_64_v2.x86CallerSave(); }
 
     @Override public void encoding( Encoding enc ) {
-        System.err.println("Encoding calloc for "+OS+", arg2="+ARG2+", arg3="+ARG3);
-
-
         enc.external(this,"calloc");
         // This has to call the *native* ABI, irregardless of how Simple is
         // being compiled, because it links against the native calloc.
