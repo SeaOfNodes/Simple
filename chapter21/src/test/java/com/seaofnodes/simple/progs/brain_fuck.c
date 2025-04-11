@@ -6,6 +6,7 @@ typedef struct AryInt {
     unsigned char data[];
 } AryInt;
 
+__attribute__ ((CALL_CONV))
 extern AryInt* brain_fuck();
 
 int main() {

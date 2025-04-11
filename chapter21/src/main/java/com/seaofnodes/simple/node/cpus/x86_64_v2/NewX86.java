@@ -6,14 +6,21 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
 
 public class NewX86 extends NewNode implements MachNode {
+    public static final String OS  = System.getProperty("os.name");
+    public static final RegMask ARG2 = OS.startsWith("Windows")
+        ? x86_64_v2.callWin64(TypeFunPtr.CALLOC,2)
+        : x86_64_v2.callSys5 (TypeFunPtr.CALLOC,2);
+    public static final RegMask ARG3 = OS.startsWith("Windows")
+        ? x86_64_v2.callWin64(TypeFunPtr.CALLOC,3)
+        : x86_64_v2.callSys5 (TypeFunPtr.CALLOC,3);
+
     // A pre-zeroed chunk of memory.
     NewX86( NewNode nnn ) { super(nnn); }
     @Override public String op() { return "alloc"; }
     // Size and pointer result in standard calling convention; null for all the
     // memory aliases edges
     @Override public RegMask regmap(int i) {
-        // Any { int->int } signature will do, as they all pick the same registers
-        return i==1 ? x86_64_v2.callInMask(TypeFunPtr.CALLOC,3) : null;
+        return i==1 ? ARG2 : null;
     }
     @Override public RegMask outregmap(int i) { return i == 1 ? x86_64_v2.RAX_MASK : null; }
     @Override public RegMask outregmap() { return null; }
@@ -21,18 +28,10 @@ public class NewX86 extends NewNode implements MachNode {
 
     @Override public void encoding( Encoding enc ) {
         enc.external(this,"calloc");
-        short r1 = x86_64_v2.callInMask(TypeFunPtr.CALLOC,2).firstReg();
+        // This has to call the *native* ABI, irregardless of how Simple is
+        // being compiled, because it links against the native calloc.
         // ldi rcx,#1 // number of elements to calloc
-        enc.add1(0xB8 + r1).add4(1);
-
-        //enc.add1(x86_64_v2.rex(0, dst, 0));
-        //// opcode; 0x81 or 0x83; 0x69 or 0x6B
-        //enc.add1( opcode() + 2 );
-        //enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, mod(), dst) );
-        //// immediate(4 bytes) 32 bits or (1 byte)8 bits
-        //enc.add1(_imm);
-
-
+        enc.add1(0xB8 + ARG3.firstReg()).add4(1);
         // E8 cd    CALL rel32;
         enc.add1(0xE8);
         enc.add4(0);            // offset

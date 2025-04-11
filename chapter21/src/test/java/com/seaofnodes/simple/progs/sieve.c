@@ -3,9 +3,10 @@
 
 typedef struct AryInt {
   unsigned int len;
-  int data[];
+  unsigned int data[];
 } AryInt;
 
+__attribute__ ((CALL_CONV))
 extern AryInt *sieve(int N);
 
 int main() {

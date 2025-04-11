@@ -141,7 +141,7 @@ public class Chapter21Test {
     }
 
     @Test public void testArgCount() throws IOException {
-        String arg_count = "153.900000\n";
+        String arg_count = "191.000000\n";
         TestC.run("arg_count", arg_count);
     }
 }

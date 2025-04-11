@@ -12,6 +12,7 @@ typedef struct PersonArray {
     Person* data[];
 } PersonArray;
 
+__attribute__ ((CALL_CONV))
 extern void fcn(PersonArray* people, int index);
 
 int main() {
