@@ -312,12 +312,14 @@ public class CodeGen {
     public int _tEncode;
     public boolean _JIT;
     public Encoding _encoding;
+    public void preEncode() {  }  // overridden by M2
     public CodeGen encode(boolean jit) {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
         _encoding = new Encoding(this);
         _JIT = jit;
+        preEncode();
         _encoding.encode();
         _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
