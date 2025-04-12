@@ -12,6 +12,7 @@ import com.seaofnodes.simple.node.*;
 public class LoadRISC extends MemOpRISC {
     public LoadRISC(LoadNode ld, Node base, int off) { super(ld, base, off, null); }
     @Override public String op() { return "ld" +_sz; }
+    @Override public boolean isLoad() { return true; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.MEM_MASK; }
     @Override public void encoding( Encoding enc ) {

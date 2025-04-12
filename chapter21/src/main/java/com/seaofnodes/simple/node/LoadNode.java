@@ -9,7 +9,7 @@ import java.util.BitSet;
  * Load represents extracting a value from inside a memory object,
  * in chapter 10 this means Struct fields.
  */
-public class LoadNode extends MemOpNode implements MemLoad {
+public class LoadNode extends MemOpNode {
 
     /**
      * Load a value from a ptr.field.
@@ -27,6 +27,7 @@ public class LoadNode extends MemOpNode implements MemLoad {
     @Override public String  label() { return "ld_"+mlabel(); }
     // GraphVis node-internal labels
     @Override public String glabel() { return "." +_name; }
+    @Override public boolean isLoad() { return true; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }

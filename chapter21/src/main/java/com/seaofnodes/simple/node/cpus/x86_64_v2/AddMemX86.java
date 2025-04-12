@@ -9,6 +9,7 @@ public class AddMemX86 extends MemOpX86 {
         super(add,ld, base, idx, off, scale, imm, val );
     }
     @Override public String op() { return "add"+_sz; }
+    @Override public boolean isLoad() { return true; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public int twoAddress() { return 4; }
     @Override public void encoding( Encoding enc ) {

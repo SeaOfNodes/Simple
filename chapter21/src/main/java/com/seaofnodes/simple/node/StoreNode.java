@@ -8,7 +8,7 @@ import java.util.BitSet;
  * Store represents setting a value to a memory based object, in chapter 10
  * this means a field inside a struct.
  */
-public class StoreNode extends MemOpNode implements MemStore {
+public class StoreNode extends MemOpNode {
 
     private final boolean _init; // Initializing writes are allowed to write null
 
@@ -29,6 +29,7 @@ public class StoreNode extends MemOpNode implements MemStore {
     // GraphVis node-internal labels
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
+    @Override public boolean isLoad() { return false; }
 
     public Node val() { return in(4); }
 

@@ -10,6 +10,7 @@ public class AddFMemX86 extends MemOpX86 {
         super(add,ld, base, idx, off, scale, 0, val );
     }
     @Override public String op() { return "addf"+_sz; }
+    @Override public boolean isLoad() { return true; }
     @Override public RegMask regmap(int i) {
         if( i==1 ) return null;            // Memory
         if( i==2 ) return x86_64_v2.RMASK; // base

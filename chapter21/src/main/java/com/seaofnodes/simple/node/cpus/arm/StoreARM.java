@@ -21,6 +21,7 @@ public class StoreARM extends MemOpARM {
         super(st, base, idx, off, 0, val);
     }
     @Override public String op() { return "st"+_sz; }
+    @Override public boolean isLoad() { return false; }
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
         if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {

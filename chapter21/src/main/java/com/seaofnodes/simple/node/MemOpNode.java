@@ -52,6 +52,7 @@ public abstract class MemOpNode extends Node {
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
     public Node off() { return in(3); }
+    public abstract boolean isLoad();
 
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }

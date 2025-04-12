@@ -25,6 +25,7 @@ public class LoadX86 extends MemOpX86 {
         short idx = enc.reg(idx());
         enc(enc, _declaredType, dst, ptr, idx, _off, _scale);
     }
+    @Override public boolean isLoad() { return true; }
 
     static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {
         if( decl == TypeFloat.F32) enc.add1(0xF3);
