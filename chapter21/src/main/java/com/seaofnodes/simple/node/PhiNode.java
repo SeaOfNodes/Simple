@@ -80,31 +80,38 @@ public class PhiNode extends Node {
             if( r.in(i)._type == Type.XCONTROL )
                 return null;
 
-        // Pull "down" a common data op.  One less op in the world.  One more
-        // Phi, but Phis do not make code.
-        //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
-        //     op(Phi(A,Q,X), Phi(B,R,Y)).
+        // Generic "pull down op"
         Node op = in(1);
-        if( !isMem() && op.nIns()==3 && op.in(0)==null && same_op() ) {
+        if( same_op() ) {
             assert !(op instanceof CFGNode);
-            Node[] lhss = new Node[nIns()];
-            Node[] rhss = new Node[nIns()];
-            lhss[0] = rhss[0] = in(0); // Set Region
-            for( int i=1; i<nIns(); i++ ) {
-                lhss[i] = in(i).in(1);
-                rhss[i] = in(i).in(2);
+            boolean solo=true;
+            for( int i=1; i<nIns(); i++ )
+                if( in(i).nOuts() > 1 || in(i).in(0)!=null )
+                    { solo=false; break; }
+            if( solo ) {
+                Node cp = op.copy();
+                cp.addDef(null);    // No control
+
+                for( int j=1; j<op.nIns(); j++ ) {
+                    boolean needsPhi = false;
+                    Node x = op.in(j); // Jth input from sample #1
+                    for( int i=2; i<nIns(); i++ )
+                        if( in(i).in(j) != x )
+                            { needsPhi=true; break; }
+                    if( needsPhi ) {
+                        x = new PhiNode(_label,op.in(j)._type.glb());
+                        x.addDef(region());
+                        for( int i=1; i<nIns(); i++ )
+                            x.addDef(in(i).in(j));
+                        x = x.peephole();
+                    }
+                    cp.addDef(x);
+                }
+                // Test not running backwards, which can happen for e.g. And's
+                if( cp.compute().isa(compute()) )
+                    return cp;
+                cp.kill();
             }
-            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
-            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
-            Node down = op.copy(phi_lhs,phi_rhs);
-            // Test not running backwards, which can happen for e.g. And's
-            if( down.compute().isa(compute()) )
-                return down;
-            in(1).in(1).addDep(this);
-            in(1).in(2).addDep(this);
-            in(2).in(1).addDep(this);
-            in(2).in(2).addDep(this);
-            down.kill();
         }
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.

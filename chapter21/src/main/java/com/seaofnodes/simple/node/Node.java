@@ -16,14 +16,14 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node {
+public abstract class Node implements Cloneable {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
      * The ID is useful for debugging, for using as an offset in a bitvector,
      * as well as for computing equality of nodes (to be implemented later).
      */
-    public final int _nid;
+    public int _nid;
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -32,7 +32,7 @@ public abstract class Node {
      * Ordering is required because e.g. "a/b" is different from "b/a".
      * The first input (offset 0) is often a {@link CFGNode} node.
      */
-    public final Ary<Node> _inputs;
+    public Ary<Node> _inputs;
 
     /**
      * Outputs reference Nodes that are not null and have this Node as an
@@ -43,7 +43,7 @@ public abstract class Node {
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
      */
-    public final Ary<Node> _outputs;
+    public Ary<Node> _outputs;
 
 
     /**
@@ -678,6 +678,18 @@ public abstract class Node {
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
+
+    public Node copy() {
+        Node n;
+        try { n = (Node)clone(); }
+        catch( Exception e ) { throw new RuntimeException(e); }
+        n._nid = CODE.getUID(); // allocate unique dense ID
+        n._inputs  = new Ary<>(Node.class);
+        n._outputs = new Ary<>(Node.class);
+        n._deps = null;
+        n._hash = 0;
+        return n;
+    }
 
     // Report any post-optimize errors
     public Parser.ParseException err() { return null; }
