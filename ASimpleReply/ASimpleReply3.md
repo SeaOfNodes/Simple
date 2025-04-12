@@ -34,9 +34,11 @@ foo (o) {
 I added the "throw deopt", which I assume Dadal implies when `x` and `y` are
 none of `Map1, Map2, Map3`.
 
-Dadal then adds: "Here, it's not like any of the type-checks when loading `y`
-could be removed. Well, in some cases, we do things like double-diamond
-elimination to remove some checks, but often it's not possible."
+Dadal then adds: 
+
+> "Here, it's not like any of the type-checks when loading `y` could be
+> removed. Well, in some cases, we do things like double-diamond elimination to
+> remove some checks, but often it's not possible."
 
 C2 sees this kind of pattern fairly often as well; generally replacing `o.map
 == Map1` with `o instanceof Map1`; not that it matters.  C2 uses a "unzipping"
@@ -85,14 +87,17 @@ foo (o) {
 }
 ```
 
-Dadal: "If `bar` isn't inlined, then we have to assume that `bar` could change
-the shape of `o`, and thus a type-check is needed before loading `y`."
+Dadal: 
+
+> "If `bar` isn't inlined, then we have to assume that `bar` could change
+> the shape of `o`, and thus a type-check is needed before loading `y`."
 
 In a similar situation C2 will do the same.  Of course, for sufficiently hot
 `foo` and modest `bar`, inlining is the answer.  This makes me wonder if C2's
 inlininhg budget is substantially higher than V8's.
 
-Dadal: "Oh, and `bar` could be changing the shape of `o` only some times"
+Dadal: 
+> "Oh, and `bar` could be changing the shape of `o` only some times"
 
 In any of these "sometimes Bad Things Happens" situations, C2's go-to answer is
 to register a dependency and deopt if the Bad Thing happens.  The set of Bad
