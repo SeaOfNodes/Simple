@@ -46,6 +46,7 @@ public abstract class TestC {
     }
 
     static void _run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected ) throws IOException {
+        System.err.println("Compiling "+cfile+" on "+OS+" for "+c_conv);
         String bin = efile+xtn;
         String obj = bin+".o";
         // Compile simple, emit ELF

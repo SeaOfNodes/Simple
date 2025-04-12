@@ -21,7 +21,7 @@ import java.util.*;
 public class Encoding {
 
     // Top-level program graph structure
-    final CodeGen _code;
+    public final CodeGen _code;
 
     // Instruction bytes.  The registers are encoded already.  Relocatable data
     // is in a fixed format depending on the kind of relocation.
