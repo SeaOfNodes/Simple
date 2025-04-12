@@ -41,7 +41,7 @@ public class Chapter21Test {
     @Test
     public void testArray1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",7,"return .[];");
+        testCPU(src,"x86_64_v2", "SystemV",4,"return .[];");
         testCPU(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }
