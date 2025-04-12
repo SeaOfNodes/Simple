@@ -65,6 +65,16 @@ public abstract class MemOpNode extends Node {
             throw Utils.TODO("Load or not");
     }
 
+    // Used by M2 when translating graph to Simple
+    public MemOpNode( boolean isLoad ) {
+        super((Node)null);
+        _name         = null;
+        _alias        = 0;
+        _loc          = null;
+        _isLoad       = isLoad;
+        _declaredType = Type.BOTTOM;
+    }
+
     //
     static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
     String mlabel() { return mlabel(_name); }
