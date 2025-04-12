@@ -255,8 +255,8 @@ public abstract class ASMPrinter {
         // MultiNodes are immediately followed by projection(s)
         if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
             for( Node proj : n._outputs ) {
-                assert proj instanceof ProjNode;
-                doInst(iadr,sb,code,fun, cfgidx, proj,postAlloc,postEncode);
+                if( proj instanceof ProjNode ) // it could also be an ante-dep
+                    doInst(iadr,sb,code,fun, cfgidx, proj,postAlloc,postEncode);
             }
         }
 

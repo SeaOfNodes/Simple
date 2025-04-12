@@ -212,7 +212,8 @@ public abstract class IRPrinter {
                 printLine(n,sb);
                 if( !(n instanceof CFGNode) && n instanceof MultiNode )
                     for( Node use : n._outputs )
-                        printLine(use,sb);
+                        if( use instanceof ProjNode )
+                            printLine(use,sb);
             }
         }
 
@@ -282,7 +283,8 @@ public abstract class IRPrinter {
                         printLine( n, sb, bns, i--, ds,ns );
                         if( n instanceof MultiNode && !(n instanceof CFGNode) ) {
                             for( Node use : n._outputs ) {
-                                printLine(use,sb,bns,bns.indexOf(use),ds,ns);
+                                if( use instanceof ProjNode )
+                                    printLine(use,sb,bns,bns.indexOf(use),ds,ns);
                             }
                         }
                     }
