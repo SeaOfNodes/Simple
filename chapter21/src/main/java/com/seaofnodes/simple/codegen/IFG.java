@@ -174,7 +174,7 @@ abstract public class IFG {
             // Look for a must-use single register conflicting with some other must-def.
             if( n instanceof MachNode m ) {
                 RegMask ni_mask = m.regmap(i);
-                if( ni_mask.size1() ) { // Must-use single register
+                if( ni_mask!=null && ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
                         assert tlrg.leader();
