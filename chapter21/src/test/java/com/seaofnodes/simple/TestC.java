@@ -38,15 +38,14 @@ public abstract class TestC {
 
         // On X86, compile both win64 and sys5 variants
         if( CPU_PORT.equals("x86_64_v2") ) {
-            _run(src,"SystemV","sysv_abi",cfile,efile,"S",expected);
             _run(src,"Win64"  ,"ms_abi"  ,cfile,efile,"W",expected);
+            _run(src,"SystemV","sysv_abi",cfile,efile,"S",expected);
         } else {
             _run(src,CALL_CONVENTION,"",cfile,efile,"S",expected);
         }
     }
 
     static void _run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected ) throws IOException {
-        System.err.println("Compiling "+cfile+" on "+OS+" for "+c_conv);
         String bin = efile+xtn;
         String obj = bin+".o";
         // Compile simple, emit ELF

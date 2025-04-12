@@ -19,22 +19,16 @@ public class NewX86 extends NewNode implements MachNode {
     @Override public String op() { return "alloc"; }
     // Size and pointer result in standard calling convention; null for all the
     // memory aliases edges
-    @Override public RegMask regmap(int i) {
-        return i==1 ? ARG2 : null;
-    }
+    @Override public RegMask regmap(int i) { return i==1 ? ARG2 : null; }
     @Override public RegMask outregmap(int i) { return i == 1 ? x86_64_v2.RAX_MASK : null; }
     @Override public RegMask outregmap() { return null; }
     @Override public RegMask killmap() {
         return OS.startsWith("Windows")
             ? x86_64_v2.  WIN64_CALLER_SAVE_MASK
             : x86_64_v2.SYSTEM5_CALLER_SAVE_MASK;
-        //return x86_64_v2.x86CallerSave();
     }
 
     @Override public void encoding( Encoding enc ) {
-
-        System.err.println("OS: "+OS+", arg2="+ARG2+", arg3="+ARG3+", compiled for "+enc._code._callingConv);
-
         enc.external(this,"calloc");
         // This has to call the *native* ABI, regardless of how Simple is
         // being compiled, because it links against the native calloc.
