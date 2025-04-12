@@ -20,14 +20,13 @@ public class LoadNode extends MemOpNode {
      * @param off   The offset inside the struct base
      */
     public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(loc, name, alias, glb, mem, ptr, off);
+        super(loc, name, alias, true, glb, mem, ptr, off);
     }
 
     // GraphVis DOT code (must be valid Java identifiers) and debugger labels
     @Override public String  label() { return "ld_"+mlabel(); }
     // GraphVis node-internal labels
     @Override public String glabel() { return "." +_name; }
-    @Override public boolean isLoad() { return true; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }

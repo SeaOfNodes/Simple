@@ -13,7 +13,6 @@ public class CmpMemX86 extends MemOpX86 {
         _invert = invert;
     }
     @Override public String op() { return ((val()==null && _imm==0) ? "test" : "cmp") + _sz; }
-    @Override public boolean isLoad() { return true; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }
     @Override public void encoding( Encoding enc ) {
         // REX.W + 81 /7 id	CMP r/m64, imm32 | REX.W + 39 /r	CMP r/m64,r64

@@ -9,7 +9,6 @@ public class AddMemX86 extends MemOpX86 {
         super(add,ld, base, idx, off, scale, imm, val );
     }
     @Override public String op() { return "add"+_sz; }
-    @Override public boolean isLoad() { return true; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public int twoAddress() { return 4; }
     @Override public void encoding( Encoding enc ) {
@@ -27,10 +26,9 @@ public class AddMemX86 extends MemOpX86 {
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, dst, enc);
     }
 
-    // General form: "add  dst = src + [base + idx<<2 + 12]"
+    // General form: "add  dst += [base + idx<<2 + 12]"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ");
-        sb.p(val()==null ? "#"+_imm : code.reg(val())).p(" + ");
+        sb.p(code.reg(this)).p(" += ");
         asm_address(code,sb);
     }
 }

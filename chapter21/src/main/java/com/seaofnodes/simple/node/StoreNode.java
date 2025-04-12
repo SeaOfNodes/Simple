@@ -20,7 +20,7 @@ public class StoreNode extends MemOpNode {
      * @param value Value to be stored
      */
     public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(loc, name, alias, glb, mem, ptr, off, value);
+        super(loc, name, alias, false, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -29,7 +29,6 @@ public class StoreNode extends MemOpNode {
     // GraphVis node-internal labels
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
-    @Override public boolean isLoad() { return false; }
 
     public Node val() { return in(4); }
 

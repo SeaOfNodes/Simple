@@ -445,7 +445,7 @@ public class x86_64_v2 extends Machine {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
         if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
-            return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val);
+            return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
 
 //        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3) {
 //            throw Utils.TODO(); // Swap load sides
@@ -453,7 +453,7 @@ public class x86_64_v2 extends Machine {
 
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
-        if( rhs instanceof ConstantNode off && off._con instanceof TypeInteger toff ) {
+        if( rhs instanceof ConstantNode off2 && off2._con instanceof TypeInteger toff ) {
             long imm = toff.value();
             assert imm!=0;        // Folded in peeps
             if( (int)imm != imm ) // Full 64bit immediate
@@ -616,21 +616,25 @@ public class x86_64_v2 extends Machine {
         return new ShrX86(shr);
     }
 
-    private Node st (StoreNode st ){
+    private Node st( StoreNode st ) {
         // Look for "*ptr op= val"
         Node op = st.val();
-        if(op instanceof AddNode) {
-            if(op.in(1) instanceof LoadNode ld &&
-               ld.in(0) == st.in(0) &&
-               ld.mem() == st.mem() &&
-               ld.ptr() == st.ptr() &&
-               ld.off() == st.off()) {
-               return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
-            }
+        if( op instanceof AddNode ) {
+            if( op.in(1) instanceof LoadNode ld && stld_match(st,ld) )
+                return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(2)), val);
+            if( op.in(2) instanceof LoadNode ld && stld_match(st,ld) )
+                return new MemAddX86(address(st), st.ptr(), idx, off, scale, imm(op.in(1)), val);
         }
-
         return new StoreX86(address(st), st.ptr(), idx, off, scale, imm(st.val()), val);
     }
+    private static boolean stld_match(StoreNode st, LoadNode ld ) {
+        return
+            ld.in(0) == st.in(0) &&
+            ld.mem() == st.mem() &&
+            ld.ptr() == st.ptr() &&
+            ld.off() == st.off();
+    }
+
 
     private Node sub (SubNode sub ){
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
@@ -676,7 +680,7 @@ public class x86_64_v2 extends Machine {
         return mop;
     }
 
-    private int imm (Node xval ){
+    private int imm( Node xval ) {
         assert val == null && imm == 0;
         if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
             val = null;

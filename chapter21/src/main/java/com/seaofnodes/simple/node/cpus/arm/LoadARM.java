@@ -12,11 +12,10 @@ import com.seaofnodes.simple.type.TypeFloat;
 // idx  = null
 // off  = off - offset added to base
 
-public class LoadARM extends MemOpARM{
-    LoadARM(LoadNode ld,Node base, Node idx, int off) {
+public class LoadARM extends MemOpARM {
+    LoadARM(LoadNode ld, Node base, Node idx, int off) {
         super(ld, base, idx, off, 0);
     }
-    @Override public boolean isLoad() { return true; }
     @Override public String op() { return "ld"+_sz; }
     @Override public RegMask outregmap() { return arm.MEM_MASK; }
     // ldr(immediate - unsigned offset) | ldr(register)

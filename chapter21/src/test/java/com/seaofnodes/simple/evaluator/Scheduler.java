@@ -248,7 +248,7 @@ public class Scheduler {
             assert data.block != null;
             assert data.users == 0;
 
-            if (data.node instanceof MemOpNode l && l.isLoad()) {
+            if (data.node instanceof MemOpNode l && l._isLoad) {
                 assert isValid(data);
                 // Handle anti-deps of load nodes.
                 // At this point all anti-dep nodes are scheduled,
@@ -261,7 +261,7 @@ public class Scheduler {
                         for (int i = 1; i < p.nIns(); i++) {
                             if (p.in(i) == mem) optionalRefinePlacement(data, r.in(i));
                         }
-                    } else if (!(out instanceof MemOpNode ld && ld.isLoad())) {
+                    } else if (!(out instanceof MemOpNode ld && ld._isLoad)) {
                         optionalRefinePlacement(data, out);
                     }
                 }
@@ -273,11 +273,11 @@ public class Scheduler {
             for(var in:data.node._inputs) {
                 if (in!=null) update(d(in), data.block);
             }
-            if (data.node instanceof MemOpNode s && !s.isLoad()) {
+            if (data.node instanceof MemOpNode s && !s._isLoad) {
                 // Store nodes have anti-deps to load nodes.
                 // So decrease the uses of these loads when the store is placed.
                 for (var out: ((Node)s).in(1)._outputs) {
-                    if (out instanceof MemOpNode ld && ld.isLoad()) od(out).ifPresent(this::decUsers);
+                    if (out instanceof MemOpNode ld && ld._isLoad) od(out).ifPresent(this::decUsers);
                 }
             }
         }
@@ -471,14 +471,14 @@ public class Scheduler {
             } else {
                 for (var in : node._inputs) if (in != null && !(in instanceof CFGNode)) markAlive(dataQueue, in, false);
             }
-            if (node instanceof MemOpNode s && !s.isLoad()) mem.push(data);
+            if (node instanceof MemOpNode s && !s._isLoad) mem.push(data);
         }
         // Handle store nodes and increase load with an anti-dep to the store.
         while (!mem.isEmpty()) {
             var data = mem.pop();
             node = data.node;
             for(var out:node.in(1)._outputs) {
-                if (out instanceof MemOpNode ld && ld.isLoad()) od(out).ifPresent(d->d.users++);
+                if (out instanceof MemOpNode ld && ld._isLoad) od(out).ifPresent(d->d.users++);
             }
         }
     }

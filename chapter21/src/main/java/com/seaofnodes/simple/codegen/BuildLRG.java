@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeMem;
 
@@ -55,8 +54,8 @@ abstract public class BuildLRG {
                         if( n.in(i)!=null ) {
                             LRG lrg2 = alloc.lrg(n.in(i));
                             if( lrg2 != null ) { // Anti-dep or other, no LRG
-                                RegMask use_mask = mach.regmap(i);
-                                if( !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
+                                RegMask use_mask = mach.regmap(i); // use_mask is also null for anti-dep
+                                if( use_mask!=null && !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
                                     alloc.fail(lrg2); // Empty register mask, must split
                             }
                         }

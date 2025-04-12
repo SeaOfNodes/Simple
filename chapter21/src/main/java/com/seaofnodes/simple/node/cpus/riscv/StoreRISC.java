@@ -21,14 +21,13 @@ import com.seaofnodes.simple.node.*;
 public class StoreRISC extends MemOpRISC {
     StoreRISC( StoreNode st, Node base, int off, Node val ) { super(st, base, off, val); }
     @Override public String op() { return "st"+_sz; }
-    @Override public boolean isLoad() { return false; }
     @Override public RegMask regmap(int i) {
         // 0 - ctrl
         if( i==1 ) return null; // mem
         if( i==2 ) return riscv.RMASK; // ptr
         // 2 - index
         if( i==4 ) return riscv.MEM_MASK; // Wide mask to store GPR and FPR
-        throw Utils.TODO();
+        return null; // Anti-dependence
     }
     @Override public RegMask outregmap() { return null; }
 

@@ -11,7 +11,6 @@ public class MemAddX86 extends MemOpX86 {
     @Override public String op() {
         return (_imm == 1 ? "inc" : (_imm == -1 ? "dec" : "add")) + _sz;
     }
-    @Override public boolean isLoad() { return false; }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
