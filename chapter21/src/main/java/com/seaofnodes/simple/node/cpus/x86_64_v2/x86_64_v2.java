@@ -573,7 +573,7 @@ public class x86_64_v2 extends Machine {
         return new CmpX86(bool);
     }
 
-    private Node con(ConstantNode con) {
+    private Node con( ConstantNode con ) {
         if(!con._con.isConstant()) return new ConstantNode(con); // Default unknown caller inputs
         return switch (con._con) {
             case TypeInteger ti -> new IntX86(con);
