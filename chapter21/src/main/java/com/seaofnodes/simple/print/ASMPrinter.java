@@ -64,8 +64,11 @@ public abstract class ASMPrinter {
     }
 
     private static int print(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
-        FunNode old = code._encoding._fun;
-        code._encoding._fun = fun; // Useful printing after RA
+        FunNode old=null;
+        if( code._encoding!=null ) {
+            old = code._encoding._fun;
+            code._encoding._fun = fun; // Useful printing after RA
+        }
         // Function header
         sb.nl().p("---");
         if( fun._name != null ) sb.p(fun._name).p(" ");
@@ -81,7 +84,8 @@ public abstract class ASMPrinter {
         sb.p("---");
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
-        code._encoding._fun = old;
+        if( code._encoding != null )
+            code._encoding._fun = old;
         return iadr;
     }
 
@@ -251,8 +255,8 @@ public abstract class ASMPrinter {
         // MultiNodes are immediately followed by projection(s)
         if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
             for( Node proj : n._outputs ) {
-                assert proj instanceof ProjNode;
-                doInst(iadr,sb,code,fun, cfgidx, proj,postAlloc,postEncode);
+                if( proj instanceof ProjNode ) // it could also be an ante-dep
+                    doInst(iadr,sb,code,fun, cfgidx, proj,postAlloc,postEncode);
             }
         }
 

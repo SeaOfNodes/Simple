@@ -67,6 +67,8 @@ public class SplitX86 extends SplitNode {
 
         // 0x66 if moving between register classes
         if( dstX ^ srcX )  enc.add1(0x66);
+        if( !dstX && srcX )
+            { short tmp=src; src=dst; dst=tmp; }
         enc.add1(x86_64_v2.rex(dst, src, 0));
 
         // pick opcode based on regs
@@ -85,7 +87,6 @@ public class SplitX86 extends SplitNode {
             // xmm->reg(66 0F 7E /r MOVQ r/m64, xmm)
             enc.add1(0x0F);
             enc.add1(0x7E);
-            short tmp=src; src=dst; dst=tmp;
         }
 
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
@@ -93,7 +94,7 @@ public class SplitX86 extends SplitNode {
 
     // General form: "mov  dst = src"
     @Override public void asm(CodeGen code, SB sb) {
-        FunNode fun = code._encoding._fun;
+        FunNode fun = code._encoding==null ? null : code._encoding._fun;
         sb.p(code.reg(this,fun)).p(" = ").p(code.reg(in(1),fun));
     }
 }

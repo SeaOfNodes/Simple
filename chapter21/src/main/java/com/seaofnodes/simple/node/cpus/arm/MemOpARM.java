@@ -44,7 +44,7 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         if( i==2 ) return arm.RMASK; // ptr/base
         if( i==3 ) return arm.RMASK; // off/index
         if( i==4 ) return arm.RMASK; // value
-        throw Utils.TODO();
+        return null; // Anti-dependence
     }
 
     // Shared encoding for loads and stores(int and float)

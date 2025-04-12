@@ -65,11 +65,18 @@ public class MemMergeNode extends Node {
         if( inProgress() ) return null;
 
         // If not merging any memory (all memory is just the default)
-        if( nIns()==2 )
+        if( allDefault() )
             return in(1);       // Become default memory
 
         return null;
     }
+    private boolean allDefault() {
+        for( int i=2; i<nIns(); i++ )
+            if( in(1) != in(i) )
+                return false;
+        return true;
+    }
+
 
     public Node in( Var v ) { return in(v._idx); }
 

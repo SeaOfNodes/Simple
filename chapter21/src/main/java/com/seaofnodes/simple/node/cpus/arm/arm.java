@@ -620,7 +620,7 @@ public class arm extends Machine {
         case AndNode and    -> and(and);
         case BoolNode bool  -> cmp(bool);
         case CallNode call  -> call(call);
-        case CastNode cast  -> new CastNode(cast);
+        case CastNode cast  -> new CastARM(cast);
         case CallEndNode cend -> new CallEndARM(cend);
         case CProjNode c    -> new CProjNode(c);
         case ConstantNode con -> con(con);
@@ -696,7 +696,7 @@ public class arm extends Machine {
             : new SubARM(sub);
     }
 
-    private Node con(ConstantNode con) {
+    private Node con( ConstantNode con ) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
         case TypeInteger ti  -> new IntARM(con);
@@ -705,7 +705,7 @@ public class arm extends Machine {
         case TypeMemPtr tmp -> new ConstantNode(con);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
         };
     }
 

@@ -29,14 +29,14 @@ public class FunX86 extends FunNode implements MachNode {
         int sz = Math.max(_maxSlot - _maxArgSlot,0);
         // If non-leaf function, pad to 16b
         if( _hasCalls ) sz = ((sz+1) & -2)+1;
-        assert x86_64_v2.imm8(sz*8);
         _frameAdjust = (short)sz;
         if( sz == 0 ) return; // Skip if no frame adjust
 
         // opcode: 0x83, addi rsp with immediate 8
-        enc.add1( x86_64_v2.REX_W ).add1( 0x83 );
+        enc.add1( x86_64_v2.REX_W ).add1( x86_64_v2.imm8(sz*8) ? 0x83 : 0x81 );
         enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0b101, x86_64_v2.RSP) );
-        enc.add1(sz*8);
+        if( x86_64_v2.imm8(sz*8) )  enc.add1(sz*8);
+        else                        enc.add4(sz*8);
     }
 
     @Override public void asm(CodeGen code, SB sb) {

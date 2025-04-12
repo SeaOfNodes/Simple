@@ -18,11 +18,12 @@ public class RetX86 extends ReturnNode implements MachNode {
     @Override public RegMask regmap(int i) { return x86_64_v2.retMask(_fun.sig(),i); }
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
-        int frameAdjust = ((FunX86)fun())._frameAdjust;
-        if( frameAdjust > 0 ) {
-            enc.add1( x86_64_v2.REX_W ).add1( 0x83 );
-            enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, x86_64_v2.RSP) );
-            enc.add1(frameAdjust*8);
+        int sz = ((FunX86)fun())._frameAdjust;
+        if( sz != 0 ) {
+            enc.add1( x86_64_v2.REX_W ).add1( x86_64_v2.imm8(sz*8) ? 0x83 : 0x81 );
+            enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0b000, x86_64_v2.RSP) );
+            if( x86_64_v2.imm8(sz*8) )  enc.add1(sz*8);
+            else                        enc.add4(sz*8);
         }
         enc.add1(0xC3);
     }

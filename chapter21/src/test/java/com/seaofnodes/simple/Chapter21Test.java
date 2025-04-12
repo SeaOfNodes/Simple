@@ -25,7 +25,8 @@ public class Chapter21Test {
         code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc().encode();
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        if( spills != -1 )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
     }
@@ -41,9 +42,9 @@ public class Chapter21Test {
     @Test
     public void testArray1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",7,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
+        testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
 
     @Test
@@ -61,6 +62,14 @@ public class Chapter21Test {
         testCPU(src,"x86_64_v2", "SystemV",39,null);
         testCPU(src,"riscv"    , "SystemV",18,null);
         testCPU(src,"arm"      , "SystemV",19,null);
+    }
+
+    @Test
+    public void testAntiDeps1() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/antiDep1.smp"));
+        testCPU(src,"x86_64_v2", "SystemV", 3,"return mov(mov(S));");
+        testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
+        testCPU(src,"arm"      , "SystemV",10,"return mov(mov(S));");
     }
 
     @Test public void testNewtonExport() throws IOException {

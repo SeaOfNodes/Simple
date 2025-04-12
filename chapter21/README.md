@@ -160,11 +160,12 @@ as possible.
 ### REX PREFIX
 
 Since we are targeting the 64-bit version of x86, we need to handle this
-prefix. In 32-bit mode, however, it is typically unnecessary.
+prefix.  In 32-bit mode, however, it is typically unnecessary.
 
 Generally speaking the *REX* prefix must be encoded when:
  - using one of the extended registers (R8 to R15, XMM8 to XMM15, YMM8 to YMM15, CR8 to CR15 and DR8 to DR15);
  - using 64-bit operand size and the instruction does not default to 64-bit operand size(most ALU ops)
+ - using a 8-bit operand with RSI, RDI, RBP
 
 A *REX* prefix must not be encoded when:
  - using one of the high byte registers AH, CH, BH or DH (not done currently in Simple)
@@ -395,8 +396,12 @@ And then a conditional branch that is relying on the flags set by the comparison
 ```
 jne    1159 <square(int)+0x29>
 ``` 
+
+
 We'll see how this differs in ARM and RISCV.
+
 ---
+
 
 ## ARM
 Arm instructions are all 32 bits wide, and are always little-endian.
@@ -665,7 +670,7 @@ We only encode the imm form for the *ALU* operations if they fit into 12 bits.(s
 Otherwise we do an extra load.
 (encode it in instruction)
 ```
- addiw	a5,a5,123
+addiw	a5,a5,123
 ```
 vs
 (do it with extra load):
