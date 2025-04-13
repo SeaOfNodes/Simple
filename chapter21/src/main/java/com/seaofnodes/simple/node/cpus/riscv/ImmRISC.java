@@ -11,7 +11,7 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     ImmRISC( Node add, int imm12, boolean pop ) {
         super(add);
         _imm12 = imm12;
-        // If pop, we are moving from a ideal Node to MachNode; the ideal Node
+        // If pop, we are moving from an ideal Node to MachNode; the ideal Node
         // inputs got copied here, but we are absorbing the immediate into the
         // MachNode and so do not want the constant input.
         if( pop ) _inputs.pop();

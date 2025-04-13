@@ -630,6 +630,7 @@ public class arm extends Machine {
         case IfNode iff     -> jmp(iff);
         case LoadNode ld    -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
+        case MinusNode neg  -> new NegARM(neg);
         case MulFNode mulf  -> new MulFARM(mulf);
         case MulNode mul    -> new MulARM(mul);
         case NewNode nnn    -> new NewARM(nnn);
