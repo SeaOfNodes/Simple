@@ -59,7 +59,6 @@ public class EvalRisc5 {
         int trap = 0;
         long rval = 0;
         int pc = _pc;
-        int counter = 0;
         int cycle = _cycle;
         outer:
         for( int icount = 0; icount < maxops; icount++ ) {
@@ -71,7 +70,6 @@ public class EvalRisc5 {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
             }
-
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;
@@ -97,7 +95,6 @@ public class EvalRisc5 {
                 break;
             }
             case 0x67: { // JALR (0b1100111)
-                counter++;
                 int imm = ir >> 20;
                 // sign extension, check if 12th bit is set
                 int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0);
@@ -286,7 +283,7 @@ public class EvalRisc5 {
                 break;
             }
             default: {
-                if((ir & 0x7f) !=0)  trap = (2+1);
+                trap = (2+1);
             } // Fault: Invalid opcode.
             }
 
