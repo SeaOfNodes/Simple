@@ -1,7 +1,9 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
 
@@ -54,6 +56,11 @@ public class SplitRISC extends SplitNode {
             //fmv.x.d
             enc.add4(riscv.r_type(riscv.OP_FP, dst, 0, src - riscv.F_OFFSET, 0, 0b1110001));
         }
+    }
 
+    // General form: "mov  dst = src"
+    @Override public void asm(CodeGen code, SB sb) {
+        FunNode fun = code._encoding==null ? null : code._encoding._fun;
+        sb.p(code.reg(this,fun)).p(" = ").p(code.reg(in(1),fun));
     }
 }

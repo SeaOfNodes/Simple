@@ -679,9 +679,11 @@ public class arm extends Machine {
         // If/Bool combos will match to a Cmp/Set which sets flags.
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
-        if( !(iff.in(1) instanceof BoolNode) )
-            iff.setDef(1,new BoolNode.EQ(iff.in(1),new ConstantNode(TypeInteger.ZERO)));
-        return new BranchARM(iff, invert(((BoolNode)iff.in(1)).op()));
+        String op = "!=";
+        if( iff.in(1) instanceof BoolNode bool ) op = bool.op();
+        else if( iff.in(1)==null ) op = "=="; // Never-node cutout
+        else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
+        return new BranchARM(iff, op);
     }
 
     private Node add(AddNode add) {

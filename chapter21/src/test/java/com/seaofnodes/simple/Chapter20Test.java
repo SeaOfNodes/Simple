@@ -23,7 +23,7 @@ public class Chapter20Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc();
+        code.driver(CodeGen.Phase.RegAlloc,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 )

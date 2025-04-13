@@ -18,7 +18,7 @@ public abstract class TestRisc5 {
     public static EvalRisc5 build( String dir, String file, int arg ) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( "riscv", "SystemV").GCM().localSched().regAlloc().encode();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,"riscv", "SystemV");
 
         // Image
         byte[] image = new byte[1<<20]; // A megabyte

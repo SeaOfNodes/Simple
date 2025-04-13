@@ -90,6 +90,7 @@ public class PhiNode extends Node {
                     { solo=false; break; }
             if( solo ) {
                 Node cp = op.copy();
+                cp._type = null;    // Fresh type
                 cp.addDef(null);    // No control
 
                 for( int j=1; j<op.nIns(); j++ ) {

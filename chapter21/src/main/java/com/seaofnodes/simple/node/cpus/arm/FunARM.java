@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.MachNode;
 
@@ -27,12 +28,14 @@ public class FunARM  extends FunNode implements MachNode {
         // Can be negative if the stack args passed are never referenced
         int sz = Math.max(_maxSlot - _maxArgSlot,0);
         sz = ((sz+1) & -2)+1;   // Pad to 16
-        if( _frameAdjust != 0 )
-            enc.add4(arm.imm_inst(arm.OPI_ADD, (_frameAdjust*8)&0xFFF, arm.RSP, arm.RSP));
+        _frameAdjust = (short)sz;
+        if( sz == 0 ) return;   // Skip if no frame adjust
+        if( sz*-8 < -1L<<12 ) throw Utils.TODO();
+        enc.add4(arm.imm_inst(arm.OPI_ADD, (_frameAdjust*-8)&0xFFF, arm.RSP, arm.RSP));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
         if( _frameAdjust != 0 )
-            sb.p("rsp += #").p(_frameAdjust*8);
+            sb.p("rsp -= #").p(_frameAdjust*8);
     }
 }

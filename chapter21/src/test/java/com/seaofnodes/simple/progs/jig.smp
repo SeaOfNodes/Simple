@@ -1,0 +1,17 @@
+// -*- mode: java;  -*-
+struct s0 {
+    bool v0;
+    u8 v2;
+    i16 v1;
+    byte v3;
+    int v4;
+    i16 v5;
+    int v6;
+};
+                    while(new s0.v1) {}
+            if(new s0.v6) return new s0.v5;
+                return new s0.v2;
+struct s1 {
+    int v7;
+};
+                while(new s1.v7) arg=new s0.v3;

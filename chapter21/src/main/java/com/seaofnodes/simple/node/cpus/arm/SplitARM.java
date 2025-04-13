@@ -1,7 +1,9 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -54,5 +56,11 @@ public class SplitARM extends SplitNode {
             // FMOV(general) DOUBLE-PRECISION to 64 bits
             enc.add4(arm.f_mov_general(arm.OP_FMOV, 0b01, 0, 0b110, src - arm.D_OFFSET, dst));
         }
+    }
+
+    // General form: "mov  dst = src"
+    @Override public void asm(CodeGen code, SB sb) {
+        FunNode fun = code._encoding==null ? null : code._encoding._fun;
+        sb.p(code.reg(this,fun)).p(" = ").p(code.reg(in(1),fun));
     }
 }

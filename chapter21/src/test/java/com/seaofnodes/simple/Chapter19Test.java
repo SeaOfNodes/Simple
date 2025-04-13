@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,98 +33,98 @@ return 0;
 
     @Test
     public void testBasic0() {
-        CodeGen code = new CodeGen("return 0;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return 0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return 0;", code._stop.toString());
     }
 
     @Test
     public void testBasic1() {
-        CodeGen code = new CodeGen("return arg+1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg+1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (inc,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic2() {
-        CodeGen code = new CodeGen("return -17;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return -17;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return -17;", code._stop.toString());
     }
 
 
     @Test
     public void testBasic3() {
-        CodeGen code = new CodeGen("return arg==1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg==1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (set==,(cmp,arg));", code._stop.toString());
     }
 
     @Test
     public void testBasic4() {
-        CodeGen code = new CodeGen("return arg<<1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg<<1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (shli,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic5() {
-        CodeGen code = new CodeGen("return arg >> 1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg >> 1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (sari,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic6() {
-        CodeGen code = new CodeGen("return arg >>> 1;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg >>> 1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (shri,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic7() {
-        CodeGen code = new CodeGen("return arg / 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg / 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (div,arg,2);", code._stop.toString());
     }
 
     @Test
     public void testBasic8() {
-        CodeGen code = new CodeGen("return arg * 6;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg * 6;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (muli,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic9() {
-        CodeGen code = new CodeGen("return arg & 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg & 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (andi,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic10() {
-        CodeGen code = new CodeGen("return arg | 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg | 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (ori,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic11() {
-        CodeGen code = new CodeGen("return arg ^ 2;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg ^ 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (xori,arg);", code._stop.toString());
     }
 
     @Test
     public void testBasic12() {
-        CodeGen code = new CodeGen("return arg + 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg + 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
     public void testBasic13() {
-        CodeGen code = new CodeGen("return arg - 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg - 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (subf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
     public void testBasic14() {
-        CodeGen code = new CodeGen("return arg * 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg * 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (mulf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
     @Test
     public void testBasic15() {
-        CodeGen code = new CodeGen("return arg / 2.0;").parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen("return arg / 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (mulf,(cvtf,arg),0.5f);", code._stop.toString());
     }
 
@@ -133,7 +134,7 @@ return 0;
 """
 int arg1 =  arg + 1;
 return arg1 / arg;""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (div,(inc,arg),arg);", code._stop.toString());
     }
 
@@ -144,7 +145,7 @@ return arg1 / arg;""");
 int arg1 =  arg + 1;
 return arg1 * arg;
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (mul,(inc,arg),arg);", code._stop.toString());
     }
 
@@ -154,7 +155,7 @@ return arg1 * arg;
 int a = arg;
 return a + 2.0;
 """
-        ).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        ).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
     }
 
@@ -169,7 +170,7 @@ else {
     a = arg-3;
 }
 return a;""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Phi(Region,(addi,arg),(addi,arg));", code.print());
     }
 
@@ -184,7 +185,7 @@ if( arg==1 )
 else
     a=b+1;
 return a+b;""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (add,(add,Phi(Region,(shli,arg),arg),arg),Phi(Region,4,5));", code.print());
     }
 
@@ -196,7 +197,7 @@ int sum=0;
 for( int i=0; i<arg; i++ )
     sum += i;
 return sum;""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(inc,Phi_i))));", code.print());
     }
 
@@ -206,42 +207,42 @@ return sum;""");
 """
 struct S { int a; S? c; };
 return new S;""");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return S;", code.print());
     }
 
     @Test
     public void testLea1() {
         CodeGen code = new CodeGen("int x = arg/3; return arg+x+7;");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2",  "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (lea,arg,(div,arg,3));", code.print());
     }
 
     @Test
     public void testLea2() {
         CodeGen code = new CodeGen("int x = arg/3; return arg+x*4+7;");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (lea,arg,(div,arg,3));", code.print());
     }
 
     @Test
     public void testLea3() {
         CodeGen code = new CodeGen("int x = arg/3; return x*4+arg;");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2",  "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return (lea,arg,(div,arg,3));", code.print());
     }
 
     @Test
     public void testAlloc2() {
         CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return .[];", code.print());
     }
 
     @Test
     public void testAlloc3() {
         CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1]+3;");
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return .[];", code.print());
     }
 
@@ -258,7 +259,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return .[];", code.print());
     }
 
@@ -273,7 +274,7 @@ for( int i=0; i<A#; i++ )
 for( int i=0; i<A#; i++ )
     B[i] += A[i];
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return 0;", code.print());
     }
 
@@ -286,7 +287,7 @@ for( int i=0; i<A#; i++ )
     A[i]++;
 return A[1];
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return .[];", code.print());
     }
 
@@ -294,7 +295,7 @@ return A[1];
     public void testNewton() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
             + "flt farg = arg;  return test_sqrt(farg);";
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
     };
 
@@ -302,7 +303,7 @@ return A[1];
     @Test
     public void sieveOfEratosthenes() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return [u32];", code.print());
         //assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
@@ -315,7 +316,7 @@ return A[1];
 val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun1,int),x); return (shli,Parm_x($fun2,int)); ]", code.print());
     }
 
@@ -326,7 +327,7 @@ return fcn(2)*10 + fcn(3);
 val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched();
+        code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("Stop[ return (add,#2,#2); return (mul,Parm_x(sq,int),x); ]", code.print());
     }
 }

@@ -51,7 +51,7 @@ public class LoopNode extends RegionNode {
             : CodeGen.CODE._mach.never(back()); // Machine never-branch
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
-        setDef(2,t);
+        setDef(2,t);            // True continues loop, False (never) exits loop
         iff._ltree = t._ltree = _ltree;
         ReturnNode ret = fun.ret();
         f._ltree = ret._ltree;

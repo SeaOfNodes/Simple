@@ -16,11 +16,12 @@ public class Simple {
     static final int DUMP_AFTER_PARSE        = 1<<0;
     static final int DUMP_AFTER_OPTO         = 1<<1;
     static final int DUMP_AFTER_TYPE_CHECK   = 1<<2;
-    static final int DUMP_AFTER_INSTR_SELECT = 1<<3;
-    static final int DUMP_AFTER_GCM          = 1<<4;
-    static final int DUMP_AFTER_LOCAL_SCHED  = 1<<5;
-    static final int DUMP_AFTER_REG_ALLOC    = 1<<6;
-    static final int DUMP_AFTER_ENCODE       = 1<<7;
+    static final int DUMP_AFTER_LOOP_TREE    = 1<<3;
+    static final int DUMP_AFTER_INSTR_SELECT = 1<<4;
+    static final int DUMP_AFTER_GCM          = 1<<5;
+    static final int DUMP_AFTER_LOCAL_SCHED  = 1<<6;
+    static final int DUMP_AFTER_REG_ALLOC    = 1<<7;
+    static final int DUMP_AFTER_ENCODE       = 1<<8;
 
     static final int DUMP_FINAL              = 1<<16;
 
@@ -88,12 +89,13 @@ Options:
                     case DUMP_AFTER_PARSE        -> "01-parse.dot";
                     case DUMP_AFTER_OPTO         -> "02-opto.dot";
                     case DUMP_AFTER_TYPE_CHECK   -> "03-type_check.dot";
-                    case DUMP_AFTER_INSTR_SELECT -> "04-instr_select.dot";
-                    case DUMP_AFTER_GCM          -> "05-gcm.dot";
-                    case DUMP_AFTER_LOCAL_SCHED  -> "06-local_sched.dot";
-                    case DUMP_AFTER_REG_ALLOC    -> "07-reg_allos.dot";
-                    case DUMP_AFTER_ENCODE       -> "08-local_sched.dot";
-                    case DUMP_FINAL              -> "09-final.dot";
+                    case DUMP_AFTER_LOOP_TREE    -> "04-loop_tree.dot";
+                    case DUMP_AFTER_INSTR_SELECT -> "05-instr_select.dot";
+                    case DUMP_AFTER_GCM          -> "06-gcm.dot";
+                    case DUMP_AFTER_LOCAL_SCHED  -> "07-local_sched.dot";
+                    case DUMP_AFTER_REG_ALLOC    -> "08-reg_allos.dot";
+                    case DUMP_AFTER_ENCODE       -> "09-local_sched.dot";
+                    case DUMP_FINAL              -> "10-final.dot";
                     default                      -> throw Utils.TODO();
                 };
 
@@ -110,6 +112,7 @@ Options:
                         case DUMP_AFTER_PARSE        -> "After Parse:";
                         case DUMP_AFTER_OPTO         -> "After OPTO:";
                         case DUMP_AFTER_TYPE_CHECK   -> "After Type Check:";
+                        case DUMP_AFTER_LOOP_TREE    -> "After Loop Tree:";
                         case DUMP_AFTER_INSTR_SELECT -> "After Instruction Selection:";
                         case DUMP_AFTER_GCM          -> "After GCM:";
                         case DUMP_AFTER_LOCAL_SCHED  -> "After Local Scheduling:";
@@ -134,6 +137,8 @@ Options:
         System.out.println(String.format("Optimization Time:          %.3f sec", t));
         total += t = code._tTypeCheck / 1e3;
         System.out.println(String.format("Type Checking Time:         %.3f sec", t));
+        total += t = code._tLoopTree / 1e3;
+        System.out.println(String.format("Loop Tree Time:             %.3f sec", t));
         total += t = code._tInsSel / 1e3;
         System.out.println(String.format("Instruction Selection Time: %.3f sec", t));
         total += t = code._tGCM / 1e3;
@@ -180,6 +185,7 @@ loop:   for (int i = 0; i < args.length; i++) {
                     case "--dump-after-parse":        dump |= DUMP_AFTER_PARSE; break;
                     case "--dump-after-opto":         dump |= DUMP_AFTER_OPTO; break;
                     case "--dump-after-type-check":   dump |= DUMP_AFTER_TYPE_CHECK; break;
+                    case "--dump-after-loop-tree":    dump |= DUMP_AFTER_LOOP_TREE; break;
                     case "--dump-after-instr-select": dump |= DUMP_AFTER_INSTR_SELECT; break;
                     case "--dump-after-gcm":          dump |= DUMP_AFTER_GCM; break;
                     case "--dump-after-local-sched":  dump |= DUMP_AFTER_LOCAL_SCHED; break;
@@ -249,6 +255,9 @@ loop:   for (int i = 0; i < args.length; i++) {
 
         code.typeCheck();
         dump(code, dump, DUMP_AFTER_TYPE_CHECK);
+
+        code.loopTree();
+        dump(code, dump, DUMP_AFTER_LOOP_TREE);
 
         if (do_codegen) {
             code.instSelect(PORTS, cpu, abi);

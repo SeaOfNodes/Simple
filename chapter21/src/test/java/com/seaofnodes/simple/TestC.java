@@ -49,7 +49,7 @@ public abstract class TestC {
         String bin = efile+xtn;
         String obj = bin+".o";
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( CPU_PORT, simple_conv).GCM().localSched().regAlloc().encode().exportELF(obj);
+        CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
 
         // Compile the C program
         var params = new String[] {

@@ -57,7 +57,7 @@ public abstract class CFGNode extends Node {
 
     // Used by the encoding / final BB layout
     public CFGNode uctrlSkipEmpty() {
-        CFGNode x = this, y=null;
+        CFGNode x = this, y;
         while( x.nOuts() == 1 && (y=x.uctrl())!=null ) // Skip empty blocks
             x = y;
         return x;

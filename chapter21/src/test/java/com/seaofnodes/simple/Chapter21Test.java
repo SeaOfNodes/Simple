@@ -13,16 +13,15 @@ import static org.junit.Assert.*;
 public class Chapter21Test {
 
     @Test
-    public void testJig() {
-        CodeGen code = new CodeGen("return 0;");
-        code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  2));
+    public void testJig() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",1,null);
+        testCPU(src,"riscv"    , "SystemV",1,null);
+        testCPU(src,"arm"      , "SystemV",1,null);
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc().encode();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 )
