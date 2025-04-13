@@ -45,7 +45,7 @@ public class EvalRisc5 {
 
     // PC
     int _pc;
-
+    private int _heapPtr = 0;
     // Cycle counters
     int _cycle;
 
@@ -59,8 +59,8 @@ public class EvalRisc5 {
         int trap = 0;
         long rval = 0;
         int pc = _pc;
+        int counter = 0;
         int cycle = _cycle;
-
         outer:
         for( int icount = 0; icount < maxops; icount++ ) {
             int ir = 0;
@@ -71,12 +71,15 @@ public class EvalRisc5 {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
             }
+
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;
             }
 
+            // load from buffer instruction at pc
             ir = ld4s( pc );
+            // bits 11:7
             int rdid = (ir >> 7) & 0x1f;
 
             switch( ir & 0x7f ) {
@@ -94,14 +97,46 @@ public class EvalRisc5 {
                 break;
             }
             case 0x67: { // JALR (0b1100111)
+                counter++;
                 int imm = ir >> 20;
+                // sign extension, check if 12th bit is set
                 int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0);
                 rval = pc + 4;
+                // t =pc+4; pc=(x[rs1]+sext(offset))&∼1; x[rd]=t
                 pc = ( ((int)regs[ (ir >> 15) & 0x1f ] + imm_se) & ~1) - 4;
                 // Return from top-level ; exit sim
                 if( pc+4==0 ) {
                     if( rdid!=0 ) regs[rdid] = rval;
                     break outer;
+                }
+                // pick up calloc(rd = rpc, rs1 = a2)
+                int rs1id = (ir >> 15) & 0x1f;
+                if(rdid == 1 && rs1id == 12 && regs[10] == 1) {
+                    // Calloc
+                    int size = (int)regs[11];
+
+                    if( size < 0 ) {
+                        trap = 1 + 1; // Calloc size is negative.
+                        break;
+                    }
+
+                    if( size == 0 ) {
+                        regs[rdid] = 0;
+                        break;
+                    }
+                    _heapPtr = pc;
+                    // size stored in a0
+                    if(_heapPtr + size > _buf.length) {
+                        trap = 1 + 1; // Calloc size is too large.
+                        break;
+                    }
+                    for (int i = 0; i < size; i++) {
+                        _buf[pc + i] = 0;
+                    }
+
+                    _heapPtr += size;
+                    regs[rdid] = rval;
+                    pc += size;
                 }
                 break;
             }
@@ -250,7 +285,9 @@ public class EvalRisc5 {
                 }
                 break;
             }
-            default: trap = (2+1); // Fault: Invalid opcode.
+            default: {
+                if((ir & 0x7f) !=0)  trap = (2+1);
+            } // Fault: Invalid opcode.
             }
 
             // If there was a trap, do NOT allow register writeback.

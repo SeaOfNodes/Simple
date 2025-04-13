@@ -21,7 +21,7 @@ public abstract class TestRisc5 {
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( "riscv", "SystemV").GCM().localSched().regAlloc().encode();
 
         // Image
-        byte[] image = new byte[1<<20]; // A megabyte
+        byte[] image = new byte[1<<20]; // A megabyte(1000 000 bytes)
         EvalRisc5 R5 = new EvalRisc5(image);
         // Code at offset 0
         System.arraycopy(code._encoding.bits(), 0, image, 0, code._encoding.bits().length);

@@ -101,8 +101,20 @@ public class Chapter21Test {
     @Test public void testSieve() throws IOException {
         String primes = "25[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, ]";
         TestC.run("sieve",primes);
-    }
 
+        EvalRisc5 R5 = TestRisc5.build("sieve", 4);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        // Return register A0 holds sieve(4)==25
+
+        int array_offset = (int)R5.regs[riscv.A0];
+        // Memory layout starting at array_offset(length,pad, prime1, primt2, prime3, prime4)
+
+        assertEquals(2, R5.ld4s(array_offset + 4 + 0*4));
+        assertEquals(3, R5.ld4s(array_offset + 4 + 1*4));
+        assertEquals(5, R5.ld4s(array_offset + 4 + 2*4));
+        assertEquals(7, R5.ld4s(array_offset + 4 + 3*4));
+    }
     @Test public void testFibExport() throws IOException {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib);
