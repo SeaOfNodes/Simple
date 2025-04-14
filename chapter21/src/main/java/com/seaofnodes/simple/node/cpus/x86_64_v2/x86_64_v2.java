@@ -316,7 +316,12 @@ public class x86_64_v2 extends Machine {
         (1L<<FLAGS)|           // Flags are killed
         // Only XMM0-XMM5 are killed; XMM6-XMM15 are preserved
         (1L<<XMM0) | (1L<<XMM1) | (1L<<XMM2) | (1L<<XMM3) |
-        (1L<<XMM4) | (1L<<XMM5);
+        (1L<<XMM4) | (1L<<XMM5) |
+        // Shadow arg space is killed by caller: 1st 4 stack slots past RPC
+        (1L<<(MAX_REG+1))  |
+        (1L<<(MAX_REG+2))  |
+        (1L<<(MAX_REG+3))  |
+        (1L<<(MAX_REG+4))  ;
     static final RegMask WIN64_CALLER_SAVE_MASK = new RegMask(WIN64_CALLER_SAVE);
 
     static RegMask x86CallerSave() {
