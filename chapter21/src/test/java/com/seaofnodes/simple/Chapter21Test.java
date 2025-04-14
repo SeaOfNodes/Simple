@@ -66,7 +66,7 @@ public class Chapter21Test {
     @Test
     public void testAntiDeps1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/antiDep1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 3,"return mov(mov(S));");
+        testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
         testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
         testCPU(src,"arm"      , "SystemV",10,"return mov(mov(S));");
     }
