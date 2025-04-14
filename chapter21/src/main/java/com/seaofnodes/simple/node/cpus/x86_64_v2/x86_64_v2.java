@@ -5,8 +5,6 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
-import java.io.ByteArrayOutputStream;
-
 public class x86_64_v2 extends Machine {
     public x86_64_v2( CodeGen code ) {}
     // X86-64 V2.  Includes e.g. SSE4.2 and POPCNT.
@@ -79,7 +77,7 @@ public class x86_64_v2 extends Machine {
         case ">"  -> 0x8F;
         case "<"  -> 0x8C;
         case "<=" -> 0x8E;
-        case ">=" -> 0X8D;
+        case ">=" -> 0x8D;
         default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
@@ -117,14 +115,6 @@ public class x86_64_v2 extends Machine {
         if( 8 <= ptr ) rex |= 0b00000001; // REX.B
         if( 8 <= idx ) rex |= 0b00000010; // REX.X
         return rex;
-    }
-
-    // return the size of the immediate
-    public static int imm_size(long imm) {
-        if(imm8(imm)) return 8;
-        if(imm16(imm)) return 16;
-        if(imm32(imm)) return 32;
-        return 64;
     }
 
     public static int rex(int reg, int ptr, int idx) {
@@ -417,41 +407,43 @@ public class x86_64_v2 extends Machine {
     @Override
     public Node instSelect(Node n) {
         return switch (n) {
-        case AddFNode addf -> addf(addf);
-        case AddNode add -> add(add);
-        case AndNode and -> and(and);
-        case BoolNode bool -> cmp(bool);
+        case AddFNode    addf -> addf(addf);
+        case AddNode      add -> add(add);
+        case AndNode      and -> and(and);
+        case BoolNode    bool -> cmp(bool);
+        case CProjNode      c -> new CProjNode(c);
         case CallEndNode cend -> new CallEndX86(cend);
-        case CallNode call -> call(call);
-        case CastNode cast -> new CastX86(cast);
-        case CProjNode c -> new CProjNode(c);
+        case CallNode    call -> call(call);
+        case CastNode    cast -> new CastX86(cast);
         case ConstantNode con -> con(con);
-        case DivFNode divf -> new DivFX86(divf);
-        case DivNode div -> new DivX86(div);
-        case FunNode fun -> new FunX86(fun);
-        case IfNode iff -> jmp(iff);
-        case LoadNode ld -> ld(ld);
+        case DivFNode    divf -> new DivFX86(divf);
+        case DivNode      div -> new DivX86(div);
+        case FunNode      fun -> new FunX86(fun);
+        case IfNode       iff -> jmp(iff);
+        case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
-        case MulFNode mulf -> new MulFX86(mulf);
-        case MulNode mul -> mul(mul);
-        case NewNode nnn -> new NewX86(nnn);
-        case NotNode not -> new NotX86(not);
-        case OrNode or -> or(or);
-        case ParmNode parm -> new ParmX86(parm);
-        case PhiNode phi -> new PhiNode(phi);
-        case ProjNode prj -> prj(prj);
-        case ReadOnlyNode read -> new ReadOnlyNode(read);
-        case ReturnNode ret -> new RetX86(ret, ret.fun());
-        case SarNode sar -> sar(sar);
-        case ShlNode shl -> shl(shl);
-        case ShrNode shr -> shr(shr);
-        case StartNode start -> new StartNode(start);
-        case StopNode stop -> new StopNode(stop);
-        case StoreNode st -> st(st);
-        case SubFNode subf -> new SubFX86(subf);
-        case SubNode sub -> sub(sub);
-        case ToFloatNode tfn -> i2f8(tfn);
-        case XorNode xor -> xor(xor);
+        case MinusNode    neg -> new NegX86(neg);
+        case MulFNode    mulf -> new MulFX86(mulf);
+        case MulNode      mul -> mul(mul);
+        case NewNode      nnn -> new NewX86(nnn);
+        case NotNode      not -> new NotX86(not);
+        case OrNode        or -> or(or);
+        case ParmNode    parm -> new ParmX86(parm);
+        case PhiNode      phi -> new PhiNode(phi);
+        case ProjNode     prj -> prj(prj);
+        case ReadOnlyNode read-> new ReadOnlyNode(read);
+        case ReturnNode   ret -> new RetX86(ret, ret.fun());
+        case SarNode      sar -> sar(sar);
+        case ShlNode      shl -> shl(shl);
+        case ShrNode      shr -> shr(shr);
+        case StartNode  start -> new StartNode(start);
+        case StopNode    stop -> new StopNode(stop);
+        case StoreNode     st -> st(st);
+        case SubFNode    subf -> new SubFX86(subf);
+        case SubNode      sub -> sub(sub);
+        case ToFloatNode  tfn -> i2f8(tfn);
+        case XCtrlNode      x -> new ConstantNode(Type.XCONTROL);
+        case XorNode      xor -> xor(xor);
 
         case LoopNode loop -> new LoopNode(loop);
         case RegionNode region -> new RegionNode(region);
@@ -460,7 +452,7 @@ public class x86_64_v2 extends Machine {
     }
 
     public static boolean imm8( long imm ) { return -128 <= imm && imm <= 127; }
-    public static boolean imm16(long imm) {return -32768 <= imm && imm <= 32767; }
+
     public static boolean imm32( long imm ) { return (int)imm==imm; }
 
     // Attempt a full LEA-style break down.
@@ -595,10 +587,11 @@ public class x86_64_v2 extends Machine {
         // If/Bool combos will match to a Cmp/Set which sets flags.
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
-        BoolNode bool;
-        if( iff.in(1) instanceof BoolNode bool0 ) bool = bool0;
-        else iff.setDef(1, bool=new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
-        return new JmpX86(iff, bool.op());
+        String op = "!=";
+        if( iff.in(1) instanceof BoolNode bool ) op = bool.op();
+        else if( iff.in(1)==null ) op = "=="; // Never-node cutout
+        else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
+        return new JmpX86(iff, op);
     }
 
     private Node ld(LoadNode ld) {

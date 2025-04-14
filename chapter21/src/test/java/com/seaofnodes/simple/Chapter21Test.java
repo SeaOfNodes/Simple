@@ -12,17 +12,16 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
-    @Test
-    public void testJig() {
-        CodeGen code = new CodeGen("return 0;");
-        code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return 0;", code._stop.toString());
-        assertEquals("0", Eval2.eval(code,  2));
+    @Test @Ignore
+    public void testJig() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",-1,null);
+        testCPU(src,"riscv"    , "SystemV",-1,null);
+        testCPU(src,"arm"      , "SystemV",-1,null);
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(cpu,os).GCM().localSched().regAlloc().encode();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 )
@@ -99,22 +98,29 @@ public class Chapter21Test {
     @Test public void testStringExport() throws IOException { TestC.run("stringHash"); }
 
     @Test public void testSieve() throws IOException {
-        String primes = "25[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, ]";
-        TestC.run("sieve",primes);
+        // The primes
+        int[] primes = new int[] { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, };
+        SB sb = new SB().p(primes.length).p("[");
+        for( int prime : primes )
+            sb.p(prime).p(", ");
+        String sprimes = sb.p("]").toString();
 
-        EvalRisc5 R5 = TestRisc5.build("sieve", 4);
-        int trap = R5.step(100);
+        // Compile, link against native C; expect the above string of primes to be printed out by C
+        TestC.run("sieve",sprimes);
+
+        // Evaluate on RISC5 emulator; expect return of a array of primes in
+        // the simulated heap.
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100);
+        int trap = R5.step(10000);
         assertEquals(0,trap);
-        // Return register A0 holds sieve(4)==25
-
-        int array_offset = (int)R5.regs[riscv.A0];
-        // Memory layout starting at array_offset(length,pad, prime1, primt2, prime3, prime4)
-
-        assertEquals(2, R5.ld4s(array_offset + 4 + 0*4));
-        assertEquals(3, R5.ld4s(array_offset + 4 + 1*4));
-        assertEquals(5, R5.ld4s(array_offset + 4 + 2*4));
-        assertEquals(7, R5.ld4s(array_offset + 4 + 3*4));
+        // Return register A0 holds sieve(100)
+        int ary = (int)R5.regs[riscv.A0];
+        // Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
+        assertEquals(primes.length, R5.ld4s(ary));
+        for( int i=0; i<primes.length; i++ )
+            assertEquals(primes[i], R5.ld4s(ary + 4 + i*4));
     }
+
     @Test public void testFibExport() throws IOException {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib);

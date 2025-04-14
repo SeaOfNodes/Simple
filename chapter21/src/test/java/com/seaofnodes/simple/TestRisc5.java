@@ -18,17 +18,13 @@ public abstract class TestRisc5 {
     public static EvalRisc5 build( String dir, String file, int arg ) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().instSelect( "riscv", "SystemV").GCM().localSched().regAlloc().encode();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.RegAlloc,"riscv", "SystemV").encode(true);
 
         // Image
-        byte[] image = new byte[1<<20]; // A megabyte(1000 000 bytes)
-        EvalRisc5 R5 = new EvalRisc5(image);
+        byte[] image = new byte[1<<20]; // A megabyte (1024*1024 bytes)
+        EvalRisc5 R5 = new EvalRisc5(image, 1<<16);
         // Code at offset 0
         System.arraycopy(code._encoding.bits(), 0, image, 0, code._encoding.bits().length);
-        // Program start
-        R5._pc = 0;
-        // Stack starts at 64K and goes down (runs into code)
-        R5.regs[riscv.SP] = 1<<16;
         // Initial incoming int arg
         R5.regs[riscv.A0] = arg;
         // malloc memory starts at 64K and goes up

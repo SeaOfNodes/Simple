@@ -40,6 +40,7 @@ public class FunX86 extends FunNode implements MachNode {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p("rsp -= #").p(_frameAdjust*8);
+        if( _frameAdjust!=0 )
+            sb.p("rsp -= #").p(_frameAdjust*8);
     }
 }

@@ -8,23 +8,34 @@
  * Load code into memory and go!
  */
 
-public class EvalRisc5 {
+import com.seaofnodes.simple.codegen.Encoding;
+
+import java.util.Arrays;
+
+ public class EvalRisc5 {
 
     // Memory image, always 0-based
     public final byte[] _buf;
 
-    EvalRisc5( byte[] buf ) { _buf=buf; }
+    // GPRs
+    final long[] regs;
 
-    //#ifndef MINIRV32_CUSTOM_MEMORY_BUS
-    //  #define MINIRV32_STORE4( ofs, val ) *(int*)(_buf + ofs) = val
-    //  #define MINIRV32_STORE2( ofs, val ) *(uint16_t*)(_buf + ofs) = val
-    //  #define MINIRV32_STORE1( ofs, val ) *(uint8_t*)(_buf + ofs) = val
-    //  #define MINIRV32_LOAD4( ofs ) *(int*)(_buf + ofs)
-    //  #define MINIRV32_LOAD2( ofs ) *(uint16_t*)(_buf + ofs)
-    //  #define MINIRV32_LOAD1( ofs ) *(uint8_t*)(_buf + ofs)
-    //  #define MINIRV32_LOAD2_SIGNED( ofs ) *(int16_t*)(_buf + ofs)
-    //  #define MINIRV32_LOAD1_SIGNED( ofs ) *(int8_t*)(_buf + ofs)
-    //#endif
+    // PC
+    int _pc;
+
+    // Start of free memory for allocation
+    int _heap;
+
+    // Cycle counters
+    int _cycle;
+
+    EvalRisc5( byte[] buf, int stackSize ) {
+        _buf = buf;
+        regs = new long[32];
+        // Stack grows down, heap grows up
+        regs[2/*RSP*/] = _heap = stackSize;
+        _pc = 0;
+    }
 
     // Little endian
     public int  ld1s(int x) { return _buf[x  ]     ; }
@@ -39,16 +50,6 @@ public class EvalRisc5 {
     public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
     public void st8(int x, long val) { st4(x,(int)val); st2(x+4,(int)(val>>32)); }
 
-
-    // GPRs
-    final long[] regs = new long[32];
-
-    // PC
-    int _pc;
-    private int _heapPtr = 0;
-    // Cycle counters
-    int _cycle;
-
     // Note: only a few bits are used.  (Machine = 3, User = 0)
     // Bits 0..1 = privilege.
     // Bit 2 = WFI (Wait for interrupt)
@@ -60,6 +61,7 @@ public class EvalRisc5 {
         long rval = 0;
         int pc = _pc;
         int cycle = _cycle;
+
         outer:
         for( int icount = 0; icount < maxops; icount++ ) {
             int ir = 0;
@@ -75,9 +77,8 @@ public class EvalRisc5 {
                 break;
             }
 
-            // load from buffer instruction at pc
+            // Load instruction from image buffer at PC
             ir = ld4s( pc );
-            // bits 11:7
             int rdid = (ir >> 7) & 0x1f;
 
             switch( ir & 0x7f ) {
@@ -96,44 +97,23 @@ public class EvalRisc5 {
             }
             case 0x67: { // JALR (0b1100111)
                 int imm = ir >> 20;
-                // sign extension, check if 12th bit is set
+
                 int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0);
                 rval = pc + 4;
-                // t =pc+4; pc=(x[rs1]+sext(offset))&∼1; x[rd]=t
                 pc = ( ((int)regs[ (ir >> 15) & 0x1f ] + imm_se) & ~1) - 4;
                 // Return from top-level ; exit sim
                 if( pc+4==0 ) {
-                    if( rdid!=0 ) regs[rdid] = rval;
+                    if( rdid!=0 ) regs[rdid] = rval; // Write PC into register before exit
                     break outer;
                 }
-                // pick up calloc(rd = rpc, rs1 = a2)
-                int rs1id = (ir >> 15) & 0x1f;
-                if(rdid == 1 && rs1id == 12 && regs[10] == 1) {
-                    // Calloc
-                    int size = (int)regs[11];
-
-                    if( size < 0 ) {
-                        trap = 1 + 1; // Calloc size is negative.
-                        break;
-                    }
-
-                    if( size == 0 ) {
-                        regs[rdid] = 0;
-                        break;
-                    }
-                    _heapPtr = pc;
-                    // size stored in a0
-                    if(_heapPtr + size > _buf.length) {
-                        trap = 1 + 1; // Calloc size is too large.
-                        break;
-                    }
-                    for (int i = 0; i < size; i++) {
-                        _buf[pc + i] = 0;
-                    }
-
-                    _heapPtr += size;
-                    regs[rdid] = rval;
-                    pc += size;
+                // Inline CALLOC effect
+                if( pc == Encoding.SENTINAL_CALLOC ) {
+                    int size = (int)(regs[10]*regs[11]);
+                    regs[10] = _heap; // Return next free address
+                    // Pre-zeroed; epsilon (null) collector, never recycles memory so always zero
+                    // Arrays.fill(_buf,_heap,_heap+size, (byte) 0 );
+                    _heap += size;
+                    pc = (int)(rval - 4); // Unwind PC, as-if returned from calloc
                 }
                 break;
             }
@@ -174,6 +154,7 @@ public class EvalRisc5 {
                     case 3: rval = ld8 ( rsval ); break;
                     case 4: rval = ld1z( rsval ); break;
                     case 5: rval = ld2z( rsval ); break;
+                    case 6: rval = ld4s( rsval ); break;
                     default: trap = (2+1);
                     }
                 }
@@ -282,9 +263,7 @@ public class EvalRisc5 {
                 }
                 break;
             }
-            default: {
-                trap = (2+1);
-            } // Fault: Invalid opcode.
+            default: trap = (2+1); // Fault: Invalid opcode.
             }
 
             // If there was a trap, do NOT allow register writeback.

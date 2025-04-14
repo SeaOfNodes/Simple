@@ -33,6 +33,7 @@ public class SetX86 extends MachConcreteNode implements MachNode {
             case "==" -> 0x94;  // SETE
             case "<"  -> _unsigned ? 0x92 : 0x9C;  // SETB /SETL
             case "<=" -> _unsigned ? 0x96 : 0x9E;  // SETBE/SETLE
+            case ">=" -> _unsigned ? 0x93 : 0x9D;  // SETAE/SETGE
             default -> throw Utils.TODO();
             });
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, dst));
