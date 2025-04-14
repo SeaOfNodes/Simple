@@ -153,7 +153,7 @@ public class Encoding {
         _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));
     }
 
-    void encode() {
+    void encode(boolean jit) {
         // Basic block layout: invert branches to keep blocks in-order; insert
         // unconditional jumps.  Attempt to keep backwards branches taken,
         // forwards not-taken (this is the default prediction on most
@@ -171,6 +171,9 @@ public class Encoding {
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
 
+        // If JIT'ing (in memory execution), patch the global relocations now
+        if( jit )
+            patchGlobalRelocations();
     }
 
     // Basic block layout: invert branches to keep blocks in-order; insert
@@ -416,9 +419,26 @@ public class Encoding {
     void patchLocalRelocations() {
         // Walk the local code-address relocations
         for( Node src : _internals.keySet() ) {
+            int start  = _opStart[src._nid];
             Node dst =  _internals.get(src);
             int target = _opStart[dst._nid];
+            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+        }
+    }
+
+    // A series of libc/external calls that Simple can link against in a JIT.
+    // Since no runtime in the JVM process, using magic numbers for the CPU
+    // emulators to pick up on.
+    public static int SENTINAL_CALLOC = -2;
+
+    void patchGlobalRelocations() {
+        for( Node src : _externals.keySet() ) {
             int start  = _opStart[src._nid];
+            String dst =  _externals.get(src);
+            int target = switch( dst ) {
+            case "calloc" -> SENTINAL_CALLOC;
+            default -> throw Utils.TODO();
+            };
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
         }
     }

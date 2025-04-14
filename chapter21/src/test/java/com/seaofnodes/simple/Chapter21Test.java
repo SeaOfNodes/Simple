@@ -98,8 +98,27 @@ public class Chapter21Test {
     @Test public void testStringExport() throws IOException { TestC.run("stringHash"); }
 
     @Test public void testSieve() throws IOException {
-        String primes = "25[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, ]";
-        TestC.run("sieve",primes);
+        // The primes
+        int[] primes = new int[] { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, };
+        SB sb = new SB().p(primes.length).p("[");
+        for( int prime : primes )
+            sb.p(prime).p(", ");
+        String sprimes = sb.p("]").toString();
+
+        // Compile, link against native C; expect the above string of primes to be printed out by C
+        TestC.run("sieve",sprimes);
+
+        // Evaluate on RISC5 emulator; expect return of a array of primes in
+        // the simulated heap.
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100);
+        int trap = R5.step(10000);
+        assertEquals(0,trap);
+        // Return register A0 holds sieve(100)
+        int ary = (int)R5.regs[riscv.A0];
+        // Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
+        assertEquals(primes.length, R5.ld4s(ary));
+        for( int i=0; i<primes.length; i++ )
+            assertEquals(primes[i], R5.ld4s(ary + 4 + i*4));
     }
 
     @Test public void testFibExport() throws IOException {

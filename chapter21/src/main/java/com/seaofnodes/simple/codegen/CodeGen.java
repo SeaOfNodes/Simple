@@ -343,25 +343,19 @@ public class CodeGen {
     // ---------------------------
     // Encoding
     public int _tEncode;
-    public boolean _JIT;
-    public Encoding _encoding;
-    public void preEncode() {  }  // overridden by M2
+    public Encoding _encoding;   // Encoding object
+    public void preEncode() {  } // overridden by alternative ports
     public CodeGen encode(boolean jit) {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
         _encoding = new Encoding(this);
-        _JIT = jit;
         preEncode();
-        _encoding.encode();
+        _encoding.encode(jit);
         _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
     }
-    public CodeGen encode() {
-        return encode(false);
-    }
-    // Encoded binary, no relocation info
-    public byte[] binary() { return _encoding.bits(); }
+    public CodeGen encode() { return encode(false); }
 
     // ---------------------------
     // Exporting to external formats
