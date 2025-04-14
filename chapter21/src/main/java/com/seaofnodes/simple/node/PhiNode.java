@@ -81,39 +81,9 @@ public class PhiNode extends Node {
                 return null;
 
         // Generic "pull down op"
-        Node op = in(1);
-        if( same_op() ) {
-            assert !(op instanceof CFGNode);
-            boolean solo=true;
-            for( int i=1; i<nIns(); i++ )
-                if( in(i).nOuts() > 1 || in(i).in(0)!=null )
-                    { solo=false; break; }
-            if( solo ) {
-                Node cp = op.copy();
-                cp._type = null;    // Fresh type
-                cp.addDef(null);    // No control
-
-                for( int j=1; j<op.nIns(); j++ ) {
-                    boolean needsPhi = false;
-                    Node x = op.in(j); // Jth input from sample #1
-                    for( int i=2; i<nIns(); i++ )
-                        if( in(i).in(j) != x )
-                            { needsPhi=true; break; }
-                    if( needsPhi ) {
-                        x = new PhiNode(_label,op.in(j)._type.glb());
-                        x.addDef(region());
-                        for( int i=1; i<nIns(); i++ )
-                            x.addDef(in(i).in(j));
-                        x = x.peephole();
-                    }
-                    cp.addDef(x);
-                }
-                // Test not running backwards, which can happen for e.g. And's
-                if( cp.compute().isa(compute()) )
-                    return cp;
-                cp.kill();
-            }
-        }
+        Node progress;
+        if( same_op() && (progress = drop_same_op()) != null )
+            return progress;
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
@@ -144,11 +114,48 @@ public class PhiNode extends Node {
         return null;
     }
 
+    // Same op on all Phi paths; all ops have only the Phi as a use.
+    // None have a control input.
     private boolean same_op() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1).getClass() != in(i).getClass() )
+        for( int i=1; i<nIns(); i++ ) {
+            Node op = in(i);
+            if( in(1).getClass() != op.getClass() || op.in(0)!=null )
+                return false;      // Wrong class or CFG bound
+            if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
+                for( Node out : op._outputs ) if( out!=null ) out.addDep(this);
                 return false;
+            }
+        }
         return true;
+    }
+
+    private Node drop_same_op() {
+        assert !(in(1) instanceof CFGNode);
+        Node op = in(1);
+        Node cp = op.copy();
+        cp._type = null;    // Fresh type
+        cp.addDef(null);    // No control
+
+        for( int j=1; j<op.nIns(); j++ ) {
+            boolean needsPhi = false;
+            Node x = op.in(j); // Jth input from sample #1
+            for( int i=2; i<nIns(); i++ )
+                if( in(i).in(j) != x )
+                    { needsPhi=true; break; }
+            if( needsPhi ) {
+                x = new PhiNode(_label,op.in(j)._type.glb());
+                x.addDef(region());
+                for( int i=1; i<nIns(); i++ )
+                    x.addDef(in(i).in(j));
+                x = x.peephole();
+            }
+            cp.addDef(x);
+        }
+        // Test not running backwards, which can happen for e.g. And's
+        if( cp.compute().isa(compute()) )
+            return cp;
+        cp.kill();
+        return null;
     }
 
     /**
