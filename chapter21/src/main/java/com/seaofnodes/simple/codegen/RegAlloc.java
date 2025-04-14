@@ -172,14 +172,9 @@ public class RegAlloc {
 
     public void regAlloc() {
         // Insert callee-save registers
-        FunNode lastFun=null;
-        for( CFGNode bb : _code._cfg ) {
+        for( CFGNode bb : _code._cfg )
             if( bb instanceof FunNode fun )
-                insertCalleeSave(lastFun=fun);
-            // Leaf routine, or not?
-            // X86 requires 16b RSP aligned if NOT leaf
-            if( bb instanceof CallNode ) lastFun._hasCalls = true;
-        }
+                insertCalleeSave(fun);
 
         // Top driver: repeated rounds of coloring and splitting.
         byte round=0;
