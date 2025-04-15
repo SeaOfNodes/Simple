@@ -53,12 +53,16 @@ public class StoreX86 extends MemOpX86 {
 
     // Non-immediate encoding
     static void encVal( Encoding enc, Type decl, short ptr, short idx, short src, int off, int scale ) {
-        if( decl instanceof TypeFloat ) {
+        int log = decl.log_size();
+        // Float reg being stored
+        if( src >= x86_64_v2.XMM_OFFSET ) {
             src -= (short)x86_64_v2.XMM_OFFSET;
-            enc.add1( decl==TypeFloat.F32 ? 0xF3 : 0xF2 ).add1(0x0F).add1(0x11);
+            assert log == 2 || log == 3;
+            enc.add1( log==2 ? 0xF3 : 0xF2 );
+            x86_64_v2.rexF(src,ptr,idx,false,enc);
+            enc.add1(0x0F).add1(0x11);
         } else {
             // byte stores from sil, dil, bpl, spl need a rex
-            int log = decl.log_size();
             if( log == 0 && src >= x86_64_v2.RSP ) enc.add1(x86_64_v2.rex(src,ptr,idx,false));
             else x86_64_v2.rexF(src,ptr,idx,log==3,enc);
             switch( log ) {

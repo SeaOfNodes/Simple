@@ -15,7 +15,7 @@ public class Chapter21Test {
     @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",-1,null);
+        testCPU(src,"x86_64_v2", "Win64",-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
@@ -38,6 +38,13 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
 
+    @Test public void testInfinite() {
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
+        testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
+        testCPU(src,"riscv"    , "SystemV",2,"return Top;");
+        testCPU(src,"arm"      , "SystemV",2,"return Top;");
+    }
+
     @Test
     public void testArray1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
@@ -58,7 +65,7 @@ public class Chapter21Test {
     public void testNewtonFloat() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
             + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
-        testCPU(src,"x86_64_v2", "SystemV",39,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,39,null);
         testCPU(src,"riscv"    , "SystemV",18,null);
         testCPU(src,"arm"      , "SystemV",19,null);
     }
@@ -66,10 +73,20 @@ public class Chapter21Test {
     @Test
     public void testAntiDeps1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/antiDep1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 3,"return mov(mov(S));");
+        testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
         testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
         testCPU(src,"arm"      , "SystemV",10,"return mov(mov(S));");
     }
+
+    @Test
+    public void testString() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
+        testCPU(src,"arm"      , "SystemV", 6,null);
+    }
+
+    @Test public void testStringExport() throws IOException { TestC.run("stringHash"); }
 
     @Test public void testNewtonExport() throws IOException {
         String result = """
@@ -92,16 +109,6 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(2.0,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
     }
-
-    @Test
-    public void testString() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV", 5,null);
-        testCPU(src,"arm"      , "SystemV", 6,null);
-    }
-
-    @Test public void testStringExport() throws IOException { TestC.run("stringHash"); }
 
     @Test public void testSieve() throws IOException {
         // The primes

@@ -19,8 +19,6 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        // Last call input is AUIPC
-        if( i == nIns()-1 ) return riscv.RMASK;
         return riscv.callInMask(_tfp,i);
     }
     @Override public RegMask outregmap() { return riscv.RPC_MASK; }

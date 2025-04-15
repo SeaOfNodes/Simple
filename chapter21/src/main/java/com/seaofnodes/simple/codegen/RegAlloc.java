@@ -51,29 +51,6 @@ public class RegAlloc {
     //   - If color fails:
     //   - - Split uncolorable LRGs
 
-    // RA gives all registers a number, starting at 0.  Stack slots continue
-    // this numbering going up from the last register number.  Common register
-    // numbers are 0-15 for GPRs, 16-31 for FPRs, 32 for flags, and stack slots
-    // starting at register#33 going up.  These numbers are machine-specific,
-    // YMMV, etc; e.g. RPC is only in stack slot 0 on X86; other cpus start
-    // with the rpc in a register which may spill into any generic spill slot.
-
-    // For ease of reading & printing, stack slots start again at slot#0 - but
-    // during RA they are actually biased by CPU.MAX_REG.
-
-    // Stack Layout during Reg Alloc:
-    //
-    // Stack
-    // Num   -- Caller ------
-    // N+1   argN
-    //       ...
-    // 1     arg0
-    // -------- Callee -------
-    // 0     RPC
-    // N+M   PAD
-    // N+    Spills
-    // N+2   Spills
-
     // Top-level program graph structure
     final CodeGen _code;
 
@@ -160,11 +137,11 @@ public class RegAlloc {
         // No register yet, use LRG
         if( lrg._reg == -1 ) return "V"+lrg._lrg;
         // Chosen machine register unless stack-slot and past RA
-        int slot = _code._mach.stackSlot(lrg._reg);
-        if( slot == -1 || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || fun==null )
-            return _code._mach.reg(lrg._reg);
+        String[] regs = _code._mach.regs();
+        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || fun==null )
+            return RegMask.reg(regs,lrg._reg);
         // Stack-slot past RA uses the frame layout logic
-        return "[rsp+"+fun.computeStackSlot(slot)*8+"]";
+        return "[rsp+"+fun.computeStackOffset(_code,lrg._reg)+"]";
     }
 
     // -----------------------
@@ -172,13 +149,23 @@ public class RegAlloc {
 
     public void regAlloc() {
         // Insert callee-save registers
-        FunNode lastFun=null;
+        String[] regs = _code._mach.regs();
+        long neverSave= _code._mach.neverSave();
+        for( CFGNode bb : _code._cfg )
+            if( bb instanceof FunNode fun ) {
+                ReturnNode ret = fun.ret();
+                int len = Math.min(regs.length,64);
+                for( int reg=0; reg<len; reg++ )
+                    if( !_code._callerSave.test(reg) && ((1L<<reg)&neverSave)==0 ) {
+                        ret.addDef(new CalleeSaveNode(fun,reg,regs[reg]));
+                        assert ret.regmap(ret.nIns()-1).firstReg()==reg;
+                    }
+            }
+        // Cache reg masks for New and Call
         for( CFGNode bb : _code._cfg ) {
-            if( bb instanceof FunNode fun )
-                insertCalleeSave(lastFun=fun);
-            // Leaf routine, or not?
-            // X86 requires 16b RSP aligned if NOT leaf
-            if( bb instanceof CallNode ) lastFun._hasCalls = true;
+            if( bb instanceof CallEndNode cend ) cend.cacheRegs(_code);
+            for( Node n : bb._outputs )
+                if( n instanceof NewNode nnn ) nnn.cacheRegs(_code);
         }
 
         // Top driver: repeated rounds of coloring and splitting.
@@ -208,20 +195,6 @@ public class RegAlloc {
             // Color attempt
             IFG.color(round,this);      // If colorable
     }
-
-    // Insert callee-save registers.  Walk the callee-save RegMask ignoring any
-    // Parms, then insert a Parm and an edge from the Ret to the Parm with the
-    // callee-save register.
-    private void insertCalleeSave( FunNode fun ) {
-        RegMask saves = _code._mach.calleeSave();
-        ReturnNode ret = fun.ret();
-
-        for( short reg = saves.firstReg(); reg != -1; reg = saves.nextReg(reg) ) {
-            ret.addDef(new CalleeSaveNode(fun,reg,_code._mach.reg(reg)));
-            assert ((MachNode)ret).regmap(ret.nIns()-1).firstReg()==reg;
-        }
-    }
-
 
     // -----------------------
     // Split conflicted live ranges.
@@ -570,22 +543,26 @@ public class RegAlloc {
     // -----------------------
     // POST PASS: Remove empty spills that biased-coloring made
     private void postColor() {
-        int maxSlot = -1;
+        int maxReg = -1;
         for( CFGNode bb : _code._cfg ) { // For all ops
-            if( bb instanceof FunNode fun ) {
-                fun._maxArgSlot = _code._mach.maxArgSlot(fun.sig());
-                maxSlot = -1;   // Reset for new function
-            }
-            if( bb instanceof ReturnNode ret ) // Capture max seen
-                ret.fun()._maxSlot = (short)maxSlot;
+            if( bb instanceof FunNode fun )
+                maxReg = -1;   // Reset for new function
+            // Compute frame size, based on arguments and largest reg seen
+            if( bb instanceof ReturnNode ret )
+                ret.fun().computeFrameAdjust(_code,maxReg);
+            // Raise frame size by max stack args passed, even if ignored
+            if( bb instanceof CallEndNode cend )
+                maxReg = Math.max(maxReg,cend._xslot);
+
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);
-                if( lrg(n)!=null ) {
-                    int slot = _code._mach.stackSlot(lrg(n)._reg);
-                    maxSlot = Math.max(maxSlot,slot+1);
-                }
+                if( lrg(n)!=null )
+                    maxReg = Math.max(maxReg,lrg(n)._reg+1);
+                // Raise frame size by max stack args passed to New
+                if( n instanceof NewNode nnn )
+                    maxReg = Math.max(maxReg,nnn._xslot);
 
-                if( !(n instanceof SplitNode lo) ) continue;
+                if( !(n instanceof SplitNode ) ) continue;
                 int defreg = lrg(n     )._reg;
                 int usereg = lrg(n.in(1))._reg;
                 // Attempt to bypass split

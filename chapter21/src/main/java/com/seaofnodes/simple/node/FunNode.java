@@ -1,10 +1,13 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
-
 import java.util.BitSet;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
@@ -163,36 +166,51 @@ public class FunNode extends RegionNode {
     }
 
 
-    // | CALLER |
-    // |        |
-    // | argN+1 | // slot 1, callER +32
-    // | argN   | // slot 0, callER +24
-    // +--------+ // OLD FRAME
-    // |  PAD   | // Alignment pad  +16
-    // | callee | // slot 3, callEE + 8
-    // | callee | // slot 2, callEE + 0
-    // +--------+ // RSP
-
-    // TODO: lower this field into a generic FunMachNode.
-    // Replace all FunXXX variants with FunMachNode.
+    // ------------
+    // MachNode specifics, shared across all CPUs
 
     // Function may call other functions?  X86 requires 16b aligned SP on
     // outbound calls, but not leaf.  Set during an unrelated RA scan.
     public boolean _hasCalls;
 
-    // One more than largest spill slot, set during RA postcolor.
-    public short _maxSlot = -1;
-    // Max argument slot, set during early Encoding.
-    public short _maxArgSlot = -1;
+    // Maximum incoming argument slot, based on function type
+    public int _maxArgSlot;
+
     // Frame adjust, including padding, set during early Encoding
-    public short _frameAdjust;
+    public int _frameAdjust;
 
-
-    // Convert a stack slot, based on the frame, into an offset.  Stack layout
-    // is the same for all CPUs; X86 will pre-spill the RPC.
-    public final int computeStackSlot(int slotN) {
-        return slotN < _maxArgSlot
-            ? slotN + _frameAdjust
-            : slotN - _maxArgSlot;
+    public String op() { return _frameAdjust==0 ? "entry" : "subi"; }
+    public void postSelect(CodeGen code) {
+        code.link(this);
+        // Max slot seen past space reserved for incoming arguments
+        _maxArgSlot = code._mach.maxArgSlot(sig());
     }
+    public RegMask regmap(int i) { return null; }
+    public RegMask outregmap() { return null; }
+    public void encoding( Encoding enc ) { throw Utils.TODO();  }
+    public void asm(CodeGen code, SB sb) {
+        if( _frameAdjust!=0 )
+            sb.p("rsp -= #").p(_frameAdjust);
+    }
+
+    public void computeFrameAdjust(CodeGen code, int maxReg) {
+        // Max slot seen, or 0.
+        int maxSlot = Math.max(maxReg - code._mach.regs().length,_maxArgSlot);
+        // Frame adjust before rounding, can be negative for no spills
+        int size = maxSlot - _maxArgSlot;
+        _frameAdjust = size*8;
+    }
+
+    // Given a high register number and during encoding compute the stack
+    // pointer offset.  Pre-RA we lack the fun._frameAdjust.  We also need a
+    // FunNode.
+    public int computeStackOffset(CodeGen code, int reg) {
+        String[] regs = code._mach.regs();
+        int stackSlot = reg - regs.length;
+        int slotRotate = stackSlot < _maxArgSlot
+            ? stackSlot + (_frameAdjust>>3)
+            : stackSlot - _maxArgSlot;
+        return slotRotate*8;
+    }
+
 }

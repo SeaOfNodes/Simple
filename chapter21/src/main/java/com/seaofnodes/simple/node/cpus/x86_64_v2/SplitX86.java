@@ -51,12 +51,12 @@ public class SplitX86 extends SplitNode {
         if( dst >= x86_64_v2.MAX_REG ) {
             if( src >= x86_64_v2.MAX_REG )
                 throw Utils.TODO(); // Very rare stack-stack move
-            int off = enc._fun.computeStackSlot(dst - x86_64_v2.MAX_REG)*8;
+            int off = enc._fun.computeStackOffset(enc._code,dst);
             StoreX86.encVal(enc, srcX ? TypeFloat.F64 : TypeInteger.BOT, (short)x86_64_v2.RSP, (short)-1/*index*/, src, off, 0);
             return;
         }
         if( src >= x86_64_v2.MAX_REG ) {
-            int off = enc._fun.computeStackSlot(src - x86_64_v2.MAX_REG)*8;
+            int off = enc._fun.computeStackOffset(enc._code,src);
             LoadX86.enc(enc, dstX ? TypeFloat.F64 : TypeInteger.BOT, dst, (short)x86_64_v2.RSP, (short)-1, off, 0);
             return;
         }

@@ -110,13 +110,17 @@ public class RegMask {
         Machine mach = CodeGen.CODE._mach;
         if( _bits0==0 && _bits1==0 ) return sb.p("[]");
         sb.p("[");
+        String[] regs = mach.regs();
         for( int i=0; i<64; i++ )
             if( ((_bits0 >> i)&1) != 0 )
-                sb.p(mach.reg(i)).p(",");
+                sb.p(reg(regs,i)).p(",");
         for( int i=0; i<64; i++ )
             if( ((_bits1 >> i)&1) != 0 )
-                sb.p(mach.reg(i+64)).p(",");
+                sb.p(reg(regs,i+64)).p(",");
         return sb.unchar().p("]");
     }
-}
 
+    public static String reg(String[] regs, int i) {
+        return i<regs.length ? regs[i] : "[stk#"+i+"]";
+    }
+}

@@ -24,18 +24,18 @@ public class SplitRISC extends SplitNode {
             if( src >= riscv.MAX_REG ) {
                 throw Utils.TODO(); // Very rare stack-stack move
             }
-            int off = enc._fun.computeStackSlot(dst - riscv.MAX_REG)*8;
+            int off = enc._fun.computeStackOffset(enc._code,dst);
             int op = srcX ? riscv.OP_STOREFP : riscv.OP_STORE;
             if( srcX ) src -= riscv.F_OFFSET;
-            enc.add4(riscv.s_type(op, 0b011, riscv.SP, src, off));
+            enc.add4(riscv.s_type(op, 0b011, riscv.RSP, src, off));
             return;
         }
         if( src >= riscv.MAX_REG ) {
             // Load from SP
-            int off = enc._fun.computeStackSlot(src - riscv.MAX_REG)*8;
+            int off = enc._fun.computeStackOffset(enc._code,src);
             int op = dstX ? riscv.OP_LOADFP : riscv.OP_LOAD;
             if( dstX ) dst -= riscv.F_OFFSET;
-            enc.add4(riscv.i_type(op, dst, 0b011, riscv.SP, off));
+            enc.add4(riscv.i_type(op, dst, 0b011, riscv.RSP, off));
             return;
         }
         // pick opcode based on regs
