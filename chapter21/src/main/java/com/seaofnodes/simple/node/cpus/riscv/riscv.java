@@ -13,18 +13,19 @@ public class riscv extends Machine {
     }
 
     @Override public String name() {return "riscv";}
+    //@Override public int maxReg() { return MAX_REG; }
 
     // Using ABI names instead of register names
-    public static int ZERO =  0,  RPC=  1,  SP =  2,  S12=  3,  S13=  4,  T0 =  5,  T1 =  6,  T2 =  7;
+    public static int ZERO =  0,  RPC=  1,  RSP=  2,  S12=  3,  S13=  4,  T0 =  5,  T1 =  6,  T2 =  7;
     public static int S0   =  8,  S1 =  9,  A0 = 10,  A1 = 11,  A2 = 12,  A3 = 13,  A4 = 14,  A5 = 15;
     public static int A6   = 16,  A7 = 17,  S2 = 18,  S3 = 19,  S4 = 20,  S5 = 21,  S6 = 22,  S7 = 23;
     public static int S8   = 24,  S9 = 25,  S10= 26,  S11= 27,  T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
-    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
-    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
-    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
+    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7  = 39;
+    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5 = 47;
+    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7 = 55;
+    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, F8  = 60,  F9  = 61,  F10 = 62,  F11 = 63;
 
     static final int MAX_REG = 64;
 
@@ -40,12 +41,13 @@ public class riscv extends Machine {
             "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
             "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
+    @Override public String[] regs() { return REGS; }
 
     // General purpose register mask: pointers and ints, not floats
     static final long RD_BITS = 0b11111111111111111111111111111111L; // All the GPRs
     static final RegMask RMASK = new RegMask(RD_BITS);
 
-    static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and SP
+    static final long WR_BITS = 0b11111111111111111111111111111010L; // All the GPRs, minus ZERO and RSP
     static final RegMask WMASK = new RegMask(WR_BITS);
     // Float mask from(f0-ft10).  TODO: ft10,ft11 needs a larger RegMask
     static final long FP_BITS = 0b11111111111111111111111111111111L<<F0;
@@ -92,14 +94,14 @@ public class riscv extends Machine {
     };
 
     static RegMask[] XMMS = new RegMask[] {
-            FA0_MASK,
-            FA1_MASK,
-            FA2_MASK,
-            FA3_MASK,
-            FA4_MASK,
-            FA5_MASK,
-            FA6_MASK,
-            FA7_MASK
+        FA0_MASK,
+        FA1_MASK,
+        FA2_MASK,
+        FA3_MASK,
+        FA4_MASK,
+        FA5_MASK,
+        FA6_MASK,
+        FA7_MASK
     };
 
     // major opcode: OP
@@ -241,6 +243,7 @@ public class riscv extends Machine {
         };
     }
 
+    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx ) { return callInMask(tfp,idx); }
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
@@ -258,88 +261,41 @@ public class riscv extends Machine {
             if( idx-2-fcnt < cargs.length )
                 return cargs[idx-2-fcnt];
         }
-        throw Utils.TODO(); // Pass on stack slot
+        // Pass on stack slot(8 and higher)
+        return new RegMask(MAX_REG + 1 + (idx - 2));
     }
 
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
-        // Count floats in signature up to index
-        int fcnt=0;
-        for( int i=0; i<tfp.nargs(); i++ )
-            if( tfp.arg(i) instanceof TypeFloat )
-                fcnt++;
-        if( fcnt >= XMMS.length )
-            throw Utils.TODO();
-        RegMask[] cargs = CALLINMASK;
-        if( tfp.nargs()-fcnt >= cargs.length )
-            throw Utils.TODO();
-        return 0;               // No stack args
-    }
-
-    // callee saved(riscv)
-    static final long CALLEE_SAVE =
-        (1L<< S0) | (1L<< S1) | (1L<< S2 ) | (1L<< S3 ) |
-        (1L<< S4) | (1L<< S5) | (1L<< S6 ) | (1L<< S7 ) |
-        (1L<< S8) | (1L<< S9) | (1L<< S10) | (1L<< S11) |
-        (1L<<S12) | (1L<<S13) |
-        (1L<<FS0) | (1L<<FS1) | (1L<<FS2 ) | (1L<<FS3 ) |
-        (1L<<FS4) | (1L<<FS5) | (1L<<FS6 ) | (1L<<FS7 ) |
-        (1L<<FS8) | (1L<<FS9) | (1L<<FS10) | (1L<<FS11);
-
-    static final RegMask CALLER_SAVE_MASK;
-    static {
-        long caller = ~CALLEE_SAVE;
-        caller &= ~(1L<<SP);
-        CALLER_SAVE_MASK = new RegMask(caller,0);
-    }
-    static RegMask riscCallerSave() { return CALLER_SAVE_MASK; }
-    @Override public RegMask callerSave() { return riscCallerSave(); }
-
-    static final RegMask CALLEE_SAVE_MASK = new RegMask(CALLEE_SAVE);
-    static RegMask riscCalleeSave() { return CALLEE_SAVE_MASK; }
-    @Override public RegMask calleeSave() { return riscCalleeSave(); }
-
-    // Return single int/ptr register.  Used by CallEnd output and Return input.
-    static final RegMask[] RET_MASKS;
-    static {
-        int nSaves = CALLEE_SAVE_MASK.size();
-        RET_MASKS = new RegMask[4 + nSaves];
-        RET_MASKS[0] = null;
-        RET_MASKS[1] = null;     // Memory
-        RET_MASKS[2] = null;     // Varies, either XMM0 or RAX
-        RET_MASKS[3] = RMASK;    // Expected R1 but could be any register really
-        short reg = CALLEE_SAVE_MASK.firstReg();
-        for( int i=0; i<nSaves; i++ ) {
-            RET_MASKS[i+4] = new RegMask(reg);
-            reg = CALLEE_SAVE_MASK.nextReg(reg);
+        int icnt=0, fcnt=0;     // Count of ints, floats
+        for( int i=0; i<tfp.nargs(); i++ ) {
+            if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
+            else icnt++;
         }
-    }
-    static RegMask retMask( TypeFunPtr tfp, int i ) {
-        return i==2
-            ? (tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK)
-            : RET_MASKS[i];
+        int nstk = Math.max(icnt-8,0)+Math.max(fcnt-8,0);
+        return (short)nstk;
     }
 
-    @Override public String reg( int reg ) {
-        return reg < REGS.length ? REGS[reg] : "[stk#"+(reg-REGS.length)+"]";
-    }
+    static final long CALLER_SAVE =
+        (1L<<RPC) |
+        (1L<<A0 ) | (1L<<A1 ) | (1L<<A2 ) | (1L<<A3 ) | (1L<<A4 ) | (1L<<A5 ) | (1L<<A6 ) | (1L<<A7 ) |
+        (1L<<T0 ) | (1L<<T1 ) | (1L<<T2 ) | (1L<<T3 ) | (1L<<T4 ) | (1L<<T5 ) | (1L<<T6 ) |
+        (1L<<FA0) | (1L<<FA1) | (1L<<FA2) | (1L<<FA3) | (1L<<FA4) | (1L<<FA5) | (1L<<FA6) | (1L<<FA7) |
+        (1L<<F0 ) | (1L<<F1 ) | (1L<<F2 ) | (1L<<F3 ) | (1L<<F4 ) | (1L<<F5 ) | (1L<<F6 ) | (1L<<F7 ) |
+        (1L<<F8 ) | (1L<<F9 ) | (1L<<F10) | (1L<<F11) ;
 
-    // Stack slots, in units of 8 bytes.
-    @Override public int stackSlot( int reg ) {
-        return reg < REGS.length ? -1 : reg-REGS.length;
+    @Override public long callerSave() { return CALLER_SAVE; }
+    @Override public long  neverSave() { return (1L<<RSP) | (1L<<ZERO); }
+    @Override public RegMask retMask( TypeFunPtr tfp ) {
+        return tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
     }
-
+    @Override public int rpc() { return RPC; }
 
 
     // Return a MachNode unconditional branch
-    @Override public CFGNode jump() {
-        return new UJmpRISC();
-    }
+    @Override public CFGNode jump() { return new UJmpRISC(); }
 
     // Create a split op; any register to any register, including stack slots
     @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
-
-    // Break an infinite loop
-    @Override public NeverNode never( CFGNode ctrl ) { return new NJmpRISC(ctrl);}
 
     // True if signed 12-bit immediate
     public static boolean imm12(TypeInteger ti) {

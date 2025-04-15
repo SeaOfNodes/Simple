@@ -213,6 +213,18 @@ public class CodeGen {
     public Machine _mach;
     // Chosen calling convention (usually either Win64 or SystemV)
     public String _callingConv;
+    // Callee save registers
+    public RegMask _callerSave;
+
+    // All returns have the following inputs:
+    // 0 - ctrl
+    // 1 - memory
+    // 2 - varies with returning GPR,FPR
+    // 3 - RPC
+    // 4+- Caller save registers
+    public RegMask[] _retMasks;
+    // Return Program Counter
+    public RegMask _rpcMask;
 
     // Convert to target hardware nodes
     public int _tInsSel;
@@ -229,6 +241,27 @@ public class CodeGen {
         String clzFile = base+"."+cpu+"."+cpu;
         try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor(new Class[]{CodeGen.class}).newInstance(this); }
         catch( Exception e ) { throw new RuntimeException(e); }
+
+        // Build global copies of common register masks.
+        long callerSave = _mach.callerSave();
+        long  neverSave = _mach. neverSave();
+        int maxReg = Math.min(64,_mach.regs().length);
+        assert maxReg>=64 || (-1L << maxReg & callerSave)==0; // No stack slots in callerSave
+        _callerSave = new RegMask(callerSave);
+
+        // Build a Return RegMask array.  All returns have the following inputs:
+        // 0 - ctrl
+        // 1 - memory
+        // 2 - varies with returning GPR,FPR
+        // 3 - RPC
+        // 4+- Caller save registers
+        _retMasks = new RegMask[(maxReg-_callerSave.size()-Long.bitCount( neverSave ))+4];
+        for( int reg=0, i=4; reg<maxReg; reg++ )
+            if( !_callerSave.test(reg) && ((1L<<reg)&neverSave)==0 )
+                _retMasks[i++] = new RegMask(reg);
+        _rpcMask = new RegMask(_mach.rpc());
+        _retMasks[3] = _rpcMask;
+
 
         // Convert to machine ops
         long t0 = System.currentTimeMillis();
@@ -339,6 +372,7 @@ public class CodeGen {
         }
         return "N"+ n._nid;
     }
+
 
     // ---------------------------
     // Encoding

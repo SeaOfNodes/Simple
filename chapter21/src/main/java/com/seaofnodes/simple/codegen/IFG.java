@@ -453,8 +453,8 @@ abstract public class IFG {
         // Always pick callee-save registers as being very large area recovered
         // and very cheap to spill.
         if( lrg._machDef instanceof CalleeSaveNode )
-            return 1000000-2;
-        if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
+            return 1000000-2-lrg._mask.firstReg();
+        if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
             return 1000000-1;
 

@@ -12,7 +12,6 @@ import static org.junit.Assert.*;
 
 public class Chapter20Test {
 
-    //-3834621514626535010L
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
@@ -66,7 +65,7 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",23,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,23,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
         testCPU(src,"arm"      , "SystemV",19,null);
     }
