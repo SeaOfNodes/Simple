@@ -43,7 +43,6 @@ public abstract class TestC {
         String obj = bin+".o";
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
-
         // Compile the C program
         var params = new String[] {
             //if (USE_WSL) "wsl.exe";
@@ -77,6 +76,6 @@ public abstract class TestC {
             System.err.println(result);
         }
         assertEquals( 0, error );
-        assertEquals(expected,result);
+        assertEquals(expected,result.replace("\r",""));
     }
 }

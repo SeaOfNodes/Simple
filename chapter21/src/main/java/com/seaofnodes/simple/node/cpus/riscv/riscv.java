@@ -22,14 +22,14 @@ public class riscv extends Machine {
     public static int S8   = 24,  S9 = 25,  S10= 26,  S11= 27,  T3 = 28,  T4 = 29,  T5 = 30,  T6 = 31;
 
     // FP registers
-    static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7  = 39;
-    static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5 = 47;
-    static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7 = 55;
-    static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, F8  = 60,  F9  = 61,  F10 = 62,  F11 = 63;
+    public static int F0   = 32,  F1  = 33,  F2  = 34,  F3  = 35,  F4  = 36,  F5  = 37,  F6  = 38,  F7   = 39;
+    public static int FS0  = 40,  FS1 = 41,  FA0 = 42,  FA1 = 43,  FA2 = 44,  FA3 = 45,  FA4 = 46,  FA5  = 47;
+    public static int FA6  = 48,  FA7 = 49,  FS2 = 50,  FS3 = 51,  FS4 = 52,  FS5 = 53,  FS6 = 54,  FS7  = 55;
+    public static int FS8  = 56,  FS9 = 57,  FS10 = 58, FS11 = 59, FT8 = 60,  FT9 = 61,  FT10 = 62, FT11 = 63;
 
     static final int MAX_REG = 64;
 
-    static final int F_OFFSET = 32;
+    public static final int F_OFFSET = 32;
 
     static final String[] REGS = new String[] {
             "zero","rpc"  , "sp"  , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
@@ -281,7 +281,7 @@ public class riscv extends Machine {
         (1L<<T0 ) | (1L<<T1 ) | (1L<<T2 ) | (1L<<T3 ) | (1L<<T4 ) | (1L<<T5 ) | (1L<<T6 ) |
         (1L<<FA0) | (1L<<FA1) | (1L<<FA2) | (1L<<FA3) | (1L<<FA4) | (1L<<FA5) | (1L<<FA6) | (1L<<FA7) |
         (1L<<F0 ) | (1L<<F1 ) | (1L<<F2 ) | (1L<<F3 ) | (1L<<F4 ) | (1L<<F5 ) | (1L<<F6 ) | (1L<<F7 ) |
-        (1L<<F8 ) | (1L<<F9 ) | (1L<<F10) | (1L<<F11) ;
+        (1L<<FT8) | (1L<<FT9) | (1L<<FT10)| (1L<<FT11);
 
     @Override public long callerSave() { return CALLER_SAVE; }
     @Override public long  neverSave() { return (1L<<RSP) | (1L<<ZERO); }

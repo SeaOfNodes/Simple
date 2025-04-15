@@ -102,6 +102,12 @@ public class Chapter21Test {
 9  3.000000
 """;
         TestC.run("newtonFloat",result);
+        EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0);
+        R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 4.0;
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        // Return register A0 holds fib(8)==55
+        assertEquals(2.0,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
     }
 
     @Test public void testSieve() throws IOException {
@@ -173,9 +179,36 @@ public class Chapter21Test {
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
     }
-
     @Test public void testArgCount() throws IOException {
         String arg_count = "191.000000\n";
         TestC.run("arg_count", arg_count);
+
+        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0);
+
+        // Todo: handle stack(imaginary stack in emulator)
+        // pass in float arguments
+        R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA1 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA2 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA3 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA4 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA5 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA6 - riscv.F_OFFSET] = 1.1;
+        R5.fregs[riscv.FA7 - riscv.F_OFFSET] = 1.1;
+
+        R5.regs[riscv.A1] = 2;
+        R5.regs[riscv.A2] = 2;
+        R5.regs[riscv.A3] = 2;
+        R5.regs[riscv.A4] = 2;
+        R5.regs[riscv.A5] = 2;
+        R5.regs[riscv.A6] = 2;
+        R5.regs[riscv.A7] = 2;
+
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+
+        double result = R5.fregs[riscv.FA0 - riscv.F_OFFSET];
+        // missing a float
+        assertEquals(22.8, result, 0.00001);
     }
 }

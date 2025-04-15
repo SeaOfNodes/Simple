@@ -19,7 +19,8 @@ import java.util.Arrays;
 
     // GPRs
     final long[] regs;
-
+    // FRs
+    final double[] fregs;
     // PC
     int _pc;
 
@@ -30,8 +31,9 @@ import java.util.Arrays;
     int _cycle;
 
     EvalRisc5( byte[] buf, int stackSize ) {
-        _buf = buf;
-        regs = new long[32];
+        _buf  = buf;
+        regs  = new long[32];
+        fregs = new double[32];
         // Stack grows down, heap grows up
         regs[2/*RSP*/] = _heap = stackSize;
         _pc = 0;
@@ -59,9 +61,10 @@ import java.util.Arrays;
     public int step( int maxops ) {
         int trap = 0;
         long rval = 0;
+        double frval = 0;
         int pc = _pc;
         int cycle = _cycle;
-
+        boolean is_f = false;
         outer:
         for( int icount = 0; icount < maxops; icount++ ) {
             int ir = 0;
@@ -82,6 +85,17 @@ import java.util.Arrays;
             int rdid = (ir >> 7) & 0x1f;
 
             switch( ir & 0x7f ) {
+            // floats
+            case 0x7: {
+                is_f = true;
+                // does not handle rsp case
+
+                long rs1 = (ir >> 15) & 0x1f;
+                // Todo: look for stack case
+                if (rs1 == 2) break;
+                frval = ir & 0x7FF000;
+                break;
+            }
             case 0x37: // LUI (0b0110111)
                 rval = ( ir & 0xfffff000 );
                 break;
@@ -263,6 +277,68 @@ import java.util.Arrays;
                 }
                 break;
             }
+
+            case 0x53: {
+                // differentiate between  fcvt.d.w  and  fadd.d
+                is_f = true;
+                int rs1;
+                int rs1_int;
+                int rs2;
+                int func5 = (ir >> 27) & 0x1F;;
+                int func2 = (ir >> 25) & 0x3;
+//                if(func5 == 0 && func2 == 1) {
+//                }
+                if(func5 == 0) {
+                    // fadd.d
+                    rs1  = (ir >> 15) & 0x1F;
+                    rs2  = (ir >> 20) & 0x1F;
+                    double lhs = fregs[rs1];
+                    double rhs = fregs[rs2];
+                    frval = lhs + rhs;
+                    break;
+                } else if(func5 == 26) {
+                    //fcvt.d.w
+                    rs1_int  = (ir >> 15) & 0x1F;
+                    long value = regs[rs1_int];
+                    frval = (double)value;
+                    break;
+                } else if (func5 == 5) {
+                    // fmin.d
+                    rs1  = (ir >> 15) & 0x1F;
+                    rs2  = (ir >> 20) & 0x1F;
+                    // just pick one as they are the same
+                    frval = fregs[rs1];
+                    break;
+                }  else if(func5 == 3) {
+                    // fdiv.d
+                    rs1  = (ir >> 15) & 0x1F;
+                    rs2  = (ir >> 20) & 0x1F;
+                    double lhs = fregs[rs1];
+                    double rhs = fregs[rs2];
+                    frval = lhs / rhs;
+                    break;
+                } else if(func5 == 2) {
+                    // fmul.d
+                    rs1  = (ir >> 15) & 0x1F;
+                    rs2  = (ir >> 20) & 0x1F;
+                    double lhs = fregs[rs1];
+                    double rhs = fregs[rs2];
+                    frval = lhs * rhs;
+                    break;
+
+                } else if(func5 == 1) {
+                    // fsub.d
+                    rs1  = (ir >> 15) & 0x1F;
+                    rs2  = (ir >> 20) & 0x1F;
+                    double lhs = fregs[rs1];
+                    double rhs = fregs[rs2];
+                    frval = lhs - rhs;
+                    break;
+                } else {
+                    trap  = (2+1); // Fault: Invalid opcode.
+                    throw Utils.TODO();
+                }
+            }
             default: trap = (2+1); // Fault: Invalid opcode.
             }
 
@@ -272,8 +348,10 @@ import java.util.Arrays;
                 break;
             }
 
-            if( rdid!=0 )
-                regs[rdid] = rval; // Write back register.
+            if( rdid!=0 || is_f) {
+                if(is_f) {fregs[rdid] = frval; is_f = false;} // Write back register.
+                else regs[rdid] = rval; // Write back register.
+            }
 
             pc += 4;
         }

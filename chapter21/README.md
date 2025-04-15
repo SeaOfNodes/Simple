@@ -4,7 +4,7 @@
 
 The output of Encodings - conversion of machine Nodes to instruction bits - is
 difficult to test in bulk without an execution strategy.  We won't have an
-execution stratgy until all three of Instruction Selection, Register Allocation
+execution strategy until all three of Instruction Selection, Register Allocation
 and Encodings are done.  Hence in and around the completion of Encoding we
 expect to find lots of bugs in Instruction Selection and Register Allocation.
 We certainly hand-inspect the output and fix obvious problems, but still lots
