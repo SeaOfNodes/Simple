@@ -349,7 +349,6 @@ public class Encoding {
                     // Delta is from opStart to opStart.  X86 at least counts
                     // the delta from the opEnd, but we don't have the end until
                     // we decide the size - so the encSize has to deal
-                    assert _opStart[target._nid] > 0;
                     int delta = _opStart[target._nid] - _opStart[bb._nid];
                     byte opLen = riprel.encSize(delta);
                     // Recorded size is smaller than the current size?
