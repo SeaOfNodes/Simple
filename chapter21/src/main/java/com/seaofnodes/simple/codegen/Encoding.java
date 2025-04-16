@@ -153,7 +153,7 @@ public class Encoding {
         _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));
     }
 
-    void encode(boolean jit) {
+    void encode() {
         // Basic block layout: invert branches to keep blocks in-order; insert
         // unconditional jumps.  Attempt to keep backwards branches taken,
         // forwards not-taken (this is the default prediction on most
@@ -170,10 +170,6 @@ public class Encoding {
 
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
-
-        // If JIT'ing (in memory execution), patch the global relocations now
-        if( jit )
-            patchGlobalRelocations();
     }
 
     // Basic block layout: invert branches to keep blocks in-order; insert
@@ -382,13 +378,9 @@ public class Encoding {
 
     // Write the constant pool into the BAOS and optionally patch locally
     void writeConstantPool( BAOS bits, boolean patch ) {
-        HashSet<Relo> ts = new HashSet<>();
-        for( Relo t : _bigCons.values() ) {
-            if( ts.contains(t) )
-                throw Utils.TODO(); // Dup!  Compress!
-            ts.add(t);
-        }
         padN(16,bits);
+
+        HashMap<Type,Integer> targets = new HashMap<>();
 
         // By log size
         for( int log = 3; log >= 0; log-- ) {
@@ -397,17 +389,21 @@ public class Encoding {
                 Relo relo = _bigCons.get(op);
                 if( relo._t.log_size()==log ) {
                     // Map from relo to constant start and patch
-                    relo._target = bits.size();
+                    Integer target = targets.get(relo._t);
+                    if( target==null ) {
+                        targets.put(relo._t,target = bits.size());
+                        // Put constant into code space.
+                        if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries
+                            for( Type tx : tt._types )
+                                addN(log,tx,bits);
+                        else
+                            addN(log,relo._t,bits);
+                    }
+                    relo._target = target;
                     relo._opStart= _opStart[op._nid];
                     // Go ahead and locally patch in-memory
                     if( patch )
                         ((RIPRelSize)op).patch(this, relo._opStart, _opLen[op._nid], relo._target - relo._opStart);
-                    // Put constant into code space.
-                    if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries
-                        for( Type tx : tt._types )
-                            addN(log,tx,bits);
-                    else
-                        addN(log,relo._t,bits);
                 }
             }
         }

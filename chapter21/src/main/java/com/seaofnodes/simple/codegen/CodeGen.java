@@ -379,17 +379,16 @@ public class CodeGen {
     public int _tEncode;
     public Encoding _encoding;   // Encoding object
     public void preEncode() {  } // overridden by alternative ports
-    public CodeGen encode(boolean jit) {
+    public CodeGen encode() {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
         _encoding = new Encoding(this);
         preEncode();
-        _encoding.encode(jit);
+        _encoding.encode();
         _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
     }
-    public CodeGen encode() { return encode(false); }
 
     // ---------------------------
     // Exporting to external formats

@@ -22,7 +22,7 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
         // AUIPC dst,#hi20_constant_pool
         enc.add4(riscv.u_type(riscv.OP_AUIPC, tmp, 0));
         // Load dst,[dst+#low12_constant_pool]
-        enc.add4(riscv.i_type(riscv.OP_LOAD, dst, 0b11, tmp, 0));
+        enc.add4(riscv.i_type(riscv.OP_LOADFP, dst, 0b11, tmp, 0));
     }
     @Override public RegMask killmap() { return new RegMask(riscv.T6); }
 
@@ -35,9 +35,9 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
         short dst = (short)(enc.reg(this) - riscv.F_OFFSET);
         short tmp = (short)riscv.T6;
         // AUIPC dst,#hi20_constant_pool
-        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, tmp, delta));
+        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, tmp, delta>>12));
         // Load dst,[dst+#low12_constant_pool]
-        enc.patch4(opStart+4, riscv.i_type(riscv.OP_LOAD, dst, 0b11, tmp, delta));
+        enc.patch4(opStart+4, riscv.i_type(riscv.OP_LOADFP, dst, 0b11, tmp, delta & 0xFFF));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

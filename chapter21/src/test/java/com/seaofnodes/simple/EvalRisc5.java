@@ -47,6 +47,10 @@ import java.util.Arrays;
     public int  ld4s(int x) { return ld2z(x) | ld2s(x+2)<<16; }
     public long ld8 (int x) { return (long)ld4s(x)&0xFFFFFFFFL | ((long)ld4s(x+4))<<32; }
 
+    public float  ld4f(int x) { return Float.intBitsToFloat(ld4s(x)); }
+    public double ld8f(int x) { return Double.longBitsToDouble(ld8(x)); }
+
+
     public void st1(int x, int  val) { _buf[x] = (byte)val; }
     public void st2(int x, int  val) { st1(x,val); st1(x+1,val>> 8); }
     public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
@@ -85,17 +89,6 @@ import java.util.Arrays;
             int rdid = (ir >> 7) & 0x1f;
 
             switch( ir & 0x7f ) {
-            // floats
-            case 0x7: {
-                is_f = true;
-                // does not handle rsp case
-
-                long rs1 = (ir >> 15) & 0x1f;
-                // Todo: look for stack case
-                if (rs1 == 2) break;
-                frval = ir & 0x7FF000;
-                break;
-            }
             case 0x37: // LUI (0b0110111)
                 rval = ( ir & 0xfffff000 );
                 break;
@@ -174,6 +167,27 @@ import java.util.Arrays;
                 }
                 break;
             }
+            // floats
+            case 0x7: {
+                is_f = true;
+                int rs1 = (int)regs[(ir >> 15) & 0x1f]; // Address chop to 32b
+                int imm = ir >> 20;
+                int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0 );
+                int rsval = rs1 + imm_se;
+
+                if( rsval >= _buf.length-3 ) {
+                    trap = (5+1);
+                    rval = rsval;
+                } else {
+                    switch( ( ir >> 12 ) & 0x7 ) {
+                    case 2: frval = ld4f( rsval ); break;
+                    case 3: frval = ld8f( rsval ); break;
+                    default: trap = (2+1);
+                    }
+                }
+                break;
+            }
+
             case 0x23: { // Store 0b0100011
                 int  rs1 = (int)regs[(ir >> 15) & 0x1f]; // Address chop to 32b
                 long rs2 = regs[(ir >> 20) & 0x1f];
@@ -279,66 +293,37 @@ import java.util.Arrays;
             }
 
             case 0x53: {
-                // differentiate between  fcvt.d.w  and  fadd.d
                 is_f = true;
-                int rs1;
-                int rs1_int;
-                int rs2;
-                int func5 = (ir >> 27) & 0x1F;;
+                int rs1  = (ir >> 15) & 0x1F;
+                int rs2  = (ir >> 20) & 0x1F;
+                double lhs = fregs[rs1];
+                double rhs = fregs[rs2];
+                int func5 = (ir >> 27) & 0x1F;
                 int func2 = (ir >> 25) & 0x3;
-//                if(func5 == 0 && func2 == 1) {
-//                }
-                if(func5 == 0) {
-                    // fadd.d
-                    rs1  = (ir >> 15) & 0x1F;
-                    rs2  = (ir >> 20) & 0x1F;
-                    double lhs = fregs[rs1];
-                    double rhs = fregs[rs2];
-                    frval = lhs + rhs;
+                if( func2 != 1 ) throw Utils.TODO(); // 1==double
+                switch( func5 ) {
+                case  0:  frval = lhs + rhs;  break;  // fadd.d
+                case  1:  frval = lhs - rhs;  break;  // fsub.d
+                case  2:  frval = lhs * rhs;  break;  // fmul.d
+                case  3:  frval = lhs / rhs;  break;  // fdiv.d
+                case  5:  frval = Math.min(lhs,rhs); break; // fmin.d, also used for move
+                case 20:
+                    is_f = false; // Output into a GPR
+                    rval = switch( (ir >> 12) & 7 ) {
+                    case 0 -> lhs <= rhs ? 1 : 0;
+                    case 1 -> lhs == rhs ? 1 : 0;
+                    case 2 -> lhs <  rhs ? 1 : 0;
+                    default -> throw Utils.TODO();
+                    };
                     break;
-                } else if(func5 == 26) {
-                    //fcvt.d.w
-                    rs1_int  = (ir >> 15) & 0x1F;
-                    long value = regs[rs1_int];
-                    frval = (double)value;
-                    break;
-                } else if (func5 == 5) {
-                    // fmin.d
-                    rs1  = (ir >> 15) & 0x1F;
-                    rs2  = (ir >> 20) & 0x1F;
-                    // just pick one as they are the same
-                    frval = fregs[rs1];
-                    break;
-                }  else if(func5 == 3) {
-                    // fdiv.d
-                    rs1  = (ir >> 15) & 0x1F;
-                    rs2  = (ir >> 20) & 0x1F;
-                    double lhs = fregs[rs1];
-                    double rhs = fregs[rs2];
-                    frval = lhs / rhs;
-                    break;
-                } else if(func5 == 2) {
-                    // fmul.d
-                    rs1  = (ir >> 15) & 0x1F;
-                    rs2  = (ir >> 20) & 0x1F;
-                    double lhs = fregs[rs1];
-                    double rhs = fregs[rs2];
-                    frval = lhs * rhs;
-                    break;
-
-                } else if(func5 == 1) {
-                    // fsub.d
-                    rs1  = (ir >> 15) & 0x1F;
-                    rs2  = (ir >> 20) & 0x1F;
-                    double lhs = fregs[rs1];
-                    double rhs = fregs[rs2];
-                    frval = lhs - rhs;
-                    break;
-                } else {
+                case 26:  frval = (double)regs[rs1]; break; // fcvt.w.d
+                default:
                     trap  = (2+1); // Fault: Invalid opcode.
                     throw Utils.TODO();
                 }
+                break;
             }
+
             default: trap = (2+1); // Fault: Invalid opcode.
             }
 

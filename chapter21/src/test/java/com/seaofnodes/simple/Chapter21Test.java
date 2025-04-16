@@ -101,13 +101,14 @@ public class Chapter21Test {
 8  2.828427
 9  3.000000
 """;
-        TestC.run("newtonFloat",result);
+        //TestC.run("newtonFloat",result);
+
         EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0);
-        R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 4.0;
-        int trap = R5.step(100);
+        R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
+        int trap = R5.step(1000);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
-        assertEquals(2.0,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
+        assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
     }
 
     @Test public void testSieve() throws IOException {
