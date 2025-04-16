@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-import com.seaofnodes.simple.print.ASMPrinter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
