@@ -281,7 +281,7 @@ public class riscv extends Machine {
         (1L<<T0 ) | (1L<<T1 ) | (1L<<T2 ) | (1L<<T3 ) | (1L<<T4 ) | (1L<<T5 ) | (1L<<T6 ) |
         (1L<<FA0) | (1L<<FA1) | (1L<<FA2) | (1L<<FA3) | (1L<<FA4) | (1L<<FA5) | (1L<<FA6) | (1L<<FA7) |
         (1L<<F0 ) | (1L<<F1 ) | (1L<<F2 ) | (1L<<F3 ) | (1L<<F4 ) | (1L<<F5 ) | (1L<<F6 ) | (1L<<F7 ) |
-        (1L<<F8 ) | (1L<<F9 ) | (1L<<F10) | (1L<<F11) ;
+        (1L<<FT8) | (1L<<FT9) | (1L<<FT10)| (1L<<FT11);
 
     @Override public long callerSave() { return CALLER_SAVE; }
     @Override public long  neverSave() { return (1L<<RSP) | (1L<<ZERO); }
