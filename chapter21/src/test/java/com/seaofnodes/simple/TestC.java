@@ -20,14 +20,14 @@ public abstract class TestC {
     default -> throw Utils.TODO("Map Yer CPU Port Here");
     };
 
-    public static void run( String file ) throws IOException { run(file,""); }
+    public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
 
-    public static void run( String file, String expected ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs",file,expected);
+    public static void run( String file, String expected, int spills ) throws IOException {
+        run("src/test/java/com/seaofnodes/simple/progs",file,expected,spills);
     }
 
     // Compile and run a simple program
-    public static void run( String dir, String file, String expected ) throws IOException {
+    public static void run( String dir, String file, String expected, int spills ) throws IOException {
         // Files
         String  cfile = dir+"/"+file+".c"  ;
         String  sfile = dir+"/"+file+".smp";
@@ -35,14 +35,15 @@ public abstract class TestC {
 
         // Compile and export Simple
         String src = Files.readString(Path.of(sfile));
-        _run(src,CALL_CONVENTION,"",cfile,efile,"S",expected);
+        _run(src,CALL_CONVENTION,"",cfile,efile,"S",expected,spills);
     }
 
-    static void _run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected ) throws IOException {
+    static void _run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
         String bin = efile+xtn;
         String obj = bin+".o";
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+
         // Compile the C program
         var params = new String[] {
             //if (USE_WSL) "wsl.exe";
@@ -77,5 +78,12 @@ public abstract class TestC {
         }
         assertEquals( 0, error );
         assertEquals(expected,result.replace("\r",""));
+
+        // Allocation quality not degraded
+        int delta = spills>>3;
+        if( delta==0 ) delta = 1;
+        if( spills != -1 )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+
     }
 }

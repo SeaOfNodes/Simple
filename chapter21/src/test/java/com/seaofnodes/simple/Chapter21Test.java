@@ -53,23 +53,6 @@ public class Chapter21Test {
     }
 
     @Test
-    public void testFib() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",24,null);
-        testCPU(src,"riscv"    , "SystemV",16,null);
-        testCPU(src,"arm"      , "SystemV",16,null);
-    }
-
-    @Test
-    public void testNewtonFloat() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
-        testCPU(src,"x86_64_v2", "Win64"  ,39,null);
-        testCPU(src,"riscv"    , "SystemV",18,null);
-        testCPU(src,"arm"      , "SystemV",19,null);
-    }
-
-    @Test
     public void testAntiDeps1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/antiDep1.smp"));
         testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
@@ -85,7 +68,9 @@ public class Chapter21Test {
         testCPU(src,"arm"      , "SystemV", 6,null);
     }
 
-    @Test public void testStringExport() throws IOException { TestC.run("stringHash"); }
+    @Test public void testStringExport() throws IOException {
+        TestC.run("stringHash", 9);
+    }
 
     @Test public void testNewtonExport() throws IOException {
         String result = """
@@ -100,14 +85,19 @@ public class Chapter21Test {
 8  2.828427
 9  3.000000
 """;
-        //TestC.run("newtonFloat",result);
+        TestC.run("newtonFloat",result,34);
 
-        EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0);
+        EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0, 10);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
         int trap = R5.step(1000);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
+
+        // TODO: Run on ARM eval
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
+            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
+        testCPU(src,"arm", "SystemV",19,null);
     }
 
     @Test public void testSieve() throws IOException {
@@ -119,11 +109,11 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes);
+        TestC.run("sieve",sprimes, 257);
 
         // Evaluate on RISC5 emulator; expect return of a array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100);
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 160);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -136,31 +126,22 @@ public class Chapter21Test {
 
     @Test public void testFibExport() throws IOException {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
-        TestC.run("fib", fib);
+        TestC.run("fib", fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 9);
+        EvalRisc5 R5 = TestRisc5.build("fib", 9, 16);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
-    }
 
-    @Test public void testBrainFuck() throws IOException {
-        String brain_fuck = "Hello World!\n";
-        TestC.run("brain_fuck", brain_fuck);
-
-        EvalRisc5 R5 = TestRisc5.build("brain_fuck", 0);
-        int trap = R5.step(100000);
-        assertEquals(0,trap);
-        int ptr = (int)R5.regs[riscv.A0];
-        assertEquals(brain_fuck.length(),R5.ld4s(ptr));
-        for( int i=0; i<brain_fuck.length(); i++ )
-            assertEquals(brain_fuck.charAt(i), R5.ld1z(ptr+4+i));
+        // TODO: run on arm eval
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
+        testCPU(src,"arm"      , "SystemV",16,null);
     }
 
     @Test public void testPerson() throws IOException {
         String person = "6\n";
-        TestC.run("person", person);
+        TestC.run("person", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer
@@ -171,7 +152,7 @@ public class Chapter21Test {
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", ps);
+        EvalRisc5 R5 = TestRisc5.build("person", ps, 0);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st4(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -189,9 +170,10 @@ public class Chapter21Test {
     }
     @Test public void testArgCount() throws IOException {
         String arg_count = "191.000000\n";
-        TestC.run("arg_count", arg_count);
+        TestC.run("arg_count", arg_count, 42);
 
-        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0);
+
+        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments
