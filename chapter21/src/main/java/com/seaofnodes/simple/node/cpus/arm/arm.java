@@ -4,7 +4,6 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import java.io.ByteArrayOutputStream;
 
 public class arm extends Machine {
     public arm( CodeGen code ) {
@@ -213,17 +212,6 @@ public class arm extends Machine {
         SXTX,  // base+ s64 index [<< logsize]
     }
 
-    static public String invert(String op) {
-        return switch (op) {
-            case "==" -> "!=";
-            case "!=" -> "==";
-            case ">" -> "<=";
-            case "<" -> ">=";
-            case ">=" -> "<";
-            case "<=" -> ">";
-            default -> throw new IllegalStateException("Unexpected value: " + op);
-        };
-    }
     public enum COND {
         EQ,
         NE,
@@ -618,12 +606,10 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, invert(bool.op()));
+        return new SetARM(cmp, IfNode.negate(bool.op()));
     }
     private Node _cmp(BoolNode bool) {
-        if( bool instanceof BoolNode.EQF ||
-            bool instanceof BoolNode.LTF ||
-            bool instanceof BoolNode.LEF )
+        if( bool.isFloat() )
             return new CmpFARM(bool);
         return bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti
             ? new CmpIARM(bool, (int)ti.value())

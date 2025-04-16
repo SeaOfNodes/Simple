@@ -32,14 +32,24 @@ public class riscv extends Machine {
     public static final int F_OFFSET = 32;
 
     static final String[] REGS = new String[] {
-            "zero","rpc"  , "sp"  , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
-            "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-            "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-            "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-            "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-            "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-            "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-            "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+        "zero","rpc"  , "rsp" , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
+        "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
+        "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
+        "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
+        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+        // Register-based naming hella easier to debug than "official" register
+        // names when single-stepping in debugger.
+        //"zero", "r1"  , "rsp" , "r3" , "r4" , "r5" , "r6" , "r7" ,
+        //"r8"  , "r9"  , "r10" , "r11", "r12", "r13", "r14", "r15",
+        //"r16" , "r17" , "r18" , "r19", "r20", "r21", "r22", "r23",
+        //"r24" , "r25" , "r26" , "r27", "r28", "r29", "r30", "r31",
+        //"f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+        //"fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+        //"fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+        //"fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
     @Override public String[] regs() { return REGS; }
 
@@ -226,7 +236,7 @@ public class riscv extends Machine {
         case "=="  -> 0x0;
         case "!="  -> 0x1;
         case "<"   -> 0x4;
-        case "<="  -> 0x5;
+        case ">="  -> 0x5;
         case "u<"  -> 0x6;
         case "u<=" -> 0x7;
         default  ->  throw Utils.TODO();
@@ -360,7 +370,7 @@ public class riscv extends Machine {
     }
 
     private Node add(AddNode add) {
-        if( add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti) )
+        if( add.in(2) instanceof ConstantNode off2 && off2._con instanceof TypeInteger ti && imm12(ti) )
             return new AddIRISC(add, (int)ti.value(),true);
         return new AddRISC(add);
     }
@@ -393,11 +403,11 @@ public class riscv extends Machine {
 
         // Only < and <u are implemented in hardware.
         // x <  y - as-is
-        // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
+        // x <= y - flip and negate; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
 
         // x >  y - swap; y < x
-        // x >= y - swap and invert; !(x < y); `slt tmp=y,x;` then NOT.
+        // x >= y - swap and negate; !(x < y); `slt tmp=y,x;` then NOT.
         // x != y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1` then NOT.
 
         // The ">", ">=" and "!=" in Simple include a NotNode, which can be
@@ -407,8 +417,8 @@ public class riscv extends Machine {
         return switch( bool.op() ) {
         case "<" -> bool.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
             ? new SetIRISC(bool, (int)ti.value(),false)
-            : new SetRISC(bool, false);
-        // x <= y - flip and invert; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
+            : new  SetRISC(bool, false);
+        // x <= y - flip and negate; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
         case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1);
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
         case "==" -> new SetIRISC(new SubRISC(bool),1,true);
@@ -448,8 +458,8 @@ public class riscv extends Machine {
         if( iff.in(1) instanceof BoolNode bool && !bool.isFloat() ) {
             // if less than or equal switch inputs
             String bop = bool.op();
-            if( bop.equals(">=") || bop.equals(">") )
-                return new BranchRISC(iff, IfNode.invert(bop), bool.in(2), bool.in(1));
+            if( bop.equals("<=") || bop.equals(">") )
+                return new BranchRISC(iff, IfNode.swap(bop), bool.in(2), bool.in(1));
             return new BranchRISC(iff, bop, bool.in(1), bool.in(2));
         }
         // Vs zero

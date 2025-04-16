@@ -131,16 +131,15 @@ import java.util.Arrays;
                 long rs2 = regs[(ir >> 20) & 0x1f];
                 immm4 = pc + immm4 - 4;
                 rdid = 0;
-                switch( ( ir >> 12 ) & 0x7 ) {
-                    // BEQ, BNE, BLT, BGE, BLTU, BGEU
-                case 0: if( rs1 == rs2 ) pc = immm4; break;
-                case 1: if( rs1 != rs2 ) pc = immm4; break;
-                case 4: if( rs1 <  rs2 ) pc = immm4; break;
-                case 5: if( rs1 >= rs2 ) pc = immm4; break;
-                case 6: if( Long.compareUnsigned(rs1,rs2) <  0 ) pc = immm4; break;  //BLTU
-                case 7: if( Long.compareUnsigned(rs1,rs2) >= 0 ) pc = immm4; break;  //BGEU
-                default: trap = (2+1);
-                }
+                if( switch( (ir >> 12) & 0x7 ) {
+                    case 0 -> rs1 == rs2;
+                    case 1 -> rs1 != rs2;
+                    case 4 -> rs1 <  rs2;
+                    case 5 -> rs1 >= rs2;
+                    case 6 -> Long.compareUnsigned(rs1,rs2) <  0;  //BLTU
+                    case 7 -> Long.compareUnsigned(rs1,rs2) >= 0;  //BGEU
+                    default -> { trap = (2+1); yield false; }
+                    } )   pc = immm4;
                 break;
             }
             case 0x03: { // Load (0b0000011)

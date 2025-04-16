@@ -138,7 +138,7 @@ public class Chapter21Test {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 8);
+        EvalRisc5 R5 = TestRisc5.build("fib", 9);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
@@ -148,6 +148,14 @@ public class Chapter21Test {
     @Test public void testBrainFuck() throws IOException {
         String brain_fuck = "Hello World!\n";
         TestC.run("brain_fuck", brain_fuck);
+
+        EvalRisc5 R5 = TestRisc5.build("brain_fuck", 0);
+        int trap = R5.step(100000);
+        assertEquals(0,trap);
+        int ptr = (int)R5.regs[riscv.A0];
+        assertEquals(brain_fuck.length(),R5.ld4s(ptr));
+        for( int i=0; i<brain_fuck.length(); i++ )
+            assertEquals(brain_fuck.charAt(i), R5.ld1z(ptr+4+i));
     }
 
     @Test public void testPerson() throws IOException {

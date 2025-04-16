@@ -27,7 +27,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
 
     @Override public RegMask regmap(int i) { assert i==1; return arm.FLAGS_MASK; }
     @Override public RegMask outregmap() { return null; }
-    @Override public void invert() { _bop = invert(_bop);  }
+    @Override public void negate() { _bop = negate(_bop);  }
 
     @Override public void encoding( Encoding enc ) {
         // Assuming that condition flags are already set.  These flags are set

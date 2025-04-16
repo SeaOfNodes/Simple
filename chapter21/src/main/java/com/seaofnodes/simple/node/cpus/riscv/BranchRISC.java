@@ -21,11 +21,13 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     @Override public String comment() { return "L"+cproj(1)._nid; }
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return null; }
-    @Override public void invert() {
-        if( _bop.equals("<") || _bop.equals("<=") )
-            swap12();           // Cannot invert the test, so swap the operands
-        else
-            _bop = invert(_bop);
+    @Override public void negate() {
+        _bop = negate(_bop);
+        // Cannot encode ">" or "<=", so flip these
+        if( _bop.equals(">") || _bop.equals("<=") ) {
+            swap12();           // Cannot negate the test, so swap the operands
+            _bop = swap(_bop);  // Swap test to match
+        }
     }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {

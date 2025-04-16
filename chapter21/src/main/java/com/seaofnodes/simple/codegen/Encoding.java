@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
@@ -154,7 +153,7 @@ public class Encoding {
     }
 
     void encode() {
-        // Basic block layout: invert branches to keep blocks in-order; insert
+        // Basic block layout: negate branches to keep blocks in-order; insert
         // unconditional jumps.  Attempt to keep backwards branches taken,
         // forwards not-taken (this is the default prediction on most
         // hardware).  Layout is still RPO but with more restrictions.
@@ -172,7 +171,7 @@ public class Encoding {
         patchLocalRelocations();
     }
 
-    // Basic block layout: invert branches to keep blocks in-order; insert
+    // Basic block layout: negate branches to keep blocks in-order; insert
     // unconditional jumps.  Attempt to keep backwards branches taken,
     // forwards not-taken (this is the default prediction on most
     // hardware).  Layout is still RPO but with more restrictions.
@@ -247,7 +246,7 @@ public class Encoding {
             } // always forward and good
             // Invert test and Proj fields
             if( invert ) {
-                iff.invert();
+                iff.negate();
                 t.invert();
                 f.invert();
                 CProjNode tmp=f; f=t; t=tmp; // Swap t/f
