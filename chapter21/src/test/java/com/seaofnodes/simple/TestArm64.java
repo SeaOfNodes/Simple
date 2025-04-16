@@ -27,7 +27,7 @@ public class TestArm64 {
         // Code at offset 0
         System.arraycopy(code._encoding.bits(), 0, image, 0, code._encoding.bits().length);
         // Initial incoming int arg
-        ARM.regs[arm.D0] = arg;
+        ARM.regs[arm.X0] = arg;
         // malloc memory starts at 64K and goes up
         return ARM;
     }
