@@ -119,7 +119,7 @@ public class PhiNode extends Node {
     private boolean same_op() {
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
-            if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(i).nIns() != op.nIns() )
+            if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
                 for( Node out : op._outputs ) if( out!=null ) out.addDep(this);
