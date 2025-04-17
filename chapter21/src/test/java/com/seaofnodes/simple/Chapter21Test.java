@@ -90,8 +90,8 @@ public class Chapter21Test {
 
         EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0, 10);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
-        int trap = R5.step(1000);
-        assertEquals(0,trap);
+        int trap_r5 = R5.step(1000);
+        assertEquals(0,trap_r5);
         // Return register A0 holds fib(8)==55
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
@@ -174,9 +174,13 @@ public class Chapter21Test {
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
     }
+
     @Test public void testArgCount() throws IOException {
+        // Test passes more args than registers in Sys5, which is far far more
+        // than what Win64 allows - so Win64 gets a lot more spills here.
         String arg_count = "191.000000\n";
-        TestC.run("arg_count", arg_count, 42);
+        TestC.run("arg_count", arg_count,
+                  TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
 
         EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0);
