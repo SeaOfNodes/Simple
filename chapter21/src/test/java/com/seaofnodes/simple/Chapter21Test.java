@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -94,10 +95,12 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
-        // TODO: Run on ARM eval
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
-        testCPU(src,"arm", "SystemV",19,null);
+        // arm
+        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10);
+        A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
+        int trap_arm = A5.step(1000);
+        assertEquals(0,trap_arm);
+        assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
     }
 
     @Test public void testSieve() throws IOException {
@@ -134,9 +137,12 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
-        // TODO: run on arm eval
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
-        testCPU(src,"arm"      , "SystemV",16,null);
+        // arm
+        EvalArm64 A5 = TestArm64.build("fib", 9, 16);
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+        // Return register X0 holds fib(8)==55
+        assertEquals(55, A5.regs[arm.X0]);
     }
 
     @Test public void testPerson() throws IOException {
@@ -186,6 +192,7 @@ public class Chapter21Test {
         R5.fregs[riscv.FA6 - riscv.F_OFFSET] = 1.1;
         R5.fregs[riscv.FA7 - riscv.F_OFFSET] = 1.1;
 
+        // a0 is passed in arg
         R5.regs[riscv.A1] = 2;
         R5.regs[riscv.A2] = 2;
         R5.regs[riscv.A3] = 2;
@@ -198,7 +205,33 @@ public class Chapter21Test {
         assertEquals(0,trap);
 
         double result = R5.fregs[riscv.FA0 - riscv.F_OFFSET];
-        // missing a float
+
         assertEquals(22.8, result, 0.00001);
+
+        // arm
+        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", 0, 0);
+
+        A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D2 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D3 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D4 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D5 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D6 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D7 - arm.D_OFFSET] = 1.1;
+
+        A5.regs[arm.X1]  = 2;
+        A5.regs[arm.X2]  = 2;
+        A5.regs[arm.X3]  = 2;
+        A5.regs[arm.X4]  = 2;
+        A5.regs[arm.X5]  = 2;
+        A5.regs[arm.X6]  = 2;
+        A5.regs[arm.X7]  = 2;
+
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+
+        double result1 = A5.fregs[arm.D0 - arm.D_OFFSET];
+        assertEquals(22.8, result1, 0.00001);
     }
 }

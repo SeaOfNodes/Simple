@@ -273,7 +273,7 @@ public class arm extends Machine {
         return (32-size)<<1 | immr << 6 | imms;
     }
 
-    // sh is encoded in opcdoe
+    // sh is encoded in opcode
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
@@ -291,6 +291,13 @@ public class arm extends Machine {
         short self = enc.reg(n);
         short reg1 = enc.reg(n2);
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
+        enc.add4(body);
+    }
+
+    public static void imm_inst_subs(Encoding enc, Node n,Node n2,  int opcode, int imm12) {
+        short reg1 = enc.reg(n2);
+        // 31 = 11111
+        int body = imm_inst(opcode, imm12&0xFFF, reg1, 31);
         enc.add4(body);
     }
 
@@ -335,7 +342,7 @@ public class arm extends Machine {
         assert 0 <= rm && rm < 32;
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
-        return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) << (rn << 5) | rd;
+        return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) | (rn << 5) | rd;
    }
    public static void r_reg(Encoding enc, Node n, int opcode) {
        short self = enc.reg(n);
@@ -343,6 +350,14 @@ public class arm extends Machine {
        short reg2 = enc.reg(n.in(2));
        int body = r_reg(opcode, 0, reg2, 0,  reg1, self >= 32 ? reg1: self);
        enc.add4(body);
+  }
+
+    public static void r_reg_subs(Encoding enc, Node n, int opcode) {
+        short reg1 = enc.reg(n.in(1));
+        short reg2 = enc.reg(n.in(2));
+        // 31 = 11111
+        int body = r_reg(opcode, 0, reg2, 0,  reg1, 31);
+        enc.add4(body);
     }
 
     public static int shift_reg(int opcode, int rm, int op2, int rn, int rd) {
@@ -459,7 +474,8 @@ public class arm extends Machine {
     public static int f_cmp(int opcode, int ftype, int rm, int rn) {
         assert 0 <= rn && rn  < 32;
         assert 0 <= rm && rm  < 32;
-        return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
+        // Todo: |8 is not needed
+        return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5);
     }
     public static void f_cmp(Encoding enc, Node n) {
         short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
@@ -472,19 +488,21 @@ public class arm extends Machine {
         return switch (bop) {
         case "==" -> COND.EQ;
         case "!=" -> COND.NE;
-        case "<"  -> COND.LE;
-        case "<=" -> COND.LT;
-        case ">=" -> COND.GT;
-        case ">"  -> COND.GE;
+        case "<"  -> COND.LT;
+        case "<=" -> COND.LE;
+        case ">=" -> COND.GE;
+        case ">"  -> COND.GT;
         default   -> throw Utils.TODO();
         };
     }
-    // Todo: maybe missing zero here after delta << 5
+
     public static int b_cond(int opcode, int delta, COND cond) {
         // 24-5 == 19bits offset range
         assert -(1<<19) <= delta && delta < (1<<19);
+        assert (delta&3)==0;
+        delta>>=2;
         delta &= (1L<<19)-1;    // Zero extend
-        return (opcode << 24) | (delta << 5) | cond.ordinal();
+        return (opcode << 24) | ((delta)<< 5) | cond.ordinal();
     }
 
     public static int cond_set(int opcode, int rm, COND cond, int rn, int rd) {
@@ -500,6 +518,8 @@ public class arm extends Machine {
     }
     public static int b(int opcode, int delta) {
         assert -(1<<26) <= delta && delta < (1<<26);
+        assert (delta&3)==0;
+        delta>>=2;
         delta &= (1L<<26)-1;    // Zero extend
         return (opcode << 26) | delta;
     }
