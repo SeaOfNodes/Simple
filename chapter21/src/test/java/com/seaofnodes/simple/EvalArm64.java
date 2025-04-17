@@ -86,7 +86,7 @@ public class EvalArm64 {
                     //b
                     int imm26 = ir << 6 >> 6;
 
-                    pc = pc + imm26 - 4;
+                    pc = pc + (imm26 * 4) - 4;
                     rdid = -1;
                     continue ;
                 }
@@ -102,7 +102,7 @@ public class EvalArm64 {
                 case 0x54: {
                     // b.cond
                     int imm19 = ir << 8 >> 13;
-                    imm19 = pc + imm19 - 4;
+                    imm19 = pc + (imm19 * 4) - 4;
                     rdid = -1;
 
                     switch(ir & 0xF) {

@@ -491,12 +491,14 @@ public class arm extends Machine {
         default   -> throw Utils.TODO();
         };
     }
-    // Todo: maybe missing zero here after delta << 5
+
     public static int b_cond(int opcode, int delta, COND cond) {
         // 24-5 == 19bits offset range
         assert -(1<<19) <= delta && delta < (1<<19);
+        assert (delta&3)==0;
+        delta>>=2;
         delta &= (1L<<19)-1;    // Zero extend
-        return (opcode << 24) | (delta << 5) | cond.ordinal();
+        return (opcode << 24) | ((delta)<< 5) | cond.ordinal();
     }
 
     public static int cond_set(int opcode, int rm, COND cond, int rn, int rd) {
@@ -512,6 +514,8 @@ public class arm extends Machine {
     }
     public static int b(int opcode, int delta) {
         assert -(1<<26) <= delta && delta < (1<<26);
+        assert (delta&3)==0;
+        delta>>=2;
         delta &= (1L<<26)-1;    // Zero extend
         return (opcode << 26) | delta;
     }
