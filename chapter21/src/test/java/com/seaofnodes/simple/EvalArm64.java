@@ -176,6 +176,22 @@ public class EvalArm64 {
                         break outer;
                     }
                 }
+                // floats
+                case 0x1E: {
+                    // fadd
+                    is_f = true;
+                    int rs1 = (ir >> 5) & 0x1F;
+                    int rs2 = (ir >> 16) & 0x1F;
+                    frval = fregs[rs1] + fregs[rs2];
+                    break;
+                }
+                case 0x9e: {
+                    // scvtf
+                    is_f = true;
+                    int rs1 = (ir >> 5) & 0x1F;
+                    frval = (double)regs[rs1];
+                    break;
+                }
                 default: trap = (2+1);
             }
             if(trap != 0) {

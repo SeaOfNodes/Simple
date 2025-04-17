@@ -135,9 +135,11 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
+        // arm
         EvalArm64 A5 = TestArm64.build("fib", 9, 16);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
+        // Return register X0 holds fib(8)==55
         assertEquals(55, A5.regs[arm.X0]);
     }
 
@@ -188,6 +190,7 @@ public class Chapter21Test {
         R5.fregs[riscv.FA6 - riscv.F_OFFSET] = 1.1;
         R5.fregs[riscv.FA7 - riscv.F_OFFSET] = 1.1;
 
+        // a0 is passed in arg
         R5.regs[riscv.A1] = 2;
         R5.regs[riscv.A2] = 2;
         R5.regs[riscv.A3] = 2;
@@ -200,7 +203,33 @@ public class Chapter21Test {
         assertEquals(0,trap);
 
         double result = R5.fregs[riscv.FA0 - riscv.F_OFFSET];
-        // missing a float
+
         assertEquals(22.8, result, 0.00001);
+
+        // arm
+        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", 0, 0);
+
+        A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D2 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D3 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D4 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D5 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D6 - arm.D_OFFSET] = 1.1;
+        A5.fregs[arm.D7 - arm.D_OFFSET] = 1.1;
+
+        A5.regs[arm.X1]  = 2;
+        A5.regs[arm.X2]  = 2;
+        A5.regs[arm.X3]  = 2;
+        A5.regs[arm.X4]  = 2;
+        A5.regs[arm.X5]  = 2;
+        A5.regs[arm.X6]  = 2;
+        A5.regs[arm.X7]  = 2;
+
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+
+        double result1 = A5.fregs[arm.D0 - arm.D_OFFSET];
+        assertEquals(22.8, result1, 0.00001);
     }
 }
