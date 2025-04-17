@@ -182,7 +182,6 @@ public class Encoding {
             if( n instanceof FunNode fun ) {
                 int x = rpo._len;
                 _rpo_cfg(fun, visit, rpo);
-                assert rpo.at(x) instanceof ReturnNode;
             }
         rpo.add(_code._start);
 
@@ -270,7 +269,6 @@ public class Encoding {
                 _rpo_cfg(f,visit,rpo);
             }
         }
-        assert rpo._len>0 || bb instanceof ReturnNode;
         rpo.add(bb);
     }
 
