@@ -9,7 +9,7 @@ import com.seaofnodes.simple.node.ReturnNode;
 import com.seaofnodes.simple.node.MachNode;
 
 public class RetRISC extends ReturnNode implements MachNode {
-    public RetRISC(ReturnNode ret, FunNode fun) { super(ret, fun); fun.setRet(this); }
+    public RetRISC(ReturnNode ret, FunNode fun) { super(ret, fun); if( fun!=null ) fun.setRet(this); }
     @Override public void encoding( Encoding enc ) {
         int sz = fun()._frameAdjust;
         if( sz >= 1L<<12 ) throw Utils.TODO();
