@@ -2,10 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
-import java.util.HashSet;
 
 public class IfNode extends CFGNode implements MultiNode {
 
@@ -67,12 +65,12 @@ public class IfNode extends CFGNode implements MultiNode {
         return null;
     }
 
-    // MachNode variants need to support this and invert the conditional test.
+    // MachNode variants need to support this and negate the conditional test.
     // The following CProjs will be inverted by the caller.
-    public void invert() { throw Utils.TODO(); }
+    public void negate() { throw Utils.TODO(); }
 
     // Negate the sense of a test
-    public static String invert( String bop ) {
+    public static String negate( String bop ) {
         return switch( bop ) {
         case "<"  -> ">=";
         case "<=" -> ">" ;

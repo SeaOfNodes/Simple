@@ -26,7 +26,7 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     }
     @Override public RegMask regmap(int i) { assert i==1; return x86_64_v2.FLAGS_MASK; }
     @Override public RegMask outregmap() { return null; }
-    @Override public void invert() { _bop = invert(_bop);  }
+    @Override public void negate() { _bop = negate(_bop);  }
 
     @Override public void encoding( Encoding enc ) {
         if( in(1)!=null ) {
