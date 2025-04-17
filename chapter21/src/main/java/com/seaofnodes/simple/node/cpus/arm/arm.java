@@ -28,7 +28,7 @@ public class arm extends Machine {
 
     static final int FLAGS = 64;
     static final int MAX_REG = 65;
-    public static final int D_OFFSET = 31;
+    public static final int D_OFFSET = 32;
 
     static final String[] REGS = new String[] {
             "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
