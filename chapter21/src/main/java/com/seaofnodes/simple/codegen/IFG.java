@@ -68,9 +68,7 @@ abstract public class IFG {
         // Reset all to empty
         resetBBLiveOut();
         resetIFG();
-
-        // Last block has nothing live out
-        assert WORK.isEmpty();
+        WORK.clear();
         for( CFGNode bb : alloc._code._cfg )
             if( bb.blockHead())
                 WORK.push( bb );
