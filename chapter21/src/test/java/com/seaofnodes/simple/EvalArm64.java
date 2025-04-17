@@ -128,6 +128,31 @@ public class EvalArm64 {
                     }
                     break;
                 }
+                case 0x9a: {
+                    // conditional select(csel)
+                    int rm = (ir >> 16) & 0x1F;
+                    switch((ir >> 12) & 0xF) {
+                        case 0x0: if(Z)  rval = regs[rm]; break; // eq
+                        case 0x1: if(!Z) rval = regs[rm]; break; // ne
+                        case 0x2: if(C)  rval = regs[rm]; break; // cs
+                        case 0x3: if(!C) rval = regs[rm]; break;
+                        case 0x4: if(N) rval  =  regs[rm]; break; // mi
+                        case 0x5: if(!N) rval = regs[rm]; break; // pl
+                        case 0x6: if(V) rval = regs[rm]; break; // vs
+                        case 0x7: if(!V) rval = regs[rm]; break; // vc
+                        case 0x8: if(C && !Z) rval = regs[rm]; break; // hi
+                        case 0x9: if(!C || Z) rval = regs[rm]; break; // ls
+                        case 0xA: if(N == V) rval = regs[rm]; break; // ge
+                        case 0xB: if(N != V) rval = regs[rm]; break; // lt
+                        case 0xC: if(!Z && N == V) rval  = regs[rm]; break; // gt
+                        case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
+                        case 0xE: rval = regs[rm]; break; // always executed(al)
+                        default: {
+                           rval =  regs[(ir >> 5) & 0x1F];
+                        }
+                    }
+                    break;
+                }
                 case 0xeb: {
                     // subs(shifted register)
                     int rn = (ir >> 5) &  0x1F;
@@ -143,6 +168,26 @@ public class EvalArm64 {
 
                     boolean sign_lhs = (lhs >>> 63) != 0;
                     boolean sign_rhs = (rhs >>> 63) != 0;
+                    boolean sign_res = (rval >>> 63) != 0;
+                    V = (sign_lhs != sign_rhs) && (sign_res != sign_lhs);
+                    rdid = -1;
+                    break;
+                }
+                case 0xF1: {
+                    // subs(immediate)
+                    int rn = (ir >> 5) & 0x1F;
+                    int immediate = ir << 10 >> 20;
+                    int lhs = (int)regs[rn];
+
+                    rval = lhs - immediate;
+
+                    // set flags as a side effect
+                    Z = (rval == 0);
+                    N = (rval < 0);
+                    C = lhs >= immediate;
+
+                    boolean sign_lhs = (lhs >>> 63) != 0;
+                    boolean sign_rhs = (immediate >>> 63) != 0;
                     boolean sign_res = (rval >>> 63) != 0;
                     V = (sign_lhs != sign_rhs) && (sign_res != sign_lhs);
                     rdid = -1;
@@ -176,13 +221,31 @@ public class EvalArm64 {
                         break outer;
                     }
                 }
+                // bitwise
+                case 0x8A: {
+                    // AND
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    rval = regs[rn] & regs[rm];
+                    break;
+                }
                 // floats
                 case 0x1E: {
-                    // fadd
                     is_f = true;
                     int rs1 = (ir >> 5) & 0x1F;
                     int rs2 = (ir >> 16) & 0x1F;
-                    frval = fregs[rs1] + fregs[rs2];
+
+                    int op = (ir >> 10) & 0x3F;
+                    switch(op) {
+                        case 16: frval = fregs[rs1]; break; // fmov
+                        case 10:frval = fregs[rs1] + fregs[rs2]; break; // fadd
+
+                        case 6: frval = fregs[rs1] / fregs[rs2]; break; // fdiv
+
+                        case 2: frval = fregs[rs1] * fregs[rs2]; break; // fmul
+                        case 14: frval = fregs[rs1] - fregs[rs2]; break; // fsub
+                        default: trap = (2+1);
+                    }
                     break;
                 }
                 case 0x9e: {

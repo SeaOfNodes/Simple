@@ -474,7 +474,8 @@ public class arm extends Machine {
     public static int f_cmp(int opcode, int ftype, int rm, int rn) {
         assert 0 <= rn && rn  < 32;
         assert 0 <= rm && rm  < 32;
-        return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5) | 8;
+        // Todo: |8 is not needed
+        return (opcode  << 24) | (ftype << 21) | (rm << 16) | (8 << 10) | (rn << 5);
     }
     public static void f_cmp(Encoding enc, Node n) {
         short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
