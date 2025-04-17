@@ -87,6 +87,9 @@ public class EvalArm64 {
                     int imm26 = ir << 6 >> 6;
 
                     pc = pc + (imm26 * 4) - 4;
+                    // won't hit pc += 4 at the bottom because continue
+                    // do it manually
+                    pc += 4;
                     rdid = -1;
                     continue ;
                 }
@@ -138,10 +141,11 @@ public class EvalArm64 {
                     N = (rval < 0);
                     C = lhs >= rhs;
 
-                    int sign_lhs = (lhs >> 31) & 1;
-                    int sign_rhs = (rhs >> 31) & 1;
-                    long sign_res = (rval >> 31) & 1;
+                    boolean sign_lhs = (lhs >>> 63) != 0;
+                    boolean sign_rhs = (rhs >>> 63) != 0;
+                    boolean sign_res = (rval >>> 63) != 0;
                     V = (sign_lhs != sign_rhs) && (sign_res != sign_lhs);
+                    rdid = -1;
                     break;
                 }
                 case 0x8B: {

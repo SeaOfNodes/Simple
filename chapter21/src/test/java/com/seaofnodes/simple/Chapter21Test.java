@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -134,9 +135,10 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
-        // TODO: run on arm eval
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/fib.smp"));
-        testCPU(src,"arm"      , "SystemV",16,null);
+        EvalArm64 A5 = TestArm64.build("fib", 9, 16);
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+        assertEquals(55, A5.regs[arm.X0]);
     }
 
     @Test public void testPerson() throws IOException {
