@@ -273,7 +273,7 @@ public class arm extends Machine {
         return (32-size)<<1 | immr << 6 | imms;
     }
 
-    // sh is encoded in opcdoe
+    // sh is encoded in opcode
     public static int imm_inst(int opcode, int imm12, int rn, int rd) {
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
@@ -291,6 +291,13 @@ public class arm extends Machine {
         short self = enc.reg(n);
         short reg1 = enc.reg(n2);
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
+        enc.add4(body);
+    }
+
+    public static void imm_inst_subs(Encoding enc, Node n,Node n2,  int opcode, int imm12) {
+        short reg1 = enc.reg(n2);
+        // 31 = 11111
+        int body = imm_inst(opcode, imm12&0xFFF, reg1, 31);
         enc.add4(body);
     }
 
@@ -335,7 +342,7 @@ public class arm extends Machine {
         assert 0 <= rm && rm < 32;
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
-        return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) << (rn << 5) | rd;
+        return (opcode << 24) | (shift << 21) | (rm << 16) | (imm6 << 10) | (rn << 5) | rd;
    }
    public static void r_reg(Encoding enc, Node n, int opcode) {
        short self = enc.reg(n);
@@ -343,6 +350,14 @@ public class arm extends Machine {
        short reg2 = enc.reg(n.in(2));
        int body = r_reg(opcode, 0, reg2, 0,  reg1, self >= 32 ? reg1: self);
        enc.add4(body);
+  }
+
+    public static void r_reg_subs(Encoding enc, Node n, int opcode) {
+        short reg1 = enc.reg(n.in(1));
+        short reg2 = enc.reg(n.in(2));
+        // 31 = 11111
+        int body = r_reg(opcode, 0, reg2, 0,  reg1, 31);
+        enc.add4(body);
     }
 
     public static int shift_reg(int opcode, int rm, int op2, int rn, int rd) {
@@ -472,10 +487,10 @@ public class arm extends Machine {
         return switch (bop) {
         case "==" -> COND.EQ;
         case "!=" -> COND.NE;
-        case "<"  -> COND.LE;
-        case "<=" -> COND.LT;
-        case ">=" -> COND.GT;
-        case ">"  -> COND.GE;
+        case "<"  -> COND.LT;
+        case "<=" -> COND.LE;
+        case ">=" -> COND.GE;
+        case ">"  -> COND.GT;
         default   -> throw Utils.TODO();
         };
     }

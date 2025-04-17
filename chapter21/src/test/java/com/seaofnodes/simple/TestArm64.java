@@ -8,18 +8,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
+
 // Runs 32-bit ARM code in an emulator
 
 public class TestArm64 {
-    public static EvalArm64 build(String file, int arg) throws IOException {
-        return  build("src/test/java/com/seaofnodes/simple/progs",file, arg);
+    public static EvalArm64 build(String file, int arg, int spills) throws IOException {
+        return  build("src/test/java/com/seaofnodes/simple/progs",file, arg, spills);
     }
 
     // Compile and run a simple program
-    public static EvalArm64 build(String dir, String file, int arg) throws IOException {
+    public static EvalArm64 build(String dir, String file, int arg, int spills) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
         CodeGen code = new CodeGen(src).driver("arm", "SystemV",null);
+
+        // Allocation quality not degraded
+        int delta = spills>>3;
+        if(delta == 0) delta =1;
+        if(spills != -1) assertEquals("Expect spills:", spills, code._regAlloc._spillScaled, delta);
 
         // Image
         byte[] image = new byte[1<<20]; // A megabyte (1024*1024 bytes)

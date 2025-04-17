@@ -57,7 +57,7 @@ public class EvalArm64 {
         int pc = _pc;
         int cycle = _cycle;
         boolean is_f = false;
-
+        outer:
         for(int icount = 0; icount < maxops; icount++) {
             int ir = 0;
             rval = 0;
@@ -166,9 +166,14 @@ public class EvalArm64 {
                     rval = regs[rm];
                     break;
                 }
+                case 0xD6: {
+                    rdid = -1;
+                    if(ld4s(pc + 4) == 0) {
+                        break outer;
+                    }
+                }
                 default: trap = (2+1);
             }
-            set:
             if(trap != 0) {
                 _pc = pc;
                 break;
