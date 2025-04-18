@@ -476,21 +476,23 @@ public class x86_64_v2 extends Machine {
         Node lhs = bool.in(1);
         Node rhs = bool.in(2);
 
+        // Since cmp does not record a BOP, SetX/Jmp need to know if the CMP is swapped.
+
         // Vs memory
         if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld._declaredType) )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
+        // Operands swap in the encoding directly, no need for Set/Jmp to swap `bop`
         if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld._declaredType))
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate
         if( rhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
-            return new CmpIX86(bool, (int)ti.value());
+            return new CmpIX86(bool, (int)ti.value(), false);
 
-        if( lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) ) {
-            swap = true;
-            return new CmpIX86(bool, (int)ti.value(), 0.5);
-        }
+        // Operand swap compare; Set and Jmp need to swap `bop`
+        if( lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value()) )
+            return new CmpIX86(bool, (int)ti.value(), swap=true);
 
         // x vs y
         return new CmpX86(bool);
@@ -519,7 +521,7 @@ public class x86_64_v2 extends Machine {
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
         String op = "!=";
-        if( iff.in(1) instanceof BoolNode bool ) op = bool.op();
+        if( iff.in(1) instanceof BoolNode bool ) op = swap ? IfNode.swap(bool.op()) : bool.op();
         else if( iff.in(1)==null ) op = "=="; // Never-node cutout
         else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
         return new JmpX86(iff, op);

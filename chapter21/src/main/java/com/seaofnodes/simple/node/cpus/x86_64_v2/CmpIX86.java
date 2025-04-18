@@ -7,9 +7,9 @@ import com.seaofnodes.simple.node.*;
 // Compare immediate.  Sets flags.
 public class CmpIX86 extends MachConcreteNode implements MachNode {
     final int _imm;
-    CmpIX86( Node cmp, int imm ) {
+    CmpIX86( Node cmp, int imm, boolean swap ) {
         super(cmp);
-        _inputs.pop();
+        _inputs.del(swap ? 1 : 2);
         _imm = imm;
     }
     CmpIX86( CmpIX86 cmp ) {
@@ -17,11 +17,6 @@ public class CmpIX86 extends MachConcreteNode implements MachNode {
         addDef(null);
         addDef(cmp.in(1));
         _imm = cmp._imm;
-    }
-    CmpIX86( Node lhs, int imm, double ignore ) {
-        super(lhs);
-        _inputs.del(1);
-        _imm = imm;
     }
 
     @Override public String op() { return _imm==0 ? "test" : "cmp"; }

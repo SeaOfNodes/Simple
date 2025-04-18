@@ -77,7 +77,7 @@ public abstract class TestC {
             System.err.println(result);
         }
         assertEquals( 0, error );
-        assertEquals(expected,result.replace("\r",""));
+        assertEquals(expected,result);
 
         // Allocation quality not degraded
         int delta = spills>>3;

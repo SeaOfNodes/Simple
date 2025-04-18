@@ -79,6 +79,7 @@ public abstract class ASMPrinter {
         if( fun._name != null ) sb.p(fun._name).p(" ");
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
+        iadr = (iadr + 15)&-16; // All function entries padded to 16 align
 
         if( fun._frameAdjust != 0 )
             iadr = doInst(iadr,sb,code,fun,cfgidx,fun,true,true);

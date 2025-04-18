@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.cpus.arm.arm;
+
 public class EvalArm64 {
     // Memory image, always 0-based
     public final byte[] _buf;
@@ -28,7 +30,7 @@ public class EvalArm64 {
         regs  = new long[32];
         fregs = new double[32];
         // Stack grows down, heap grows up
-        regs[2/*RSP*/] = _heap = stackSize;
+        regs[arm.RSP] = _heap = stackSize;
         _pc = 0;
     }
 

@@ -9,6 +9,7 @@
  */
 
 import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
 
 import java.util.Arrays;
 
@@ -35,7 +36,7 @@ import java.util.Arrays;
         regs  = new long[32];
         fregs = new double[32];
         // Stack grows down, heap grows up
-        regs[2/*RSP*/] = _heap = stackSize;
+        regs[riscv.RSP] = _heap = stackSize;
         _pc = 0;
     }
 
