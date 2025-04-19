@@ -99,7 +99,6 @@ public class arm extends Machine {
     public static int OP_LSL       = 0b1000;
     public static int OPI_LSL       =0b1101001101;
 
-
     public static int OP_LSR        = 0b1001;
     public static int OPI_LSR       = 0b1101001101;
 
@@ -432,6 +431,7 @@ public class arm extends Machine {
 
     // share same encoding with LDR (literal, SIMD&FP) flavour
     public static int load_pc(int opcode, int offset, int rt) {
+        offset>>=2;
         return (opcode << 24) | (offset << 5) | rt;
     }
     // int l
@@ -519,6 +519,13 @@ public class arm extends Machine {
     public static int b(int opcode, int delta) {
         assert -(1<<26) <= delta && delta < (1<<26);
         assert (delta&3)==0;
+        delta>>=2;
+        delta &= (1L<<26)-1;    // Zero extend
+        return (opcode << 26) | delta;
+    }
+    // no aligned assert
+    public static int b_calloc(int opcode, int delta) {
+        assert -(1<<26) <= delta && delta < (1<<26);
         delta>>=2;
         delta &= (1L<<26)-1;    // Zero extend
         return (opcode << 26) | delta;

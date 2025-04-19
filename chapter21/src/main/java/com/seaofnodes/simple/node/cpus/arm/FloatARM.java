@@ -31,7 +31,7 @@ public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
-        enc.add4(arm.load_pc(arm.OPF_ARM, delta, dst));
+        enc.patch4(opStart, arm.load_pc(arm.OPF_ARM, delta, dst));
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

@@ -88,7 +88,7 @@ public class Chapter21Test {
 """;
         TestC.run("newtonFloat",result,34);
 
-        EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0, 10);
+        EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
         int trap_r5 = R5.step(1000);
         assertEquals(0,trap_r5);
@@ -96,11 +96,29 @@ public class Chapter21Test {
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10);
+        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
         A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
         int trap_arm = A5.step(1000);
         assertEquals(0,trap_arm);
         assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
+    }
+
+    @Test
+    public void testFibPrint() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
+        CodeGen code = new CodeGen(src);
+
+        code.parse().opto().typeCheck().loopTree().instSelect("arm", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
+        System.out.print(code.asm());
+    }
+
+    @Test
+    public void testFibPrintRiscv() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
+        CodeGen code = new CodeGen(src);
+
+        code.parse().opto().typeCheck().loopTree().instSelect("riscv", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
+        System.out.print(code.asm());
     }
 
     @Test public void testSieve() throws IOException {
@@ -114,9 +132,9 @@ public class Chapter21Test {
         // Compile, link against native C; expect the above string of primes to be printed out by C
         TestC.run("sieve",sprimes, 257);
 
-        // Evaluate on RISC5 emulator; expect return of a array of primes in
+        // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 160);
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 160, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -125,20 +143,31 @@ public class Chapter21Test {
         assertEquals(primes.length, R5.ld4s(ary));
         for( int i=0; i<primes.length; i++ )
             assertEquals(primes[i], R5.ld4s(ary + 4 + i*4));
+        // Evaluate on ARM5 emulator; expect return of an array of primes in the simualted heap.
+
+        EvalArm64 A5 = TestArm64.build("sieve", 100, 160, false);
+        int trap_arm = A5.step(10000);
+        assertEquals(0, trap_arm);
+        int ary_arm = (int)A5.regs[arm.X0];
+        // Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
+        assertEquals(primes.length, A5.ld4s(ary_arm));
+        for(int i = 0; i<primes.length; i++)
+            assertEquals(primes[i], A5.ld4s(ary_arm + 4 + i * 4));
+
     }
 
     @Test public void testFibExport() throws IOException {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 9, 16);
+        EvalRisc5 R5 = TestRisc5.build("fib", 9, 16, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("fib", 9, 16);
+        EvalArm64 A5 = TestArm64.build("fib", 9, 16, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
         // Return register X0 holds fib(8)==55
@@ -158,7 +187,7 @@ public class Chapter21Test {
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", ps, 0);
+        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st4(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -183,7 +212,7 @@ public class Chapter21Test {
                   TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
 
-        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0);
+        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0, false);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments
@@ -213,7 +242,7 @@ public class Chapter21Test {
         assertEquals(22.8, result, 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", 0, 0);
+        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", 0, 0, false);
 
         A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
         A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;
