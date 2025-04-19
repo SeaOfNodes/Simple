@@ -318,7 +318,7 @@ public class CodeGen {
 
 
     // ---------------------------
-    // Control Flow Graph in RPO order.
+    // Control Flow Graph in Reverse Post Order.
     public int _tGCM;
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 

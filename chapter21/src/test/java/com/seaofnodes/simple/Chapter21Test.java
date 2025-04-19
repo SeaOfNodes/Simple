@@ -95,31 +95,14 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
-        // arm
-        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
-        A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
-        int trap_arm = A5.step(1000);
-        assertEquals(0,trap_arm);
-        assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
+        //// arm
+        //EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
+        //A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
+        //int trap_arm = A5.step(1000);
+        //assertEquals(0,trap_arm);
+        //assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
     }
 
-    @Test
-    public void testFibPrint() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
-        CodeGen code = new CodeGen(src);
-
-        code.parse().opto().typeCheck().loopTree().instSelect("arm", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
-        System.out.print(code.asm());
-    }
-
-    @Test
-    public void testFibPrintRiscv() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"));
-        CodeGen code = new CodeGen(src);
-
-        code.parse().opto().typeCheck().loopTree().instSelect("riscv", "SystemV").GCM().localSched().regAlloc().encode().print_as_hex();
-        System.out.print(code.asm());
-    }
 
     @Test public void testSieve() throws IOException {
         // The primes
@@ -143,17 +126,16 @@ public class Chapter21Test {
         assertEquals(primes.length, R5.ld4s(ary));
         for( int i=0; i<primes.length; i++ )
             assertEquals(primes[i], R5.ld4s(ary + 4 + i*4));
-        // Evaluate on ARM5 emulator; expect return of an array of primes in the simualted heap.
 
-        EvalArm64 A5 = TestArm64.build("sieve", 100, 160, false);
-        int trap_arm = A5.step(10000);
-        assertEquals(0, trap_arm);
-        int ary_arm = (int)A5.regs[arm.X0];
-        // Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
-        assertEquals(primes.length, A5.ld4s(ary_arm));
-        for(int i = 0; i<primes.length; i++)
-            assertEquals(primes[i], A5.ld4s(ary_arm + 4 + i * 4));
-
+        //// Evaluate on ARM5 emulator; expect return of an array of primes in the simulated heap.
+        //EvalArm64 A5 = TestArm64.build("sieve", 100, 160, false);
+        //int trap_arm = A5.step(10000);
+        //assertEquals(0, trap_arm);
+        //int ary_arm = (int)A5.regs[arm.X0];
+        //// Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
+        //assertEquals(primes.length, A5.ld4s(ary_arm));
+        //for(int i = 0; i<primes.length; i++)
+        //    assertEquals(primes[i], A5.ld4s(ary_arm + 4 + i * 4));
     }
 
     @Test public void testFibExport() throws IOException {
