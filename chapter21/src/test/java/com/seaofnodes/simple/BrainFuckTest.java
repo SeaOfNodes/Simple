@@ -15,7 +15,7 @@ public class BrainFuckTest {
         String brain_fuck = "Hello World!\n";
         TestC.run("brain_fuck", brain_fuck, 40);
 
-        EvalRisc5 R5 = TestRisc5.build("brain_fuck", 0, 44);
+        EvalRisc5 R5 = TestRisc5.build("brain_fuck", 0, 44, false);
         int trap = R5.step(100000);
         assertEquals(0,trap);
         int ptr = (int)R5.regs[riscv.A0];

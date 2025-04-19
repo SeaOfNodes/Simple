@@ -13,15 +13,16 @@ import static org.junit.Assert.assertEquals;
 // Runs 32-bit ARM code in an emulator
 
 public class TestArm64 {
-    public static EvalArm64 build(String file, int arg, int spills) throws IOException {
-        return  build("src/test/java/com/seaofnodes/simple/progs",file, arg, spills);
+    public static EvalArm64 build(String file, int arg, int spills, boolean print) throws IOException {
+        return  build("src/test/java/com/seaofnodes/simple/progs",file, arg, spills, print);
     }
 
     // Compile and run a simple program
-    public static EvalArm64 build(String dir, String file, int arg, int spills) throws IOException {
+    public static EvalArm64 build(String dir, String file, int arg, int spills, boolean print) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
         CodeGen code = new CodeGen(src).driver("arm", "SystemV",null);
+        if(print) {code.print_as_hex(); System.out.print(code.asm());}
 
         // Allocation quality not degraded
         int delta = spills>>3;

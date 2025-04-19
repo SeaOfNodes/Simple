@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 
 public class EvalArm64 {
@@ -63,6 +64,7 @@ public class EvalArm64 {
         for(int icount = 0; icount < maxops; icount++) {
             int ir = 0;
             rval = 0;
+            frval = 0;
             cycle++;
 
             if( pc >= _buf.length ) {
@@ -95,6 +97,27 @@ public class EvalArm64 {
                     rdid = -1;
                     continue ;
                 }
+                case 0x25: {
+                    // bl (just calloc)
+                    rval = pc + 4;
+                    regs[arm.X30] = rval;
+                    if(pc + 4 == 0) {
+                        regs[rdid] = rval;
+                        break outer;
+                    }
+                    int imm26 = (ir & 0x03FFFFFF);
+                    int imm = (imm26 << 6) >> 6;
+                    pc = pc + (imm << 2) ;
+
+                    if (pc == Encoding.SENTINAL_CALLOC) {
+                        long size = regs[arm.X0]*regs[arm.X1];
+                        regs[arm.X0] = _heap;
+                        _heap += (int)size;
+                        // unwind pc
+                        pc = (int)rval - 4;
+                    }
+                    continue;
+                }
             }
             // for the opcode we just match for bits[31:24];
             switch(opcode1) {
@@ -102,6 +125,42 @@ public class EvalArm64 {
                     // movz
                     // get immediate
                     rval = (ir >> 5) & 0x7FFF;
+                    break;
+                }
+                case 0x5c: {
+                    // ldr
+                    is_f = true;
+                    // address = delta
+                    int address = ir << 8 >> 13;
+                    address *= 4;
+                    if(address >= _buf.length-3) trap = (5 + 1);
+                    frval = ld8f(pc + address);
+                    break;
+                }
+
+                case 0xF9: {
+                    // str
+                    // rn
+                    int base = ir >> 5 & 0x1F;
+                    int imm = (ir >> 10) & 0xFFF;
+                    rval = regs[base] + imm;
+                    switch(ir <<8 >> 30) {
+                        case 0x0: {
+                            // store
+                            _buf[(int)rval] = (byte)regs[rdid];
+                            if(rdid == 30) {
+                                System.out.print("Here");
+                            }
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x1: {
+                            // load
+                            rval = _buf[(int)rval];
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
                     break;
                 }
                 case 0x54: {
@@ -211,6 +270,12 @@ public class EvalArm64 {
                     rval = regs[rn] + immediate;
                     break;
                 }
+                case 0xD3: {
+                    // lsl
+                    int immr = ir << 10 >> 26;
+                    rval     = 64 - immr;
+                    break;
+                }
                 case 0xAA: {
                     // MOV(register)
                     int rm = (ir >> 16) & 0x1F;
@@ -242,8 +307,20 @@ public class EvalArm64 {
                         case 16: frval = fregs[rs1]; break; // fmov
                         case 10:frval = fregs[rs1] + fregs[rs2]; break; // fadd
 
-                        case 6: frval = fregs[rs1] / fregs[rs2]; break; // fdiv
+                        case 6: if (fregs[rs2] == 0) frval = 0; else frval = fregs[rs1] / fregs[rs2]; break; // fdiv
+                        case 8: {
+                            // fcmp
+                            double lhs  = fregs[rs1];
+                            double rhs = fregs[rs2];
 
+                            Z = (lhs == rhs);
+                            N = (lhs < rhs);
+                            C = lhs >= rhs;
+                            V = Double.isNaN(lhs) || Double.isNaN(rhs);
+                            rdid = -1;
+
+                            break;
+                        }
                         case 2: frval = fregs[rs1] * fregs[rs2]; break; // fmul
                         case 14: frval = fregs[rs1] - fregs[rs2]; break; // fsub
                         default: trap = (2+1);
