@@ -95,12 +95,12 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
-        //// arm
-        //EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
-        //A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
-        //int trap_arm = A5.step(1000);
-        //assertEquals(0,trap_arm);
-        //assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
+        // arm
+        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
+        A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
+        int trap_arm = A5.step(1000);
+        assertEquals(0,trap_arm);
+        assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
     }
 
 
