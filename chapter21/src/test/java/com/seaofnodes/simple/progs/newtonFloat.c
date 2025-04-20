@@ -10,7 +10,7 @@ int main( int argc, char** argv ) {
   for( int i=0; i<10; i++ ) {
     double d = test_sqrt(i), expect = sqrt(i);
     double delta = abs(d-expect);
-    printf("%d  %f\n",i,d);
+    printf("%d  %f   (%f)\n",i,d,delta);
     if( delta > 1e-50 )
       return 1;
   }
