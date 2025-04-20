@@ -48,7 +48,7 @@ public class RegionNode extends CFGNode {
         if( !hasPhi() &&         // No Phi users, just a control user
             in(1) instanceof CProjNode p1 &&
             in(2) instanceof CProjNode p2 &&
-            p1.in(0).addDep(this)==p2.in(0).addDep(this) &&
+            addDep(p1.in(0))==addDep(p2.in(0)) &&
             p1.in(0) instanceof IfNode iff ) {
             // Replace with the iff.ctrl directly
             if( nIns()==3 ) return iff.ctrl();
@@ -122,18 +122,18 @@ public class RegionNode extends CFGNode {
         return false;
     }
 
+    // Is there a value in-between 2 Regions?  Difficult to correctly fuse
+    // without extensive testing, so just ignore.
     boolean hasMidUser(RegionNode r) {
         for( Node use : r._outputs ) {
             if( use==this ) continue;
             if( use instanceof PhiNode ) {
                 for( Node data : use._outputs ) {
-                    if( !(data instanceof PhiNode phi2) || phi2.region()!=this ) {
-                        use.addDep(this); return true; }
-                    assert phi2.region()==this;
+                    if( !(data instanceof PhiNode phi2) || phi2.region()!=this )
+                        { addDep(use); addDep(data); return true; }
                 }
-            } else {
-                use.addDep(this);
-                return true; } // Control user
+            } else
+                { addDep(use);  return true; } // Control user
         }
         return false;
     }

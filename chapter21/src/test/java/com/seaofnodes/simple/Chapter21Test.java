@@ -12,10 +12,10 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
-    @Test @Ignore
+    @Test
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        testCPU(src,"x86_64_v2", "Win64",-1,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
@@ -75,16 +75,16 @@ public class Chapter21Test {
 
     @Test public void testNewtonExport() throws IOException {
         String result = """
-0  0.000000
-1  1.000000
-2  1.414214
-3  1.732051
-4  2.000000
-5  2.236068
-6  2.449490
-7  2.645751
-8  2.828427
-9  3.000000
+0  0.000000   (0)
+1  1.000000   (0)
+2  1.414214   (2.22045e-16)
+3  1.732051   (0)
+4  2.000000   (0)
+5  2.236068   (0)
+6  2.449490   (0)
+7  2.645751   (0)
+8  2.828427   (4.44089e-16)
+9  3.000000   (0)
 """;
         TestC.run("newtonFloat",result,34);
 
@@ -95,12 +95,12 @@ public class Chapter21Test {
         // Return register A0 holds fib(8)==55
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
-        //// arm
-        //EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
-        //A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
-        //int trap_arm = A5.step(1000);
-        //assertEquals(0,trap_arm);
-        //assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
+        // arm
+        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
+        A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
+        int trap_arm = A5.step(1000);
+        assertEquals(0,trap_arm);
+        assertEquals(1.732051, A5.fregs[arm.D0 - arm.D_OFFSET], 0.00001);
     }
 
 

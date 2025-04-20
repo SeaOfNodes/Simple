@@ -549,17 +549,16 @@ public abstract class Node implements Cloneable {
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
-    Node addDep( Node dep ) {
+    <N extends Node> N addDep( N dep ) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
-        if( CODE._midAssert ) return this;
-        if( dep == null ) return this;
-        if( _deps==null ) _deps = new Ary<>(Node.class);
-        if( _deps   .find(dep) != -1 ) return this; // Already on list
-        if( _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( _outputs.find(dep) != -1 ) return this;
-        _deps.add(dep);
-        return this;
+        if( CODE._midAssert ) return dep;
+        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
+        if( dep._deps   .find(this) != -1 ) return dep; // Already on list
+        if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
+        if( dep._outputs.find(this) != -1 ) return dep;
+        dep._deps.add(this);
+        return dep;
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
@@ -667,7 +666,7 @@ public abstract class Node implements Cloneable {
     boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
             if( !(in(i)._type.isConstant()) ) {
-                in(i).addDep(dep); // If in(i) becomes a constant later, will trigger some peephole
+                dep.addDep(in(i)); // If in(i) becomes a constant later, will trigger some peephole
                 return false;
             }
         return true;

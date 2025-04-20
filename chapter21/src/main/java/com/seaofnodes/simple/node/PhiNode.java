@@ -58,7 +58,7 @@ public class PhiNode extends Node {
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( r.in(i).addDep(this)._type != Type.XCONTROL )
+            if( addDep(r.in(i))._type != Type.XCONTROL )
                 t = t.meet(in(i)._type);
         return t;
     }
@@ -87,8 +87,8 @@ public class PhiNode extends Node {
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
-            if( in(1) instanceof CastNode cast && cast.in(1).addDep(this)==in(2) ) return in(2);
-            if( in(2) instanceof CastNode cast && cast.in(1).addDep(this)==in(1) ) return in(1);
+            if( in(1) instanceof CastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
+            if( in(2) instanceof CastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
         }
         // If merging a null-checked null and the checked value, just use the value.
         // if( val ) ..; phi(Region,False=0/null,True=val);
@@ -101,7 +101,7 @@ public class PhiNode extends Node {
                 Node val = in(3-nullx);
                 if( val instanceof CastNode cast )
                     val = cast.in(1);
-                if( r.idom(this).addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
+                if( addDep(r.idom(this)) instanceof IfNode iff && addDep(iff.pred())==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
@@ -122,7 +122,7 @@ public class PhiNode extends Node {
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
-                for( Node out : op._outputs ) if( out!=null ) out.addDep(this);
+                for( Node out : op._outputs ) if( out!=null ) addDep(out);
                 return false;
             }
         }
@@ -168,7 +168,7 @@ public class PhiNode extends Node {
         for( int i=1; i<nIns(); i++ ) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( region().in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
+            if( addDep(region().in(i))._type != Type.XCONTROL && in(i) != this )
                 if( live == null || live == in(i) ) live = in(i);
                 else return null;
         }
@@ -180,7 +180,7 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) ) return false;
         // When the region completes (is no longer in progress) the Phi can
         // become a "all constants" Phi, and the "dep" might make progress.
-        addDep(dep);
+        dep.addDep(this);
         if( r.inProgress() ) return false;
         return super.allCons(dep);
     }

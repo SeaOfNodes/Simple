@@ -94,7 +94,7 @@ public class StoreNode extends MemOpNode {
         // when the other uses go away we can retry.
         for( Node use : mem._outputs )
             if( use != this )
-                use.addDep(this);
+                addDep(use);
         return false;
     }
 

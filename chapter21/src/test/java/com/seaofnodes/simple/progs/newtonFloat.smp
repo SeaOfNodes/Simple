@@ -1,7 +1,7 @@
 // -*- mode: java;  -*-
 // Newtons approximation to the square root
 val test_sqrt = { flt x ->
-    flt epsilon = 1e-57;
+    flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {
         flt next = (x/guess + guess)/2;

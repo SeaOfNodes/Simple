@@ -228,16 +228,8 @@ public class Encoding {
             // Pick out the T/F projections
             CProjNode t = iff.cproj(0);
             CProjNode f = iff.cproj(1);
-            int tld = t.loopDepth(), fld = f.loopDepth(), bld = iff.loopDepth();
             // Invert the branch or not
-            if( tld >= bld &&   // true to exit a loop
-                // false to exit a loop, invert to true
-                (fld < bld ||
-                 // Else not exiting (staying or entering deeper).
-                 // Fall/false into a full block, Jump/true to an empty block.
-                 ( f.nOuts()==1 && (t.nOuts()>1 ||
-                                    // Everything else equal, use pre-order
-                                    t._pre > f._pre) )) ) {
+            if( shouldInvert(t,f,iff.loopDepth()) ) {
                 iff.negate();
                 t.invert();
                 f.invert();
@@ -276,6 +268,30 @@ public class Encoding {
 
         _rpo_cfg(next,visit,rpos);
         rpo.add(bb);
+    }
+
+    // Should this test be inverted?
+    private static boolean shouldInvert(CFGNode t, CFGNode f, int bld) {
+        int tld = t.loopDepth(), fld = f.loopDepth();
+        // These next two are symmetric and can happen in any order; if `tld <
+        // bld` is true, the `fld < bld` must be false, or else both directions
+        // exit the loop... and the IF test would not be in the loop.
+
+        // true to exit a loop usually, keep true if taking an empty backwards branch
+        if( tld < bld ) return  emptyBackBlock(f,bld);
+        // false to exit a loop, normally invert to true (except empty back)
+        if( fld < bld ) return !emptyBackBlock(t,bld);
+
+        // Not exiting the loop; staying at this depth (or going deeper loop).
+        // Fall/false into a full block, Jump/true to an empty block.
+        if( f.nOuts()>1 && t.nOuts()==1 ) return false;
+        if( t.nOuts()>1 && f.nOuts()==1 ) return true ;
+        // Everything else equal, use pre-order
+        return t._pre > f._pre;
+    }
+
+    private static boolean emptyBackBlock( CFGNode c, int bld ) {
+        return c.loopDepth()==bld && c.nOuts()==1 && c.uctrl() instanceof LoopNode;
     }
 
     // Is the CFG from "next" to the end empty?  This means jumping to "next"
