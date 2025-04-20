@@ -20,7 +20,7 @@ public class MergeSortTest {
         TestC.run("sort", sprimes, 40);
 
 
-        EvalRisc5 R5 = TestRisc5.build("sort", 0, 36, false);
+        EvalRisc5 R5 = TestRisc5.build("src/test/java/com/seaofnodes/simple/progs", "sort", "merge_sort", 0, 36, false);
         // Allocate an array of primes, filled in reverse order
         int ps = R5._heap;
         R5._heap += (primes.length+1)*8; // 25 primes, and length

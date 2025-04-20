@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import java.util.*;
@@ -56,6 +57,29 @@ public class RegionNode extends CFGNode {
             return delDef(2);
         }
 
+        // Flatten stack regions (no loops involved)
+        if( getClass() == RegionNode.class ) {
+            for( int i=1; i<nIns(); i++ )
+                if( cfg(i) instanceof RegionNode region && region.getClass() == RegionNode.class && region.nIns()>2 && !hasMidUser(region) ) {
+                    assert !region.inProgress();
+                    // Fold Phis
+                    for( Node use : _outputs ) {
+                        if( use instanceof PhiNode phi ) {
+                            PhiNode phi2 = phi.in(i) instanceof PhiNode phi2x && phi2x.region()==region ? phi2x : null;
+                            for( int j=1; j<region.nIns(); j++ )
+                                phi.addDef(phi2==null ? phi.in(i) : phi2.in(j));
+                            CodeGen.CODE.add(phi);
+                        }
+                    }
+
+                    // Fold Region
+                    for( int j=1; j<region.nIns(); j++ )
+                        addDef(region.in(j));
+                    setDef(i,Parser.XCTRL);
+                    return this;
+                }
+        }
+
         return null;
     }
 
@@ -97,6 +121,23 @@ public class RegionNode extends CFGNode {
                 return true;
         return false;
     }
+
+    boolean hasMidUser(RegionNode r) {
+        for( Node use : r._outputs ) {
+            if( use==this ) continue;
+            if( use instanceof PhiNode ) {
+                for( Node data : use._outputs ) {
+                    if( !(data instanceof PhiNode phi2) || phi2.region()!=this ) {
+                        use.addDep(this); return true; }
+                    assert phi2.region()==this;
+                }
+            } else {
+                use.addDep(this);
+                return true; } // Control user
+        }
+        return false;
+    }
+
 
     // Immediate dominator of Region is a little more complicated.
     @Override public int idepth() {

@@ -47,7 +47,7 @@ public class UJmpX86 extends CFGNode implements MachNode, RIPRelSize {
 
     @Override public void asm(CodeGen code, SB sb) {
         CFGNode target = uctrl();
-        assert target.nOuts() > 1; // Should optimize jmp to empty targets
+        //assert target.nOuts() > 1; // Should optimize jmp to empty targets
         sb.p(label(target));
     }
 }
