@@ -46,7 +46,7 @@ public class CProjNode extends CFGNode {
         }
 
         // Flip a negating if-test, to remove the not
-        if( ctrl() instanceof IfNode iff && iff.pred().addDep(this) instanceof NotNode not )
+        if( ctrl() instanceof IfNode iff && addDep(iff.pred()) instanceof NotNode not )
             return new CProjNode(new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
 
         // Copy of some other input

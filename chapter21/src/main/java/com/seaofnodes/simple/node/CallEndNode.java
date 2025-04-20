@@ -38,7 +38,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
             return TypeTuple.RET.dual();
         Type ret = Type.BOTTOM;
         TypeMem mem = TypeMem.BOT;
-        if( call.fptr().addDep(this)._type instanceof TypeFunPtr tfp ) {
+        if( addDep(call.fptr())._type instanceof TypeFunPtr tfp ) {
             ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
             // across the linked returns and join with the function return type.
@@ -84,10 +84,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         return this;
                     }
                 } else {
-                    fun.addDep(this);
+                    addDep(fun);
                 }
             } else { // Function ptr has multiple users (so maybe multiple call sites)
-                fptr.addDep(this);
+                addDep(fptr);
             }
         }
 

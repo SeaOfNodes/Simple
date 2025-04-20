@@ -84,8 +84,8 @@ public abstract class CFGNode extends Node {
         CFGNode lhs = this;
         while( lhs != rhs ) {
             var comp = lhs.idepth() - rhs.idepth();
-            if( comp >= 0 ) lhs = ((CFGNode)lhs.addDep(dep)).idom();
-            if( comp <= 0 ) rhs = ((CFGNode)rhs.addDep(dep)).idom();
+            if( comp >= 0 ) lhs = (dep==null ? lhs : dep.addDep(lhs)).idom();
+            if( comp <= 0 ) rhs = (dep==null ? rhs : dep.addDep(rhs)).idom();
         }
         return lhs;
     }
