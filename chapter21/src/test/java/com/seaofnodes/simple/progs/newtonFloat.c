@@ -2,16 +2,14 @@
 #include <math.h>
 #include <stdlib.h>
 
-__attribute__ ((CALL_CONV))
 extern double test_sqrt(double);
 
 int main( int argc, char** argv ) {
-  double epsilon = 1e-50;
   for( int i=0; i<10; i++ ) {
     double d = test_sqrt((double)i), expect = sqrt((double)i);
-    double delta = abs(d-expect);
-    printf("%d  %f   (%f)\n",i,d,delta);
-    if( delta > 1e-50 )
+    double delta = fabs(d-expect);
+    printf("%d  %f   (%g)\n",i,d,delta);
+    if( delta > 1e-15 )
       return 1;
   }
   return 0;
