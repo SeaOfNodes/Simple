@@ -14,6 +14,7 @@ public class EvalArm64 {
 
     int _pc;
 
+    int SENTINEL_CALLOC = -4;
     // Start of free memory for allocation
     int _heap;
 
@@ -138,8 +139,7 @@ public class EvalArm64 {
                     int imm26 = (ir & 0x03FFFFFF);
                     int imm = (imm26 << 6) >> 6;
                     pc = pc + (imm << 2) ;
-
-                    if (pc == Encoding.SENTINAL_CALLOC || Math.abs(pc - Encoding.SENTINAL_CALLOC) <= 2) {
+                    if (pc == SENTINEL_CALLOC) {
                         long size = regs[arm.X0]*regs[arm.X1];
                         regs[arm.X0] = _heap;
                         _heap += (int)size;

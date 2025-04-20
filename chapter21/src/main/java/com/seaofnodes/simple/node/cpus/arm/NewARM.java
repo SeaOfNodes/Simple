@@ -19,10 +19,7 @@ public class NewARM extends NewNode implements MachNode, RIPRelSize {
     // Patch is for running "new" in a JIT.
     // Delta is from opcode start
     @Override public void patch(Encoding enc, int opStart, int opLen, int delta ) {
-        if((delta & 3) != 0) {
+            // delta is always aligned for ARM
             enc.patch4(opStart, arm.b_calloc(arm.OP_CALL, delta));
-        } else {
-            throw Utils.TODO();
-        }
     }
 }
