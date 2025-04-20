@@ -52,7 +52,37 @@ public class EvalArm64 {
     public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
     public void st8(int x, long val) { st4(x,(int)val); st2(x+4,(int)(val>>32)); }
 
+    // decodes N:imms:immr
 
+    public static int decodeImm12Logical(int imm12) {
+        int n = (imm12 >>> 12) & 1;
+        int immr = (imm12 >>> 6) & 0x3F;
+        int imms = imm12 & 0x3F;
+
+        int len = -1;
+        for (int i = 5; i >= 0; i--) {
+            if ((n << i | (imms >> (5 - i))) == (1 << (i + 1)) - 1) {
+                len = i + 1;
+                break;
+            }
+        }
+        if (len == -1) return -1;
+
+        int size = 1 << len;
+        int S = imms & ((1 << len) - 1);
+        int R = immr & ((1 << len) - 1);
+
+        long pattern = (1L << (S + 1)) - 1;
+        long rotated = Long.rotateRight(pattern, R) & ((1L << size) - 1);
+
+        // Repeat the pattern across 64 bits
+        int result = 0;
+        for (int i = 0; i < 64; i += size) {
+            result |= rotated << i;
+        }
+
+        return result;
+    }
     public int step(int maxops) {
         int trap = 0;
         long rval = 0;
@@ -109,12 +139,12 @@ public class EvalArm64 {
                     int imm = (imm26 << 6) >> 6;
                     pc = pc + (imm << 2) ;
 
-                    if (pc == Encoding.SENTINAL_CALLOC) {
+                    if (pc == Encoding.SENTINAL_CALLOC || Math.abs(pc - Encoding.SENTINAL_CALLOC) <= 2) {
                         long size = regs[arm.X0]*regs[arm.X1];
                         regs[arm.X0] = _heap;
                         _heap += (int)size;
                         // unwind pc
-                        pc = (int)rval - 4;
+                        pc = (int)rval;
                     }
                     continue;
                 }
@@ -148,19 +178,30 @@ public class EvalArm64 {
                         case 0x0: {
                             // store
                             _buf[(int)rval] = (byte)regs[rdid];
-                            if(rdid == 30) {
-                                System.out.print("Here");
-                            }
                             rdid = -1;
                             break;
                         }
                         case 0x1: {
-                            // load
+                            // LDR (immediate)
                             rval = _buf[(int)rval];
                             break;
                         }
                         default: trap = (2+1);
                     }
+                    break;
+                }
+                case 0xf8: {
+                    // LDR (register)
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    rval = _buf[rn + rm];
+                    break;
+                }
+                case 0x9b: {
+                    // mul
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    rval = regs[rn] * regs[rm];
                     break;
                 }
                 case 0x54: {
@@ -273,7 +314,22 @@ public class EvalArm64 {
                 case 0xD3: {
                     // lsl
                     int immr = ir << 10 >> 26;
-                    rval     = 64 - immr;
+                    int rn = (ir >> 5) & 0x1F;
+                    rval     = rn << (64 - immr);
+                    break;
+                }
+                case 0x93: {
+                    // asr
+                    int immr = ir << 10 >> 26;
+                    int rn = (ir >> 5) & 0x1F;
+                    rval     = rn >> (64 - immr);
+                    break;
+                }
+                case 0x92: {
+                    // and(immediate)
+                    int immediate = decodeImm12Logical(ir << 10 >> 20);
+                    int rn = (ir >> 5) & 0x1F;
+                    rval = regs[rn] & immediate;
                     break;
                 }
                 case 0xAA: {

@@ -523,7 +523,7 @@ public class arm extends Machine {
         delta &= (1L<<26)-1;    // Zero extend
         return (opcode << 26) | delta;
     }
-    // no aligned assert
+    // no aligned assert(assert (delta&3)==0;)
     public static int b_calloc(int opcode, int delta) {
         assert -(1<<26) <= delta && delta < (1<<26);
         delta>>=2;
