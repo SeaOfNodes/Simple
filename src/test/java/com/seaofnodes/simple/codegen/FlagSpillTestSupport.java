@@ -60,7 +60,7 @@ public class FlagSpillTestSupport {
                 assertEquals(stack,slots!=0);
 
                 code._regAlloc=alloc;
-                FunNode frame = new FunNode(null,null,(Node)null);
+                FunNode frame = new FunNode(null,null,"flags",(Node)null);
                 Encoding save = new Encoding(code), restore = new Encoding(code);
                 save._fun=restore._fun=frame;
                 Encoding enc = save;

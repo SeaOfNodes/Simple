@@ -41,7 +41,7 @@ int i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        code.parse();//.iter();
+        code.parse();//.iter().finalizeIR();
         assertEquals("2", Eval2.eval(code, 1, 10));
     }
 
@@ -55,7 +55,7 @@ struct S {
 if(arg) v0.f=1;
 return v0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("S{f=0}", Eval2.eval(code, 0, 10));
         assertEquals("S{f=1}", Eval2.eval(code, 1, 10));
     }
@@ -73,7 +73,7 @@ i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("2", Eval2.eval(code, 0, 10));
         assertEquals("2", Eval2.eval(code, 1, 10));
     }
