@@ -128,7 +128,7 @@ p.x++;
 return p;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test
@@ -140,7 +140,7 @@ p.x++;
 return p;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test

@@ -2,8 +2,7 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.CallNode;
-import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
 
 public class CallX86 extends CallNode implements MachNode, RIPRelSize {
@@ -14,7 +13,8 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
         _tfp = tfp;
-        _name = CodeGen.CODE.link(tfp)._name;
+        FunNode fun = CodeGen.CODE.link(tfp);
+        _name = fun==null ? ((ExternNode)call.fptr())._extern : fun._name; // Can be null for extern calls
     }
     @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
@@ -25,7 +25,10 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this).add1(0xe8).add4(0);
+        FunNode fun = CodeGen.CODE.link(_tfp);
+        if( fun==null ) enc.external(this,_name);
+        else enc.relo(this);
+        enc.add1(0xe8).add4(0);
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding

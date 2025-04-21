@@ -20,8 +20,6 @@ public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         enc.largeConstant(this,_con,0,-1/*TODO: ARM-style ELF patching*/);
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
-        double d = ((TypeFloat)_con).value();
-        long x = Double.doubleToRawLongBits(d);
         enc.add4(arm.load_pc(arm.OPF_ARM, 0, dst));
     }
 

@@ -8,7 +8,7 @@ public class DivX86 extends MachConcreteNode implements MachNode {
     DivX86( Node div ) { super(div); }
     @Override public String op() { return "div"; }
     @Override public RegMask regmap(int i) {
-        return (i==1) ? x86_64_v2.RAX_MASK : x86_64_v2.RMASK;
+        return (i==1) ? x86_64_v2.RAX_MASK : x86_64_v2.DIV_MASK;
     }
     @Override public RegMask outregmap() { return x86_64_v2.RAX_MASK; }
     @Override public RegMask killmap() { return x86_64_v2.RDX_MASK; }

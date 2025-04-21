@@ -8,13 +8,13 @@ import com.seaofnodes.simple.type.TypeFunPtr;
 public class CallARM extends CallNode implements MachNode, RIPRelSize {
     final TypeFunPtr _tfp;
     final String _name;
-
     CallARM(CallNode call, TypeFunPtr tfp) {
         super(call);
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
         _tfp = tfp;
-        _name = CodeGen.CODE.link(tfp)._name;
+        FunNode fun = CodeGen.CODE.link(tfp);
+        _name = fun==null ? ((ExternNode)call.fptr())._extern : fun._name; // Can be null for extern calls
     }
 
     @Override public String op() { return "call"; }
@@ -23,9 +23,12 @@ public class CallARM extends CallNode implements MachNode, RIPRelSize {
     @Override public TypeFunPtr tfp() { return _tfp; }
     @Override public RegMask regmap(int i) { return arm.callInMask(_tfp,i,fun()._maxArgSlot); }
     @Override public RegMask outregmap() { return null; }
+    @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this);
+        FunNode fun = CodeGen.CODE.link(_tfp);
+        if( fun==null ) enc.external(this,_name);
+        else enc.relo(this);
         // BL
         enc.add4(arm.b(arm.OP_CALL,0)); // Target patched at link time
     }
