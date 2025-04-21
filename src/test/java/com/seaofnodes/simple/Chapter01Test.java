@@ -25,9 +25,9 @@ public class Chapter01Test {
     public void testZero() {
         CodeGen code = new CodeGen("return 0;");
         code.parse();
-        for( Node use : code._start._outputs )
-            if( use instanceof ConstantNode con && con._type instanceof TypeInteger )
-                assertEquals(TypeInteger.constant(0),con._type);
+        Node use = code.expr();
+        if( use instanceof ConstantNode con && con._type instanceof TypeInteger )
+            assertEquals(TypeInteger.constant(0),con._type);
     }
 
     @Test

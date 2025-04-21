@@ -4,7 +4,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
-
 /**
  * Cast a pointer to read-only
  */
@@ -24,4 +23,5 @@ public class ReadOnlyNode extends Node {
             return in(1);
         return null;
     }
+
 }

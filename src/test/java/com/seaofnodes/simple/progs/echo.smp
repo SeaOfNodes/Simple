@@ -1,0 +1,3 @@
+// -*- mode: java;  -*-
+// Echo stdin to stdout.
+return sys.io.p( sys.io.stdin() );

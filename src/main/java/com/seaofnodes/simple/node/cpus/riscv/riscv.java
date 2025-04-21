@@ -137,6 +137,7 @@ public class riscv extends Machine {
     static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
@@ -197,7 +198,7 @@ public class riscv extends Machine {
         // shift left 32 to clear out the upper 32 bits.
         // shift right SIGNED to sign-extend upper 32 bits; then shift 12 more to clear out lower 12 bits.
         // shift left 12 to re-center the bits.
-        return ti.isConstant() && (((ti.value()<<32)>>>44)<<12) == ti.value();
+        return ti.isConstant() && (((ti.value()<<32)>>44)<<12) == ti.value();
     }
 
     @Override public Node instSelect( Node n ) {
@@ -207,8 +208,8 @@ public class riscv extends Machine {
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CallNode    call -> call(call);
-        case CastNode   cast  -> new CastRISC(cast);
-        case CallEndNode cend -> new CallEndRISC(cend);
+        case CastNode   cast  -> new CastMach(cast);
+        case CallEndNode cend -> new CallEndMach(cend);
         case CProjNode      c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode    divf -> new DivFRISC(divf);
@@ -228,7 +229,7 @@ public class riscv extends Machine {
         case MemPhiNode phi -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
-        case ReadOnlyNode read-> new ReadOnlyNode(read);
+        case ReadOnlyNode read-> new ReadOnlyMach(read);
         case ReturnNode   ret -> new RetRISC(ret, ret.fun());
         case SarNode      sar -> sra(sar);
         case ShlNode      shl -> sll(shl);
@@ -301,7 +302,7 @@ public class riscv extends Machine {
             ? new SetIRISC(bool, (int)ti.value(),false)
             : new  SetRISC(bool, false);
         // x <= y - flip and negate; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
-        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1);
+        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1,false);
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
         case "==" -> new SetIRISC(new SubRISC(bool),1,true);
         default -> throw Utils.TODO();
@@ -324,12 +325,12 @@ public class riscv extends Machine {
             }
             // Need more complex sequence for larger constants... or a load
             // from a constant pool, which does not need an extra register
-            throw Utils.TODO();
+            yield new Int8RISC(con);
         }
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
-        case TypeMemPtr  tmp -> throw Utils.TODO();
+        case TypeMemPtr  tmp -> new TMPRISC(con);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
@@ -390,6 +391,8 @@ public class riscv extends Machine {
     }
 
     private Node prj(ProjNode prj) {
+        TypeInteger ret = cReturn(prj);
+        if( ret!=null ) return new ExtendRISC(prj,ret);
         return new ProjRISC(prj);
     }
 

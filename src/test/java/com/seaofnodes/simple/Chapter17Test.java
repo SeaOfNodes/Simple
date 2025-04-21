@@ -172,13 +172,13 @@ return s.x;
     @Test public void testVar6() {
         CodeGen code = new CodeGen("struct S{int x;}; S s=new S; s.x++; return s.x; // Error initializer so x is immutable ");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test public void testVar7() {
         CodeGen code = new CodeGen("struct S{int x;}; S s=new S{x=3;}; s.x++; return s.x; // Error initializer so x is immutable ");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test public void testVar8() {
@@ -198,7 +198,7 @@ return s.x;
     @Test public void testVar10() {
         CodeGen code = new CodeGen("struct S{int x;}; val s=new S; s.x++; return s.x; // Error, has val so x is immutable ");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test public void testVar11() {
@@ -216,7 +216,7 @@ val xfoo = foo; // Throw away mutability
 xfoo.bar.x++;   // Error, cannot mutate through xfoo
  """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test public void testVar12() {

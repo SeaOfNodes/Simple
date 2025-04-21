@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.TypeInteger;
 
 abstract public class Machine {
     // Human readable machine name.  Something like "x86-64" or "arm" or "risc5"
@@ -93,5 +94,15 @@ Pre-alloc               Post-Alloc    SP+48   RPC
     // shadow slots if defined in the ABI, even if all arguments are passed in
     // registers.
     public abstract short maxArgSlot(TypeFunPtr tfp);
+
+    // Only the declared C result width describes the physical return register.
+    // Simple functions already return canonical full-width integer values.
+    protected static TypeInteger cReturn(ProjNode prj) {
+        if( prj._idx==2 && prj.in(0) instanceof CallEndNode cend &&
+            cend.call().fptr() instanceof ExternNode ext &&
+            ((TypeFunPtr)ext._con).ret() instanceof TypeInteger ret && ret.log_size()<3 )
+            return ret;
+        return null;
+    }
 
 }

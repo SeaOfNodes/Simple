@@ -118,6 +118,16 @@ public class RegAllocTestSupport {
         assertTrue(BuildLRG.run(0,new RegAlloc(code)));
     }
 
+    // Check the scheduled graph before encoding adds untyped branches or rewrites tail calls.
+    public static class CheckedCodeGen extends CodeGen {
+        public CheckedCodeGen(String src) { super(src); }
+        @Override public CodeGen regAlloc() {
+            super.regAlloc();
+            checkRegisters(this);
+            return this;
+        }
+    }
+
     public static void topPhi() {
         // Either arm can be the synthetic exit.  Both predecessors share a
         // block here so making TOP live would conflict with the real value.
