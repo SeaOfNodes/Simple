@@ -16,9 +16,10 @@ public class Simple {
 
     static final int DUMP_AFTER_PARSE = 1<<Phase.Parse.ordinal();
     static final int DUMP_AFTER_ITER = 1<<Phase.Iter.ordinal();
+    static final int DUMP_AFTER_FINALIZE_IR = 1<<Phase.FinalizeIR.ordinal();
     static final int DUMP_AFTER_TYPE_CHECK = 1<<Phase.TypeCheck.ordinal();
     static final int DUMP_AFTER_LOOP_TREE = 1<<Phase.LoopTree.ordinal();
-    static final int DUMP_AFTER_INSTR_SELECT = 1<<Phase.InstSelect.ordinal();
+    static final int DUMP_AFTER_SELECT = 1<<Phase.Select.ordinal();
     static final int DUMP_AFTER_GCM = 1<<Phase.Schedule.ordinal();
     static final int DUMP_AFTER_LOCAL_SCHED = 1<<Phase.LocalSched.ordinal();
     static final int DUMP_AFTER_REG_ALLOC = 1<<Phase.RegAlloc.ordinal();
@@ -31,33 +32,31 @@ public class Simple {
 
     static final int DUMP_DISASSEMBLE        = 1<<31;
 
-    static String system_cpu = null;
-    static String system_abi = null;
-
     static void usage() {
         System.out.println(
 """
-simple <input-file> [options] [--eval|--run ...]
+simple [options] <input-file> ...args...
 Options:
-  --dump                     - dump final intermediate representation
+  --dump                   - dump final intermediate representation
   --dump-after-parse           - dump intermediate representation after parsing
   --dump-after-iter            - dump intermediate representation after Iter
+  --dump-after-finalize-ir     - dump intermediate representation after FinalizeIR
   --dump-after-type-check      - dump intermediate representation after type checking
   --dump-after-loop-tree       - dump intermediate representation after loop-tree construction
-  --dump-after-instr-select    - dump intermediate representation after instruction selection
+  --dump-after-select          - dump intermediate representation after instruction selection
   --dump-after-gcm             - dump intermediate representation after GCM
   --dump-after-local-sched     - dump intermediate representation after local scheduling
   --dump-after-reg-alloc       - dump intermediate representation after register allocation
   --dump-after-encode          - dump intermediate representation after encoding
   --dump-after-all             - dump intermediate representation after all passes
-  -S                         - dump generated assembler code
-  --eval ...                 - evaluate the compiled code in emulator
-  --run ...                  - run the compiled code natively
-  --dump-size                - print the size of generated code
-  --dump-time                - print compilation and execution times
-  --cpu <cpu-name>           - use specific CPU (x86_64_v2, riscv, arm)
-  --abi <abi-name>           - use speific ABI variant (SystemV)
-  --target                   - print native CPU and ABI
+  -S                       - dump generated assembler code
+  --eval                   - evaluate the compiled code in emulator
+  --run                    - run the compiled code natively; this is the default
+  --dump-size              - print the size of generated code
+  --dump-time              - print compilation and execution times
+  --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
+  --abi <abi-name>         - use speific ABI variant (SystemV)
+  --target                 - print native CPU and ABI
   --version
   --help
 """
@@ -65,20 +64,17 @@ Options:
         System.exit(0);
     }
 
-    static void bad_usage() {
-        System.err.println("ERROR: Invalid usage (use --help)");
+    static void bad_usage() { bad("Invalid usage (use --help)"); }
+    static RuntimeException bad(String err) {
+        System.err.println("ERROR: "+err);
         System.exit(1);
+        return new RuntimeException(err);
     }
 
     static void target() {
-        if (system_cpu == null || system_abi == null) {
-            System.err.println("ERROR: Unknown target");
-            System.exit(1);
-        }
-        System.out.print(system_cpu);
+        System.out.print(TestC.CPU_PORT);
         System.out.print("-");
-        System.out.println(system_abi);
-        System.exit(0);
+        System.out.println(TestC.CALL_CONVENTION);
     }
 
     static void dump(CodeGen code, int dump, int pass) {
@@ -105,9 +101,8 @@ Options:
 
     public static void main(String[] args) throws Exception {
         String input_filename = null;
-        boolean use_stdin = false;
         boolean do_eval = false;
-        boolean do_run = false;
+        boolean do_run = true;
         boolean do_codegen = false;
         boolean do_print_size = false;
         boolean do_print_time = false;
@@ -117,83 +112,69 @@ Options:
         String cpu = null;
         String abi = null;
 
-        // TODO: autodetect
-        system_cpu = "x86_64_v2";
-        system_abi = "SystemV";
-
         // Parse command line
-loop:   for (int i = 0; i < args.length; i++) {
+        int i; for( i = 0; i < args.length; i++ ) {
             String arg = args[i];
-            if (arg.charAt(0) == '-') {
-                switch (arg) {
-                    case "-":                         use_stdin = true; break;
-                    case "--dump":                    dump |= DUMP_FINAL; break;
-                    case "--dump-after-parse":          dump |= DUMP_AFTER_PARSE; break;
-                    case "--dump-after-iter":           dump |= DUMP_AFTER_ITER; break;
-                    case "--dump-after-type-check":     dump |= DUMP_AFTER_TYPE_CHECK; break;
-                    case "--dump-after-loop-tree":      dump |= DUMP_AFTER_LOOP_TREE; break;
-                    case "--dump-after-instr-select":   dump |= DUMP_AFTER_INSTR_SELECT; break;
-                    case "--dump-after-gcm":            dump |= DUMP_AFTER_GCM; break;
-                    case "--dump-after-local-sched":    dump |= DUMP_AFTER_LOCAL_SCHED; break;
-                    case "--dump-after-reg-alloc":      dump |= DUMP_AFTER_REG_ALLOC; break;
-                    case "--dump-after-encode":         dump |= DUMP_AFTER_ENCODE; break;
-                    case "--dump-after-all":            dump |= DUMP_AFTER_ALL; break;
-                    case "-S":                        dump |= DUMP_DISASSEMBLE; break;
-                    case "--eval":                    do_eval = true; first_arg = i + 1; break loop;
-                    case "--run":                     do_run = true; first_arg = i + 1; break loop;
-                    case "--dump-size":               do_print_size = true; break;
-                    case "--dump-time":               do_print_time = true; break;
-                    case "--cpu":                     if (cpu != null
-                                                       || i + 1 >= args.length
-                                                       || args[i + 1].charAt(0) == '-') bad_usage();
-                                                      cpu = args[i + 1];
-                                                      i++;
-                                                      break;
-                    case "--abi":                     if (abi != null
-                                                       || i + 1 >= args.length
-                                                       || args[i + 1].charAt(0) == '-') bad_usage();
-                                                      abi = args[i + 1];
-                                                      i++;
-                                                      break;
-                    case "--target":                  target();
-                    case "--version":                 throw Utils.TODO();
-                    case "--help":                    usage();
-                    default:                          bad_usage();
-                }
-            } else {
-                if (input_filename != null || use_stdin) bad_usage();
+            if( arg.charAt(0) != '-' ) {
                 input_filename = arg;
+                break;
+            }
+
+            switch (arg) {
+            case "-":                         input_filename=""; break;
+            case "--dump":                    dump |= DUMP_FINAL; break;
+            case "--dump-after-parse":          dump |= DUMP_AFTER_PARSE; break;
+            case "--dump-after-finalize-ir":    dump |= DUMP_AFTER_FINALIZE_IR; break;
+            case "--dump-after-iter":           dump |= DUMP_AFTER_ITER; break;
+            case "--dump-after-type-check":     dump |= DUMP_AFTER_TYPE_CHECK; break;
+            case "--dump-after-loop-tree":      dump |= DUMP_AFTER_LOOP_TREE; break;
+            case "--dump-after-select":         dump |= DUMP_AFTER_SELECT; break;
+            case "--dump-after-gcm":            dump |= DUMP_AFTER_GCM; break;
+            case "--dump-after-local-sched":    dump |= DUMP_AFTER_LOCAL_SCHED; break;
+            case "--dump-after-reg-alloc":      dump |= DUMP_AFTER_REG_ALLOC; break;
+            case "--dump-after-encode":         dump |= DUMP_AFTER_ENCODE; break;
+            case "--dump-after-all":            dump |= DUMP_AFTER_ALL; break;
+            case "-S":                        dump |= DUMP_DISASSEMBLE; break;
+            case "--eval":                    do_eval = true ; do_run = false; break;
+            case "--run":                     do_run  = true ; break;
+            case "--norun":                   do_run  = false; break;
+            case "--dump-size":               do_print_size = true; break;
+            case "--dump-time":               do_print_time = true; break;
+            case "--cpu":                     if (cpu != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
+                                              cpu = args[++i];
+                                              break;
+            case "--abi":                     if (abi != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
+                                              abi = args[++i];
+                                              break;
+            case "--target":                  target(); break;
+            case "--version":                 throw Utils.TODO();
+            case "--help":                    usage();
+            default:                          bad_usage();
             }
         }
 
-        if (input_filename == null && !use_stdin) {
-            System.err.println("ERROR: no input file' (use --help)");
-            System.exit(1);
-        }
+        if (input_filename == null) throw bad("no input file' (use --help)");
+        if( !input_filename.isEmpty() && !input_filename.endsWith(".smp") )
+            throw bad("File extension must be .smp");
+        String base = input_filename.substring(0,input_filename.length()-4);
 
         if (do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size) {
-            if (cpu == null) cpu = system_cpu;
-            if (abi == null) abi = system_abi;
-            if (cpu == null || abi == null) {
-                System.err.println("ERROR: Cannot compile for unknown target");
-                System.exit(1);
-            }
+            if (cpu == null) cpu = TestC.CPU_PORT;
+            if (abi == null) abi = TestC.CALL_CONVENTION;
             do_codegen = true;
         }
 
         // Read input file
         try {
-            src = use_stdin ? getInput() : Files.readString(Path.of(input_filename));
-        } catch(IOException e) {
-            System.err.println("ERROR: Cannot read input file");
-            System.exit(1);
-        }
+            src = input_filename.isEmpty() ? getInput() : Files.readString(Path.of(input_filename));
+        } catch( IOException e ) { throw bad("Cannot read input file: "+input_filename);  }
 
         // Compilation pipeline
         CodeGen code = new CodeGen(src);
 
         code.driver(do_codegen ? Phase.Encoding : Phase.LocalSched,
                     do_codegen ? cpu : null, abi, dump);
+        if( do_codegen ) code.exportELF(base+".o");
 
         dump(code, dump, DUMP_FINAL);
 
@@ -202,7 +183,7 @@ loop:   for (int i = 0; i < args.length; i++) {
         }
 
         if (do_print_size) {
-             System.out.println(String.format("Code Size: %d", code._encoding._bits.size()));
+             System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
         }
 
         if (do_print_time) {
@@ -212,19 +193,19 @@ loop:   for (int i = 0; i < args.length; i++) {
         if (do_eval) {
             // TODO: Support for evaluation of functions with different argument numbers and types
             long t = System.currentTimeMillis();
-            long arg = (first_arg < args.length) ? Integer.valueOf(args[first_arg]) : 0;
+            long arg = (i+1 < args.length) ? Integer.parseInt(args[i+1]) : 0;
             System.out.println(Eval2.eval(code, arg, 100000));
             if (do_print_time) {
-                System.out.println(String.format("EXECUTION TIME:             %.3f sec",
-                    (System.currentTimeMillis() - t) / 1e3));
+                System.out.printf( "EXECUTION TIME:             %.3f sec%n",
+                    (System.currentTimeMillis() - t) / 1e3);
             }
-        } else if (do_run) {
-            if (cpu != system_cpu || abi != system_abi) {
-                System.err.println("ERROR: cannot run code on not native target");
-                System.exit(1);
-            }
-
-            throw Utils.TODO();
+        }
+        if (do_run) {
+            if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
+                throw bad("cannot run code on not native target");
+            String exe = TestC.OS.startsWith("Windows") ? base+".exe" : base;
+            String result = com.seaofnodes.simple.TestC.gcc(base+".o", null, null, true, exe);
+            System.out.print(result);
         }
     }
 }

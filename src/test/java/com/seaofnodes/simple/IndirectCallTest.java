@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 public class IndirectCallTest {
     @Test public void testTargetOperand() {
         for( String cpu : new String[]{"x86_64_v2","riscv","arm"} ) {
-            CodeGen code = new CodeGen("return 0;").driver(CodeGen.Phase.InstSelect,cpu,"SystemV");
+            CodeGen code = new CodeGen("return 0;").driver(CodeGen.Phase.Select,cpu,"SystemV");
             Node target = PhiNode.make("target",TypeFunPtr.BOT,code._start);
             target._type = TypeFunPtr.BOT;
             CallNode ideal = new CallNode(null,code._start,null,target);
