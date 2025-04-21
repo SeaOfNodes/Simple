@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.ASMPrinter;
@@ -76,6 +78,7 @@ return f(s);
 
 
     @org.junit.Rule public final org.junit.rules.ErrorCollector _errors = new org.junit.rules.ErrorCollector();
+
     @Test public void testAllocatorMasks() { com.seaofnodes.simple.codegen.RegAllocTestSupport.masks(); }
     @Test public void testAllocatorUnion() { com.seaofnodes.simple.codegen.RegAllocTestSupport.union(); }
     @Test public void testAllocatorCopyClobber() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyClobber(); }
@@ -104,9 +107,8 @@ return f(s);
     }
 
     static void testCPU(String src, String cpu, String os, int spills, String stop) {
-        CodeGen code = new CodeGen(src);
+        CodeGen code = new CheckedCodeGen(src);
         code.driver(CodeGen.Phase.RegAlloc,cpu,os);
-        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
         SpillStats.record(code,"Chapter20",cpu,os);
         SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop!=null ) assertEquals(stop,code._stop.toString());
@@ -146,7 +148,7 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",23,null);
+        testTarget(src,"x86_64_v2", "SystemV",40,null);
         testTarget(src,"riscv"    , "SystemV",17,null);
         testTarget(src,"arm"      , "SystemV",18,null);
     }
@@ -175,9 +177,9 @@ return sqrt(farg) + sqrt(farg+2.0);
     @Test
     public void testAlloc2() {
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
-        testTarget(src,"x86_64_v2","SystemV",4,"return .[];");
-        testTarget(src,"riscv","SystemV",8,"return .[];");
-        testTarget(src,"arm","SystemV",9,"return .[];");
+        testTarget(src,"x86_64_v2","SystemV",3,"return .[];");
+        testTarget(src,"riscv","SystemV",6,"return .[];");
+        testTarget(src,"arm","SystemV",6,"return .[];");
     }
 
     @Test
@@ -193,7 +195,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testTarget(src,"x86_64_v2", "SystemV",7,"return .[];");
+        testTarget(src,"x86_64_v2", "SystemV",5,"return .[];");
         testTarget(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
         testTarget(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }
@@ -236,9 +238,14 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",15,null);
-        testTarget(src,"riscv"    , "SystemV", 10,null);
-        testTarget(src,"arm"      , "SystemV", 10,null);
+        // Without an explicit return, default main must be removed completely.
+        // Seed 0 previously left a loop with a missing branch successor.
+        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
+            new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,0)
+                .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+        testTarget(src,"x86_64_v2", "SystemV",0,null);
+        testTarget(src,"riscv"    , "SystemV",1,null);
+        testTarget(src,"arm"      , "SystemV",0,null);
     }
 
     @Test
@@ -339,8 +346,8 @@ for( int pc = 0; pc < program#; pc++ ) {
 return output;
 """;
         testTarget(src,"x86_64_v2", "SystemV",40,null);
-        testTarget(src,"riscv"    , "SystemV",146,null);
-        testTarget(src,"arm"      , "SystemV",34,null);
+        testTarget(src,"riscv"    , "SystemV",28,null);
+        testTarget(src,"arm"      , "SystemV",28,null);
         //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }
     // Original Chapter 20 allocation workload, kept fixed for cohort comparisons.

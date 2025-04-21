@@ -24,11 +24,15 @@ public class StopNode extends CFGNode {
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         // For the sake of many old tests, and single value prints as "return val"
-        if( ret()!=null ) return p.n(ret());
+        ReturnNode ret1 = ret();
+        if( ret1!=null ) return p.n(ret1);
         p.p("Stop[ ");
         for( Node ret : _inputs )
-            if( ret!=null )
-                p.n(ret).p(" ");
+            if( ret!=null ) {
+                String name = ((ReturnNode)ret).fun()._name;
+                if( name== null || !name.startsWith("sys.") )
+                    p.n(ret).p(" ");
+            }
         return p.p("]");
     }
 
@@ -38,7 +42,13 @@ public class StopNode extends CFGNode {
     // If a single Return, return it.
     // Otherwise, null because ambiguous.
     public ReturnNode ret() {
-        return nIns()==1 && in(0) instanceof ReturnNode ret ? ret : null;
+        Node ret1 = this;
+        for( Node ret : _inputs ) {
+            String name = ((ReturnNode)ret).fun()._name;
+            if( name==null || !name.startsWith("sys.") )
+                ret1 = ret1==this ? ((ReturnNode)ret) : null;
+        }
+        return ret1==this ? null : (ReturnNode)ret1;
     }
 
     @Override
@@ -50,7 +60,7 @@ public class StopNode extends CFGNode {
     public Node idealize() {
         int len = nIns();
         for( int i=0; i<nIns(); i++ )
-            if( ((ReturnNode)in(i)).fun().isDead() )
+            if( addDep(((ReturnNode)in(i)).fun()).isDead() )
                 delDef(i--);
         if( len != nIns() ) return this;
         return null;

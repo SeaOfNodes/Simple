@@ -255,10 +255,10 @@ return new flt;
     public void testBad1() {
         CodeGen code = new CodeGen(
 """
-int is = new int[2];
+flt is = new int[2];
 """);
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type *[int] is not of declared type int",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type *[int] is not of declared type flt",e.getMessage()); }
     }
 
     @Test
@@ -325,6 +325,7 @@ while(0) {}
 u32 v7=0;
 int v8=0;
 while(0<--1>>>---(v7*0==v8)) {}
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
@@ -349,6 +350,7 @@ else {
             }
         }
 }
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());

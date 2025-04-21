@@ -224,6 +224,8 @@ public class arm extends Machine {
         if( idx==0 ) return CodeGen.CODE._rpcMask;
         if( idx==1 ) return null;
         // Count floats in signature up to index
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
             if( tfp.arg(i-2) instanceof TypeFloat)
@@ -277,47 +279,47 @@ public class arm extends Machine {
     // Instruction selection
     @Override public Node instSelect(Node n ) {
         return switch( n ) {
-        case AddFNode addf  -> new AddFARM(addf);
-        case AddNode add    -> add(add);
-        case AndNode and    -> and(and);
-        case BoolNode bool  -> cmp(bool);
-        case CallNode call  -> call(call);
-        case CastNode cast  -> new CastARM(cast);
-        case CallEndNode cend -> new CallEndARM(cend);
-        case CProjNode c    -> new CProjNode(c);
-        case ConstantNode con -> con(con);
-        case DivFNode divf  -> new DivFARM(divf);
-        case DivNode div    -> new DivARM(div);
-        case FunNode fun    -> new FunARM(fun);
-        case IfNode iff     -> jmp(iff);
-        case LoadNode ld    -> ld(ld);
-        case MemMergeNode mem -> new MemMergeNode(mem);
-        case MinusNode neg  -> new NegARM(neg);
-        case MulFNode mulf  -> new MulFARM(mulf);
-        case MulNode mul    -> new MulARM(mul);
-        case NewNode nnn    -> new NewARM(nnn);
-        case NotNode not    -> new NotARM(not);
-        case OrNode or      -> or(or);
-        case ParmNode parm  -> new ParmARM(parm);
+        case AddFNode addf   -> new AddFARM(addf);
+        case AddNode add     -> add(add);
+        case AndNode and     -> and(and);
+        case BoolNode bool   -> cmp(bool);
+        case CallNode call   -> call(call);
+        case CastNode cast   -> new CastMach(cast);
+        case CallEndNode cend-> new CallEndMach(cend);
+        case CProjNode c     -> new CProjNode(c);
+        case ConstantNode con-> con(con);
+        case DivFNode divf   -> new DivFARM(divf);
+        case DivNode div     -> new DivARM(div);
+        case FunNode fun     -> new FunARM(fun);
+        case IfNode iff      -> jmp(iff);
+        case LoadNode ld     -> ld(ld);
+        case MemMergeNode mem-> new MemMergeNode(mem);
+        case MinusNode neg   -> new NegARM(neg);
+        case MulFNode mulf   -> new MulFARM(mulf);
+        case MulNode mul     -> new MulARM(mul);
+        case NewNode nnn     -> new NewARM(nnn);
+        case NotNode not     -> new NotARM(not);
+        case OrNode or       -> or(or);
+        case ParmNode parm   -> new ParmARM(parm);
         case BulkMemPhiNode phi -> new BulkMemPhiNode(phi);
         case MemPhiNode phi -> new MemPhiNode(phi);
-        case PhiNode phi    -> new PhiNode(phi);
-        case ProjNode prj   -> new ProjARM(prj);
-        case ReadOnlyNode read  -> new ReadOnlyNode(read);
-        case ReturnNode ret -> new RetARM(ret,ret.fun());
-        case SarNode sar    -> asr(sar);
-        case ShlNode shl    -> lsl(shl);
-        case ShrNode shr    -> lsr(shr);
+        case PhiNode phi     -> new PhiNode(phi);
+        case ProjNode prj    -> prj(prj);
+        case ReadOnlyNode read -> new ReadOnlyMach(read);
+        case ReturnNode ret  -> new RetARM(ret,ret.fun());
+        case SarNode sar     -> asr(sar);
+        case ShlNode shl     -> lsl(shl);
+        case ShrNode shr     -> lsr(shr);
         case StartNode start -> new StartNode(start);
-        case StopNode stop  -> new StopNode(stop);
-        case StoreNode st   -> st(st);
-        case SubFNode subf  -> new SubFARM(subf);
-        case SubNode sub    -> sub(sub);
-        case ToFloatNode tfn-> new I2F8ARM(tfn);
+        case StopNode stop   -> new StopNode(stop);
+        case StoreNode st    -> st(st);
+        case SubFNode subf   -> new SubFARM(subf);
+        case SubNode sub     -> sub(sub);
+        case ToFloatNode tfn -> new I2F8ARM(tfn);
         case ToIntegerNode cvt -> new F8ToIARM(cvt);
-        case XorNode xor    -> xor(xor);
+        case XorNode xor     -> xor(xor);
 
-        case LoopNode  loop  -> new LoopNode(loop);
+        case LoopNode loop   -> new LoopNode(loop);
         case RegionNode region-> new RegionNode(region);
         default -> throw Utils.TODO();
         };
@@ -365,13 +367,13 @@ public class arm extends Machine {
     private Node con( ConstantNode con ) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-            case TypeInteger ti  -> new IntARM(con);
-            case TypeFloat   tf  -> new FloatARM(con);
-            case TypeFunPtr  tfp -> new TFPARM(con);
-            case TypeMemPtr tmp -> new ConstantNode(con);
-            case TypeNil tn  -> throw Utils.TODO();
-            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-            case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
+        case TypeInteger ti -> new IntARM(con);
+        case TypeFloat   tf -> new FloatARM(con);
+        case TypeFunPtr tfp -> new TFPARM(con);
+        case TypeMemPtr tmp -> new TMPARM(con);
+        case TypeNil tn  -> throw Utils.TODO();
+        // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+        case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
         };
     }
 
@@ -443,6 +445,11 @@ public class arm extends Machine {
             idx = mop.off();
         }
         return mop;
+    }
+
+    private Node prj(ProjNode prj) {
+        TypeInteger ret = cReturn(prj);
+        return ret==null ? new ProjARM(prj) : new ExtendARM(prj,ret);
     }
 
 }

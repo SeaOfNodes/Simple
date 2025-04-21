@@ -59,7 +59,7 @@ public class TypeFunPtr extends TypeNil {
     // RHS is NIL; do not deep-dual when crossing the centerline
     @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_sig,_ret,_fidxs); }
 
-    @Override public TypeFunPtr glb() { return make((byte)3,_sig,_ret,-1L); }
+    @Override public TypeFunPtr glb(boolean mem) { return make((byte)3,_sig,_ret,-1L); }
 
     @Override public boolean isHigh    () { return _nil <= 1 || (_nil==2 && _fidxs==0); }
     @Override public boolean isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }

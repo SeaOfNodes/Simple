@@ -9,6 +9,7 @@ import com.seaofnodes.simple.codegen.RegAllocTestSupport;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import com.seaofnodes.simple.type.TypeMemPtr;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -152,8 +153,9 @@ public class MemoryEncodingTest {
             assertNotNull(code._stop.walk(n -> {
                 if( n instanceof MemMergeNode mem &&
                     mem.in(0) instanceof CProjNode exit && exit.in(0) instanceof NeverNode ) {
-                    assertTrue(mem.alias(2) instanceof MemPhiNode);
-                    assertTrue(mem.alias(3) instanceof MemPhiNode);
+                    var fields = ((TypeMemPtr)Parser.TYPES.get("S"))._obj._fields;
+                    assertTrue(mem.alias(fields[0]._alias) instanceof MemPhiNode);
+                    assertTrue(mem.alias(fields[1]._alias) instanceof MemPhiNode);
                     return mem;
                 }
                 return null;
@@ -173,7 +175,7 @@ public class MemoryEncodingTest {
                 c.append("if(memory(").append(arg).append(")!=").append(expected(p,arg)).append("LL) return ").append(arg+1).append(";\n");
             c.append("return 0;\n}\n");
             Files.writeString(Path.of(file+".c"),c);
-            TestC._run("val memory = { int arg -> "+SOURCES[p]+" };",
+            TestC.run("val memory = { int arg -> "+SOURCES[p]+" };",
                 TestC.CALL_CONVENTION,"",file+".c",file,"S","",-1);
         }
     }
