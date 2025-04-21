@@ -273,8 +273,6 @@ public class ElfFile {
         int start_global = num+1; // Add one to skip the final .rela.text local symbol
         for( Symbol a: symbols._symbols )
             a._index = start_global++;
-        int bigConIdx = start_global;
-        start_global += enc._bigCons.size();
 
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
@@ -298,10 +296,10 @@ public class ElfFile {
 
         // Write relocations for the constant pool
         for( Encoding.Relo relo : enc._bigCons.values() ) {
-            Symbol glob = new Symbol("GLOB$"+bigConIdx, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
+            Symbol glob = new Symbol("CPOOL$"+start_global, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
             glob._value = relo._target;
-            glob._size = 1 << relo._t.log_size();
-            glob._index = bigConIdx++;
+            glob._size = relo._t.size();
+            glob._index = start_global++;
             symbols.push(glob);
             write8(text_rela._contents, relo._opStart+relo._off);
             write8(text_rela._contents, ((long)glob._index << 32L) | relo._elf );
@@ -313,6 +311,7 @@ public class ElfFile {
         text_rela._info = text._index;
         pushSection(text_rela);
 
+        // Final .rela.text symbol
         Symbol sym = new Symbol(text_rela._name, num++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
         sym._name_pos = text_rela._name_pos;
         sym._size = text_rela.size();
