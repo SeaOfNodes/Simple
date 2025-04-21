@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.arm.arm;
@@ -21,9 +23,8 @@ public class TestArm64 {
     public static EvalArm64 build( String dir, String file, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
-        CodeGen code = new CodeGen(src).driver("arm", "SystemV",null);
-        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
-        SpillStats.record(code,"Chapter21","arm","SystemV");
+        CodeGen code = new CheckedCodeGen(src).driver("arm", "SystemV",null);
+        SpillStats.recordNative(code,"arm","SystemV");
         if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 
         // Allocation quality not degraded

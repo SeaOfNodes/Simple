@@ -406,7 +406,7 @@ abstract public class IFG {
         int best=sptr;
         int bestScore = pickRiskyScore(color_stack[best]);
         for( int i=sptr+1; i<color_stack.length; i++ ) {
-            if( bestScore == 999999 ) return best; // Already max score
+            if( bestScore == 1000000 ) return best; // Already max score
             int iScore = pickRiskyScore(color_stack[i]);
             if( iScore > bestScore )
                 { best = i; bestScore = iScore; }
@@ -423,13 +423,25 @@ abstract public class IFG {
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
     private static int pickRiskyScore( LRG lrg ) {
+        // Pick single-def clonables that are not right next to their single-use.
+        // Failing to color these will clone them closer to their uses.
+        if( !lrg._multiDef && lrg._machDef!=null && lrg._machUse!=null && lrg._machDef.isClone() ) {
+            Node def = (Node)lrg._machDef;
+            Node use = (Node)lrg._machUse;
+            CFGNode cfg = def.cfg0();
+            if( lrg._multiUse || cfg != use.cfg0() || // Many uses or different blocks OR
+              // Same block, but not close
+              cfg._outputs.find(def)+1 < cfg._outputs.find(use) )
+                return 1000000;
+        }
+
         // Always pick callee-save registers as being very large area recovered
         // and very cheap to spill.
         if( lrg._machDef instanceof CalleeSaveNode )
-            return 999998;
+            return 1000000-2-lrg._mask.firstReg();
         if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
-            return 999999;
+            return 1000000-1;
 
         // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
         // and "area" for benefit
@@ -440,36 +452,39 @@ abstract public class IFG {
         if( mask.size1() ) return reg;
         // Check chain of splits up the def-chain.  Take first allocated
         // register, and if it's available in the mask, take it.
-        Node defSplit = lrg._splitDef, useSplit = lrg._splitUse;
-        int tidx, cnt=0;
+        Node def = lrg._splitDef, use = lrg._splitUse;
+        int tidx=0, cnt=0;
 
-        while( (tidx=biasable(defSplit)) != 0 || biasable(useSplit) != 0 ) {
+        while( def != null || use != null ) {
             if( cnt++ > 10 ) break;
 
-            if( tidx != 0 ) {
-                short bias = biasColor( alloc, defSplit, mask );
+            if( def != null ) {
+                short bias = biasColor( alloc, def, mask );
                 if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) defSplit = null; // Kill this side, no more searching
-            } else defSplit = null;
-
-            if( biasable(useSplit) != 0 ) {
-                short bias = biasColor( alloc, useSplit, mask );
-                if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) useSplit = null; // Kill this side, no more searching
-            } else useSplit = null;
-
-            if( defSplit != null ) {
-                short bias = biasColorNeighbors( alloc, defSplit, mask );
-                if( bias >= 0 ) return bias;
-                // Advance def side
-                defSplit = defSplit.in(tidx);
-                if( alloc.lrg(defSplit)==null ) defSplit=null;
+                if( bias == -2 ) def = null; // Kill this side, no more searching
+                else if( (tidx=biasable(def)) == 0 ) def = null;
             }
 
-            if( useSplit != null ) {
-                short bias = biasColorNeighbors( alloc, useSplit, mask );
+            if( use != null ) {
+                short bias = biasColor( alloc, use, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) use = null; // Kill this side, no more searching
+                else if( biasable(use)==0 ) use = null;
+            }
+
+            if( def != null ) {
+                short bias = biasColorNeighbors( alloc, def, mask );
                 if( bias >= 0 ) return bias;
-                useSplit = useSplit.out(0);
+                // Advance def side
+                def = def.in(tidx);
+                if( alloc.lrg(def)==null ) def=null;
+            }
+
+            if( use != null ) {
+                short bias = biasColorNeighbors( alloc, use, mask );
+                if( bias >= 0 ) return bias;
+                use = use.out(0);
+                if( biasable(use)==0 ) use=null;
             }
 
         }
@@ -478,7 +493,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode ) return 1;   // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1; // Prefer the backedge in loops
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }

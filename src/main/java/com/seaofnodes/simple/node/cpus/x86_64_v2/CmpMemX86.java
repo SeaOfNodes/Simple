@@ -11,7 +11,7 @@ public class CmpMemX86 extends MemOpX86 {
     CmpMemX86( BoolNode bool, LoadNode ld, Node base, Node idx, int off, int scale, int imm, Node val, boolean swap ) {
         super(bool,ld, base, idx, off, scale, imm, val );
         _swap = swap;
-        assert !_swap || val() == null || bool.op()=="==" || bool.op()=="!="; // Cannot swap with immediate
+        assert !_swap || val() != null || bool.op()=="==" || bool.op()=="!="; // Cannot swap with immediate
     }
     @Override public String op() { return ((val()==null && _imm==0) ? "test" : "cmp") + _sz; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }

@@ -51,7 +51,6 @@ public class ReturnNode extends CFGNode {
     @Override
     public Type compute() {
         if( inProgress () ) return TypeTuple.RET; // In progress
-        // Inlining can delete the entry while callers still use this return.
         return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
     }
 

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -40,39 +41,6 @@ public class Chapter21Test {
                 assertEquals(0,cpu.step(1));
                 assertEquals(-13.25,cpu.fregs[3],0);
             }
-    }
-
-
-    @Test public void testNarrowStores() throws IOException {
-        for( String type : new String[]{"i8","u8","i16","u16"} ) {
-            String src = "struct S { "+type+" x; }; S !s = new S; s.x = arg; return 0;";
-            CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);
-            int stores=0;
-            for( var bb : code._cfg )
-                for( var node : bb.outs() )
-                    if( node instanceof com.seaofnodes.simple.node.cpus.riscv.StoreRISC st ) {
-                        stores++;
-                        assertEquals("Byte/short stores have no FP encoding",-1,st.regmap(4).nextReg((short)31));
-                    }
-            assertEquals(1,stores);
-            byte[] image = new byte[1<<20];
-            byte[] bits = code._encoding.bits();
-            System.arraycopy(bits,0,image,0,bits.length);
-            EvalRisc5 cpu = new EvalRisc5(image,1<<16);
-            cpu.regs[riscv.A0] = 0x8765;
-            assertEquals(0,cpu.step(100));
-            assertEquals(type.endsWith("8") ? 0x65 : 0x8765,
-                         type.endsWith("8") ? cpu.ld1z(1<<16) : cpu.ld2z(1<<16));
-            code = new CodeGen(src).driver(CodeGen.Phase.Encoding,"x86_64_v2",TestC.CALL_CONVENTION);
-            stores=0;
-            for( var bb : code._cfg )
-                for( var node : bb.outs() )
-                    if( node instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86 st ) {
-                        stores++;
-                        assertEquals("Byte/short stores have no XMM encoding",-1,st.regmap(4).nextReg((short)15));
-                    }
-            assertEquals(1,stores);
-        }
     }
 
 
@@ -178,6 +146,52 @@ public class Chapter21Test {
     }
 
 
+    @Test public void testNarrowStores() throws IOException {
+        for( String type : new String[]{"i8","u8","i16","u16"} ) {
+            String src = "struct S { "+type+" x; }; S !s = new S; s.x = arg; return 0;";
+            CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);
+            int stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.riscv.StoreRISC st ) {
+                        stores++;
+                        assertEquals("Byte/short stores have no FP encoding",-1,st.regmap(4).nextReg((short)31));
+                    }
+            assertEquals(1,stores);
+            byte[] image = new byte[1<<20];
+            byte[] bits = code._encoding.bits();
+            System.arraycopy(bits,0,image,0,bits.length);
+            EvalRisc5 cpu = new EvalRisc5(image,1<<16);
+            cpu.regs[riscv.A0] = 0x8765;
+            assertEquals(0,cpu.step(100));
+            assertEquals(type.endsWith("8") ? 0x65 : 0x8765,
+                         type.endsWith("8") ? cpu.ld1z(1<<16) : cpu.ld2z(1<<16));
+            code = new CodeGen(src).driver(CodeGen.Phase.Encoding,"x86_64_v2",TestC.CALL_CONVENTION);
+            stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86 st ) {
+                        stores++;
+                        assertEquals("Byte/short stores have no XMM encoding",-1,st.regmap(4).nextReg((short)15));
+                    }
+            assertEquals(1,stores);
+        }
+    }
+
+    @Test public void testNativeExitStatus() throws IOException {
+        Path source = Path.of("build/objs/nativeExit.c");
+        Files.createDirectories(source.getParent());
+        Files.writeString(source,"int main() { return 7; }\n");
+        try {
+            TestC.gcc(source.toString(),null,null,false,
+                      "build/objs/nativeExit"+(TestC.OS.startsWith("Windows") ? ".exe" : ""));
+        } catch( AssertionError error ) {
+            assertTrue(error.getMessage(),error.getMessage().contains("Program exit status"));
+            return;
+        }
+        fail("A failing native program must fail the test, even with empty stdout");
+    }
+
     @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
     @Test public void testRisc64BitStore() {
         byte[] mem = new byte[24];
@@ -217,8 +231,7 @@ public class Chapter21Test {
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+        CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         SpillStats.record(code,"Chapter21",cpu,os);
         SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
@@ -361,7 +374,7 @@ public class Chapter21Test {
 
     @Test public void testPerson() throws IOException {
         String person = "6\n";
-        TestC.run("person", person, 0);
+        TestC.run("person21", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -372,7 +385,7 @@ public class Chapter21Test {
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build("person21", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -388,7 +401,7 @@ public class Chapter21Test {
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("person21", ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);

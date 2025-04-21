@@ -63,4 +63,5 @@ public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
         else
             _con.print(sb.p(reg).p(" = #"));
     }
+    @Override public boolean eq(Node n) { return this==n; }
 }

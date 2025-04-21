@@ -118,6 +118,16 @@ public class RegAllocTestSupport {
         assertTrue(BuildLRG.run(0,new RegAlloc(code)));
     }
 
+    // Check the scheduled graph before encoding adds untyped branches or rewrites tail calls.
+    public static class CheckedCodeGen extends CodeGen {
+        public CheckedCodeGen(String src) { super(src); }
+        @Override public CodeGen regAlloc() {
+            super.regAlloc();
+            checkRegisters(this);
+            return this;
+        }
+    }
+
     public static void checkRegisters(CodeGen code) {
         assertTrue(code._regAlloc.verifyFunctionLocalEdges());
         for( CFGNode bb : code._cfg )

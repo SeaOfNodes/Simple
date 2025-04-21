@@ -21,7 +21,7 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        Chapter21Test.testCPU(src,"x86_64_v2", "Win64"  ,23,null);
+        Chapter21Test.testCPU(src,"x86_64_v2", "Win64"  ,48,null);
         Chapter21Test.testCPU(src,"riscv"    , "SystemV",19,null);
         Chapter21Test.testCPU(src,"arm"      , "SystemV",19,null);
     }

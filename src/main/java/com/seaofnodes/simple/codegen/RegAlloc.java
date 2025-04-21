@@ -171,7 +171,7 @@ public class RegAlloc {
             }
         // Cache reg masks for New and Call
         for( CFGNode bb : _code._cfg ) {
-            if( bb instanceof CallEndNode cend ) cend.cacheRegs(_code);
+            if( bb instanceof CallEndMach cend ) cend.cacheRegs(_code);
             for( Node n : bb._outputs )
                 if( n instanceof NewNode nnn ) nnn.cacheRegs(_code);
         }
@@ -455,16 +455,17 @@ public class RegAlloc {
         Node def = n.in(i);
         // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
+        // Use-side RegMask, if available
+        RegMask umask = n instanceof MachNode mach ? mach.regmap(i) : null;
         // Def is a split ?
         if( skip && def instanceof SplitNode ) {
-            boolean singleReg = n instanceof MachNode mach && mach.regmap(i)!=null && mach.regmap(i).size1();
+            boolean singleReg = umask!=null && umask.size1();
             // Same block, multiple registers, split is only used by n,
             // assume this is good enough and do not split again.
             if( cfg==def.cfg0() && def.nOuts()==1 && !singleReg )
                 return;
         }
-        RegMask use = n instanceof MachNode mach ? mach.regmap(i) : null;
-        makeSplit(def,kind,round,lrg,use).insertBefore(n, i);
+        makeSplit(def,kind,round,lrg,umask).insertBefore(n, i);
         // Skip split-of-split same block
         if( skip && def instanceof SplitNode && cfg==def.cfg0() )
             n.in(i).setDefOrdered(1,def.in(1));
@@ -511,13 +512,13 @@ public class RegAlloc {
     private void postColor() {
         int maxReg = -1;
         for( CFGNode bb : _code._cfg ) { // For all ops
-            if( bb instanceof FunNode fun )
+            if( bb instanceof FunNode )
                 maxReg = -1;   // Reset for new function
             // Compute frame size, based on arguments and largest reg seen
             if( bb instanceof ReturnNode ret )
                 ret.fun().computeFrameAdjust(_code,maxReg);
             // Raise frame size by max stack args passed, even if ignored
-            if( bb instanceof CallEndNode cend )
+            if( bb instanceof CallEndMach cend )
                 maxReg = Math.max(maxReg,cend._xslot);
 
             for( int j=0; j<bb.nOuts(); j++ ) {
