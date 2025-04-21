@@ -4,6 +4,8 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMemPtr;
+
 import java.util.BitSet;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
@@ -37,6 +39,9 @@ public class CastNode extends Node {
 
     @Override
     public Type compute() {
+        // Cast array to int
+        if( _t == TypeInteger.BOT && in(1)._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
+            return _t;
         return in(1)._type.join(_t);
     }
 

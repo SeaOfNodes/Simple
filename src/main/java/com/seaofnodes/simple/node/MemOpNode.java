@@ -75,7 +75,6 @@ public abstract class MemOpNode extends Node {
         _declaredType = Type.BOTTOM;
     }
 
-    //
     static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
     String mlabel() { return mlabel(_name); }
 
@@ -85,7 +84,7 @@ public abstract class MemOpNode extends Node {
 
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
-
+    public int log_size() { return _declaredType.log_size();  }
 
     @Override
     public boolean eq(Node n) {

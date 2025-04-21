@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.CmpMemX86;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.NotX86;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.MulIX86;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -11,7 +12,7 @@ public class X86EncodingTest {
     @Test
     public void testLogicalNotRegisters() {
         CodeGen code = new CodeGen("return !arg;")
-            .driver(CodeGen.Phase.InstSelect, "x86_64_v2", "SystemV");
+            .driver(CodeGen.Phase.Select, "x86_64_v2", "SystemV");
         var not = code._stop.walk(n -> n instanceof NotX86 ? (NotX86)n : null);
         assertNotNull("Must exercise logical not", not);
         int[][] registers = {{0,0}, {1,1}, {7,7}, {9,9}, {1,9}, {9,1}, {6,0}, {15,8}};
@@ -49,6 +50,31 @@ public class X86EncodingTest {
             }
             """);
         com.seaofnodes.simple.TestC.run("build/objs", "x86LogicalNot", "", -1);
+    }
+
+    @Test
+    public void testMultiplyImmediateRegisters() {
+        // Destination, source, expected REX and ModRM. Cross the register-8
+        // boundary in both directions, with low/low and high/high controls.
+        int[][] cases = {{1, 9, 0x49, 0xC9}, {9, 1, 0x4C, 0xC9},
+                         {1, 2, 0x48, 0xCA}, {9, 10, 0x4D, 0xCA}};
+        for (int immediate : new int[]{11, -11, 123456789, -123456789}) {
+            CodeGen code = new CodeGen("return arg * " + immediate + ";")
+                .driver(CodeGen.Phase.Select, "x86_64_v2", "SystemV");
+            var mul = code._stop.walk(n -> n instanceof MulIX86 ? n : null);
+            assertNotNull("Must exercise immediate multiply", mul);
+            for (int[] regs : cases) {
+                var enc = new FixedRegisterEncoding(
+                    code, mul, regs[0], mul.in(1), regs[1]);
+                ((MulIX86)mul).encoding(enc);
+                boolean small = immediate == 11 || immediate == -11;
+                assertEquals("REX for dst=" + regs[0] + ", src=" + regs[1], regs[2], enc.read1(0));
+                assertEquals(small ? 0x6B : 0x69, enc.read1(1));
+                assertEquals(regs[3], enc.read1(2));
+                assertEquals(small ? 4 : 7, enc._bits.size());
+                assertEquals(immediate, small ? (byte)enc.read1(3) : enc.read4(3));
+            }
+        }
     }
     @Test
     public void testMemoryCompare64Immediate32() {

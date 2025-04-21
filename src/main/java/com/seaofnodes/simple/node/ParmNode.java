@@ -45,4 +45,8 @@ public class ParmNode extends PhiNode {
 
     // Always in-progress until we run out of unknown callers
     @Override public boolean inProgress() { return fun().inProgress(); }
+
+    @Override public boolean eq( Node n ) {
+        return ((ParmNode)n)._idx==_idx && super.eq(n);
+    }
 }
