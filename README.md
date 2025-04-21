@@ -65,5 +65,5 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 19](docs/chapter19/README.md): Instruction selection and portable compilation
 * [Chapter 20](docs/chapter20/README.md): Graph Coloring Register Allocation
 * [Chapter 21](docs/chapter21/README.md): Instruction Encodings & ELF
-* Chapter 22: A Simple Hello, World!
+* [Chapter 22](docs/chapter22/README.md): A Simple Hello, World!
 * Chapter 23: Strings, Methods

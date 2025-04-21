@@ -9,6 +9,12 @@ public class CmpX86 extends MachConcreteNode implements MachNode {
     @Override public String op() { return "cmp"; }
     @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }
+    // This one is marginal: cloning a Cmp[reg,reg] means stretching the
+    // lifetimes of 2 normal registers in exchange for shortening a flags
+    // register lifetime.  Spilling flags is (probably) relatively expensive
+    // compared to some normal registers - and those normal registers might not
+    // be spilling!
+    @Override public boolean isClone() { return true; }
 
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(in(1));

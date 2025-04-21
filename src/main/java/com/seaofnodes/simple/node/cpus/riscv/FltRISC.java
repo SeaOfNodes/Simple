@@ -16,7 +16,7 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public FltRISC copy() { return new FltRISC(this); }
 
     @Override public void encoding( Encoding enc ) {
-        enc.largeConstant(this,_con, 0, -1/*TODO: RISC5 style patching*/);
+        enc.largeConstant(this,_con, 0, -1);
         short dst = (short)(enc.reg(this) - riscv.F_OFFSET);
         short tmp = (short)riscv.T6;
         // AUIPC dst,#hi20_constant_pool
@@ -27,7 +27,6 @@ public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public RegMask killmap() { return new RegMask(riscv.T6); }
 
     // Delta is from opcode start.
-    // TODO: always size 8?
     @Override public byte encSize(int delta) { return 8;  }
 
     // Delta is from opcode start

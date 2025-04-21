@@ -43,7 +43,7 @@ public abstract class Node implements Cloneable {
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
      */
-    public Ary<Node> _outputs;
+     public Ary<Node> _outputs;
 
 
     /**
@@ -66,7 +66,7 @@ public abstract class Node implements Cloneable {
     // Make a Node using the existing arrays of nodes.
     // Used by any pass rewriting all Node classes but not the edges.
     Node( Node n ) {
-        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstSelect.ordinal();
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Select.ordinal();
         _nid = CODE.getUID(); // allocate unique dense ID
         _inputs  = new Ary<>(n==null ? new Node[0] : n._inputs.asAry());
         _outputs = new Ary<>(Node.class);
@@ -239,7 +239,7 @@ public abstract class Node implements Cloneable {
 
     // Shortcut for "popping" until n nodes.  A "pop" is basically a
     // setDef(last,null) followed by lowering the nIns() count.
-    void popUntil(int n) {
+    public void popUntil(int n) {
         unlock();
         while( nIns() > n ) {
             Node old_def = _inputs.pop();
@@ -255,9 +255,9 @@ public abstract class Node implements Cloneable {
      * code elimination.
      */
     public void kill( ) {
+        assert isUnused();      // Has no uses, so it is dead
         unlock();
         moveDepsToWorklist();
-        assert isUnused();      // Has no uses, so it is dead
         _type=null;             // Flag as dead
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
@@ -293,6 +293,10 @@ public abstract class Node implements Cloneable {
     public boolean iskeep() { return _outputs.find(null) != -1; }
     public void unkill() {
         if( unkeep().isUnused() )
+            kill();
+    }
+    public void isKill() {
+        if( isUnused() )
             kill();
     }
 

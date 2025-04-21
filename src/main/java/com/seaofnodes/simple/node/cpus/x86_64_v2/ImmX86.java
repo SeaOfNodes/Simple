@@ -15,11 +15,12 @@ public abstract class ImmX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public int twoAddress() { return 1; }
+    @Override public RegMask killmap() { return x86_64_v2.FLAGS_MASK; }
 
     abstract int opcode();
     abstract int mod();
 
-    @Override public final void encoding( Encoding enc ) {
+    @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this); // Also src1
         enc.add1(x86_64_v2.rex(0, dst, 0));
         // opcode; 0x81 or 0x83; 0x69 or 0x6B

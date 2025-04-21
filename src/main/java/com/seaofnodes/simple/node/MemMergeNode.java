@@ -54,7 +54,8 @@ public class MemMergeNode extends Node {
         MemMergeNode merge = new MemMergeNode(false);
         for( Node n : _inputs )
             merge.addDef(n);
-        merge._mem(1,null);
+        for( int i=1; i<nIns(); i++ )
+            merge._mem(i,null);
         return merge.peephole();
     }
 
@@ -64,24 +65,38 @@ public class MemMergeNode extends Node {
     @Override public Node idealize() {
         if( inProgress() ) return null;
 
+        // Fold defaults into the default
+        boolean progress=false, allDefault=true;
+        for( int i=2; i<nIns(); i++ )
+            if( in(1) == in(i) ) { setDef(i,null); progress=true; }
+            else                 { allDefault=false; }
+
         // If not merging any memory (all memory is just the default)
-        if( allDefault() )
+        if( allDefault )
             return in(1);       // Become default memory
 
-        return null;
-    }
-    private boolean allDefault() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1) != in(i) )
-                return false;
-        return true;
+        // Collapse stacked all-mem
+        if( in(1) instanceof MemMergeNode mem ) {
+            // Goal is to swap my default mem with mem's default mem
+            for( int i=2; i<mem.nIns(); i++ ) {
+                if( mem.in(i) != null ) {
+                    // deeper default mem has a non-default
+                    if( i>=nIns() || in(i)==null )
+                        setDefX(i,mem.in(i));
+                }
+            }
+            setDef(1,mem.in(1));
+            return this;
+        }
+
+        return progress ? this : null;
     }
 
 
     public Node in( Var v ) { return in(v._idx); }
 
     public Node alias( int alias ) {
-        return in(alias<nIns() && in(alias)!=null ? alias : 1);
+        return alias < nIns() && in(alias)!=null ? in(alias) : in(1);
     }
 
     Node alias( int alias, Node st ) {
@@ -116,13 +131,13 @@ public class MemMergeNode extends Node {
 
     void _merge( MemMergeNode that, RegionNode r) {
         int len = Math.max(nIns(),that.nIns());
-        for( int i = 2; i < len; i++)
+        for( int i = 1; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), lhs._type.glb().meet(rhs._type.glb()), r, lhs, rhs).peephole());
+                alias(i, new PhiNode(Parser.memName(i), lhs._type.glb(true).meet(rhs._type.glb(true)), r, lhs, rhs).peephole());
             }
     }
 
@@ -132,7 +147,7 @@ public class MemMergeNode extends Node {
         for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
                 assert phi.in(2)==null;
-                phi.setDef(2,back.in(i)==scope ? phi : back.in(i)); // Fill backedge
+                phi.setDef(2,back.alias(i)==scope ? phi : back.alias(i)); // Fill backedge
             }
             if( exit_def == scope ) // Replace a lazy-phi on the exit path also
                 exit.alias(i,in(i));
