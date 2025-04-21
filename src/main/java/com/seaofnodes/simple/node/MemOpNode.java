@@ -78,7 +78,6 @@ public abstract class MemOpNode extends Node {
         _declaredType = Type.BOTTOM;
     }
 
-    //
     static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
     String mlabel() { return mlabel(_name); }
 
@@ -90,7 +89,7 @@ public abstract class MemOpNode extends Node {
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return _printMach(p);  }
     protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) { throw Utils.TODO(); }
-
+    public int log_size() { return _declaredType.log_size();  }
 
     // Extra conditions for factoring matching memory operations through a Phi.
     // The caller has already checked the opcode, input shape and control.

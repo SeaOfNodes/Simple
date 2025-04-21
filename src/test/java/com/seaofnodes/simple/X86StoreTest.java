@@ -24,7 +24,7 @@ public class X86StoreTest {
         // Returning the object keeps the Store; returning its field could fold.
         String literal = value==Long.MIN_VALUE ? "(-9223372036854775807-1)" : Long.toString(value);
         String src = "struct S { "+type+" x="+literal+"; }; return new S;";
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.InstSelect,"x86_64_v2","SystemV");
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Select,"x86_64_v2","SystemV");
         StoreX86 store = code._stop.walk(n -> n instanceof StoreX86 st && st._name.equals("x") ? st : null);
         assertNotNull(src,store);
         if( register ) {

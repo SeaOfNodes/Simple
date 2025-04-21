@@ -58,7 +58,7 @@ public class Chapter19Test {
         con.toString();
         org.junit.Assert.assertNull(call.name());
 
-        var fun = new FunNode(null,tfp);
+        var fun = new FunNode(null,tfp,"printerTarget");
         fun._name = "printerTarget";
         fun.addDef(code._start);
         code.link(fun);
@@ -75,7 +75,7 @@ public class Chapter19Test {
         CodeGen code = new CodeGen("""
 return 0;
 """);
-        code.parse().iter().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
@@ -331,6 +331,7 @@ for( int i=0; i<A#; i++ )
     A[i] = i;
 for( int i=0; i<A#; i++ )
     B[i] += A[i];
+return 0;
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return 0;", code.print());
@@ -375,7 +376,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun1,int),x); return (shli,Parm_x($fun2,int)); ]", code.print());
+        assertEquals("Stop[ return (shli,Parm_x($fun2,int)); return (mul,Parm_x($fun1,int),x); return (add,#2,(muli,#2)); ]", code.print());
     }
 
     @Test
@@ -386,16 +387,16 @@ val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,#2); return (mul,Parm_x(sq,int),x); ]", code.print());
+        assertEquals("Stop[ return (mul,Parm_x(sq,int),x); return (add,#2,#2); ]", code.print());
     }
 
     @Test public void testSelectedMemory() {
         for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
             for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
                                           Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY} ) {
-                var code = new CodeGen(src).parse().iter().typeCheck();
+                var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
                 var aliases = memoryPhis(code._stop);
-                code.loopTree().driver(CodeGen.Phase.InstSelect,cpu,"SystemV");
+                code.loopTree().driver(CodeGen.Phase.Select,cpu,"SystemV");
                 assertEquals(aliases,memoryPhis(code._stop));
                 code.driver(CodeGen.Phase.Schedule).localSched();
                 code._stop.walk(n -> {

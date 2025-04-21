@@ -22,7 +22,7 @@ public class FunNode extends RegionNode {
 
     public String _name;        // Debug name
 
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) { super(loc,nodes); _sig = sig; }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { super(loc,nodes); _name=name; _sig = sig; }
     public FunNode( FunNode fun ) {
         super( fun, fun==null ? null : fun._loc );
         if( fun!=null ) {
@@ -60,6 +60,16 @@ public class FunNode extends RegionNode {
     public void setRet(ReturnNode ret) { _ret=ret; }
     public ReturnNode ret() { assert _ret!=null; return _ret; }
 
+    // Direct calls are known; any other use of an address may have unknown callers.
+    public boolean hasPtr() {
+        for( Node use : ret()._outputs )
+            if( use instanceof FunPtrNode )
+                for( Node user : use._outputs )
+                    if( !(user instanceof CallNode call) || call.fptr()!=use ||
+                        call._inputs.find(use)!=call.nIns()-1 ) return true;
+        return false;
+    }
+
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {
@@ -70,10 +80,17 @@ public class FunNode extends RegionNode {
         }
     }
 
+    public void setName( String name ) {
+        if( _name==null ) _name=name;
+        else _name += "."+name;
+    }
+
     @Override
     public Type compute() {
         // Only dead if no callers after SCCP
-        return Type.CONTROL;
+        if( unknownCallers() )
+            return Type.CONTROL;
+        return super.compute();
     }
 
     @Override
@@ -117,10 +134,10 @@ public class FunNode extends RegionNode {
     // unless folding then just a ID on input#1
     @Override public int idepth() { return _folding ? super.idepth() : 1; }
     // Bypass Region idom, always assume idom is Start
-    @Override public CFGNode idom(Node dep) { return cfg(1); }
+    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : cfg(1); }
 
     // Always in-progress until we run out of unknown callers
-    public boolean unknownCallers() { return in(1) instanceof StartNode; }
+    public boolean unknownCallers() { return nIns()<2 || in(1) instanceof StartNode; }
 
     @Override public boolean inProgress() { return unknownCallers(); }
 

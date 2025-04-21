@@ -6,6 +6,7 @@ import com.seaofnodes.simple.node.Node;
 
 public class XorIRISC extends ImmRISC {
     public XorIRISC( Node and, int imm) { super(and,imm); }
+    public XorIRISC( Node and, int imm, boolean pop) { super(and,imm,pop); }
     @Override int opcode() {  return RiscV.OP_IMM; }
     @Override int func3() {  return 4; }
     @Override public String glabel() { return "^"; }

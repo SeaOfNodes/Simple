@@ -21,9 +21,10 @@ public class CodeGen {
     public enum Phase {
         Parse,                  // Build ideal IR from source
         Iter,                   // Pessimistic peepholes
+        FinalizeIR,             // Remove unused internal function entries
         TypeCheck,              // Check the surviving ideal graph
         LoopTree,               // Discover loops and connect nonreturning paths
-        InstSelect,             // Select machine instructions
+        Select,                 // Select machine instructions
         Schedule,               // Global code motion
         LocalSched,             // Order instructions within blocks
         RegAlloc,               // Assign registers and stack slots
@@ -42,9 +43,10 @@ public class CodeGen {
         if( target==Phase.Export ) throw new IllegalArgumentException("Use exportELF with an output file or null for memory linking");
         step(target, Phase.Parse, this::parse, dump);
         step(target, Phase.Iter, this::iter, dump);
+        step(target, Phase.FinalizeIR, this::finalizeIR, dump);
         step(target, Phase.TypeCheck, this::typeCheck, dump);
         step(target, Phase.LoopTree, this::loopTree, dump);
-        step(target, Phase.InstSelect, () -> instSelect(cpu,callingConv), dump);
+        step(target, Phase.Select, () -> instSelect(cpu,callingConv), dump);
         step(target, Phase.Schedule, this::GCM, dump);
         step(target, Phase.LocalSched, this::localSched, dump);
         step(target, Phase.RegAlloc, this::regAlloc, dump);
@@ -79,6 +81,7 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
+
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {
@@ -147,7 +150,7 @@ public class CodeGen {
         return TypeFunPtr.make((byte)2,sig,ret, 1L<<fidx );
     }
     // Signature for MAIN
-    public TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
+    public final TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
@@ -164,6 +167,12 @@ public class CodeGen {
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
     private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+
+    // Native symbols belong to function identities, not to one ExternNode.
+    // Selection and spill copies can turn that node into an ordinary constant.
+    private final HashMap<TypeFunPtr,String> _externs = new HashMap<>();
+    public void externFunc(TypeFunPtr tfp, String name) { _externs.put(tfp.makeFrom(Type.BOTTOM),name); }
+    public String externFunc(TypeFunPtr tfp) { return _externs.get(tfp.makeFrom(Type.BOTTOM)); }
 
     // Parser object
     public final Parser P;
@@ -189,20 +198,22 @@ public class CodeGen {
 
     // Pessimistic peepholes reach a fixed point after parsing.
     public CodeGen iter() { return phase(Phase.Iter, _phase==Phase.Parse, () -> _iter.iterate(this)); }
+
+    public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.Iter, () -> FinalizeIR.run(this)); }
     public <N extends Node> N add( N n ) { return (N)_iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
 
 
     // ---------------------------
     // Last check for bad programs
-    public CodeGen typeCheck() { return phase(Phase.TypeCheck, _phase==Phase.Iter, () -> TypeCheck.run(this)); }
+    public CodeGen typeCheck() { return phase(Phase.TypeCheck, _phase==Phase.FinalizeIR, () -> TypeCheck.run(this)); }
 
     // ---------------------------
     // Build the loop tree; break never-exit loops
     public CodeGen loopTree() {
         return phase(Phase.LoopTree, _phase==Phase.TypeCheck, () -> {
             // Build the loop tree, fix never-exit loops
-            _start.buildLoopTree(_stop);
+            _start.buildLoopTree(_start,_stop);
         });
     }
 
@@ -228,7 +239,7 @@ public class CodeGen {
     public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
     public CodeGen instSelect( String cpu, String callingConv, String base ) {
         if( cpu==null ) return this;
-        return phase(Phase.InstSelect, _phase==Phase.LoopTree,
+        return phase(Phase.Select, _phase==Phase.LoopTree,
                      () -> new InstSelect(this).run(cpu,callingConv,base));
     }
 
@@ -239,7 +250,7 @@ public class CodeGen {
 
     // Global schedule (code motion) nodes
     public CodeGen GCM() {
-        return phase(Phase.Schedule, (_phase==Phase.LoopTree || _phase==Phase.InstSelect), () -> {
+        return phase(Phase.Schedule, (_phase==Phase.LoopTree || _phase==Phase.Select), () -> {
             GlobalCodeMotion.buildCFG(this);
 
         });
@@ -324,8 +335,10 @@ public class CodeGen {
     String printCFG() {
         if( _cfg==null ) return "no CFG";
         SB sb = new SB();
-        for( CFGNode cfg : _cfg )
-            IRPrinter.printLine(cfg,sb);
+        for( CFGNode cfg : _cfg ) {
+            sb.fix(8,""+(int)cfg._idepth);
+            IRPrinter.printLine( cfg, sb );
+        }
         return sb.toString();
     }
 
