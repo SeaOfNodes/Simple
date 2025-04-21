@@ -20,7 +20,7 @@ allow an array, and index it with the usual array syntax.
 ```java
 struct str {
     int  hash; // A cache of the strings hash code
-    uint #;    // The array length
+    u32  #;    // The array length
     u8   [];   // Array of bytes
 }
 ```
@@ -31,16 +31,16 @@ Here is another example for variable length array:
 
 ```java
 struct vecInt {
-    uint size; // Actual number of elements
-    uint #;    // The array length or capacity
+    u32  size; // Actual number of elements
+    u32  #;    // The array length or capacity
     int  [];   // Array of integers.
 };
 ```
 
 The obvious limit here is that the array cannot be directly resized; it is
-literally in the same memory block as the leading structures.  Such a `vecInt`
-can be *re-allocated* to a new larger `vecInt`, but the original `vecInt` may
-be reclaimed.
+literally in the same memory block as the leading fields.  Such a `vecInt` can
+be *re-allocated* to a new larger `vecInt`, but the original `vecInt` will be
+reclaimed - you cannot use the same `vecInt` reference forever.
 
 Any number of named fields are allowed:
 
@@ -50,7 +50,7 @@ struct Class {
     str professor;
     int time;
     int credits;
-    Class prerequist;
+    Class prerequisiste;
     u16     #; // Limit of 65535 students per class
     Student [];
 };
@@ -70,9 +70,8 @@ The syntax rules are:
 - the last field is named `[]` and can be of any type.
 - the second-to-last field is named `#` and must be some unsigned integer type
   representing the maximum array length.
-
-
-
+- The allocation includes the array length, and can include a constructor:
+  `new NTree{val=17;}[2];`
 
 
 ## Methods and Final Fields and Classes
@@ -82,12 +81,17 @@ take an implicit `this` argument.
 
 Final field declared in the original struct definition are *values* and cannot
 change; they are the same for all structs.  They get moved out of the struct's
-memory footprint and into a *class*.  Classes are just plain namespaces and
-have no concrete implementation; they are not reified.
+memory footprint and into a *class* - a collection of values from the final
+fields.  Classes are just plain namespaces and have no concrete implementation;
+they are not reified.
 
 ```java
 struct vecInt {
-    // Add an element to a vector, possibly returning a new larger vector
+    // Since "add" is declared with `val` in the original struct definition,
+    // it is a final field and is moved out of here to the class.
+    
+    
+    // Add an element to a vector, possibly returning a new larger vector.
     val add = { int e ->
         if( size >= # ) return copy(# ? #*2 : 1).add(e);
         [size++] = e; 
