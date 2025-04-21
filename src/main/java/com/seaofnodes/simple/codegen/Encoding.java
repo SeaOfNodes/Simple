@@ -51,7 +51,7 @@ public class Encoding {
         public final Type _t;          // Constant type
         public final byte _off;        // Offset from start of opcode
         public final byte _elf;        // ELF relocation type, e.g. 2/PC32
-        public int _target;      // Where constant is finally placede
+        public int _target;      // Where constant is finally placed
         public int _opStart;     // Opcode start
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
@@ -140,8 +140,8 @@ public class Encoding {
 
 
     final HashMap<Node,String> _externals = new HashMap<>();
-    public Encoding external( Node call, String extern ) {
-        _externals.put(call,extern);
+    public Encoding external( Node n, String extern ) {
+        _externals.put(n,extern);
         return this;
     }
 
@@ -185,12 +185,10 @@ public class Encoding {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         rpos.put(_code._start.loop(),rpo);
         BitSet visit = _code.visit();
-        //IdentityHashMap<CFGNode,LoopNode> looptail = new IdentityHashMap<>();
         rpo.add(_code._stop);
         for( Node n : _code._start._outputs )
             if( n instanceof FunNode fun ) {
                 int x = rpo._len;
-                //_rpo_cfg2(fun, visit, rpo, looptail);
                 _rpo_cfg(fun, visit, rpos );
                 assert rpo.at(x) instanceof ReturnNode;
             }
@@ -301,7 +299,7 @@ public class Encoding {
     private static boolean forwardsEmptyScan( CFGNode c, int bld ) {
         if( c.nOuts()!=1 || c.loopDepth()!=bld ) return false;
         return c.uctrl() instanceof RegionNode cfg &&
-            (cfg instanceof LoopNode || forwardsEmptyScan(cfg,bld));
+            ((cfg instanceof LoopNode && cfg._ltree==c._ltree) || forwardsEmptyScan(cfg,bld));
     }
 
     // Is the CFG from "next" to the end empty?  This means jumping to "next"
@@ -361,11 +359,6 @@ public class Encoding {
             slide = 0;
             for( int i=0; i<len; i++ ) {
                 CFGNode bb = _code._cfg.at(i);
-                // Functions pad to align 16
-                if( bb instanceof FunNode ) {
-                    int newStart = _opStart[bb._nid]+slide;
-                    slide += (newStart+15 & -16)-newStart;
-                }
                 _opStart[bb._nid] += slide;
                 // Slide down all other (non-CFG) ops in the block
                 for( Node n : bb._outputs )
@@ -386,6 +379,23 @@ public class Encoding {
                     }
                 }
             }
+        }
+
+
+        // Go again, inserting padding on function headers.  Since no
+        // short-jumps span function headers, the padding will not make any
+        // short jumps fail.
+        for( int i=0; i<len; i++ ) {
+            CFGNode bb = _code._cfg.at(i);
+            // Functions pad to align 16
+            if( bb instanceof FunNode ) {
+                int newStart = _opStart[bb._nid]+slide;
+                slide += (newStart+15 & -16)-newStart;
+            }
+            _opStart[bb._nid] += slide;
+            for( Node n : bb._outputs )
+                if( n instanceof MachNode && !(n instanceof CFGNode) )
+                    _opStart[n._nid] += slide;
         }
 
 
@@ -424,31 +434,71 @@ public class Encoding {
     void writeConstantPool( BAOS bits, boolean patch ) {
         padN(16,bits);
 
+        // radix sort the big constants by alignment
+        Ary<Relo>[] raligns = new Ary[5];
+        for( Node op : _bigCons.keySet() ) {
+            Relo relo = _bigCons.get(op);
+            int align = relo._t.alignment();
+            Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
+            relos.add(relo);
+        }
+
+
+        // Types can be used more than once; collapse the dups
         HashMap<Type,Integer> targets = new HashMap<>();
 
-        // By log size
-        for( int log = 3; log >= 0; log-- ) {
-            // Write the 8-byte constants
-            for( Node op : _bigCons.keySet() ) {
-                Relo relo = _bigCons.get(op);
-                if( relo._t.log_size()==log ) {
-                    // Map from relo to constant start and patch
-                    Integer target = targets.get(relo._t);
-                    if( target==null ) {
-                        targets.put(relo._t,target = bits.size());
-                        // Put constant into code space.
-                        if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries
-                            for( Type tx : tt._types )
-                                addN(log,tx,bits);
-                        else
-                            addN(log,relo._t,bits);
+        // By alignment
+        for( int align = 4; align >= 0; align-- ) {
+            Ary<Relo> relos = raligns[align];
+            if( relos == null ) continue;
+            for( Relo relo : relos ) {
+                // Map from relo to constant start and patch
+                Integer target = targets.get(relo._t);
+                if( target==null ) {
+                    targets.put(relo._t,target = bits.size());
+                    // Write constant into constant pool
+                    switch( relo._t ) {
+                    case TypeTuple  tt -> cpool(align,bits,tt);
+                    case TypeStruct ts -> cpool(bits,ts);
+                    // Simple primitive (e.g. larger int, float)
+                    default -> addN(align,relo._t,bits);
                     }
-                    relo._target = target;
-                    relo._opStart= _opStart[op._nid];
-                    // Go ahead and locally patch in-memory
-                    if( patch )
-                        ((RIPRelSize)op).patch(this, relo._opStart, _opLen[op._nid], relo._target - relo._opStart);
                 }
+                // Record target address and opcode start
+                relo._target = target;
+                relo._opStart= _opStart[relo._op._nid];
+                // Go ahead and locally patch in-memory
+                if( patch )
+                    ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
+            }
+        }
+    }
+
+    // Constant tuples put all entries at same alignment
+    private void cpool(int align, BAOS bits, TypeTuple tt) {
+        for( Type tx : tt._types )
+            addN(align,tx,bits);
+    }
+
+    // Structs use internal field layout
+    private void cpool( BAOS bits, TypeStruct ts ) {
+        // Field order by offset
+        int[] layout = ts.layout();
+        int off=0; // offset in the struct
+        for( int fn=0; fn<ts._fields.length; fn++ ) {
+            Field f  = ts._fields[layout[fn]];
+            int foff = ts. offset(layout[fn]);
+            // Pad up to field
+            while( off < foff ) { bits.write(0); off++; };
+            // Constant array fields are special
+            if( f._fname=="[]" ) {   // Must be a constant array
+                ts._con.write(bits); // Write the constant array bits
+                off += ts._con.len();
+            } else {
+                int log = f._type.log_size();
+                if( f._fname=="#" )  addN(log,ts._con.len(),bits); // Must be a constant array
+                else                 addN(log,f._type      ,bits);
+                off += 1<<log;
             }
         }
     }
@@ -457,14 +507,16 @@ public class Encoding {
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
-    public static int SENTINAL_CALLOC = -4;
+    public static int SENTINEL_CALLOC = -4;
+    public static int SENTINEL_WRITE  = -8;
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
             int start  = _opStart[src._nid];
             String dst =  _externals.get(src);
             int target = switch( dst ) {
-            case "calloc" -> SENTINAL_CALLOC;
+            case "calloc" -> SENTINEL_CALLOC;
+            case "write"  -> SENTINEL_WRITE ;
             default -> throw Utils.TODO();
             };
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);

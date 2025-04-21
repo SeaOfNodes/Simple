@@ -163,7 +163,7 @@ public class RegAlloc {
             }
         // Cache reg masks for New and Call
         for( CFGNode bb : _code._cfg ) {
-            if( bb instanceof CallEndNode cend ) cend.cacheRegs(_code);
+            if( bb instanceof CallEndMach cend ) cend.cacheRegs(_code);
             for( Node n : bb._outputs )
                 if( n instanceof NewNode nnn ) nnn.cacheRegs(_code);
         }
@@ -292,20 +292,21 @@ public class RegAlloc {
         Ary<Node> ns = new Ary<>(Node.class);
         for( RegMask rmask : rclass ) {
             ns.addAll(def._outputs);
-            Node split = makeSplit(def,"popular",round,lrg);
+            Node split = makeSplit(def,"popular",round,lrg,rmask);
             split.insertAfter( def );
             if( split.nIns()>1 ) split.setDef(1,def);
             // all uses by class to split
-            for( Node use : ns ) {
+            for( int j=0; j < def._outputs._len; j++ ) {
+                Node use = def._outputs.at(j);
                 if( use instanceof MachNode mach && use!=split ) {
                     // Check all use inputs for n, in case there's several
                     for( int i = 1; i < use.nIns(); i++ )
                         // Find a def input, and check register class
-                        if( use.in( i ) == def ) {
+                        if( use.in( i ) == def && mach.regmap( i ).overlap( rmask ) ) {
                             RegMask m = mach.regmap( i );
                             if( m!=null && mach.regmap( i ).overlap( rmask ) )
                                 // Modify use to use the split version specialized to this rclass
-                                use.setDefOrdered( i, split );
+                                { use.setDefOrdered( i, split ); j--; break; }
                         }
                 }
             }
@@ -501,15 +502,17 @@ public class RegAlloc {
         Node def = n.in(i);
         // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
+        // Use-side RegMask, if available
+        RegMask umask = n instanceof MachNode mach ? mach.regmap(i) : null;
         // Def is a split ?
         if( skip && def instanceof SplitNode ) {
-            boolean singleReg = n instanceof MachNode mach && mach.regmap(i).size1();
+            boolean singleReg = umask!=null && umask.size1();
             // Same block, multiple registers, split is only used by n,
             // assume this is good enough and do not split again.
             if( cfg==def.cfg0() && def.nOuts()==1 && !singleReg )
                 return;
         }
-        makeSplit(def,kind,round,lrg).insertBefore(n, i);
+        makeSplit(def,kind,round,lrg,umask).insertBefore(n, i);
         // Skip split-of-split same block
         if( skip && def instanceof SplitNode && cfg==def.cfg0() )
             n.in(i).setDefOrdered(1,def.in(1));
@@ -536,8 +539,9 @@ public class RegAlloc {
         }
     }
 
-    private Node makeSplit( Node def, String kind, byte round, LRG lrg ) {
-        Node split = def instanceof MachNode mach && mach.isClone()
+    private Node makeSplit( Node def, String kind, byte round, LRG lrg, RegMask umask ) {
+        // Clone simple constants if possible
+        Node split = def instanceof MachNode mach && mach.isClone() && (umask==null || mach.outregmap().overlap(umask))
             ? mach.copy()
             : _code._mach.split(kind,round,lrg);
         _lrgs.put(split,lrg);
@@ -555,13 +559,13 @@ public class RegAlloc {
     private void postColor() {
         int maxReg = -1;
         for( CFGNode bb : _code._cfg ) { // For all ops
-            if( bb instanceof FunNode fun )
+            if( bb instanceof FunNode )
                 maxReg = -1;   // Reset for new function
             // Compute frame size, based on arguments and largest reg seen
             if( bb instanceof ReturnNode ret )
                 ret.fun().computeFrameAdjust(_code,maxReg);
             // Raise frame size by max stack args passed, even if ignored
-            if( bb instanceof CallEndNode cend )
+            if( bb instanceof CallEndMach cend )
                 maxReg = Math.max(maxReg,cend._xslot);
 
             for( int j=0; j<bb.nOuts(); j++ ) {

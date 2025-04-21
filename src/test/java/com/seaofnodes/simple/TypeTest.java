@@ -20,9 +20,9 @@ public class TypeTest {
         TypeStruct s2 = TypeStruct.make("s2", new Field[]{
                 Field.make("a", TypeInteger.BOT,-3, false),
                 Field.make("b", TypeInteger.BOT,-4, false) });
-        Assert.assertEquals(s1.makeRO(), s1.glb());
+        Assert.assertEquals(s1.makeRO(), s1.glb(false));
         Assert.assertNotEquals(s1, s1.dual());
-        Assert.assertEquals(s1.makeRO(), s1.dual().glb());
+        Assert.assertEquals(s1.makeRO(), s1.dual().glb(false));
 
         TypeMem m1 = TypeMem.make(1,TypeNil.NIL);
         TypeMem m2 = TypeMem.make(2,TypeInteger.U16);
@@ -38,9 +38,9 @@ public class TypeTest {
         Assert.assertEquals(TypeMem.make(0,Type.BOTTOM), m1.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
-        Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.glb());
+        Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.glb(false));
         Assert.assertEquals(TypeMem.make(1,Type.XNIL), m1.dual());
-        Assert.assertEquals(m4.dual(), m4.glb().dual());
+        Assert.assertEquals(m4.dual(), m4.glb(false).dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
@@ -55,13 +55,13 @@ public class TypeTest {
         Assert.assertEquals(s2, ptr2nil._obj);
 
         Assert.assertNotEquals(ptr1, ptr2);
-        Assert.assertNotEquals(ptr1, ptr1.glb());
-        Assert.assertEquals(ptr1nil.makeRO(), ptr1.glb());
+        Assert.assertNotEquals(ptr1, ptr1.glb(false));
+        Assert.assertEquals(ptr1nil.makeRO(), ptr1.glb(false));
 
         Assert.assertEquals(ptr1, ptr1.dual().dual());
-        Assert.assertEquals(ptr1.glb().makeRO(), ptr1.dual().glb());
+        Assert.assertEquals(ptr1.glb(false).makeRO(), ptr1.dual().glb(false));
         Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT), ptr1.meet(ptr2nil));
-        Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeNil.NIL).makeRO());
+        Assert.assertEquals(ptr1.glb(false), ptr1.meet(TypeNil.NIL).makeRO());
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
         TypeMemPtr BOT = TypeMemPtr.makeNullable(TypeStruct.BOT);

@@ -56,6 +56,12 @@ public class LoadNode extends MemOpNode {
             return extend(st.val());
         }
 
+        // Simple load-after-MemMerge to a known alias can bypass.  Happens when inlining.
+        if( mem instanceof MemMergeNode mem2 ) {
+            setDef(1,mem2.alias(_alias));
+            return this;
+        }
+
         // Simple Load-after-New on same address.
         if( mem instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
             ptr == nnn.proj(1) ) // Must check same object

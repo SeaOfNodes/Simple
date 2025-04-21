@@ -23,7 +23,7 @@ public class MinusNode extends Node {
     public Type compute() {
         if( in(1)._type.isHigh() ) return TypeInteger.TOP;
         if( in(1)._type instanceof TypeInteger i0 &&
-            !(i0==TypeInteger.BOT || i0._min == Long.MIN_VALUE || i0._max == Long.MIN_VALUE) )
+            i0._min != Long.MIN_VALUE && i0._max != Long.MIN_VALUE )
             return TypeInteger.make(-i0._max,-i0._min);
         return TypeInteger.BOT;
     }
