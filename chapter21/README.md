@@ -109,16 +109,18 @@ for( CFGNode bb : _code._cfg )
 
 Based on the selected target, we either need to look out for little endian or
 big endian encodings.  These are being handled by `add4` which adds to the bit
-stream in the correct order.  As of now the bitstream is a simple BAOS
-stucture.
+stream in the correct order.  As of now the bitstream is a simple
+ByteArrayOutputStream structure.
 
 ```java
 @Override public void encoding( Encoding enc ) {
     enc.add4(0); // adds 4 bytes to the  bitstream
 }
 ```
-On *RISC-V*, where the documentation provides big-endian encodings, 
-this function also converts them to little-endian. For other architectures, no conversion is necessary.
+
+On *RISC-V*, where the documentation provides big-endian encodings, this
+function also converts them to little-endian.  For other architectures, no
+conversion is necessary.
 
 ## Endianness
 
@@ -148,11 +150,11 @@ to the right, we can bring the next byte into the least significant position,
 allowing us to write each byte in sequence.
 
 
-## AMD64
+## AMD64 X86-64
 
 As opposed to riscv arhitectures, where the instruction width is fixed,
-*x86-64* has variable width instructions.  This is common with *CISC(Complex
-instruction set computer)* architectures, where the instruction width can vary
+*x86-64* has variable width instructions.  This is common with *CISC (Complex
+Instruction Set Computer)* architectures, where the instruction width can vary
 from 1 to 15 bytes.  Since AMD64 supports many indirect addressing modes, the
 goal with *CISC* in general is to complete a task in as few lines of assembly
 as possible.
@@ -170,8 +172,8 @@ Generally speaking the *REX* prefix must be encoded when:
 A *REX* prefix must not be encoded when:
  - using one of the high byte registers AH, CH, BH or DH (not done currently in Simple)
 
-*Note:* When encoding SSE instruction, the *REX* prefix(0x40) must come after
-the `SSE`prefix.  In all other cases, it is ignored.
+*Note:* When encoding SSE instruction, the *REX* prefix (0x40) must come after
+the `SSE` prefix.  In all other cases, it is ignored.
 
 In Simple, the REX prefix is just appended to the beginning of the bit stream
 (except SEE float instructions).  The layout is the following:
@@ -204,13 +206,14 @@ public static int rex(int reg, int ptr, int idx, boolean wide) {
 ```
 
 Setting THE `W` bit gives us:
-01001000 = 0x48;
+`0b01001000 = 0x48;`
 
 #### Opcode
 In our case, the opcode is a 1 byte field that specifies the operation to be performed.
 ```
 enc.add1(opcode()); // opcode 
 ```
+
 #### MODR/M
 
 | **Field**     | **Length** | **Description**                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -225,6 +228,7 @@ We deal with the MODR/M byte in a similar way:
 The first thing we need for the modrm byte is the 2 bits mod.
 
 ##### mod
+
 The layout for mod is the following:
 ```
 public enum MOD {
@@ -238,7 +242,8 @@ public enum MOD {
 ##### reg
 The reg field is a 3 bit field capable of encoding 15 different registers.
 
-##### rm
+##### r/m
+
 The rm field specifies a direct or indirect register operand and is capable of encoding 15 different registers.
 
 
@@ -248,6 +253,7 @@ public static int modrm(MOD mod, int reg, int m_r) {
     return (mod.ordinal() << 6) | ((reg & 0x07) << 3) | m_r & 0x07;
 }
 ```
+
 The `modrm` function is then used to build up the `ModR/M` byte.
 Usually this follows after the opcode.
 
@@ -376,6 +382,7 @@ int square(int a) {
     return 2;
 }
 ```
+
 First we need a compare instruction comparing `a` with 1.
 ```
 cmp    DWORD PTR [rbp-0x8],0x1
@@ -392,6 +399,7 @@ For the if condition we do an extra comparison based on the result of the first 
 ```
  cmp    eax,0x1 
 ```
+
 And then a conditional branch that is relying on the flags set by the comparison(`a == 1`).
 ```
 jne    1159 <square(int)+0x29>
@@ -666,9 +674,9 @@ Load dst,[dst+#low12_constant_pool]
 RISC-V is unusual because branch instructions include the comparison and branch target in one instruction.
 
 #### Immediates
-We only encode the imm form for the *ALU* operations if they fit into 12 bits.(signed)
-Otherwise we do an extra load.
-(encode it in instruction)
+We only encode the imm form for the *ALU* operations if they fit into 12 bits (signed).
+Otherwise we do a Load Upper Immediate (high 20 bits) or both.
+
 ```
 addiw	a5,a5,123
 ```
@@ -707,13 +715,13 @@ we store the current PC into a register and use that as a base to access the con
 Relocation allows code to be *relocated* to a new code offset.  Code often
 refers to other code and data; `call` instructions target subroutines,
 `branches` target other instructions, large constants are often loaded from a
-`constant pool`.
+*constant pool*.
 
 ### Local Relocation
 
 Local relocation patches up local, or self-referential, code; the most common
 form is branch targets.  When writing instructions into the `BAOS` (bit stream)
-forwards branches towards future instructions have an unknown offsert - the
+forwards branches towards future instructions have an unknown offset - the
 offset depends on the size of the encodings in between the branch and target.
 For `riscv` and `arm` targets this sounds easy (and instructions are 4 bytes,
 so just count instructions)... except that some encodings use multiple
@@ -723,7 +731,7 @@ as writing the opcode in the first place.
 
 Alson X86 adds another wrinkle: short and long form branches.  If a branch
 target lies within a signed byte range (+/-127) X86 will use a 2 byte branch
-encoding, else a 6 byte encoding.  Simple includes a pass to compact these
+encoding, otherwise a 6 byte encoding.  Simple includes a pass to compact these
 branches and use 2 bytes wherever possible - but this pass has to slide code
 around to make space for the extra 4 bytes as needed, which changes all the
 other branch offsets.
@@ -775,8 +783,8 @@ crush the wrong bits and make a broken program.
 
 Large constants are those which cannot be easily directly loaded into a
 register, and instead are loaded from memory.  For security reasons they are
-often kept in a seperate address space with e.g. read-only permissions instead
-of execute permissions.  This means their final address, relative to the code,
+often kept in a seperate address space with e.g. *read-only* permissions instead
+of *execute* permissions.  This means their final address, relative to the code,
 varies according to placement - same as for calls crossing compilation units.
 
 Also large constants can be shared across compilation units (one can imagine
@@ -788,5 +796,5 @@ either a 4-byte address or an 8-byte address depending on X86 variant; the
 RISCV probably uses some variant of an `LUI` and a `Load`, with the immediate
 split into 20/12 bits.  Also the RISCV probably wants to "share" the constant
 pool 20 bits in the same `LUI`, but have different loads for different
-constants coming out of the same pool.  
+constants coming out of the same pool.  ARM will have yet another variant.
 
