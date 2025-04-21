@@ -130,9 +130,24 @@ abstract public class BoolNode extends Node {
         Node copyF() { return new LEF(null,null); }
     }
 
-    public static class EQF extends EQ { public EQF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs == rhs; } public boolean isFloat() { return true; } }
-    public static class LTF extends LT { public LTF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <  rhs; } public boolean isFloat() { return true; } }
-    public static class LEF extends LE { public LEF(Node lhs, Node rhs) { super(lhs,rhs); } boolean doOp(double lhs, double rhs) { return lhs <= rhs; } public boolean isFloat() { return true; } }
+    public static class EQF extends EQ {
+        public EQF(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override boolean doOp(double lhs, double rhs) { return lhs == rhs; }
+        @Override public boolean isFloat() { return true; }
+        @Override Node copy(Node lhs, Node rhs) { return new EQF(lhs,rhs); }
+    }
+    public static class LTF extends LT {
+        public LTF(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override boolean doOp(double lhs, double rhs) { return lhs <  rhs; }
+        @Override public boolean isFloat() { return true; }
+        @Override Node copy(Node lhs, Node rhs) { return new LTF(lhs,rhs); }
+    }
+    public static class LEF extends LE {
+        public LEF(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override boolean doOp(double lhs, double rhs) { return lhs <= rhs; }
+        @Override public boolean isFloat() { return true; }
+        @Override Node copy(Node lhs, Node rhs) { return new LEF(lhs,rhs); }
+    }
 
     // Unsigned less that, for range checks.  Not directly user writable.
     public static class ULT extends BoolNode {

@@ -39,7 +39,7 @@ public class Chapter21Test {
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
@@ -66,7 +66,7 @@ public class Chapter21Test {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 5,null);
-        testCPU(src,"arm"      , "SystemV", 6,null);
+        testCPU(src,"arm"      , "SystemV", 3,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -150,14 +150,14 @@ public class Chapter21Test {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 9, 16, false);
+        EvalRisc5 R5 = TestRisc5.build("fib", 9, 17, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("fib", 9, 16, false);
+        EvalArm64 A5 = TestArm64.build("fib", 9, 17, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
         // Return register X0 holds fib(8)==55

@@ -4,7 +4,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
-import java.text.ParseException;
+
 import java.util.*;
 
 /**
@@ -24,7 +24,7 @@ public class Parser {
     public final CodeGen _code;
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
-    private final Lexer _lexer;
+    private Lexer _lexer;
 
     /**
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
@@ -84,7 +84,7 @@ public class Parser {
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
     // have C-style '*ptr' references.
-    public static HashMap<String, Type> TYPES;
+    public static HashMap<String, Type> TYPES = defaultTypes();
 
     // Mapping from a type name to the constructor for a Type.
     public final HashMap<String, StructNode> INITS;
@@ -92,7 +92,6 @@ public class Parser {
 
     public Parser(CodeGen code, TypeInteger arg) {
         _code = code;
-        _lexer = new Lexer(code._src);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
         ZERO  = con(TypeInteger.ZERO).keep();
@@ -132,15 +131,25 @@ public class Parser {
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
-    public void parse() { parse(false); }
-    public void parse(boolean show) {
-        _xScopes.push(_scope);
+    public void parse() {
+
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
 
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
+
+        // Parse the sys import
+        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
+        while( !_lexer.isEOF() ) {
+            parseStatement();
+            _lexer.skipWhiteSpace();
+        }
+
+        // Reset lexer for program text
+        _lexer = new Lexer(_code._src);
+        _xScopes.push(_scope);
 
         // Parse whole program, as-if function header "{ int arg -> body }"
         parseFunctionBody(_code._main,loc(),"arg");
@@ -150,9 +159,10 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
-        if( main.ret().expr() instanceof ConstantNode && main.ret().mem().in(0)==main  && stop.nIns() > 1 ) {
+        if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
+            main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
         } else {
             // We have a non-empty default main.
@@ -173,7 +183,6 @@ public class Parser {
             init.unkeep().kill();
         INITS.clear();
         stop.peephole();
-        if( show ) showGraph();
     }
 
     /**
@@ -187,7 +196,7 @@ public class Parser {
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,null,_code._start));
+        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,_nestedType,null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -227,8 +236,8 @@ public class Parser {
         while (!peek('}') && !_lexer.isEOF())
             last = parseStatement();
 
-        // Last expression is the return
-        if( ctrl()._type==Type.CONTROL )
+        // Last expression is the return except for the top-level main
+        if( ctrl()._type==Type.CONTROL && fun.sig() != _code._main )
             fun.addReturn(ctrl(), _scope.mem().merge(), last);
 
         // Pop off the inProgress node on the multi-exit Region merge
@@ -287,8 +296,7 @@ public class Parser {
      * @return a {@link Node} or {@code null}
      */
     private Node parseStatement() {
-        if( false ) return null;
-        else if (matchx("return")  ) return parseReturn();
+        if(      matchx("return")  ) return parseReturn();
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
         else if (matchx("for")     ) return parseFor();
@@ -403,7 +411,7 @@ public class Parser {
         // Our current scope is the body Scope
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
-        parseStatement();       // Parse loop body
+        parseStatement().isKill();                 // Parse loop body
         _scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
@@ -440,8 +448,11 @@ public class Parser {
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
-        _xScopes.pop();
-        _xScopes.push(exit);
+        // During sys parsing, there is no xscope here.
+        if( !_xScopes.isEmpty() ) {
+            _xScopes.pop();
+            _xScopes.push( exit );
+        }
         _scope = exit;
         return ZERO;
     }
@@ -628,11 +639,11 @@ public class Parser {
         // outside the constructor need to check the final bit.
         if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
             // Inside a constructor, final assign is OK, outside nope
-            !(_scope.inCon() && def._idx >= _scope._lexSize.last()) )
+            !(_scope.inConstructor() && def._idx >= _scope._lexSize.last()) )
             throw error("Cannot reassign final '"+name+"'");
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr.keep(), def.type(), def._final);
+        Node lift = liftExpr(expr.keep(), def.type(), def._final, true);
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
@@ -641,20 +652,29 @@ public class Parser {
 
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
-    private Node liftExpr( Node expr, Type t, boolean xfinal ) {
-        assert !(expr._type instanceof TypeMemPtr tmp) || !tmp.isFRef();
+    private Node liftExpr( Node expr, Type t, boolean xfinal, boolean isLoad ) {
+        if( expr._type instanceof TypeMemPtr tmp && tmp.isFRef() )
+            throw error("Must define forward ref "+tmp._obj._name);
         // Final is deep on ptrs
         if( xfinal && t instanceof TypeMemPtr tmp ) {
             t = tmp.makeRO();
             expr = peep(new ReadOnlyNode(expr));
         }
+        // Auto-widen array to i64 (cast ptr to raw int bits)
+        if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
+            expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),con(tmp._obj.aryBase())));
         // Auto-widen int to float
         expr = widenInt( expr, t );
-        // Auto-narrow wide ints to narrow ints
-        expr = zsMask(expr,t);
+        // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
+        // the loaded value to match the declared sign/zero bits.  For stores,
+        // just force the type, acting "as if" the store silently truncates.
+        Type et = expr._type;
+        if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
+        else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
+
         // Type is sane
-        if( expr._type!=Type.BOTTOM && !expr._type.shallowISA(t) )
-            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
+        if( et!=Type.BOTTOM && !et.shallowISA(t) )
+            throw error("Type " + et.str() + " is not of declared type " + t.str());
         return expr;
     }
 
@@ -670,7 +690,10 @@ public class Parser {
      * exprAsgn = var '=' exprAsgn | expr
      */
     private Node parseDeclarationStatement() {
+        int old = pos();
         Type t = type();
+        if( peek('.') )         // Ambiguity static vars: "type.var", parse as expression
+            { pos(old); t=null; }
         if( t == null )
             return require(parseAsgn(),";");
 
@@ -694,7 +717,9 @@ public class Parser {
         boolean xfinal = false;
         Node expr;
         if( match("=") ) {
-            expr = parseAsgn();
+            expr = isExternDecl()
+                ? externDecl(name,t)
+                : parseAsgn();
             // TOP means val and val is always final
             xfinal = (t==Type.TOP) ||
                 // BOTTOM is var and var is always not-final
@@ -710,16 +735,19 @@ public class Parser {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
-                if( !xfinal ) t = t.glb();  // Widen if not final
+                if( !xfinal ) t = t.glb(false);  // Widen if not final
             }
-            if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-                _code.link(tfp)._name = name;
+            // expr is a constant function
+            if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+                if( expr instanceof ExternNode ) t = expr._type; // Upgrade declared type to exact function
+                else _code.link(tfp).setName(name); // Assign debug name to Simple function
+            }
 
         } else {
             // Need an expression to infer the type.
             // Also, if not-null then need an initializing expression.
             // Allowed in a class def, because type/init will happen in the constructor.
-            if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inCon() )
+            if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inConstructor() )
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
             expr = switch( t ) {
@@ -735,7 +763,7 @@ public class Parser {
         }
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, t, xfinal);
+        Node lift = liftExpr(expr, t, xfinal, true);
 
         if( xfinal && t instanceof TypeMemPtr tmp )
             t = tmp.makeRO();
@@ -754,23 +782,23 @@ public class Parser {
 
     /**
      * Parse a struct declaration, and return the following statement.
-     * Only allowed in top level scope.
-     * Structs cannot be redefined.
+     * Structs cannot be redefined, but can be nested.
      *
-     * @return The statement following the struct
+     * @return zero
      */
+    private String _nestedType;
     private Node parseStruct() {
-        if (_xScopes.size() > 1) throw error("struct declarations can only appear in top level scope");
+        // "struct" already parsed, so expect the struct name next.
+        String old = _nestedType;
         String typeName = requireId();
-        Type t = TYPES.get(typeName);
-        if( t!=null && !(t instanceof TypeMemPtr tmp && tmp.isFRef() ) )
-            throw error("struct '" + typeName + "' cannot be redefined");
+        if( old!=null ) typeName = old+"."+typeName;
+        _nestedType = typeName;
 
         // A Block scope parse, and inspect the scope afterward for fields.
         _scope.push(ScopeNode.Kind.Constructor);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
-            parseStatement();
+            parseStatement().isKill();
 
         // Grab the declarations and build fields and a Struct
         int lexlen = _scope._lexSize.last();
@@ -778,15 +806,19 @@ public class Parser {
         StructNode s = new StructNode();
         Ary<Field> fs = new Ary<>(Field.class);
         for( int i=lexlen; i<varlen; i++ ) {
-            s.addDef(_scope.in(i));
-            Var v = _scope._vars.at(i);
-            if( !v.isFRef() )  // Promote to outer scope, not defined here
-                fs.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
+            Var v = _scope.var(i);
+            if( v.isFRef() )  continue; // Promote to outer scope, not defined here
+            s.addDef(_scope.in(i)); // Keep the program code to generate instance
+            fs.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
         }
+        // Save instance default constructor
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
+        s.setType(s.compute()); // Do not call peephole, in case the entire struct is a big plain constant
         TYPES.put(typeName, TypeMemPtr.make(ts));
-        INITS.put(typeName,s.peephole().keep());
+        INITS.put(typeName,s.keep());
+
         // Done with struct/block scope
+        _nestedType = old;
         require("}");
         require(";");
         _scope.pop();
@@ -815,6 +847,20 @@ public class Parser {
         if( t0 == null && KEYWORDS.contains(tname) )
             return posT(old1);
         if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
+
+        // Check for subtype.
+        while( true ) {
+            int old2 = pos();
+            if( !match(".") )  break;
+            String sname = _lexer.matchId();
+            if( sname==null ) { pos(old2); break; }
+            String tsname = tname+"."+sname;
+            t0 = TYPES.get(tsname);
+            if( t0==null ) { pos(old2); t0 = TYPES.get(tname); break; }
+            tname = tsname;
+        }
+
+        // Still no type found?  Assume forward reference
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         Type t2 = t1;
@@ -824,6 +870,9 @@ public class Parser {
                     throw error("Type "+t0+" cannot be null");
                 if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
                 t2 = tmp.makeNullable();
+            } else if( match("[~]") ) {
+                TypeMemPtr tmp = typeAry(t2);
+                t2 = tmp.makeFrom(tmp._obj.makeRO());
             } else if( match("[]") ) {
                 t2 = typeAry(t2);
             } else
@@ -837,13 +886,12 @@ public class Parser {
         int old2 = pos();
         match("!");
         String id = _lexer.matchId();
-        if( !(peek(',') || peek(';') || match("->")) )
-            return posT(old1);
-        pos(old2);              // Reset lexer to reparse
-        if( id==null )
+        if( !(peek(',') || peek(';') || match("->")) || id==null )
             return posT(old1);  // Reset lexer to reparse
+        pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
         TYPES.put(tname,t1);
+        // Return the (array, final) type
         return t2;
     }
 
@@ -854,8 +902,7 @@ public class Parser {
         String tname = "["+t.str()+"]";
         Type ta = TYPES.get(tname);
         if( ta != null ) return (TypeMemPtr)ta;
-        // Need make an array type.
-        TypeStruct ts = TypeStruct.makeAry(TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
+        TypeStruct ts = TypeStruct.makeAry(tname,TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
@@ -1069,12 +1116,28 @@ public class Parser {
      */
     private Node parsePrimary() {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
+        if( _lexer.peek('"') ) return newString(parseString());
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return NIL;
+        if( match ("'"    ) ) return parseChar();
         if( match ("("    ) ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
         if( match ("{"    ) ) return require(func(),"}");
+
+        // Parse static variable lookup: `type.fld` in the type namespace
+        Type t = type();
+        if( t!=null && match(".") ) {
+            String fld = requireId();
+            TypeMemPtr tmp = ((TypeMemPtr)t);
+            String tname = tmp._obj._name;
+            StructNode init = INITS.get(tname);
+            int idx = tmp._obj.find(fld);
+            if( idx == -1 )
+                throw error("Accessing unknown STATIC field");
+            return init.in(idx);
+        }
+
         // Expect an identifier now
         Var n = requireLookupId();
         Node rvalue = _scope.in(n);
@@ -1117,12 +1180,13 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t,false);
+        return liftExpr(peep(op.widen()),t,false,true);
     }
 
 
     // Expect an ID here.  If not found, assume a forward reference function
     Var requireLookupId() {
+        // Try in the normal variable namespace
         String id = _lexer.matchId();
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
@@ -1239,6 +1303,18 @@ public class Parser {
         ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._type.makeZero()));
         return newStruct(ary,size,0,ALTMP);
     }
+    private Node newString(String s) {
+        TypeMemPtr tmp = typeAry(TypeInteger.U8);
+        int  lenAlias = tmp._obj.field("#" )._alias;
+        int elemAlias = tmp._obj.field("[]")._alias;
+        TypeConAryB con = TypeConAryB.make(s);
+        Type elem = con.elem();
+        // Make a TMP, not-null (byte)2, singleton (true) (requires text
+        // strings are hash-interned), with a TypeStruct having a constant
+        // array body.
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[u8]", TypeInteger.U32, lenAlias, elem, elemAlias, true, con),true);
+        return con(str);
+    }
 
     // We set up memory aliases by inserting special vars in the scope these
     // variables are prefixed by $ so they cannot be referenced in Simple code.
@@ -1272,14 +1348,12 @@ public class Parser {
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) ) {
+        if( !(expr._type instanceof TypeMemPtr ptr) )
             throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
-        }
 
-        // Sanity check field name for existing
-        TypeMemPtr tmp = (TypeMemPtr)TYPES.get(ptr._obj._name);
-        if( tmp == null ) throw error("Accessing unknown field '" + name + "' from '" + ptr + "'");
-        TypeStruct base = tmp._obj;
+        // Find the field from the Type.  Lookup in the base object field names.
+        TypeStruct base = ptr._obj;
+        assert !base.isFRef();
         int fidx = base.find(name);
         if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
@@ -1299,7 +1373,7 @@ public class Parser {
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
             Node val = parseAsgn().keep();
-            Node lift = liftExpr( val, tf, f._final );
+            Node lift = liftExpr( val, tf, f._final, false );
 
             Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), lift, false);
             // Arrays include control, as a proxy for a safety range check.
@@ -1393,10 +1467,10 @@ public class Parser {
         if( expr._type == Type.NIL )
             throw error("Calling a null function pointer");
         if( !(expr instanceof FRefNode) && !expr._type.isa(TypeFunPtr.BOT) )
-            throw error("Expected a function but got "+expr._type.glb().str());
+            throw error("Expected a function but got "+expr._type.glb(false).str());
         expr.keep();            // Keep while parsing args
 
-        Ary<Node> args = new Ary<Node>(Node.class);
+        Ary<Node> args = new Ary<>( Node.class );
         args.push(null);        // Space for ctrl,mem
         args.push(null);
         while( !peek(')') ) {
@@ -1437,6 +1511,21 @@ public class Parser {
         return new ProjNode(cend,2,"#2").peephole();
     }
 
+    // Just after parsing "type foo = " can parse `"C"`
+    private boolean isExternDecl( ) {
+        int old = pos();
+        String s = parseString();
+        if( "C".equals(s) ) return true;
+        pos(old);
+        return false;
+    }
+    // External linked constant
+    private Node externDecl( String ex, Type t ) {
+        if( t instanceof TypeFunPtr tfp )          // Generic TFP from type parse
+            t  = _code.makeFun(tfp._sig,tfp._ret); // Get a FIDX, becomes a constant
+        return new ExternNode(t,ex).peephole();
+    }
+
     /**
      * Parse integer literal
      *
@@ -1451,6 +1540,22 @@ public class Parser {
     public Node peep( Node n ) {
         // Peephole, then improve with lexically scoped guards
         return _scope.upcastGuard(n.peephole());
+    }
+
+    // Parse a string or null
+    private String parseString() {
+        if( !peek('"') ) return null;
+        _lexer.inc();
+        int start = pos();
+        while( !_lexer.isEOF() && _lexer.nextChar()!= '"' ) ;
+        if( _lexer.isEOF() )
+            throw error("Unclosed string");
+        return new String(_lexer._input,start,pos()-start-1);
+    }
+
+    // Already parsed "'"
+    private Node parseChar() {
+        return require(con(TypeInteger.constant(_lexer.nextChar())),"'");
     }
 
     //////////////////////////////////
@@ -1596,7 +1701,15 @@ public class Parser {
                          _input[_position  ] == '/' &&
                          _input[_position+1] == '/') {
                     inc(); inc();
-                    while( !isEOF() && _input[_position] != '\n' ) inc();
+                    while( !isEOF() && _input[_position] != '\n' )
+                        inc();
+                } else if( _position+2 < _input.length &&
+                         _input[_position  ] == '/' &&
+                         _input[_position+1] == '*') {
+                    // Skip /*comment*/
+                    while( !isEOF() && !(_input[_position-1] == '*' && _input[_position] == '/'))
+                        inc();
+                    inc();
                 } else break;
             }
         }

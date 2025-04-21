@@ -10,10 +10,10 @@
 
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 
- public class EvalRisc5 {
+public class EvalRisc5 {
 
     // Memory image, always 0-based
     public final byte[] _buf;
@@ -27,6 +27,9 @@ import java.util.Arrays;
 
     // Start of free memory for allocation
     int _heap;
+
+    // Standard out and err streams
+    ByteArrayOutputStream _stdout, _stderr;
 
     // Cycle counters
     int _cycle;
@@ -100,6 +103,17 @@ import java.util.Arrays;
                 if( (reladdy & 0x00100000)!=0 ) reladdy |= 0xffe00000; // Sign extension.
                 rval = pc + 4;
                 pc = pc + reladdy - 4;
+                if( pc+4 == Encoding.SENTINEL_WRITE ) {
+                    ByteArrayOutputStream baos = switch((int)regs[10]) {
+                    case 1 -> _stdout==null ? (_stdout = new ByteArrayOutputStream()) : _stdout;
+                    case 2 -> _stderr==null ? (_stderr = new ByteArrayOutputStream()) : _stderr;
+                    default -> throw new IllegalArgumentException();
+                    };
+                    baos.write(_buf,(int)regs[11],(int)regs[12]);
+                    regs[10] = regs[12];
+                    rdid = 0;
+                    pc = (int)(rval - 4); // Unwind PC, as-if returned from write
+                }
                 break;
             }
             case 0x67: { // JALR (0b1100111)
@@ -112,11 +126,11 @@ import java.util.Arrays;
                     break outer;
                 }
                 // Inline CALLOC effect
-                if( pc == Encoding.SENTINAL_CALLOC ) {
+                if( pc == Encoding.SENTINEL_CALLOC ) {
+                    assert (_heap&7) == 0; // 8-byte aligned
                     int size = (int)(regs[10]*regs[11]);
+                    size = (size+7) & -8; // 8-byte aligned
                     regs[10] = _heap; // Return next free address
-                    // Pre-zeroed; epsilon (null) collector, never recycles memory so always zero
-                    // Arrays.fill(_buf,_heap,_heap+size, (byte) 0 );
                     _heap += size;
                     pc = (int)(rval - 4); // Unwind PC, as-if returned from calloc
                 } else
@@ -233,11 +247,11 @@ import java.util.Arrays;
                 } else {
                     rval = switch( (ir >> 12) & 7 ) { // These could be either op-immediate or op commands.  Be careful.
                     case 0 -> (is_reg && (ir & 0x40000000) != 0) ? (rs1 - rs2) : (rs1 + rs2);
-                    case 1 -> rs1 << (rs2 & 0x1F);
+                    case 1 -> rs1 << (rs2 & 0x3F);
                     case 2 -> (rs1 < rs2) ? 1 : 0;
                     case 3 -> (rs1 < rs2) ? 1 : 0;
                     case 4 -> rs1 ^ rs2;
-                    case 5 -> (ir & 0x40000000) != 0 ? (((int) rs1) >> (rs2 & 0x1F)) : (rs1 >> (rs2 & 0x1F));
+                    case 5 -> (ir & 0x40000000) != 0 ? (rs1 >>> (rs2 & 0x3F)) : (rs1 >> (rs2 & 0x3F));
                     case 6 -> rs1 | rs2;
                     case 7 -> rs1 & rs2;
                     default -> rval;
