@@ -27,13 +27,13 @@ public class PhaseTest {
         code.driver(Phase.LoopTree);
         assertEquals(Phase.LoopTree,code._phase);
         code.driver(Phase.LocalSched);
-        assertEquals("Parse Iter TypeCheck LoopTree Schedule LocalSched",String.join(" ",phases));
+        assertEquals("Parse Iter FinalizeIR TypeCheck LoopTree Schedule LocalSched",String.join(" ",phases));
         assertEquals("45",Eval2.eval(code,10));
     }
 
     @Test public void testResumeMachineCompilation() {
         CodeGen staged = new CodeGen(SRC).driver(Phase.TypeCheck);
-        staged.driver(Phase.InstSelect,"x86_64_v2","SystemV");
+        staged.driver(Phase.Select,"x86_64_v2","SystemV");
         staged.driver(Phase.Encoding,"x86_64_v2","SystemV");
         byte[] bits = staged._encoding._bits.toByteArray();
         CodeGen direct = new CodeGen(SRC).driver(Phase.Encoding,"x86_64_v2","SystemV");

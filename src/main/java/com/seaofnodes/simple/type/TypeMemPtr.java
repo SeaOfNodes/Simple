@@ -28,25 +28,29 @@ public class TypeMemPtr extends TypeNil {
     // Deep read-only access through this pointer; independent of slot finality.
     public boolean _ro;
 
+    public final boolean _one;  // Singleton instance
 
-    private TypeMemPtr(byte nil, TypeStruct obj) {
+    private TypeMemPtr(byte nil, TypeStruct obj, boolean singleton) {
         super(TMEMPTR,nil);
         assert obj!=null;
         _obj = obj;
         _ro = obj==TypeStruct.BOT;
+        _one = singleton;
     }
-    static TypeMemPtr make(byte nil, TypeStruct obj) { return new TypeMemPtr(nil, obj).intern(); }
+    public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one) { return new TypeMemPtr(nil, obj, one).intern(); }
+    static TypeMemPtr make(byte nil, TypeStruct obj) { return make(nil, obj, false); }
+    public static TypeMemPtr make        (TypeStruct obj) { return make((byte)2, obj); }
     public static TypeMemPtr makeNullable(TypeStruct obj) { return make((byte)3, obj); }
-    public static TypeMemPtr make(TypeStruct obj) { return new TypeMemPtr((byte)2, obj).intern(); }
-    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj).withAccess(_ro); }
+
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one).withAccess(_ro); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
-    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil,_obj).withAccess(_ro); }
+    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one).withAccess(_ro); }
     @Override public TypeMemPtr makeRO() { return withAccess(true); }
     @Override public boolean isFinal() { return _ro; }
 
     public TypeMemPtr withAccess(boolean ro) {
         if( _ro==ro ) return this;
-        TypeMemPtr ptr = new TypeMemPtr(_nil, _obj);
+        TypeMemPtr ptr = new TypeMemPtr(_nil, _obj, _one);
         ptr._ro = ro;
         return ptr.intern();
     }
@@ -73,15 +77,16 @@ public class TypeMemPtr extends TypeNil {
     @Override
     public TypeNil xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
-        return TypeMemPtr.make(xmeet0(that), (TypeStruct)_obj.meet(that._obj)).withAccess(_ro | that._ro);
+        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), _one & that._one).withAccess(_ro | that._ro);
     }
 
     @Override
-    public TypeMemPtr dual() { return TypeMemPtr.make( dual0(), _obj.dual()).withAccess(!_ro); }
+    public TypeMemPtr dual() { return make( dual0(), _obj.dual(), !_one).withAccess(!_ro); }
 
     // RHS is NIL; do not deep-dual when crossing the centerline
     @Override Type meet0() { return _nil==3 ? this : make((byte)3,_obj).withAccess(_ro); }
 
+    @Override public boolean isConstant() { return _one && _obj.isConstant(); }
 
     // True if this "isa" t up to named structures
     @Override public boolean shallowISA( Type t ) {
@@ -94,17 +99,17 @@ public class TypeMemPtr extends TypeNil {
         throw Utils.TODO(); // return _obj.shallowISA(that._obj);
     }
 
-    @Override public TypeMemPtr glb() { return make((byte)3,_obj.glb()).withAccess(true); }
+    @Override public TypeMemPtr glb(boolean mem) { return make((byte)3,_obj.glb(true)).withAccess(true); }
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
 
     @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
 
-    @Override int hash() { return (_ro ? 8192 : 0) ^ _obj.hashCode() ^ super.hash(); }
+    @Override int hash() { return (_ro ? 8192 : 0) ^ _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0); }
 
     @Override boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return _ro==ptr._ro && _obj == ptr._obj  && super.eq(ptr);
+        return _ro==ptr._ro && _obj == ptr._obj && _one == ptr._one && super.eq(ptr);
     }
 
     @Override public String str() {

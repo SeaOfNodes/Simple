@@ -39,13 +39,13 @@ class InstSelect {
         _code._rpcMask = new RegMask(_code._mach.rpc());
         _code._retMasks[3] = _code._rpcMask;
 
-
         // Convert to machine ops
         _code._uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _code._stop, map );
         _code._stop  = ( StopNode)map.get(_code._stop );
-        _code._start = (StartNode)map.get(_code._start);
+        StartNode start = (StartNode)map.get(_code._start);
+        _code._start = start==null ? new StartNode(_code._start) : start;
         _instOuts(_code._stop,_code.visit());
         _code._visit.clear();
     }
@@ -66,14 +66,14 @@ class InstSelect {
 
         // Produce a machine node from n; map it to flag as done so stops cycles.
         map.put(n, x=_code._mach.instSelect(n) );
+        // Stop retains the callable body. Its lifetime edge is not a machine operand.
+        if( n instanceof FunPtrNode ) x._inputs.pop();
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
         if( x instanceof MachNode mach )
             mach.postSelect(_code);  // Post selection action
 
-        // Updates forward edges only.
-        n._outputs.clear();
         return x;
     }
 

@@ -88,7 +88,7 @@ public class CompoundAssignmentTest {
     }
 
     private static void check(String src, long arg, long expected) {
-        var code = new CodeGen(src).parse().iter().typeCheck();
+        var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals(src, Long.toString(expected), Eval2.eval(code, arg));
     }
 }

@@ -17,7 +17,7 @@ int x=2, y=3;
 if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,9,3);", code.print());
         assertEquals("3", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
@@ -30,7 +30,7 @@ struct X { int ~x; };
 X z = new X { x=3; };
 return z.x;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 3;", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
@@ -42,7 +42,7 @@ struct Point { int ~x, ~y; };
 Point p = new Point { x=3; y=4; };
 return p;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return (const)Point;", code.print());
         assertEquals("Point{x=3,y=4}", Eval2.eval(code,  0));
     }
@@ -55,7 +55,7 @@ Point p = new Point { x=5; y=6; };
 p.x++;
 return p;
 """);
-        try { code.parse().iter().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -67,7 +67,7 @@ Point p = new Point;
 p.x++;
 return p;
 """);
-        try { code.parse().iter().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -75,7 +75,7 @@ return p;
     public void testStructFinal3() {
         for( String fields : new String[] { "var x; var y;", "int[] !x;", "int[] !x;" } ) {
             String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
-            try { new CodeGen(src).parse().iter(); fail(fields); }
+            try { new CodeGen(src).parse().iter().finalizeIR(); fail(fields); }
             catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
         }
     }
@@ -88,7 +88,7 @@ Point p = new Point;
 p.x++;
 return p;
 """);
-        try { code.parse().iter(); fail(); }
+        try { code.parse().iter().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
@@ -100,7 +100,7 @@ struct Point { var x=3; var y=4; };
 p.x++;
 return p;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Point;", code.print());
         assertEquals("Point{x=4,y=4}", Eval2.eval(code,  0));
     }

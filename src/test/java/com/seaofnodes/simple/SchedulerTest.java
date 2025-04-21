@@ -51,7 +51,7 @@ int i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        code.parse();//.iter();
+        code.parse();//.iter().finalizeIR();
         var eval = new Evaluator(code._stop);
         assertEquals(2L, eval.evaluate(1, 10));
     }
@@ -66,7 +66,7 @@ struct S {
 if(arg) v0.f=1;
 return v0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         var eval = new Evaluator(code._stop);
         assertObj(eval.evaluate(0, 10), "S", 0L);
         assertObj(eval.evaluate(1, 10), "S", 1L);
@@ -85,7 +85,7 @@ i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         var eval = new Evaluator(code._stop);
         assertEquals(2L, eval.evaluate(0, 10));
         assertEquals(2L, eval.evaluate(1, 10));

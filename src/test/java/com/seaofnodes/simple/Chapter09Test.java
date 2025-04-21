@@ -24,7 +24,7 @@ while(v0) {
 }
 return 0;
                 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
     }
 
     @Test
@@ -40,7 +40,7 @@ else {
 }
 return x;
                 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,(arg<<1),(Shl+1));", code.print());
         Assert.assertEquals( "2", Eval2.eval(code,  1));
         Assert.assertEquals("23", Eval2.eval(code, 11));
@@ -49,7 +49,7 @@ return x;
     @Test
     public void testGVN2() {
         CodeGen code = new CodeGen("return arg*arg-arg*arg;");
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
         Assert.assertEquals("0", Eval2.eval(code,  1, 1));
     }
@@ -63,7 +63,7 @@ while (arg < 10) {
 }
 return arg;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,arg,(Phi_arg+2));", code.print());
         Assert.assertEquals("11", Eval2.eval(code,  1));
     }
@@ -80,7 +80,7 @@ while (arg < 10) {
 }
 return arg;
                 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,arg,(Phi_arg+4));", code.print());
         Assert.assertEquals("13", Eval2.eval(code,  1));
     }
@@ -109,7 +109,7 @@ while (arg) {
 }
 return arg;
                 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -127,15 +127,15 @@ while(v1+arg) {
     v1=v2;
 }
                 """);
-        code.parse().iter();
-        assertEquals("return 0;", code.print());
+        code.parse().iter().finalizeIR();
+        assertEquals("Stop[ ]", code.print()); // No explicit return: omit default main.
     }
 
     @Test
     public void testWhile0() {
-        CodeGen code = new CodeGen("while(0) continue; if(0) arg=0;");
-        code.parse().iter();
-        assertEquals("return 0;", code.print());
+        CodeGen code = new CodeGen("while(0) continue; if(0) arg=0; return arg;");
+        code.parse().iter().finalizeIR();
+        assertEquals("return arg;", code.print());
     }
 
     @Test
@@ -145,8 +145,9 @@ if(0) while(0) {
     int arg=arg;
     while(0) {}
 }
+return 0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -154,14 +155,14 @@ if(0) while(0) {
     @Test
     public void testPrecedence() {
         CodeGen code = new CodeGen("return 3-1+2;");
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 4;", code.print());
     }
 
     @Test
     public void testSwap2() {
         CodeGen code = new CodeGen("return 1+(1+1);");
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 3;", code.print());
     }
 
@@ -179,7 +180,7 @@ while(arg) {
 }
 return a;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", code.print());
     }
 
@@ -193,7 +194,7 @@ arg=0;
 int v0=0!=0<-0;
 return -0+0+0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Top;", code.print());
     }
 
@@ -201,15 +202,15 @@ return -0+0+0;
     @Test
     public void testFuzz2() {
         CodeGen code = new CodeGen("return 0+-0;");
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
     @Test
     public void testFuzz3() {
         CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0;");
-        code.parse().iter();
-        assertEquals("return 0;", code.print());
+        code.parse().iter().finalizeIR();
+        assertEquals("Stop[ ]", code.print()); // The only return is unreachable.
     }
 
     @Test
@@ -220,7 +221,7 @@ while(1) {
     if(1<0) while(arg==-0) arg=arg-arg;
 }
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Top;", code.print());
     }
 
@@ -242,7 +243,7 @@ while(1) {
 }
 return 0!=0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Top;", code.print());
     }
 
@@ -254,8 +255,8 @@ int v0=0;
 while(0==1) while(v0)
         v0=1+v0;
 """);
-        code.parse().iter();
-        assertEquals("return 0;", code.print());
+        code.parse().iter().finalizeIR();
+        assertEquals("Stop[ ]", code.print());
     }
 
     @Test
@@ -270,14 +271,14 @@ while(1)
         v1=1;
 return v1+v0;
                                    """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Top;", code.print());
     }
 
     @Test
     public void testFuzz8() {
         CodeGen code = new CodeGen("while(arg) arg = arg - 1;  return arg;");
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 

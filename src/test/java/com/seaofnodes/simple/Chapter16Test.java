@@ -17,7 +17,7 @@ public class Chapter16Test {
 """
 return 3.14;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -30,7 +30,7 @@ return 3.14;
 int x, y;
 return x+y;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -41,7 +41,7 @@ return x+y;
 int x=2, y=x+1;
 return x+y;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 5;", code.print());
         assertEquals("5", Eval2.eval(code,  0));
     }
@@ -54,7 +54,7 @@ struct X { int x=3; };
 X z = new X;
 return z.x;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 3;", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
@@ -66,7 +66,7 @@ struct X { int x=3; };
 X z = new X { x = 4; };
 return z.x;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code,  0));
     }
@@ -87,7 +87,7 @@ LLI? next = head.next;
 if( !next ) return 1;
 return next.i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,0,1,.i);", code.print());
         assertEquals("0", Eval2.eval(code,  0));
         assertEquals("1", Eval2.eval(code,  1));
@@ -118,7 +118,7 @@ LLI? next = head.next;
 if( !next ) return 1;
 return next.i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,0,1,.i);", code.print());
         assertEquals("0", Eval2.eval(code,  0));
         assertEquals("1", Eval2.eval(code,  1));
@@ -143,7 +143,7 @@ struct Square {
 };
 return new Square;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Square;", code.print());
         assertEquals("Square{side=3.0,diag=1.7320508075688772}", Eval2.eval(code,  3));
         assertEquals("Square{side=4.0,diag=2.0}", Eval2.eval(code, 4));
@@ -167,7 +167,7 @@ return new Square;
         """;
 
     @Test public void testConstructorMemory() {
-        var code = new CodeGen(CONSTRUCTOR_MEMORY).parse().iter();
+        var code = new CodeGen(CONSTRUCTOR_MEMORY).parse().iter().finalizeIR();
         assertEquals("111249",Eval2.eval(code,0));
         assertEquals("222352",Eval2.eval(code,1));
     }
