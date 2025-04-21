@@ -325,7 +325,7 @@ while( prime <= arg ) {
 }
 return primeCount;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi_primeCount,(Phi_primeCount+1))));", code.print());
         assertEquals("0", Eval2.eval(code,  1)); // No primes 1 or below
         assertEquals("1", Eval2.eval(code,  2)); // 2
@@ -347,7 +347,7 @@ i=v.f;
 if (arg) v.f=1;
 return i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 2;", code.print());
         assertEquals("2", Eval2.eval(code, 0));
         assertEquals("2", Eval2.eval(code, 1));
@@ -370,7 +370,7 @@ if (arg) {
 }
 return i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,.f,0);", code.print());
     }
 
@@ -389,7 +389,7 @@ if (v1) {
 }
 return v0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return S;", code.print());
     }
 
@@ -407,7 +407,7 @@ if (arg+1) arg= 0;
 while (arg) v.f = 2;
 return i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return arg;", code.print());
     }
 
@@ -424,7 +424,7 @@ while(1) {
 }
 return v;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return S;", code.print());
     }
 
@@ -439,7 +439,7 @@ while( -arg )
 while(1)
   arg = arg+ptr.v;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Top;", code.print());
     }
 
@@ -457,7 +457,7 @@ while (arg) {
 }
 return i;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -477,7 +477,7 @@ while(arg) {
 }
 return arg;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -495,7 +495,7 @@ if (arg) {
 }
 return v;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return S;", code.print());
     }
 
@@ -514,7 +514,7 @@ while (arg > 0) {
 }
 return v;
                 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         //assertEquals("return new S;", code.print());
     }
 
@@ -531,7 +531,7 @@ while(0>=0) {
 }
 return 0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Top;", code.print());
     }
 
@@ -549,7 +549,7 @@ u32 v0=0;
     return v1;
 }
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 

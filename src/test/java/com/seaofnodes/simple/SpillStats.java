@@ -26,6 +26,13 @@ public class SpillStats extends RunListener {
                            code._regAlloc._spills+","+code._regAlloc._spillScaled);
     }
 
+    // The same native helpers serve old and new program cohorts.
+    public static void recordNative(CodeGen code, String cpu, String abi) {
+        String cohort = ACTIVE!=null && ACTIVE._test.getTestClass()==Chapter22Test.class
+            ? "Chapter22" : "Chapter21";
+        record(code,cohort,cpu,abi);
+    }
+
     // Keep running every CPU and native result check when measuring quality.
     // A changed golden still makes spill-stats fail at the end.
     public static void checkSpills(int expected, int actual) {
@@ -39,7 +46,7 @@ public class SpillStats extends RunListener {
     }
 
     public static void main(String[] args) throws ClassNotFoundException {
-        if( args.length==0 ) args = new String[]{"Chapter20Test","Chapter21Test","Chapter21AllocTest","BrainFuckTest","MergeSortTest"};
+        if( args.length==0 ) args = new String[]{"Chapter20Test","Chapter21Test","Chapter21AllocTest","Chapter22Test","BrainFuckTest","MergeSortTest"};
         Class<?>[] tests = new Class<?>[args.length];
         for( int i=0; i<args.length; i++ )
             tests[i] = Class.forName("com.seaofnodes.simple."+args[i]);
@@ -48,7 +55,8 @@ public class SpillStats extends RunListener {
         junit.addListener(ACTIVE);
         Result result = junit.run(tests);
         boolean passed = result.wasSuccessful() && ACTIVE._qualityFailures==0;
-        if( !passed ) System.out.println("FAILED test run: totals are not a complete comparison.");
+        if( !result.wasSuccessful() ) System.out.println("FAILED test run: totals are not a complete comparison.");
+        else if( !passed ) System.out.println("Spill expectations differ; allocation and runtime checks passed.");
         System.out.println("cohort,cpu,abi,allocations,splits,scaled");
         for( var row : ACTIVE._totals.entrySet() ) {
             long[] sum = row.getValue();
