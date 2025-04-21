@@ -14,6 +14,7 @@ public class MemAddX86 extends MemOpX86 {
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
+    @Override public RegMask killmap() { return x86_64_v2.FLAGS_MASK; }
     @Override public void encoding( Encoding enc ) {
         X86.addMem(enc,enc.reg(val()),_imm,enc.reg(ptr()),enc.reg(idx()),_off,_scale);
     }

@@ -13,7 +13,7 @@ public class Chapter11Test {
             s.x = 42;
             while (arg > 0) { s.y = s.y + arg; arg = arg - 1; }
             return s.x;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         var stop = code._stop;
         assertEquals("return 42;",stop.toString());
         assertEquals("42",Eval2.eval(code,5));
@@ -32,7 +32,7 @@ public class Chapter11Test {
                 arg = arg - 1;
             }
             return a;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         var stop = code._stop;
         int[] phis = {0};
         stop.walk(n -> {
@@ -54,7 +54,7 @@ public class Chapter11Test {
         // it. Keep both the worklist assertion and the final heap check.
         for (int seed : new int[]{0,97,123,456}) {
             var code = new CodeGen(Chapter10Test.NESTED_MEMORY,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse();
-            code.iter();
+            code.iter().finalizeIR();
             assertEquals("S{x=9,y=25,z=17}",Eval2.eval(code,4));
         }
     }

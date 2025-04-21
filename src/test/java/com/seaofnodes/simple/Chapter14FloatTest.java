@@ -20,7 +20,7 @@ public class Chapter14FloatTest {
             {"f32 rounded=arg+16777216.0; return rounded;", "1.6777232E7", "1.6777199E7"}
         };
         for( String[] test : tests ) {
-            var code = new CodeGen(test[0]).parse().iter().typeCheck();
+            var code = new CodeGen(test[0]).driver(CodeGen.Phase.TypeCheck);
             assertEquals(test[0],test[1],Eval2.eval(code,17));
             assertEquals(test[0],test[2],Eval2.eval(code,-17));
         }
@@ -28,7 +28,7 @@ public class Chapter14FloatTest {
 
 
     @Test public void testSubZeroFloat() {
-        var code = new CodeGen("flt x = arg; return 0-x;").parse().iter().typeCheck();
+        var code = new CodeGen("flt x = arg; return 0-x;").driver(CodeGen.Phase.TypeCheck);
         // Compare strings so +0.0 and -0.0 remain distinct.
         assertEquals("0.0", Eval2.eval(code,0));
         assertEquals("-1.0", Eval2.eval(code,1));
@@ -42,7 +42,7 @@ public class Chapter14FloatTest {
             {"return 2.5; return 7;", "2.5"}
         } ) {
             String src = test[0];
-            var code = new CodeGen(src).parse().iter().typeCheck();
+            var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
             assertEquals(src,test[1],Eval2.eval(code,0));
         }
     }
@@ -55,7 +55,7 @@ public class Chapter14FloatTest {
 """
 return 3.14;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -66,7 +66,7 @@ return 3.14;
 """
 return 3.14;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -83,7 +83,7 @@ while( 1 ) {
 }
 return guess;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)*0.5f));", code.print());
         assertEquals("3.0", Eval2.eval(code,  9));
         assertEquals("1.414213562373095", Eval2.eval(code,  2));
@@ -96,7 +96,7 @@ return guess;
 flt x = arg;
 return x+1==x;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return ((flt)arg==(ToFloat+1.0f));", code.print());
         assertEquals("0", Eval2.eval(code, 1));
     }

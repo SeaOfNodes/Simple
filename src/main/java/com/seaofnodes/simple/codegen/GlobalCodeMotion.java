@@ -32,7 +32,6 @@ public abstract class GlobalCodeMotion {
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
-        if( use instanceof CallNode call ) call.unlink_all();
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
         if( def instanceof ReturnNode && use instanceof CallEndNode )

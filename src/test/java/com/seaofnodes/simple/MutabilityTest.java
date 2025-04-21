@@ -6,12 +6,12 @@ import com.seaofnodes.simple.codegen.CodeGen;
 
 public class MutabilityTest {
     private static void ok(String src, String result) {
-        var code = new CodeGen(src).parse().iter().typeCheck();
+        var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals(result,Eval2.eval(code,0));
     }
     private static void bad(String src) {
         try {
-            new CodeGen(src).parse().iter().typeCheck();
+            new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         } catch( RuntimeException expected ) {
             String msg = expected.getMessage();
             assertTrue("Expected a permission error, got: "+expected,
