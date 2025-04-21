@@ -50,7 +50,8 @@ public class TypeMem extends Type {
     }
 
     @Override public boolean isHigh() { return _t.isHigh(); }
-    @Override public Type glb() { return make(_alias,_t.glb()); }
+    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public Type glb(boolean mem) { return make(_alias,_t.glb(true)); }
 
     @Override int hash() { return 9876543 + _alias + _t.hashCode(); }
 

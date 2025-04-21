@@ -21,7 +21,7 @@ public class CodeGen {
         Opto,                   // Run ideal optimizations
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
-        InstSelect,             // Convert to target hardware nodes
+        Select,                 // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
         RegAlloc,               // Register allocation
@@ -35,6 +35,7 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
+
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {
@@ -54,14 +55,15 @@ public class CodeGen {
     public CodeGen driver( Phase phase ) { return driver(phase,null,null); }
     public CodeGen driver( Phase phase, String cpu, String callingConv ) {
         if( _phase==null )                       parse();
-        if( _phase.ordinal() < phase.ordinal() ) opto();
-        if( _phase.ordinal() < phase.ordinal() ) typeCheck();
-        if( _phase.ordinal() < phase.ordinal() ) loopTree();
-        if( _phase.ordinal() < phase.ordinal() && cpu != null ) instSelect(cpu,callingConv);
-        if( _phase.ordinal() < phase.ordinal() ) GCM();
-        if( _phase.ordinal() < phase.ordinal() ) localSched();
-        if( _phase.ordinal() < phase.ordinal() ) regAlloc();
-        if( _phase.ordinal() < phase.ordinal() ) encode();
+        int p1 = phase.ordinal();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Opto      .ordinal() ) opto();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.TypeCheck .ordinal() ) typeCheck();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LoopTree  .ordinal() ) loopTree();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Schedule  .ordinal() ) GCM();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LocalSched.ordinal() ) localSched();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.RegAlloc  .ordinal() ) regAlloc();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Encoding  .ordinal() ) encode();
         return this;
     }
 
@@ -128,7 +130,7 @@ public class CodeGen {
         return TypeFunPtr.make((byte)2,sig,ret, 1L<<fidx );
     }
     // Signature for MAIN
-    public TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
+    public final TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
@@ -183,6 +185,25 @@ public class CodeGen {
 
         // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
+
+        // Not really a true optimistic pass, but look for unlinked functions.
+        // This can be removed, which may trigger another round of pessimistic.
+        // This is the point where we flip from a virtual Call Graph (any call
+        // can call any function) to having a correct (but conservative) CG.
+
+        FunNode main = link(_main);
+        for( int i=0; i<_start.nOuts(); i++ ) {
+            Node use = _start.out(i);
+            if( use instanceof FunNode fun &&
+                fun.nIns()==2 && fun.in(1)==_start && fun != main &&
+                    (fun._name==null || fun._name.startsWith("sys.")) ) {
+                add(fun).setDef(1,Parser.XCTRL);
+                addAll(fun._outputs);
+                i--;
+            }
+        }
+        _iter.iterate(this);
+
         _tOpto = (int)(System.currentTimeMillis() - t0);
 
         // TODO:
@@ -220,7 +241,7 @@ public class CodeGen {
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_stop);
+        _start.buildLoopTree(_start,_stop);
         _tLoopTree = (int)(System.currentTimeMillis() - t0);
         return this;
     }
@@ -248,7 +269,7 @@ public class CodeGen {
     public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
     public CodeGen instSelect( String cpu, String callingConv, String base ) {
         assert _phase.ordinal() == Phase.LoopTree.ordinal();
-        _phase = Phase.InstSelect;
+        _phase = Phase.Select;
 
         _callingConv = callingConv;
 
@@ -279,14 +300,14 @@ public class CodeGen {
         _rpcMask = new RegMask(_mach.rpc());
         _retMasks[3] = _rpcMask;
 
-
         // Convert to machine ops
         long t0 = System.currentTimeMillis();
         _uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _stop, map );
         _stop  = ( StopNode)map.get(_stop );
-        _start = (StartNode)map.get(_start);
+        StartNode start = (StartNode)map.get(_start);
+        _start = start==null ? new StartNode(_start) : start;
         _instOuts(_stop,visit());
         _visit.clear();
         _tInsSel = (int)(System.currentTimeMillis() - t0);
@@ -317,8 +338,6 @@ public class CodeGen {
         if( x instanceof MachNode mach )
             mach.postSelect(this);  // Post selection action
 
-        // Updates forward edges only.
-        n._outputs.clear();
         return x;
     }
 
@@ -342,7 +361,7 @@ public class CodeGen {
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase.ordinal() <= Phase.InstSelect.ordinal();
+        assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 
@@ -442,8 +461,10 @@ public class CodeGen {
     String printCFG() {
         if( _cfg==null ) return "no CFG";
         SB sb = new SB();
-        for( CFGNode cfg : _cfg )
-            IRPrinter.printLine(cfg,sb);
+        for( CFGNode cfg : _cfg ) {
+            sb.fix(8,""+cfg._idepth);
+            IRPrinter.printLine( cfg, sb );
+        }
         return sb.toString();
     }
 

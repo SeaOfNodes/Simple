@@ -71,6 +71,12 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
+        // Simple store-after-MemMerge to a known alias can bypass.  Happens when inlining.
+        if( mem() instanceof MemMergeNode mem ) {
+            setDef(1,mem.alias(_alias));
+            return this;
+        }
+
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
             int log = _declaredType.log_size();
@@ -84,12 +90,23 @@ public class StoreNode extends MemOpNode {
             }
         }
 
-        // Store of zero after alloc
-        if( mem() instanceof ProjNode prj && prj.in(0) instanceof NewNode &&
-            prj.in(0)==ptr().in(0) &&  // Same NewNode memory & pointer
-            (val()._type==TypeInteger.ZERO || val()._type==Type.NIL ) )
-            return mem();
+        // Store will chop high order bits off; math to change those bits can be dropped.
+        if( val() instanceof SarNode shr &&
+            shr.in(1) instanceof ShlNode shl &&
+            shr.in(2)._type.isConstant() &&
+            shl.in(2)._type.isConstant() ) {
+            TypeInteger shrC = (TypeInteger) shr.in(2)._type;
 
+            // size of the thing that sign-extends
+            int base_size = (1 << shr.in(1)._type.log_size()) << 3;
+            int not_affected_bits = base_size - (int) shrC.value();
+            int store_size = (1 << log_size()) << 3;
+            // if the store is unrelated to the shift amount, then get rid of the shift
+            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= store_size && not_affected_bits >= store_size) {
+                setDef(4, shl.in(1));
+                return this;
+            }
+        }
         return null;
     }
 
@@ -111,8 +128,6 @@ public class StoreNode extends MemOpNode {
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
-        //Type t = val()._type;
-        //return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
         return null;
     }
 }

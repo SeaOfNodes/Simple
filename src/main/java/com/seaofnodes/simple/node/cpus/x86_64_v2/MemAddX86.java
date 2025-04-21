@@ -13,6 +13,7 @@ public class MemAddX86 extends MemOpX86 {
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }
+    @Override public RegMask killmap() { return x86_64_v2.FLAGS_MASK; }
     @Override public void encoding( Encoding enc ) {
         // add something to memory
         // REX.W + 01 /r | REX.W + 81 /0 id
@@ -23,11 +24,11 @@ public class MemAddX86 extends MemOpX86 {
 
         enc.add1(x86_64_v2.rex(src, ptr, idx));
         // opcode
-        enc.add1( src == -1 ? 0x81: 0x01);
+        enc.add1( src == -1 ? (_imm==1 ? 0xFF : 0x81): 0x01);
 
         // includes modrm
         x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src == -1 ? 0 : src, enc);
-        if( src == -1 ) enc.add4(_imm);
+        if( src == -1 && _imm!=1 ) enc.add4(_imm);
     }
     // General form: "add  [base + idx<<2 + 12] += src"
     @Override public void asm(CodeGen code, SB sb) {
