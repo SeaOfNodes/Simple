@@ -32,7 +32,7 @@ public class Chapter10Test {
             "if(1) return new S; else return 0;"
         } ) {
             String src = "struct S { int x; }; " + body;
-            var code = new CodeGen(src).parse().iter().typeCheck();
+            var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
             org.junit.Assert.assertTrue(body,
                 code.expr()._type instanceof com.seaofnodes.simple.type.TypeMemPtr);
         }
@@ -57,7 +57,7 @@ public class Chapter10Test {
             "if (!!!p) return -1; return p.x;",
             "int b = !!p; if (b) return p.x + b - 1; return -1;"
         } ) {
-            CodeGen code = new CodeGen(NULLABLE_POINT_SOURCE+body).parse().iter().typeCheck();
+            CodeGen code = new CodeGen(NULLABLE_POINT_SOURCE+body).driver(CodeGen.Phase.TypeCheck);
             assertEquals(body,"-1",Eval2.eval(code,0));
             assertEquals(body,"42",Eval2.eval(code,1));
         }
@@ -72,7 +72,7 @@ public class Chapter10Test {
             "if (!!p) { int x = p.x; } return p.x;"
         } ) {
             try {
-                new CodeGen(NULLABLE_POINT_SOURCE+body).parse().iter().typeCheck();
+                new CodeGen(NULLABLE_POINT_SOURCE+body).driver(CodeGen.Phase.TypeCheck);
                 fail(body);
             } catch( RuntimeException e ) {
                 // Known null is rejected during parsing in these chapters.
@@ -104,7 +104,7 @@ if( (arg/13)==0 ) {
 int r = g+h;
 return p-r;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -124,7 +124,7 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 2;", code.print());
     }
 
@@ -140,7 +140,7 @@ else
     v.y = 3;
 return v;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Vector2D;", code.print());
     }
 
@@ -178,7 +178,7 @@ while (arg) {
 }
 return bar.a;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi_a+2));", code.print());
     }
 
@@ -191,7 +191,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().iter(); fail(); }
+        try { code.parse().iter().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
@@ -204,7 +204,7 @@ if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().iter().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'a'",e.getMessage()); }
     }
 
@@ -230,7 +230,7 @@ if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,null,Bar);", code.print());
     }
 
@@ -246,7 +246,7 @@ if( !bar ) rez=4;
 else bar.a = 1;
 return rez;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Region,4,3);", code.print());
     }
 
@@ -263,7 +263,7 @@ while(arg) {
 }
 return ret;
 """);
-        try { code.parse().iter().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) {
             assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
@@ -300,7 +300,7 @@ while( i.x < i.len ) {
 }
 return sum;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code.print());
     }
 
@@ -319,7 +319,7 @@ while(arg) {
 }
 return ret;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
     }
 
@@ -337,7 +337,7 @@ while(arg) {
 }
 return ret;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
     }
 
@@ -354,7 +354,7 @@ while(arg < 10) {
 }
 return ret;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
     }
 
@@ -380,8 +380,9 @@ if(0) {
         v0=v2;
     }
 }
+return 0;
    """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -395,7 +396,7 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return s0;", code.print());
     }
 
@@ -411,7 +412,7 @@ while(0<arg) {
 }
 return 0;
     """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
     }
 
     @Test
@@ -423,7 +424,7 @@ while(v0.f0) {}
 s0 v1 = v0;
 return v1;
     """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return (const)s0;", code.print());
     }
 
@@ -454,8 +455,9 @@ while(0) {}
             }
         }    }
 }
+return 0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -466,7 +468,7 @@ int v0=arg==0;
 while(v0) continue;
 return 0;
 """);
-        code.parse().iter();
+        code.parse().iter().finalizeIR();
         assertEquals("return 0;", code.print());
     }
 
@@ -480,7 +482,7 @@ return 0;
             a.y = 55; b.y = 66;
             a.x = 33; b.x = 44;
             return before*100 + p.x;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         StopNode stop = code._stop;
         assertEquals("1133",Eval2.eval(code,0));
         assertEquals("2244",Eval2.eval(code,1));
@@ -506,7 +508,7 @@ return 0;
             """;
 
     @Test public void testMemoryAcrossNestedLoops() {
-        var code = new CodeGen(NESTED_MEMORY).parse().iter();
+        var code = new CodeGen(NESTED_MEMORY).parse().iter().finalizeIR();
         StopNode stop = code._stop;
         for (int arg=0; arg<7; arg++) {
             assertEquals("S{x="+(5L+arg)+",y="+(7L+arg*(arg+1)-(arg>=2 ? 2 : 0))+
@@ -522,7 +524,7 @@ return 0;
             if (arg) { s.x = 11; s.z = 13; return s; }
             s.y = 17;
             return s;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         StopNode stop = code._stop;
         for (int arg=0; arg<2; arg++) {
             assertEquals(arg==0 ? "S{x=3,y=17,z=7}" : "S{x=11,y=5,z=13}",Eval2.eval(code,arg));
@@ -539,7 +541,7 @@ return 0;
             int v;
             if (arg>1) v=p.x; else v=q.x;
             return v;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         StopNode stop = code._stop;
         // The one-step safety check stops at the memory aggregate.
         assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
@@ -554,7 +556,7 @@ return 0;
             !S !s = new S;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         StopNode stop = code._stop;
         // Keep each Store on its own branch.
         assertEquals(2,countMemoryNodes(stop,StoreNode.class,new BitSet()));
@@ -573,7 +575,7 @@ return 0;
             if (arg>1) { v=p.x; p.x=41; p.y=5; }
             else       { v=q.x; q.x=42; }
             return v;
-            """).parse().iter();
+            """).parse().iter().finalizeIR();
         StopNode stop = code._stop;
         assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
         assertEquals("-1",Eval2.eval(code,-1));

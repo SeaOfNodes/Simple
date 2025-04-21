@@ -81,7 +81,7 @@ public class TypeFloat extends Type {
     }
 
     @Override public Type makeZero() { return FZERO; }
-    @Override public Type glb() { return F64; }
+    @Override public Type glb(boolean mem) { return mem ? (isHigh() ? dual() : this)  : F64; }
 
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }

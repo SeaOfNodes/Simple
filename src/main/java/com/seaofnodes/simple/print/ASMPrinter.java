@@ -68,7 +68,7 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
         var data=new ArrayList<Data>();
         for( Encoding.Relo r : relos ) {
             int align=1<<r._align;
-            int size=align;
+            int size=r._t instanceof TypeStruct ? (r._structSize+align-1)&-align : align;
             if( r._t instanceof TypeTuple t ) size=align*t._types.length;
             data.add(new Data(r._t,r._t.str(),r._align,size));
         }
