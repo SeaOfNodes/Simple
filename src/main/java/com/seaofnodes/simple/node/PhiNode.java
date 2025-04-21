@@ -54,7 +54,7 @@ public class PhiNode extends Node {
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _declaredType;
         // Set type to local top of the starting type
-        Type t = _declaredType.glb().dual();//Type.TOP;
+        Type t = _declaredType.glb(false).dual();//Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
@@ -121,12 +121,17 @@ public class PhiNode extends Node {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
+            if( in(1) instanceof MemOpNode mem && mem._alias != ((MemOpNode)op)._alias )
+                return false;
             if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
                 for( Node out : op._outputs )
                     if( out!=null && out!=this )
                         addDep(out);
                 return false;
             }
+            for( int j=1; j<in(1).nIns(); j++ )
+                if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )
+                    return false; // Lazy Phi input
         }
         return true;
     }
@@ -145,7 +150,7 @@ public class PhiNode extends Node {
                 if( in(i).in(j) != x )
                     { needsPhi=true; break; }
             if( needsPhi ) {
-                x = new PhiNode(_label,op.in(j)._type.glb());
+                x = new PhiNode(_label,op.in(j)._type.glb(false));
                 x.addDef(region());
                 for( int i=1; i<nIns(); i++ )
                     x.addDef(in(i).in(j));

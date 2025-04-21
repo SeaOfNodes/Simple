@@ -1,6 +1,34 @@
+#
+# Makefile expects to run at the project root, and not nested inside anywhere
+#
+#  cd $DESK/Simple/chapterXX; make
+#
+#
+# first time only - this is the only thing that hits the Interwebs
+#
+#   make lib
+#
+# any time you want to nuke everything from space:
+#
+#   make clean tags
+#
+# run the tests
+#
+#   make tests
+
+#######################################################
+#
+# Boilerplate because make syntax isn't the best
+#
+
+# Use bash for recipes
 SHELL := /bin/bash
+
+# Remove target on error (no broken leftover files)
 .DELETE_ON_ERROR:
 
+# Keep partial builds but not partial recipes; keeping them speeds up the next `make`
+.NOTINTERMEDIATE:
 
 # for printing variable values
 # usage: make print-VARIABLE
@@ -44,7 +72,7 @@ libs = $(wildcard lib/*jar)
 jars = $(subst $(space),$(SEP),$(libs))
 
 
-default_targets := $(main_classes) $(test_classes)
+default_targets := $(CLZDIR)/.tag $(test_classes)
 # Optionally add ctags to the default target if a reasonable one was found.
 ifneq ($(CTAGS),)
 default_targets += tags
@@ -52,27 +80,65 @@ endif
 
 default: $(default_targets)
 
+#######################################################
 # Compile just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
-	@echo "compiling " $@ " because " $?
+
+OODM :=
+$(CLZDIR)/main/.mtag: $(main_classes) $(main_javas)
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
-	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)
+	@# This crap is really just "javac", but with a beautiful error message.
+	@# The very very long list of java files is suppressed and counted.
+	@# The required output "Note: blah blah deprecated blah" is suppressed.
+	$(file > .argsM.txt , $(OODM))
+	@if [ ! -z "$(OODM)" ] ; then \
+	  echo "compiling main because " $< " and " `wc -w < .argsM.txt` " more files" ; \
+	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(OODM) >& .out.txt ; then \
+            cat .out.txt ; \
+            exit 1; \
+          fi ; \
+          rm -rf .out.txt ; \
+	fi
+	@touch $(CLZDIR)/main/.mtag
+	@rm -f .argsM.txt
 
-$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
-	@echo "compiling " $@ " because " $?
+# Collect just the out-of-date files
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
+	$(eval OODM += $$<)
+
+
+#######################################################
+
+OODT :=
+$(CLZDIR)/test/.ttag: $(test_classes) $(test_javas) $(CLZDIR)/main/.mtag
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas)
+	$(file > .argsT.txt $(OODT))
+	@if [ ! -z "$(OODT)" ] ; then \
+	  echo "compiling test because " $< " and " `wc -w < .argsT.txt` " more files" ; \
+	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(OODT) >& .out.txt ; then \
+            cat .out.txt ; \
+            exit 1; \
+          fi ; \
+          rm -rf .out.txt ; \
+	fi
+	@touch $(CLZDIR)/test/.ttag
+	@rm -f .argsT.txt
 
+# Collect just the out-of-date files
+$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
+	$(eval OODT += $$<)
+
+#######################################################
 # Base launch line for JVM tests
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
-tests:	$(default_targets)
+
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "testing " $(test_cp)
 	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-fuzzer: $(default_targets)
+fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
@@ -80,7 +146,7 @@ fuzzer: $(default_targets)
 release:	build/release/simple.jar
 
 # Build a Simple jar
-build/release/simple.jar:	$(main_classes) $(test_classes)
+build/release/simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "jarring " $@ " because " $?
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .

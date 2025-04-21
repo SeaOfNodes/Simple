@@ -128,14 +128,14 @@ while(v1+arg) {
 }
                 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
     public void testWhile0() {
-        CodeGen code = new CodeGen("while(0) continue; if(0) arg=0;");
+        CodeGen code = new CodeGen("while(0) continue; if(0) arg=0; return arg;");
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return arg;", code.print());
     }
 
     @Test
@@ -145,6 +145,7 @@ if(0) while(0) {
     int arg=arg;
     while(0) {}
 }
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
@@ -255,7 +256,7 @@ while(0==1) while(v0)
         v0=1+v0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("Stop[ ]", code.print());
     }
 
     @Test
