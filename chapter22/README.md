@@ -1,4 +1,4 @@
-# Chapter 22: Strings and Such
+# Chapter 22: Strings and I/O
 
 It's high time for Strings and printing!  In this chapter we look at what it
 takes to make a nice user-mode string.  We are implementing strings in the base
@@ -46,11 +46,11 @@ Any number of named fields are allowed:
 
 ```java
 struct Class {
-    str className;
-    str professor;
-    int time;
-    int credits;
-    Class prerequisiste;
+    str     className;
+    str     professor;
+    int     time;
+    int     credits;
+    Class   prerequisite;
     u16     #; // Limit of 65535 students per class
     Student [];
 };
@@ -135,4 +135,24 @@ chapter.
 
 ## A String Implementation
 
+### A Final String
+
+### A Extendable String (aka StringBuilder or StringBuffer)
+
+```java
+struct xstr {
+// update-in-place expanding string
+
+};
+```
+
+
 ## FFI and I/O Calls
+
+Calling external / FFI functions.
+
+`{ i32 fd, u8[] buf, i32 len -> i32 } write = "C";`
+
+
+## Importing name spaces
+
