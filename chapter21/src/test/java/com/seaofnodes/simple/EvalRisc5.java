@@ -54,7 +54,7 @@ import java.util.Arrays;
 
     public void st1(int x, int  val) { _buf[x] = (byte)val; }
     public void st2(int x, int  val) { st1(x,val); st1(x+1,val>> 8); }
-    public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
+    public void st4(int x, int  val) {st2(x,val); st2(x+2,val>>16); }
     public void st8(int x, long val) { st4(x,(int)val); st2(x+4,(int)(val>>32)); }
 
     // Note: only a few bits are used.  (Machine = 3, User = 0)
@@ -68,6 +68,7 @@ import java.util.Arrays;
         long rval = 0;
         double frval = 0;
         int pc = _pc;
+        int hit = 0;
         int cycle = _cycle;
         boolean is_f = false;
         outer:
@@ -116,6 +117,11 @@ import java.util.Arrays;
                 }
                 // Inline CALLOC effect
                 if( pc == Encoding.SENTINAL_CALLOC ) {
+                    hit++;
+                    if(hit ==3 ) {
+                        //
+                        System.out.print("Here");
+                    }
                     int size = (int)(regs[10]*regs[11]);
                     regs[10] = _heap; // Return next free address
                     // Pre-zeroed; epsilon (null) collector, never recycles memory so always zero
@@ -195,7 +201,9 @@ import java.util.Arrays;
                 if( (addy & 0x800)!=0 ) addy |= 0xfffff000;
                 addy += rs1;
                 rdid = 0;
-
+                if(addy == 65557) {
+                    System.out.print("Here");
+                }
                 if( addy >= _buf.length-3 ) {
                     trap = (7+1); // Store access fault.
                     rval = addy;
