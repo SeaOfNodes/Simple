@@ -295,9 +295,12 @@ public class RegAlloc {
                     // Check all use inputs for n, in case there's several
                     for( int i = 1; i < use.nIns(); i++ )
                         // Find a def input, and check register class
-                        if( use.in( i ) == def && mach.regmap( i ).overlap( rmask ) )
-                            // Modify use to use the split version specialized to this rclass
-                            { use.setDef( i, split ); j--; break; }
+                        if( use.in( i ) == def ) {
+                            RegMask m=mach.regmap( i );
+                            if( m!=null && m.overlap( rmask ) )
+                                // Modify use to use the split version specialized to this rclass
+                                { use.setDefOrdered( i, split ); j--; break; }
+                        }
                 }
             }
         }
