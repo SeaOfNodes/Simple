@@ -10,19 +10,42 @@ we'll need some canonical representation and a library of string functions.
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21) it to the previous chapter.
 
 
+
+## FFI and I/O Calls
+
+Calling external / FFI functions.
+No linker support for getting the correct signature; name `write` has to be singular and unique.
+
+`{ i32 fd, u8[] buf, i32 len -> i32 } write = "C";`
+
+
+## Importing name spaces
+
+Ponder a `struct sys{}` default import struct.
+Includes `sys.io{}` struct with I/O calls.
+Includes `sys.libc{}` with default libc calls.
+
+
+
 ## Unifying Structs and Arrays
 
 The idea is that structs have fields indexed by names, and arrays have fields
 indexed by numbers, and these ideas are compatible with each other.  This idea
-has been used by the C language for a long time - following a normal struct we
-allow an array, and index it with the usual array syntax.
+has been used by the C language for a long time - following a normal struct C
+allows an array and can index it with the usual array syntax.
 
 ```java
 struct str {
     int  hash; // A cache of the strings hash code
     u32  #;    // The array length
     u8   [];   // Array of bytes
-}
+};
+
+str X = "abc";
+print(X.hash); // Read the hash field
+X[0]=='a';     // Read array element 0
+X#;            // Length of the array
+
 ```
 
 Here, the field named `#` holds the array length and the field named `[]` is
@@ -81,7 +104,7 @@ The allocation includes the array length, and can include a constructor:
 The constructor is optional, the array length is not.
 
 Optional function for initializing arrays, allows for write-once final arrays:
-`new u8[buffer#,{ u32 idx -> buffer[idx].toUpperCase() }`
+`new u8[buffer#,{ u32 idx -> buffer[idx].toUpperCase() }]`
 
 
 
@@ -127,7 +150,6 @@ struct vecInt {
     // Since "add" is declared with `val` in the original struct definition,
     // it is a final field and is moved out of here to the class.
     
-    
     // Add an element to a vector, possibly returning a new larger vector.
     val add = { int e ->
         if( size >= # ) return copy(# ? #*2 : 1).add(e);
@@ -136,12 +158,13 @@ struct vecInt {
     };
     // Copy 'this' to a new larger size
     val copy = { int sz2 -> 
-      val v2 = new vecInt[sz2];
-      for( int i=0; i<size; i++ )
-        v2[i] = [i];
-      v2.size = size;
-      return v2;
-    }
+        val v2 = new vecInt[sz2];
+        for( int i=0; i<size; i++ )
+            v2[i] = [i];
+        v2.size = size;
+        sys.libc.free(this); // Needs a better Mem Management solution
+        return v2;
+    };
 
     u32  size; // Actual number of elements
     u32  #;    // The array length or capacity
@@ -152,8 +175,8 @@ val primes = new vecInt[0].add(2).add(3).add(5).add(7);
 
 ```
 
-Here the `val add = ` field is a *value* field, a constant function value.  It
-is moved out of the basic `vecInt` object into `vecInt`'s *class*, and takes no
+Here the `val add` field is a *value* field, a constant function value.  It is
+moved out of the basic `vecInt` object into `vecInt`'s *class*, and takes no
 storage space in `vecInt` objects.  The same happens for `copy`.  The size of a
 `vecInt` is thus 2 `u32` words, plus `#*sizeof(int)`, plus any padding
 (probably none here).
@@ -209,7 +232,7 @@ struct str {
         for( int i=0; i<str#; i++ )
             self = self.add(str[i]);
         return self;
-    }
+    };
 
     // Add an char to the string, possibly growing
     val add = { u8 e ->
@@ -220,20 +243,20 @@ struct str {
     
     // Copy 'this' to a new larger size
     val copy = { int sz2 -> 
-      val v2 = new str[sz2];
-      for( int i=0; i<len; i++ )
-        v2[i] = [i];
-      v2.len = len;
-      sys.libc.free(this); // Needs a better Mem Management solution
-      return v2;
-    }
+        val v2 = new str[sz2];
+        for( int i=0; i<len; i++ )
+            v2[i] = [i];
+        v2.len = len;
+        sys.libc.free(this); // Needs a better Mem Management solution
+        return v2;
+    };
 
     val print { -> sys.libc.write(1/*stdout*/,[]/*array base as argument to C*/,len); return this; }
 
     u32 len; // In-use size
     u32 #;   // Max length is 4Gig, although variants can request smaller lengths
     u8  [];  // Character data
-}
+};
 ```
 
 
@@ -263,13 +286,14 @@ sstr safe = sstr.make("abc"); // Defensive copy is made
 
 ### A Extendable String (aka StringBuilder or StringBuffer)
 
-This API is intended to be a drop-in for a `StringBuilder` style.
+This API is intended to be a drop-in for a `StringBuilder` style, and takes an
+extra indirection with each usage.
 
 ```java
 struct xstr {
     str !_str; // The extra indirection is here
-    val add = { str str -> _str = str.add2(str); }
-    val write = { int fd -> _str.write(fd); }
+    val add = { str str -> _str = str.add2(str); };
+    val write = { int fd -> _str.write(fd); };
 };
 ```
 
@@ -284,7 +308,11 @@ struct ustr {
     // For all ASCII strings this will amount to a simple byte load.
     // For bytes with high order bits set, this may read 1-4 characters.
     val at = { int idx -> ... };
-}
+};
+// Unicode character iterator
+struct ucharator { 
+// Return successive unicode character codes
+};
 ```
 
 ### A "C" string
@@ -293,8 +321,8 @@ A zero-terminated string, but the length has to be available directly
 
 ```java
 struct cstr {
-  u8 #; // length including the trailing zero
-  u8[]; // always ends in a zero byte; suitable for direct passing to C string functions
+    u8 #; // length including the trailing zero
+    u8[]; // always ends in a zero byte; suitable for direct passing to C string functions
 };
 ```
 
@@ -310,30 +338,14 @@ struct gstr { // aka germanString, or blend string and register "streg"
 }
 // Using inlined object (see below).  All these strings are short and are
 // represented as packed integers in a 64b register.
-gstr *prize1 = "gold"
+gstr *prize1 = "gold";
 gstr *prize2 = "silver";
 gstr *prize3 = "bronze";
 
 ```
 
+### Main becomes `val main = { str[] args -> ...}`
 
-## FFI and I/O Calls
-
-Calling external / FFI functions.
-No linker support for getting the correct signature; name `write` has to be singular and unique.
-
-`{ i32 fd, u8[] buf, i32 len -> i32 } write = "C";`
-
-
-## Importing name spaces
-
-Ponder a `struct sys{}` default import struct.
-Includes `sys.io{}` struct with I/O calls.
-Includes `sys.libc{}` with default libc calls.
-
-
-
-## Main becomes `main(str[])`
 
 ### Allow structs to inline
 
@@ -372,6 +384,16 @@ ref.c = val.*c; // Assign into ref.c the "contents of" val.c
 
 // Arrays of inlined structures
 var ary = new *Complex[99]; // Array of 99 Complex objects, inlined
+
+// Calling methods has the same syntax
+ref.c.len();
+val.c.len();
+
+// Function arguments use the same typing, so can pass-by-value
+val math.sin = { Complex *c -> ... }; // Passes a complex by value
+math.sin(*ref.c); // Requires de-reference to pass by value
+math.sin( val.c); // Pass by value
+
 ```
 
 ### RoadMap for other chapters
