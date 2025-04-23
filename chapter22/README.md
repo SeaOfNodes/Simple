@@ -22,7 +22,9 @@ No linker support for getting the correct signature; name `write` has to be sing
 ## Importing name spaces
 
 Ponder a `struct sys{}` default import struct.
+
 Includes `sys.io{}` struct with I/O calls.
+
 Includes `sys.libc{}` with default libc calls.
 
 
