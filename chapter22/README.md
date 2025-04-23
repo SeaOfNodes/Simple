@@ -224,18 +224,17 @@ struct str {
       for( int i=0; i<len; i++ )
         v2[i] = [i];
       v2.len = len;
-      sys.libc.free(this);
+      sys.libc.free(this); // Needs a better Mem Management solution
       return v2;
     }
+
+    val print { -> sys.libc.write(1/*stdout*/,[]/*array base as argument to C*/,len); return this; }
 
     u32 len; // In-use size
     u32 #;   // Max length is 4Gig, although variants can request smaller lengths
     u8  [];  // Character data
 }
 ```
-
-
-
 
 
 ### A Final String
@@ -246,12 +245,20 @@ defensive copy.
 
 ```java
 struct sstr {
-    // 
+    // Possible static call syntax; no references to "this"
+    val make { str str -> new sstr[str#,str.at] };
+    
+    // Array contents are immutable.
+    // Still figuring out good syntax for this.
     u8 #;
-    u8 [];
+    u8 []!; // Trailing '!'?  Makes primitive array contents *immutable* and requires constructor syntax
 };
-```
 
+// Construction requires a function that produces the array contents.
+// Here we are defining a defensive copy over `buf`.
+sstr safe = new sstr[buf.len,{ int idx -> buf[idx]; }];
+sstr safe = sstr.make("abc"); // Defensive copy is made
+```
 
 
 ### A Extendable String (aka StringBuilder or StringBuffer)
