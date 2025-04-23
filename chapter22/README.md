@@ -87,28 +87,28 @@ Optional function for initializing arrays, allows for write-once final arrays:
 
 ### Changing array max length
 
-An issue for range-checked small arrays, is reserving a full 4 bytes for array
-length can substantially increase the array overhead.  Simple allows for arrays
-to have smaller max lengths, although these are treated as a different type
-than arrays with different max lengths.
+An issue for large numbers of range-checked small arrays is that reserving a
+full 4 bytes for array length can substantially increase the array overhead.
+Simple allows for arrays to have smaller max lengths, although these are
+treated as a different type than arrays with different max lengths.
 
+```java
 struct x0 { u8  #; u8[]; }; // Array limited to 0-255 length
 struct x1 { u16 #; u8[]; }; // Array limited to 0-65535 length
 struct x2 { u32 #; u8[]; }; // 
 struct x3 { u64 #; u8[]; }; // 
 
-
-x0 x = "abc"; // 4 bytes total: [3, "a", "b", "c"]
-x1 y = "def"; // 6 bytes total: [3,0, "d", "e", "f", 0,]; 1 pad byte to acheieve 2-byte alignment
+x0 x = "abc"; // 4 bytes total: [3, 'a', 'b', 'c']
+x1 y = "def"; // 6 bytes total: [3,  0 , 'd', 'e', 'f', 0,]; 1 pad byte to acheieve 2-byte alignment
 x = y;  // ERROR, "x1 is not x0", no auto-widening
-x += y; // OK, 7 bytes total: [6, "a", "b", "c", "d", "e", "f"]
-y += x; // OK, 8 bytes total: [6, 0, "a", "b", "c", "d", "e", "f"]
+x += y; // OK, 7 bytes total: [6, 'a', 'b', 'c', 'd', 'e', 'f']
+y += x; // OK, 8 bytes total: [6,  0 , 'd', 'e', 'f', 'a', 'b', 'c']
 
 x += "VeryLongString.... ....255_chars"; // Runtime RangeCheck
 
 // Explicit conversion to widen string
 y = "" + x;
-
+```
 
 
 ## Methods and Final Fields and Classes
@@ -177,13 +177,14 @@ With an extra indirection you get e.g. Java `ArrayList` or C++ `Vector`.
 Without, then any call which extends the extendable array return a potentially 
 new object, only growing as needed.
 
+```java
 val vec1 = new vecInt[0].add(2); // len=1, capacity=1
 val vec2 = vec1.add(3); // NEW vecInt returned, only is deleted; len=2; capacity=2;
 vec1[0]; // ERROR, vec1 has been freed by call to `vec1.add(3)`
 vec2[0]; // OK
 vec2[1]; // OK
 vec2[2]; // Runtime error, AIOOBE
-
+```
 
 
 ## A String Implementation
@@ -191,29 +192,102 @@ vec2[2]; // Runtime error, AIOOBE
 Default strings have names like "str", "cstr", "ustr" or such.
 
 Always unicode8 with explicit u8 manipulations.  Unicode "characters" will come
-as function calls over the base implementation.
+as function calls over the base implementation, probably in another string class.
 
-### A Final String
+## Default string
 
-### A Extendable String (aka StringBuilder or StringBuffer)
+Efficiently growable via concantenation.  Supports a variety of IO/printf functions.
+The underlying array can be shared mutable if you ask for this.
+The defaults will always be private mutable and read-only shared.
 
 ```java
-struct xstr {
-// update-in-place expanding string
+struct str {
 
-};
+    // Add a string to the string, possibly growing
+    val add = { str str ->
+        val self = this;
+        for( int i=0; i<str#; i++ )
+            self = self.add(str[i]);
+        return self;
+    }
+
+    // Add an char to the string, possibly growing
+    val add = { u8 e ->
+        if( len >= # ) return copy(# ? #*2 : 1).add(e);
+        [size++] = e; 
+        return this;
+    };
+    
+    // Copy 'this' to a new larger size
+    val copy = { int sz2 -> 
+      val v2 = new str[sz2];
+      for( int i=0; i<len; i++ )
+        v2[i] = [i];
+      v2.len = len;
+      sys.libc.free(this);
+      return v2;
+    }
+
+    u32 len; // In-use size
+    u32 #;   // Max length is 4Gig, although variants can request smaller lengths
+    u8  [];  // Character data
+}
 ```
 
 
 
 
+
+### A Final String
+
+Intended to be a **immutable** string, possibly used as a base for a **secure**
+string.  This needs to be created all at once, and probably requires a
+defensive copy.
+
+```java
+struct sstr {
+    // 
+    u8 #;
+    u8 [];
+};
+```
+
+
+
+### A Extendable String (aka StringBuilder or StringBuffer)
+
+This API is intended to be a drop-in for a `StringBuilder` style.
+
+```java
+struct xstr {
+    str !_str; // The extra indirection is here
+    val add = { str str -> _str = str.add2(str); }
+    val write = { int fd -> _str.write(fd); }
+};
+```
+
+### A Unicode String
+
+This API is intended to support unicode character manipulation over a plain `str`
+
+```java
+struct ustr {
+    // Assuming idx is at the start of a character, return the character
+    // as a 32b integer.  Returns junk integer if not at a character start.
+    // For all ASCII strings this will amount to a simple byte load.
+    // For bytes with high order bits set, this may read 1-4 characters.
+    val at = { int idx -> ... };
+}
+```
+
 ### A "C" string
 
 A zero-terminated string, but the length has to be available directly
+
 ```java
 struct cstr {
-  u8 #; // length with zero
-  u8[]; // always ends in a zero byte; suitable for direct passing to C string fnuctions
+  u8 #; // length including the trailing zero
+  u8[]; // always ends in a zero byte; suitable for direct passing to C string functions
 };
 ```
 
@@ -223,10 +297,16 @@ Length in memory is 1 byte (3 bits?) of length, then 0-7 chars; max 8 chars.
 Fits in a 64 bit register.
 
 ```java
-struct germanString { // aka gstr, or blend string and register "streg"
-  u3 #;   // Size is 0-7 bytes???
-  u8 [];  // Up to 7 bytes
+struct gstr { // aka germanString, or blend string and register "streg"
+    u3 #;   // Size is 0-7 bytes???
+    u8 [];  // Up to 7 bytes
 }
+// Using inlined object (see below).  All these strings are short and are
+// represented as packed integers in a 64b register.
+gstr *prize1 = "gold"
+gstr *prize2 = "silver";
+gstr *prize3 = "bronze";
+
 ```
 
 
@@ -239,6 +319,12 @@ No linker support for getting the correct signature; name `write` has to be sing
 
 
 ## Importing name spaces
+
+Ponder a `struct sys{}` default import struct.
+Includes `sys.io{}` struct with I/O calls.
+Includes `sys.libc{}` with default libc calls.
+
+
 
 ## Main becomes `main(str[])`
 
@@ -258,10 +344,10 @@ struct ByRef {
 print(new ByRef.c.y); // Lookup requires 1 extra memory load from ref to c
 
 // New behavior: by value (inlining a struct)
-// The '*' syntax indicator can be something else.
+// The '*' syntax indicator can be something else, e.g. a keyword "inline"
 // I am pronouncing '*' as "contents of"
 struct ByValue {
-    *Complex c; // c is inlined, full 16 bytes
+    *Complex c; // c is inlined, full 16 bytes into ByValue
 };
 print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
 
@@ -279,6 +365,22 @@ ref.c = val.*c; // Assign into ref.c the "contents of" val.c
 
 // Arrays of inlined structures
 var ary = new *Complex[99]; // Array of 99 Complex objects, inlined
-
 ```
 
+### RoadMap for other chapters
+
+`&&` and `||`
+Drop `int` to `i32`.
+Add optimistic pass SCCP to `opto`
+Default parser for-loop construction, or partial peel.
+    `for( init; test; next ) body`
+becomes:
+```java
+{ init;
+if( !test ) { // Zero-trip count test
+    do {
+        body;
+        next;
+    } while( test ); // Exit test at loop bottom by default
+} }
+```
