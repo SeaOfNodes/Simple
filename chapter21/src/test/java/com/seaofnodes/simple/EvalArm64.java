@@ -86,7 +86,7 @@ public class EvalArm64 {
         boolean is_f = false;
         outer:
         for(int icount = 0; icount < maxops; icount++) {
-            if(icount == 14) {
+            if(pc == 204) {
                 System.out.print("Here");
             }
             int ir = 0;
@@ -129,7 +129,7 @@ public class EvalArm64 {
                 case 0x25: {
                     // bl (just calloc)
                     hit++;
-                    if(hit == 3) {
+                    if(hit == 1) {
                         System.out.print("Stop");
                     }
                     rval = pc + 4;
@@ -182,12 +182,8 @@ public class EvalArm64 {
                         case 0x0: {
                             // store
 
-                            if(rdid == 23 && rval == 65581) {
-                                System.out.print("Here once in the if");
-                            }
-
-                            if(rval == 65568 + 4) {
-                                System.out.print("Here once in the if");
+                            if(rval == 65536) {
+                                System.out.print("Store the length");
                             }
 
                             st4((int)rval, (int)regs[rdid]);
@@ -211,9 +207,6 @@ public class EvalArm64 {
                     switch(opc) {
                         case 0x1: {
                             // store(expected to store the length here)
-                            if(regs[rn] + regs[rm] == 65536) {
-                                System.out.print("Here once in the if");
-                            }
                             st4((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
                             rdid = -1;
                             break;
@@ -339,6 +332,10 @@ public class EvalArm64 {
                     // add(immediate)
                     int rn = (ir >> 5) & 0x1F;
                     int immediate = ir << 10 >> 20;
+                    // only hit it twice
+                    if(rn == 23 && rdid == 23 && immediate == 1) {
+                        System.out.print("Hit the increment phase");
+                    }
                     rval = regs[rn] + immediate;
                     break;
                 }

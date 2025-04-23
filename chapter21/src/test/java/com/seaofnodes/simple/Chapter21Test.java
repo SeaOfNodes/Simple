@@ -128,8 +128,8 @@ public class Chapter21Test {
         for( int i=0; i<primes2.length; i++ )
             assertEquals(primes2[i], R5.ld4s(ary + 4 + i*4));
 
-        // Evaluate on ARM5 emulator; expect return of an array of primes in the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", 6, 160, true);
+//        // Evaluate on ARM5 emulator; expect return of an array of primes in the simulated heap.
+        EvalArm64 A5 = TestArm64.build("sieve", 6, 160, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
