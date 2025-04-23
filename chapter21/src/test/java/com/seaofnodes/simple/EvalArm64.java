@@ -86,38 +86,36 @@ public class EvalArm64 {
             // [31:26]
             int opcode2 = (ir >> 26) & 0x3F;
             switch(opcode2) {
-                case 5: {
-                    //b
-                    int imm26 = ir << 6 >> 6;
-
-                    pc = pc + (imm26 * 4) - 4;
-                    // won't hit pc += 4 at the bottom because continue
-                    // do it manually
-                    pc += 4;
-                    rdid = -1;
-                    continue ;
+            case 5: {
+                //b
+                int imm26 = ir << 6 >> 6;
+                pc = pc + (imm26 * 4) - 4;
+                // won't hit pc += 4 at the bottom because `continue`, do it manually
+                pc += 4;
+                rdid = -1;
+                continue;
+            }
+            case 0x25: {
+                // bl (just calloc and top level exit)
+                rval = pc + 4;
+                regs[arm.X30] = rval;
+                if(pc + 4 == 0) {
+                    regs[rdid] = rval;
+                    break outer;
                 }
-                case 0x25: {
-                    // bl (just calloc)
-                    rval = pc + 4;
-                    regs[arm.X30] = rval;
-                    if(pc + 4 == 0) {
-                        regs[rdid] = rval;
-                        break outer;
-                    }
-                    int imm26 = (ir & 0x03FFFFFF);
-                    int imm = (imm26 << 6) >> 6;
-                    pc = pc + (imm << 2) ;
+                int imm26 = (ir & 0x03FFFFFF);
+                int imm = (imm26 << 6) >> 6;
+                pc = pc + (imm << 2) ;
 
-                    if (pc == Encoding.SENTINAL_CALLOC) {
-                        long size = regs[arm.X0]*regs[arm.X1];
-                        regs[arm.X0] = _heap;
-                        _heap += (int)size;
-                        // unwind pc
-                        pc = (int)rval - 4;
-                    }
-                    continue;
+                if (pc == Encoding.SENTINAL_CALLOC) {
+                    long size = regs[arm.X0]*regs[arm.X1];
+                    regs[arm.X0] = _heap;
+                    _heap += (int)size;
+                    // unwind pc
+                    pc = (int)rval;
                 }
+                continue;
+            }
             }
             // for the opcode we just match for bits[31:24];
             switch(opcode1) {
@@ -145,21 +143,18 @@ public class EvalArm64 {
                     int imm = (ir >> 10) & 0xFFF;
                     rval = regs[base] + imm;
                     switch(ir <<8 >> 30) {
-                        case 0x0: {
-                            // store
-                            _buf[(int)rval] = (byte)regs[rdid];
-                            if(rdid == 30) {
-                                System.out.print("Here");
-                            }
-                            rdid = -1;
-                            break;
-                        }
-                        case 0x1: {
-                            // load
-                            rval = _buf[(int)rval];
-                            break;
-                        }
-                        default: trap = (2+1);
+                    case 0x0: {
+                        // store
+                        _buf[(int)rval] = (byte)regs[rdid];
+                        rdid = -1;
+                        break;
+                    }
+                    case 0x1: {
+                        // load
+                        rval = _buf[(int)rval];
+                        break;
+                    }
+                    default: trap = (2+1);
                     }
                     break;
                 }
@@ -170,47 +165,45 @@ public class EvalArm64 {
                     rdid = -1;
 
                     switch(ir & 0xF) {
-                        case 0x0: if(Z)  pc = imm19; break; // eq
-                        case 0x1: if(!Z) pc = imm19; break; // ne
-                        case 0x2: if(C)  pc = imm19; break; // cs
-                        case 0x3: if(!C) pc = imm19; break;
-                        case 0x4: if(N) pc = imm19; break; // mi
-                        case 0x5: if(!N) pc = imm19; break; // pl
-                        case 0x6: if(V) pc = imm19; break; // vs
-                        case 0x7: if(!V) pc = imm19; break; // vc
-                        case 0x8: if(C && !Z) pc = imm19; break; // hi
-                        case 0x9: if(!C || Z) pc = imm19; break; // ls
-                        case 0xA: if(N == V) pc = imm19; break; // ge
-                        case 0xB: if(N != V) pc = imm19; break; // lt
-                        case 0xC: if(!Z && N == V) pc = imm19; break; // gt
-                        case 0xD: if(Z || N != V) pc = imm19; break; // le
-                        case 0xE: pc = imm19; break; // always executed(al)
-                        default: trap = (2+1);
+                    case 0x0: if(Z)  pc = imm19; break; // eq
+                    case 0x1: if(!Z) pc = imm19; break; // ne
+                    case 0x2: if(C)  pc = imm19; break; // cs
+                    case 0x3: if(!C) pc = imm19; break;
+                    case 0x4: if(N) pc = imm19; break; // mi
+                    case 0x5: if(!N) pc = imm19; break; // pl
+                    case 0x6: if(V) pc = imm19; break; // vs
+                    case 0x7: if(!V) pc = imm19; break; // vc
+                    case 0x8: if(C && !Z) pc = imm19; break; // hi
+                    case 0x9: if(!C || Z) pc = imm19; break; // ls
+                    case 0xA: if(N == V) pc = imm19; break; // ge
+                    case 0xB: if(N != V) pc = imm19; break; // lt
+                    case 0xC: if(!Z && N == V) pc = imm19; break; // gt
+                    case 0xD: if(Z || N != V) pc = imm19; break; // le
+                    case 0xE: pc = imm19; break; // always executed(al)
+                    default: trap = (2+1);
                     }
                     break;
                 }
                 case 0x9a: {
                     // conditional select(csel)
                     int rm = (ir >> 16) & 0x1F;
-                    switch((ir >> 12) & 0xF) {
-                        case 0x0: if(Z)  rval = regs[rm]; break; // eq
-                        case 0x1: if(!Z) rval = regs[rm]; break; // ne
-                        case 0x2: if(C)  rval = regs[rm]; break; // cs
-                        case 0x3: if(!C) rval = regs[rm]; break;
-                        case 0x4: if(N) rval  =  regs[rm]; break; // mi
-                        case 0x5: if(!N) rval = regs[rm]; break; // pl
-                        case 0x6: if(V) rval = regs[rm]; break; // vs
-                        case 0x7: if(!V) rval = regs[rm]; break; // vc
-                        case 0x8: if(C && !Z) rval = regs[rm]; break; // hi
-                        case 0x9: if(!C || Z) rval = regs[rm]; break; // ls
-                        case 0xA: if(N == V) rval = regs[rm]; break; // ge
-                        case 0xB: if(N != V) rval = regs[rm]; break; // lt
-                        case 0xC: if(!Z && N == V) rval  = regs[rm]; break; // gt
-                        case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
-                        case 0xE: rval = regs[rm]; break; // always executed(al)
-                        default: {
-                           rval =  regs[(ir >> 5) & 0x1F];
-                        }
+                    switch( (ir >> 12) & 0xF ) {
+                    case 0x0: if(Z)  rval = regs[rm]; break; // eq
+                    case 0x1: if(!Z) rval = regs[rm]; break; // ne
+                    case 0x2: if(C)  rval = regs[rm]; break; // cs
+                    case 0x3: if(!C) rval = regs[rm]; break;
+                    case 0x4: if(N) rval  =  regs[rm]; break; // mi
+                    case 0x5: if(!N) rval = regs[rm]; break; // pl
+                    case 0x6: if(V) rval = regs[rm]; break; // vs
+                    case 0x7: if(!V) rval = regs[rm]; break; // vc
+                    case 0x8: if(C && !Z) rval = regs[rm]; break; // hi
+                    case 0x9: if(!C || Z) rval = regs[rm]; break; // ls
+                    case 0xA: if(N == V) rval = regs[rm]; break; // ge
+                    case 0xB: if(N != V) rval = regs[rm]; break; // lt
+                    case 0xC: if(!Z && N == V) rval  = regs[rm]; break; // gt
+                    case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
+                    case 0xE: rval = regs[rm]; break; // always executed(al)
+                    case 0xF: rval =  regs[(ir >> 5) & 0x1F];
                     }
                     break;
                 }
@@ -218,8 +211,8 @@ public class EvalArm64 {
                     // subs(shifted register)
                     int rn = (ir >> 5) &  0x1F;
                     int rm = (ir >> 16) & 0x1F;
-                    int lhs = (int)regs[rn];
-                    int rhs = (int)regs[rm];
+                    long lhs = regs[rn];
+                    long rhs = regs[rm];
                     rval = lhs - rhs;
 
                     // set flags as a side effect
@@ -238,7 +231,7 @@ public class EvalArm64 {
                     // subs(immediate)
                     int rn = (ir >> 5) & 0x1F;
                     int immediate = ir << 10 >> 20;
-                    int lhs = (int)regs[rn];
+                    long lhs = regs[rn];
 
                     rval = lhs - immediate;
 
@@ -248,7 +241,7 @@ public class EvalArm64 {
                     C = lhs >= immediate;
 
                     boolean sign_lhs = (lhs >>> 63) != 0;
-                    boolean sign_rhs = (immediate >>> 63) != 0;
+                    boolean sign_rhs = (immediate >>> 31) != 0;
                     boolean sign_res = (rval >>> 63) != 0;
                     V = (sign_lhs != sign_rhs) && (sign_res != sign_lhs);
                     rdid = -1;
@@ -268,6 +261,14 @@ public class EvalArm64 {
                     int rn = (ir >> 5) & 0x1F;
                     int immediate = ir << 10 >> 20;
                     rval = regs[rn] + immediate;
+                    break;
+                }
+                case 0x92: {
+                    // and(immediate)
+                    int rn = (ir >> 5) & 0x1F;
+                    int immediate = (ir >> 10) & 0x1FFF;
+                    long imm = arm.decodeImm12(immediate);
+                    rval = regs[rn] & imm;
                     break;
                 }
                 case 0xD3: {
@@ -340,8 +341,8 @@ public class EvalArm64 {
                 _pc = pc;
                 break;
             }
-            if(rdid != -1) {
-                if(is_f) {fregs[rdid] = frval; is_f = false;}
+            if( rdid != -1 ) {
+                if( is_f ) { fregs[rdid] = frval; is_f = false; }
                 else regs[rdid] = rval;
             }
 

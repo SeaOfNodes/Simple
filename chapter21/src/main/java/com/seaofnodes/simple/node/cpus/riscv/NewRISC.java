@@ -25,11 +25,8 @@ public class NewRISC extends NewNode implements MachNode, RIPRelSize {
     // Patch is for running "new" in a JIT.
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        // Odd-number patches are JIT emulator targets.
-        if( (delta&3)!=0 ) {
-            //enc.patch4(opStart+4, riscv.i_type(riscv.OP_IMM, riscv.ZERO , 0, riscv.ZERO, 0));
-            //enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, riscv.RPC, opStart+delta));
-
+        // Negative patches are JIT emulator targets.
+        if( opStart+delta < 0 ) {
             int imm20 = delta>>12;
             if( ((delta>>11)&1)==1 ) imm20++; // Correct accidental sign extension
             int imm12 = delta&0xFFF;

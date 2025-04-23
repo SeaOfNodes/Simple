@@ -11,7 +11,7 @@ public class AndARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return "and"; }
     @Override public String glabel() { return "&"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
     // AND (shifted register)
     @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,arm.OP_AND); }
     // General form:  #rd = rs1 & rs2

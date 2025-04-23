@@ -9,7 +9,7 @@ public class LsrARM extends MachConcreteNode implements MachNode {
     LsrARM(Node asr) {super(asr);}
     @Override public String op() { return "shr"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
 
     @Override public void encoding( Encoding enc ) { arm.shift_reg(enc,this,arm.OP_LSR); }
     @Override public void asm(CodeGen code, SB sb) {

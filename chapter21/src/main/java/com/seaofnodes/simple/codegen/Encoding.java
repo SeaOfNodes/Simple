@@ -459,7 +459,7 @@ public class Encoding {
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
-    public static int SENTINAL_CALLOC = -2;
+    public static int SENTINAL_CALLOC = -4;
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
