@@ -23,7 +23,7 @@ while(arg < 10) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", code.print());
+        assertEquals("return Phi(Region,(Phi(Loop,arg,Add)+1),Add,Phi_arg);", code.print());
         assertTrue(code.ctrl() instanceof RegionNode);
         Assert.assertEquals( "5", Eval2.eval(code, 1));
         Assert.assertEquals("10", Eval2.eval(code, 6));
@@ -46,7 +46,7 @@ while(arg < 10) {
 return a;
                 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", code.print());
+        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1),Phi_a));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 

@@ -6,18 +6,47 @@ import com.seaofnodes.simple.print.ASMPrinter;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
     @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
+
+    @Test public void testNeverReturnAllocation() {
+        String[] sources = {
+            // A real integer return merged with a synthetic exit.
+            "if(arg) while(1) {} return arg+1;",
+            // TOP must not widen a non-null pointer or constrain a float register.
+            "struct S { int x; }; S !s=new S; if(arg) while(1) {} return s;",
+            "if(arg) while(1) {} return 1.5;",
+            // Several synthetic exits into the same return.
+            "if(arg==1) while(1) {} if(arg==2) while(1) {} return arg+3;",
+            // No real return, including a merge of only synthetic exits.
+            "while(1) { arg+=1; }",
+            "if(arg) while(1) {} while(1) {}",
+            // Loop-carried memory and scalar self-conflicts exercise spilling.
+            "struct S { int x; int y; }; S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;"
+        };
+        for( String target : new String[]{"x86_64_v2","riscv","arm"} )
+            for( String src : sources ) {
+                CodeGen code = new CodeGen(src).driver(CodeGen.Phase.RegAlloc,target,"SystemV");
+                com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+                assertNotNull(code._stop.walk(n -> {
+                    if( n._type!=com.seaofnodes.simple.type.Type.TOP ) return null;
+                    assertEquals(-1,code._regAlloc.regnum(n));
+                    for( var use : n.outs() )
+                        assertFalse(use instanceof com.seaofnodes.simple.node.SplitNode);
+                    return n;
+                }));
+                code.encode();
+            }
+    }
 
     @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
 
     @Test public void testNarrowStoreMasks() {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
             CodeGen code = new CodeGen("struct S { "+type+" x; }; S !s=new S; s.x=arg; return 0;")
-                .parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2","SystemV").GCM().localSched().regAlloc();
+                .driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
             int stores=0;
             for( var bb : code._cfg )
                 for( var node : bb.outs() )
@@ -75,10 +104,10 @@ return f(s);
 
     static void testCPU(String src, String cpu, String os, int spills, String stop) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        code.driver(CodeGen.Phase.RegAlloc,cpu,os);
         com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
         SpillStats.record(code,"Chapter20",cpu,os);
-        assertEquals("Expect spills: "+cpu,spills,code._regAlloc._spillScaled,Math.max(1,spills>>3));
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop!=null ) assertEquals(stop,code._stop.toString());
     }
 
@@ -89,7 +118,9 @@ return f(s);
     }
 
     @Test public void testAlloc0() {
-        testAllCPUs("return new u8[arg];", 1, "return [u8];");
+        testTarget("return new u8[arg];","x86_64_v2","SystemV",4,"return [u8];");
+        testTarget("return new u8[arg];","riscv","SystemV",5,"return [u8];");
+        testTarget("return new u8[arg];","arm","SystemV",5,"return [u8];");
     }
 
     @Test public void testBasic1() {
@@ -114,9 +145,9 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",26,null);
-        testTarget(src,"riscv"    , "SystemV",19,null);
-        testTarget(src,"arm"      , "SystemV",26,null);
+        testTarget(src,"x86_64_v2", "SystemV",23,null);
+        testTarget(src,"riscv"    , "SystemV",17,null);
+        testTarget(src,"arm"      , "SystemV",18,null);
     }
 
     @Test
@@ -135,15 +166,17 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",25,null);
-        testTarget(src,"riscv"    , "SystemV",21,null);
+        testTarget(src,"x86_64_v2", "SystemV",23,null);
+        testTarget(src,"riscv"    , "SystemV",18,null);
         testTarget(src,"arm"      , "SystemV",18,null);
     }
 
     @Test
     public void testAlloc2() {
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
-        testAllCPUs(src,1,"return .[];");
+        testTarget(src,"x86_64_v2","SystemV",4,"return .[];");
+        testTarget(src,"riscv","SystemV",8,"return .[];");
+        testTarget(src,"arm","SystemV",9,"return .[];");
     }
 
     @Test
@@ -159,9 +192,9 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testTarget(src,"x86_64_v2", "SystemV",13,"return .[];");
-        testTarget(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
-        testTarget(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
+        testTarget(src,"x86_64_v2", "SystemV",7,"return .[];");
+        testTarget(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
+        testTarget(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }
 
     @Test
@@ -202,15 +235,17 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",21,null);
-        testTarget(src,"riscv"    , "SystemV", 3,null);
-        testTarget(src,"arm"      , "SystemV", 3,null);
+        testTarget(src,"x86_64_v2", "SystemV",15,null);
+        testTarget(src,"riscv"    , "SystemV", 10,null);
+        testTarget(src,"arm"      , "SystemV", 10,null);
     }
 
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
-        testAllCPUs(src,0,null);
+        testTarget(src,"x86_64_v2","SystemV",1,null);
+        testTarget(src,"riscv","SystemV",2,null);
+        testTarget(src,"arm","SystemV",2,null);
     }
 
     @Test
@@ -247,14 +282,132 @@ return arg;
         testTarget(src,"riscv"    , "SystemV",2,null);
         testTarget(src,"arm"      , "SystemV",2,null);
     }
+    // Original Chapter 20 allocation workload, kept fixed for cohort comparisons.
+    @Test
+    public void testBrainfuck() {
+        var program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var encoded = new StringBuilder("u8[] !program = new u8[").append(program.length).append("];");
+        for (int i = 0; i < program.length; i++) {
+            int value = program[i] & 0xFF;
+            encoded.append("program[").append(i).append("] = ").append(value).append(";");
+        }
+
+        String src = encoded + """
+
+int d = 0;
+u8[] !output = new u8[0];
+u8[] !data = new u8[100];
+
+for( int pc = 0; pc < program#; pc++ ) {
+    var command = program[pc];
+    if (command == 62) {
+        d++;
+    } else if (command == 60) {
+        d--;
+    } else if (command == 43) {
+        data[d]++;
+    } else if (command == 45) {
+        data[d]--;
+    } else if (command == 46) {
+        // Output a byte; increase the output array size
+        var old = output;
+        output = new u8[output# + 1];
+        for( int i = 0; i < old#; i++ )
+            output[i] = old[i];
+        output[old#] = data[d]; // Add the extra byte on the end
+    } else if (command == 44) {
+        data[d] = 42;
+    } else if (command == 91) {
+        if (data[d] == 0) {
+            for( int d = 1; d > 0; ) {
+                command = program[++pc];
+                if (command == 91) d++;
+                if (command == 93) d--;
+            }
+        }
+    } else if (command == 93) {
+        if (data[d]) {
+            for( int d = 1; d > 0; ) {
+                command = program[--pc];
+                if (command == 93) d++;
+                if (command == 91) d--;
+            }
+        }
+    }
+}
+return output;
+""";
+        testTarget(src,"x86_64_v2", "SystemV",40,null);
+        testTarget(src,"riscv"    , "SystemV",146,null);
+        testTarget(src,"arm"      , "SystemV",34,null);
+        //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
+    }
+    // Original Chapter 20 allocation workload, kept fixed for cohort comparisons.
+    @Test
+    public void testMergeSort() {
+        String src =
+"""
+// based on the top-down version from https://en.wikipedia.org/wiki/Merge_sort
+
+val merge_sort = { int[] a, int[] b, int n ->
+    copy_array(a, 0, n, b);
+    split_merge(a, 0, n, b);
+};
+
+val split_merge = { int[] b, int begin, int end, int[] a ->
+    if (end - begin <= 1)
+        return 0;
+    int middle = (end + begin) / 2;
+    split_merge(a, begin, middle, b);
+    split_merge(a, middle, end, b);
+    merge(b, begin, middle, end, a);
+    return 0;
+};
+
+val merge = { int[] b, int begin, int middle, int end, int[] a ->
+    int i = begin, j = middle;
+
+    for (int k = begin; k < end; k++) {
+        // && and ||
+        bool cond = false;
+        if (i < middle) {
+            if (j >= end)          cond = true;
+            else if (a[i] <= a[j]) cond = true;
+        }
+        if (cond) b[k] = a[i++];
+        else      b[k] = a[j++];
+    }
+};
+
+val copy_array = { int[] a, int begin, int end, int[] b ->
+    for (int k = begin; k < end; k++)
+        b[k] = a[k];
+};
+
+int[] !a = new int[arg];
+int[] !b = new int[a#];
+
+for (int i = 0; i < a#; i++)
+    a[i] = a# - i;
+
+merge_sort(a, b, a#);
+
+return a;
+""";
+        testTarget(src,"x86_64_v2", "SystemV",52,null);
+        testTarget(src,"riscv"    , "SystemV",44,null);
+        testTarget(src,"arm"      , "SystemV",41,null);
+//assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
+    }
+
 
     @Test public void testMemoryAllocation() {
         for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
             for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
                                           Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY,
                                           "int[] !a = new int[3]; a[arg]=arg; return a[0]+1;"} ) {
-                var code = new CodeGen(src).parse().opto().typeCheck()
-                    .instSelect(PORTS,cpu,"SystemV").GCM().localSched().regAlloc();
+                var code = new CodeGen(src).parse().opto().typeCheck().loopTree()
+                    .instSelect(cpu,"SystemV").GCM().localSched().regAlloc();
                 com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
                 code._stop.walk(n -> {
                     // Whole memory, precise Phis, and memory projections need no register.

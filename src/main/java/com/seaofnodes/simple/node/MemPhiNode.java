@@ -25,7 +25,7 @@ public class MemPhiNode extends PhiNode {
         if( r.inProgress() ) return _declaredType;
         Type t = Type.TOP;
         for( int i=1; i<nIns(); i++ )
-            if( r.in(i).addDep(this)._type!=Type.XCONTROL )
+            if( addDep(r.in(i))._type!=Type.XCONTROL )
                 t = t.meet(MemMergeNode.contents(in(i),_alias,this));
         return TypeMem.make(_alias,t);
     }
@@ -39,6 +39,6 @@ public class MemPhiNode extends PhiNode {
         return super.idealize();
     }
 
-    @Override boolean eq(Node n) { return _alias==((MemPhiNode)n)._alias && super.eq(n); }
+    @Override public boolean eq(Node n) { return _alias==((MemPhiNode)n)._alias && super.eq(n); }
     @Override int hash() { return _alias; }
 }

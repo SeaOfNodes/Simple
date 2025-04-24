@@ -29,21 +29,28 @@ public final class SB {
   public SB p( int    s ) { _sb.append(s); return this; }
   public SB p( long   s ) { _sb.append(s); return this; }
   public SB p( boolean s) { _sb.append(s); return this; }
-  // 4 hex digits
-  public SB hex4(int s) {
-    assert (s>>4*4)==0; // Fits in 16 bits
-    for( int i=0; i<4; i++ ) {
-      int digit = (s>>((3-i)*4)) & 0xf;
-      _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
-    }
+  // 1 byte, 2 hex digits, 8 bits
+  public SB hex1(int s) {
+    int digit = (s>>4) & 0xf;
+    _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
+    digit = s & 0xf;
+    _sb.append((char)((digit <= 9 ? '0' : ('A'-10))+digit));
     return this;
   }
+  // 2 bytes, 4 hex digits, 16 bits, Big Endian
+  public SB hex2(int s) { return hex1(s>> 8).hex1(s); }
+  // 4 bytes, 8 hex digits, 32 bits, Big Endian
+  public SB hex4(int s) { return hex2(s>>16).hex2(s); }
+  // 8 bytes, 16 hex digits, 64 bits, Big Endian
+    public SB hex8(long s) { return hex4((int)(s>>32)).hex4((int)s); }
+
   // Fixed width field
   public SB fix( int sz, String s ) {
     for( int i=0; i<sz; i++ )
       _sb.append( i < s.length() ? s.charAt(i) : ' ');
     return this;
   }
+  public char at(int idx ) { return _sb.charAt(idx); }
 
   // Not spelled "p" on purpose: too easy to accidentally say "p(1.0)" and
   // suddenly call the autoboxed version.
@@ -83,6 +90,8 @@ public final class SB {
   //
   public SB unchar() { return unchar(1); }
   public SB unchar(int x) { _sb.setLength(_sb.length()-x); return this; }
+  public SB setLen(int len) { _sb.setLength(len); return this; }
+  public String subString(int start, int end ) { return _sb.substring(start,end); }
 
   public SB clear() { _sb.setLength(0); return this; }
   public int len() { return _sb.length(); }

@@ -27,7 +27,8 @@ public class StopNode extends CFGNode {
         if( ret()!=null ) return p.n(ret());
         p.p("Stop[ ");
         for( Node ret : _inputs )
-            p.n(ret).p(" ");
+            if( ret!=null )
+                p.n(ret).p(" ");
         return p.p("]");
     }
 

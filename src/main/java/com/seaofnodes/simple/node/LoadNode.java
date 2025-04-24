@@ -4,8 +4,8 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
+import java.util.BitSet;
 
 /**
  * Load represents extracting a value from inside a memory object,
@@ -22,7 +22,7 @@ public class LoadNode extends MemOpNode {
      * @param off   The offset inside the struct base
      */
     public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(loc, name, alias, glb, mem, ptr, off);
+        super(loc, name, alias, true, glb, mem, ptr, off);
     }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
@@ -33,10 +33,10 @@ public class LoadNode extends MemOpNode {
     // aggregates might lead to a clobber, so stop rather than search further.
     private boolean clobbered(Node dep) {
         Node mem = mem();
-        mem.addDepForwards(dep);
+        dep.addDepForwards(mem);
         for( Node use : mem._outputs ) {
             if( use==null ) continue;
-            use.addDepForwards(dep);
+            dep.addDepForwards(use);
             if( use instanceof StoreNode || use instanceof PhiNode ||
                 use instanceof MemMergeNode ||
                 use instanceof NewNode || use instanceof CallNode ) return true;
@@ -67,17 +67,8 @@ public class LoadNode extends MemOpNode {
         Node ptr = ptr();
         Node mem = mem();
 
-        // Simple Load-after-Store on same address.
-        if( mem() instanceof StoreNode st &&
-            _alias==st._alias && ptr == st.ptr() && off() == st.off() ) { // Must check same object
-            assert _name.equals(st._name); // Equiv class aliasing is perfect
-            return extend(st.val());
-        }
-
-        // Simple Load-after-New on same address.
-        if( mem instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
-            ptr == nnn.proj(0) ) // Must check same object
-            return zero(nnn);   // Load zero from new
+        Node win = find(mem,ptr,null,null);
+        if( win!=null ) return folded(win);
 
         // Uplift control to a prior dominating load.
         for( Node memuse : mem._outputs )
@@ -86,52 +77,7 @@ public class LoadNode extends MemOpNode {
                 cfg0()!=null && cfg0().domLCA(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
                 return ld;
 
-        // Load-after-Store on same address, but bypassing provably unrelated
-        // stores.  This is a more complex superset of the above two peeps.
-        // "Provably unrelated" is really weak.
-        if( ptr instanceof ReadOnlyNode ro )
-            ptr = ro.in(1);
-        outer:
-        while( true ) {
-            mem.addDep(this);
-            switch( mem ) {
-            case MemMergeNode merge:
-                mem = merge.alias(_alias);
-                break;
-            case StoreNode st:
-                if( _alias==st._alias && ptr == st.ptr().addDep(this) && off() == st.off() )
-                    return extend(castRO(st.val())); // Proved equal
-                // Can we prove unequal?  Offsets do not overlap?
-                if( _alias==st._alias && !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
-                    !neverAlias(ptr,st.ptr()) )                   // And might alias
-                    break outer; // Cannot tell, stop trying
-                // Pointers cannot overlap
-                mem = st.mem(); // Proved never equal
-                break;
-            case PhiNode phi:
-                // Assume related
-                phi.addDep(this);
-                break outer;
-            case ConstantNode top: break outer;  // Assume shortly dead
-            case ProjNode mproj: // Memory projection
-                switch( mproj.in(0) ) {
-                case NewNode nnn1:
-                    if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return zero(nnn1);
-                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode) )
-                        break outer; // Cannot tell, ptr not related to New
-                    mem = nnn1.mem();// Bypass unrelated New
-                    break;
-                case StartNode  start: break outer;
-                case CallEndNode cend: break outer; // TODO: Bypass no-alias call
-                default: throw Utils.TODO();
-                }
-                break;
-
-            default:
-                break outer;
-            }
-        }
+        if( ptr instanceof ReadOnlyNode ro ) ptr=ro.in(1);
 
         // Push a Load up through a Phi, as long as it collapses on at least
         // one arm.  If at a Loop, the backedge MUST collapse - else we risk
@@ -141,18 +87,26 @@ public class LoadNode extends MemOpNode {
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
         if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+            // Array access control must not be moved across the merge.
+            in(0)==null &&
             // Offset can be hoisted
             off() instanceof ConstantNode &&
             // Pointer can be hoisted
             hoistPtr(ptr,memphi)  ) {
 
-            // Profit on RHS/Loop backedge
-            if( profit(memphi,2) ||
-                // Else must not be a loop to count profit on LHS.
-                (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                Node ld1 = ld(1);
-                Node ld2 = ld(2);
-                return new PhiNode(_name,_declaredType,memphi.region(),ld1,ld2);
+            // Returning to this memory means no change only if the pointer
+            // is also loop invariant. A pointer Phi may select another object.
+            Node stop = memphi.region() instanceof LoopNode &&
+                !(ptr instanceof PhiNode p && p.region()==memphi.region()) ? memphi : null;
+            if( find(memphi.in(2),ptr,stop,new BitSet())!=null ||
+                (!(memphi.region() instanceof LoopNode) && find(memphi.in(1),ptr,null,new BitSet())!=null) ) {
+                PhiNode phi = new PhiNode(_name,_declaredType,memphi.region()).keep();
+                phi.setType(_type); // Backedge searches may return this value Phi.
+                for( int i=1; i<memphi.nIns(); i++ ) {
+                    Node p = ptr instanceof PhiNode pp && pp.region()==memphi.region() ? pp.in(i) : ptr;
+                    phi.addDef(load(memphi.in(i),p,stop,phi));
+                }
+                return CodeGen.CODE.add(phi.unkeep());
             }
         }
 
@@ -167,9 +121,64 @@ public class LoadNode extends MemOpNode {
         return castRO(new ConstantNode(zero).peephole());
     }
 
-    private Node ld( int idx ) {
-        Node mem = mem(), ptr = ptr();
-        LoadNode ld = new LoadNode(_loc,_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr,off());
+    // Search only; no new nodes or rewiring. Return a Store/New that folds,
+    // the unchanged loop memory, or a merge whose every arm folds. Null fails.
+    // Register dependencies so a later pointer/offset rewrite retries the query.
+    private Node find(Node mem, Node ptr, Node stop, BitSet visit) {
+        if( ptr instanceof ReadOnlyNode ro ) ptr=ro.in(1);
+        while( mem!=null ) {
+            addDep(mem);
+            if( mem==stop ) return mem;
+            switch( mem ) {
+            case MemMergeNode merge: mem=merge.alias(_alias); break;
+            case StoreNode st:
+                addDep(st.ptr());
+                if( _alias==st._alias && ptr==st.ptr() && off()==st.off() ) return st;
+                if( _alias==st._alias && !neverAlias(ptr,st.ptr()) &&
+                    !addDep(off())._type.join(addDep(st.off())._type).isHigh() ) return null;
+                mem=st.mem();
+                break;
+            case ProjNode proj:
+                if( !(proj.in(0) instanceof NewNode nnn) ) return null;
+                if( ptr instanceof ProjNode p && p.in(0)==nnn ) return nnn;
+                if( !(ptr instanceof ProjNode p && p.in(0) instanceof NewNode) ) return null;
+                mem=nnn.mem(); // Distinct allocations cannot overlap.
+                break;
+            case MemPhiNode phi:
+                addDep(phi.region());
+                // Only the original loop closes a successful cycle. Another
+                // loop or an unfinished merge needs a separate proof.
+                if( visit==null || !(phi.region() instanceof RegionNode r) || r instanceof LoopNode ||
+                    r.inProgress() || phi.inProgress() || r._type!=Type.CONTROL ) return null;
+                if( visit.get(phi._nid) ) return phi; // Already proved every arm.
+                for( int i=1; i<phi.nIns(); i++ )
+                    if( find(phi.in(i),ptr,stop,visit)==null ) return null;
+                visit.set(phi._nid);
+                return phi;
+            default: return null;
+            }
+        }
+        return null;
+    }
+
+    private Node folded(Node win) {
+        return win instanceof StoreNode st ? extend(castRO(st.val())) : zero((NewNode)win);
+    }
+
+    // Materialize only after the profitability search succeeds. The value Phi
+    // stands for a load which comes back around the loop with unchanged memory.
+    private Node load(Node mem, Node ptr, Node stop, PhiNode value) {
+        Node win=find(mem,ptr,stop,new BitSet());
+        if( win!=null ) {
+            if( win==stop ) return value;
+            if( win instanceof MemPhiNode mp ) {
+                PhiNode phi=new PhiNode(_name,_declaredType,mp.region()).keep();
+                for( int i=1; i<mp.nIns(); i++ ) phi.addDef(load(mp.in(i),ptr,stop,value));
+                return phi.unkeep().peephole();
+            }
+            return folded(win).peephole();
+        }
+        LoadNode ld=new LoadNode(_loc,_name,_alias,_declaredType,mem,ptr,off());
         ld.setDef(0,in(0));
         return ld.peephole();
     }
@@ -197,16 +206,6 @@ public class LoadNode extends MemOpNode {
             return cptr.idepth() <= r.idepth();
 
         // Dunno without a longer walk
-        return false;
-    }
-
-    // Profitable if we find a matching Store on this Phi arm.
-    private boolean profit(PhiNode phi, int idx) {
-        Node px = phi.in(idx);
-        if( px==null ) return false;
-        px.addDep(this);
-        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) return true;
-        if( px instanceof StoreNode st1 && _alias==st1._alias && ptr()==st1.ptr() && off()==st1.off() ) return true;
         return false;
     }
 

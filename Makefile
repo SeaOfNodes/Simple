@@ -38,8 +38,9 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 include $(firstword $(wildcard ../print/print.mk print/print.mk))
+include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
-test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
+test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java)) com.seaofnodes.simple.codegen.X86EncodingTest
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -55,27 +56,30 @@ endif
 default: $(default_targets)
 
 # Compile just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas) $(print_javas)
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas) $(print_javas) $(isa_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)
 
-$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
+$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes) $(isa_test_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas)
+	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas) $(isa_test_javas)
 
 # Base launch line for JVM tests
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
+	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-# Report measured spill totals while retaining the tests' assertions.
 spill-stats: $(default_targets)
+	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) com.seaofnodes.simple.SpillStats
+
+.PHONY: spill-stats
 
 fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
@@ -91,7 +95,7 @@ build/release/simple.jar:	$(main_classes) $(test_classes)
 	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 
-.PHONY: clean spill-stats
+.PHONY: clean
 clean:
 	rm -rf build
 	rm -f TAGS

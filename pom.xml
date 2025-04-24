@@ -51,8 +51,17 @@
                             <sources>
                                 <source>${simple.graph.directory}/src/main/java</source>
                                 <source>${simple.print.directory}/src/main/java</source>
+                                <source>${project.basedir}/isa/src/main/java</source>
                             </sources>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>shared-isa-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals><goal>add-test-source</goal></goals>
+                        <configuration><sources>
+                            <source>${project.basedir}/isa/src/test-support/java</source>
+                        </sources></configuration>
                     </execution>
                 </executions>
             </plugin>

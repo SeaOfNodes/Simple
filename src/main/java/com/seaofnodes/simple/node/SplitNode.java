@@ -13,7 +13,7 @@ public abstract class SplitNode extends MachConcreteNode {
     @Override public String op() { return "mov"; }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         p.p("mov(");
-        if( in(1)==null ) p.p("---");
+        if( in(1) == null ) p.p("---");
         else p.n(in(1));
         return p.close();
     }
