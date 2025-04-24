@@ -1,2 +1,9 @@
 // -*- mode: java;  -*-
-val allocIA = { int N -> return new u32[N]; };
+struct s0 {
+    i16 v1;
+    u8 v2;
+};
+s0 !l4Hi9BCnsd = new s0;
+if( new s0.v2+arg )
+    while(1) l4Hi9BCnsd=new s0;
+while(new s0.v2+new s0.v1<=0) {}

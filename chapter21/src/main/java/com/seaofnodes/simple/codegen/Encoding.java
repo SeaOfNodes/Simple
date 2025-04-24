@@ -472,12 +472,4 @@ public class Encoding {
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
         }
     }
-
-    String printCFG() {
-        if( _code._cfg==null ) return "no CFG";
-        SB sb = new SB();
-        for( CFGNode cfg : _code._cfg )
-            IRPrinter.printLine(cfg,sb);
-        return sb.toString();
-    }
 }
