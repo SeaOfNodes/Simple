@@ -22,7 +22,7 @@ public class StoreNode extends MemOpNode {
      * @param value Value to be stored
      */
     public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(loc, name, alias, glb, mem, ptr, off, value);
+        super(loc, name, alias, false, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -85,6 +85,11 @@ public class StoreNode extends MemOpNode {
             }
         }
 
+        // Store of zero after alloc
+        if( mem() instanceof ProjNode prj && prj.in(0) instanceof NewNode &&
+            prj.in(0)==ptr().in(0) &&  // Same NewNode memory & pointer
+            (val()._type==TypeInteger.ZERO || val()._type==Type.NIL ) )
+            return mem();
 
         return null;
     }
@@ -93,9 +98,9 @@ public class StoreNode extends MemOpNode {
     // With no observers of the backedge store, only the last value matters.
     // The entry load preserves the field even when the loop takes zero trips.
     Node sink(MemPhiNode phi) {
-        addDepForwards(phi);
+        phi.addDepForwards(this);
         if( nOuts()!=1 ) return null;
-        ptr().addDep(phi);
+        phi.addDep(ptr());
         // Start with a fixed field of an allocation dominating the loop.
         // In particular, do not sink stores through a loop-varying address.
         if( !(ptr() instanceof ProjNode p) || !(p.in(0) instanceof NewNode obj) ||
@@ -106,20 +111,20 @@ public class StoreNode extends MemOpNode {
         // before replacing this memory point with a Store.
         for( Node use : loop._outputs )
             if( use instanceof BulkMemPhiNode ) {
-                use.addDepForwards(phi);
+                phi.addDepForwards(use);
                 return null;
             }
-        obj.addDep(phi);
+        phi.addDep(obj);
         CFGNode ctrl = loop.entry();
         while( ctrl!=null && ctrl!=obj.cfg0() ) {
-            ctrl.addDep(phi);
+            phi.addDep(ctrl);
             ctrl=ctrl.idom(phi);
         }
         if( ctrl==null ) return null;
 
         Node mem = phi.in(1);
         Node init = new LoadNode(_loc,_name,_alias,_declaredType,mem,ptr(),off()).peephole();
-        Node value = new PhiNode(_name,_declaredType,loop,init,val()).peephole();
+        Node value = CodeGen.CODE.add(new PhiNode(_name,_declaredType,loop,init,val()).peephole());
         Node sink = new StoreNode(_loc,_name,_alias,_declaredType,mem,ptr(),off(),value,_init);
         // Break the memory cycle, killing the old store. Keep the Phi alive
         // even if that store was its last use, until our caller replaces it.
@@ -136,7 +141,7 @@ public class StoreNode extends MemOpNode {
         // when the other uses go away we can retry.
         for( Node use : mem._outputs )
             if( use != this )
-                use.addDep(this);
+                addDep(use);
         return false;
     }
 
@@ -149,7 +154,7 @@ public class StoreNode extends MemOpNode {
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         if( (tmp._ro || tmp._obj.field(_name)._final) && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
-        Type t = val()._type;
+        //Type t = val()._type;
         //return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
         return null;
     }

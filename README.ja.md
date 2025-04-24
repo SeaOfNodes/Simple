@@ -58,7 +58,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第18章](docs/chapter18/README.ja.md)：関数と呼び出し。
 * [第19章](docs/chapter19/README.ja.md)：命令選択と移植可能なコンパイル。
 * [第20章](docs/chapter20/README.ja.md)：グラフ彩色によるレジスタ割り当て。
-* 第21章：命令エンコーディングと ELF。
+* [第21章](docs/chapter21/README.ja.md)：命令エンコーディングと ELF。
 * 第22章：Simple の Hello, World!
 * 第23章：メソッドと型の再検討。
 * 第24章：連鎖した条件分岐と SCCP。

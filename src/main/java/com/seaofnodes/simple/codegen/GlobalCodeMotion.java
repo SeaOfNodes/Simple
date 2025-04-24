@@ -172,7 +172,7 @@ public abstract class GlobalCodeMotion {
                         continue outer; // Nope, await all uses done
 
                 // Loads need their memory inputs' uses also done
-                if( n instanceof MemOpNode ld && !ld.isMem() )
+                if( n instanceof MemOpNode ld && ld._isLoad )
                     for( Node memuse : ld.antiDeps() )
                         if( late[memuse._nid]==null )
                             continue outer;
@@ -205,8 +205,9 @@ public abstract class GlobalCodeMotion {
               lca = use_block(n,use, late).domLCA(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
-        if( n instanceof MemOpNode load && !load.isMem() )
+        if( n instanceof MemOpNode load && load._isLoad )
             lca = find_anti_dep(lca,load,early,late,anti);
+
 
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
@@ -250,7 +251,7 @@ public abstract class GlobalCodeMotion {
         if( visit.get(def._nid) ) return;
         visit.set(def._nid);
         for( Node out : def._outputs )
-            if( out instanceof MemOpNode ld && !ld.isMem() && late[ld._nid]==null ) work.push(ld);
+            if( out instanceof MemOpNode ld && ld._isLoad && late[ld._nid]==null ) work.push(ld);
         if( def instanceof MemMergeNode )
             for( int i=1; i<def.nIns(); i++ )
                 if( def.in(i)!=null ) wakeLoads(def.in(i),late,work,visit);
@@ -291,6 +292,8 @@ public abstract class GlobalCodeMotion {
 
     //
     private static CFGNode anti_dep( MemOpNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
+        // A conditional writer can precede the load without dominating its late block.
+        // Walk back to the first overlap with the load's placement range.
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( anti[stblk._nid]==load._nid ) {
