@@ -1,38 +1,17 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
 
 // Right Shift Logical
 public class SrlRISC extends MachConcreteNode implements MachNode {
-    SrlRISC(Node srli) {super(srli);}
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        // assert i==1;
-        return riscv.RMASK; }
-    // Register mask allowed as a result.  0 for no register.
+    public SrlRISC(Node srli) { super(srli); }
+    @Override public String op() { return "shr"; }
+    @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
-    }
-
-    // General form
-    // General form: "srl rd, rs1, rs2"
+    @Override public void encoding( Encoding enc ) { riscv.r_type(enc,this,7,0);  }
     @Override public void asm(CodeGen code, SB sb) {
-
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >>> ").p(code.reg(in(2)));
     }
-
-    @Override public String op() { return "srl"; }
 }

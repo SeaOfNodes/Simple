@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
-import java.util.HashSet;
 
 public class IfNode extends CFGNode implements MultiNode {
 
@@ -17,7 +17,13 @@ public class IfNode extends CFGNode implements MultiNode {
     @Override
     public String label() { return "If"; }
 
-    @Override protected String format() { return "if( %1 )"; }
+    @Override
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("if( ");
+        if( in(1)==null ) p.p("never");
+        else p.n(in(1));
+        return p.p(" )");
+    }
 
     public Node ctrl() { return in(0); }
     public Node pred() { return in(1); }
@@ -53,11 +59,40 @@ public class IfNode extends CFGNode implements MultiNode {
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
             for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
-                if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof CProjNode prj ) {
+                if( addDep(dom) instanceof IfNode iff && addDep(iff.pred())==pred() && prior instanceof CProjNode prj ) {
                     setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }
         return null;
     }
 
+    // MachNode variants need to support this and negate the conditional test.
+    // The following CProjs will be inverted by the caller.
+    public void negate() { throw Utils.TODO(); }
+
+    // Negate the sense of a test
+    public static String negate( String bop ) {
+        return switch( bop ) {
+        case "<"  -> ">=";
+        case "<=" -> ">" ;
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">"  -> "<=";
+        case ">=" -> "<" ;
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Swap compare operands
+    public static String swap( String bop ) {
+        return switch( bop ) {
+        case "<"  -> ">" ;
+        case "<=" -> ">=";
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">"  -> "<" ;
+        case ">=" -> "<=";
+        default -> throw Utils.TODO();
+        };
+    }
 }

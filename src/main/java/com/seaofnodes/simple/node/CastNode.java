@@ -43,7 +43,7 @@ public class CastNode extends Node {
     }
 
     @Override
-    boolean eq(Node n) {
+    public boolean eq(Node n) {
         CastNode cast = (CastNode)n; // Contract
         return _t==cast._t;
     }

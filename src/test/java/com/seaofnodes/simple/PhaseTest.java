@@ -34,8 +34,9 @@ public class PhaseTest {
     @Test public void testResumeMachineCompilation() {
         CodeGen staged = new CodeGen(SRC).driver(Phase.TypeCheck);
         staged.driver(Phase.InstSelect,"x86_64_v2","SystemV");
-        staged.driver(Phase.RegAlloc,"x86_64_v2","SystemV");
-        assertEquals(Phase.RegAlloc,staged._phase);
-        assertNotNull(staged._mach);
+        staged.driver(Phase.Encoding,"x86_64_v2","SystemV");
+        byte[] bits = staged._encoding._bits.toByteArray();
+        CodeGen direct = new CodeGen(SRC).driver(Phase.Encoding,"x86_64_v2","SystemV");
+        assertArrayEquals(bits,direct._encoding._bits.toByteArray());
     }
 }
