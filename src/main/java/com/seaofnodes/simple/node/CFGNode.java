@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.codegen.CodeGen;
-
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -58,6 +57,13 @@ public abstract class CFGNode extends Node {
         return c;
     }
 
+    // Used by the encoding / final BB layout
+    public CFGNode uctrlSkipEmpty() {
+        CFGNode x = this, y;
+        while( x.nOuts() == 1 && (y=x.uctrl())!=null ) // Skip empty blocks
+            x = y;
+        return x;
+    }
 
     // ------------------------------------------------------------------------
     /**
@@ -91,8 +97,8 @@ public abstract class CFGNode extends Node {
         while( lhs != rhs ) {
             if( lhs==null || rhs==null ) return null;
             int comp = lhs.idepth() - rhs.idepth();
-            if( comp >= 0 ) lhs = (dep==null ? lhs : (CFGNode)lhs.addDep(dep)).idom();
-            if( comp <= 0 ) rhs = (dep==null ? rhs : (CFGNode)rhs.addDep(dep)).idom();
+            if( comp >= 0 ) lhs = (dep==null ? lhs : dep.addDep(lhs)).idom();
+            if( comp <= 0 ) rhs = (dep==null ? rhs : dep.addDep(rhs)).idom();
         }
         return lhs;
     }
@@ -110,9 +116,9 @@ public abstract class CFGNode extends Node {
     public LoopNode loop() { return _ltree._head; }
     public int loopDepth() { return _ltree==null ? 0 : _ltree.depth(); }
 
-    LoopTree _ltree;
-    int _pre;                   // Pre-order numbers for loop tree finding
-    private static class LoopTree {
+    public LoopTree _ltree;
+    public int _pre;            // Pre-order numbers for loop tree finding
+    static class LoopTree {
         LoopTree _par;
         final LoopNode _head;
         int _depth;
@@ -187,5 +193,10 @@ public abstract class CFGNode extends Node {
         return usecfg instanceof XCtrlNode ||
                 (this instanceof CallNode && usecfg instanceof FunNode) ||
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
+    }
+
+
+    public String label( CFGNode target ) {
+        return (target instanceof LoopNode ? "LOOP" : "L")+target._nid;
     }
 }

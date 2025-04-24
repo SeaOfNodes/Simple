@@ -19,7 +19,7 @@ abstract public class IFG {
     static final IdentityHashMap<LRG,Node> TMP = new IdentityHashMap<>();
 
     // Inteference Graph: Array of Bitsets
-    private static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
+    static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
     static void resetIFG() {
         for( BitSet bs : IFG )
             if( bs!=null ) bs.clear();
@@ -79,6 +79,8 @@ abstract public class IFG {
         while( !WORK.isEmpty() )
             do_block(round,alloc,WORK.pop());
 
+        if( alloc.success() )
+            convert2DAdjacency(alloc);
         return alloc.success();
     }
 
@@ -125,10 +127,15 @@ abstract public class IFG {
             TMP.remove(lrg);    // Kill def
         }
 
+        // Phis use and define the same live range, i.e. these LRGs already
+        // marked conflicted, no need to mark again
         if( n instanceof PhiNode )
             return;
-        // Instructions can clobber registers without defining an LRG.
-        if( n instanceof MachNode m ) kills(alloc,m);
+
+        // Kill any killed registers; milli-code routines like New can kill
+        // will not being a CFG.
+        if( n instanceof MachNode m )
+            kills(alloc,m);
 
         // Interfere n with all live
         if( lrg!=null ) {
@@ -144,7 +151,8 @@ abstract public class IFG {
                     // must fail.  If *n* (a subset of lrg) needs the single
                     // last tlrg register then only tlrg must fail.
                     if( ((MachNode)n).outregmap().size1() ) {
-                        if( !tlrg.clr(lrg._mask.firstReg()) ) alloc.fail(tlrg);
+                        if( !tlrg.clr(lrg._mask.firstReg()) ) // Clear bit, no interference
+                            alloc.fail(tlrg);                 // Clearing drives mask to empty
                     } else addIFG(lrg,tlrg); // Add interference
             }
         }
@@ -222,13 +230,11 @@ abstract public class IFG {
         CFGNode bb = priorbb.cfg(i);
         if( bb == null ) return; // Start has no prior
         while( !bb.blockHead() ) bb = bb.cfg0();
-        //if( i==0 && !(bb instanceof StartNode) ) bb = bb.cfg0();
-        assert bb.blockHead();
 
         // Lazy get live-out set for bb
-      IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
+        IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
 
-      for( LRG lrg : TMP.keySet() ) {
+        for( LRG lrg : TMP.keySet() ) {
             Node def = TMP.get(lrg);
             // Effective def comes from phi input from prior block
             if( def instanceof PhiNode phi && phi.cfg0()==priorbb ) {
@@ -242,6 +248,24 @@ abstract public class IFG {
             } else {
                 // Alive twice with different definitions; self-conflict
                 selfConflict(alloc,def,lrg,def_bb);
+            }
+        }
+    }
+
+
+    static void convert2DAdjacency( RegAlloc alloc ) {
+        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
+        // adjacency matrix.
+        int maxlrg = alloc._LRGS.length;
+        for( int i=1; i<maxlrg; i++ ) {
+            BitSet ifg = IFG.atX(i);
+            if( ifg != null ) {
+                LRG lrg0 = alloc._LRGS[i];
+                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
+                    LRG lrg1 = alloc._LRGS[lrg];
+                    lrg0.addNeighbor(lrg1);
+                    lrg1.addNeighbor(lrg0);
+                }
             }
         }
     }
@@ -263,22 +287,10 @@ abstract public class IFG {
     // If there's no spare color we'll have to spill this at-risk live range.
 
     public static boolean color(int round, RegAlloc alloc) {
-
-        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
-        // adjacency matrix.
         int maxlrg = alloc._LRGS.length, nlrgs=0;
-        for( int i=1; i<maxlrg; i++ ) {
-            if( alloc._LRGS[i] != null ) nlrgs++;
-            BitSet ifg = IFG.atX(i);
-            if( ifg != null ) {
-                LRG lrg0 = alloc._LRGS[i];
-                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
-                    LRG lrg1 = alloc._LRGS[lrg];
-                    lrg0.addNeighbor(lrg1);
-                    lrg1.addNeighbor(lrg0);
-                }
-            }
-        }
+        for( int i=1; i<maxlrg; i++ )
+            if( alloc._LRGS[i] != null )
+                nlrgs++;
 
         // Simplify
 
@@ -451,6 +463,7 @@ abstract public class IFG {
                 if( bias >= 0 ) return bias;
                 // Advance def side
                 defSplit = defSplit.in(tidx);
+                if( alloc.lrg(defSplit)==null ) defSplit=null;
             }
 
             if( useSplit != null ) {
@@ -490,7 +503,7 @@ abstract public class IFG {
 
         // Can I limit my own choices to valid neighbor choices?
         for( LRG alrg : slrg._adj ) {
-            int reg = alrg._reg;
+            short reg = alrg._reg;
             if( reg == -1 && alrg._mask.size1() )
                 reg = alrg._mask.firstReg();
             if( reg != -1 ) {

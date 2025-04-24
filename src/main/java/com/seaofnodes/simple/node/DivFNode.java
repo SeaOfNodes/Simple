@@ -11,7 +11,7 @@ public class DivFNode extends Node {
     @Override public String label() { return "DivF"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append("/"), visited);
         return sb.append(")");

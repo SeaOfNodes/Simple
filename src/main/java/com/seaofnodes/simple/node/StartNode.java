@@ -25,7 +25,7 @@ public class StartNode extends LoopNode implements MultiNode {
     @Override public String label() { return "Start"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
       return sb.append(label());
     }
 

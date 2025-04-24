@@ -11,7 +11,7 @@ public class MinusFNode extends Node {
     @Override public String label() { return "MinusF"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("(-"), visited);
         return sb.append(")");
     }

@@ -11,7 +11,7 @@ public class RoundF32Node extends Node {
     @Override public String label() { return "RoundF32"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return in(1)._print0(sb.append("((f32)"), visited).append(")");
     }
 

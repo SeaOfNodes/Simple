@@ -3,7 +3,6 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
 import static org.junit.Assert.*;
 
 // Small scheduled machine graphs isolate register constraints from peepholes.
@@ -21,11 +20,11 @@ public class RegAllocTestSupport {
         @Override public RegMask killmap() { return _kill; }
         @Override public boolean isClone() { return _clone; }
         @Override public Node copy() { return new Op(_def,_use,_kill,_clone,(Node)null); }
-        @Override public int encoding(ByteArrayOutputStream bytes) { throw new AssertionError(); }
+        @Override public void encoding(Encoding enc) { throw new AssertionError(); }
     }
     private static CodeGen graph() {
         CodeGen code = new CodeGen("");
-        code._mach = new x86_64_v2();
+        code._mach = new x86_64_v2(code);
         code._cfg.add(code._start);
         return code;
     }
@@ -165,6 +164,48 @@ public class RegAllocTestSupport {
         SplitNode copy = pre._mach.split("test",(byte)0,null);
         copy.setDef(0,pre._start); copy.setDef(1,def0);
         assertFalse("A fixed definition clobbers even before coloring",uncolored.sameBlockNoClobber(copy));
+    }
+
+    public static void coalescing() {
+        // Merge, incompatible masks, interference, capacity, and adjacency remapping.
+        for( int kind=0; kind<5; kind++ ) {
+            CodeGen code = graph();
+            RegAlloc alloc = new RegAlloc(code);
+            Op def = new Op(new RegMask(3L),null,null,false,code._start);
+            SplitNode copy = code._mach.split("test",(byte)0,null);
+            copy.setDef(0,code._start); copy.setDef(1,def);
+            Op use = new Op(null,new RegMask(3L),null,false,code._start,copy);
+            LRG from = alloc.newLRG(def), to = alloc.newLRG(copy);
+            from._mask = kind==1 ? A : new RegMask(3L);
+            to._mask = kind==1 ? B : new RegMask(3L);
+            from.machDef(def,false); from.machUse(copy,(short)1,false);
+            to.machDef(copy,false); to.machUse(use,(short)1,false);
+            LRG left = new LRG((short)100), right = new LRG((short)101);
+            if( kind==2 ) { from.addNeighbor(to); to.addNeighbor(from); }
+            if( kind>=3 ) {
+                from.addNeighbor(left); left.addNeighbor(from);
+                if( kind==3 ) { to.addNeighbor(right); right.addNeighbor(to); }
+                else { to.addNeighbor(left); left.addNeighbor(to); }
+            }
+            int fcnt=from.nadj(), tcnt=to.nadj();
+            assertTrue(Coalesce.coalesce(0,alloc));
+            if( kind==0 || kind==4 ) {
+                assertSame(def,use.in(1));
+                assertSame(alloc.lrg(def),alloc.lrg(copy));
+                assertSame(use,alloc.lrg(def)._machUse);
+                assertEquals(1,alloc.lrg(def)._uidx);
+                if( kind==4 ) {
+                    assertEquals(1,left.nadj());
+                    assertSame(alloc.lrg(def),left._adj.at(0));
+                    assertSame(left,alloc.lrg(def)._adj.at(0));
+                }
+            } else {
+                assertSame(copy,use.in(1));
+                assertNotSame(alloc.lrg(def),alloc.lrg(copy));
+                assertEquals(fcnt,from.nadj());
+                assertEquals(tcnt,to.nadj());
+            }
+        }
     }
 
 }

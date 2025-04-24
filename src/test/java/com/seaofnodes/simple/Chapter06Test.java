@@ -145,7 +145,7 @@ else
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,3,Phi(Region,4,5));", code.print());
+        assertEquals("return Phi(Region,3,5,4);", code.print());
     }
 
     @Test
@@ -258,7 +258,7 @@ if( arg ) {
 return a+b+c;
 """);
         code.parse().opto();
-        assertEquals("return (Phi(Region,Phi(Region,2,3),0)+Phi(Region,3,1));", code.print());
+        assertEquals("return Phi(Region,6,1,5);", code.print());
     }
 
 

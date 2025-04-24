@@ -40,13 +40,13 @@ public class ConstantNode extends Node {
     public String uniqueName() { return "Con_" + _nid; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( _con instanceof TypeFunPtr tfp && tfp.isConstant() && tfp.notNull() ) {
             FunNode fun = CodeGen.CODE.link(tfp);
             if( fun!=null && fun._name != null )
                 return sb.append("{ ").append(fun._name).append("}");
         }
-        return sb.append(_con.print(new SB()));
+        return sb.append(_con==null ? "---" : _con.print(new SB()));
     }
 
     @Override public boolean isConst() { return true; }
@@ -58,7 +58,7 @@ public class ConstantNode extends Node {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) {
+    public boolean eq(Node n) {
         ConstantNode con = (ConstantNode)n; // Contract
         return _con==con._con;
     }

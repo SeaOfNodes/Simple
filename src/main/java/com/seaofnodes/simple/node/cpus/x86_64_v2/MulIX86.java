@@ -1,41 +1,37 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.MachConcreteNode;
-import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.codegen.*;
 
-public class MulIX86 extends MachConcreteNode  implements MachNode {
-    final TypeInteger _ti;
-    MulIX86(Node mul, TypeInteger ti) {super(mul); _inputs.pop(); _ti = ti;}
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        // assert i==1;
-        return x86_64_v2.WMASK; }
-    // Register mask allowed as a result.  0 for no register.
+public class MulIX86 extends MachConcreteNode implements MachNode {
+    final int _imm;
+    MulIX86( Node mul, int imm ) {
+        super(mul);
+        _inputs.pop();          // Pop the constant input
+        _imm = imm;             // Record the constant
+    }
+    @Override public String op() { return "muli"; }
+    @Override public String glabel() { return "*"; }
+    @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
-
-
-    // Output is same register as input#1
+    // Retain Chapter 21's allocation contract: output is also input #1.
     @Override public int twoAddress() { return 1; }
 
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    // IMUL encodes a destination register, unlike ImmX86's opcode extension.
+    @Override public final void encoding( Encoding enc ) {
+        short dst = enc.reg(this ); // Also src1 in this chapter
+        short src = enc.reg(in(1));
+        enc.add1(x86_64_v2.rex(dst, src, 0));
+        // opcode; 0x69 or 0x6B
+        enc.add1( 0x69 + (x86_64_v2.imm8(_imm) ? 2 : 0) );
+        enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src) );
+        // immediate(4 bytes) 32 bits or (1 byte)8 bits
+        if( x86_64_v2.imm8(_imm) ) enc.add1(_imm);
+        else                       enc.add4(_imm);
     }
-    // General form
-    // General form: "muli  dst * #imm"
+    // General form: "muli  dst = src * #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * #");
-        _ti.print(sb);
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * #").p(_imm);
     }
-
-    @Override public String op() { return "muli"; }
 }

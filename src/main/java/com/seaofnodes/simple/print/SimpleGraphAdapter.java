@@ -8,7 +8,7 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 import java.util.ArrayList;
 
-/** Chapter 20's view of the IR; browser, transport and layout are shared. */
+/** Chapter 21's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }

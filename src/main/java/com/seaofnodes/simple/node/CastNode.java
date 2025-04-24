@@ -30,7 +30,7 @@ public class CastNode extends Node {
     @Override public boolean isConst() { return true; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return in(1)._print0(sb.append(label()), visited);
     }
 
@@ -45,7 +45,7 @@ public class CastNode extends Node {
     }
 
     @Override
-    boolean eq(Node n) {
+    public boolean eq(Node n) {
         CastNode cast = (CastNode)n; // Contract
         return _t==cast._t;
     }

@@ -1,0 +1,46 @@
+// -*- mode: java;  -*-
+val brain_fuck = { ->
+    u8[] !program = new u8[106];program[0] = 43;program[1] = 43;program[2] = 43;program[3] = 43;program[4] = 43;program[5] = 43;program[6] = 43;program[7] = 43;program[8] = 91;program[9] = 62;program[10] = 43;program[11] = 43;program[12] = 43;program[13] = 43;program[14] = 91;program[15] = 62;program[16] = 43;program[17] = 43;program[18] = 62;program[19] = 43;program[20] = 43;program[21] = 43;program[22] = 62;program[23] = 43;program[24] = 43;program[25] = 43;program[26] = 62;program[27] = 43;program[28] = 60;program[29] = 60;program[30] = 60;program[31] = 60;program[32] = 45;program[33] = 93;program[34] = 62;program[35] = 43;program[36] = 62;program[37] = 43;program[38] = 62;program[39] = 45;program[40] = 62;program[41] = 62;program[42] = 43;program[43] = 91;program[44] = 60;program[45] = 93;program[46] = 60;program[47] = 45;program[48] = 93;program[49] = 62;program[50] = 62;program[51] = 46;program[52] = 62;program[53] = 45;program[54] = 45;program[55] = 45;program[56] = 46;program[57] = 43;program[58] = 43;program[59] = 43;program[60] = 43;program[61] = 43;program[62] = 43;program[63] = 43;program[64] = 46;program[65] = 46;program[66] = 43;program[67] = 43;program[68] = 43;program[69] = 46;program[70] = 62;program[71] = 62;program[72] = 46;program[73] = 60;program[74] = 45;program[75] = 46;program[76] = 60;program[77] = 46;program[78] = 43;program[79] = 43;program[80] = 43;program[81] = 46;program[82] = 45;program[83] = 45;program[84] = 45;program[85] = 45;program[86] = 45;program[87] = 45;program[88] = 46;program[89] = 45;program[90] = 45;program[91] = 45;program[92] = 45;program[93] = 45;program[94] = 45;program[95] = 45;program[96] = 45;program[97] = 46;program[98] = 62;program[99] = 62;program[100] = 43;program[101] = 46;program[102] = 62;program[103] = 43;program[104] = 43;program[105] = 46;
+    int d = 0;
+    u8[] !output = new u8[0];
+    u8[] !data = new u8[100];
+
+    for( int pc = 0; pc < program#; pc++ ) {
+        var command = program[pc];
+        if (command == 62) {
+            d++;
+        } else if (command == 60) {
+            d--;
+        } else if (command == 43) {
+            data[d]++;
+        } else if (command == 45) {
+            data[d]--;
+        } else if (command == 46) {
+            // Output a byte; increase the output array size
+            var old = output;
+            output = new u8[output# + 1];
+            for( int i = 0; i < old#; i++ )
+                output[i] = old[i];
+            output[old#] = data[d]; // Add the extra byte on the end
+        } else if (command == 44) {
+            data[d] = 42;
+        } else if (command == 91) {
+            if (data[d] == 0) {
+                for( int d = 1; d > 0; ) {
+                    command = program[++pc];
+                    if (command == 91) d++;
+                    if (command == 93) d--;
+                }
+            }
+        } else if (command == 93) {
+            if (data[d]) {
+                for( int d = 1; d > 0; ) {
+                    command = program[--pc];
+                    if (command == 93) d++;
+                    if (command == 91) d--;
+                }
+            }
+        }
+    }
+    return output;
+};

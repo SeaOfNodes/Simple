@@ -117,7 +117,7 @@ public abstract class Node implements Cloneable {
             : _print1(sb, visited);
     }
     // Every Node implements this; a partial-line recursive print
-    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
+    abstract public StringBuilder _print1(StringBuilder sb, BitSet visited);
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
@@ -264,13 +264,24 @@ public abstract class Node implements Cloneable {
         assert isDead();        // Really dead now
     }
 
+    // Preserve CFG use-ordering when killing
+    public void killOrdered() {
+        CFGNode cfg = cfg0();
+        cfg._outputs.remove(cfg._outputs.find(this));
+        _inputs.set(0,null);
+        kill();
+    }
+
+
     // Mostly used for asserts and printing.
     public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
     // Shortcuts to stop DCE mid-parse
     // Add bogus null use to keep node alive
+    @SuppressWarnings("unchecked")
     public <N extends Node> N keep() { addUse(null); return (N)this; }
     // Remove bogus null.
+    @SuppressWarnings("unchecked")
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
     // Test "keep" status
     public boolean iskeep() { return _outputs.find(null) != -1; }
@@ -317,6 +328,8 @@ public abstract class Node implements Cloneable {
         int i;
         if( use instanceof PhiNode phi ) {
             cfg = phi.region().cfg(uidx);
+            if( cfg instanceof CProjNode && cfg.in(0) instanceof NeverNode nvr )
+                cfg = nvr.cfg0();
             i = cfg.nOuts()-1;
         } else {
             i = cfg._outputs.find(use);
@@ -328,7 +341,7 @@ public abstract class Node implements Cloneable {
         use.setDefOrdered(uidx,this);
     }
 
-    public void setDefOrdered(int idx, Node def) {
+    public void setDefOrdered( int idx, Node def) {
         // If old is dying, remove from CFG ordered
         Node old = in(idx);
         if( old!=null && old.nOuts()==1 ) {
@@ -339,13 +352,6 @@ public abstract class Node implements Cloneable {
             }
         }
         setDef(idx,def);
-    }
-
-    public void killOrdered() {
-        CFGNode cfg = cfg0();
-        cfg._outputs.remove(cfg._outputs.find(this));
-        _inputs.set(0,null);
-        kill();
     }
 
     public void removeSplit() {
@@ -474,6 +480,7 @@ public abstract class Node implements Cloneable {
         return old;
     }
 
+    @SuppressWarnings("unchecked")
     public <N extends Node> N init() { _type = compute(); return (N)this; }
 
     /**
@@ -538,19 +545,18 @@ public abstract class Node implements Cloneable {
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
-    Node addDep( Node dep ) {
+    <N extends Node> N addDep( N dep ) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
-        if( CODE._midAssert ) return this;
+        if( CODE._midAssert ) return dep;
         var obs = CodeGen.CODE._midAssert ? null : CodeGen.CODE._obs;
         if( obs != null ) obs.dep(this, dep);
-        if( dep == null ) return this;
-        if( _deps==null ) _deps = new Ary<>(Node.class);
-        if( _deps   .find(dep) != -1 ) return this; // Already on list
-        if( _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( _outputs.find(dep) != -1 ) return this;
-        _deps.add(dep);
-        return this;
+        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
+        if( dep._deps   .find(this) != -1 ) return dep; // Already on list
+        if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
+        if( dep._outputs.find(this) != -1 ) return dep;
+        dep._deps.add(this);
+        return dep;
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
@@ -576,7 +582,7 @@ public abstract class Node implements Cloneable {
     }
     // Subclasses add extra checks (such as ConstantNodes have same constant),
     // and can assume "this!=n" and has the same Java class.
-    boolean eq( Node n ) { return true; }
+    public boolean eq( Node n ) { return true; }
 
 
     // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
@@ -656,7 +662,7 @@ public abstract class Node implements Cloneable {
     boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
             if( !(in(i)._type.isConstant()) ) {
-                in(i).addDep(dep); // If in(i) becomes a constant later, will trigger some peephole
+                dep.addDep(in(i)); // If in(i) becomes a constant later, will trigger some peephole
                 return false;
             }
         return true;
@@ -667,6 +673,8 @@ public abstract class Node implements Cloneable {
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
+
+    public Node copy() { return copyEmpty(); }
 
     // Exact-class copy with fresh identity and no edges.  Unlike machine
     // rematerialization copies, this never registers or copies input edges.
