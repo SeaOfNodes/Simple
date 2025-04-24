@@ -47,7 +47,7 @@ public class ProjNode extends Node {
     @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
 
     @Override
-    boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }
+    public boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }
 
     @Override
     int hash() { return _idx; }
