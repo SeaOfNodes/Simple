@@ -100,7 +100,7 @@ else
 return a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Region,2,3),Phi(Region,4,5));", code.print());
+        assertEquals("return Phi(Region,3,5,2,4);", code.print());
     }
 
     @Test

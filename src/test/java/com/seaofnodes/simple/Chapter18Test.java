@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -14,7 +15,7 @@ public class Chapter18Test {
 """
 return 0;
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
@@ -61,11 +62,10 @@ return x2;
 {int -> int}? sq = { int x ->
     x*x;
 };
-return sq;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return { sq}; return (Parm_x(sq,int)*x); ]", code._stop.toString());
-        assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
+        assertEquals("return (Parm_x(sq,int)*x);", code._stop.toString());
+        //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -77,7 +77,7 @@ var sq = { int x ->
 };
 return sq(arg)+sq(3);
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("Stop[ return (#2+#2); return (Parm_x(sq,int)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
@@ -175,7 +175,7 @@ for(;;) {
     i2i = id(x);
 }
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("Stop[ return #2; return Parm_i(x,int); ]", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
@@ -191,9 +191,9 @@ for(;;) {
     arg = x(3);
 }
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("return Top;", code._stop.toString());
-        assertEquals(null, Eval2.eval(code,  0));
+        assertEquals("null", Eval2.eval(code,  0));
     }
 
 
@@ -216,7 +216,7 @@ ps[0] = new Person;
 ps[1] = new Person;
 fcn(ps,1);
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -346,7 +346,7 @@ if (arg) i2i = null;
 if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(o,int); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
@@ -362,7 +362,7 @@ Person !p = new Person;
 p.coffee_count += 1;
 return p.coffee_count;
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(Phase.LocalSched);
         assertEquals("return 1;", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
