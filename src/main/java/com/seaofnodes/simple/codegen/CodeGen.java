@@ -6,21 +6,14 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
+import java.io.IOException;
 import java.util.BitSet;
 import java.util.HashMap;
 
+@SuppressWarnings("unchecked")
 public class CodeGen {
     public GraphObserver<Node> _obs;
-
-    // Inlining can insert CFG edges and invalidate cached depth ordering.
-    private char _iDepthVersion;
-    public char iDepthVersion() { return _iDepthVersion; }
-    public void invalidateIDepthCaches() {
-        assert _iDepthVersion < Character.MAX_VALUE : "Dominator cache version exceeds 65535";
-        ++_iDepthVersion;
-    }
-
-
+    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
     // Last created CodeGen as a global; used all over to avoid passing about a
     // "context".
     public static CodeGen CODE;
@@ -33,12 +26,12 @@ public class CodeGen {
         InstSelect,             // Select machine instructions
         Schedule,               // Global code motion
         LocalSched,             // Order instructions within blocks
-        RegAlloc;               // Assign registers and stack slots
+        RegAlloc,               // Assign registers and stack slots
+        Encoding,               // Encode instructions
+        Export;                 // Link in memory or write ELF
 
     }
     public Phase _phase;
-
-    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
 
     // Run through target, skipping phases already completed.
     public CodeGen driver(Phase target) { return driver(target,null,null); }
@@ -46,14 +39,16 @@ public class CodeGen {
     public CodeGen driver(Phase target, String cpu, String callingConv, int dump) {
         if( target.ordinal()>=Phase.RegAlloc.ordinal() && cpu==null && _mach==null )
             throw new IllegalArgumentException("Machine code requires a CPU target");
+        if( target==Phase.Export ) throw new IllegalArgumentException("Use exportELF with an output file or null for memory linking");
         step(target, Phase.Parse, this::parse, dump);
         step(target, Phase.Iter, this::iter, dump);
         step(target, Phase.TypeCheck, this::typeCheck, dump);
         step(target, Phase.LoopTree, this::loopTree, dump);
-        step(target, Phase.InstSelect, () -> instSelect(PORTS,cpu,callingConv), dump);
+        step(target, Phase.InstSelect, () -> instSelect(cpu,callingConv), dump);
         step(target, Phase.Schedule, this::GCM, dump);
         step(target, Phase.LocalSched, this::localSched, dump);
         step(target, Phase.RegAlloc, this::regAlloc, dump);
+        step(target, Phase.Encoding, this::encode, dump);
         return this;
     }
 
@@ -84,7 +79,6 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
-
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {
@@ -97,6 +91,12 @@ public class CodeGen {
         _arg = arg;
         _iter = new IterPeeps(workListSeed);
         P = new Parser(this,arg);
+    }
+
+
+    // Run all the phases through final ELF emission
+    public CodeGen driver( String cpu, String callingConv, String obj ) throws IOException {
+        return driver(Phase.Encoding,cpu,callingConv).exportELF(obj);
     }
 
 
@@ -115,6 +115,14 @@ public class CodeGen {
     private int _alias = 2; // 0 is for control, 1 for memory
     public  int getALIAS() { return _alias++; }
 
+
+    // Inlining can insert CFG edges and invalidate cached depth ordering.
+    private char _iDepthVersion;
+    public char iDepthVersion() { return _iDepthVersion; }
+    public void invalidateIDepthCaches() {
+        assert _iDepthVersion < Character.MAX_VALUE : "Dominator cache version exceeds 65535";
+        ++_iDepthVersion;
+    }
 
     // Popular visit bitset, declared here, so it gets reused all over
     public final BitSet _visit = new BitSet();
@@ -189,15 +197,36 @@ public class CodeGen {
     // Last check for bad programs
     public CodeGen typeCheck() { return phase(Phase.TypeCheck, _phase==Phase.Iter, () -> TypeCheck.run(this)); }
 
+    // ---------------------------
+    // Build the loop tree; break never-exit loops
+    public CodeGen loopTree() {
+        return phase(Phase.LoopTree, _phase==Phase.TypeCheck, () -> {
+            // Build the loop tree, fix never-exit loops
+            _start.buildLoopTree(_stop);
+        });
+    }
 
     // ---------------------------
     // Code generation CPU target
     public Machine _mach;
-    //
+    // Chosen calling convention (usually either Win64 or SystemV)
     public String _callingConv;
+    // Callee save registers
+    public RegMask _callerSave;
+
+    // All returns have the following inputs:
+    // 0 - ctrl
+    // 1 - memory
+    // 2 - varies with returning GPR,FPR
+    // 3 - RPC
+    // 4+- Caller save registers
+    public RegMask[] _retMasks;
+    // Return Program Counter
+    public RegMask _rpcMask;
 
     // Convert to target hardware nodes
-    public CodeGen instSelect( String base, String cpu, String callingConv ) {
+    public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
+    public CodeGen instSelect( String cpu, String callingConv, String base ) {
         if( cpu==null ) return this;
         return phase(Phase.InstSelect, _phase==Phase.LoopTree,
                      () -> new InstSelect(this).run(cpu,callingConv,base));
@@ -205,14 +234,10 @@ public class CodeGen {
 
 
     // ---------------------------
-    // Control Flow Graph in RPO order.
+    // Control Flow Graph in Reverse Post Order.
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
-    public CodeGen loopTree() {
-        return phase(Phase.LoopTree, _phase==Phase.TypeCheck, () -> _start.buildLoopTree(_stop));
-    }
-
     public CodeGen GCM() {
         return phase(Phase.Schedule, (_phase==Phase.LoopTree || _phase==Phase.InstSelect), () -> {
             GlobalCodeMotion.buildCFG(this);
@@ -236,15 +261,46 @@ public class CodeGen {
             _regAlloc.regAlloc();
         });
     }
-    public String reg(Node n) {
+
+    // Human readable register name
+    public String reg(Node n) { return reg(n,null); }
+    public String reg(Node n, FunNode fun) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
-            String s = _regAlloc.reg(n);
+            String s = _regAlloc.reg(n,fun);
             if( s!=null ) return s;
         }
         return "N"+ n._nid;
     }
 
+
     // ---------------------------
+    // Encoding
+    public Encoding _encoding;   // Encoding object
+    public void preEncode() {  } // overridden by alternative ports
+    public CodeGen encode() {
+        return phase(Phase.Encoding, _phase==Phase.RegAlloc, () -> {
+            _encoding = new Encoding(this);
+            preEncode();
+            _encoding.encode();
+        });
+    }
+
+    // ---------------------------
+    // Exporting to external formats
+    public CodeGen exportELF(String fname) throws IOException {
+        assert _phase==Phase.Encoding;
+        _phase=Phase.Export;
+        long t0=System.currentTimeMillis();
+        try {
+            if( fname == null ) new LinkMem(this).link(); // In memory patching
+            else new ElfFile(this).export(fname); // External ELF file
+        } finally { _times[Phase.Export.ordinal()]=System.currentTimeMillis()-t0; }
+        if( _obs!=null ) _obs.phase(Phase.Export.name());
+        return this;
+    }
+
+    // ---------------------------
+    public boolean _asmLittle=true;
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }
     public String asm() { return asm(new SB()).toString(); }
 
@@ -263,4 +319,44 @@ public class CodeGen {
 
     // Debugging helper
     public Node f(int idx) { return _stop.find(idx); }
+
+
+    String printCFG() {
+        if( _cfg==null ) return "no CFG";
+        SB sb = new SB();
+        for( CFGNode cfg : _cfg )
+            IRPrinter.printLine(cfg,sb);
+        return sb.toString();
+    }
+
+    public static void print_as_hex(Encoding enc) {
+        for (byte b : enc._bits.toByteArray()) {
+            System.out.print(String.format("%02X", b));
+        }
+        System.out.println();
+    }
+
+    public void print_as_hex() {
+        for (byte b : _encoding._bits.toByteArray()) {
+            System.out.print(String.format("%02X", b));
+        }
+        System.out.println();
+    }
+
+    //// Debug purposes for now
+//    public CodeGen printENCODING() {
+//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//
+//        for(Node bb : CodeGen.CODE._cfg) {
+//            for(Node n: bb.outs()) {
+//                if(n instanceof MachNode) {
+//                    ((MachNode) n).encoding(E);
+//                }
+//            }
+//        }
+//
+//        print_as_hex(outputStream);
+//        // Get the raw bytes from the output stream
+//        return this;
+//    }
 }

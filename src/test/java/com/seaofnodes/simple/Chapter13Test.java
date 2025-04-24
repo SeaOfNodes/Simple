@@ -290,7 +290,10 @@ else {
         }
 }
 """);
+        code.driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return 9;", code.print());
         code.driver(CodeGen.Phase.Schedule);
+        // LoopTree connects the nonreturning paths using synthetic Never exits.
         assertEquals("return Phi(Region,9,Top,Top,Top,Top);", code.print());
     }
 
@@ -323,7 +326,7 @@ while( prime <= arg ) {
 return primeCount;
 """);
         code.parse().iter();
-        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi(Region,(Phi_primeCount+1),Phi_primeCount))));", code.print());
+        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi_primeCount,(Phi_primeCount+1))));", code.print());
         assertEquals("0", Eval2.eval(code,  1)); // No primes 1 or below
         assertEquals("1", Eval2.eval(code,  2)); // 2
         assertEquals("2", Eval2.eval(code,  3)); // 2, 3

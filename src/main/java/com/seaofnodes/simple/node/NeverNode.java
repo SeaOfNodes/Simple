@@ -10,7 +10,8 @@ import com.seaofnodes.simple.type.TypeTuple;
 
 // "Never true" for infinite loop exits
 public class NeverNode extends IfNode {
-    public NeverNode(Node ctrl) { super(ctrl,Parser.ZERO); }
+    public NeverNode(NeverNode ctrl) { super(ctrl); }
+    public NeverNode(Node ctrl) { super(ctrl,null); }
 
     @Override public String label() { return "Never"; }
 
