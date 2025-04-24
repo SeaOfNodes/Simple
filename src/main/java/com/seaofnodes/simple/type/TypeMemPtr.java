@@ -98,7 +98,7 @@ public class TypeMemPtr extends TypeNil {
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
 
-    @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
+    @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
 
     @Override int hash() { return (_ro ? 8192 : 0) ^ _obj.hashCode() ^ super.hash(); }
 

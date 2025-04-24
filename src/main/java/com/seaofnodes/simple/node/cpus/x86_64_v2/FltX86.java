@@ -1,35 +1,36 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.ConstantNode;
-import com.seaofnodes.simple.node.MachNode;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.*;
 
-public class FltX86 extends ConstantNode implements MachNode {
+public class FltX86 extends ConstantNode implements MachNode, RIPRelSize{
+    private byte _encSize;
     FltX86(ConstantNode con ) { super(con); }
-    @Override public String op() { return "fld"; }
-
-    // Register mask allowed on input i.  0 for no register.
+    @Override public String op() { return "ld8"; }
     @Override public RegMask regmap(int i) { return null; }
-    // General int registers
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public FltX86 copy() { return new FltX86(this); }
+    @Override public Node copy() { return new FltX86(this); }
 
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    @Override public void encoding( Encoding enc ) {
+        _encSize=X86.rip(enc,0xF2,0x0F10,false,enc.reg(this)-x86_64_v2.XMM_OFFSET);
+        enc.largeConstant(this,_con,_encSize-4,2/*ELF PC32*/);
     }
 
-    // Human-readable form appended to the SB.  Things like the encoding,
-    // indentation, leading address or block labels not printed here.
-    // Just something like "ld4\tR17=[R18+12] // Load array base".
-    // General form: "op\tdst=src+src"
+    // Delta is from opcode start
+    @Override public byte encSize(int delta) {
+        // TODO: 1-byte RIP offset?
+        return (byte)_encSize;
+    }
+
+    // Delta is from opcode start
+    @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
+        enc.patch4(opStart+opLen-4,delta-opLen);
+    }
+
     @Override public void asm(CodeGen code, SB sb) {
-        _con.print(sb.p(code.reg(this)).p(" #"));
+        _con.print(sb.p(code.reg(this)).p(" = #"));
     }
-
 }

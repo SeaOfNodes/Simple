@@ -17,6 +17,7 @@ public class TypeTuple extends Type {
     public static final TypeTuple START= make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
     public static final TypeTuple MAIN = make(TypeInteger.BOT);
     public static final TypeTuple RET  = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
+    public static final TypeTuple CALLOC = make(TypeInteger.BOT,TypeInteger.BOT);
 
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});
     public static final TypeTuple IF_NEITHER = make(new Type[]{Type.XCONTROL,Type.XCONTROL});
@@ -53,6 +54,21 @@ public class TypeTuple extends Type {
         for( int i=0; i<_types.length; i++ )
             ts[i] = _types[i].glb();
         return make(ts);
+    }
+
+    @Override public boolean isConstant() {
+        for( Type t : _types )
+            if( !t.isConstant() )
+                return false;
+        return true;
+    }
+
+    @Override public int log_size() {
+        assert isConstant();
+        int log_size = 0;
+        for( Type t : _types )
+            log_size = Math.max(log_size,t.log_size());
+        return log_size;
     }
 
     public Type ret() { assert _types.length==3; return _types[2]; }

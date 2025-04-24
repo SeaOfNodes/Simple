@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="false">
-    <output url="file://$MODULE_DIR$/../build/idea/production/chapter20" />
-    <output-test url="file://$MODULE_DIR$/../build/idea/test/chapter20" />
+    <output url="file://$MODULE_DIR$/../build/idea/production/chapter21" />
+    <output-test url="file://$MODULE_DIR$/../build/idea/test/chapter21" />
     <exclude-output />
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src/main/java" isTestSource="false" />
@@ -15,6 +15,8 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="graph" />
     <orderEntry type="module" module-name="print" />
+    <orderEntry type="module" module-name="isa" />
+    <orderEntry type="module" module-name="isa-eval" scope="TEST" />
     <orderEntry type="module-library" scope="TEST">
       <library name="JUnit4">
         <CLASSES>
