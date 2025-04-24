@@ -1,0 +1,10 @@
+// -*- mode: java;  -*-
+int i = 0;
+while(true) {
+    i += 1;
+    if( i==0 ) continue;
+    if( i==1 ) continue;
+    if( i==2 ) break;
+    continue;
+}
+return i;
