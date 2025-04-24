@@ -235,7 +235,7 @@ public abstract class ASMPrinter {
                 for( int i=0; i<len; i++ )
                     sb.hex1(code._encoding._bits.buf()[iadr++]);
                 off += len;
-                for( int i=size-off; i<dopz; i++ ) sb.p("  ");
+                for( int i=len; i<dopz; i++ ) sb.p("  ");
                 sb.p("  ");
                 int x = isMultiOp.indexOf('\n');
                 if( x== -1 ) {  // Last line

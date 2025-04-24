@@ -8,7 +8,7 @@ public class DivARM extends MachConcreteNode implements MachNode {
     DivARM( Node div ) { super(div); }
     @Override public String op() { return "div"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
     // SDIV
     @Override public void encoding( Encoding enc ) { arm.madd(enc,this,arm.OP_DIV,3); }
     // General form: "div  dst /= src"

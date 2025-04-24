@@ -9,17 +9,28 @@ public class NewARM extends NewNode implements MachNode, RIPRelSize {
     NewARM(NewNode nnn) { super(nnn); }
     @Override public void encoding( Encoding enc ) {
         // BL(branch with link)
-        enc.external(this,"calloc").add4(arm.b(arm.OP_CALL, 0));
+        enc.external(this,"calloc").
+            add4(0xD2800020).   // movz x0,#1
+            add4(arm.b(arm.OP_CALL, 0));
     }
 
     // Patch is for running "new" in a JIT.
     // Delta is from opcode start
-    @Override public byte encSize(int delta) { return 4; }
+    @Override public byte encSize(int delta) { return 4*2; }
 
     // Patch is for running "new" in a JIT.
     // Delta is from opcode start
     @Override public void patch(Encoding enc, int opStart, int opLen, int delta ) {
-            // delta is always aligned for ARM
-            enc.patch4(opStart, arm.b_calloc(arm.OP_CALL, delta));
+        // Negative patches are JIT emulator targets.
+        if( opStart+delta < 0 ) {
+            enc.patch4(opStart+4, arm.b_calloc(arm.OP_CALL, delta-4));
+        } else {
+            throw Utils.TODO();
+        }
+    }
+    // General form: "alloc #bytes  PC"
+    @Override public void asm(CodeGen code, SB sb) {
+        sb.p("ldi   x0=#1\n");
+        sb.p("call  #calloc");
     }
 }

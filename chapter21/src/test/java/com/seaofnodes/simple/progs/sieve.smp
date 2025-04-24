@@ -1,13 +1,12 @@
 // -*- mode: java;  -*-
-// The main Sieve array
 val sieve = { int N ->
-    bool[] !ary = new bool[N]; // length of this is 6
+    // The main Sieve array
+    bool[] !ary = new bool[N];
     // The primes less than N
     u32[] !primes = new u32[N>>1];
     // Number of primes so far, searching at index p
     int nprimes = 0, p=2;
     // Find primes while p^2 < N
-    // p becomes 3 after first iteration so not condition is not true
     while( p*p < N ) {
         // skip marked non-primes
         while( ary[p] ) p++;
@@ -18,11 +17,8 @@ val sieve = { int N ->
             ary[i] = true;
         p++;
     }
-    // p becomes 3 after first loop stored in x20
-    // second loop starts at b8
+
     // Now just collect the remaining primes, no more marking
-    // this will iterate 3, 4, 5 (3 times)
-    // so n primes should be 3
     for( ; p < N; p++ )
         if( !ary[p] )
             primes[nprimes++] = p;

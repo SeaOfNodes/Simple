@@ -9,7 +9,7 @@ public class MulARM extends MachConcreteNode implements MachNode {
     MulARM(Node mul) {super(mul);}
     @Override public String op() { return "mul"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
 
     @Override public void encoding( Encoding enc ) { arm.madd(enc,this,arm.OP_MUL,31); }
     // General form: "rd = rs1 * rs2"

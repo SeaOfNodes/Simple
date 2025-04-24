@@ -256,7 +256,7 @@ public class Encoding {
                 ? (bb.nOuts()>1 || !(bb.cfg0() instanceof IfNode) )
                 // Forwards jump.  If all the blocks, in RPO order, to our
                 // target are empty, we will fall in and not need a jump.
-                : !isEmptyBackwardsScan(rpo,next);
+                : !backwardsEmptyScan(rpo,next);
             if( needJump ) {
                 CFGNode jmp = _code._mach.jump();
                 jmp._ltree = bb._ltree;
@@ -277,12 +277,18 @@ public class Encoding {
         // bld` is true, the `fld < bld` must be false, or else both directions
         // exit the loop... and the IF test would not be in the loop.
 
-        // true to exit a loop usually, keep true if taking an empty backwards branch
-        if( tld < bld ) return  emptyBackBlock(f,bld);
+        // true to exit a loop usually (and false falls into Yet Another Loop
+        // Block), invert if false is taking an empty backwards branch.
+        if( tld < bld ) return  forwardsEmptyScan(f,bld);
         // false to exit a loop, normally invert to true (except empty back)
-        if( fld < bld ) return !emptyBackBlock(t,bld);
+        if( fld < bld ) return !forwardsEmptyScan(t,bld);
 
         // Not exiting the loop; staying at this depth (or going deeper loop).
+
+        // Jump/true to an empty backwards block
+        if( forwardsEmptyScan(t,bld) ) return false;
+        if( forwardsEmptyScan(f,bld) ) return true ;
+
         // Fall/false into a full block, Jump/true to an empty block.
         if( f.nOuts()>1 && t.nOuts()==1 ) return false;
         if( t.nOuts()>1 && f.nOuts()==1 ) return true ;
@@ -290,13 +296,17 @@ public class Encoding {
         return t._pre > f._pre;
     }
 
-    private static boolean emptyBackBlock( CFGNode c, int bld ) {
-        return c.loopDepth()==bld && c.nOuts()==1 && c.uctrl() instanceof LoopNode;
+    // Do we continue forwards from 'c' to the Loop back edge, without doing
+    // anything else?  Then this branch can directly jump to the loop head.
+    private static boolean forwardsEmptyScan( CFGNode c, int bld ) {
+        if( c.nOuts()!=1 || c.loopDepth()!=bld ) return false;
+        return c.uctrl() instanceof RegionNode cfg &&
+            (cfg instanceof LoopNode || forwardsEmptyScan(cfg,bld));
     }
 
     // Is the CFG from "next" to the end empty?  This means jumping to "next"
     // will naturally fall into the end.
-    private static boolean isEmptyBackwardsScan(Ary<CFGNode> rpo, CFGNode next) {
+    private static boolean backwardsEmptyScan(Ary<CFGNode> rpo, CFGNode next) {
         for( int i=rpo._len-1; rpo.at(i)!=next; i-- )
             if( rpo.at(i).nOuts()!=1 )
                 return false;
@@ -449,7 +459,7 @@ public class Encoding {
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
-    public static int SENTINAL_CALLOC = -2;
+    public static int SENTINAL_CALLOC = -4;
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {

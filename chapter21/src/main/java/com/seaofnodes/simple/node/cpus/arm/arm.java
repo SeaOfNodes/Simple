@@ -31,15 +31,15 @@ public class arm extends Machine {
     public static final int D_OFFSET = 32;
 
     static final String[] REGS = new String[] {
-            "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
-            "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
-            "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
-            "X24", "X25", "X26", "X27", "X28", "X29", "RPC", "RSP",
-            "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
-            "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
-            "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
-            "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31",
-            "flags"
+        "X0",  "X1",  "X2",  "X3",  "X4",  "X5",  "X6",  "X7",
+        "X8",  "X9",  "X10", "X11", "X12", "X13", "X14", "X15",
+        "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23",
+        "X24", "X25", "X26", "X27", "X28", "X29", "RPC", "RSP",
+        "D0",  "D1",  "D2",  "D3",  "D4",  "D5",  "D6",  "D7",
+        "D8",  "D9",  "D10", "D11", "D12", "D13", "D14", "D15",
+        "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23",
+        "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31",
+        "flags"
     };
     @Override public String[] regs() { return REGS; }
 
@@ -60,8 +60,6 @@ public class arm extends Machine {
     static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -2L/*skip flags*/);
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
-    //  x30 (LR): Procedure link register, used to return from subroutines.
-    //static final RegMask RPC_MASK = new RegMask(1L << X30);
 
     // Arguments masks
     static final RegMask X0_MASK = new RegMask(X0);
@@ -89,7 +87,6 @@ public class arm extends Machine {
     public static int OPF_OP_ADD   = 0b00_101_0;
     public static int OPI_ADD      = 0b10_010_00100;
 
-    public static int OPI_SUB      = 0b11_010_00100;
     public static int OP_UJMP      = 0b000101;
 
     public static int OP_ADRP      = 0b10000;
@@ -252,16 +249,10 @@ public class arm extends Machine {
         if (val == 0 || val == -1) return -1; // Special cases are not allowed
         int immr = 0;
         // Rotate until we have 0[...]1
-
-        // Rotate until:
-        // The number is negative (MSB is 1)
-        // Or the LSB is not 1
         while (val < 0 || (val & 1)==0) {
-            // circular rotation
             val = (val >>> 63) | (val << 1);
             immr++;
         }
-        // Start by assuming that val might be made of two 32-bit chunks that repeat.
         int size = 32;
         long pattern = val;
         // Is upper half of pattern the same as the lower?
@@ -277,6 +268,29 @@ public class arm extends Machine {
         imms--;
         if (size == 64) return 0x1000 | immr << 6 | imms;
         return (32-size)<<1 | immr << 6 | imms;
+    }
+
+    public static long decodeImm12(int imm12) {
+        int immr = (imm12 >> 6) & 0x3F;
+        int imms = imm12 & 0x3F;
+        int size;
+        if ((imm12 & 0x1000) != 0) {
+            size = 64;
+        } else {
+            size = 31-(imms >> 1);
+            size |= size >> 1;
+            size |= size >> 2;
+            size |= size >> 4;
+            size++;
+            imms &= ~((32-size) << 1);
+        }
+        long val = (2L << imms)-1;
+        while (size < 64) {
+            val |= val << size;
+            size <<= 1;
+        }
+        val = (val >>> immr) | val << (64-immr);
+        return val;
     }
 
     // sh is encoded in opcode
@@ -296,7 +310,6 @@ public class arm extends Machine {
     public static void imm_inst(Encoding enc, Node n,Node n2,  int opcode, int imm12) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n2);
-
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
         enc.add4(body);
     }
@@ -317,6 +330,7 @@ public class arm extends Machine {
     public static void imm_inst_n(Encoding enc, Node n, Node n2, int opcode, int imm13) {
         short self = enc.reg(n);
         short reg1 = enc.reg(n2);
+
         int body = imm_inst_n(opcode, imm13, reg1, self);
         enc.add4(body);
     }
@@ -457,9 +471,8 @@ public class arm extends Machine {
     public static int load_str_imm(int opcode, int imm12, int ptr, int rt) {
         assert 0 <= ptr && ptr < 32;
         assert 0 <= rt &&  rt  < 32;
-        // <pimm>/8.
-        imm12 >>= 3;
-        return (opcode << 22) | (imm12 << 10)  |(ptr << 5) | rt;
+        assert 0 <= imm12 && imm12 <= (1L<<12) && (imm12&3)==0;
+        return (opcode << 22) | ((imm12>>3) << 10)  | (ptr << 5) | rt;
     }
 
     // encoding for vcvt, size is encoded in operand
@@ -532,7 +545,7 @@ public class arm extends Machine {
         delta &= (1L<<26)-1;    // Zero extend
         return (opcode << 26) | delta;
     }
-    // no aligned assert(assert (delta&3)==0;)
+    // no aligned assert
     public static int b_calloc(int opcode, int delta) {
         assert -(1<<26) <= delta && delta < (1<<26);
         delta>>=2;
@@ -675,7 +688,7 @@ public class arm extends Machine {
 
     private Node sub(SubNode sub) {
         return sub.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)
-            ? new SubIARM(sub, (int)(ti.value()))
+            ? new AddIARM(sub, (int)(-ti.value()))
             : new SubARM(sub);
     }
 

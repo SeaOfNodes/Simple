@@ -13,7 +13,7 @@ public class NegARM extends MachConcreteNode implements MachNode {
     }
     @Override public String op() { return "neg"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap()   { return arm.RMASK; }
+    @Override public RegMask outregmap()   { return arm.WMASK; }
     @Override public void encoding( Encoding enc ) {
         // reverse subtract with immediate 0
         arm.imm_inst(enc,this, in(1), 0b00100110, 0);

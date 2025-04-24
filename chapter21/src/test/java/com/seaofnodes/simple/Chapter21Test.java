@@ -73,6 +73,13 @@ public class Chapter21Test {
         TestC.run("stringHash", 9);
     }
 
+    @Test public void testLoop2() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/loop2.smp"));
+        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (inc,Phi(Loop,0,inc));");
+        testCPU(src,"riscv"    , "SystemV",0,"return ( Phi(Loop,0,addi) + #1 );");
+        testCPU(src,"arm"      , "SystemV",0,"return (inc,Phi(Loop,0,inc));");
+    }
+
     @Test public void testNewtonExport() throws IOException {
         String result = """
 0  0.000000   (0)

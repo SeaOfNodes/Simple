@@ -84,7 +84,7 @@ return sqrt(arg) + sqrt(arg+2);
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 6,"return .[];");
-        testCPU(src,"arm"      , "SystemV", 4,"return .[];");
+        testCPU(src,"arm"      , "SystemV", 6,"return .[];");
     }
 
 

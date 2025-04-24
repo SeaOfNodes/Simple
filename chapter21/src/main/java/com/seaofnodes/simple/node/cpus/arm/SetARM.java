@@ -17,7 +17,7 @@ public class SetARM extends MachConcreteNode implements MachNode {
     }
     @Override public String op() { return "set"+_bop; }
     @Override public RegMask regmap(int i) { assert i==1; return arm.FLAGS_MASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
 
     @Override public void encoding( Encoding enc ) {
         int body = arm.cset(arm.OP_CSET,0b11111, arm.make_condition(_bop), 0b011111, enc.reg(this));
