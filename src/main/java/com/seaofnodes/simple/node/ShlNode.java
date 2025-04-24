@@ -38,7 +38,7 @@ public class ShlNode extends LogicalNode {
             if( (shl.value()&63)==0 )
                 return lhs;
             // (x + c) << i  =>  (x << i) + (c << i)
-            if( lhs instanceof AddNode add && add.addDep(this).in(2)._type instanceof TypeInteger c && c.isConstant() ) {
+            if( lhs instanceof AddNode add && addDep(add).in(2)._type instanceof TypeInteger c && c.isConstant() ) {
                 long sum = c.value() << shl.value();
                 if( Integer.MIN_VALUE <= sum  && sum <= Integer.MAX_VALUE )
                     return new AddNode(new ShlNode(_loc,add.in(1),rhs).peephole(), Parser.con(sum) );

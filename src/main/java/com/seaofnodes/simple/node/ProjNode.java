@@ -24,7 +24,7 @@ public class ProjNode extends Node {
     @Override public String label() { return _label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( _label != null )  return sb.append(_label);
         if( in(0) instanceof CallEndNode cend && cend.call()!=null )
             return cend.call()._print0(sb,visited);
@@ -47,7 +47,7 @@ public class ProjNode extends Node {
     @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
 
     @Override
-    boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }
+    public boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }
 
     @Override
     int hash() { return _idx; }

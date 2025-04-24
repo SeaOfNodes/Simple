@@ -21,7 +21,7 @@ public class CallNode extends CFGNode {
 
     @Override public String label() { return "Call"; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         String fname = name();
         if( fname == null ) fptr()._print0(sb,visited);
         else sb.append(fname);
@@ -49,6 +49,10 @@ public class CallNode extends CFGNode {
     public Node fptr() { return _inputs.last(); }
     // Error if not a TFP
     public TypeFunPtr tfp() { return (TypeFunPtr)fptr()._type; }
+
+    // Call is to an externally supplied code
+    public boolean external() { return false; }
+
 
     // Find the Call End from the Call
     public CallEndNode cend() {
@@ -87,6 +91,7 @@ public class CallNode extends CFGNode {
         // Link: call calls target function.  Linking makes the target FunNode
         // point to this Call, and all his Parms point to the call arguments;
         // also the CallEnd points to the Return.
+        Node progress = null;
         if( fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
             // If fidxs is negative, then infinite unknown functions
             long fidxs = tfp.fidxs();
@@ -98,12 +103,12 @@ public class CallNode extends CFGNode {
                     TypeFunPtr tfp0 = tfp.makeFrom(fidx);
                     FunNode fun = CodeGen.CODE.link(tfp0);
                     if( fun!=null && !fun._folding && !linked(fun) )
-                        link(fun);
+                        progress = link(fun);
                 }
             }
         }
 
-        return null;
+        return progress;
     }
 
     // True if Fun is linked to this Call
@@ -116,7 +121,7 @@ public class CallNode extends CFGNode {
 
 
     // Link so this calls fun
-    private void link( FunNode fun ) {
+    private Node link( FunNode fun ) {
         assert !linked(fun);
         fun.addDef(this);
         for( Node use : fun._outputs )
@@ -124,7 +129,7 @@ public class CallNode extends CFGNode {
                 parm.addDef(parm._idx==0 ? new ConstantNode(cend()._rpc).peephole() : arg(parm._idx));
         // Call end points to function return
         CodeGen.CODE.add(cend()).addDef(fun.ret());
-        assert linked(fun);
+        return this;
     }
 
     // Unlink all linked functions
@@ -134,7 +139,7 @@ public class CallNode extends CFGNode {
                 assert linked(fun);
                 int idx = fun._inputs.find(this);
                 for( Node use : fun._outputs )
-                    if( use instanceof ParmNode parm )
+                    if( use instanceof ParmNode )
                         use.delDef(idx);
                 fun.delDef(idx);
                 cend().delDef(cend()._inputs.find(fun.ret()));

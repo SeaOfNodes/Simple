@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeMem;
 
@@ -27,7 +26,7 @@ abstract public class BuildLRG {
                                 break;
                     // If none, make one.
                     if( lrg==null ) lrg = alloc.newLRG(n);
-                    if( phi instanceof MachNode mach ) defLRG(alloc,n);
+                    if( phi instanceof MachNode ) defLRG(alloc,n);
                     // Pass 2: everybody uses the same LRG
                     lrg=alloc.union(lrg,phi);
                     for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
@@ -55,8 +54,8 @@ abstract public class BuildLRG {
                         if( n.in(i)!=null ) {
                             LRG lrg2 = alloc.lrg(n.in(i));
                             if( lrg2 != null ) { // Anti-dep or other, no LRG
-                                RegMask use_mask = mach.regmap(i);
-                                if( !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
+                                RegMask use_mask = mach.regmap(i); // use_mask is also null for anti-dep
+                                if( use_mask!=null && !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
                                     alloc.fail(lrg2); // Empty register mask, must split
                             }
                         }
@@ -64,7 +63,7 @@ abstract public class BuildLRG {
                 }
 
                 // MultiNodes have projections which set registers
-                if( n instanceof MultiNode )
+                if( n instanceof MultiNode && !(n instanceof CFGNode) )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )
                             defLRG(alloc,proj);

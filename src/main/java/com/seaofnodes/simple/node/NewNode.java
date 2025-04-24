@@ -1,7 +1,9 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
 /**
@@ -39,7 +41,7 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("new ");
         return sb.append(_ptr._obj.str());
     }
@@ -76,8 +78,42 @@ public class NewNode extends Node implements MultiNode {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) { return this == n; }
+    public boolean eq(Node n) { return this == n; }
 
     @Override
     int hash() { return _ptr.hashCode(); }
+
+    // ------------
+    // MachNode specifics, shared across all CPUs
+    public int _arg2Reg, _xslot;
+    private RegMask _arg3Mask;
+    private RegMask _retMask;
+    private RegMask _kills;
+    public void cacheRegs(CodeGen code) {
+        _arg2Reg  = code._mach.callArgMask(TypeFunPtr.CALLOC,2,0).firstReg();
+        _arg3Mask = code._mach.callArgMask(TypeFunPtr.CALLOC,3,0);
+        // Return mask depends on TFP (either GPR or FPR)
+        _retMask = code._mach.retMask(TypeFunPtr.CALLOC);
+        // Kill mask is all caller-saves, and any mirror stack slots for args
+        // in registers.
+        RegMaskRW kills = code._callerSave.copy();
+        // Start of stack slots
+        int maxReg = code._mach.regs().length;
+        // Incoming function arg slots, all low numbered in the RA
+        int fslot = cfg0().fun()._maxArgSlot;
+        // Killed slots for this calls outgoing args
+        int xslot = code._mach.maxArgSlot(TypeFunPtr.CALLOC);
+        _xslot = (maxReg+fslot)+xslot;
+        for( int i=0; i<xslot; i++ )
+            kills.set((maxReg+fslot)+i);
+        _kills = kills;
+    }
+    public String op() { return "alloc"; }
+    public RegMask regmap(int i) { return i==1 ? _arg3Mask : null; }
+    public RegMask outregmap() { return null; }
+    public RegMask outregmap(int idx) { return idx==1  ? _retMask : null; }
+    public RegMask killmap() { return _kills; }
+    public void asm(CodeGen code, SB sb) {
+        sb.p("#calloc, ").p(code.reg(size()));
+    }
 }

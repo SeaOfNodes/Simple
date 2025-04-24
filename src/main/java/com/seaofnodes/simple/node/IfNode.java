@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
-import java.util.HashSet;
 
 public class IfNode extends CFGNode implements MultiNode {
 
@@ -20,7 +19,9 @@ public class IfNode extends CFGNode implements MultiNode {
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("if( ");
-        return in(1)._print0(sb, visited).append(" )");
+        if( in(1)==null ) sb.append("never");
+        else in(1)._print0(sb, visited);
+        return sb.append(" )");
     }
 
     public Node ctrl() { return in(0); }
@@ -57,11 +58,40 @@ public class IfNode extends CFGNode implements MultiNode {
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
             for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
-                if( dom.addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==pred() && prior instanceof CProjNode prj ) {
+                if( addDep(dom) instanceof IfNode iff && addDep(iff.pred())==pred() && prior instanceof CProjNode prj ) {
                     setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }
         return null;
     }
 
+    // MachNode variants need to support this and negate the conditional test.
+    // The following CProjs will be inverted by the caller.
+    public void negate() { throw Utils.TODO(); }
+
+    // Negate the sense of a test
+    public static String negate( String bop ) {
+        return switch( bop ) {
+        case "<"  -> ">=";
+        case "<=" -> ">" ;
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">"  -> "<=";
+        case ">=" -> "<" ;
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Swap compare operands
+    public static String swap( String bop ) {
+        return switch( bop ) {
+        case "<"  -> ">" ;
+        case "<=" -> ">=";
+        case "==" -> "!=";
+        case "!=" -> "==";
+        case ">"  -> "<" ;
+        case ">=" -> "<=";
+        default -> throw Utils.TODO();
+        };
+    }
 }

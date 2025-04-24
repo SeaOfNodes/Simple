@@ -1,0 +1,11 @@
+// -*- mode: java;  -*-
+struct S { int f; };
+var v0 = new S;
+S? v1;
+if (arg) v1 = new S;
+if (v1) {
+    v0.f = v1.f;
+} else {
+    v0.f = 2;
+}
+return v0;
