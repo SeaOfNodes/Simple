@@ -14,7 +14,7 @@ public class PhiNode extends Node {
     final Type _declaredType;
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
-    public PhiNode(PhiNode phi, String label, Type declaredType) { super(phi); _label = label; _declaredType = declaredType; }
+    public PhiNode(PhiNode phi, String label, Type declaredType) { super(phi); _label = label; _type = _declaredType = declaredType; }
     public PhiNode(PhiNode phi) { super(phi); _label = phi._label; _declaredType = phi._declaredType;  }
 
     public PhiNode(RegionNode r, Node sample) {
@@ -54,7 +54,7 @@ public class PhiNode extends Node {
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( r.in(i).addDep(this)._type != Type.XCONTROL )
+            if( addDep(r.in(i))._type != Type.XCONTROL )
                 t = t.meet(in(i)._type);
         return t;
     }
@@ -82,8 +82,8 @@ public class PhiNode extends Node {
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
-            if( in(1) instanceof CastNode cast && cast.in(1).addDep(this)==in(2) ) return in(2);
-            if( in(2) instanceof CastNode cast && cast.in(1).addDep(this)==in(1) ) return in(1);
+            if( in(1) instanceof CastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
+            if( in(2) instanceof CastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
         }
         // If merging a null-checked null and the checked value, just use the value.
         // if( val ) ..; phi(Region,False=0/null,True=val);
@@ -96,7 +96,7 @@ public class PhiNode extends Node {
                 Node val = in(3-nullx);
                 if( val instanceof CastNode cast )
                     val = cast.in(1);
-                if( r.idom(this).addDep(this) instanceof IfNode iff && iff.pred().addDep(this)==val ) {
+                if( addDep(r.idom(this)) instanceof IfNode iff && addDep(iff.pred())==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
@@ -109,6 +109,8 @@ public class PhiNode extends Node {
         return null;
     }
 
+    // Same op on all Phi paths; all ops have only the Phi as a use.
+    // None have a control input.
     private boolean same_op() {
         Node op = in(1);
         if( op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
@@ -121,22 +123,22 @@ public class PhiNode extends Node {
         if( op instanceof MemOpNode )
             for( Node use : region()._outputs )
                 if( use instanceof BulkMemPhiNode ) {
-                    use.addDepForwards(this);
+                    addDepForwards(use);
                     return false;
                 }
         Node busy = null;
         for( int i=1; i<nIns(); i++ ) {
             Node n = in(i);
-            if( region().in(i).addDep(this)._type==Type.XCONTROL ||
+            if( addDep(region().in(i))._type==Type.XCONTROL ||
                 op.getClass()!=n.getClass() || n.nIns()!=op.nIns() || n.in(0)!=null || !op.eq(n) ) return false;
             if( n instanceof MemOpNode mem && !mem.canDrop((MemOpNode)op,this) ) return false;
             // Moving a Store must remove the old effect, not duplicate it.
             // Allow one shared arm: the other arms disappear into the single
             // factored operation, usually reducing the total operation count.
-            n.addDepForwards(this);
+            addDepForwards(n);
             if( n.nOuts()>1 ) {
                 for( Node use : n._outputs )
-                    if( use!=null && use!=this ) use.addDepForwards(this);
+                    if( use!=null && use!=this ) addDepForwards(use);
                 if( n instanceof StoreNode || busy!=null ) return false;
                 busy=n;
             }
@@ -174,7 +176,7 @@ public class PhiNode extends Node {
         if( cp.compute().isa(compute()) ) return cp;
         for( int i=1; i<nIns(); i++ )
             for( int j=1; j<in(i).nIns(); j++ )
-                if( in(i).in(j)!=null ) in(i).in(j).addDep(this);
+                if( in(i).in(j)!=null ) addDep(in(i).in(j));
         cp.kill();
         return null;
     }
@@ -189,7 +191,7 @@ public class PhiNode extends Node {
         for( int i=1; i<nIns(); i++ ) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( region().in(i).addDep(this)._type != Type.XCONTROL && in(i) != this )
+            if( addDep(region().in(i))._type != Type.XCONTROL && in(i) != this )
                 if( live == null || live == in(i) ) live = in(i);
                 else return null;
         }
@@ -201,7 +203,7 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) ) return false;
         // When the region completes (is no longer in progress) the Phi can
         // become a "all constants" Phi, and the "dep" might make progress.
-        addDep(dep);
+        dep.addDep(this);
         if( r.inProgress() ) return false;
         return super.allCons(dep);
     }
@@ -212,7 +214,7 @@ public class PhiNode extends Node {
     }
 
     // Never equal if inProgress
-    @Override boolean eq( Node n ) {
+    @Override public boolean eq( Node n ) {
         return !inProgress();
     }
 

@@ -1,32 +1,23 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.CallNode;
 import com.seaofnodes.simple.node.MachNode;
-import java.io.ByteArrayOutputStream;
 
 public class CallRX86 extends CallNode implements MachNode {
     CallRX86( CallNode call ) { super(call); }
-
+    @Override public String op() { return "callr"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
         return i==_inputs._len
             ? x86_64_v2.WMASK          // Function call target
-            : x86_64_v2.callInMask(tfp(),i); // Normal argument
+            : x86_64_v2.callInMask(tfp(),i,fun()._maxArgSlot); // Normal argument
     }
     @Override public RegMask outregmap() { return null; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        bytes.write(0xe8);
-        int beforeSize = bytes.size();
-        // address
-        //TODO: relocs
-        bytes.write(0x00);
-        return bytes.size() - beforeSize;
+    @Override public void encoding( Encoding enc ) {
+        X86.callRegister(enc,enc.reg(fptr()));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -36,5 +27,4 @@ public class CallRX86 extends CallNode implements MachNode {
         sb.unchar(2);
     }
 
-    @Override public String op() { return "callr"; }
 }

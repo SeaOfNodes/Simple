@@ -53,6 +53,7 @@ public class IterPeeps {
         _workInline = new WorkList<>(seed);
     }
 
+    @SuppressWarnings("unchecked")
     public <N extends Node> N add( N n ) { return (N)_work.push(n); }
 
     public void addAll( Ary<Node> ary ) { _work.addAll(ary); }
@@ -147,6 +148,7 @@ public class IterPeeps {
      * Classic WorkList, with a fast add/remove, dup removal, random pull.
      * The Node's nid is used to check membership in the worklist.
      */
+    @SuppressWarnings("unchecked")
     public static class WorkList<E extends Node> {
 
         private Node[] _es;
