@@ -19,7 +19,7 @@ abstract public class IFG {
     static final IdentityHashMap<LRG,Node> TMP = new IdentityHashMap<>();
 
     // Inteference Graph: Array of Bitsets
-    private static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
+    static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
     static void resetIFG() {
         for( BitSet bs : IFG )
             if( bs!=null ) bs.clear();
@@ -79,6 +79,8 @@ abstract public class IFG {
         while( !WORK.isEmpty() )
             do_block(round,alloc,WORK.pop());
 
+        if( alloc.success() )
+            convert2DAdjacency(alloc);
         return alloc.success();
     }
 
@@ -125,18 +127,18 @@ abstract public class IFG {
             TMP.remove(lrg);    // Kill def
         }
 
+        // Phis use and define the same live range, i.e. these LRGs already
+        // marked conflicted, no need to mark again
         if( n instanceof PhiNode )
             return;
-        // A copy does not define a new value, and the src and dst can use the
-        // same register.  Remove the input from TMP/liveout set before
-        // interfering.
-        //if( n instanceof MachNode m && m.isSplit() )
-        //    TMP.remove(alloc.lrg(n.in(1))); // Kill spill-use
+
+        // Kill any killed registers; milli-code routines like New can kill
+        // will not being a CFG.
+        if( n instanceof MachNode m )
+            kills(alloc,m);
 
         // Interfere n with all live
         if( lrg!=null ) {
-            if( n instanceof MachNode m )
-                kills(alloc,m);
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
                 assert tlrg.leader();
@@ -148,9 +150,10 @@ abstract public class IFG {
                     // last tlrg register at some point, either tlrg or lrg
                     // must fail.  If *n* (a subset of lrg) needs the single
                     // last tlrg register then only tlrg must fail.
-                    if( lrg.size1() && !tlrg.clr(lrg._mask.firstReg()) )
-                        alloc.fail(tlrg);
-                    else addIFG(lrg,tlrg); // Add interference
+                    if( ((MachNode)n).outregmap().size1() ) {
+                        if( !tlrg.clr(lrg._mask.firstReg()) ) // Clear bit, no interference
+                            alloc.fail(tlrg);                 // Clearing drives mask to empty
+                    } else addIFG(lrg,tlrg); // Add interference
             }
         }
 
@@ -171,7 +174,7 @@ abstract public class IFG {
             // Look for a must-use single register conflicting with some other must-def.
             if( n instanceof MachNode m ) {
                 RegMask ni_mask = m.regmap(i);
-                if( ni_mask.size1() ) { // Must-use single register
+                if( ni_mask!=null && ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
                         assert tlrg.leader();
@@ -207,12 +210,17 @@ abstract public class IFG {
                 // Disallow clone-ables from killing registers.  Just fail
                 // them and re-clone closer to target... so no kill.
                 // Special case for Intel XOR used to zero.
-                if( m.isClone() )
+                Node n = (Node)m;
+                CFGNode effUseBlk = n.out(0) instanceof PhiNode phi ? phi.region().cfg(phi._inputs.find(n)) : n.out(0).cfg0();
+                if( m.isClone() &&  // Must be clonable
+                    (n.nOuts()>1 || // Has many users OR
+                     // Only 1 user but effective use is remote block
+                     effUseBlk != n.cfg0() ))
+                    // Then fail the clonable; it should split or move
                     alloc.fail(alloc.lrg((Node)m));
-                else if( !tlrg.sub(killMask) ) {
-                    tlrg._killed = true; // Failed by a kill-mask
+                // Else clonable cannot move
+                else if( !tlrg.sub(killMask) )
                     alloc.fail(tlrg);
-                }
             }
         }
     }
@@ -234,14 +242,12 @@ abstract public class IFG {
     private static void mergeLiveOut( RegAlloc alloc, CFGNode priorbb, int i ) {
         CFGNode bb = priorbb.cfg(i);
         if( bb == null ) return; // Start has no prior
-        if( !bb.blockHead() ) bb = bb.cfg0();
-        //if( i==0 && !(bb instanceof StartNode) ) bb = bb.cfg0();
-        assert bb.blockHead();
+        while( !bb.blockHead() ) bb = bb.cfg0();
 
         // Lazy get live-out set for bb
-      IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
+        IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
 
-      for( LRG lrg : TMP.keySet() ) {
+        for( LRG lrg : TMP.keySet() ) {
             Node def = TMP.get(lrg);
             // Effective def comes from phi input from prior block
             if( def instanceof PhiNode phi && phi.cfg0()==priorbb ) {
@@ -255,6 +261,24 @@ abstract public class IFG {
             } else {
                 // Alive twice with different definitions; self-conflict
                 selfConflict(alloc,def,lrg,def_bb);
+            }
+        }
+    }
+
+
+    static void convert2DAdjacency( RegAlloc alloc ) {
+        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
+        // adjacency matrix.
+        int maxlrg = alloc._LRGS.length;
+        for( int i=1; i<maxlrg; i++ ) {
+            BitSet ifg = IFG.atX(i);
+            if( ifg != null ) {
+                LRG lrg0 = alloc._LRGS[i];
+                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
+                    LRG lrg1 = alloc._LRGS[lrg];
+                    lrg0.addNeighbor(lrg1);
+                    lrg1.addNeighbor(lrg0);
+                }
             }
         }
     }
@@ -276,22 +300,10 @@ abstract public class IFG {
     // If there's no spare color we'll have to spill this at-risk live range.
 
     public static boolean color(int round, RegAlloc alloc) {
-
-        // Convert the 2-D array of bits (a 1-D array of BitSets) into an
-        // adjacency matrix.
         int maxlrg = alloc._LRGS.length, nlrgs=0;
-        for( int i=1; i<maxlrg; i++ ) {
-            if( alloc._LRGS[i] != null ) nlrgs++;
-            BitSet ifg = IFG.atX(i);
-            if( ifg != null ) {
-                LRG lrg0 = alloc._LRGS[i];
-                for( int lrg = ifg.nextSetBit(0); lrg>=0; lrg=ifg.nextSetBit(lrg+1) ) {
-                    LRG lrg1 = alloc._LRGS[lrg];
-                    lrg0.addNeighbor(lrg1);
-                    lrg1.addNeighbor(lrg0);
-                }
-            }
-        }
+        for( int i=1; i<maxlrg; i++ )
+            if( alloc._LRGS[i] != null )
+                nlrgs++;
 
         // Simplify
 
@@ -407,7 +419,7 @@ abstract public class IFG {
         int best=sptr;
         int bestScore = pickRiskyScore(color_stack[best]);
         for( int i=sptr+1; i<color_stack.length; i++ ) {
-            if( bestScore == 999999 ) return best; // Already max score
+            if( bestScore == 1000000 ) return best; // Already max score
             int iScore = pickRiskyScore(color_stack[i]);
             if( iScore > bestScore )
                 { best = i; bestScore = iScore; }
@@ -424,13 +436,25 @@ abstract public class IFG {
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
     private static int pickRiskyScore( LRG lrg ) {
+        // Pick single-def clonables that are not right next to their single-use.
+        // Failing to color these will clone them closer to their uses.
+        if( !lrg._multiDef && lrg._machDef.isClone() ) {
+            Node def = ((Node)lrg._machDef);
+            Node use = ((Node)lrg._machUse);
+            CFGNode cfg = def.cfg0();
+            if( cfg != use.cfg0() || // Different blocks OR
+              // Same block, but not close
+              cfg._outputs.find(def) < cfg._outputs.find(use)+1 )
+                return 1000000;
+        }
+
         // Always pick callee-save registers as being very large area recovered
         // and very cheap to spill.
         if( lrg._machDef instanceof CalleeSaveNode )
-            return 999998;
-        if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
+            return 1000000-2-lrg._mask.firstReg();
+        if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
-            return 999999;
+            return 1000000-1;
 
         // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
         // and "area" for benefit
@@ -441,35 +465,39 @@ abstract public class IFG {
         if( mask.size1() ) return reg;
         // Check chain of splits up the def-chain.  Take first allocated
         // register, and if it's available in the mask, take it.
-        Node defSplit = lrg._splitDef, useSplit = lrg._splitUse;
-        int tidx, cnt=0;
+        Node def = lrg._splitDef, use = lrg._splitUse;
+        int tidx=0, cnt=0;
 
-        while( (tidx=biasable(defSplit)) != 0 || biasable(useSplit) != 0 ) {
+        while( def != null || use != null ) {
             if( cnt++ > 10 ) break;
 
-            if( tidx != 0 ) {
-                short bias = biasColor( alloc, defSplit, mask );
+            if( def != null ) {
+                short bias = biasColor( alloc, def, mask );
                 if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) defSplit = null; // Kill this side, no more searching
-            } else defSplit = null;
-
-            if( biasable(useSplit) != 0 ) {
-                short bias = biasColor( alloc, useSplit, mask );
-                if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) useSplit = null; // Kill this side, no more searching
-            } else useSplit = null;
-
-            if( defSplit != null ) {
-                short bias = biasColorNeighbors( alloc, defSplit, mask );
-                if( bias >= 0 ) return bias;
-                // Advance def side
-                defSplit = defSplit.in(tidx);
+                if( bias == -2 ) def = null; // Kill this side, no more searching
+                else if( (tidx=biasable(def)) == 0 ) def = null;
             }
 
-            if( useSplit != null ) {
-                short bias = biasColorNeighbors( alloc, useSplit, mask );
+            if( use != null ) {
+                short bias = biasColor( alloc, use, mask );
+                if( bias >= 0 ) return bias; // Good bias
+                if( bias == -2 ) use = null; // Kill this side, no more searching
+                else if( biasable(use)==0 ) use = null;
+            }
+
+            if( def != null ) {
+                short bias = biasColorNeighbors( alloc, def, mask );
                 if( bias >= 0 ) return bias;
-                useSplit = useSplit.out(0);
+                // Advance def side
+                def = def.in(tidx);
+                if( alloc.lrg(def)==null ) def=null;
+            }
+
+            if( use != null ) {
+                short bias = biasColorNeighbors( alloc, use, mask );
+                if( bias >= 0 ) return bias;
+                use = use.out(0);
+                if( biasable(use)==0 ) use=null;
             }
 
         }
@@ -478,7 +506,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode ) return 1;   // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Yes biasable, advance is slot 1
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }
@@ -503,7 +531,7 @@ abstract public class IFG {
 
         // Can I limit my own choices to valid neighbor choices?
         for( LRG alrg : slrg._adj ) {
-            int reg = alrg._reg;
+            short reg = alrg._reg;
             if( reg == -1 && alrg._mask.size1() )
                 reg = alrg._mask.firstReg();
             if( reg != -1 ) {

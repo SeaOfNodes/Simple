@@ -16,14 +16,14 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node {
+public abstract class Node implements Cloneable {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
      * The ID is useful for debugging, for using as an offset in a bitvector,
      * as well as for computing equality of nodes (to be implemented later).
      */
-    public final int _nid;
+    public int _nid;
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -32,7 +32,7 @@ public abstract class Node {
      * Ordering is required because e.g. "a/b" is different from "b/a".
      * The first input (offset 0) is often a {@link CFGNode} node.
      */
-    public final Ary<Node> _inputs;
+    public Ary<Node> _inputs;
 
     /**
      * Outputs reference Nodes that are not null and have this Node as an
@@ -43,7 +43,7 @@ public abstract class Node {
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
      */
-    public final Ary<Node> _outputs;
+    public Ary<Node> _outputs;
 
 
     /**
@@ -120,7 +120,7 @@ public abstract class Node {
             : _print1(sb, visited);
     }
     // Every Node implements this; a partial-line recursive print
-    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
+    abstract public StringBuilder _print1(StringBuilder sb, BitSet visited);
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
@@ -226,6 +226,7 @@ public abstract class Node {
     }
 
     // Breaks the edge invariants, used temporarily
+    @SuppressWarnings("unchecked")
     protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
@@ -267,6 +268,15 @@ public abstract class Node {
         assert isDead();        // Really dead now
     }
 
+    // Preserve CFG use-ordering when killing
+    public void killOrdered() {
+        CFGNode cfg = cfg0();
+        cfg._outputs.remove(cfg._outputs.find(this));
+        _inputs.set(0,null);
+        kill();
+    }
+
+
     // Mostly used for asserts and printing.
     public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
@@ -274,6 +284,7 @@ public abstract class Node {
     // Add bogus null use to keep node alive
     public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
+    @SuppressWarnings("unchecked")
     public <N extends Node> N unkeep() {
         delUse(null);
         return (N)this;
@@ -300,9 +311,8 @@ public abstract class Node {
         kill();
     }
 
-    // Replace uses of `def` with `this`, and insert `this` immediately after
-    // `def` in the basic block.
-    public void insertAfter( Node def, boolean must ) {
+    // insert `this` immediately after `def` in the same basic block.
+    public void insertAfter( Node def ) {
         CFGNode cfg = def.cfg0();
         int i = cfg._outputs.find(def)+1;
         if( cfg instanceof CallEndNode ) {
@@ -315,19 +325,6 @@ public abstract class Node {
         while( cfg.out(i) instanceof PhiNode || cfg.out(i) instanceof CalleeSaveNode )  i++;
         cfg._outputs.insert(this,i);
         _inputs.set(0,cfg);
-        for( int j=def.nOuts()-1; j>=0; j-- ) {
-            // Can we avoid a split of a split?  'this' split is used by
-            // another split in the same block.
-            if( !must && def.out(j) instanceof SplitNode split && def.out(j).cfg0()==cfg &&
-                !split._kind.contains("self") )
-                continue;
-            Node use = def._outputs.del(j);
-            use.unlock();
-            int idx = use._inputs.find(def);
-            use._inputs.set(idx,this);
-            addUse(use);
-        }
-        if( nIns()>1 ) setDef(1,def);
     }
 
     // Insert this in front of use.in(uidx) with this, and insert this
@@ -337,6 +334,8 @@ public abstract class Node {
         int i;
         if( use instanceof PhiNode phi ) {
             cfg = phi.region().cfg(uidx);
+            if( cfg instanceof CProjNode && cfg.in(0) instanceof NeverNode nvr )
+                cfg = nvr.cfg0();
             i = cfg.nOuts()-1;
         } else {
             i = cfg._outputs.find(use);
@@ -348,7 +347,7 @@ public abstract class Node {
         use.setDefOrdered(uidx,this);
     }
 
-    public void setDefOrdered(int idx, Node def) {
+    public void setDefOrdered( int idx, Node def) {
         // If old is dying, remove from CFG ordered
         Node old = in(idx);
         if( old!=null && old.nOuts()==1 ) {
@@ -487,6 +486,7 @@ public abstract class Node {
         return old;
     }
 
+    @SuppressWarnings("unchecked")
     public <N extends Node> N init() { _type = compute(); return (N)this; }
 
     /**
@@ -549,17 +549,16 @@ public abstract class Node {
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
-    Node addDep( Node dep ) {
+    <N extends Node> N addDep( N dep ) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
-        if( CODE._midAssert ) return this;
-        if( dep == null ) return this;
-        if( _deps==null ) _deps = new Ary<>(Node.class);
-        if( _deps   .find(dep) != -1 ) return this; // Already on list
-        if( _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( _outputs.find(dep) != -1 ) return this;
-        _deps.add(dep);
-        return this;
+        if( CODE._midAssert ) return dep;
+        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
+        if( dep._deps   .find(this) != -1 ) return dep; // Already on list
+        if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
+        if( dep._outputs.find(this) != -1 ) return dep;
+        dep._deps.add(this);
+        return dep;
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
@@ -585,7 +584,7 @@ public abstract class Node {
     }
     // Subclasses add extra checks (such as ConstantNodes have same constant),
     // and can assume "this!=n" and has the same Java class.
-    boolean eq( Node n ) { return true; }
+    public boolean eq( Node n ) { return true; }
 
 
     // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
@@ -667,7 +666,7 @@ public abstract class Node {
     boolean allCons(Node dep) {
         for( int i=1; i<nIns(); i++ )
             if( !(in(i)._type.isConstant()) ) {
-                in(i).addDep(dep); // If in(i) becomes a constant later, will trigger some peephole
+                dep.addDep(in(i)); // If in(i) becomes a constant later, will trigger some peephole
                 return false;
             }
         return true;
@@ -678,6 +677,18 @@ public abstract class Node {
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
+
+    public Node copy() {
+        Node n;
+        try { n = (Node)clone(); }
+        catch( Exception e ) { throw new RuntimeException(e); }
+        n._nid = CODE.getUID(); // allocate unique dense ID
+        n._inputs  = new Ary<>(Node.class);
+        n._outputs = new Ary<>(Node.class);
+        n._deps = null;
+        n._hash = 0;
+        return n;
+    }
 
     // Report any post-optimize errors
     public Parser.ParseException err() { return null; }

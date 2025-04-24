@@ -19,7 +19,7 @@ public class FRefNode extends ConstantNode {
 
     @Override public String uniqueName() { return "FRef_" + _nid; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append("FRef_").append(_n);
     }
 
@@ -30,6 +30,6 @@ public class FRefNode extends ConstantNode {
 
     public Parser.ParseException err() { return Parser.error("Undefined name '"+_n._name+"'",_n._loc); }
 
-    @Override boolean eq(Node n) { return this==n; }
+    @Override public boolean eq(Node n) { return this==n; }
     @Override int hash() { return _n._idx; }
 }

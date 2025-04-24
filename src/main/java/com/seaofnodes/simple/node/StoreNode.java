@@ -20,7 +20,7 @@ public class StoreNode extends MemOpNode {
      * @param value Value to be stored
      */
     public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(loc, name, alias, glb, mem, ptr, off, value);
+        super(loc, name, alias, false, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -33,7 +33,7 @@ public class StoreNode extends MemOpNode {
     public Node val() { return in(4); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append(".").append(_name).append("=").append( val()).append(";");
     }
 
@@ -84,6 +84,11 @@ public class StoreNode extends MemOpNode {
             }
         }
 
+        // Store of zero after alloc
+        if( mem() instanceof ProjNode prj && prj.in(0) instanceof NewNode &&
+            prj.in(0)==ptr().in(0) &&  // Same NewNode memory & pointer
+            (val()._type==TypeInteger.ZERO || val()._type==Type.NIL ) )
+            return mem();
 
         return null;
     }
@@ -95,7 +100,7 @@ public class StoreNode extends MemOpNode {
         // when the other uses go away we can retry.
         for( Node use : mem._outputs )
             if( use != this )
-                use.addDep(this);
+                addDep(use);
         return false;
     }
 
@@ -106,7 +111,7 @@ public class StoreNode extends MemOpNode {
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
-        Type t = val()._type;
+        //Type t = val()._type;
         //return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
         return null;
     }
