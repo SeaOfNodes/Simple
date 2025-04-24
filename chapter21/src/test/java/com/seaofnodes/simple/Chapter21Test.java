@@ -192,6 +192,22 @@ public class Chapter21Test {
         assertEquals( 5+0,R5.ld8(p0));
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
+
+        EvalArm64 A5 = TestArm64.build("person", ps, 0, false);
+        A5.regs[arm.X1] = 1;  // Index 1
+        A5.st4(ps, 3);
+        A5.st8(ps+1*8,p0);
+        A5.st8(ps+2*8,p1);
+        A5.st8(ps+3*8,p2);
+        A5.st8(p0, 5); // age= 5
+        A5.st8(p1,17); // age=17
+        A5.st8(p2,60); // age=60
+
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+        assertEquals( 5+0, A5.ld8(p0));
+        assertEquals(17+1, A5.ld8(p1));
+        assertEquals(60+0, A5.ld8(p2));
     }
 
     @Test public void testArgCount() throws IOException {
