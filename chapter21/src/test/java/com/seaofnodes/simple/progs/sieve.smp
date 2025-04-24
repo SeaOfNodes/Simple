@@ -1,6 +1,6 @@
 // -*- mode: java;  -*-
-// The main Sieve array
 val sieve = { int N ->
+    // The main Sieve array
     bool[] !ary = new bool[N];
     // The primes less than N
     u32[] !primes = new u32[N>>1];

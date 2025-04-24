@@ -459,7 +459,7 @@ public class Encoding {
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
-    public static int SENTINAL_CALLOC = -2;
+    public static int SENTINAL_CALLOC = -4;
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
@@ -471,13 +471,5 @@ public class Encoding {
             };
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
         }
-    }
-
-    String printCFG() {
-        if( _code._cfg==null ) return "no CFG";
-        SB sb = new SB();
-        for( CFGNode cfg : _code._cfg )
-            IRPrinter.printLine(cfg,sb);
-        return sb.toString();
     }
 }

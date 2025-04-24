@@ -10,12 +10,16 @@ public class NewX86 extends NewNode implements MachNode {
     NewX86( NewNode nnn ) { super(nnn); }
     @Override public void encoding( Encoding enc ) {
         enc.external(this,"calloc");
-        // This has to call the *native* ABI, regardless of how Simple is
-        // being compiled, because it links against the native calloc.
         // ldi rcx,#1 // number of elements to calloc
         enc.add1(0xB8 + _arg2Reg).add4(1);
         // E8 cd    CALL rel32;
         enc.add1(0xE8);
         enc.add4(0);            // offset
     }
+    // General form: "alloc #bytes  PC"
+    @Override public void asm(CodeGen code, SB sb) {
+        sb.p("ldi   rcx = #1\n");
+        sb.p("call  #calloc");
+    }
+
 }

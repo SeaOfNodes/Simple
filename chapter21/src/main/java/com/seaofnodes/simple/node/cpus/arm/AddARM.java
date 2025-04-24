@@ -8,7 +8,7 @@ public class AddARM extends MachConcreteNode implements MachNode {
     AddARM( Node add) { super(add); }
     @Override public String op() { return "add"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
 
     // ADD (shifted register)
     @Override public void encoding( Encoding enc ) { arm.r_reg(enc,this,arm.OP_ADD); }

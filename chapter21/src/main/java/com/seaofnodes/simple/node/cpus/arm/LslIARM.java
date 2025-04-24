@@ -17,7 +17,7 @@ public class LslIARM extends MachConcreteNode implements MachNode {
     }
     @Override public String op() { return "lsli"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
     @Override public void encoding( Encoding enc ) {
         short rd = enc.reg(this);
         short rn = enc.reg(in(1));

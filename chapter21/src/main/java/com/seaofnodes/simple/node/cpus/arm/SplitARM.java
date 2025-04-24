@@ -27,7 +27,7 @@ public class SplitARM extends SplitNode {
             }
             int off = enc._fun.computeStackOffset(enc._code,dst);
             if( srcX ) src -= arm.D_OFFSET;
-            enc.add4(arm.load_str_imm(arm.OP_STORE_IMM, off, arm.RSP, src));
+            enc.add4(arm.load_str_imm(arm.OP_STORE_IMM_64, off, arm.RSP, src, 8));
             return;
         }
 
@@ -35,7 +35,7 @@ public class SplitARM extends SplitNode {
             // Load from SP
             int off = enc._fun.computeStackOffset(enc._code,src);
             if( dstX ) dst -= arm.D_OFFSET;
-            enc.add4(arm.load_str_imm(arm.OP_LOAD_IMM, off, arm.RSP, dst));
+            enc.add4(arm.load_str_imm(arm.OP_LOAD_IMM_64, off, arm.RSP, dst, 8));
             return;
         }
 

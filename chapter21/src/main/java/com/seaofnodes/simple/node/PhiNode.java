@@ -122,7 +122,9 @@ public class PhiNode extends Node {
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
-                for( Node out : op._outputs ) if( out!=null ) addDep(out);
+                for( Node out : op._outputs )
+                    if( out!=null && out!=this )
+                        addDep(out);
                 return false;
             }
         }
