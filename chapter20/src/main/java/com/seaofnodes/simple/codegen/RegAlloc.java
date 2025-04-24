@@ -123,7 +123,7 @@ public class RegAlloc {
     }
 
 
-    public int regnum( Node n ) {
+    public short regnum( Node n ) {
         LRG lrg = lrg(n);
         return lrg==null ? -1 : lrg._reg;
     }

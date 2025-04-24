@@ -170,12 +170,11 @@ public abstract class CFGNode extends Node {
         return pre;
     }
 
-    boolean skip(CFGNode usecfg) {
+    private boolean skip(CFGNode usecfg) {
         // Only walk control users that are alive.
         // Do not walk from a Call to linked Fun's.
         return usecfg instanceof XCtrlNode ||
                 (this instanceof CallNode && usecfg instanceof FunNode) ||
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
     }
-
 }

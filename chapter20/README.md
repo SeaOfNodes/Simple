@@ -11,12 +11,28 @@ Chaitin's original: https://en.wikipedia.org/wiki/Register_allocation#CITEREFCha
 
 Briggs additions: https://dl.acm.org/doi/10.1145/177492.177575
 
-There are several other useful link that can be found by searching for Briggs
+Nice lecture slides pdf of Briggs/Chaitin: https://aktemur.github.io/cs544/lectures/chapter%2013%20registerAllocation.pdf
+
+There are several other useful links that can be found by searching for Briggs
 or Chaitin in combination.  Basically there was a spate of register allocation
 improvements in this era that made it into many high-end mainstream compilers.
 
 I've included a very old unpublished paper on speeding up graph coloring
 allocators: [Interference Graph Triming](docs/ifg_trim.pdf).
+
+
+## Meta-Issues / Code-Dev Issues of Instruction Selection, Register Allocation and Encodings
+
+The output of Register Allocation - an allocation of registers to ops - is
+difficult to test in bulk without an execution strategy.  We won't have an
+execution stratgy until all three of Instruction Selection, Register Allocation
+and Encodings are done.  Hence in and around the completion of Encoding we
+expect to find lots of bugs in Instruction Selection and Register Allocation.
+We certainly hand-inspect the output and fix obvious problems, but still lots
+bugs linger until we can actually run the code.
+
+This means that other chapters have updates and bug-fixes to the work being
+described here.
 
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter20) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter19...linear-chapter20) it to the previous chapter.
@@ -48,7 +64,7 @@ allocation quality becomes heavily dependent on splitting and coloring
 heuristics.
 
 Hence, much of the "high theory" will be used to drive the core coloring
-algorithm, but much of the "actual success" will depend on a large collection
+algorithm, but much of the actual success will depend on a large collection
 of heuristics.
 
 ### Coloring Rounds
@@ -72,8 +88,8 @@ Coloring proceeds in rounds until we get a coloring:
   also have a set of reaching defs per-block.
   
 - Color the interference graph.  Nodes (live ranges) in the graph which are
-  strictly low degree (more available registers than neighbors) will guaranteed
-  get a color.  These can be removed from the graph - since they will
+  strictly low degree (more available registers than neighbors) are guaranteed
+  to get a color.  These can be removed from the graph - since they will
   guaranteed get a register (color) because they have so few conflicting
   neighbors.  Removing these trivial nodes makes more nodes go trivial, and
   this process repeats until either we run out (and are guaranteed a coloring)
@@ -214,8 +230,8 @@ If the live range `_mask` field goes empty, you might have a *hard conflict* or
 have gotten *killed*.  Live ranges can self-interfere, making a
 *self-conflict*.  During coloring you might discover an uncolorable clique of
 interfering live ranges, leading to a *capacity spill*.  This leads to a set of
-levels of conflicts within a live range (and thus a different heuristics for
-handling them).
+levels of conflicts within a live range (and different heuristics for handling
+them).
 
 ### Hard-Conflicts
 
@@ -247,7 +263,7 @@ collection - and hence speedup allocation by a large constant factor.
 
 ### Self-Conflicts
 
-A live-range can *self-conflict* be alive twice with 2 different values but
+A live-range can *self-conflict*: be alive twice with 2 different values but
 require the same register.  This live range *must* split and thus picks up a
 copy from the split.  This happens with loop-carried dependencies as seen in
 e.g. a simple `fib` program:
@@ -357,12 +373,13 @@ risky live range to color after all.
 
 Here we failed to get a coloring - and need to split.  Some specific live
 ranges did not color and we will need to decide how to split.  Again there are
-tensions here: too much splitting leads to a bad allocation, to little leads to
+tensions here: too much splitting leads to a bad allocation, too little leads to
 no-progress bugs (manifested as too many rounds of splitting past some
 arbitrary cutoff).
 
-We start by looking at each spilling live range in turn, and deciding
-on a splitting strategy.
+We start by sorting the spills to be deterministic (else they are sorted by
+HashMap visitation order), then looking at each spilling live range in turn
+and deciding on a splitting strategy.
 
 
 ### Split Self Conflict
@@ -383,7 +400,7 @@ This set of splits is fairly aggressive... but test cases requiring a split in
 each of the listed locations are including in Chapter 20's test cases.  We
 cannot even attempt a color while we have self conflicts, so its important to
 break up these live ranges quickly.  This tends to over-split and the allocator
-leans on Biased Coloring to remove some of the extras.
+leans on Biased Coloring and Coalescing to remove some of the extras.
 
 
 ### Split Hard Conflict
@@ -393,9 +410,14 @@ direct def/use conflicts (e.g. defined in `rdi` and used in `rax`).  They also
 can be discovered during the "Build the Interference Graph" pass (e.g. incoming
 argument in `rdi` used later in the program and killed by a `Call`).
 
-For simple hard-conflicts, we have the exact def and use kept in the Live Range
-itself.  We split once after the def and once before the use (and only on sides
-with restricted registers).
+For simple hard-conflicts (a single def and single use), we have the exact def
+and use kept in the Live Range itself.  We split once after the def and once
+before the use (and only on sides with restricted registers).
+
+Another common case is popular constants (e.g. 0): a single def with many uses,
+and some of the uses require certain registers.  Instead of splitting the
+popular constant everywhere, we first split it into "register classes" and see
+if we can remove the hard conflict with fewer spills.
 
 For more complex cases we use the capacity spilling/loop-nest technique.
 
@@ -420,6 +442,22 @@ constraints from outside.  If this fails to color, on the next round of
 splitting the outermost loop will have moved in one layer, and we will be
 splitting around the next inner loop nest.  This process repeats until we end
 up splitting in the inner-most loops.
+
+
+### Helpers
+
+RA uses a series of helper functions, each is fairly self-contained.
+
+- **findAllLRG** - find all the defs and uses of a live range in time O(|LRG|)
+  instead of time O(N).
+- **insertBefore** and **insertAfter** - insert a split either before a use or
+  after a def.  Includes the work to put the split in its proper ordering in
+  a Basic Block and do all edge maintenance.
+- **makeSplit** - Make a split (either clone a clonable constant, or ask the
+  `Machine` for a port-specific `SplitNode`.
+- **ldepth** - Given a min&max loop depth (compacted in a `long`), expand the
+  loop depth range for a given node `n`.  Used to decide when a def or use is
+  "inside" a loop, which in turn is used to split around loops.
 
 
 ## Post Allocation
