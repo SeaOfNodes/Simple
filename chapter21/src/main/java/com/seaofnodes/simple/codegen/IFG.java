@@ -366,6 +366,9 @@ abstract public class IFG {
             }
             // At-risk live-range did not color?
             if( rmask.isEmpty() ) {
+                if( ((Node)lrg._machDef).nOuts()==1 )
+                    for( LRG nlrg: lrg._adj )
+                        alloc.fail(nlrg);
                 alloc.fail(lrg);
                 lrg._reg = -1;
             } else {
