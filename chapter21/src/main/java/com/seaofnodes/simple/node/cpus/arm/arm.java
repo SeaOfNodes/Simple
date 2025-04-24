@@ -471,7 +471,8 @@ public class arm extends Machine {
     public static int load_str_imm(int opcode, int imm12, int ptr, int rt) {
         assert 0 <= ptr && ptr < 32;
         assert 0 <= rt &&  rt  < 32;
-        return (opcode << 22) | (imm12 << 10)  |(ptr << 5) | rt;
+        assert 0 <= imm12 && imm12 <= (1L<<12) && (imm12&3)==0;
+        return (opcode << 22) | ((imm12>>3) << 10)  | (ptr << 5) | rt;
     }
 
     // encoding for vcvt, size is encoded in operand

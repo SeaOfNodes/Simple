@@ -104,13 +104,11 @@ import java.util.Arrays;
                 break;
             }
             case 0x67: { // JALR (0b1100111)
-                int imm = ir >> 20;
-
-                int imm_se = imm | (( (imm & 0x800)!=0 ) ? 0xfffff000 : 0);
+                int imm_se = ir >> 20; // Sign extend 12 bits
                 rval = pc + 4;
-                pc = ( ((int)regs[ (ir >> 15) & 0x1f ] + imm_se) & ~1) - 4;
+                pc = ((int)regs[ (ir >> 15) & 0x1f ] + imm_se) & ~1;
                 // Return from top-level ; exit sim
-                if( pc+4==0 ) {
+                if( pc==0 ) {
                     if( rdid!=0 ) regs[rdid] = rval; // Write PC into register before exit
                     break outer;
                 }
@@ -122,7 +120,8 @@ import java.util.Arrays;
                     // Arrays.fill(_buf,_heap,_heap+size, (byte) 0 );
                     _heap += size;
                     pc = (int)(rval - 4); // Unwind PC, as-if returned from calloc
-                }
+                } else
+                    pc -= 4;
                 break;
             }
             case 0x63: { // Branch (0b1100011)

@@ -27,6 +27,7 @@ public class NewRISC extends NewNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         // Negative patches are JIT emulator targets.
         if( opStart+delta < 0 ) {
+            delta -= 4;         // Offset from the AUIPC start
             int imm20 = delta>>12;
             if( ((delta>>11)&1)==1 ) imm20++; // Correct accidental sign extension
             int imm12 = delta&0xFFF;
