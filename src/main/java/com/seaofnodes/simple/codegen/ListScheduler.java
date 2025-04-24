@@ -48,6 +48,9 @@ public abstract class ListScheduler {
                     computeSingleRDef(bb,use);
             else
                 computeSingleRDef(bb,n);
+
+            if( n instanceof NewNode || n instanceof CallNode )
+                bb.fun()._hasCalls = true;
             return this;
         }
 

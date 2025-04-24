@@ -182,9 +182,12 @@ public class TypeStruct extends Type {
 
     @Override
     public SB print(SB sb) {
+        if( _fields == null ) return sb.p(_name); // Forward reference struct, just print the name
+        if( isAry() ) {
+            if( !isFinal() ) sb.p("!");
+            return sb.p(_name); // Skip printing generic array fields
+        }
         sb.p(_name);
-        if( _fields == null ) return sb; // Forward reference struct, just print the name
-        if( isAry() ) return sb; // Skip printing generic array fields
         sb.p(" {");
         for( Field f : _fields )
             f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");

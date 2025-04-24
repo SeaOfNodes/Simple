@@ -4,11 +4,11 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.SB;
 
 /** RegMask
- *  A "register mask" - 1 bit set for each allowed register.  In addition
+ *  A "register mask" - 1 bit set for each allowed register.  In addition,
  *  "stack slot" registers may be allowed, effectively making the set infinite.
  * <p>
  *  For smaller and simpler machines it suffices to make such masks an i64 or
- *  i128 (64 or 128 bit integers), and this presentation is by far the better
+ *  i128 (64- or 128-bit integers), and this presentation is by far the better
  *  way to go... if all register allocations can fit in this bit limitation.
  *  The allocator will need bits for stack-based parameters and for splits
  *  which cannot get a register.  For a 32-register machine like the X86, add 1
@@ -28,10 +28,11 @@ public class RegMask {
 
     public RegMask(int bit) {
         if( bit < 64 ) _bits0 = 1L<<bit;
-        else _bits1 = 1L<<(bit=64);
+        else _bits1 = 1L<<(bit-64);
     }
     public RegMask(long bits ) { _bits0 = bits; }
     public RegMask(long bits0, long bits1 ) { _bits0 = bits0; _bits1 = bits1; }
+    public RegMask(RegMask r) { _bits0 = r._bits0; _bits1 = r._bits1; }
     private RegMask() { _bits0 = _bits1 = 0; }
 
     // AND, with copy-on-write if changing
@@ -65,6 +66,7 @@ public class RegMask {
 
 
     public short firstReg() {
+        if( isEmpty() ) return -1;
         return (short)(_bits0 != 0
                        ? Long.numberOfTrailingZeros(_bits0)
                        : Long.numberOfTrailingZeros(_bits1)+64);
@@ -84,7 +86,7 @@ public class RegMask {
 
     boolean isEmpty() { return _bits0==0 && _bits1==0; }
 
-    boolean test( int reg ) {
+    public boolean test( int reg ) {
         return ((reg<64 ? (_bits0 >> reg) : (_bits1 >> (reg-64))) & 1)  != 0;
     }
 
@@ -108,35 +110,17 @@ public class RegMask {
         Machine mach = CodeGen.CODE._mach;
         if( _bits0==0 && _bits1==0 ) return sb.p("[]");
         sb.p("[");
+        String[] regs = mach.regs();
         for( int i=0; i<64; i++ )
             if( ((_bits0 >> i)&1) != 0 )
-                sb.p(mach.reg(i)).p(",");
+                sb.p(reg(regs,i)).p(",");
         for( int i=0; i<64; i++ )
             if( ((_bits1 >> i)&1) != 0 )
-                sb.p(mach.reg(i+64)).p(",");
+                sb.p(reg(regs,i+64)).p(",");
         return sb.unchar().p("]");
     }
-}
 
-// Mutable regmask(writable)
-class RegMaskRW extends RegMask {
-    public RegMaskRW(long x, long y) { super(x,y);  }
-    // clears bit at position r. Returns true if the mask is still not empty.
-    public boolean clr(int r) {
-        if( r < 64 ) _bits0 &= ~(1L<<(r   ));
-        else         _bits1 &= ~(1L<<(r-64));
-        return _bits0!=0 || _bits1!=0;
-    }
-    @Override RegMaskRW and( RegMask mask ) {
-        if( mask==null ) return this;
-        _bits0 &= mask._bits0;
-        _bits1 &= mask._bits1;
-        return this;
-    }
-    @Override RegMaskRW sub( RegMask mask ) {
-        if( mask==null ) return this;
-        _bits0 &= ~mask._bits0;
-        _bits1 &= ~mask._bits1;
-        return this;
+    public static String reg(String[] regs, int i) {
+        return i<regs.length ? regs[i] : "[stk#"+i+"]";
     }
 }

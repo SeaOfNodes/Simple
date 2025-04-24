@@ -21,12 +21,13 @@ public class StopNode extends CFGNode {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         // For the sake of many old tests, and single value prints as "return val"
         if( ret()!=null ) return ret()._print0(sb,visited);
         sb.append("Stop[ ");
         for( Node ret : _inputs )
-            ret._print0(sb, visited).append(" ");
+            if( ret!=null )
+                ret._print0(sb, visited).append(" ");
         return sb.append("]");
     }
 
