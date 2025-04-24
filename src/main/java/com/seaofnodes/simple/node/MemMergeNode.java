@@ -18,7 +18,6 @@ public class MemMergeNode extends Node {
         this(bulk);
         alias(alias,precise);
     }
-
     public Node alias(int alias) {
         Node n = alias < nIns() ? in(alias) : null;
         assert n!=null || !(in(1) instanceof BulkMemPhiNode bulk) || !bulk.isSplit(alias);
@@ -37,12 +36,12 @@ public class MemMergeNode extends Node {
     // join it with the incoming contents for all previously allocated objects.
     // Phis use their cached types, so this query does not recurse around loops.
     static Type contents(Node mem, int alias, Node dep) {
-        mem.addDep(dep);
+        dep.addDep(mem);
         if( mem instanceof MemMergeNode merge )
             return contents(merge.alias(alias),alias,dep);
         if( mem instanceof ProjNode proj && proj.in(0) instanceof NewNode nnn ) {
             assert proj._idx==1 && nnn.field(alias)!=null;
-            nnn.addDep(dep);
+            dep.addDep(nnn);
             return contents(nnn.mem(),alias,dep).meet(nnn.field(alias)._type.makeZero());
         }
         // Function parameters and call results may contain arbitrary heap values.

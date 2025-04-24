@@ -1,10 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.Machine;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.codegen.*;
 
 public interface MachNode {
 
@@ -12,7 +9,7 @@ public interface MachNode {
     default Machine machine() { return CodeGen.CODE._mach; }
 
     // Run a post-instruction-selection action
-    default void postSelect() { }
+    default void postSelect( CodeGen code ) { }
 
     // Register mask allowed on input i.  0 for no register.
     RegMask regmap( int i );
@@ -47,8 +44,8 @@ public interface MachNode {
     // Make a clone of a cheap instruction
     default Node copy() { return null; }
 
-    // Encoding is appended into the byte array; size is returned
-    int encoding(ByteArrayOutputStream bytes);
+    // Encoding is appended, relocations gathered.
+    void encoding( Encoding enc );
 
     // Human-readable form appended to the SB.  Things like the encoding,
     // indentation, leading address or block labels not printed here.

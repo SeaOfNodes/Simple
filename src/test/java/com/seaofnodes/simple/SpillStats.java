@@ -11,6 +11,7 @@ import org.junit.runner.notification.*;
 public class SpillStats extends RunListener {
     private static SpillStats ACTIVE;
     private Description _test;
+    private int _qualityFailures;
     private final Map<String,long[]> _totals = new TreeMap<>();
 
     @Override public void testStarted(Description test) { _test = test; }
@@ -25,8 +26,20 @@ public class SpillStats extends RunListener {
                            code._regAlloc._spills+","+code._regAlloc._spillScaled);
     }
 
+    // Keep running every CPU and native result check when measuring quality.
+    // A changed golden still makes spill-stats fail at the end.
+    public static void checkSpills(int expected, int actual) {
+        if( expected==-1 ) return;
+        try { org.junit.Assert.assertEquals("Expect spills:",expected,actual,Math.max(1,expected>>3)); }
+        catch( AssertionError error ) {
+            if( ACTIVE==null ) throw error;
+            ACTIVE._qualityFailures++;
+            System.err.println(ACTIVE._test+": "+error.getMessage());
+        }
+    }
+
     public static void main(String[] args) throws ClassNotFoundException {
-        if( args.length==0 ) args = new String[]{"Chapter20Test","BrainFuckTest","MergeSortTest"};
+        if( args.length==0 ) args = new String[]{"Chapter20Test","Chapter21Test","Chapter21AllocTest","BrainFuckTest","MergeSortTest"};
         Class<?>[] tests = new Class<?>[args.length];
         for( int i=0; i<args.length; i++ )
             tests[i] = Class.forName("com.seaofnodes.simple."+args[i]);
@@ -34,7 +47,8 @@ public class SpillStats extends RunListener {
         JUnitCore junit = new JUnitCore();
         junit.addListener(ACTIVE);
         Result result = junit.run(tests);
-        if( !result.wasSuccessful() ) System.out.println("FAILED test run: totals are not a complete comparison.");
+        boolean passed = result.wasSuccessful() && ACTIVE._qualityFailures==0;
+        if( !passed ) System.out.println("FAILED test run: totals are not a complete comparison.");
         System.out.println("cohort,cpu,abi,allocations,splits,scaled");
         for( var row : ACTIVE._totals.entrySet() ) {
             long[] sum = row.getValue();
@@ -42,7 +56,8 @@ public class SpillStats extends RunListener {
         }
         for( Failure failure : result.getFailures() ) System.err.println(failure.getTrace());
         System.out.println("Tests: "+result.getRunCount()+", failures: "+result.getFailureCount());
+        System.out.println("Spill golden failures: "+ACTIVE._qualityFailures);
         ACTIVE = null;
-        if( !result.wasSuccessful() ) System.exit(1);
+        if( !passed ) System.exit(1);
     }
 }

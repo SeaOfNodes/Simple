@@ -16,8 +16,29 @@ class InstSelect {
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
         String clzFile = base+"."+cpu+"."+cpu;
-        try { _code._mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor().newInstance(); }
+        try { _code._mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor(new Class[]{CodeGen.class}).newInstance(_code); }
         catch( Exception e ) { throw new RuntimeException(e); }
+
+        // Build global copies of common register masks.
+        long callerSave = _code._mach.callerSave();
+        long  neverSave = _code._mach. neverSave();
+        int maxReg = Math.min(64,_code._mach.regs().length);
+        assert maxReg>=64 || (-1L << maxReg & callerSave)==0; // No stack slots in callerSave
+        _code._callerSave = new RegMask(callerSave);
+
+        // Build a Return RegMask array.  All returns have the following inputs:
+        // 0 - ctrl
+        // 1 - memory
+        // 2 - varies with returning GPR,FPR
+        // 3 - RPC
+        // 4+- Caller save registers
+        _code._retMasks = new RegMask[(maxReg-_code._callerSave.size()-Long.bitCount( neverSave ))+4];
+        for( int reg=0, i=4; reg<maxReg; reg++ )
+            if( !_code._callerSave.test(reg) && ((1L<<reg)&neverSave)==0 )
+                _code._retMasks[i++] = new RegMask(reg);
+        _code._rpcMask = new RegMask(_code._mach.rpc());
+        _code._retMasks[3] = _code._rpcMask;
+
 
         // Convert to machine ops
         _code._uid = 1;               // All new machine nodes reset numbering
@@ -49,7 +70,7 @@ class InstSelect {
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
         if( x instanceof MachNode mach )
-            mach.postSelect();  // Post selection action
+            mach.postSelect(_code);  // Post selection action
 
         // Updates forward edges only.
         n._outputs.clear();
