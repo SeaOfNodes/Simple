@@ -49,7 +49,7 @@ public class ConstantNode extends Node {
             if( fun!=null && fun._name != null )
                 return p.p("{ ").p(fun._name).p("}");
         }
-        return p.p(_con.print(new SB()));
+        return p.p(_con==null ? "---" : _con.print(new SB()));
     }
 
     @Override public boolean isConst() { return true; }
@@ -61,7 +61,7 @@ public class ConstantNode extends Node {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) {
+    public boolean eq(Node n) {
         ConstantNode con = (ConstantNode)n; // Contract
         return _con==con._con;
     }

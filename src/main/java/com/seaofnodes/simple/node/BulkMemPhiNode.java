@@ -111,7 +111,7 @@ public class BulkMemPhiNode extends PhiNode {
         // Normal graph-neighbor enqueueing flows from defs to uses, so retain
         // an explicit forward dependency to revisit this Phi when the user
         // sharpens.
-        use.addDepForwards(this);
+        addDepForwards(use);
         return switch(use) {
         case ScopeNode scope -> 0;
         case MemMergeNode mmm -> missingAlias(mmm);
