@@ -1,32 +1,31 @@
+// -*- mode: java;  -*-
+val sieve = { int N ->
+    // The main Sieve array
+    bool[] !ary = new bool[N];
+    // The primes less than N
+    u32[] !primes = new u32[N>>1];
+    // Number of primes so far, searching at index p
+    int nprimes = 0, p=2;
+    // Find primes while p^2 < N
+    while( p*p < N ) {
+        // skip marked non-primes
+        while( ary[p] ) p++;
+        // p is now a prime
+        primes[nprimes++] = p;
+        // Mark out the rest non-primes
+        for( int i = p + p; i < ary#; i+= p )
+            ary[i] = true;
+        p++;
+    }
 
-int[] !ary = new int[arg], !primes = new int[arg];
-int nprimes = 0, p=2;
-// Find primes while p^2 < arg
-while( p*p < arg ) {
-    // skip marked non-primes
-    while( ary[p]==1 ) p = p + 1;
-    // p is now a prime
-    primes[nprimes] = p;  nprimes = nprimes + 1;
-    // Mark out the rest non-primes
-    int i = p + p;
-    while( i < ary# ) {
-        ary[i] = 1;
-        i = i + p;
-    }
-    p = p + 1;
-}
-// Now just collect the remaining primes, no more marking
-while( p < arg ) {
-    if( ary[p] == 0 ) {
-        primes[nprimes] = p;  nprimes = nprimes + 1;
-    }
-    p = p + 1;
-}
-// Copy/shrink the result array
-int[] !rez = new int[nprimes];
-int j = 0;
-while( j < nprimes ) {
-    rez[j] = primes[j];
-    j = j + 1;
-}
-return rez;
+    // Now just collect the remaining primes, no more marking
+    for( ; p < N; p++ )
+        if( !ary[p] )
+            primes[nprimes++] = p;
+
+    // Copy/shrink the result array
+    u32[] !rez = new u32[nprimes];
+    for( int j=0; j < nprimes; j++ )
+        rez[j] = primes[j];
+    return rez;
+};

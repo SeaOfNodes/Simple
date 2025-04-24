@@ -44,6 +44,7 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr TEST  = make((byte)2,TypeTuple.TEST,TypeInteger.BOT,1);
     public static TypeFunPtr TEST0 = make((byte)3,TypeTuple.TEST,TypeInteger.BOT,3);
     public static TypeFunPtr MAIN  = make((byte)3,TypeTuple.MAIN,TypeInteger.BOT,-1);
+    public static TypeFunPtr CALLOC= make((byte)3,TypeTuple.CALLOC,TypeMemPtr.BOT,-1);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); }
 
     @Override

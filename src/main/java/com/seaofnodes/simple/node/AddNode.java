@@ -15,7 +15,7 @@ public class AddNode extends Node {
     @Override public String glabel() { return "+"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append("+"), visited);
         return sb.append(")");
@@ -96,7 +96,7 @@ public class AddNode extends Node {
         // If lhs.in(2) is not a constant, we add ourselves as a dependency
         // because if it later became a constant then we could make this
         // transformation.
-        if( lhs.in(2).addDep(this)._type.isConstant() && rhs._type.isConstant() )
+        if( addDep(lhs.in(2))._type.isConstant() && rhs._type.isConstant() )
             return new AddNode(lhs.in(1),new AddNode(lhs.in(2),rhs).peephole());
 
 

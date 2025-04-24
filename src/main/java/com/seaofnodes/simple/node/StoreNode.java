@@ -20,7 +20,7 @@ public class StoreNode extends MemOpNode {
      * @param value Value to be stored
      */
     public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(loc, name, alias, glb, mem, ptr, off, value);
+        super(loc, name, alias, false, glb, mem, ptr, off, value);
         _init = init;
     }
 
@@ -33,7 +33,7 @@ public class StoreNode extends MemOpNode {
     public Node val() { return in(4); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append(".").append(_name).append("=").append( val()).append(";");
     }
 
@@ -84,7 +84,6 @@ public class StoreNode extends MemOpNode {
             }
         }
 
-
         return null;
     }
 
@@ -95,7 +94,7 @@ public class StoreNode extends MemOpNode {
         // when the other uses go away we can retry.
         for( Node use : mem._outputs )
             if( use != this )
-                use.addDep(this);
+                addDep(use);
         return false;
     }
 
