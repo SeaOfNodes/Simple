@@ -183,24 +183,24 @@ public class arm extends Machine {
     // for incoming argument idx.
     // index 0 for control, 1 for memory, real args start at index 2
     static final RegMask[] CALLINMASK = new RegMask[] {
-            X0_MASK,
-            X1_MASK,
-            X2_MASK,
-            X3_MASK,
-            X4_MASK,
-            X5_MASK,
-            X6_MASK,
-            X7_MASK,
+        X0_MASK,
+        X1_MASK,
+        X2_MASK,
+        X3_MASK,
+        X4_MASK,
+        X5_MASK,
+        X6_MASK,
+        X7_MASK,
     };
     static final RegMask[] XMMS = new RegMask[] {
-            D0_MASK,
-            D1_MASK,
-            D2_MASK,
-            D3_MASK,
-            D4_MASK,
-            D5_MASK,
-            D6_MASK,
-            D7_MASK,
+        D0_MASK,
+        D1_MASK,
+        D2_MASK,
+        D3_MASK,
+        D4_MASK,
+        D5_MASK,
+        D6_MASK,
+        D7_MASK,
     };
 
     // ARM ENCODING

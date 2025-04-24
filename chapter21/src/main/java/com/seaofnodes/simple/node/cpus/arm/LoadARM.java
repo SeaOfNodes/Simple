@@ -18,9 +18,19 @@ public class LoadARM extends MemOpARM {
     }
     @Override public String op() { return "ld"+_sz; }
     @Override public RegMask outregmap() { return arm.MEM_MASK; }
+
+    private static final int[] OP_LOADS  = new int[]{ arm.OP_LOAD_IMM_8,  arm.OP_LOAD_IMM_16,  arm.OP_LOAD_IMM_32,  arm.OP_LOAD_IMM_64, };
+    private int imm_op() {
+        return _declaredType == TypeFloat.F32 ? arm.OPF_LOAD_IMM_32
+            :  _declaredType == TypeFloat.F64 ? arm.OPF_LOAD_IMM_64
+            :  OP_LOADS[_declaredType.log_size()];
+    }
+
+    private static final int[] OP_LOAD_RS  = new int[]{ arm.OP_LOAD_R_8 , arm.OP_LOAD_R_16 , arm.OP_LOAD_R_32 , arm.OP_LOAD_R_64,  };
+
     // ldr(immediate - unsigned offset) | ldr(register)
     @Override public void encoding( Encoding enc ) {
-        ldst_encode(enc, imm_op(), reg_op(), this, size());
+        ldst_encode(enc, imm_op(), OP_LOAD_RS[_declaredType.log_size()], this, size());
     }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");

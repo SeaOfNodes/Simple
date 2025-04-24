@@ -423,6 +423,15 @@ public class CodeGen {
     // Debugging helper
     public Node f(int idx) { return _stop.find(idx); }
 
+
+    String printCFG() {
+        if( _cfg==null ) return "no CFG";
+        SB sb = new SB();
+        for( CFGNode cfg : _cfg )
+            IRPrinter.printLine(cfg,sb);
+        return sb.toString();
+    }
+
     public static void print_as_hex(Encoding enc) {
         for (byte b : enc._bits.toByteArray()) {
             System.out.print(String.format("%02X", b));

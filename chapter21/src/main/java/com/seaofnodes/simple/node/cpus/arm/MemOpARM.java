@@ -37,60 +37,8 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }
 
-    int size() {
-        if( _declaredType == TypeFloat.F32 ) return 4;
-        if( _declaredType == TypeFloat.F64 ) return 8;
-        if( _declaredType == TypeInteger.I8 || _declaredType == TypeInteger.U8 || _declaredType == TypeInteger.BOOL) return 1;
-        if( _declaredType == TypeInteger.I16 || _declaredType == TypeInteger.U16 ) return 2;
-        if( _declaredType == TypeInteger.I32 || _declaredType == TypeInteger.U32 || _declaredType instanceof TypeMemPtr) return 4;
-        if( _declaredType == TypeInteger.BOT ) return 8;
-        throw Utils.TODO();
-    }
+    int size() { return 1<<_declaredType.log_size(); }
 
-    int imm_op() {
-        // stores
-        if(this instanceof StoreARM) {
-            if(_declaredType == TypeFloat.F32) return arm.OPF_STORE_IMM_32;
-            if(_declaredType == TypeFloat.F64) return arm.OPF_STORE_IMM_64;
-            if(_declaredType == TypeInteger. I8 || _declaredType == TypeInteger.U8  || _declaredType == TypeInteger.BOOL) return arm.OP_STORE_IMM_8;
-            if( _declaredType == TypeInteger.I16 || _declaredType == TypeInteger.U16 ) return arm.OP_STORE_IMM_16;
-            if( _declaredType == TypeInteger.I32 || _declaredType == TypeInteger.U32 || _declaredType instanceof TypeMemPtr) return arm.OP_STORE_IMM_32;
-            if( _declaredType == TypeInteger.BOT ) return arm.OP_STORE_IMM_64;
-            throw Utils.TODO();
-        }
-        // loads
-        if(_declaredType == TypeFloat.F32) return arm.OPF_LOAD_IMM_32;
-        if(_declaredType == TypeFloat.F64) return arm.OPF_LOAD_IMM_64;
-        if(_declaredType == TypeInteger. I8 || _declaredType == TypeInteger.U8  || _declaredType == TypeInteger.BOOL) return arm.OP_LOAD_IMM_8;
-        if( _declaredType == TypeInteger.I16 || _declaredType == TypeInteger.U16 ) return arm.OP_LOAD_IMM_16;
-        if( _declaredType == TypeInteger.I32 || _declaredType == TypeInteger.U32 || _declaredType instanceof TypeMemPtr) return arm.OP_LOAD_IMM_32;
-        if( _declaredType == TypeInteger.BOT ) return arm.OP_LOAD_IMM_64;
-        throw Utils.TODO();
-    }
-    int reg_op() {
-        // stores
-        if(this instanceof StoreARM) {
-            if(_declaredType == TypeFloat.F32) return arm.OPF_STORE_R_32;
-            if( _declaredType == TypeInteger. I8 || _declaredType == TypeInteger.U8  || _declaredType == TypeInteger.BOOL) return arm.OP_STORE_R_8; //   SB
-            if( _declaredType == TypeInteger.I16 || _declaredType == TypeInteger.U16 ) return arm.OP_STORE_R_16; // SH
-            if(_declaredType == TypeFloat.F64) return arm.OPF_STORE_R_64;
-            if( _declaredType == TypeInteger.I32 || _declaredType == TypeInteger.U32 || _declaredType instanceof TypeMemPtr) return arm.OP_STORE_R_32;
-            if( _declaredType == TypeInteger.BOT ) return arm.OP_STORE_R_64;
-            throw Utils.TODO();
-        }
-        // loads
-        if(_declaredType == TypeInteger.I8) return arm.OP_LOAD_R_8;
-        if(_declaredType == TypeInteger.I16) return arm.OP_LOAD_R_16;
-        if(_declaredType == TypeInteger.U8) return arm.OP_LOAD_R_8;
-        if(_declaredType == TypeInteger.BOOL) return arm.OP_LOAD_R_8;
-        if(_declaredType == TypeInteger.U16) return arm.OP_LOAD_R_16;
-
-        if(_declaredType == TypeFloat.F32) return arm.OPF_LOAD_R_32;
-        if(_declaredType == TypeFloat.F64) return arm.OPF_LOAD_R_64;
-        if( _declaredType == TypeInteger.I32 || _declaredType == TypeInteger.U32 || _declaredType instanceof TypeMemPtr) return arm.OP_LOAD_R_32;
-        if( _declaredType == TypeInteger.BOT ) return arm.OP_LOAD_R_64;
-        throw Utils.TODO();
-    }
     // Wider mask to store both GPRs and FPRs
     @Override public RegMask regmap(int i) {
         // 0 - ctrl
