@@ -11,7 +11,10 @@ public abstract class SplitNode extends MachConcreteNode {
     public SplitNode(String kind, byte round, Node[] nodes) { super(nodes); _kind = kind; _round = round; }
     @Override public String op() { return "mov"; }
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return in(1)._print0(sb.append("mov("),visited).append(")");
+        sb.append("mov(");
+        if( in(1) == null ) sb.append("---");
+        else in(1)._print0(sb,visited);
+        return sb.append(")");
     }
     @Override public Type compute() { return in(0)._type; }
     @Override public Node idealize() { return null; }

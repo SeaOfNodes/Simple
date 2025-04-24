@@ -368,7 +368,7 @@ var b = arg ? new Bar { next = (arg==2) ? new Bar{x=2;}; x=1; };
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,Phi(Region,.x,.x),0);", code.print());
+        assertEquals("return Phi(Region,.x,0);", code.print());
         assertEquals("0", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
         assertEquals("2", Eval2.eval(code, 2));

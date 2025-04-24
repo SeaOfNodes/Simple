@@ -1,6 +1,9 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -127,7 +130,7 @@ else {
 return rez;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,1.2,Phi(Region,2.3,.y));", code.print());
+        assertEquals("return Phi(Region,1.2,.y,2.3);", code.print());
         assertEquals("3.14", Eval2.eval(code, 0));
         assertEquals("1.2", Eval2.eval(code, 1));
     }
@@ -152,7 +155,7 @@ if( iss[arg] )
         rez = iss[arg][2].y;
 return rez;""");
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Region,Phi(Region,.y,1.2),1.2);", code.print());
+        assertEquals("return Phi(Region,1.2,1.2,.y);", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
         try { Eval2.eval(code, 10); fail(); } // Fails AIOOBE in Eval2, no range checks
         catch( Exception e ) { assertEquals("Index 10 out of bounds for length 2",e.getMessage()); }
@@ -210,44 +213,12 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     }
 
     @Test
-    public void sieveOEratosthenes() {
-        CodeGen code = new CodeGen(
-"""
-int[] !ary = new int[arg], !primes = new int[arg];
-int nprimes = 0, p=2;
-// Find primes while p^2 < arg
-while( p*p < arg ) {
-    // skip marked non-primes
-    while( ary[p]==1 ) p = p + 1;
-    // p is now a prime
-    primes[nprimes] = p;  nprimes = nprimes + 1;
-    // Mark out the rest non-primes
-    int i = p + p;
-    while( i < ary# ) {
-        ary[i] = 1;
-        i = i + p;
-    }
-    p = p + 1;
-}
-// Now just collect the remaining primes, no more marking
-while( p < arg ) {
-    if( ary[p] == 0 ) {
-        primes[nprimes] = p;  nprimes = nprimes + 1;
-    }
-    p = p + 1;
-}
-// Copy/shrink the result array
-int[] !rez = new int[nprimes];
-int j = 0;
-while( j < nprimes ) {
-    rez[j] = primes[j];
-    j = j + 1;
-}
-return rez;
-""");
+    public void sieveOEratosthenes() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
+        CodeGen code = new CodeGen(src+"return sieve(arg);");
         code.parse().opto();
-        assertEquals("return [int];", code.print());
-        assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+        assertEquals("return [u32];", code.print());
+        assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
     @Test

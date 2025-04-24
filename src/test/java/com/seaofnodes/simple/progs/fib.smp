@@ -1,0 +1,11 @@
+// -*- mode: java;  -*-
+val fib = {int n ->
+    int f1=1;
+    int f2=1;
+    while( n-- > 1 ){
+        int temp = f1+f2;
+        f1=f2;
+        f2=temp;
+    }
+    return f2;
+};

@@ -2,9 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMem;
 import java.util.BitSet;
 import java.util.HashSet;
 
@@ -25,7 +26,9 @@ public class LoopNode extends RegionNode {
     }
 
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-    @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    public int idepth() {
+        return CodeGen.CODE.validIDepth(_idepth) ? _idepth : (_idepth=CodeGen.CODE.iDepthFrom(idom().idepth()));
+    }
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override public CFGNode idom(Node dep) { return entry(); }
 
@@ -39,42 +42,48 @@ public class LoopNode extends RegionNode {
         while( x != this ) {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
-                if( other!=null && other.loopDepth() < loopDepth() )
+                if( other!=null && other._ltree != _ltree && nested(_ltree,other._ltree) )
                     return stop; // Found an exit, not an infinite loop
             }
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        NeverNode iff = new NeverNode(back());
-        for( Node use : _outputs )
-            if( use instanceof PhiNode )
-                iff.addDef(use);
+        NeverNode iff = new NeverNode(back()); // Ideal never-branch
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
-        setDef(2,f);
+        setDef(2,t);            // True continues loop, False (never) exits loop
+        ReturnNode ret = fun.ret();
+        iff._ltree = t._ltree = _ltree;
+        ret._ltree = f._ltree = stop._ltree;
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
-        ReturnNode ret = fun.ret();
+        Node memout = new MemMergeNode(false);
+        memout.addDef(f); // placeholder for control
+        for( Node u : _outputs )
+            if( u instanceof PhiNode phi && phi._type.isa(TypeMem.BOT) )
+                memout.addDef(phi);
+
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
-        if( ctrl._type != Type.XCONTROL ) {
+        if( ctrl!=null && ctrl._type != Type.XCONTROL ) {
             // Perfect aligned exit?
             if( !(ctrl instanceof RegionNode r &&
                   mem  instanceof PhiNode pmem && pmem.region()==r &&
                   expr instanceof PhiNode prez && prez.region()==r ) ) {
                 // Nope, insert an aligned exit layer
-                ctrl = new RegionNode(_loc,null,ctrl).init();
-                mem  = new    PhiNode((RegionNode)ctrl,mem ).init();
-                expr = new    PhiNode((RegionNode)ctrl,expr).init();
+                RegionNode r = new RegionNode(_loc,null,ctrl).init();
+                ctrl = r;  r._ltree = stop._ltree;
+                mem  = new PhiNode(r,mem ).init();
+                expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit
-            ctrl.addDef(t  );
-            mem .addDef(top);
+            ctrl.addDef(f  );
+            mem .addDef(memout);
             expr.addDef(top);
         } else {
-            ctrl = t;
-            mem  = top;
+            ctrl = f;
+            mem  = memout;
             expr = top;
         }
         ret.setDef(0,ctrl);
@@ -83,4 +92,12 @@ public class LoopNode extends RegionNode {
 
         return stop;
     }
+
+    private static boolean nested(LoopTree inner, LoopTree outer) {
+        for( ; inner!=null; inner = inner._par )
+            if( inner == outer )
+                return true;
+        return false;
+    }
+
 }

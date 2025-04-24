@@ -72,7 +72,7 @@ public class JSViewer implements AutoCloseable {
     public static void show() { if( SERVER!=null && SHOW ) _show(); }
     private static void _show() {
         // Skip util we at least get the Parse object made
-        if( CODE._phase == null )
+        if( CODE._phase==null || CODE._phase.ordinal() < CodeGen.Phase.Parse.ordinal() )
             return;
         boolean midParse = CODE._phase == CodeGen.Phase.Parse;
         Stack<ScopeNode> xScopes = midParse ? CODE.P._xScopes : null;

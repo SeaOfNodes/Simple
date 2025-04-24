@@ -144,7 +144,25 @@ public class Parser {
 
         // Parse whole program, as-if function header "{ int arg -> body }"
         parseFunctionBody(_code._main,loc(),"arg");
-        _code.link(_code._main)._name = "main";
+
+        // Kill an empty default main.  Keep only if it was explicitly defined
+        // (programmer asked for a "main") or it has stuff (i.e. beginner
+        // default main).
+        FunNode main = _code.link(_code._main);
+        StopNode stop = _code._stop;
+        if( main.ret().expr() instanceof ConstantNode && main.ret().mem().in(0)==main  && stop.nIns() > 1 ) {
+            // Kill an empty default main; so it does not attempt to put a
+            // "main" in any final ELF file
+            stop.delDef(stop._inputs.find(main.ret()));
+        } else {
+            // We have a non-empty default main.
+            // Check for an explicit main
+            for( Node n : stop._inputs )
+                if( n instanceof FunNode fun && fun._name.equals("main") )
+                    // Found an explicit "main" AND we have a default "main"
+                    throw error("Cannot define both an explicit main and a default main");
+            main._name = "main";
+        }
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
@@ -154,7 +172,7 @@ public class Parser {
         for( StructNode init : INITS.values() )
             init.unkeep().kill();
         INITS.clear();
-        _code._stop.peephole();
+        stop.peephole();
         if( show ) showGraph();
     }
 
@@ -1407,6 +1425,7 @@ public class Parser {
 
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
+        call.peephole();        // Rerun peeps after CallEnd, allows early inlining
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
@@ -1669,6 +1688,7 @@ public class Parser {
             while( Character.isDigit(c=nextChar()) ) ;
             if( !(c=='e' || c=='.') )
                 return --_position - old;
+            if( peek() == '-' ) nextChar();
             while( Character.isDigit(c=nextChar()) || c=='e' || c=='.' ) ;
             return -(--_position - old);
         }

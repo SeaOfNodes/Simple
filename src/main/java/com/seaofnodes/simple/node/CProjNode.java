@@ -10,10 +10,10 @@ import java.util.BitSet;
 public class CProjNode extends CFGNode {
 
     // Which slice of the incoming multipart value
-    public final int _idx;
+    public int _idx;
 
     // Debugging label
-    public final String _label;
+    public String _label;
 
     public CProjNode(Node ctrl, int idx, String label) {
         super(ctrl);
@@ -24,7 +24,7 @@ public class CProjNode extends CFGNode {
 
     @Override public String label() { return _label; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
     @Override public boolean blockHead() { return true; }
 
@@ -46,15 +46,21 @@ public class CProjNode extends CFGNode {
         }
 
         // Flip a negating if-test, to remove the not
-        if( ctrl() instanceof IfNode iff && iff.pred().addDep(this) instanceof NotNode not )
+        if( ctrl() instanceof IfNode iff && addDep(iff.pred()) instanceof NotNode not )
             return new CProjNode(new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
 
         // Copy of some other input
         return ((MultiNode)ctrl()).pcopy(_idx);
     }
 
+    // Only called during basic-block layout, inverts a T/F CProj
+    public void invert() {
+        _label = _idx == 0 ? "False" : "True";
+        _idx = 1-_idx;
+    }
+
     @Override
-    boolean eq( Node n ) { return _idx == ((CProjNode)n)._idx; }
+    public boolean eq( Node n ) { return _idx == ((CProjNode)n)._idx; }
 
     @Override
     int hash() { return _idx; }

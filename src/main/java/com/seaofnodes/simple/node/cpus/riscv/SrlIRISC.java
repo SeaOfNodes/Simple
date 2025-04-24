@@ -4,8 +4,9 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.Node;
 
 public class SrlIRISC extends ImmRISC {
-    SrlIRISC( Node and, int imm) { super(and,imm); }
-    @Override int opcode() { throw Utils.TODO(); }
+    public SrlIRISC( Node and, int imm, boolean pop) { super(and,imm,pop); }
+    @Override int opcode() {  return riscv.OP_IMM; }
+    @Override int func3() {  return 5; }
     @Override public String glabel() { return ">>>"; }
     @Override public String op() { return "srli"; }
 }

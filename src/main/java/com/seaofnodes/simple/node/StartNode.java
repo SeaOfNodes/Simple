@@ -25,7 +25,7 @@ public class StartNode extends LoopNode implements MultiNode {
     @Override public String label() { return "Start"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
       return sb.append(label());
     }
 
@@ -51,7 +51,7 @@ public class StartNode extends LoopNode implements MultiNode {
     @Override public Node idealize() { return null; }
 
     // No immediate dominator, and idepth==0
-    @Override public int idepth() { return 0; }
+    @Override public int idepth() { return CodeGen.CODE.iDepthAt(0); }
     @Override public CFGNode idom(Node dep) { return null; }
 
 }

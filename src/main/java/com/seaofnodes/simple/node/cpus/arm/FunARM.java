@@ -1,21 +1,22 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.MachNode;
-import java.io.ByteArrayOutputStream;
 
-public class FunARM  extends FunNode implements MachNode{
-    FunARM(FunNode fun) {super(fun);}
-    // Register mask allowed on input i.  0 for no register.
-    @Override public RegMask regmap(int i) { return null; }
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return null; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+public class FunARM  extends FunNode implements MachNode {
+    FunARM(FunNode fun) { super(fun); }
+    @Override public void computeFrameAdjust(CodeGen code, int maxReg) {
+        super.computeFrameAdjust(code,maxReg);
+        if( _hasCalls )         // If non-leaf, pad to 16b
+            _frameAdjust = ((_frameAdjust+8) & -16);
+    }
+    @Override public void encoding( Encoding enc ) {
+        int sz = _frameAdjust;
+        if( sz == 0 ) return;   // Skip if no frame adjust
+        if( sz >= 1L<<12 ) throw Utils.TODO();
+        enc.add4(arm.imm_inst(arm.OPI_ADD, -sz&0xFFF, arm.RSP, arm.RSP));
     }
 }

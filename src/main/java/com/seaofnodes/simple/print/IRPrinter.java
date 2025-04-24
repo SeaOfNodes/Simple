@@ -16,6 +16,7 @@ public abstract class IRPrinter {
     // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
     public static SB printLine( Node n, SB sb ) {
+        if( n==null ) return sb;
         sb.p("%4d %-7.7s ".formatted(n._nid,n.label()));
         if( n._inputs==null )
             return sb.p("DEAD\n");
@@ -211,7 +212,8 @@ public abstract class IRPrinter {
                 printLine(n,sb);
                 if( !(n instanceof CFGNode) && n instanceof MultiNode )
                     for( Node use : n._outputs )
-                        printLine(use,sb);
+                        if( use instanceof ProjNode )
+                            printLine(use,sb);
             }
         }
 
@@ -281,7 +283,8 @@ public abstract class IRPrinter {
                         printLine( n, sb, bns, i--, ds,ns );
                         if( n instanceof MultiNode && !(n instanceof CFGNode) ) {
                             for( Node use : n._outputs ) {
-                                printLine(use,sb,bns,bns.indexOf(use),ds,ns);
+                                if( use instanceof ProjNode )
+                                    printLine(use,sb,bns,bns.indexOf(use),ds,ns);
                             }
                         }
                     }

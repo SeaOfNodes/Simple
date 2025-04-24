@@ -44,7 +44,7 @@ public class ScopeNode extends MemMergeNode {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Scope[ ");
         int j=1;
         for( int i=0; i<nIns(); i++ ) {

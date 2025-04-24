@@ -1,42 +1,33 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
+import com.seaofnodes.simple.node.MachConcreteNode;
+import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.Node;
 
-
-// Logical Shift Left (immediate)
 public class LslIARM extends MachConcreteNode implements MachNode {
-    final TypeInteger _ti;
-    LslIARM(Node lsli, TypeInteger ti) {super(lsli); _inputs.pop();  _ti = ti;}
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        // assert i==1;
-        return arm.RMASK; }
-
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return arm.RMASK; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    final int _imm;
+    LslIARM(Node lsl, int imm) {
+        super(lsl);
+        _inputs.pop();
+        _imm = imm;
     }
-
-    // General form
-    // General form: "lsli rd, rs1, imm"
-    @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" << #");
-        _ti.print(sb);
-    }
-
     @Override public String op() { return "lsli"; }
+    @Override public RegMask regmap(int i) { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
+    @Override public void encoding( Encoding enc ) {
+        short rd = enc.reg(this);
+        short rn = enc.reg(in(1));
+        assert _imm > 0;
+        // UBFM <Xd>, <Xn>, #(-<shift> MOD 64), #(63-<shift>)
+        // immr must be (-<shift> MOD 64) = 64 - shift
+        enc.add4(arm.imm_shift(arm.OPI_LSL, 64 - _imm, (64 - _imm) - 1, rn, rd));
+    }
+    // General form: "lsli  rd = rs1 << imm"
+    @Override public void asm(CodeGen code, SB sb) {
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" << #").p(_imm);
+    }
 }

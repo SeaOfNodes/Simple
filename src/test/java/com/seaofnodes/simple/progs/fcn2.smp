@@ -1,5 +1,0 @@
-
-val fcn = (arg&1)
-    ? { int x -> x*x; }
-    : { int x -> x+x; };
-fcn(arg);
