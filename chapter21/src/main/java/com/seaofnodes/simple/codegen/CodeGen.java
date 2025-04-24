@@ -35,7 +35,6 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
-    public String _cpu;
 
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
@@ -240,7 +239,6 @@ public class CodeGen {
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
         String clzFile = base+"."+cpu+"."+cpu;
-        _cpu = cpu;
         try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor(new Class[]{CodeGen.class}).newInstance(this); }
         catch( Exception e ) { throw new RuntimeException(e); }
 

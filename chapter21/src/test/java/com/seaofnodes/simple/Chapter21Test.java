@@ -114,7 +114,6 @@ public class Chapter21Test {
     @Test public void testSieve() throws IOException {
         // The primes
         int[] primes = new int[]  { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, };
-        int[] primes2 = new int[] { 2, 3, 5};
         SB sb = new SB().p(primes.length).p("[");
         for( int prime : primes )
             sb.p(prime).p(", ");
@@ -125,25 +124,26 @@ public class Chapter21Test {
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 6, 160, true);
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 160, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
         int ary = (int)R5.regs[riscv.A0];
         // Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
-        assertEquals(primes2.length, R5.ld4s(ary));
-        for( int i=0; i<primes2.length; i++ )
-            assertEquals(primes2[i], R5.ld4s(ary + 4 + i*4));
+        assertEquals(primes.length, R5.ld4s(ary));
+        for( int i=0; i<primes.length; i++ )
+            assertEquals(primes[i], R5.ld4s(ary + 4 + i*4));
 
-//        // Evaluate on ARM5 emulator; expect return of an array of primes in the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", 6, 160, false);
+        // Evaluate on ARM5 emulator; expect return of an array of primes in
+        // the simulated heap.
+        EvalArm64 A5 = TestArm64.build("sieve", 100, 160, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
         // Memory layout starting at ary(length,pad, prime1, primt2, prime3, prime4)
-        assertEquals(primes2.length, A5.ld4s(ary_arm));
-        for(int i = 0; i<primes2.length; i++)
-            assertEquals(primes2[i], A5.ld4s(ary_arm + 4 + i * 4));
+        assertEquals(primes.length, A5.ld4s(ary_arm));
+        for( int i = 0; i<primes.length; i++ )
+            assertEquals(primes[i], A5.ld4s(ary_arm + 4 + i * 4));
     }
 
     @Test public void testFibExport() throws IOException {
@@ -169,7 +169,7 @@ public class Chapter21Test {
         TestC.run("person", person, 0);
 
         // Memory layout starting at PS:
-        int ps = 1<<16;         // Person array pointer
+        int ps = 1<<16;         // Person array pointer starts at heap start
         // Person[3] = { len,pad,P0,P1,P2 }; // sizeof = 4*8
         // P0 = { age } // sizeof=8
         int p0 = ps+4*8+0*8;
