@@ -10,7 +10,7 @@ public class NewARM extends NewNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         // BL(branch with link)
         enc.external(this,"calloc").
-            add4(0xD2800020).   // movz x0,#1
+            add4(arm.mov(arm.OP_MOVZ, 0, 1, 0)).   // movz x0,#1
             add4(arm.b(arm.OP_CALL, 0));
     }
 

@@ -23,11 +23,7 @@ public class StoreARM extends MemOpARM {
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
-        if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
-            ldst_encode(enc, arm.OPF_STORE_IMM,arm.OPF_STORE_R, val(), true);
-        } else {
-            ldst_encode(enc, arm.OP_STORE_IMM, arm.OP_STORE_R, val(), false);
-        }
+        ldst_encode(enc, imm_op(),reg_op(), val(), size());
     }
     @Override public void asm(CodeGen code, SB sb) {
         asm_address(code,sb).p(",");

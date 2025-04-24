@@ -22,6 +22,7 @@ public class TestArm64 {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
         CodeGen code = new CodeGen(src).driver("arm", "SystemV",null);
+        if(print) {code.print_as_hex(); System.out.print(code.asm());}
 
         // Allocation quality not degraded
         int delta = spills>>3;

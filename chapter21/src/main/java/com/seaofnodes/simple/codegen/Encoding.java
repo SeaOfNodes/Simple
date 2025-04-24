@@ -466,7 +466,7 @@ public class Encoding {
             int start  = _opStart[src._nid];
             String dst =  _externals.get(src);
             int target = switch( dst ) {
-            case "calloc" -> SENTINAL_CALLOC;
+            case "calloc" -> _code._cpu.equals("arm") ? -4: SENTINAL_CALLOC;
             default -> throw Utils.TODO();
             };
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);

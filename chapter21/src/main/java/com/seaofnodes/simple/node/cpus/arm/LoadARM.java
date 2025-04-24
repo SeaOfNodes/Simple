@@ -20,11 +20,7 @@ public class LoadARM extends MemOpARM {
     @Override public RegMask outregmap() { return arm.MEM_MASK; }
     // ldr(immediate - unsigned offset) | ldr(register)
     @Override public void encoding( Encoding enc ) {
-        if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
-            ldst_encode(enc, arm.OPF_LOAD_IMM, arm.OPF_LOAD_R, this, true);
-        } else {
-            ldst_encode(enc, arm.OP_LOAD_IMM, arm.OP_LOAD_R, this, false);
-        }
+        ldst_encode(enc, imm_op(), reg_op(), this, size());
     }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");
