@@ -68,8 +68,6 @@ import java.util.Arrays;
         long rval = 0;
         double frval = 0;
         int pc = _pc;
-        int hit = 0;
-        int hit_j = 0;
         int cycle = _cycle;
         boolean is_f = false;
         outer:
@@ -85,9 +83,6 @@ import java.util.Arrays;
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;
-            }
-            if(pc == 204) {
-                System.out.print("Here");
             }
             // Load instruction from image buffer at PC
             ir = ld4s( pc );
@@ -105,10 +100,6 @@ import java.util.Arrays;
                 if( (reladdy & 0x00100000)!=0 ) reladdy |= 0xffe00000; // Sign extension.
                 rval = pc + 4;
                 pc = pc + reladdy - 4;
-                hit_j++;
-                if(hit_j == 2) {
-                    System.out.print("Stop here");
-                }
                 break;
             }
             case 0x67: { // JALR (0b1100111)
@@ -122,11 +113,6 @@ import java.util.Arrays;
                 }
                 // Inline CALLOC effect
                 if( pc == Encoding.SENTINAL_CALLOC ) {
-                    hit++;
-                    if(hit ==1 ) {
-                        //
-                        System.out.print("Here");
-                    }
                     int size = (int)(regs[10]*regs[11]);
                     regs[10] = _heap; // Return next free address
                     // Pre-zeroed; epsilon (null) collector, never recycles memory so always zero
@@ -207,10 +193,6 @@ import java.util.Arrays;
                 if( (addy & 0x800)!=0 ) addy |= 0xfffff000;
                 addy += rs1;
                 rdid = 0;
-                if(addy == 65536) {
-                    // rs2 here is 3, stores the size
-                    System.out.print("Here");
-                }
                 if( addy >= _buf.length-3 ) {
                     trap = (7+1); // Store access fault.
                     rval = addy;
@@ -236,10 +218,6 @@ import java.util.Arrays;
                 // Insert the detection here
                 int rs1id = (ir >> 15) & 0x1f;
                 int funct3 = (ir >> 12) & 0x7;
-
-                if (!is_reg && funct3 == 0 && rdid == riscv.A0 && rs1id == riscv.A0 && imm == 1) {
-                    System.out.println("Hit the increment phase");
-                }
 
                 if( is_reg && ( ir & 0x02000000 )!=0 ) {
                     switch( (ir>>12)&7 ) { //0x02000000 = RV32M

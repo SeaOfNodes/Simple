@@ -115,16 +115,16 @@ public class Chapter21Test {
         // The primes
         int[] primes = new int[]  { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, };
         int[] primes2 = new int[] { 2, 3, 5};
-//        SB sb = new SB().p(primes.length).p("[");
-//        for( int prime : primes )
-//            sb.p(prime).p(", ");
-//        String sprimes = sb.p("]").toString();
-//
-//        // Compile, link against native C; expect the above string of primes to be printed out by C
-//        TestC.run("sieve",sprimes, 257);
-//
-//        // Evaluate on RISC5 emulator; expect return of an array of primes in
-//        // the simulated heap.
+        SB sb = new SB().p(primes.length).p("[");
+        for( int prime : primes )
+            sb.p(prime).p(", ");
+        String sprimes = sb.p("]").toString();
+
+        // Compile, link against native C; expect the above string of primes to be printed out by C
+        TestC.run("sieve",sprimes, 257);
+
+        // Evaluate on RISC5 emulator; expect return of an array of primes in
+        // the simulated heap.
         EvalRisc5 R5 = TestRisc5.build("sieve", 6, 160, true);
         int trap = R5.step(10000);
         assertEquals(0,trap);
