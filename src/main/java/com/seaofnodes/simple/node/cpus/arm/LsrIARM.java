@@ -2,40 +2,28 @@ package com.seaofnodes.simple.node.cpus.arm;
 
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
-import java.lang.StringBuilder;
 
-// Logical Shift Right (immediate)
-public class LsrIARM extends MachConcreteNode implements MachNode{
-    final TypeInteger _ti;
-    LsrIARM(Node lsri, TypeInteger ti) {super(lsri); _inputs.pop();  _ti = ti;}
-
-    // Register mask allowed on input i.
-    // This is the normal calling convention
-    @Override public RegMask regmap(int i) {
-        // assert i==1;
-        return arm.RMASK; }
-
-    // Register mask allowed as a result.  0 for no register.
-    @Override public RegMask outregmap() { return arm.RMASK; }
-
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+// logical right shift immediate
+public class LsrIARM extends MachConcreteNode implements MachNode {
+    final int _imm;
+    LsrIARM(Node lsr, int imm) {
+        super(lsr);
+        _inputs.pop();
+        _imm = imm;
     }
-
-    // General form
-    // General form: "lsrl rd, rs1, imm"
+    @Override public String op() { return "lsri"; }
+    @Override public RegMask regmap(int i) { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
+    @Override public void encoding( Encoding enc ) {
+        short rd = enc.reg(this);
+        short rn = enc.reg(in(1));
+        assert _imm > 0;
+        enc.add4(arm.imm_shift(arm.OPI_LSR,_imm, 0b111111, rn,rd));
+    }
+    // General form: "lsri  rd = rs1 >>> imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >>> #");
-        _ti.print(sb);
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" >>> #").p(_imm);
     }
-
-    @Override public String op() { return "lsrl"; }
 }

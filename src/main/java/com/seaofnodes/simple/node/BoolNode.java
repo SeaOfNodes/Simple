@@ -21,7 +21,7 @@ abstract public class BoolNode extends Node {
     public String glabel() { return op(); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append(op()), visited);
         return sb.append(")");
@@ -90,6 +90,18 @@ abstract public class BoolNode extends Node {
         }
         Node copy(Node lhs, Node rhs) { return new EQ(lhs,rhs); }
         Node copyF() { return new EQF(null,null); }
+    }
+
+    public static class NE extends BoolNode {
+        public NE(Node lhs, Node rhs) { super(lhs,rhs); }
+        public String op() { return "!="; }
+        TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
+            if( i1==i2 && i1.isConstant() ) return TRUE;
+            if( i1._max < i2._min || i1._min > i2._max ) return FALSE;
+            return BOOL;
+        }
+        Node copy(Node lhs, Node rhs) { return new NE(lhs,rhs); }
+        Node copyF() { throw Utils.TODO(); }
     }
 
     public static class LT extends BoolNode {

@@ -22,7 +22,7 @@ public class ParmNode extends PhiNode {
     public FunNode fun() { return (FunNode)in(0); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( "main".equals(fun()._name) && _label.equals("arg") )
             return sb.append("arg");
         sb.append("Parm_").append(_label).append("(");

@@ -14,7 +14,7 @@ public class StructNode extends Node {
     @Override public String label() { return _ts==null ? "STRUCT?" : _ts.str(); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( _ts==null ) return sb.append("STRUCT?");
         sb.append(_ts._name).append(" {");
         for( int i=0; i<nIns(); i++ ) {
@@ -39,7 +39,7 @@ public class StructNode extends Node {
     public Node idealize() { return null; }
 
     @Override
-    boolean eq(Node n) { return _ts == ((StructNode)n)._ts; }
+    public boolean eq(Node n) { return _ts == ((StructNode)n)._ts; }
 
     @Override
     int hash() { return _ts==null ? 0 : _ts.hashCode(); }

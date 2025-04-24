@@ -1,20 +1,13 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import java.io.ByteArrayOutputStream;
-
 
 // conditional set?
 // e.g CSET, stores flag info into GPRS after compare
-
 public class SetARM extends MachConcreteNode implements MachNode {
     final String _bop;          // One of <,<=,==
-
     SetARM(Node cmp, String bop) {
         super(cmp);
         _inputs.setLen(1);   // Pop the cmp inputs
@@ -22,13 +15,13 @@ public class SetARM extends MachConcreteNode implements MachNode {
         _inputs.push(cmp);
         _bop = bop;
     }
-
+    @Override public String op() { return "set"+_bop; }
     @Override public RegMask regmap(int i) { assert i==1; return arm.FLAGS_MASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
 
-    // Encoding is appended into the byte array; size is returned
-    @Override public int encoding(ByteArrayOutputStream bytes) {
-        throw Utils.TODO();
+    @Override public void encoding( Encoding enc ) {
+        int body = arm.cset(arm.OP_CSET,0b11111, arm.make_condition(_bop), 0b011111, enc.reg(this));
+        enc.add4(body);
     }
 
     @Override public void asm(CodeGen code, SB sb) {
@@ -36,6 +29,4 @@ public class SetARM extends MachConcreteNode implements MachNode {
         String src = code.reg(in(1));
         if( src!="flags" )  sb.p(" = ").p(src);
     }
-
-    @Override public String op() { return "set"+_bop; }
 }
