@@ -1,10 +1,13 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
-
 import java.util.BitSet;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
@@ -109,8 +112,11 @@ public class FunNode extends RegionNode {
         return null;
     }
 
-    // Bypass Region idom, always assume depth == 1, one more than Start
-    @Override public int idepth() { return (_idepth=1); }
+    // Bypass Region idom, always assume depth == 1, one more than Start,
+    // unless folding then just a ID on input#1
+    @Override public int idepth() {
+        return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
+    }
     // Bypass Region idom, always assume idom is Start
     @Override public CFGNode idom(Node dep) { return cfg(1); }
 
@@ -161,4 +167,53 @@ public class FunNode extends RegionNode {
         if( in ) body.set(n._nid);
         return in;
     }
+
+
+    // ------------
+    // MachNode specifics, shared across all CPUs
+
+    // Function may call other functions?  X86 requires 16b aligned SP on
+    // outbound calls, but not leaf.  Set during an unrelated RA scan.
+    public boolean _hasCalls;
+
+    // Maximum incoming argument slot, based on function type
+    public int _maxArgSlot;
+
+    // Frame adjust, including padding, set during early Encoding
+    public int _frameAdjust;
+
+    public String op() { return _frameAdjust==0 ? "entry" : "subi"; }
+    public void postSelect(CodeGen code) {
+        code.link(this);
+        // Max slot seen past space reserved for incoming arguments
+        _maxArgSlot = code._mach.maxArgSlot(sig());
+    }
+    public RegMask regmap(int i) { return null; }
+    public RegMask outregmap() { return null; }
+    public void encoding( Encoding enc ) { throw Utils.TODO();  }
+    public void asm(CodeGen code, SB sb) {
+        if( _frameAdjust!=0 )
+            sb.p("rsp -= #").p(_frameAdjust);
+    }
+
+    public void computeFrameAdjust(CodeGen code, int maxReg) {
+        // Max slot seen, or 0.
+        int maxSlot = Math.max(maxReg - code._mach.regs().length,_maxArgSlot);
+        // Frame adjust before rounding, can be negative for no spills
+        int size = maxSlot - _maxArgSlot;
+        _frameAdjust = size*8;
+    }
+
+    // Given a high register number and during encoding compute the stack
+    // pointer offset.  Pre-RA we lack the fun._frameAdjust.  We also need a
+    // FunNode.
+    public int computeStackOffset(CodeGen code, int reg) {
+        String[] regs = code._mach.regs();
+        int stackSlot = reg - regs.length;
+        int slotRotate = stackSlot < _maxArgSlot
+            ? stackSlot + (_frameAdjust>>3)
+            : stackSlot - _maxArgSlot;
+        return slotRotate*8;
+    }
+
 }

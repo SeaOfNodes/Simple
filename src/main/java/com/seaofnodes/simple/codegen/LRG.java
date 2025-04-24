@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 
 import java.util.IdentityHashMap;
@@ -37,15 +38,12 @@ public class LRG {
 
     // Count of single-register defs and uses
     short _1regDefCnt, _1regUseCnt;
+    // Count of all defs, uses.  Mostly interested 1 vs many
+    boolean _multiDef, _multiUse;
 
     // A sample MachNode def in the live range
     public MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
-
-    // Mask set to empty via a kill-mask.  This is usually a capacity kill,
-    // which means we need to split and spill into memory - which means even if
-    // the def-side has many registers, it MUST spill.
-    boolean _killed;
 
     // Some splits used in biased coloring
     MachConcreteNode _splitDef, _splitUse;
@@ -58,6 +56,8 @@ public class LRG {
 
     // Adjacent Live Range neighbors.  Only valid during coloring
     Ary<LRG> _adj;
+
+    public int nadj() { return _adj==null ? 0 : _adj._len; }
 
     void addNeighbor(LRG lrg) {
         if( _adj==null ) _adj = new Ary<>(LRG.class);
@@ -77,7 +77,7 @@ public class LRG {
     }
 
     // More registers than neighbors
-    boolean lowDegree() { return (_adj==null ? 0 : _adj._len) < _mask.size(); }
+    boolean lowDegree() { return nadj() < _mask.size(); }
 
     LRG( short lrg ) { _lrg = lrg; _reg = -1; }
 
@@ -121,29 +121,39 @@ public class LRG {
         if( _machDef==null ) {
             _machDef = lrg._machDef;
         } else if( lrg._machDef!=null ) {
+            if( _machDef != lrg._machDef ) _multiDef=true;
             if( _1regDefCnt==0 )
                 _machDef = lrg._machDef;
             else if( _machDef==lrg._machDef )
                 _1regDefCnt--;
         }
         _1regDefCnt += lrg._1regDefCnt;
+        _multiDef |= lrg._multiDef;
 
         if( _machUse==null ) {
             _machUse = lrg._machUse;
+            _uidx = lrg._uidx;
         } else if( lrg._machUse!=null ) {
-            if( _1regUseCnt==0 )
+            if( _machUse != lrg._machUse ) _multiUse=true;
+            if( _1regUseCnt==0 ) {
                 _machUse = lrg._machUse;
+                _uidx = lrg._uidx;
+            }
             else if( _machUse==lrg._machUse )
                 _1regUseCnt--;
         }
         _1regUseCnt += lrg._1regUseCnt;
+        _multiUse |= lrg._multiUse;
 
         // Fold deepest Split
         _splitDef = deepSplit(_splitDef,lrg._splitDef);
         _splitUse = deepSplit(_splitUse,lrg._splitUse);
 
         // Fold together masks
-        _mask = _mask.and(lrg._mask);
+        RegMask mask = _mask.and(lrg._mask);
+        if( mask==null )
+            mask = _mask.copy().and(lrg._mask);
+        _mask = mask;
         return this;
     }
 
@@ -153,6 +163,8 @@ public class LRG {
 
     // Record any Mach def for spilling heuristics
     LRG machDef( MachNode def, boolean size1 ) {
+        if( _machDef!=null && _machDef!=def )
+            _multiDef = true;
         if( _machDef==null || size1 )
             _machDef = def;
         if( size1 )
@@ -164,6 +176,8 @@ public class LRG {
 
     // Record any Mach use for spilling heuristics
     LRG machUse( MachNode use, short uidx, boolean size1 ) {
+        if( _machUse!=null && _machUse!=use )
+            _multiUse = true;
         if( _machUse==null || size1 )
             { _machUse = use; _uidx = uidx; }
         if( size1 )

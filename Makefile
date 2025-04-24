@@ -68,6 +68,7 @@ JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
+	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
@@ -87,7 +88,7 @@ build/release/simple.jar:	$(main_classes) $(test_classes)
 # Launch viewer
 view:	$(main_classes)
 	@echo "viewing "
-	@$(JVM) com.seaofnodes.simple.print.JSViewer
+	@$(JVM) com.seaofnodes.simple.JSViewer
 
 .PHONY: clean
 clean:
@@ -110,4 +111,4 @@ lib/hamcrest-core-1.3.jar:
 # Build emacs tags (part of a tasty emacs ide experience)
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
-	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
+	@$(CTAGS) -e --recurse=yes --extras=+q --fields=+fksaiS $(SRC) $(TST)

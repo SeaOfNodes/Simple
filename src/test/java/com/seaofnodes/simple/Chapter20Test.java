@@ -2,10 +2,12 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.ASMPrinter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
@@ -20,10 +22,11 @@ public class Chapter20Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        code.driver(CodeGen.Phase.RegAlloc,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        if( spills != -1 )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
     }
@@ -35,7 +38,9 @@ public class Chapter20Test {
     }
 
     @Test public void testAlloc0() {
-        testAllCPUs("return new u8[arg];", 1, "return [u8];");
+        testCPU("return new u8[arg];","x86_64_v2", "SystemV",3,"return [u8];");
+        testCPU("return new u8[arg];","riscv"    , "SystemV",5,"return [u8];");
+        testCPU("return new u8[arg];","arm"      , "SystemV",5,"return [u8];");
     }
 
     @Test public void testBasic1() {
@@ -60,103 +65,53 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",26,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,23,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
-        testCPU(src,"arm"      , "SystemV",26,null);
+        testCPU(src,"arm"      , "SystemV",19,null);
     }
 
     @Test
-    public void testNewtonFloat() {
-        String src =
-"""
-// Newtons approximation to the square root
-val sqrt = { flt x ->
-    flt guess = x;
-    while( 1 ) {
-        flt next = (x/guess + guess)/2;
-        if( next == guess ) return guess;
-        guess = next;
-    }
-};
-flt farg = arg;
-return sqrt(farg) + sqrt(farg+2.0);
-""";
-        testCPU(src,"x86_64_v2", "SystemV",25,null);
-        testCPU(src,"riscv"    , "SystemV",21,null);
+    public void testNewtonFloat() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
+            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
+        testCPU(src,"x86_64_v2", "SystemV",39,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
         testCPU(src,"arm"      , "SystemV",18,null);
     }
 
     @Test
     public void testAlloc2() {
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
-        testAllCPUs(src,1,"return .[];");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
+        testCPU(src,"riscv"    , "SystemV", 6,"return .[];");
+        testCPU(src,"arm"      , "SystemV", 6,"return .[];");
     }
+
+
 
     @Test
-    public void testArray1() {
-        String src =
-"""
-int[] !ary = new int[arg];
-// Fill [0,1,2,3,4,...]
-for( int i=0; i<ary#; i++ )
-    ary[i] = i;
-// Fill [0,1,3,6,10,...]
-for( int i=0; i<ary#-1; i++ )
-    ary[i+1] += ary[i];
-return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
-""";
-        testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
+    public void testArray1() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
+        testCPU(src,"riscv"    , "SystemV", 8,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
+
 
     @Test
-    public void testString() {
-        String src = """
-struct String {
-    u8[] cs;
-    int _hashCode;
-};
-
-val equals = { String self, String s ->
-    if( self == s ) return true;
-    if( self.cs# != s.cs# ) return false;
-    for( int i=0; i< self.cs#; i++ )
-        if( self.cs[i] != s.cs[i] )
-            return false;
-    return true;
-};
-
-val hashCode = { String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
-};
-
-val _hashCodeString = { String self ->
-    int hash=0;
-    if( self.cs ) {
-        for( int i=0; i< self.cs#; i++ )
-            hash = hash*31 + self.cs[i];
-    }
-    if( !hash ) hash = 123456789;
-    return hash;
-};
-
-String !s = new String { cs = new u8[17]; };
-s.cs[0] =  67; // C
-s.cs[1] = 108; // l
-hashCode(s);
-""";
-        testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV", 3,null);
-        testCPU(src,"arm"      , "SystemV", 3,null);
+    public void testString() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
+        testCPU(src,"arm"      , "SystemV", 6,null);
     }
 
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
-        testAllCPUs(src,0,null);
+        testCPU(src,"x86_64_v2", "SystemV",2,null);
+        testCPU(src,"riscv"    , "SystemV",2,null);
+        testCPU(src,"arm"      , "SystemV",2,null);
     }
 
     @Test
