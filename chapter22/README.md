@@ -19,6 +19,7 @@ No linker support for getting the correct signature; name `write` has to be sing
 `{ i32 fd, u8[] buf, i32 len -> i32 } write = "C";`
 
 
+
 ## Importing name spaces
 
 Ponder a `struct sys{}` default import struct.
@@ -26,63 +27,6 @@ Ponder a `struct sys{}` default import struct.
 Includes `sys.io{}` struct with I/O calls.
 
 Includes `sys.libc{}` with default libc calls.
-
-
-## Structs can be inlined
-
-Structs are normally by-reference, but can be converted to by-value by using
-the `*` operator, pronounced "contents of" (this name might be changed to
-e.g. `inline`).
-
-This is a name-space change only, you cannot take the address of the internal
-struct without entirely consuming its lifetime.  No "escaping".
-
-```java
-// 2 64-bit words, no other overheads
-struct Complex { f64 x,y; var len = { ->Math.sqrt(x*x+y*y); }; };
-
-// Current Simple rules: always by-reference
-struct ByRef {
-    Complex c;          // 4-byte pointer to a Complex
-};
-print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
-
-// New behavior: by value (inlining a struct)
-// The '*' syntax indicator can be something else, e.g. a keyword "inline"
-// I am pronouncing '*' as "contents of"
-struct ByValue {
-    *Complex c;         // c is inlined, full 16 bytes into ByValue
-};
-print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
-
-// Mixing Refs and Struct Values.  Basically, a ref can be converted
-// to a value by taking the "contents of" the ref, and values cannot
-// be *converted* to a ref, although they can be copied over a ref.
-ref. c =  val.c; // Error, mixing refs and values
-ref.*c =  val.c; // Allowed, whole structure copy.  Does not allocate, requires ref.c not-null
-val. c =  ref.c; // Error, mixing refs and values
-val. c = *ref.c; // Allowed, whole structure copy
-ref. c =  ref.c; // Allowed, pointer copy
-val. c =  val.c; // Allowed, whole structure copy.
-val *c =  val.c; // Error, cannot take "contents of" a value
-
-// Alternative syntax, to avoid the "contents of" being on LHS and field applying to being on RHS:
-ref.c = val.*c; // Assign into ref.c the "contents of" val.c
-
-// Arrays of inlined structures
-var ary = new *Complex[99]; // Array of 99 Complex objects, inlined
-
-// Calling methods has the same syntax
-ref.c.len();
-val.c.len();
-
-// Function arguments use the same typing, so can pass-by-value
-val math.sin = { Complex *c -> ... }; // Passes a complex by value
-math.sin(ref.*c); // Requires de-reference to pass by value
-math.sin(val. c); // Pass by value
-
-```
-
 
 
 ## Unifying Structs and Arrays
@@ -151,6 +95,7 @@ The syntax rules are:
 - the last field is named `[]` and can be of any type.
 - the second-to-last field is named `#` and must be some unsigned integer type
   representing the maximum array length.
+- may require a leading space in front of ` []`
   
   
   
@@ -405,8 +350,64 @@ gstr *prize3 = "bronze";
 ### Main becomes `val main = { str[] args -> ...}`
 
 
+## Structs can be inlined
 
-### RoadMap for other chapters
+Structs are normally by-reference, but can be converted to by-value by using
+the `*` operator, pronounced "contents of" (this name might be changed to
+e.g. `inline`).
+
+This is a name-space change only, you cannot take the address of the internal
+struct without entirely consuming its lifetime.  No "escaping".
+
+```java
+// 2 64-bit words, no other overheads
+struct Complex { f64 x,y; val len = { ->Math.sqrt(x*x+y*y); }; };
+
+// Current Simple rules: always by-reference
+struct ByRef {
+    Complex c;          // 4-byte pointer to a Complex
+};
+print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
+
+// New behavior: by value (inlining a struct)
+// The '*' syntax indicator can be something else, e.g. a keyword "inline"
+// I am pronouncing '*' as "contents of"
+struct ByValue {
+    *Complex c;         // c is inlined, full 16 bytes into ByValue
+};
+print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
+
+// Mixing Refs and Struct Values.  Basically, a ref can be converted
+// to a value by taking the "contents of" the ref, and values cannot
+// be *converted* to a ref, although they can be copied over a ref.
+ref. c =  val.c; // Error, mixing refs and values
+ref.*c =  val.c; // Allowed, whole structure copy.  Does not allocate, requires ref.c not-null
+val. c =  ref.c; // Error, mixing refs and values
+val. c = *ref.c; // Allowed, whole structure copy
+ref. c =  ref.c; // Allowed, pointer copy
+val. c =  val.c; // Allowed, whole structure copy.
+val *c =  val.c; // Error, cannot take "contents of" a value
+
+// Alternative syntax, to avoid the "contents of" being on LHS and field applying to being on RHS:
+ref.c = val.*c; // Assign into ref.c the "contents of" val.c
+
+// Arrays of inlined structures
+var ary = new *Complex[99]; // Array of 99 Complex objects, inlined
+
+// Calling methods has the same syntax
+ref.c.len();
+val.c.len();
+
+// Function arguments use the same typing, so can pass-by-value
+val math.sin = { Complex *c -> ... }; // Passes a complex by value
+math.sin(ref.*c); // Requires de-reference to pass by value
+math.sin(val. c); // Pass by value
+
+```
+
+
+
+## RoadMap for other chapters
 
 `&&` and `||`
 Drop `int` to `i32`.
