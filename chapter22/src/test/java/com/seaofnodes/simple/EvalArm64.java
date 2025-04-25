@@ -13,10 +13,9 @@ public class EvalArm64 {
     final double[] fregs;
 
     int _pc;
-
+    int SENTINEL_CALLOC = -4;
     // Start of free memory for allocation
     int _heap;
-
     // Cycle counters
     int _cycle;
 
@@ -39,7 +38,8 @@ public class EvalArm64 {
     public int  ld1s(int x) { return _buf[x  ]     ; }
     public int  ld1z(int x) { return _buf[x  ]&0xFF; }
     public int  ld2s(int x) { return ld1z(x) | ld1s(x+1)<< 8; }
-    public int  ld2z(int x) { return ld1z(x) | ld1z(x+1)<< 8; }
+    public int  ld2z(int x) {
+        return ld1z(x) | ld1z(x+1)<< 8; }
     public int  ld4s(int x) { return ld2z(x) | ld2s(x+2)<<16; }
     public long ld8 (int x) { return (long)ld4s(x)&0xFFFFFFFFL | ((long)ld4s(x+4))<<32; }
 
@@ -51,7 +51,6 @@ public class EvalArm64 {
     public void st2(int x, int  val) { st1(x,val); st1(x+1,val>> 8); }
     public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
     public void st8(int x, long val) { st4(x,(int)val); st2(x+4,(int)(val>>32)); }
-
 
     public int step(int maxops) {
         int trap = 0;
@@ -66,7 +65,6 @@ public class EvalArm64 {
             rval = 0;
             frval = 0;
             cycle++;
-
             if( pc >= _buf.length ) {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
@@ -85,6 +83,7 @@ public class EvalArm64 {
             int opcode1 = (ir >> 24) & 0xFF;
             // [31:26]
             int opcode2 = (ir >> 26) & 0x3F;
+
             switch(opcode2) {
                 case 5: {
                     //b
@@ -108,13 +107,12 @@ public class EvalArm64 {
                     int imm26 = (ir & 0x03FFFFFF);
                     int imm = (imm26 << 6) >> 6;
                     pc = pc + (imm << 2) ;
-
-                    if (pc == Encoding.SENTINAL_CALLOC) {
+                    if (pc == SENTINEL_CALLOC) {
                         long size = regs[arm.X0]*regs[arm.X1];
                         regs[arm.X0] = _heap;
                         _heap += (int)size;
                         // unwind pc
-                        pc = (int)rval - 4;
+                        pc = (int)rval;
                     }
                     continue;
                 }
@@ -127,6 +125,136 @@ public class EvalArm64 {
                     rval = (ir >> 5) & 0x7FFF;
                     break;
                 }
+                case 0x38: {
+                    // STRB/LDRB(register)
+                    int opc = ir >> 21 & 0x7;
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    // full opcode
+                    opcode1 = (ir >> 21) & 0x7FF;
+                    switch(opc) {
+                        case 0x1: {
+                            // store
+                            if(opcode1 == arm.OP_STORE_R_8) {
+                                st1((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                            }else {
+                                trap = (2+1);
+                            }
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x3: {
+                            // load
+                            if(opcode1 == arm.OP_LOAD_R_8) {
+                                rval = ld1s((int)regs[rn] + (int)regs[rm]);
+                            } else {
+                                trap = (2+1);
+                            }
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+                case 0x39: {
+                    // STRB/LDRB(immediate)
+                    // str/ldr(immediate)
+                    // rn
+                    int base = ir >> 5 & 0x1F;
+                    int imm = (ir >> 10) & 0xFFF;
+                    rval = regs[base] + imm;
+                    int opc = (ir >> 22) & 0x3;
+                    // full opcode
+                    opcode1 = (ir >> 22) & 0x3FF;
+
+                    switch(opc) {
+                        case 0x0: {
+                            // store
+                            if(opcode1 == arm.OP_STORE_IMM_8) {
+                                st1((int)rval, (int)regs[rdid]);
+                            } else trap = (2+1);
+                            rdid = -1;
+
+                            break;
+                        }
+                        case 0x1: {
+                            // LDR (immediate)
+                            if(opcode1 == arm.OP_LOAD_IMM_8) {
+                                rval = ld1s((int)rval);
+                            } else trap = (2+1);
+                            rdid = -1;
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+                case 0x78: {
+                    // STRH/LDRH(register)
+                    int opc = ir >> 21 & 0x7;
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    // full opcode
+                    opcode1 = (ir >> 21) & 0x7FF;
+                    switch(opc) {
+                        case 0x1: {
+                            // store
+                            if(opcode1 == arm.OP_STORE_R_16) {
+                                st1((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                            }else {
+                                trap = (2+1);
+                            }
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x3: {
+                            // load
+                            if(opcode1 == arm.OP_LOAD_R_16) {
+                                rval = ld1s((int)regs[rn] + (int)regs[rm]);
+                            } else {
+                                trap = (2+1);
+                            }
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+
+                case 0x79: {
+                    // STRH/LDRH(immediate)
+                    int base = ir >> 5 & 0x1F;
+                    int imm = (ir >> 10) & 0xFFF;
+                    imm *= 2;
+                    rval = regs[base] + imm;
+                    int opc = (ir >> 22) & 0x3;
+                    // full opcode
+                    opcode1 = (ir >> 22) & 0x3FF;
+
+                    switch(opc) {
+                        case 0x0: {
+                            // store
+                            if(opcode1 == arm.OP_STORE_IMM_16) {
+                                st2((int)rval, (int)regs[rdid]);
+                            } else trap = (2+1);
+                            rdid = -1;
+
+                            break;
+                        }
+                        case 0x1: {
+                            // LDR (immediate)
+                            if(opcode1 == arm.OP_LOAD_IMM_16) {
+                                rval = ld2s((int)rval);
+                            } else trap = (2+1);
+                            rdid = -1;
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+
+
                 case 0x5c: {
                     // ldr
                     is_f = true;
@@ -137,30 +265,276 @@ public class EvalArm64 {
                     frval = ld8f(pc + address);
                     break;
                 }
-
-                case 0xF9: {
-                    // str
-                    // rn
+                case 0xB9: {
+                    // str/ldr(immediate) 32 bits
                     int base = ir >> 5 & 0x1F;
                     int imm = (ir >> 10) & 0xFFF;
+                    imm *= 4;
+
                     rval = regs[base] + imm;
-                    switch(ir <<8 >> 30) {
+                    int opc = (ir >> 22) & 0x3;
+
+                    opcode1 = (ir >> 22) & 0x3FF;
+                    switch(opc) {
                         case 0x0: {
                             // store
-                            _buf[(int)rval] = (byte)regs[rdid];
-                            if(rdid == 30) {
-                                System.out.print("Here");
-                            }
+                            if(opcode1 == arm.OP_STORE_IMM_32) {
+                                st4((int)rval, (int)regs[rdid]);
+                            } else trap = (2+1);
+
                             rdid = -1;
                             break;
                         }
                         case 0x1: {
-                            // load
-                            rval = _buf[(int)rval];
+                            // LDR (immediate)
+                            if(opcode1 == arm.OP_LOAD_IMM_32) {
+                                rval = ld4s((int) rval);
+                            } else trap = (2+1);
                             break;
                         }
                         default: trap = (2+1);
                     }
+                    break;
+                }
+                case 0xF9: {
+                    // str/ldr(immediate) 64 bits
+                    int base = ir >> 5 & 0x1F;
+                    int imm = (ir >> 10) & 0xFFF;
+
+                    imm *= 8;
+
+                    rval = regs[base] + imm;
+                    int opc = (ir >> 22) & 0x3;
+                    // full opcode
+                    opcode1 = (ir >> 22) & 0x3FF;
+                    switch(opc) {
+                        case 0x0: {
+                            // store
+                            if(opcode1 == arm.OP_STORE_IMM_64) {
+                                st8((int)rval, regs[rdid]);
+                            }  else trap = (2+1);
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x1: {
+                            // LDR (immediate)
+                            if(opcode1 == arm.OP_LOAD_IMM_64) {
+                                rval = ld8((int)rval);
+                            } else trap = (2+1);
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+                case 0xf8: {
+                    // LDR/STR (register + index) 64 bits
+                    int opc = ir >> 21 & 0x7;
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    // full opcode
+                    opcode1 = (ir >> 21) & 0x7FF;
+                    switch(opc) {
+                        case 0x1: {
+                            if(opcode1 == arm.OP_STORE_R_64) {
+                                st8((int)regs[rn] + (int)regs[rm], regs[rdid]);
+                            }else {
+                                trap = (2+1);
+                            }
+                            // store(expected to store the length here)
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x3: {
+                            // load
+                            if(opcode1 == arm.OP_LOAD_R_64) {
+                                rval = ld8((int) (regs[rn] + regs[rm]));
+                            } else {
+                                trap = (2+1);
+                            }
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+
+                    break;
+                }
+
+                case 0xB8: {
+                    // LDR/STR (register + index) 32 bits
+                    int opc = ir >> 21 & 0x7;
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    // full opcode
+                    opcode1 = (ir >> 21) & 0x7FF;
+                    switch(opc) {
+                        case 0x1: {
+                            if(opcode1 == arm.OP_STORE_R_32) {
+                                st4((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                            }else {
+                                trap = (2+1);
+                            }
+                            // store(expected to store the length here)
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x3: {
+                            // load
+                            if( opcode1 == arm.OP_LOAD_R_32) {
+                                rval = ld4s((int) (regs[rn] + regs[rm]));
+                            } else {
+                                trap = (2+1);
+                            }
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+
+                    break;
+                }
+
+                case 0xFC: {
+                    // LDR/STR (register + index) float 64 bits
+                    int opc = ir >> 21 & 0x7;
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    is_f = true;
+                    // full opcode
+                    opcode1 = (ir >> 21) & 0x7FF;
+                    switch(opc) {
+                        case 0x1: {
+                            if(opcode1 == arm.OPF_STORE_R_64) {
+                                st8((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                            }else {
+                                trap = (2+1);
+                            }
+                            // store(expected to store the length here)
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x3: {
+                            // load
+                            if(opcode1 == arm.OPF_LOAD_R_64) {
+                                frval = ld8f((int) (regs[rn] + regs[rm]));
+                            } else {
+                                trap = (2+1);
+                            }
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+
+                    break;
+                }
+
+                case 0xBC: {
+                    // LDR/STR (register + index) float 32 bits
+                    int opc = ir >> 21 & 0x7;
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    is_f = true;
+                    // full opcode
+                    opcode1 = (ir >> 21) & 0x7FF;
+                    switch(opc) {
+                        case 0x1: {
+                            if(opcode1 == arm.OPF_STORE_R_32) {
+                                st4((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                            }else {
+                                trap = (2+1);
+                            }
+                            // store(expected to store the length here)
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x3: {
+                            // load
+                            if(opcode1 == arm.OPF_LOAD_R_32) {
+                                frval = ld4f((int) (regs[rn] + regs[rm]));
+                            } else {
+                                trap = (2+1);
+                            }
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+
+                    break;
+                }
+
+                case 0xBD: {
+                    // LDR/STR(immediate) 32 bits floats
+                    int base = ir >> 5 & 0x1F;
+                    int imm = (ir >> 10) & 0xFFF;
+
+                    imm *= 4;
+                    is_f = true;
+                    rval = regs[base] + imm;
+                    int opc = (ir >> 22) & 0x3;
+                    // full opcode
+                    opcode1 = (ir >> 22) & 0x3FF;
+                    switch(opc) {
+                        case 0x0: {
+                            // store
+                            if(opcode1 == arm.OPF_STORE_IMM_32) {
+                                st4((int)rval, (int)regs[rdid]);
+                            }  else trap = (2+1);
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x1: {
+                            // LDR (immediate)
+                            if(opcode1 == arm.OPF_LOAD_IMM_32) {
+                                frval = ld4s((int)rval);
+                            } else trap = (2+1);
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+                case 0xFD: {
+                    // LDR/STR(immediate) 64 bits floats
+                    int base = ir >> 5 & 0x1F;
+                    int imm = (ir >> 10) & 0xFFF;
+
+                    imm *= 4;
+                    is_f = true;
+                    rval = regs[base] + imm;
+                    int opc = (ir >> 22) & 0x3;
+                    // full opcode
+                    opcode1 = (ir >> 22) & 0x3FF;
+                    switch(opc) {
+                        case 0x0: {
+                            // store
+                            if(opcode1 == arm.OPF_STORE_IMM_64) {
+                                st8((int)rval, regs[rdid]);
+                            }  else trap = (2+1);
+
+                            rdid = -1;
+                            break;
+                        }
+                        case 0x1: {
+                            // LDR (immediate)
+                            if(opcode1 == arm.OPF_LOAD_IMM_64) {
+                                frval = ld8((int)rval);
+                            } else trap = (2+1);
+                            break;
+                        }
+                        default: trap = (2+1);
+                    }
+                    break;
+                }
+                case 0x9b: {
+                    // mul
+                    int rn = (ir >> 5) & 0x1F;
+                    int rm = (ir >> 16) & 0x1F;
+                    rval = regs[rn] * regs[rm];
                     break;
                 }
                 case 0x54: {
@@ -209,17 +583,17 @@ public class EvalArm64 {
                         case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
                         case 0xE: rval = regs[rm]; break; // always executed(al)
                         default: {
-                           rval =  regs[(ir >> 5) & 0x1F];
+                            rval =  regs[(ir >> 5) & 0x1F];
                         }
                     }
                     break;
                 }
                 case 0xeb: {
                     // subs(shifted register)
-                    int rn = (ir >> 5) &  0x1F;
+                    int rn = (ir >> 5)  & 0x1F;
                     int rm = (ir >> 16) & 0x1F;
-                    int lhs = (int)regs[rn];
-                    int rhs = (int)regs[rm];
+                    long lhs = regs[rn];
+                    long rhs = regs[rm];
                     rval = lhs - rhs;
 
                     // set flags as a side effect
@@ -238,7 +612,7 @@ public class EvalArm64 {
                     // subs(immediate)
                     int rn = (ir >> 5) & 0x1F;
                     int immediate = ir << 10 >> 20;
-                    int lhs = (int)regs[rn];
+                    long lhs = regs[rn];
 
                     rval = lhs - immediate;
 
@@ -267,13 +641,30 @@ public class EvalArm64 {
                     // add(immediate)
                     int rn = (ir >> 5) & 0x1F;
                     int immediate = ir << 10 >> 20;
+                    // only hit it twice
                     rval = regs[rn] + immediate;
                     break;
                 }
                 case 0xD3: {
-                    // lsl
-                    int immr = ir << 10 >> 26;
-                    rval     = 64 - immr;
+                    // lsl(immediate)
+                    int imm = (ir >> 16) & 0x3F;
+                    int rn = (ir >> 5) & 0x1F;
+                    rval     = regs[rn] << (64 - imm);
+                    break;
+                }
+                case 0x93: {
+                    // asr(immediate)
+                    int imm = (ir >> 16) & 0x3F;
+                    int rn = (ir >> 5) & 0x1F;
+                    rval     = regs[rn] >> (imm);
+                    break;
+                }
+                case 0x92: {
+                    // and(immediate)
+                    int imm12 = (ir >> 10) & 0x1FFF;
+                    long immediate = arm.decodeImm12(imm12);
+                    int rn = (ir >> 5) & 0x1F;
+                    rval = regs[rn] & immediate;
                     break;
                 }
                 case 0xAA: {

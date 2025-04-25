@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,10 +24,15 @@ public class BrainFuckTest {
         for( int i=0; i<brain_fuck.length(); i++ )
             assertEquals(brain_fuck.charAt(i), R5.ld1z(ptr+4+i));
 
-        // TODO: replace with ARM Eval
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/brain_fuck.smp"));
-        Chapter21Test.testCPU(src,"arm", "SystemV",26,null);
+        EvalArm64 A5 = TestArm64.build("brain_fuck", 0, 28, false);
+        int trap_arm = A5.step(100000);
+        assertEquals(0,trap_arm);
+        assertEquals(0,trap);
+        int ptr_arm = (int)A5.regs[arm.X0];
+        assertEquals(brain_fuck.length(),A5.ld4s(ptr_arm));
 
+        for( int i=0; i<brain_fuck.length(); i++ )
+            assertEquals(brain_fuck.charAt(i), A5.ld1z(ptr+4+i));
     }
 
 }

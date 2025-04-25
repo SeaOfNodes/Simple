@@ -22,12 +22,18 @@ public class StoreARM extends MemOpARM {
     }
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask outregmap() { return null; }
+
+    private static final int[] OP_STORES = new int[]{ arm.OP_STORE_IMM_8, arm.OP_STORE_IMM_16, arm.OP_STORE_IMM_32, arm.OP_STORE_IMM_64, };
+    private int imm_op() {
+        return _declaredType == TypeFloat.F32 ? arm.OPF_STORE_IMM_32
+            :  _declaredType == TypeFloat.F64 ? arm.OPF_STORE_IMM_64
+            :  OP_STORES[_declaredType.log_size()];
+    }
+
+    private static final int[] OP_STORE_RS = new int[]{ arm.OP_STORE_R_8, arm.OP_STORE_R_16, arm.OP_STORE_R_32, arm.OP_STORE_R_64, };
+
     @Override public void encoding( Encoding enc ) {
-        if(_declaredType == TypeFloat.F32 || _declaredType == TypeFloat.F64) {
-            ldst_encode(enc, arm.OPF_STORE_IMM,arm.OPF_STORE_R, val(), true);
-        } else {
-            ldst_encode(enc, arm.OP_STORE_IMM, arm.OP_STORE_R, val(), false);
-        }
+        ldst_encode(enc, imm_op(), OP_STORE_RS[_declaredType.log_size()], val(), size());
     }
     @Override public void asm(CodeGen code, SB sb) {
         asm_address(code,sb).p(",");

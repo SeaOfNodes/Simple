@@ -10,7 +10,7 @@ public class NotARM extends MachConcreteNode implements MachNode{
     NotARM(NotNode not) {super(not);}
     @Override public String op() { return "not"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK;  }
+    @Override public RegMask outregmap() { return arm.WMASK;  }
     @Override public RegMask killmap() { return arm.FLAGS_MASK; }
     @Override public void encoding( Encoding enc ) {
         // subs xzr, rs, #0

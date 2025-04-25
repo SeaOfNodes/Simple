@@ -17,7 +17,7 @@ public class XorIARM extends MachConcreteNode implements MachNode {
 
     @Override public String op() { return "xori"; }
     @Override public RegMask regmap(int i) { return arm.RMASK; }
-    @Override public RegMask outregmap() { return arm.RMASK; }
+    @Override public RegMask outregmap() { return arm.WMASK; }
 
     // General form: "xori  rd = rs1 ^ imm"
     @Override public void encoding( Encoding enc ) { arm.imm_inst_n(enc,this, in(1), arm.OPI_XOR,_imm); }

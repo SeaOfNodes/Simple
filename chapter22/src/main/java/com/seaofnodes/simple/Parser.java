@@ -24,7 +24,7 @@ public class Parser {
     public final CodeGen _code;
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
-    private final Lexer _lexer;
+    private Lexer _lexer;
 
     /**
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
@@ -92,7 +92,6 @@ public class Parser {
 
     public Parser(CodeGen code, TypeInteger arg) {
         _code = code;
-        _lexer = new Lexer(code._src);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
         ZERO  = con(TypeInteger.ZERO).keep();
@@ -132,8 +131,13 @@ public class Parser {
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
-    public void parse() { parse(false); }
-    public void parse(boolean show) {
+    public void parse() {
+        _parse(com.seaofnodes.simple.sys.sys.SYS);
+        _parse(_code._src);
+    }
+
+    private void _parse(String src) {
+        _lexer = new Lexer(src);
         _xScopes.push(_scope);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
@@ -173,7 +177,6 @@ public class Parser {
             init.unkeep().kill();
         INITS.clear();
         stop.peephole();
-        if( show ) showGraph();
     }
 
     /**
@@ -694,7 +697,9 @@ public class Parser {
         boolean xfinal = false;
         Node expr;
         if( match("=") ) {
-            expr = parseAsgn();
+            expr = isExternDecl()
+                ? externDecl(name,t)
+                : parseAsgn();
             // TOP means val and val is always final
             xfinal = (t==Type.TOP) ||
                 // BOTTOM is var and var is always not-final
@@ -1437,6 +1442,19 @@ public class Parser {
         return new ProjNode(cend,2,"#2").peephole();
     }
 
+    // Just after parsing "type foo = " can parse `"C"`
+    private boolean isExternDecl( ) {
+        int old = pos();
+        String s = parseString();
+        if( "C".equals(s) ) return true;
+        pos(old);
+        return false;
+    }
+    // External linked constant
+    private Node externDecl( String ex, Type t ) {
+        return new ExternNode(t,ex).peephole();
+    }
+
     /**
      * Parse integer literal
      *
@@ -1452,6 +1470,18 @@ public class Parser {
         // Peephole, then improve with lexically scoped guards
         return _scope.upcastGuard(n.peephole());
     }
+
+    // Parse a string or null
+    private String parseString() {
+        if( !peek('"') ) return null;
+        _lexer.inc();
+        int start = pos();
+        while( !_lexer.isEOF() && _lexer.nextChar()!= '"' ) ;
+        if( _lexer.isEOF() )
+            throw error("Unclosed string");
+        return new String(_lexer._input,start,pos()-start-1);
+    }
+
 
     //////////////////////////////////
     // Utilities for lexical analysis
@@ -1596,7 +1626,14 @@ public class Parser {
                          _input[_position  ] == '/' &&
                          _input[_position+1] == '/') {
                     inc(); inc();
-                    while( !isEOF() && _input[_position] != '\n' ) inc();
+                    while( !isEOF() && _input[_position] != '\n' )
+                        inc();
+                } else if( _position+2 < _input.length &&
+                         _input[_position  ] == '/' &&
+                         _input[_position+1] == '*') {
+                    while( !isEOF() && !(_input[_position-1] == '*' && _input[_position] == '/'))
+                        inc();
+                    inc();
                 } else break;
             }
         }
