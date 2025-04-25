@@ -132,7 +132,7 @@ public class Parser {
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
     public void parse() {
-        _parse(com.seaofnodes.simple.sys.sys.SYS);
+        //_parse(com.seaofnodes.simple.sys.sys.SYS);
         _parse(_code._src);
     }
 
