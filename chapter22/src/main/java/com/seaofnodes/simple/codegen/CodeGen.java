@@ -300,8 +300,6 @@ public class CodeGen {
         if( x instanceof MachNode mach )
             mach.postSelect(this);  // Post selection action
 
-        // Updates forward edges only.
-        n._outputs.clear();
         return x;
     }
 

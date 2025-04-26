@@ -37,7 +37,6 @@ public class CallEndNode extends CFGNode implements MultiNode {
         if( !(in(0) instanceof CallNode call) )
             return TypeTuple.RET.dual();
         Type ret = Type.BOTTOM;
-        TypeMem mem = TypeMem.BOT;
         if( addDep(call.fptr())._type instanceof TypeFunPtr tfp ) {
             ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
