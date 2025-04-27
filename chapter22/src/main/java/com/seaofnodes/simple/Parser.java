@@ -783,10 +783,11 @@ public class Parser {
         StructNode s = new StructNode();
         Ary<Field> fs = new Ary<>(Field.class);
         for( int i=lexlen; i<varlen; i++ ) {
-            s.addDef(_scope.in(i));
             Var v = _scope._vars.at(i);
-            if( !v.isFRef() )  // Promote to outer scope, not defined here
-                fs.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
+            if( !v.isFRef() ) { // Promote to outer scope, not defined here
+                s.addDef(_scope.in(i));
+                fs.push( Field.make( v._name, v.type(), _code.getALIAS(), v._final ) );
+            }
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
         TYPES.put(typeName, TypeMemPtr.make(ts));
@@ -1452,7 +1453,8 @@ public class Parser {
     }
     // External linked constant
     private Node externDecl( String ex, Type t ) {
-        return new ExternNode(t,ex).peephole();
+        //return new ExternNode(t,ex).peephole();
+        throw Utils.TODO();
     }
 
     /**
