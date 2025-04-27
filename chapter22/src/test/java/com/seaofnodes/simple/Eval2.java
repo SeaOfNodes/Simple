@@ -407,7 +407,8 @@ public abstract class Eval2 {
             // Since never can close the type cycle, without cyclic types, have
             // to handle FRefs even here
             if( tmp.isFRef() )
-                tmp = tmp.makeFrom(((TypeMemPtr)Parser.TYPES.get(tmp._obj._name))._obj);
+                //tmp = tmp.makeFrom(((TypeMemPtr)Parser.TYPES.get(tmp._obj._name))._obj);
+                throw Utils.TODO();
 
             Object[] xs = (Object[])x; // Array of fields
             if( tmp._obj.isAry() ) {

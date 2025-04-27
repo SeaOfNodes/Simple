@@ -239,7 +239,7 @@ public abstract class Node implements Cloneable {
 
     // Shortcut for "popping" until n nodes.  A "pop" is basically a
     // setDef(last,null) followed by lowering the nIns() count.
-    void popUntil(int n) {
+    public void popUntil(int n) {
         unlock();
         while( nIns() > n ) {
             Node old_def = _inputs.pop();
@@ -255,9 +255,9 @@ public abstract class Node implements Cloneable {
      * code elimination.
      */
     public void kill( ) {
+        assert isUnused();      // Has no uses, so it is dead
         unlock();
         moveDepsToWorklist();
-        assert isUnused();      // Has no uses, so it is dead
         _type=null;             // Flag as dead
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
@@ -293,6 +293,10 @@ public abstract class Node implements Cloneable {
     public boolean iskeep() { return _outputs.find(null) != -1; }
     public void unkill() {
         if( unkeep().isUnused() )
+            kill();
+    }
+    public void isKill() {
+        if( isUnused() )
             kill();
     }
 

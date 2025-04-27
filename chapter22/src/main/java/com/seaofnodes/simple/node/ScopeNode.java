@@ -25,9 +25,15 @@ public class ScopeNode extends MemMergeNode {
     // Size of each nested lexical scope
     public final Ary<Integer> _lexSize;
 
-    // Lexical scope is one of normal Block, constructor or function
-    public enum Kind { Block, Constructor, Function };
+    // Lexical scope is typed:
+    // - Block scope - basic block scoping
+    // - Constructor - struct type is defined, and here we give values to all fields
+    // - Declaration - struct is declared, final constant fields defined
+    // - Function - out-of-scope lookups restricted to final constants
+    public enum Kind { Block, Constructor, DeclarationQ, Function };
     public final Ary<Kind> _kinds;
+    // Each Constructor scope is named, allowing for nested Type names
+    public final Ary<String> _tnamesQ;
 
     // Extra guards; tested predicates and casted results
     private final Ary<Node> _guards;
@@ -38,6 +44,7 @@ public class ScopeNode extends MemMergeNode {
         _vars   = new Ary<>(Var    .class);
         _lexSize= new Ary<>(Integer.class);
         _kinds  = new Ary<>(Kind   .class);
+        _tnamesQ = new Ary<>(String .class);
         _guards = new Ary<>(Node   .class);
     }
 
@@ -49,7 +56,7 @@ public class ScopeNode extends MemMergeNode {
         int j=1;
         for( int i=0; i<nIns(); i++ ) {
             if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
-            Var v = _vars.get(i);
+            Var v = _vars.at(i);
             sb.append(v.type().print(new SB()));
             sb.append(" ");
             if( v._final ) sb.append("!");
@@ -71,6 +78,7 @@ public class ScopeNode extends MemMergeNode {
 
     public Node ctrl() { return in(0); }
     public MemMergeNode mem() { return (MemMergeNode)in(1); }
+    public Var var(int i) { return _vars.at(i); }
 
     /**
      * The ctrl of a ScopeNode is always bound to the currently active
@@ -85,20 +93,23 @@ public class ScopeNode extends MemMergeNode {
     public <N extends Node> N ctrl(N n) { return setDef(0,n); }
     public Node mem(Node n) { return setDef(1,n); }
 
-    public void push(Kind kind) {
-        assert _lexSize._len==_kinds._len;
+    public void push(Kind kind, String tnameQ) {
+        assert _lexSize._len==_kinds._len && _lexSize._len==_tnamesQ._len;
+        assert !(kind==Kind.DeclarationQ && tnameQ==null);
         _lexSize.push(_vars.size());
         _kinds  .push(kind);
+        _tnamesQ .push(tnameQ);
     }
 
     // Pop a lexical scope
     public void pop() {
-        assert _lexSize._len==_kinds._len;
-        promote();
+        assert _lexSize._len==_kinds._len && _lexSize._len==_tnamesQ._len;
+        promote();              // Promote forward references to the next outer scope
         int n = _lexSize.pop();
         _kinds.pop();
-        popUntil(n);
-        _vars.setLen(n);
+        _tnamesQ.pop();
+        popUntil(n);            // Pop off inputs going out of scope
+        _vars.setLen(n);        // Pop off variables going out of scope
     }
 
 
@@ -107,7 +118,7 @@ public class ScopeNode extends MemMergeNode {
     public void promote() {
         int n = _lexSize.last();
         for( int i=n; i<nIns(); i++ ) {
-            Var v = _vars.at(i);
+            Var v = var(i);
             if( !v.isFRef() ) continue;
             if( _lexSize._len==1 )
                 throw Parser.error("Undefined name '" + v._name + "'",v._loc);
@@ -120,7 +131,15 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
-    public boolean inCon() { return _kinds.last() == Kind.Constructor; }
+    public boolean inConstructor() { return _kinds.last() == Kind.Constructor; }
+    public boolean inDeclarationQ() { return _kinds.last() == Kind.DeclarationQ; }
+    // Nearest enclosing declaration scope name
+    public String declNameQ() {
+        for( int i=_lexSize._len-1; i>=0; i-- )
+            if( _kinds.at(i)==Kind.DeclarationQ )
+                return _tnamesQ.at(i);
+        return null;
+    }
 
     // Is v outside any current function scope?
     public boolean outOfFunction( Var v ) {
@@ -134,9 +153,9 @@ public class ScopeNode extends MemMergeNode {
     // Find name in reverse, return an index into _vars or -1.  Linear scan
     // instead of hashtable, but probably doesn't matter until the scan
     // typically hits many dozens of variables.
-    int find( String name ) {
+    public int find( String name, boolean clz ) {
         for( int i=_vars.size()-1; i>=0; i-- )
-            if( _vars.at(i)._name.equals(name) )
+            if( var(i)._name.equals(name) && var(i)._clz==clz )
                 return i;
         return -1;
     }
@@ -145,10 +164,13 @@ public class ScopeNode extends MemMergeNode {
      * Create a new variable name in the current scope
      */
     public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
+        return define(name,declaredType,xfinal,init,false,loc);
+    }
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init, boolean clz, Parser.Lexer loc ) {
         assert _lexSize.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
         if( _lexSize._len > 0 )
             for( int i=_vars.size()-1; i>=_lexSize.last(); i-- ) {
-                Var n = _vars.at(i);
+                Var n = var(i);
                 if( n._name.equals(name) ) {
                     if( !n.isFRef() ) return false;       // Double define
                     FRefNode fref = (FRefNode)in(n._idx); // Get forward ref
@@ -157,7 +179,7 @@ public class ScopeNode extends MemMergeNode {
                     setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
                 }
             }
-        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==Parser.XCTRL);
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc,clz,init==Parser.XCTRL);
         _vars.add(v);
         // Creating a forward reference
         if( init==Parser.XCTRL )
@@ -179,21 +201,37 @@ public class ScopeNode extends MemMergeNode {
      * @return null if not found, or the implementing Node
      */
     public Var lookup( String name ) {
-        int idx = find(name);
+        int idx = find(name,false);
         // -1 is missed in all scopes, not found
-        return idx == -1 ? null : update(_vars.at(idx),null);
+        return idx == -1 ? null : update(var(idx),null);
     }
 
     /**
-     * If the name is present in any scope, then redefine else null
+     * Lookup a type name and return the instance TypeMemPtr
+     *
+     * @param name of Type
+     * @return null if not found, or *instance* TypeMemPtr
+     */
+    public TypeMemPtr lookupInstance( String name ) {
+        int idx = find(name,true);
+        // -1 is missed in all scopes, not found
+        if( idx == -1 ) return null;
+        // Class types are always TMPs
+        TypeMemPtr clz = (TypeMemPtr)var(idx).type();
+        // Instance types are always TMPs
+        return (TypeMemPtr)(clz._obj.field(" decl")._type);
+    }
+
+    /**
+     * Redefine an existing name
      *
      * @param name Name being redefined
      * @param n    The node to bind to the name
      */
     public void update( String name, Node n ) {
-        int idx = find(name);
+        int idx = find(name,false);
         assert idx>=0;
-        update(_vars.at(idx),n);
+        update(var(idx),n);
     }
 
     public Var update( Var v, Node st ) {
@@ -238,6 +276,7 @@ public class ScopeNode extends MemMergeNode {
         dup._vars   .addAll(_vars   );
         dup._lexSize.addAll(_lexSize);
         dup._kinds  .addAll(_kinds  );
+        dup._tnamesQ .addAll(_tnamesQ );
         dup._guards .addAll(_guards );
         // The dup'd guards all need dup'd keepers, to keep proper accounting
         // when later removing all guards
@@ -260,7 +299,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=2; i<nIns(); i++ )
             // For lazy phis on loops we use a sentinel
             // that will trigger phi creation on update
-            dup.addDef(loop && !_vars.at(i)._final ? this : in(i));
+            dup.addDef(loop && !var(i)._final ? this : in(i));
         return dup;
     }
 
@@ -286,7 +325,7 @@ public class ScopeNode extends MemMergeNode {
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
-                Var v = _vars.at(i);
+                Var v = var(i);
                 Node lhs = this.in(this.update(v,null));
                 Node rhs = that.in(that.update(v,null));
                 setDef(i, new PhiNode(v._name, v.type(), r, lhs, rhs).peephole());
@@ -297,7 +336,7 @@ public class ScopeNode extends MemMergeNode {
     // Forward refs are copied to the other side, "as if" they were there all along.
     public void balanceIf( ScopeNode scope ) {
         for( int i = nIns(); i < scope.nIns(); i++ ) {
-            Var n = scope._vars.at(i);
+            Var n = scope.var(i);
             if( n.isFRef() ) {  // RHS has forward refs
                 _vars.add(n);   // Copy to LHS
                 addDef(scope.in(i));
@@ -329,8 +368,8 @@ public class ScopeNode extends MemMergeNode {
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
         for( int i=2; i<nIns(); i++ ) {
-            if( _vars.at(i)._final ) continue; // Final vars did not get modified in the loop
-            if( _vars.at(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
+            if( var(i)._final ) continue; // Final vars did not get modified in the loop
+            if( var(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
             if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;

@@ -97,7 +97,7 @@ public class ScriptGenerator {
     private static final List<TypeInt> INTTYPES = new ArrayList<>();
 
     static {
-        for( var e : Parser.defaultTypes().entrySet() ) {
+        for( var e : Parser.PRIMS.entrySet() ) {
             if( e.getValue() instanceof TypeInteger ) {
                 INTTYPES.add(new TypeInt(e.getKey()));
             }

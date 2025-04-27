@@ -28,7 +28,6 @@ public class Chapter22Test {
             assertEquals(stop, code._stop.toString());
     }
 
-
     @Test
     public void testCoRecur() {
         String src = """
