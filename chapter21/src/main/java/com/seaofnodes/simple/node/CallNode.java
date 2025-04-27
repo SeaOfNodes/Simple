@@ -139,7 +139,7 @@ public class CallNode extends CFGNode {
                 assert linked(fun);
                 int idx = fun._inputs.find(this);
                 for( Node use : fun._outputs )
-                    if( use instanceof ParmNode parm )
+                    if( use instanceof ParmNode )
                         use.delDef(idx);
                 fun.delDef(idx);
                 cend().delDef(cend()._inputs.find(fun.ret()));
