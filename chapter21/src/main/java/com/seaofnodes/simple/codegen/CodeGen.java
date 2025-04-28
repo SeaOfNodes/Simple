@@ -88,6 +88,24 @@ public class CodeGen {
     public  int getALIAS() { return _alias++; }
 
 
+    // idepths are cached and valid until *inserting* CFG edges (deleting is
+    // OK).  This happens with inlining, which bumps the version to bulk
+    // invalidate the idepth caches.
+    private int _iDepthVersion = 0;
+    public void invalidateIDepthCaches() { _iDepthVersion++; }
+    public boolean validIDepth(int idepth) {
+        if( idepth==0 ) return false;
+        if( _iDepthVersion==0 ) return true;
+        return (idepth%100)==_iDepthVersion;
+    }
+    public int iDepthAt(int idepth) {
+        return 100*idepth+_iDepthVersion;
+    }
+    public int iDepthFrom(int idepth) {
+        assert idepth==0 || validIDepth(idepth);
+        return idepth+100;
+    }
+
     // Popular visit bitset, declared here, so it gets reused all over
     public final BitSet _visit = new BitSet();
     public BitSet visit() { assert _visit.isEmpty(); return _visit; }

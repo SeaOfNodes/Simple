@@ -788,8 +788,7 @@ public class arm extends Machine {
     private static int off;
     private static Node idx;
     private Node st(StoreNode st) {
-        Node xval = st.val() instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
-        return new StoreARM(address(st),st.ptr(),idx,off,xval);
+        return new StoreARM(address(st),st.ptr(),idx,off,st.val());
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder
