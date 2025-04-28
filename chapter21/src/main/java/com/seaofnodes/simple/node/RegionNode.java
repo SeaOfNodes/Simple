@@ -141,12 +141,13 @@ public class RegionNode extends CFGNode {
 
     // Immediate dominator of Region is a little more complicated.
     @Override public int idepth() {
-        if( _idepth!=0 ) return _idepth;
+        if( CodeGen.CODE.validIDepth(_idepth) )
+            return _idepth;
         int d=0;
         for( Node n : _inputs )
             if( n!=null )
-                d = Math.max(d,((CFGNode)n).idepth()+1);
-        return _idepth=d;
+                d = Math.max(d,CodeGen.CODE.iDepthFrom(((CFGNode)n).idepth()));
+        return _idepth = d;
     }
 
     @Override public CFGNode idom(Node dep) {

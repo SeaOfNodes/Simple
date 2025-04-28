@@ -36,7 +36,7 @@ public class StoreRISC extends MemOpRISC {
         short ptr = enc.reg(ptr());
         int op = val >= riscv.F_OFFSET ? riscv.OP_STOREFP : riscv.OP_STORE;
         if( val >= riscv.F_OFFSET  ) val -= riscv.F_OFFSET;
-        enc.add4(riscv.s_type(op, func3()&7, ptr, val, _off));
+        enc.add4(riscv.s_type(op, func3()&7, ptr, val == -1 ? riscv.ZERO : val, _off));
     }
 
     @Override public void asm(CodeGen code, SB sb) {
