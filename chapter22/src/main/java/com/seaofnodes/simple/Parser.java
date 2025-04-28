@@ -805,9 +805,9 @@ public class Parser {
             flds.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
             stru.addDef(_scope.in(i));
         }
-        TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
+        TypeStruct ts = inst._ts = TypeStruct.make(typeName, fs.asAry());
         //PRIMS.put(typeName, TypeMemPtr.make(ts));
-        INITS.put(typeName,s.peephole().keep());
+        INITS.put(typeName,inst.peephole().keep());
 
         //String clzName = typeName + ".clz";     // Class name
         //PRIMS.put(clzName, TypeMemPtr.make(TypeStruct.make(clzName, cs.asAry())));
