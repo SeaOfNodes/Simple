@@ -26,7 +26,9 @@ public class LoopNode extends RegionNode {
     }
 
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-    @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    public int idepth() {
+        return CodeGen.CODE.validIDepth(_idepth) ? _idepth : (_idepth=CodeGen.CODE.iDepthFrom(idom().idepth()));
+    }
     // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
     @Override public CFGNode idom(Node dep) { return entry(); }
 
