@@ -63,7 +63,7 @@ abstract public class BuildLRG {
                 }
 
                 // MultiNodes have projections which set registers
-                if( n instanceof MultiNode )
+                if( n instanceof MultiNode && !(n instanceof CFGNode) )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )
                             defLRG(alloc,proj);

@@ -4,11 +4,11 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.SB;
 
 /** RegMask
- *  A "register mask" - 1 bit set for each allowed register.  In addition
+ *  A "register mask" - 1 bit set for each allowed register.  In addition,
  *  "stack slot" registers may be allowed, effectively making the set infinite.
  * <p>
  *  For smaller and simpler machines it suffices to make such masks an i64 or
- *  i128 (64 or 128 bit integers), and this presentation is by far the better
+ *  i128 (64- or 128-bit integers), and this presentation is by far the better
  *  way to go... if all register allocations can fit in this bit limitation.
  *  The allocator will need bits for stack-based parameters and for splits
  *  which cannot get a register.  For a 32-register machine like the X86, add 1
@@ -28,7 +28,7 @@ public class RegMask {
 
     public RegMask(int bit) {
         if( bit < 64 ) _bits0 = 1L<<bit;
-        else _bits1 = 1L<<(bit=64);
+        else _bits1 = 1L<<(bit-64);
     }
     public RegMask(long bits ) { _bits0 = bits; }
     public RegMask(long bits0, long bits1 ) { _bits0 = bits0; _bits1 = bits1; }

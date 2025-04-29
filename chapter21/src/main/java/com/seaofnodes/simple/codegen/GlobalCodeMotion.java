@@ -167,6 +167,8 @@ public abstract class GlobalCodeMotion {
                             !(memuse instanceof NewNode) &&
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
+                             // Load-use directly defines memory
+                             memuse instanceof CallNode ||
                              // Load-use indirectly defines memory
                              (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
                             continue outer;
@@ -277,9 +279,9 @@ public abstract class GlobalCodeMotion {
                     lca = anti_dep( load, late[mem._nid], mem.cfg0(), lca, st );
                 }
                 break; // Loads do not cause anti-deps on other loads
-            case CallNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+            case CallNode call:
+                assert late[call._nid]!=null;
+                lca = anti_dep(load,late[call._nid],call.cfg0(),lca,call);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.

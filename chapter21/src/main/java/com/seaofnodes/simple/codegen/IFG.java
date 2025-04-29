@@ -242,14 +242,12 @@ abstract public class IFG {
     private static void mergeLiveOut( RegAlloc alloc, CFGNode priorbb, int i ) {
         CFGNode bb = priorbb.cfg(i);
         if( bb == null ) return; // Start has no prior
-        if( !bb.blockHead() ) bb = bb.cfg0();
-        //if( i==0 && !(bb instanceof StartNode) ) bb = bb.cfg0();
-        assert bb.blockHead();
+        while( !bb.blockHead() ) bb = bb.cfg0();
 
         // Lazy get live-out set for bb
-      IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
+        IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
 
-      for( LRG lrg : TMP.keySet() ) {
+        for( LRG lrg : TMP.keySet() ) {
             Node def = TMP.get(lrg);
             // Effective def comes from phi input from prior block
             if( def instanceof PhiNode phi && phi.cfg0()==priorbb ) {

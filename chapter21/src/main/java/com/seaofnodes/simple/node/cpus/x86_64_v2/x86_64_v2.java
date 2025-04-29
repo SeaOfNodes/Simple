@@ -185,13 +185,13 @@ public class x86_64_v2 extends Machine {
 
     // Map from function signature and argument index to register.
     // Used to set input registers to CallNodes, and ParmNode outputs.
-    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx ) { return callInMask(tfp,idx); }
-    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         return switch( CodeGen.CODE._callingConv ) {
-        case "SystemV" -> callSys5 (tfp,idx);
-        case "Win64"   -> callWin64(tfp,idx);
+        case "SystemV" -> callSys5 (tfp,idx,maxArgSlot);
+        case "Win64"   -> callWin64(tfp,idx,maxArgSlot);
         default -> throw Utils.TODO();
         };
     }
@@ -230,11 +230,11 @@ public class x86_64_v2 extends Machine {
         R09_MASK,
     };
 
-    static RegMask callWin64(TypeFunPtr tfp, int idx ) {
+    static RegMask callWin64(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         // idx 2,3,4,5 passed in registers, with stack slot mirrors.
         // idx >= 6 passed on stack, starting at slot#1 (#0 reserved for RPC).
         if( idx >= 6 )
-            return new RegMask(MAX_REG+1/*RPC*/+(idx-2));
+            return new RegMask(MAX_REG+maxArgSlot+(idx-2));
         return tfp.arg(idx-2) instanceof TypeFloat
             ? XMMS8     [idx-2]
             : WIN64_CALL[idx-2];
@@ -271,7 +271,7 @@ public class x86_64_v2 extends Machine {
         R09_MASK,
     };
 
-    static RegMask callSys5(TypeFunPtr tfp, int idx ) {
+    static RegMask callSys5(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         // First 6 integers passed in registers: rdi,rsi,rdx,rcx,r08,r09
         // First 8 floats passed in registers: xmm0-xmm7
         int icnt=0, fcnt=0;     // Count of ints, floats
@@ -281,8 +281,8 @@ public class x86_64_v2 extends Machine {
         }
         int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
         return tfp.arg(idx-2) instanceof TypeFloat
-            ? fcnt<8 ? XMMS8    [fcnt] : new RegMask(MAX_REG+1/*RPC*/+nstk)
-            : icnt<6 ? SYS5_CALL[icnt] : new RegMask(MAX_REG+1/*RPC*/+nstk);
+            ? fcnt<8 ? XMMS8    [fcnt] : new RegMask(MAX_REG+maxArgSlot+nstk)
+            : icnt<6 ? SYS5_CALL[icnt] : new RegMask(MAX_REG+maxArgSlot+nstk);
     }
     static short maxArgSlotSys5(TypeFunPtr tfp) {
         int icnt=0, fcnt=0;     // Count of ints, floats
