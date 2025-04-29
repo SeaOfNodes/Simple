@@ -44,7 +44,7 @@ public class StoreX86 extends MemOpX86 {
             case 0: enc.add1(_imm); break;
             case 1: enc.add2(_imm); break;
             case 2: enc.add4(_imm); break;
-            case 3: enc.add8(_imm); break;
+            case 3: enc.add4(_imm); break; // Limit of a 4 byte immediate
             }
         } else {
             encVal(enc,_declaredType,ptr,idx,src,_off,_scale);

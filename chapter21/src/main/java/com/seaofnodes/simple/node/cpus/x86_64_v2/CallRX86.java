@@ -12,7 +12,7 @@ public class CallRX86 extends CallNode implements MachNode {
     @Override public RegMask regmap(int i) {
         return i==_inputs._len
             ? x86_64_v2.WMASK          // Function call target
-            : x86_64_v2.callInMask(tfp(),i); // Normal argument
+            : x86_64_v2.callInMask(tfp(),i,fun()._maxArgSlot); // Normal argument
     }
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
