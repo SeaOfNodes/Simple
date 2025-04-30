@@ -119,7 +119,7 @@ public class TypeInteger extends Type {
         return this;
     }
     @Override public Type makeZero() { return ZERO; }
-    @Override public TypeInteger glb() { return BOT; }
+    @Override public Type glb(boolean mem) { return mem ? (isHigh() ? dual() : this) : BOT; }
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max); }
     @Override public boolean eq( Type t ) {
         TypeInteger i = (TypeInteger)t; // Contract

@@ -48,11 +48,10 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override
-    public Type glb() {
+    @Override public Type glb(boolean mem) {
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
-            ts[i] = _types[i].glb();
+            ts[i] = _types[i].glb(mem);
         return make(ts);
     }
 

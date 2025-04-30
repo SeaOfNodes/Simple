@@ -129,18 +129,18 @@ public class TypeStruct extends Type {
     }
 
     // Keeps the same struct, but lower-bounds all fields.
-    @Override public TypeStruct glb() {
-        if( _glb() ) return this;
+    @Override public TypeStruct glb(boolean mem) {
+        if( _glb(mem) ) return this;
         // Need to glb each field
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
-            flds[i] = _fields[i].glb();
+            flds[i] = _fields[i].glb(mem);
         return make(_name,flds);
     }
-    private boolean _glb() {
+    private boolean _glb(boolean mem) {
         if( _fields!=null )
           for( Field f : _fields )
-              if( f.glb() != f )
+              if( f.glb(mem) != f )
                  return false;
         return true;
     }

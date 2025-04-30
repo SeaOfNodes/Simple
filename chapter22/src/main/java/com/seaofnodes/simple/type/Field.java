@@ -51,8 +51,8 @@ public class Field extends Type {
     @Override
     public Field dual() { return make(_fname,_type.dual(),_alias,!_final); }
 
-    @Override public Field glb() {
-        Type glb = _type.glb();
+    @Override public Field glb(boolean mem) {
+        Type glb = _type.glb(mem);
         return (glb==_type && _final) ? this : make(_fname,glb,_alias,true);
     }
 

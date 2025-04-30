@@ -81,11 +81,31 @@ public class Parser {
     ScopeNode _breakScope;      // Merge all the while-breaks here
     FunNode _fun;               // Current function being parsed
 
-    // Mapping from a primitive name to a Type.  The string name matches
+    // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
     // have C-style '*ptr' references.
-    public static final HashMap<String, Type> PRIMS =
-        new HashMap<>() {{
+    public static HashMap<String, Type> TYPES = defaultTypes();
+
+    // Mapping from a type name to the constructor for a Type.
+    public final HashMap<String, StructNode> INITS;
+
+
+    public Parser(CodeGen code, TypeInteger arg) {
+        _code = code;
+        _scope = new ScopeNode();
+        _continueScope = _breakScope = null;
+        ZERO  = con(TypeInteger.ZERO).keep();
+        NIL  = con(Type.NIL).keep();
+        XCTRL= new XCtrlNode().peephole().keep();
+        TYPES = defaultTypes();
+        INITS = new HashMap<>();
+    }
+
+    @Override
+    public String toString() { return _lexer.toString(); }
+
+    public static HashMap<String, Type> defaultTypes() {
+        return new HashMap<>() {{
             put("bool",TypeInteger.U1 );
             put("byte",TypeInteger.U8 );
             put("f32" ,TypeFloat  .F32);
@@ -103,24 +123,7 @@ public class Parser {
             put("val" ,Type.TOP);    // Marker type, indicates type inference
             put("var" ,Type.BOTTOM); // Marker type, indicates type inference
         }};
-
-
-    // Mapping from a type name to the constructor for a Type.
-    public final HashMap<String, StructNode> INITS;
-
-
-    public Parser(CodeGen code, TypeInteger arg) {
-        _code = code;
-        _scope = new ScopeNode();
-        _continueScope = _breakScope = null;
-        ZERO  = con(TypeInteger.ZERO).keep();
-        NIL  = con(Type.NIL).keep();
-        XCTRL= new XCtrlNode().peephole().keep();
-        INITS = new HashMap<>();
     }
-
-    @Override
-    public String toString() { return _lexer.toString(); }
 
     // Debugging utility to find a Node by index
     public Node f(int nid) { return _code.f(nid); }
@@ -217,7 +220,7 @@ public class Parser {
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
         // external calls.
-        _scope.push(ScopeNode.Kind.Function,null);
+        _scope.push(ScopeNode.Kind.Function);
         ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
         MemMergeNode mem = new MemMergeNode(true);
@@ -276,7 +279,7 @@ public class Parser {
      */
     private Node parseBlock(ScopeNode.Kind kind) {
         // Enter a new scope
-        _scope.push(kind,null);
+        _scope.push(kind);
         Node last = ZERO;
         while (!peek('}') && !_lexer.isEOF())
             last = parseStatement();
@@ -343,7 +346,7 @@ public class Parser {
         //     }
         // }
         require("(");
-        _scope.push(ScopeNode.Kind.Block,null); // Scope for the index variables
+        _scope.push(ScopeNode.Kind.Block); // Scope for the index variables
         if( !match(";") )       // Can be empty init "for(;test;next) body"
             parseDeclarationStatement(); // Non-empty init
         Node rez = parseLooping(true);
@@ -677,17 +680,9 @@ public class Parser {
      * exprAsgn = var '=' exprAsgn | expr
      */
     private Node parseDeclarationStatement() {
-        int old = pos();
         Type t = type();
         if( t == null )
             return require(parseAsgn(),";");
-        // Ambiguous leading type then doing a type/class static field lookup.
-        // "T var" - declare a variable of type T
-        // "T.fld" - lookup field "fld" in type T
-        if( peek('.') ) {
-            pos(old);
-            return require(parseAsgn(),";");
-        }
 
         // now parse var['=' asgnexpr] in a loop
         Node n = parseDeclaration(t);
@@ -727,7 +722,7 @@ public class Parser {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
-                if( !xfinal ) t = t.glb();  // Widen if not final
+                if( !xfinal ) t = t.glb(false);  // Widen if not final
             }
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
@@ -739,7 +734,7 @@ public class Parser {
             // Need an expression to infer the type.
             // Also, if not-null then need an initializing expression.
             // Allowed in a class def, because type/init will happen in the constructor.
-            if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inDeclarationQ() )
+            if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inConstructor() )
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
             expr = switch( t ) {
@@ -784,7 +779,7 @@ public class Parser {
         String typeName = requireId();
 
         // A Block scope parse, and inspect the scope afterward for fields.
-        _scope.push(ScopeNode.Kind.DeclarationQ,typeName);
+        _scope.push(ScopeNode.Kind.Constructor);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement().isKill();
@@ -792,43 +787,24 @@ public class Parser {
         // Grab the declarations and build fields and a Struct
         int lexlen = _scope._lexSize.last();
         int varlen = _scope._vars._len;
-        StructNode inst = new StructNode();
-        StructNode clz  = new StructNode();
-        Ary<Field> fs = new Ary<>(Field.class); // Struct fields
-        Ary<Field> cs = new Ary<>(Field.class); // Class  fields
+        StructNode s = new StructNode();
+        Ary<Field> fs = new Ary<>(Field.class);
         for( int i=lexlen; i<varlen; i++ ) {
             Var v = _scope.var(i);
             if( v.isFRef() )  continue; // Promote to outer scope, not defined here
-            var flds = v._final && v.type().isConstant() ? cs : fs;
-            var stru = v._final && v.type().isConstant() ? clz : inst;
-            // Declare field, gather field init
-            flds.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
-            stru.addDef(_scope.in(i));
+            s.addDef(_scope.in(i)); // Keep the program code to generate instance
+            fs.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
         }
-        TypeStruct ts = inst._ts = TypeStruct.make(typeName, fs.asAry());
-        //PRIMS.put(typeName, TypeMemPtr.make(ts));
-        INITS.put(typeName,inst.peephole().keep());
+        // Save instance default constructor
+        TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
+        TYPES.put(typeName, TypeMemPtr.make(ts));
+        INITS.put(typeName,s.peephole().keep());
 
-        //String clzName = typeName + ".clz";     // Class name
-        //PRIMS.put(clzName, TypeMemPtr.make(TypeStruct.make(clzName, cs.asAry())));
         // Done with struct/block scope
         require("}");
         require(";");
         _scope.pop();
-        // Make a pointer to the class fields
-
-        // ISSUE: LOOKUP EXPECTS TO FIND INSTANCE FIELDS FOR 'NEW' OR TYPE DECLS:
-        // Vector2D v = ...;
-        // Type for 'v' includes fields 'x,y'.
-        // Whereas: Vector2D.PI lookups up via the class struct.
-        // So e.g. add a hidden " decl" field that gets the instance fields.
-        cs.push(Field.make(" decl",TypeMemPtr.make(ts),-1,true));
-
-        TypeMemPtr tclz = TypeMemPtr.make(TypeStruct.make(typeName, cs.asAry()));
-        ConstantNode nclz = con(tclz);
-        // Define the constant clazz fields
-        _scope.define(typeName,tclz, true, nclz, true, loc());
-        return nclz;
+        return ZERO;
     }
 
 
@@ -847,15 +823,14 @@ public class Parser {
         String tname = _lexer.matchId();
         if( tname==null ) return null;
 
-        // Convert the type name to a type, either user instance type or a primitive.
-        Type t0 = _scope.lookupInstance(tname);
-        if( t0 == null ) t0 = PRIMS.get(tname);
+        // Convert the type name to a type.
+        Type t0 = TYPES.get(tname);
         // No new types as keywords
         if( t0 == null && KEYWORDS.contains(tname) )
             return posT(old1);
         if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
         // Still no type found?  Assume forward reference
-        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) : t0; // Null: assume a forward ref type
+        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
@@ -881,7 +856,7 @@ public class Parser {
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        _scope.define(tname, t1, true, XCTRL, true, null);
+        TYPES.put(tname,t1);
         // Return the (array, final) type
         return t2;
     }
@@ -891,15 +866,14 @@ public class Parser {
         if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
             throw error("Arrays of reference types must always be nullable");
         String tname = "["+t.str()+"]";
-        Type ta = PRIMS.get(tname);
+        Type ta = TYPES.get(tname);
         if( ta != null ) return (TypeMemPtr)ta;
         // Need make an array type.
         TypeStruct ts = TypeStruct.makeAry(TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
-        //PRIMS.put(tname,tary);
-        //return tary;
-        throw Utils.TODO();
+        TYPES.put(tname,tary);
+        return tary;
     }
 
     // A function type is `{ type... -> type }` or `{ type }`.
@@ -1217,7 +1191,7 @@ public class Parser {
         if( hasConstructor ) {
             idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
-            _scope.push(ScopeNode.Kind.Block,null);
+            _scope.push(ScopeNode.Kind.Block);
             Lexer loc = loc();
             for( int i=0; i<fs.length; i++ )
                 _scope.define(fs[i]._fname, fs[i]._type, fs[i]._final, s.in(i)._type==Type.TOP ? con(Type.BOTTOM) : s.in(i), loc);
@@ -1318,22 +1292,15 @@ public class Parser {
 
         // Find the field from the Type.  Lookup in the base object field names.
         TypeStruct base = ptr._obj;
-        if( base.isFRef() ) {
-            //ptr = _scope.lookupInstance(base._name);
-            //base = ptr._obj;
-            throw Utils.TODO();
-        }
+        assert !base.isFRef();
         int fidx = base.find(name);
-        if( fidx == -1 ) { // No such field!
-            throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-            // TODO: ch22 allow class field lookups
-        }
+        if( fidx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
         // Get field type and layout offset from base type and field index fidx
         Field f = base._fields[fidx];  // Field from field index
         Type tf = f._type;
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
-            tf = ftmp.makeFrom(((TypeMemPtr)(PRIMS.get(ftmp._obj._name)))._obj);
+            tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
 
         // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
@@ -1439,7 +1406,7 @@ public class Parser {
         if( expr._type == Type.NIL )
             throw error("Calling a null function pointer");
         if( !(expr instanceof FRefNode) && !expr._type.isa(TypeFunPtr.BOT) )
-            throw error("Expected a function but got "+expr._type.glb().str());
+            throw error("Expected a function but got "+expr._type.glb(false).str());
         expr.keep();            // Keep while parsing args
 
         Ary<Node> args = new Ary<Node>(Node.class);

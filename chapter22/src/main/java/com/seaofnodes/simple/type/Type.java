@@ -200,8 +200,9 @@ public class Type {
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
 
-    /** Compute greatest lower bound in the lattice */
-    public Type glb() { return Type.BOTTOM; }
+    /** Compute greatest lower bound in the lattice.  If values are in memory,
+     *  ints and floats cannot widen. */
+    public Type glb(boolean mem) { return Type.BOTTOM; }
 
     // Is forward-reference
     public boolean isFRef() { return false; }

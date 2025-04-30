@@ -73,7 +73,7 @@ public class TypeMemPtr extends TypeNil {
         throw Utils.TODO(); // return _obj.shallowISA(that._obj);
     }
 
-    @Override public TypeMemPtr glb() { return make((byte)3,_obj.glb()); }
+    @Override public TypeMemPtr glb(boolean mem) { return make((byte)3,_obj.glb(true)); }
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
 

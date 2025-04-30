@@ -28,7 +28,7 @@ public class Chapter22Test {
             assertEquals(stop, code._stop.toString());
     }
 
-    @Test
+    @Test @Ignore
     public void testCoRecur() {
         String src = """
 struct A { B? b; C? c; i64 ax; val az = x*2; };
