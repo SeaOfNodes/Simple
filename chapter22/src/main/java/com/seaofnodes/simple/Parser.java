@@ -132,34 +132,17 @@ public class Parser {
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
     public void parse() {
-        _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, null);
-        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, null);
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, null);
+        _lexer = new Lexer(_code._src);
+        _xScopes.push(_scope);
+        _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
+        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
 
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
 
-        // Parse the "sys" import
-        //_parse(com.seaofnodes.simple.sys.sys.SYS);
-
-        _code._stop.popUntil(0); // Delete return from parsing sys import
-
-        // Parse program text
-        _parse(_code._src);
-
-        // Clean up and reset
-        _scope.kill();
-        for( StructNode init : INITS.values() )
-            init.unkeep().kill();
-        INITS.clear();
-        _code._stop.peephole();
-    }
-
-    private void _parse(String src) {
-        _lexer = new Lexer(src);
-        _xScopes.push(_scope);
-
         // Parse whole program, as-if function header "{ int arg -> body }"
+
         parseFunctionBody(_code._main,loc(),"arg");
 
         // Kill an empty default main.  Keep only if it was explicitly defined
@@ -167,9 +150,10 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
-        if( main.ret().expr() instanceof ConstantNode && main.ret().mem().in(0)==main  && stop.nIns() > 1 ) {
+        if( main.ret().expr()._type==Type.TOP ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
+            main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
         } else {
             // We have a non-empty default main.
@@ -185,6 +169,11 @@ public class Parser {
 
         // Clean up and reset
         _xScopes.pop();
+        _scope.kill();
+        for( StructNode init : INITS.values() )
+            init.unkeep().kill();
+        INITS.clear();
+        stop.peephole();
     }
 
     /**
@@ -233,13 +222,22 @@ public class Parser {
             _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
+        //// If top-level parser, parse the sys import
+        //if( fun.sig()==_code._main ) {
+        //    Lexer old = _lexer;
+        //    _lexer = new Lexer(com.seaofnodes.simple.sys.sys.SYS);
+        //    while(!_lexer.isEOF() )
+        //        parseStatement();
+        //    _lexer = old;
+        //}
+
         // Parse the body
         Node last=ZERO;
         while (!peek('}') && !_lexer.isEOF())
             last = parseStatement();
 
-        // Last expression is the return
-        if( ctrl()._type==Type.CONTROL )
+        // Last expression is the return except for the top-level main
+        if( ctrl()._type==Type.CONTROL && fun.sig() != _code._main )
             fun.addReturn(ctrl(), _scope.mem().merge(), last);
 
         // Pop off the inProgress node on the multi-exit Region merge
@@ -1286,9 +1284,8 @@ public class Parser {
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) ) {
+        if( !(expr._type instanceof TypeMemPtr ptr) )
             throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
-        }
 
         // Find the field from the Type.  Lookup in the base object field names.
         TypeStruct base = ptr._obj;

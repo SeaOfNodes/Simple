@@ -28,7 +28,7 @@ public class Chapter22Test {
             assertEquals(stop, code._stop.toString());
     }
 
-    @Test @Ignore
+    @Test
     public void testCoRecur() {
         String src = """
 struct A { B? b; C? c; i64 ax; val az = x*2; };
@@ -48,6 +48,11 @@ return cc.cz;
         assertEquals("25", Eval2.eval(code, 0));
     }
 
+    @Test @Ignore
+    public void testNo() {
+        String src = "val foo = { int arg -> 3; };";
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+    }
 
     @Test @Ignore
     public void testHelloWorld() throws IOException {

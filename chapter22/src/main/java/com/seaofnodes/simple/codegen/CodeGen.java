@@ -111,7 +111,7 @@ public class CodeGen {
         return TypeFunPtr.make((byte)2,sig,ret, 1L<<fidx );
     }
     // Signature for MAIN
-    public TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
+    public final TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
@@ -269,7 +269,8 @@ public class CodeGen {
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _stop, map );
         _stop  = ( StopNode)map.get(_stop );
-        _start = (StartNode)map.get(_start);
+        StartNode start = (StartNode)map.get(_start);
+        _start = start==null ? new StartNode(_start) : start;
         _instOuts(_stop,visit());
         _visit.clear();
         _tInsSel = (int)(System.currentTimeMillis() - t0);

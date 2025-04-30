@@ -130,7 +130,7 @@ return n.i;
 
     @Test
     public void testNullRef4() {
-        CodeGen code = new CodeGen("-null-5/null-5;");
+        CodeGen code = new CodeGen("return -null-5/null-5;");
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
     }
@@ -146,6 +146,7 @@ return n.i;
         CodeGen code = new CodeGen(
 """
 struct S{};
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());

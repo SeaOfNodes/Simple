@@ -72,7 +72,9 @@ public class FunNode extends RegionNode {
     @Override
     public Type compute() {
         // Only dead if no callers after SCCP
-        return Type.CONTROL;
+        if( unknownCallers() )
+            return Type.CONTROL;
+        return super.compute();
     }
 
     @Override
@@ -118,7 +120,7 @@ public class FunNode extends RegionNode {
     @Override public CFGNode idom(Node dep) { return cfg(1); }
 
     // Always in-progress until we run out of unknown callers
-    public boolean unknownCallers() { return in(1) instanceof StartNode; }
+    public boolean unknownCallers() { return nIns()<2 || in(1) instanceof StartNode; }
 
     @Override public boolean inProgress() { return unknownCallers(); }
 

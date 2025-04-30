@@ -304,6 +304,7 @@ if(0) {
         v0=v2;
     }
 }
+return 0;
    """);
         code.parse().opto();
         assertEquals("return 0;", code.print());

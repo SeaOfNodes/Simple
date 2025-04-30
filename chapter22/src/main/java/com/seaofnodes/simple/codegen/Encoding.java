@@ -185,12 +185,10 @@ public class Encoding {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         rpos.put(_code._start.loop(),rpo);
         BitSet visit = _code.visit();
-        //IdentityHashMap<CFGNode,LoopNode> looptail = new IdentityHashMap<>();
         rpo.add(_code._stop);
         for( Node n : _code._start._outputs )
             if( n instanceof FunNode fun ) {
                 int x = rpo._len;
-                //_rpo_cfg2(fun, visit, rpo, looptail);
                 _rpo_cfg(fun, visit, rpos );
                 assert rpo.at(x) instanceof ReturnNode;
             }

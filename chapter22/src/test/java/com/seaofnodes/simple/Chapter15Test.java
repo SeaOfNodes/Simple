@@ -323,6 +323,7 @@ while(0) {}
 u32 v7=0;
 int v8=0;
 while(0<--1>>>---(v7*0==v8)) {}
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
@@ -347,6 +348,7 @@ else {
             }
         }
 }
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
