@@ -1,9 +1,15 @@
 // -*- mode: java;  -*-
-struct s0 {
-    i16 v1;
-    u8 v2;
-};
-s0 !l4Hi9BCnsd = new s0;
-if( new s0.v2+arg )
-    while(1) l4Hi9BCnsd=new s0;
-while(new s0.v2+new s0.v1<=0) {}
+//8942465726750756914
+while(0) {
+    struct s0 {
+        byte v0;
+        i32 v1;
+        i8 v2;
+    };
+    s0 !JHRiBybfX=new s0;
+    while(1<<JHRiBybfX.v2) {}
+    int v3=JHRiBybfX.v1;
+    while(JHRiBybfX.v2)
+        v3=JHRiBybfX.v0;
+}
+return 0;

@@ -1,2 +1,2 @@
 // -*- mode: java;  -*-
-sys.libc.write(1,"Hello, World!\n",14);
+return sys.libc.write(1,"Hello, World!\n",14);
