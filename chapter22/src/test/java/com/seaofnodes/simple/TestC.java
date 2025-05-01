@@ -49,6 +49,7 @@ public abstract class TestC {
         params.add("gcc");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.addAll(new String[] {
+            obj,
             "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
             "-g",
             "-o",
