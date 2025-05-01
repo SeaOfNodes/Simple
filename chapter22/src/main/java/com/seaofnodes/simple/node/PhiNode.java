@@ -121,6 +121,8 @@ public class PhiNode extends Node {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
+            if( in(1) instanceof MemOpNode mem && mem._alias != ((MemOpNode)op)._alias )
+                return false;
             if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
                 for( Node out : op._outputs )
                     if( out!=null && out!=this )
