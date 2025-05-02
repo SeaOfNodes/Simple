@@ -132,8 +132,7 @@ public class Parser {
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
     public void parse() {
-        _lexer = new Lexer(_code._src);
-        _xScopes.push(_scope);
+
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
@@ -141,8 +140,18 @@ public class Parser {
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
 
-        // Parse whole program, as-if function header "{ int arg -> body }"
+        // Parse the sys import
+        _lexer = new Lexer(com.seaofnodes.simple.sys.sys.SYS);
+        while( !_lexer.isEOF() ) {
+            parseStatement();
+            _lexer.skipWhiteSpace();
+        }
 
+        // Reset lexer for program text
+        _lexer = new Lexer(_code._src);
+        _xScopes.push(_scope);
+
+        // Parse whole program, as-if function header "{ int arg -> body }"
         parseFunctionBody(_code._main,loc(),"arg");
 
         // Kill an empty default main.  Keep only if it was explicitly defined
@@ -221,15 +230,6 @@ public class Parser {
             Type t = sig.arg(i);
             _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
-
-        //// If top-level parser, parse the sys import
-        //if( fun.sig()==_code._main ) {
-        //    Lexer old = _lexer;
-        //    _lexer = new Lexer(com.seaofnodes.simple.sys.sys.SYS);
-        //    while(!_lexer.isEOF() )
-        //        parseStatement();
-        //    _lexer = old;
-        //}
 
         // Parse the body
         Node last=ZERO;
@@ -771,16 +771,20 @@ public class Parser {
      *
      * @return zero
      */
+    private String _nestedType;
     private Node parseStruct() {
-        if (_xScopes.size() > 1) throw error("struct declarations can only appear in top level scope");
         // "struct" already parsed, so expect the struct name next.
+        String old = _nestedType;
         String typeName = requireId();
+        if( old!=null ) typeName = old+"."+typeName;
+        _nestedType = typeName;
 
         // A Block scope parse, and inspect the scope afterward for fields.
         _scope.push(ScopeNode.Kind.Constructor);
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement().isKill();
+
 
         // Grab the declarations and build fields and a Struct
         int lexlen = _scope._lexSize.last();
@@ -795,10 +799,12 @@ public class Parser {
         }
         // Save instance default constructor
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
+        s.setType(s.compute()); // Do not call peephole, in case the entire struct is a big plain constant
         TYPES.put(typeName, TypeMemPtr.make(ts));
-        INITS.put(typeName,s.peephole().keep());
+        INITS.put(typeName,s.keep());
 
         // Done with struct/block scope
+        _nestedType = old;
         require("}");
         require(";");
         _scope.pop();
@@ -827,6 +833,19 @@ public class Parser {
         if( t0 == null && KEYWORDS.contains(tname) )
             return posT(old1);
         if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
+
+        // Check for subtype.
+        while( true ) {
+            int old2 = pos();
+            if( !match(".") )  break;
+            String sname = _lexer.matchId();
+            if( sname==null ) { pos(old2); break; }
+            String tsname = tname+"."+sname;
+            t0 = TYPES.get(tsname);
+            if( t0==null ) { pos(old2); t0 = TYPES.get(tname); break; }
+            tname = tsname;
+        }
+
         // Still no type found?  Assume forward reference
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
         // Nest arrays and '?' as needed
@@ -837,6 +856,9 @@ public class Parser {
                     throw error("Type "+t0+" cannot be null");
                 if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
                 t2 = tmp.makeNullable();
+            } else if( match("[~]") ) {
+                TypeMemPtr tmp = typeAry(t2);
+                t2 = tmp.makeFrom(tmp._obj.makeRO());
             } else if( match("[]") ) {
                 t2 = typeAry(t2);
             } else
@@ -866,8 +888,7 @@ public class Parser {
         String tname = "["+t.str()+"]";
         Type ta = TYPES.get(tname);
         if( ta != null ) return (TypeMemPtr)ta;
-        // Need make an array type.
-        TypeStruct ts = TypeStruct.makeAry(TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
+        TypeStruct ts = TypeStruct.makeAry(tname,TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
@@ -1081,12 +1102,28 @@ public class Parser {
      */
     private Node parsePrimary() {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
+        if( _lexer.peek('"') ) return newString(parseString());
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return NIL;
         if( match ("("    ) ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
         if( match ("{"    ) ) return require(func(),"}");
+
+        // Parse static variable lookup: `type.fld` in the type namespace
+        Type t = type();
+        if( t!=null && match(".") ) {
+            String fld = requireId();
+            TypeMemPtr tmp = ((TypeMemPtr)t);
+            String tname = tmp._obj._name;
+            StructNode init = INITS.get(tname);
+            int idx = tmp._obj.find(fld);
+            if( idx == -1 )
+                throw error("Accessing unknown STATIC field");
+            return init.in(idx);
+        }
+
+
         // Expect an identifier now
         Var n = requireLookupId();
         Node rvalue = _scope.in(n);
@@ -1135,6 +1172,7 @@ public class Parser {
 
     // Expect an ID here.  If not found, assume a forward reference function
     Var requireLookupId() {
+        // Try in the normal variable namespace
         String id = _lexer.matchId();
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
@@ -1250,6 +1288,19 @@ public class Parser {
         Node size = peep(new AddNode(con(base),peep(new ShlNode(null,len.keep(),con(scale)))));
         ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._type.makeZero()));
         return newStruct(ary,size,0,ALTMP);
+    }
+    private Node newString(String s) {
+        TypeMemPtr tmp = typeAry(TypeInteger.U8);
+        int  lenAlias = tmp._obj.field("#" )._alias;
+        int elemAlias = tmp._obj.field("[]")._alias;
+        TypeInteger len = TypeInteger.constant(s.length());
+        TypeConAryB con = TypeConAryB.make(s);
+        Type elem = con.elem();
+        // Make a TMP, not-null (byte)2, singleton (true) (requires text
+        // strings are hash-interned), with a TypeStruct having a constant
+        // array body.
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[u8]", len, lenAlias, elem, elemAlias, true, con),true);
+        return con(str);
     }
 
     // We set up memory aliases by inserting special vars in the scope these
@@ -1638,6 +1689,7 @@ public class Parser {
                 } else if( _position+2 < _input.length &&
                          _input[_position  ] == '/' &&
                          _input[_position+1] == '*') {
+                    // Skip /*comment*/
                     while( !isEOF() && !(_input[_position-1] == '*' && _input[_position] == '/'))
                         inc();
                     inc();

@@ -130,7 +130,7 @@ public class PhiNode extends Node {
                 return false;
             }
             for( int j=1; j<in(1).nIns(); j++ )
-                if( op.in(j) instanceof ScopeNode || (op.in(j)==null && in(1).in(j)!=null) )
+                if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )
                     return false; // Lazy Phi input
         }
         return true;

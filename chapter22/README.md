@@ -277,7 +277,7 @@ struct sstr {
     // Array contents are immutable.
     // Still figuring out good syntax for this.
     u8 #;
-    u8 []!; // Trailing '!'?  Makes primitive array contents *immutable* and requires constructor syntax
+    u8 [~]; // Middlin '~'?  Makes primitive array contents *immutable* and requires constructor syntax
 };
 
 // Construction requires a function that produces the array contents.
@@ -341,9 +341,9 @@ struct gstr { // aka germanString, or blend string and register "streg"
 }
 // Using inlined object (see below).  All these strings are short and are
 // represented as packed integers in a 64b register.
-gstr *prize1 = "gold";
-gstr *prize2 = "silver";
-gstr *prize3 = "bronze";
+*gstr prize1 = "gold";
+*gstr prize2 = "silver";
+*gstr prize3 = "bronze";
 
 ```
 
@@ -399,7 +399,7 @@ ref.c.len();
 val.c.len();
 
 // Function arguments use the same typing, so can pass-by-value
-val math.sin = { Complex *c -> ... }; // Passes a complex by value
+val math.sin = { *Complex c -> ... }; // Passes a complex by value
 math.sin(ref.*c); // Requires de-reference to pass by value
 math.sin(val. c); // Pass by value
 

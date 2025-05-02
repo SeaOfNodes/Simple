@@ -499,15 +499,16 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if(!con._con.isConstant()) return new ConstantNode(con); // Default unknown caller inputs
+        if( !con._con.isConstant() )
+            return new ConstantNode(con); // Default unknown caller inputs
         return switch (con._con) {
-            case TypeInteger ti -> new IntX86(con);
-            case TypeFloat tf -> new FltX86(con);
-            case TypeFunPtr tfp -> new TFPX86(con);
-            case TypeMemPtr tmp -> throw Utils.TODO();
-            case TypeNil tn -> throw Utils.TODO();
-            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-            case Type t -> t == Type.NIL ? new IntX86(con) : new ConstantNode(con);
+        case TypeInteger ti -> new IntX86(con);
+        case TypeFloat   tf -> new FltX86(con);
+        case TypeFunPtr tfp -> new TFPX86(con);
+        case TypeMemPtr tmp -> new TMPX86(con);
+        case TypeNil tn -> throw Utils.TODO();
+        // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+        case Type t -> t == Type.NIL ? new IntX86(con) : new ConstantNode(con);
         };
     }
 

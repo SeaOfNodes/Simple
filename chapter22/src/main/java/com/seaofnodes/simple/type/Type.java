@@ -44,7 +44,8 @@ public class Type {
     static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
     static final byte TSTRUCT =14; // Structs; tuples with named fields
     static final byte TFLD    =15; // Named fields in structs
-    static final byte TRPC    =16; // Return Program Control (Return PC or RPC)
+    static final byte TCONARY =16; // Constant array
+    static final byte TRPC    =17; // Return Program Control (Return PC or RPC)
 
     public final byte _type;
 
@@ -75,6 +76,7 @@ public class Type {
         TypeStruct.gather(ts);
         TypeTuple.gather(ts);
         TypeRPC.gather(ts);
+        TypeConAry.gather(ts);
         int sz = ts.size();
         for( int i = 0; i < sz; i++ )
             ts.add(ts.get(i).dual());
@@ -160,6 +162,7 @@ public class Type {
         // RHS TypeNil vs NIL/XNIL
         if( _type==  TNIL ) return t instanceof TypeNil ptr ? ptr.meet0() : (t._type==TXNIL ? TypePtr.PTR : BOTTOM);
         if( _type== TXNIL ) return t instanceof TypeNil ptr ? ptr.meetX() : (t._type== TNIL ? TypePtr.PTR : BOTTOM);
+
         // 'this' is only {TCTRL,TXCTRL}
         // Other non-simple RHS things bottom out
         if( !t.is_simple() ) return BOTTOM;
@@ -219,7 +222,8 @@ public class Type {
     // Sizes are expected to be between 1 and 64 bits.
     // Size 0 means this either takes no space (such as a known-zero field)
     // or isn't a scalar to be stored in memory.
-    public int log_size() { return 3; }
+    public int log_size () { return 3; } // log-size of a type; log_size for a struct is usually undefined
+    public int alignment() { return log_size(); } // alignment; for structs, max align of Fields
 
     // ----------------------------------------------------------
     // Useful in the debugger, which calls toString everywhere.

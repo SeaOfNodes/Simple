@@ -33,6 +33,7 @@ will panic the Evaluator.
  
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter15) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter14...linear-chapter15) it to the previous chapter.
 
+
 ## Parser
 
 The Parser changes to support arrays are fairly minimal.  The main change is
@@ -207,3 +208,4 @@ for( int i=0; i < ary#; i++ )
 that would be entirely syntatic-sugar over the existing parser, but would
 really help make array looping syntax clearer.  There are lots of options
 here, which should really be the focus of another chapter!
+

@@ -13,7 +13,8 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
         assert tfp.isConstant();
         _inputs.pop(); // Pop constant target
         _tfp = tfp;
-        _name = CodeGen.CODE.link(tfp)._name;
+        FunNode fun = CodeGen.CODE.link(tfp);
+        _name = fun==null ? ((ExternNode)call.fptr())._extern : fun._name; // Can be null for extern calls
     }
 
     @Override public String op() { return "call"; }

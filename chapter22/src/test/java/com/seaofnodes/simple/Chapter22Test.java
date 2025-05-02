@@ -51,7 +51,7 @@ return cc.cz;
     @Test @Ignore
     public void testHelloWorld() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
-        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",0);
+        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",13);
     }
 
 

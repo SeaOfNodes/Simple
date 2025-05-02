@@ -51,6 +51,8 @@ public class Field extends Type {
     @Override
     public Field dual() { return make(_fname,_type.dual(),_alias,!_final); }
 
+    @Override public boolean isConstant() { return _type.isConstant(); }
+
     @Override public Field glb(boolean mem) {
         Type glb = _type.glb(mem);
         return (glb==_type && _final) ? this : make(_fname,glb,_alias,true);
@@ -70,5 +72,5 @@ public class Field extends Type {
         return _type.print(sb.p(_final?"":"!").p(_fname).p(":").p(_alias).p(" : "));
     }
 
-    @Override public String str() { return _fname; }
+    @Override public String str() { return (_final?"":"!")+_fname; }
 }

@@ -1,15 +1,10 @@
 // -*- mode: java;  -*-
-//8942465726750756914
-while(0) {
-    struct s0 {
-        byte v0;
-        i32 v1;
-        i8 v2;
-    };
-    s0 !JHRiBybfX=new s0;
-    while(1<<JHRiBybfX.v2) {}
-    int v3=JHRiBybfX.v1;
-    while(JHRiBybfX.v2)
-        v3=JHRiBybfX.v0;
-}
-return 0;
+struct s0 {
+    u16 v0;
+    i16 v3;
+    u32 v5;
+};
+return new s0.v3;
+if(0)
+    while(new s0.v5+new s0.v5) return 0;
+return new s0.v0;
