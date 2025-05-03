@@ -43,8 +43,8 @@ public abstract class TestC {
         String obj = bin+".o";
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
-
         // Compile the C program
+        // use -m32 for 4 byte pointers
         var params = new String[] {
             //if (USE_WSL) "wsl.exe";
             "gcc",

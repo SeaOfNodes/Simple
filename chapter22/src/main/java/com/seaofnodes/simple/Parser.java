@@ -115,7 +115,7 @@ public class Parser {
             put("i32" ,TypeInteger.I32);
             put("i64" ,TypeInteger.BOT);
             put("i8"  ,TypeInteger.I8 );
-            put("int" ,TypeInteger.BOT);
+            put("int" ,TypeInteger.I32);
             put("u1"  ,TypeInteger.U1 );
             put("u16" ,TypeInteger.U16);
             put("u32" ,TypeInteger.U32);
@@ -141,7 +141,7 @@ public class Parser {
         _xScopes.push(_scope);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
+        _scope.define(ScopeNode.ARG0, TypeInteger.I32, false, null, _lexer);
 
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
