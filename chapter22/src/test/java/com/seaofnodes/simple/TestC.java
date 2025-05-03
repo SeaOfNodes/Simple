@@ -16,8 +16,8 @@ public abstract class TestC {
 
     public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "Win64" : "SystemV";
     public static final String CPU_PORT = switch( CPU ) {
-    case "amd64" -> "x86_64_v2";
-    default -> throw Utils.TODO("Map Yer CPU Port Here");
+        case "amd64" -> "x86_64_v2";
+        default -> throw Utils.TODO("Map Yer CPU Port Here");
     };
 
     public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
@@ -49,12 +49,13 @@ public abstract class TestC {
         params.add("gcc");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.addAll(new String[] {
-            obj,
-            "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
-            "-g",
-            "-o",
-            bin,
-            });
+                obj,
+                "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
+                "-m32",
+                "-g",
+                "-o",
+                bin,
+        });
         // Calling convention for C calls, if any
         if( cfile!=null ) {
             params.add("-D");

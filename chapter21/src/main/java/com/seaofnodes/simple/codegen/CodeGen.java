@@ -35,7 +35,6 @@ public class CodeGen {
     public final String _src;
     // Compile-time known initial argument type
     public final TypeInteger _arg;
-
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {

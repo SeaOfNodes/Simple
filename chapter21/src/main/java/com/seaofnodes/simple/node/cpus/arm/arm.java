@@ -681,7 +681,7 @@ public class arm extends Machine {
         case ToFloatNode tfn-> new I2F8ARM(tfn);
         case XorNode xor    -> xor(xor);
 
-        case LoopNode loop  -> new LoopNode(loop);
+        case LoopNode  loop  -> new LoopNode(loop);
         case RegionNode region-> new RegionNode(region);
         default -> throw Utils.TODO();
         };

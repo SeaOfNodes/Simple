@@ -188,6 +188,12 @@ public class riscv extends Machine {
         return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
     }
 
+    public static int sra_i_type(int opcode, int rd, int func3, int rs1, int imm12) {
+        assert 0 <= rd  &&  rd  < 32;
+        assert 0 <= rs1 &&  rs1 < 32;
+        assert opcode >= 0 && func3 >=0 && imm12 >= 0; // Zero-extend by caller
+        return  (((0x20 << 5) | imm12) << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+    }
 
     // S-type instructions(store)
     public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {

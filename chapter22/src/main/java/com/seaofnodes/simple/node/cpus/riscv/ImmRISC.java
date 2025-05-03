@@ -40,6 +40,12 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this );
         short src = enc.reg(in(1));
+        // special case for SRAI
+        if(this instanceof SraIRISC) {
+            int body = riscv.sra_i_type(opcode(), dst, func3(), src, _imm12 & 0xFFF);
+            enc.add4(body);
+            return;
+        }
         int body = riscv.i_type(opcode(), dst, func3(), src, _imm12 & 0xFFF);
         enc.add4(body);
     }
