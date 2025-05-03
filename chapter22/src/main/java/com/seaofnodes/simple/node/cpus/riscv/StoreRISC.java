@@ -19,7 +19,7 @@ import com.seaofnodes.simple.node.*;
 
 // sw rs2,offset(rs1)
 public class StoreRISC extends MemOpRISC {
-    StoreRISC( StoreNode st, Node base, int off, Node val ) { super(st, base, off, val); }
+    StoreRISC( StoreNode st, Node base, int off, Node val ) { super(st, base, off, val);}
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask regmap(int i) {
         // 0 - ctrl

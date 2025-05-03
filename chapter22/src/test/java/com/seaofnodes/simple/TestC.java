@@ -51,6 +51,7 @@ public abstract class TestC {
         params.addAll(new String[] {
                 obj,
                 "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
+                "-m32",
                 "-g",
                 "-o",
                 bin,

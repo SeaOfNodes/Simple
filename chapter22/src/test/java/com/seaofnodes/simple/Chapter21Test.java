@@ -150,14 +150,14 @@ public class Chapter21Test {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 9, 1, false);
+        EvalRisc5 R5 = TestRisc5.build("fib", 9, 17, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("fib", 9, 1, false);
+        EvalArm64 A5 = TestArm64.build("fib", 9, 17, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
         // Return register X0 holds fib(8)==55
@@ -178,7 +178,7 @@ public class Chapter21Test {
         int p1 = ps+4*4+1*4;
         // P2 = { age } // sizeof=4
         int p2 = ps+4*4+2*4;
-        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, true);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st4(ps,3);           // Length
         R5.st4(ps+1*4,p0);

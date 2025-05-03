@@ -63,7 +63,9 @@ val sqrt = { int x ->
         guess = next;
     }
 };
-return sqrt(arg) + sqrt(arg+2);
+int truncate_me = (arg+2);
+int truncate = arg;
+return sqrt(truncate) + sqrt(truncate_me);
 """;
         testCPU(src,"x86_64_v2", "Win64"  ,23,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
