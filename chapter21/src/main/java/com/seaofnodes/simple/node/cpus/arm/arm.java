@@ -563,8 +563,8 @@ public class arm extends Machine {
         return (opcode << 26) | delta;
     }
 
-    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx ) { return callInMask(tfp,idx); }
-    static RegMask callInMask(TypeFunPtr tfp, int idx ) {
+    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    static RegMask callInMask(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         if( idx==0 ) return CodeGen.CODE._rpcMask;
         if( idx==1 ) return null;
         // Count floats in signature up to index

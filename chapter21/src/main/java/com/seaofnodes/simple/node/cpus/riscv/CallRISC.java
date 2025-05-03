@@ -19,9 +19,9 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return riscv.callInMask(_tfp,i);
+        return riscv.callInMask(_tfp,i,fun()._maxArgSlot);
     }
-    @Override public RegMask outregmap() { return riscv.RPC_MASK; }
+    @Override public RegMask outregmap() { return null; }
     @Override public String name() { return _name; }
     @Override public TypeFunPtr tfp() { return _tfp; }
 
@@ -29,8 +29,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
         // Short form +/-4K:  beq r0,r0,imm12
         // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
         enc.relo(this);
-        short rpc = enc.reg(this);
-        enc.add4(riscv.j_type(riscv.OP_JAL, rpc, 0));
+        enc.add4(riscv.j_type(riscv.OP_JAL, riscv.RPC, 0));
     }
 
     // Delta is from opcode start
@@ -42,9 +41,8 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
 
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        short rpc = enc.reg(this);
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, rpc, delta));
+            enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, riscv.RPC, delta));
         } else {
             throw Utils.TODO();
         }

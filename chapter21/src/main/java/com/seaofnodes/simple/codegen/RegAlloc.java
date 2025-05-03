@@ -262,7 +262,7 @@ public class RegAlloc {
     }
 
     // Single-def live range with an empty mask.  There are many single-reg
-    // uses.  Theory is there's many repeats if the same reg amongst the uses.
+    // uses.  Theory is there's many repeats of the same reg amongst the uses.
     // In of splitting once per use, start by splitting into groups based on
     // required input register.
     boolean splitEmptyMaskByUse( byte round, LRG lrg ) {
@@ -271,26 +271,32 @@ public class RegAlloc {
         // Look at each use, and break into non-overlapping register classes.
         Ary<RegMask> rclass = new Ary<>(RegMask.class);
         boolean done=false;
+        int ncalls=0;
         while( !done ) {
             done = true;
             for( Node use : def._outputs )
-                if( use instanceof MachNode mach )
+                if( use instanceof MachNode mach ) {
+                    if( mach instanceof CallNode ) ncalls++;
                     for( int i=1; i<use.nIns(); i++ )
                         if( use.in(i)==def )
                             done = putIntoRegClass( rclass, mach.regmap(i) );
+                }
         }
 
-        // See how many register classes we split into
-        if( rclass._len <= 1 ) return false;
+        // See how many register classes we split into.  Generally not
+        // productive to split like this across calls, which are going to kill
+        // all registers anyways.
+        if( rclass._len <= 1 || ncalls > 1 ) return false;
 
-        // Split by class
+        // Split by classh
+        Ary<Node> ns = new Ary<>(Node.class);
         for( RegMask rmask : rclass ) {
+            ns.addAll(def._outputs);
             Node split = makeSplit(def,"popular",round,lrg);
             split.insertAfter( def );
             if( split.nIns()>1 ) split.setDef(1,def);
             // all uses by class to split
-            for( int j=0; j < def._outputs._len; j++ ) {
-                Node use = def._outputs.at(j);
+            for( Node use : ns ) {
                 if( use instanceof MachNode mach && use!=split ) {
                     // Check all use inputs for n, in case there's several
                     for( int i = 1; i < use.nIns(); i++ )
@@ -299,10 +305,11 @@ public class RegAlloc {
                             RegMask m = mach.regmap( i );
                             if( m!=null && mach.regmap( i ).overlap( rmask ) )
                                 // Modify use to use the split version specialized to this rclass
-                                { use.setDefOrdered( i, split ); j--; break; }
+                                use.setDefOrdered( i, split );
                         }
                 }
             }
+            ns.clear();
         }
         return true;
     }

@@ -114,6 +114,7 @@ public abstract class Eval2 {
 
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
+        if( code._start.uctrl()==null ) return ""; // The empty program
         SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
         // Force local scheduling phase
         if( code._phase.ordinal() < CodeGen.Phase.TypeCheck .ordinal() )  code.typeCheck();

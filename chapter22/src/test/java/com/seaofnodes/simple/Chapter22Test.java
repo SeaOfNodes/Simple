@@ -100,12 +100,11 @@ return cc.cz;
         assertEquals("25", Eval2.eval(code, 0));
     }
 
-
     @Test @Ignore
     public void testHelloWorld() throws IOException {
-        TestC.run("helloWorld", 9);
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
+        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",13);
     }
 
 
 }
-

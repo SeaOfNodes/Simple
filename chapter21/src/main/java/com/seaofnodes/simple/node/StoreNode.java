@@ -84,6 +84,12 @@ public class StoreNode extends MemOpNode {
             }
         }
 
+        // Store of zero after alloc
+        if( mem() instanceof ProjNode prj && prj.in(0) instanceof NewNode &&
+            prj.in(0)==ptr().in(0) &&  // Same NewNode memory & pointer
+            (val()._type==TypeInteger.ZERO || val()._type==Type.NIL ) )
+            return mem();
+
         return null;
     }
 
@@ -105,7 +111,7 @@ public class StoreNode extends MemOpNode {
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
-        Type t = val()._type;
+        //Type t = val()._type;
         //return _init || t.isa(_declaredType) ? null : Parser.error("Cannot store "+t+" into field "+_declaredType+" "+_name,_loc);
         return null;
     }

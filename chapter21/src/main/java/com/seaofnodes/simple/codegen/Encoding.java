@@ -324,7 +324,6 @@ public class Encoding {
             if( !(bb instanceof MachNode mach0) )
                 _opStart[bb._nid] = _bits.size();
             else if( bb instanceof FunNode fun ) {
-                padN(16,_bits);
                 _fun = fun;     // Currently encoding function
                 _opStart[bb._nid] = _bits.size();
                 mach0.encoding( this );
@@ -338,7 +337,6 @@ public class Encoding {
                 }
             }
         }
-        padN(16,_bits);
     }
 
     // --------------------------------------------------

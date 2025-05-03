@@ -140,8 +140,8 @@ public class Encoding {
 
 
     final HashMap<Node,String> _externals = new HashMap<>();
-    public Encoding external( Node call, String extern ) {
-        _externals.put(call,extern);
+    public Encoding external( Node n, String extern ) {
+        _externals.put(n,extern);
         return this;
     }
 
@@ -185,12 +185,10 @@ public class Encoding {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         rpos.put(_code._start.loop(),rpo);
         BitSet visit = _code.visit();
-        //IdentityHashMap<CFGNode,LoopNode> looptail = new IdentityHashMap<>();
         rpo.add(_code._stop);
         for( Node n : _code._start._outputs )
             if( n instanceof FunNode fun ) {
                 int x = rpo._len;
-                //_rpo_cfg2(fun, visit, rpo, looptail);
                 _rpo_cfg(fun, visit, rpos );
                 assert rpo.at(x) instanceof ReturnNode;
             }
@@ -428,12 +426,12 @@ public class Encoding {
 
         HashMap<Type,Integer> targets = new HashMap<>();
 
-        // By log size
-        for( int log = 3; log >= 0; log-- ) {
+        // By alignment
+        for( int align = 4; align >= 0; align-- ) {
             // Write the 8-byte constants
             for( Node op : _bigCons.keySet() ) {
                 Relo relo = _bigCons.get(op);
-                if( relo._t.log_size()==log ) {
+                if( relo._t.alignment()==align ) {
                     // Map from relo to constant start and patch
                     Integer target = targets.get(relo._t);
                     if( target==null ) {
@@ -441,9 +439,9 @@ public class Encoding {
                         // Put constant into code space.
                         if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries
                             for( Type tx : tt._types )
-                                addN(log,tx,bits);
+                                addN(align,tx,bits);
                         else
-                            addN(log,relo._t,bits);
+                            addN(align,relo._t,bits);
                     }
                     relo._target = target;
                     relo._opStart= _opStart[op._nid];

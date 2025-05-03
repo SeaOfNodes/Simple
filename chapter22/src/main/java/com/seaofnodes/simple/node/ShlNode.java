@@ -22,8 +22,15 @@ public class ShlNode extends LogicalNode {
             t2 instanceof TypeInteger i1 ) {
             if( i0 == TypeInteger.ZERO )
                 return TypeInteger.ZERO;
-            if( i0.isConstant() && i1.isConstant() )
-                return TypeInteger.constant(i0.value()<<i1.value());
+            if( i1.isConstant() ) {
+                int shf = (int)i1.value();
+                if( i0.isConstant() )
+                    return TypeInteger.constant(i0.value()<<shf);
+                // If no overflow, shift endpoints
+                if( !(((i0._min<<shf)>>shf) != i0._min ||
+                      ((i0._max<<shf)>>shf) != i0._max ) )
+                    return TypeInteger.make(i0._min<<shf,i0._max<<shf);
+            }
         }
         return TypeInteger.BOT;
     }

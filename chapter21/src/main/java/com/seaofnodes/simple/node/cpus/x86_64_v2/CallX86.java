@@ -20,7 +20,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     @Override public String label() { return op(); }
     @Override public String name() { return _name; }
     @Override public TypeFunPtr tfp() { return _tfp; }
-    @Override public RegMask regmap(int i) { return x86_64_v2.callInMask(_tfp,i);  }
+    @Override public RegMask regmap(int i) { return x86_64_v2.callInMask(_tfp,i,fun()._maxArgSlot);  }
     @Override public RegMask outregmap() { return null; }
     @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 

@@ -271,6 +271,7 @@ for( int i=0; i<A#; i++ )
     A[i] = i;
 for( int i=0; i<A#; i++ )
     B[i] += A[i];
+return 0;
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return 0;", code.print());

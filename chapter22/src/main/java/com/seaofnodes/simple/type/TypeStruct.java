@@ -24,15 +24,18 @@ public class TypeStruct extends Type {
     // "bottom out" is again the forward-ref struct.
     public final String _name;
     public final Field[] _fields;
+    public final TypeConAry _con; // Optional, constant array contents
 
-    TypeStruct(String name, Field[] fields) {
+    private TypeStruct(String name, TypeConAry con, Field[] fields) {
         super(TSTRUCT);
         _name = name;
         _fields = fields;
+        _con = con;
     }
 
     // All fields directly listed
-    public static TypeStruct make(String name, Field... fields) { return new TypeStruct(name, fields).intern(); }
+    public static TypeStruct make(String name, TypeConAry con, Field... fields) { return new TypeStruct(name, con, fields).intern(); }
+    public static TypeStruct make(String name, Field... fields) { return make(name, TypeConAry.BOT, fields); }
     public static final TypeStruct TOP = make("$TOP",new Field[0]);
     public static final TypeStruct BOT = make("$BOT",new Field[0]);
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
@@ -48,12 +51,16 @@ public class TypeStruct extends Type {
     }
 
     // Array
-    public static TypeStruct makeAry(TypeInteger len, int lenAlias, Type body, int bodyAlias) {
+    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias) {
+        return makeAry(name,len,lenAlias,body,bodyAlias,false,TypeConAry.BOT);
+    }
+    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias, boolean efinal, TypeConAry con) {
         assert body instanceof TypeInteger || body instanceof TypeFloat || (body instanceof TypeNil tn && tn.nullable());
-        assert len.isa(TypeInteger.U32);
-        return make("[" + body.str() + "]",
+        assert efinal || con==TypeConAry.BOT; // No mutable constant arrays
+        return make(name,
+                    con,
                     Field.make("#" ,len , lenAlias,true ),
-                    Field.make("[]",body,bodyAlias,false));
+                    Field.make("[]",body,bodyAlias,efinal));
     }
 
     // A pair of self-cyclic types
@@ -62,9 +69,11 @@ public class TypeStruct extends Type {
     public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false) );
     private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false) );
 
-    private static final TypeStruct ARY = makeAry(TypeInteger.U32,-1,TypeInteger.BOT,-2);
+    private static final TypeStruct ARY = makeAry("[i64]",TypeInteger.U32,-1,TypeInteger.BOT,-2);
+    private static final TypeStruct STR = makeAry("[u8]",TypeInteger.U32,-1,TypeInteger.U8,-2);
+    private static final TypeStruct HELLO= makeAry("[u8]",TypeInteger.constant(3),-1,TypeInteger.U8,-2,true,TypeConAryB.ABC);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); }
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); ts.add(STR); ts.add(HELLO); }
 
     // Find field index by name
     public int find(String fname) {
@@ -114,7 +123,8 @@ public class TypeStruct extends Type {
                 return BOT;
             flds[i] = (Field)f0.meet(f1);
         }
-        return make(_name,flds);
+        TypeConAry con = (TypeConAry)_con.meet(that._con);
+        return make(_name, con, flds);
     }
 
     @Override
@@ -125,22 +135,23 @@ public class TypeStruct extends Type {
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i].dual();
-        return make(_name,flds);
+        TypeConAry con = _con.dual();
+        return make(_name,con,flds);
     }
 
     // Keeps the same struct, but lower-bounds all fields.
-    @Override public TypeStruct glb() {
-        if( _glb() ) return this;
+    @Override public TypeStruct glb(boolean mem) {
+        if( _glb(mem) ) return this;
         // Need to glb each field
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
-            flds[i] = _fields[i].glb();
+            flds[i] = _fields[i].glb(mem);
         return make(_name,flds);
     }
-    private boolean _glb() {
+    private boolean _glb(boolean mem) {
         if( _fields!=null )
           for( Field f : _fields )
-              if( f.glb() != f )
+              if( f.glb(mem) != f )
                  return false;
         return true;
     }
@@ -156,10 +167,30 @@ public class TypeStruct extends Type {
         return true;
     }
 
+    @Override public boolean isConstant() {
+        // Check all fields for being constant
+        for( int i=0; i<_fields.length; i++ )
+            if( !_fields[i].isConstant() )
+                // Last field checks for a constant array
+                if( i<_fields.length-1 || !isAry() || _con==TypeConAry.BOT )
+                    return false;
+        return true;
+    }
+
+    // log_size for a struct is not defined, unless its exactly some power of
+    // 2.  *Total* size is well defined, and is available in the offsets.
+    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int alignment() {
+        int align = 0;
+        for( Field f : _fields )
+            align = Math.max(align, (f._fname!="[]" || _con==TypeConAry.BOT ? f._type : _con).alignment());
+        return align;
+    }
+
     @Override
     boolean eq(Type t) {
         TypeStruct ts = (TypeStruct)t; // Invariant
-        if( !_name.equals(ts._name) )
+        if( !_name.equals(ts._name) || _con!=ts._con )
             return false;
         if( _fields == ts._fields ) return true;
         if( _fields==null || ts._fields==null ) return false;
@@ -177,14 +208,14 @@ public class TypeStruct extends Type {
         if( _fields != null )
             for( Field f : _fields )
                 hash = Utils.rot(hash,13) ^ f.hashCode();
-        return Utils.fold(hash);
+        return Utils.fold(hash ^ _con.hashCode());
     }
 
     @Override
     public SB print(SB sb) {
+        if( _con!=TypeConAry.BOT ) return sb.p(_con.str());
         sb.p(_name);
-        if( _fields == null ) return sb; // Forward reference struct, just print the name
-        if( isAry() ) return sb; // Skip printing generic array fields
+        if( _fields == null || isAry() ) return sb; // Forward reference struct, just print the name
         sb.p(" {");
         for( Field f : _fields )
             f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");
@@ -192,7 +223,7 @@ public class TypeStruct extends Type {
     }
     @Override public SB gprint( SB sb ) { return sb.p(_name); }
 
-    @Override public String str() { return _name; }
+    @Override public String str() { return _con==TypeConAry.BOT ? _name : _con.str(); }
 
 
     public boolean isAry() { return _fields.length==2 && _fields[1]._fname.equals("[]"); }

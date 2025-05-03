@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 
 public class TypeTuple extends Type {
@@ -48,11 +49,10 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override
-    public Type glb() {
+    @Override public Type glb(boolean mem) {
         Type[] ts = new Type[_types.length];
         for( int i=0; i<_types.length; i++ )
-            ts[i] = _types[i].glb();
+            ts[i] = _types[i].glb(mem);
         return make(ts);
     }
 
@@ -63,12 +63,13 @@ public class TypeTuple extends Type {
         return true;
     }
 
-    @Override public int log_size() {
+    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int alignment() {
         assert isConstant();
-        int log_size = 0;
+        int align = 0;
         for( Type t : _types )
-            log_size = Math.max(log_size,t.log_size());
-        return log_size;
+            align = Math.max(align,t.alignment());
+        return align;
     }
 
     public Type ret() { assert _types.length==3; return _types[2]; }

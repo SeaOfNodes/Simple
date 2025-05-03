@@ -1,9 +1,10 @@
 // -*- mode: java;  -*-
 struct s0 {
-    i16 v1;
-    u8 v2;
+    u16 v0;
+    i16 v3;
+    u32 v5;
 };
-s0 !l4Hi9BCnsd = new s0;
-if( new s0.v2+arg )
-    while(1) l4Hi9BCnsd=new s0;
-while(new s0.v2+new s0.v1<=0) {}
+return new s0.v3;
+if(0)
+    while(new s0.v5+new s0.v5) return 0;
+return new s0.v0;

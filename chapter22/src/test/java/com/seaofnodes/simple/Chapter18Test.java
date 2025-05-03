@@ -214,7 +214,7 @@ val fcn = { Person?[] ps, int x ->
 var ps = new Person?[2];
 ps[0] = new Person;
 ps[1] = new Person;
-fcn(ps,1);
+return fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
         assertEquals("return 0;", code._stop.toString());
@@ -249,6 +249,7 @@ for(;;) {
     if (i2i(2) == arg) break;
     i2i = null;
 }
+return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null calling { int -> int #1}?",e.getMessage()); }
