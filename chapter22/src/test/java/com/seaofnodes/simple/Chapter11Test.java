@@ -435,7 +435,7 @@ while(1)
   arg = arg+ptr.v;
 """);
         code.parse().opto();
-        assertEquals("Stop[ ]", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
@@ -527,7 +527,7 @@ while(0>=0) {
 return 0;
 """);
         code.parse().opto();
-        assertEquals("Stop[ ]", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test

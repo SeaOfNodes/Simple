@@ -6,7 +6,6 @@ import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -39,8 +38,8 @@ public class Chapter21Test {
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
-        testCPU(src,"x86_64_v2", "SystemV",16,"return Top;");
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
     }
@@ -48,7 +47,7 @@ public class Chapter21Test {
     @Test
     public void testArray1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
@@ -64,20 +63,20 @@ public class Chapter21Test {
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 25,null);
-        testCPU(src,"riscv"    , "SystemV", 8,null);
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 6,null);
     }
 
     @Test public void testStringExport() throws IOException {
-        TestC.run("stringHash", 25);
+        TestC.run("stringHash", 9);
     }
 
     @Test public void testLoop2() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/loop2.smp"));
-        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (sari,(shli,(inc,Phi(Loop,0,sari))));");
-        testCPU(src,"riscv"    , "SystemV",0,"return ( ( ( Phi(Loop,0,srai) + #1 ) << #32 ) >> #32 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (asri,(lsli,(inc,Phi(Loop,0,asri))));");
+        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (inc,Phi(Loop,0,inc));");
+        testCPU(src,"riscv"    , "SystemV",0,"return ( Phi(Loop,0,addi) + #1 );");
+        testCPU(src,"arm"      , "SystemV",0,"return (inc,Phi(Loop,0,inc));");
     }
 
     @Test public void testNewtonExport() throws IOException {
@@ -120,7 +119,7 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes, 473);
+        TestC.run("sieve",sprimes, 257);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.

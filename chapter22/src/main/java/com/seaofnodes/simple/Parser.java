@@ -115,7 +115,7 @@ public class Parser {
             put("i32" ,TypeInteger.I32);
             put("i64" ,TypeInteger.BOT);
             put("i8"  ,TypeInteger.I8 );
-            put("int" ,TypeInteger.I32);
+            put("int" ,TypeInteger.BOT);
             put("u1"  ,TypeInteger.U1 );
             put("u16" ,TypeInteger.U16);
             put("u32" ,TypeInteger.U32);
@@ -135,7 +135,7 @@ public class Parser {
 
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
-        _scope.define(ScopeNode.ARG0, TypeInteger.I32, false, null, _lexer);
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
 
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
@@ -159,7 +159,7 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
-        if( main.ret().expr()._type==Type.TOP ) {
+        if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
             main.setDef(1,XCTRL); // Delete default start input

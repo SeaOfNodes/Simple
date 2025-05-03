@@ -128,7 +128,7 @@ while(v1+arg) {
 }
                 """);
         code.parse().opto();
-        assertEquals("Stop[ ]", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
@@ -222,7 +222,7 @@ while(1) {
 }
 """);
         code.parse().opto();
-        assertEquals("Stop[ ]", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
@@ -272,7 +272,7 @@ while(1)
 return v1+v0;
                                    """);
         code.parse().opto();
-        assertEquals("Stop[ ]", code.print());
+        assertEquals("return Top;", code.print());
     }
 
     @Test
