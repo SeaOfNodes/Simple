@@ -424,32 +424,44 @@ public class Encoding {
     void writeConstantPool( BAOS bits, boolean patch ) {
         padN(16,bits);
 
+        // radix sort the big constants by alignment
+        Ary<Relo>[] raligns = new Ary[5];
+        for( Node op : _bigCons.keySet() ) {
+            Relo relo = _bigCons.get(op);
+            int align = relo._t.alignment();
+            Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
+            relos.add(relo);
+        }
+
+
+        // Types can be used more than once; collapse the dups
         HashMap<Type,Integer> targets = new HashMap<>();
 
         // By alignment
         for( int align = 4; align >= 0; align-- ) {
-            // Write the 8-byte constants
-            for( Node op : _bigCons.keySet() ) {
-                Relo relo = _bigCons.get(op);
-                if( relo._t.alignment()==align ) {
+            Ary<Relo> relos = raligns[align];
+            if( relos != null )
+                for( Relo relo : relos ) {
                     // Map from relo to constant start and patch
                     Integer target = targets.get(relo._t);
                     if( target==null ) {
                         targets.put(relo._t,target = bits.size());
                         // Put constant into code space.
-                        if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries
+                        if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries at same alignment
                             for( Type tx : tt._types )
                                 addN(align,tx,bits);
-                        else
+                        else if( relo._t instanceof TypeStruct ts ) {
+                            int alignX = ts.alignment();
+                            throw Utils.TODO();
+                        } else      // Simple primitive (e.g. larger int, float)
                             addN(align,relo._t,bits);
                     }
                     relo._target = target;
-                    relo._opStart= _opStart[op._nid];
+                    relo._opStart= _opStart[relo._op._nid];
                     // Go ahead and locally patch in-memory
                     if( patch )
-                        ((RIPRelSize)op).patch(this, relo._opStart, _opLen[op._nid], relo._target - relo._opStart);
+                        ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
                 }
-            }
         }
     }
 
