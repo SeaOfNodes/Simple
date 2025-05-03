@@ -518,13 +518,13 @@ public class arm extends Machine {
 
     public static COND make_condition(String bop) {
         return switch (bop) {
-            case "==" -> COND.EQ;
-            case "!=" -> COND.NE;
-            case "<"  -> COND.LT;
-            case "<=" -> COND.LE;
-            case ">=" -> COND.GE;
-            case ">"  -> COND.GT;
-            default   -> throw Utils.TODO();
+        case "==" -> COND.EQ;
+        case "!=" -> COND.NE;
+        case "<"  -> COND.LT;
+        case "<=" -> COND.LE;
+        case ">=" -> COND.GE;
+        case ">"  -> COND.GT;
+        default   -> throw Utils.TODO();
         };
     }
 
@@ -619,12 +619,12 @@ public class arm extends Machine {
     }
 
     private static final long CALLEE_SAVE =
-            1L<<X19 |
-            1L<<X20 | 1L<<X21 | 1L<<X22 | 1L<<X23 |
-            1L<<X24 | 1L<<X25 | 1L<<X26 | 1L<<X27 |
-            1L<<X28 |
-            1L<<D9  | 1L<<D10 | 1L<<D11 |
-            1L<<D12 | 1L<<D13 | 1L<<D14 | 1L<<D15;
+        1L<<X19 |
+        1L<<X20 | 1L<<X21 | 1L<<X22 | 1L<<X23 |
+        1L<<X24 | 1L<<X25 | 1L<<X26 | 1L<<X27 |
+        1L<<X28 |
+        1L<<D9  | 1L<<D10 | 1L<<D11 |
+        1L<<D12 | 1L<<D13 | 1L<<D14 | 1L<<D15;
     static final long CALLER_SAVE = ~CALLEE_SAVE & ~(1L<<RSP);
     @Override public long callerSave() { return CALLER_SAVE; }
     @Override public long neverSave() { return 1L<<RSP; }
@@ -644,46 +644,46 @@ public class arm extends Machine {
     // Instruction selection
     @Override public Node instSelect(Node n ) {
         return switch( n ) {
-            case AddFNode addf  -> new AddFARM(addf);
-            case AddNode add    -> add(add);
-            case AndNode and    -> and(and);
-            case BoolNode bool  -> cmp(bool);
-            case CallNode call  -> call(call);
-            case CastNode cast  -> new CastARM(cast);
-            case CallEndNode cend -> new CallEndARM(cend);
-            case CProjNode c    -> new CProjNode(c);
-            case ConstantNode con -> con(con);
-            case DivFNode divf  -> new DivFARM(divf);
-            case DivNode div    -> new DivARM(div);
-            case FunNode fun    -> new FunARM(fun);
-            case IfNode iff     -> jmp(iff);
-            case LoadNode ld    -> ld(ld);
-            case MemMergeNode mem -> new MemMergeNode(mem);
-            case MinusNode neg  -> new NegARM(neg);
-            case MulFNode mulf  -> new MulFARM(mulf);
-            case MulNode mul    -> new MulARM(mul);
-            case NewNode nnn    -> new NewARM(nnn);
-            case NotNode not    -> new NotARM(not);
-            case OrNode or      -> or(or);
-            case ParmNode parm  -> new ParmARM(parm);
-            case PhiNode phi    -> new PhiNode(phi);
-            case ProjNode prj   -> new ProjARM(prj);
-            case ReadOnlyNode read  -> new ReadOnlyNode(read);
-            case ReturnNode ret -> new RetARM(ret,ret.fun());
-            case SarNode sar    -> asr(sar);
-            case ShlNode shl    -> lsl(shl);
-            case ShrNode shr    -> lsr(shr);
-            case StartNode start -> new StartNode(start);
-            case StopNode stop  -> new StopNode(stop);
-            case StoreNode st   -> st(st);
-            case SubFNode subf  -> new SubFARM(subf);
-            case SubNode sub    -> sub(sub);
-            case ToFloatNode tfn-> new I2F8ARM(tfn);
-            case XorNode xor    -> xor(xor);
+        case AddFNode addf  -> new AddFARM(addf);
+        case AddNode add    -> add(add);
+        case AndNode and    -> and(and);
+        case BoolNode bool  -> cmp(bool);
+        case CallNode call  -> call(call);
+        case CastNode cast  -> new CastARM(cast);
+        case CallEndNode cend -> new CallEndARM(cend);
+        case CProjNode c    -> new CProjNode(c);
+        case ConstantNode con -> con(con);
+        case DivFNode divf  -> new DivFARM(divf);
+        case DivNode div    -> new DivARM(div);
+        case FunNode fun    -> new FunARM(fun);
+        case IfNode iff     -> jmp(iff);
+        case LoadNode ld    -> ld(ld);
+        case MemMergeNode mem -> new MemMergeNode(mem);
+        case MinusNode neg  -> new NegARM(neg);
+        case MulFNode mulf  -> new MulFARM(mulf);
+        case MulNode mul    -> new MulARM(mul);
+        case NewNode nnn    -> new NewARM(nnn);
+        case NotNode not    -> new NotARM(not);
+        case OrNode or      -> or(or);
+        case ParmNode parm  -> new ParmARM(parm);
+        case PhiNode phi    -> new PhiNode(phi);
+        case ProjNode prj   -> new ProjARM(prj);
+        case ReadOnlyNode read  -> new ReadOnlyNode(read);
+        case ReturnNode ret -> new RetARM(ret,ret.fun());
+        case SarNode sar    -> asr(sar);
+        case ShlNode shl    -> lsl(shl);
+        case ShrNode shr    -> lsr(shr);
+        case StartNode start -> new StartNode(start);
+        case StopNode stop  -> new StopNode(stop);
+        case StoreNode st   -> st(st);
+        case SubFNode subf  -> new SubFARM(subf);
+        case SubNode sub    -> sub(sub);
+        case ToFloatNode tfn-> new I2F8ARM(tfn);
+        case XorNode xor    -> xor(xor);
 
-            case LoopNode loop  -> new LoopNode(loop);
-            case RegionNode region-> new RegionNode(region);
-            default -> throw Utils.TODO();
+        case LoopNode  loop  -> new LoopNode(loop);
+        case RegionNode region-> new RegionNode(region);
+        default -> throw Utils.TODO();
         };
     }
 
