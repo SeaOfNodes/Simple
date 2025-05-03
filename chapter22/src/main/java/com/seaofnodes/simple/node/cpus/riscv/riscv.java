@@ -497,9 +497,8 @@ public class riscv extends Machine {
     }
 
     private Node sll(ShlNode sll) {
-        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti)) {
+        if( sll.in(2) instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm12(ti))
             return new SllIRISC(sll, (int)ti.value());
-        }
         return new SllRISC(sll);
     }
 

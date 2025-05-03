@@ -178,7 +178,7 @@ public class Chapter21Test {
         int p1 = ps+4*4+1*4;
         // P2 = { age } // sizeof=4
         int p2 = ps+4*4+2*4;
-        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, true);
+        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st4(ps,3);           // Length
         R5.st4(ps+1*4,p0);
