@@ -168,17 +168,42 @@ public class TypeStruct extends Type {
     }
 
     @Override public boolean isConstant() {
+        int len = _fields.length;
+        // If we have a constant array, then ignore the last 2 array fields-
+        // they are effectively constant.
+
+        // Fields are given sizes according to their types at *offset time*.
+        // And thus layout, packing & padding are determined by the Types
+        // at *offset-time*, which means *offset-time* has to be picked
+        // when types are Stable - post/during TypeCheck.
+
+        // The array-length field is shared with other like-sized arrays, so
+        // you are allowed to mix "abc" and "very_hugh_>256_char_string" and
+        // the resulting TMP can query the length field (getting 3 or >256
+        // respectively), and reading from a prolly 16bit length field.
+
+        // Basically asking: forward-flow declared-types, are these compatible?
+        // Only array-lengths have an issue here?  So internally name fields
+        // `#0` or `#1` or `#2` or `#3`.
+        //
+        // Also means I cannot track exact array length without losing the
+        // "declared type requires a 4-byte field".
+        //
+        // Same-same for all fields in a struct, space in memory is based on
+        // declared-type at least, possible (future work) optimized where all
+        // memory versions of the same field get a smaller footprint (or even a
+        // constant past or moved into prototype) past construction
+
+        if( _con!=TypeConAry.BOT ) len -= 2;
         // Check all fields for being constant
-        for( int i=0; i<_fields.length; i++ )
+        for( int i=0; i<len; i++ )
             if( !_fields[i].isConstant() )
-                // Last field checks for a constant array
-                if( i<_fields.length-1 || !isAry() || _con==TypeConAry.BOT )
-                    return false;
+                return false;
         return true;
     }
 
     // log_size for a struct is not defined, unless its exactly some power of
-    // 2.  *Total* size is well defined, and is available in the offsets.
+    // 2.  *Total size* is well-defined, and is available in the offsets.
     @Override public int log_size() { throw Utils.TODO(); }
     @Override public int alignment() {
         int align = 0;

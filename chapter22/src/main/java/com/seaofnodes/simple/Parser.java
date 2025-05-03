@@ -1293,13 +1293,12 @@ public class Parser {
         TypeMemPtr tmp = typeAry(TypeInteger.U8);
         int  lenAlias = tmp._obj.field("#" )._alias;
         int elemAlias = tmp._obj.field("[]")._alias;
-        TypeInteger len = TypeInteger.constant(s.length());
         TypeConAryB con = TypeConAryB.make(s);
         Type elem = con.elem();
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.
-        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[u8]", len, lenAlias, elem, elemAlias, true, con),true);
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[u8]", TypeInteger.U32, lenAlias, elem, elemAlias, true, con),true);
         return con(str);
     }
 
