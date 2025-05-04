@@ -1,10 +1,10 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.io.InputStream;
-import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
 // Call a C driver program, which calls a Simple-generated .o, and self-checks.
@@ -44,14 +44,16 @@ public abstract class TestC {
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
 
-        // Compile the C program
+        // Compile the C program.  Compiling code and constants in the low
+        // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
+        // high bits are zero - and Simple code can be emitted treating
+        // pointers as 4bytes.
         var params = new Ary<>(String.class);
         params.add("gcc");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.addAll(new String[] {
                 obj,
                 "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
-                "-m32",
                 "-g",
                 "-o",
                 bin,
@@ -63,25 +65,30 @@ public abstract class TestC {
         }
 
         Process gcc = new ProcessBuilder(params.asAry()).redirectErrorStream(true).start();
-        byte error;
-        try { error = (byte)gcc.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        int exit;
+        try {
+            boolean normal = gcc.waitFor(2, TimeUnit.SECONDS);
+            exit = normal ? gcc.exitValue() : -1; // no exit???
+        }  catch( InterruptedException e ) {
+            throw new IOException("interrupted");
+        }
         String result = new String(gcc.getInputStream().readAllBytes());
-        if( error!=0 ) {
-            System.err.println("gcc error code: "+error);
+        if( exit!=0 ) {
+            System.err.println("gcc error code: "+exit);
             System.err.println(result);
         }
-        assertEquals( 0, error );
+        assertEquals( 0, exit );
         //assertTrue(result.isEmpty()); // No data in error stream
 
         // Execute results
         Process smp = new ProcessBuilder(bin).redirectErrorStream(true).start();
-        try { error = (byte)smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        try { exit = (byte)smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(smp.getInputStream().readAllBytes());
-        if( error!=0 ) {
-            System.err.println("exec error code: "+error);
+        if( exit!=0 ) {
+            System.err.println("exec exit code: "+exit);
             System.err.println(result);
         }
-        assertEquals( 0, error );
+        assertEquals( 0, exit );
         assertEquals(expected,result);
 
         // Allocation quality not degraded

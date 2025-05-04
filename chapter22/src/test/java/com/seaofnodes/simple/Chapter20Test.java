@@ -63,9 +63,8 @@ val sqrt = { int x ->
         guess = next;
     }
 };
-int truncate_me = (arg+2);
-int truncate = arg;
-return sqrt(truncate) + sqrt(truncate_me);
+int cast_int = arg+2;
+return sqrt(arg) + sqrt(cast_int);
 """;
         testCPU(src,"x86_64_v2", "Win64"  ,23,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
@@ -94,7 +93,7 @@ return sqrt(truncate) + sqrt(truncate_me);
     @Test
     public void testArray1() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 8,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
@@ -103,8 +102,8 @@ return sqrt(truncate) + sqrt(truncate_me);
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        testCPU(src,"x86_64_v2", "SystemV", 25,null);
-        testCPU(src,"riscv"    , "SystemV", 8,null);
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 6,null);
     }
 

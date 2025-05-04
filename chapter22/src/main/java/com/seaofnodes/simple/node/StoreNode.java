@@ -85,15 +85,16 @@ public class StoreNode extends MemOpNode {
         }
 
         if( val() instanceof SarNode shr &&
-                shr.in(1) instanceof ShlNode shl &&
-                shr.in(2)._type.isConstant() &&
-                shl.in(2)._type.isConstant() ) {
+            shr.in(1) instanceof ShlNode shl &&
+            shr.in(2)._type.isConstant() &&
+            shl.in(2)._type.isConstant() ) {
 
             ConstantNode shr_s = (ConstantNode)(shr.in(2));
             ConstantNode shl_s = (ConstantNode)(shl.in(2));
 
             if( shl_s._type == shr_s._type )
-                return setDef(3, shl.in(1));
+                //return setDef(3, shl.in(1));
+                throw Utils.TODO();
         }
 
         return null;
