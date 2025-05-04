@@ -13,6 +13,19 @@ public abstract class GlobalCodeMotion {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( CodeGen code ) {
+        // Unlink all linked calls.  This can remove RPC constants which
+        // shuffled the StartNode outputs so requires a while loop.
+        boolean done=false;
+        while(!done) {
+            done = true;
+            for( Node use : code._start._outputs )
+                if( use instanceof FunNode fun )
+                    for( Node c : fun._inputs )
+                        if( c instanceof CallNode call )
+                            { call.unlink_all(); done=false; }
+        }
+
+
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         _rpo_cfg(null, code._start, code.visit(), rpo);
         // Reverse in-place
@@ -32,7 +45,6 @@ public abstract class GlobalCodeMotion {
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
-        if( use instanceof CallNode call ) call.unlink_all();
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
         if( def instanceof ReturnNode && use instanceof CallEndNode )

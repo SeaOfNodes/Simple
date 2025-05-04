@@ -41,49 +41,48 @@ public class Chapter22Test {
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
-        // Todo: need to fix it and switch to 4 byte pointers
         TestC.run("person", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
         // Person[3] = { len,pad,P0,P1,P2 }; // sizeof = 4*8
-        // P0 = { age } // sizeof=4
-        int p0 = ps+4*4+0*4;
-        // P1 = { age } // sizeof=4
-        int p1 = ps+4*4+1*4;
-        // P2 = { age } // sizeof=4
-        int p2 = ps+4*4+2*4;
+        // P0 = { age } // sizeof=8
+        int p0 = ps+4*8+0*8;
+        // P1 = { age } // sizeof=8
+        int p1 = ps+4*8+1*8;
+        // P2 = { age } // sizeof=8
+        int p2 = ps+4*8+2*8;
         EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
-        R5.st4(ps,3);           // Length
-        R5.st4(ps+1*4,p0);
-        R5.st4(ps+2*4,p1);
-        R5.st4(ps+3*4,p2);
-        R5.st4(p0, 5); // age= 5
-        R5.st4(p1,17); // age=17
-        R5.st4(p2,60); // age=60
+        R5.st8(ps,3);           // Length
+        R5.st8(ps+1*8,p0);
+        R5.st8(ps+2*8,p1);
+        R5.st8(ps+3*8,p2);
+        R5.st8(p0, 5); // age= 5
+        R5.st8(p1,17); // age=17
+        R5.st8(p2,60); // age=60
 
         int trap = R5.step(100);
         assertEquals(0,trap);
-        assertEquals( 5+0,R5.ld4s(p0));
-        assertEquals(17+1,R5.ld4s(p1));
-        assertEquals(60+0,R5.ld4s(p2));
+        assertEquals( 5+0,R5.ld8(p0));
+        assertEquals(17+1,R5.ld8(p1));
+        assertEquals(60+0,R5.ld8(p2));
 
         EvalArm64 A5 = TestArm64.build("person", ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
-        A5.st4(ps, 3);
-        A5.st4(ps+1*4,p0);
-        A5.st4(ps+2*4,p1);
-        A5.st4(ps+3*4,p2);
-        A5.st4(p0, 5); // age= 5
-        A5.st4(p1,17); // age=17
-        A5.st4(p2,60); // age=60
+        A5.st8(ps, 3);
+        A5.st8(ps+1*8,p0);
+        A5.st8(ps+2*8,p1);
+        A5.st8(ps+3*8,p2);
+        A5.st8(p0, 5); // age= 5
+        A5.st8(p1,17); // age=17
+        A5.st8(p2,60); // age=60
 
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
-        assertEquals( 5+0, A5.ld4s(p0));
-        assertEquals(17+1, A5.ld4s(p1));
-        assertEquals(60+0, A5.ld4s(p2));
+        assertEquals( 5+0, A5.ld8(p0));
+        assertEquals(17+1, A5.ld8(p1));
+        assertEquals(60+0, A5.ld8(p2));
     }
 
     @Test
