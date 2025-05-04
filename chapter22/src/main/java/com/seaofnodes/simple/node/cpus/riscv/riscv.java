@@ -441,7 +441,7 @@ public class riscv extends Machine {
             }
             // Need more complex sequence for larger constants... or a load
             // from a constant pool, which does not need an extra register
-            throw Utils.TODO();
+            yield new Int8RISC(con);
         }
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con);
