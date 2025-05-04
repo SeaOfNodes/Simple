@@ -32,6 +32,12 @@ public class Chapter22Test {
     }
 
 
+    @Test public void testJig1() throws IOException {
+        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, true);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        // do assertEquals here
+    }
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
