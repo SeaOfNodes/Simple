@@ -285,7 +285,7 @@ public class RegAlloc {
 
         // Split by class
         for( RegMask rmask : rclass ) {
-            Node split = makeSplit(def,"popular",round,lrg);
+            Node split = makeSplit(def,"popular",round,lrg,rmask);
             split.insertAfter( def );
             if( split.nIns()>1 ) split.setDef(1,def);
             // all uses by class to split
@@ -491,15 +491,17 @@ public class RegAlloc {
         Node def = n.in(i);
         // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
+        // Use-side RegMask, if available
+        RegMask umask = n instanceof MachNode mach ? mach.regmap(i) : null;
         // Def is a split ?
         if( skip && def instanceof SplitNode ) {
-            boolean singleReg = n instanceof MachNode mach && mach.regmap(i).size1();
+            boolean singleReg = umask!=null && umask.size1();
             // Same block, multiple registers, split is only used by n,
             // assume this is good enough and do not split again.
             if( cfg==def.cfg0() && def.nOuts()==1 && !singleReg )
                 return;
         }
-        makeSplit(def,kind,round,lrg).insertBefore(n, i);
+        makeSplit(def,kind,round,lrg,umask).insertBefore(n, i);
         // Skip split-of-split same block
         if( skip && def instanceof SplitNode && cfg==def.cfg0() )
             n.in(i).setDefOrdered(1,def.in(1));
@@ -526,8 +528,9 @@ public class RegAlloc {
         }
     }
 
-    private Node makeSplit( Node def, String kind, byte round, LRG lrg ) {
-        Node split = def instanceof MachNode mach && mach.isClone()
+    private Node makeSplit( Node def, String kind, byte round, LRG lrg, RegMask umask ) {
+        // Clone simple constants if possible
+        Node split = def instanceof MachNode mach && mach.isClone() && (umask==null || mach.outregmap().overlap(umask))
             ? mach.copy()
             : _code._mach.split(kind,round,lrg);
         _lrgs.put(split,lrg);

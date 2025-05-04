@@ -43,7 +43,7 @@ public abstract class Node implements Cloneable {
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
      */
-    public Ary<Node> _outputs;
+     public Ary<Node> _outputs;
 
 
     /**

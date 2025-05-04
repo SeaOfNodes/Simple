@@ -84,18 +84,14 @@ public class StoreNode extends MemOpNode {
             }
         }
 
-        if( val() instanceof SarNode shr &&
-            shr.in(1) instanceof ShlNode shl &&
-            shr.in(2)._type.isConstant() &&
-            shl.in(2)._type.isConstant() ) {
-
-            ConstantNode shr_s = (ConstantNode)(shr.in(2));
-            ConstantNode shl_s = (ConstantNode)(shl.in(2));
-
-            if( shl_s._type == shr_s._type )
-                //return setDef(3, shl.in(1));
-                throw Utils.TODO();
-        }
+        // TODO: Needs more love: the shift amount depends on the store size
+        //if( val() instanceof SarNode shr &&
+        //    shr.in(1) instanceof ShlNode shl &&
+        //    shr.in(2)._type.isConstant() &&
+        //    shl.in(2)._type.isConstant() ) {
+        //    if( shl.in(2)._type == shr.in(2)._type )
+        //        return setDef(3, shl.in(1));
+        //}
 
         return null;
     }
