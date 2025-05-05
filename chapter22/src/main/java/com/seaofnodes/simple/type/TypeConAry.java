@@ -3,6 +3,7 @@ package com.seaofnodes.simple.type;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
+import java.io.ByteArrayOutputStream;
 
 /**
  * Represents a constant array of primitives
@@ -37,6 +38,7 @@ public class TypeConAry<A> extends Type {
         return BOT;
     }
 
+    // Meet-over-elements type
     public Type elem() {
         if( _ary==null )
             return _any ? TOP : BOTTOM;
@@ -50,8 +52,9 @@ public class TypeConAry<A> extends Type {
         return TypeInteger.make(min,max);
     }
     long at(int idx) { throw Utils.TODO(); }
-    int len() { throw Utils.TODO(); }
+    public int len() { throw Utils.TODO(); }
     @Override public int alignment() { return 0; }
+    public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }
 
     @Override boolean eq(Type t) {
         TypeConAry ary = (TypeConAry)t; // Invariant

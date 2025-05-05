@@ -51,7 +51,7 @@ public class Encoding {
         public final Type _t;          // Constant type
         public final byte _off;        // Offset from start of opcode
         public final byte _elf;        // ELF relocation type, e.g. 2/PC32
-        public int _target;      // Where constant is finally placede
+        public int _target;      // Where constant is finally placed
         public int _opStart;     // Opcode start
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
@@ -440,28 +440,56 @@ public class Encoding {
         // By alignment
         for( int align = 4; align >= 0; align-- ) {
             Ary<Relo> relos = raligns[align];
-            if( relos != null )
-                for( Relo relo : relos ) {
-                    // Map from relo to constant start and patch
-                    Integer target = targets.get(relo._t);
-                    if( target==null ) {
-                        targets.put(relo._t,target = bits.size());
-                        // Put constant into code space.
-                        if( relo._t instanceof TypeTuple tt ) // Constant tuples put all entries at same alignment
-                            for( Type tx : tt._types )
-                                addN(align,tx,bits);
-                        else if( relo._t instanceof TypeStruct ts ) {
-                            int alignX = ts.alignment();
-                            throw Utils.TODO();
-                        } else      // Simple primitive (e.g. larger int, float)
-                            addN(align,relo._t,bits);
+            if( relos == null ) continue;
+            for( Relo relo : relos ) {
+                // Map from relo to constant start and patch
+                Integer target = targets.get(relo._t);
+                if( target==null ) {
+                    targets.put(relo._t,target = bits.size());
+                    // Write constant into constant pool
+                    switch( relo._t ) {
+                    case TypeTuple  tt -> cpool(align,bits,tt);
+                    case TypeStruct ts -> cpool(bits,ts);
+                    // Simple primitive (e.g. larger int, float)
+                    default -> addN(align,relo._t,bits);
                     }
-                    relo._target = target;
-                    relo._opStart= _opStart[relo._op._nid];
-                    // Go ahead and locally patch in-memory
-                    if( patch )
-                        ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
                 }
+                // Record target address and opcode start
+                relo._target = target;
+                relo._opStart= _opStart[relo._op._nid];
+                // Go ahead and locally patch in-memory
+                if( patch )
+                    ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
+            }
+        }
+    }
+
+    // Constant tuples put all entries at same alignment
+    private void cpool(int align, BAOS bits, TypeTuple tt) {
+        for( Type tx : tt._types )
+            addN(align,tx,bits);
+    }
+
+    // Structs use internal field layout
+    private void cpool( BAOS bits, TypeStruct ts ) {
+        // Field order by offset
+        int[] layout = ts.layout();
+        int off=0; // offset in the struct
+        for( int fn=0; fn<ts._fields.length; fn++ ) {
+            Field f  = ts._fields[layout[fn]];
+            int foff = ts. offset(layout[fn]);
+            // Pad up to field
+            while( off < foff ) { bits.write(0); off++; };
+            // Constant array fields are special
+            if( f._fname=="[]" ) {   // Must be a constant array
+                ts._con.write(bits); // Write the constant array bits
+                off += ts._con.len();
+            } else {
+                int log = f._type.log_size();
+                if( f._fname=="#" )  addN(log,ts._con.len(),bits); // Must be a constant array
+                else                 addN(log,f._type      ,bits);
+                off += 1<<log;
+            }
         }
     }
 
