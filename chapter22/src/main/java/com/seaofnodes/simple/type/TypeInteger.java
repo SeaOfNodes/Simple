@@ -79,7 +79,12 @@ public class TypeInteger extends Type {
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
         if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
         if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
-        if( isHighOrConst() ) return 0;
+        if( isHighOrConst() ) {
+             if (_min <= 0xFF)             return 0;
+             else if (_min <= 0xFFFF)      return 1;
+             else if (_min <= 0xFFFFFFFFL) return 2;
+             else return 3;
+        }
         throw Utils.TODO();
     }
 
