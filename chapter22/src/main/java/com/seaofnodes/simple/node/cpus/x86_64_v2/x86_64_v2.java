@@ -189,6 +189,7 @@ public class x86_64_v2 extends Machine {
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
         return switch( CodeGen.CODE._callingConv ) {
         case "SystemV" -> callSys5 (tfp,idx);
         case "Win64"   -> callWin64(tfp,idx);

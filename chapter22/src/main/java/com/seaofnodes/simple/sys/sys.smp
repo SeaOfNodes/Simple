@@ -5,7 +5,7 @@ struct sys {
     // libc bindings
     /** https://www.man7.org/linux/man-pages/man2/<libc call>.2.html */
     struct libc {
-        // fd  buf   len -> len
+        // fd  buf len -> len
         {  i32 i64 i32 -> i32 } write = "C";
         // addr len prot flags fd  off -> void*
         {  i64  i64 i32  i32   i32 i32 -> i64 } mmap = "C";
@@ -16,5 +16,12 @@ struct sys {
         i32 PROT_NONE = 0;
         i32 MAP_PRIVATE = 2;
         i32 MAP_ANON = 32;
+    };
+    struct io {
+        val p = { u8[~] str ->
+            i64 ptr = str;  // cast array base to i64
+            i32 len = str#; // cast length to signed
+            return sys.libc.write(1,ptr,len);
+        };
     };
 };

@@ -1,4 +1,3 @@
 // -*- mode: java;  -*-
-i64 buf = "Hello, World!";
-sys.libc.write(1,buf,13);
+sys.io.p("Hello, World!");
 return 0;

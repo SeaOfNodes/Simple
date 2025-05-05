@@ -31,4 +31,5 @@ public class TMPX86 extends ConstantNode implements MachNode, RIPRelSize{
     @Override public void asm(CodeGen code, SB sb) {
         _con.print(sb.p(code.reg(this)).p(" = #"));
     }
+    @Override public boolean eq(Node n) { return this==n; }
 }
