@@ -38,6 +38,14 @@ public class Chapter22Test {
         assertEquals(0,trap);
         // do assertEquals here
     }
+    @Test public void testStorePeep() throws IOException{
+        String src = """ 
+                i64 a = 123456789012345;
+                i32 b = a<<32>>>32; // truncate high order bits
+                return b;
+        """;
+        testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
+    }
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
