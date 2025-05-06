@@ -1,13 +1,14 @@
 package com.seaofnodes.simple.node;
 
-
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
@@ -125,10 +126,10 @@ public class FunNode extends RegionNode {
         return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
     }
     // Bypass Region idom, always assume idom is Start
-    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : cfg(1); }
+    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : (nIns()>1 ? cfg(1) : null); }
 
     // Always in-progress until we run out of unknown callers
-    public boolean unknownCallers() { return nIns()<2 || in(1) instanceof StartNode; }
+    public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
 
     @Override public boolean inProgress() { return unknownCallers(); }
 

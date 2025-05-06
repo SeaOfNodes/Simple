@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public abstract class RegX86 extends MachConcreteNode {
     RegX86( Node add ) { super(add); }

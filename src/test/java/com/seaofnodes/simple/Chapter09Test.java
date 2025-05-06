@@ -126,9 +126,10 @@ while(v1+arg) {
     v0=1;
     v1=v2;
 }
+return 0;
                 """);
         code.parse().opto();
-        assertEquals("return Top;", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
@@ -208,7 +209,7 @@ return -0+0+0;
 
     @Test
     public void testFuzz3() {
-        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0;");
+        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0; return 0;");
         code.parse().opto();
         assertEquals("return 0;", code.print());
     }
@@ -254,9 +255,10 @@ return 0!=0;
 int v0=0;
 while(0==1) while(v0)
         v0=1+v0;
+return 0;        
 """);
         code.parse().opto();
-        assertEquals("Stop[ ]", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test

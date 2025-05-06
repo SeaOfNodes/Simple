@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -61,7 +61,7 @@ public abstract class IRPrinter {
             if( n instanceof CFGNode || n instanceof MultiNode ) {
                 if( !gap ) sb.p("\n"); // Blank before multihead
                 if( n instanceof FunNode fun )
-                    fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" "),false).p("----------------------\n");
+                    fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ")).p("----------------------\n");
                 printLine( n, sb );         // Print head
                 while( --i >= 0 ) {
                     Node t = rpos.get(i);
@@ -72,7 +72,7 @@ public abstract class IRPrinter {
                     FunNode fun = ret.fun();
                     sb.p("--- ");
                     if( fun != null )
-                        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "),false);
+                        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "));
                     sb.p("----------------------\n");
                 }
                 if( !(n instanceof CallNode) ) {
