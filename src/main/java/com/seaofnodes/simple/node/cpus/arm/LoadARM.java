@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeFloat;
+import com.seaofnodes.simple.util.SB;
 
 // Load memory addressing on ARM
 // Support imm, reg(direct), or reg+off(indirect) addressing

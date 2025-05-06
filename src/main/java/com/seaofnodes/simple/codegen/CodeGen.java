@@ -1,13 +1,14 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
+import java.util.*;
 
 @SuppressWarnings("unchecked")
 public class CodeGen {
@@ -37,9 +38,13 @@ public class CodeGen {
     public final TypeInteger _arg;
 
     // ---------------------------
-    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
-    public CodeGen( String src, TypeInteger arg, long workListSeed ) {
+    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L, true ); }
+    public CodeGen( String src, TypeInteger arg) { this(src, arg==null ? TypeInteger.BOT : arg, 123L, true ); }
+
+    public CodeGen( String src, TypeInteger arg, long workListSeed, boolean reset ) {
         CODE = this;
+        if( reset ) Type.reset();
+        _main = makeFun(TypeFunPtr.MAIN);
         _phase = null;
         _callingConv = null;
         _start = new StartNode(arg);
@@ -119,18 +124,15 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
-    // Compute "function indices": FIDX.
-    // Each new request at the same signature gets a new FIDX.
-    private final HashMap<TypeTuple,Integer> FIDXS = new HashMap<>();
-    public TypeFunPtr makeFun( TypeTuple sig, Type ret ) {
-        Integer i = FIDXS.get(sig);
-        int fidx = i==null ? 0 : i;
-        FIDXS.put(sig,fidx+1);  // Track count per sig
+    //
+    private int _fidx =0;
+    public TypeFunPtr makeFun( TypeFunPtr fun ) {
+        int fidx = _fidx++;
         assert fidx<64;         // TODO: need a larger FIDX space
-        return TypeFunPtr.make((byte)2,sig,ret, 1L<<fidx );
+        return fun.makeFrom(fidx);
     }
     // Signature for MAIN
-    public final TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
+    public final TypeFunPtr _main;
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
@@ -186,23 +188,43 @@ public class CodeGen {
         // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
 
+        // OPTIMISTIC PASS GOES HERE
+
         // Not really a true optimistic pass, but look for unlinked functions.
         // This can be removed, which may trigger another round of pessimistic.
         // This is the point where we flip from a virtual Call Graph (any call
         // can call any function) to having a correct (but conservative) CG.
+        int progress = 0;
+        while( progress != _start.nOuts() ) {
+            progress = _start.nOuts();
+            FunNode main = link(_main);
+            for( int i=0; i<_start.nOuts(); i++ ) {
+                Node use = _start.out(i);
+                if( use instanceof FunNode fun &&
+                    fun.nIns()==2 && fun.in(1)==_start && fun != main &&
+                    (fun._name==null || fun._name.startsWith("sys.")) ) {
+                    add(fun).setDef(1,Parser.XCTRL);
+                    addAll(fun._outputs);
+                    i--;
+                }
+            }
+            _iter.iterate(this);
+        }
 
-        FunNode main = link(_main);
+        // Freeze field sizes; do struct layouts; convert field offsets into
+        // constants.
         for( int i=0; i<_start.nOuts(); i++ ) {
             Node use = _start.out(i);
-            if( use instanceof FunNode fun &&
-                fun.nIns()==2 && fun.in(1)==_start && fun != main &&
-                    (fun._name==null || fun._name.startsWith("sys.")) ) {
-                add(fun).setDef(1,Parser.XCTRL);
-                addAll(fun._outputs);
+            if( use instanceof ConFldOffNode off ) {
+                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._name);
+                off.subsume( off.asOffset(tmp._obj) );
                 i--;
             }
         }
         _iter.iterate(this);
+
+        // To help with testing, sort StopNode returns by NID
+        Arrays.sort(_stop._inputs._es,0,_stop.nIns(),(x,y) -> x._nid - y._nid );
 
         _tOpto = (int)(System.currentTimeMillis() - t0);
 
@@ -212,7 +234,7 @@ public class CodeGen {
         // loop unroll, peel, RCE, etc
         return this;
     }
-    public <N extends Node> N add( N n ) { return (N)_iter.add(n); }
+    public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
 
 

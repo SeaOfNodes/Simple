@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 // Compare with immediate.
 // CMP (immediate) - SUBS

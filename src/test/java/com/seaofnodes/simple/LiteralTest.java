@@ -22,7 +22,7 @@ public class LiteralTest {
     private static void assertString(String text, byte[] expected) {
         var code = new CodeGen("return \"" + text + "\";").parse().opto().typeCheck();
         TypeMemPtr ptr = (TypeMemPtr)code.expr()._type;
-        TypeConAryB bytes = (TypeConAryB)ptr._obj._con;
+        TypeConAryB bytes = (TypeConAryB)ptr._obj.field("[]")._t;
         assertArrayEquals(text, expected, bytes._ary);
     }
 

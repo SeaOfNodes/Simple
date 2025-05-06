@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.SB;
 
 // Function constants
 public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {

@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 /**
@@ -33,21 +34,32 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        if( mem()._type instanceof TypeMem mem ) {
-            // Update declared forward ref to the actual
-            if( _declaredType.isFRef() && mem._t instanceof TypeMemPtr tmp && !tmp.isFRef() )
-                _declaredType = tmp;
-            // No lifting if ptr might null-check
-            if( err()==null )
-                return _declaredType.join(mem._t);
+        if( !(mem()._type instanceof TypeMem mem) )
+            return _declaredType; // No memory yet?  Declared type
+        assert !_declaredType.isFRef();
+        // No lifting if ptr might null-check
+        if( err()!=null || !(ptr()._type instanceof TypeMemPtr tmp) )
+            return _declaredType; // No pointer yet?  Declared type
+        Type t = tmp._obj.field(_name)._t;
+        if( t instanceof TypeConAry ary ) {
+            t = ary.elem();     // TODO: if offset is known, can peek the constant
         }
-        return _declaredType;
+        // Lift from declared type and memory input
+        t = t.join(_declaredType).join(mem._t);
+        if( _declaredType.isFinal() )
+            t = t.makeRO(); // Deep final applied
+        return t;
     }
 
     @Override
     public Node idealize() {
         Node ptr = ptr();
         Node mem = mem();
+
+        if( mem instanceof CastNode cast ) {
+            setDef(1,cast.in(1));
+            return this;
+        }
 
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
@@ -58,7 +70,11 @@ public class LoadNode extends MemOpNode {
 
         // Simple load-after-MemMerge to a known alias can bypass.  Happens when inlining.
         if( mem instanceof MemMergeNode mem2 ) {
-            setDef(1,mem2.alias(_alias));
+            Node memA = mem2.alias(_alias);
+            for( Node ld : memA._outputs )
+                if( ld instanceof LoadNode )
+                    CodeGen.CODE.add(ld);
+            setDef(1,memA);
             return this;
         }
 
@@ -111,6 +127,7 @@ public class LoadNode extends MemOpNode {
                 default: throw Utils.TODO();
                 }
                 break;
+            case CastNode cast: mem = cast.in(1); break;
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
 
             default:
@@ -147,7 +164,7 @@ public class LoadNode extends MemOpNode {
     // Load a flavored zero from a New
     private Node zero(NewNode nnn) {
         TypeStruct ts = nnn._ptr._obj;
-        Type zero = ts._fields[ts.findAlias(_alias)]._type.makeZero();
+        Type zero = ts._fields[ts.findAlias(_alias)]._t.makeZero();
         return castRO(new ConstantNode(zero).peephole());
     }
 
@@ -187,7 +204,7 @@ public class LoadNode extends MemOpNode {
         Node px = phi.in(idx);
         if( px==null ) return false;
         if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) return true;
-        if( px instanceof StoreNode st1 && ptr()==st1.ptr() && off()==st1.off() ) return true;
+        if( px instanceof StoreNode st1 && ptr()==addDep(st1.ptr() )&& off()==st1.off() ) return true;
         addDep(px);
         return false;
     }

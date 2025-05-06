@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.BoolNode;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.util.SB;
 
 // corresponds to feq.d = equal
 //                fle.d = less than or equal

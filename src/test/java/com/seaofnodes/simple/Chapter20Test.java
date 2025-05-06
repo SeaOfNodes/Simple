@@ -38,9 +38,9 @@ public class Chapter20Test {
     }
 
     @Test public void testAlloc0() {
-        testCPU("return new u8[arg];","x86_64_v2", "SystemV",3,"return [u8];");
-        testCPU("return new u8[arg];","riscv"    , "SystemV",5,"return [u8];");
-        testCPU("return new u8[arg];","arm"      , "SystemV",5,"return [u8];");
+        testCPU("return new u8[arg];","x86_64_v2", "SystemV",3,"return []u8;");
+        testCPU("return new u8[arg];","riscv"    , "SystemV",5,"return []u8;");
+        testCPU("return new u8[arg];","arm"      , "SystemV",5,"return []u8;");
     }
 
     @Test public void testBasic1() {
@@ -103,7 +103,7 @@ return sqrt(arg) + sqrt(cast_int);
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV", 5,null);
+        testCPU(src,"riscv"    , "SystemV", 3,null);
         testCPU(src,"arm"      , "SystemV", 3,null);
     }
 

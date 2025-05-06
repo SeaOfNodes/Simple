@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.SB;
 
 // 12-bit integer constant.  Larger constants are made up in the instruction
 // selection by adding with a LUI.

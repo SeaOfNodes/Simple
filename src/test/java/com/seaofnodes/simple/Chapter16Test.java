@@ -1,8 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -115,7 +113,7 @@ Point p = new Point { x=3; y=4; };
 return p;
 """);
         code.parse().opto();
-        assertEquals("return (const)Point;", code.print());
+        assertEquals("return Point;", code.print());
         assertEquals("Point{x=3,y=4}", Eval2.eval(code,  0));
     }
 
@@ -123,24 +121,24 @@ return p;
     public void testStructFinal1() {
         CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
-Point p = new Point { x=5; y=6; };
+val p = new Point { x=5; y=6; };
 p.x++;
 return p;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
     public void testStructFinal2() {
         CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
-Point p = new Point;
+val p = new Point;
 p.x++;
 return p;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
@@ -163,8 +161,8 @@ Point p = new Point;
 p.x++;
 return p;
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test

@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class FunRISC extends FunNode implements MachNode {
     FunRISC(FunNode fun) {super(fun);}

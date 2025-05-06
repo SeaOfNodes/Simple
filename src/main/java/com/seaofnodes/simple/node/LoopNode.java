@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashSet;
 
@@ -48,7 +48,7 @@ public class LoopNode extends RegionNode {
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        NeverNode iff = new NeverNode(back()); // Ideal never-branch
+        NeverNode iff = (NeverNode)new NeverNode(back()).peephole(); // Ideal never-branch
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
         setDef(2,t);            // True continues loop, False (never) exits loop
@@ -78,17 +78,19 @@ public class LoopNode extends RegionNode {
                 expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit
-            ctrl.addDef(f  );
-            mem .addDef(memout);
-            expr.addDef(top);
+            ctrl.keep().addDef(f  );
+            mem .keep().addDef(memout);
+            expr.keep().addDef(top);
         } else {
-            ctrl = f;
-            mem  = memout;
-            expr = top;
+            ctrl = f     .keep();
+            mem  = memout.keep();
+            expr = top   .keep();
         }
-        ret.setDef(0,ctrl);
-        ret.setDef(1,mem );
-        ret.setDef(2,expr);
+        ret.setDef(0,ctrl.unkeep());
+        ret.setDef(1,mem .unkeep());
+        ret.setDef(2,expr.unkeep());
+        ret._type = null; // This may LIFT the Return type, from [XCtrl,mem,expr] to [Ctrl,mem,expr]
+        ret.setType(ret.compute());
 
         return stop;
     }
