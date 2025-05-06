@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 // fcvt.d.w
 // Converts a 32-bit signed integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.

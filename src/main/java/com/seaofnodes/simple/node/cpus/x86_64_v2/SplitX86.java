@@ -1,7 +1,5 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.Node;
@@ -9,6 +7,8 @@ import com.seaofnodes.simple.node.SplitNode;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class SplitX86 extends SplitNode {
     SplitX86( String kind, byte round ) { super(kind,round, new Node[2]); }

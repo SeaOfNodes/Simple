@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.util.SB;
 
 public class FunX86 extends FunNode implements MachNode {
     FunX86( FunNode fun ) { super(fun); }

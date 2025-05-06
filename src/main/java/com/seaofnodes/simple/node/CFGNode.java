@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +59,7 @@ public abstract class CFGNode extends Node {
     // Used by the encoding / final BB layout
     public CFGNode uctrlSkipEmpty() {
         CFGNode x = this, y;
-        while( x.nOuts() == 1 && (y=x.uctrl())!=null ) // Skip empty blocks
+        while( x.nOuts() == 1 && (y=x.uctrl())!=null && !(y instanceof CallNode) ) // Skip empty blocks
             x = y;
         return x;
     }
@@ -89,6 +89,7 @@ public abstract class CFGNode extends Node {
             var comp = lhs.idepth() - rhs.idepth();
             if( comp >= 0 ) lhs = (dep==null ? lhs : dep.addDep(lhs)).idom();
             if( comp <= 0 ) rhs = (dep==null ? rhs : dep.addDep(rhs)).idom();
+            if( lhs==null || rhs==null ) return null;
         }
         return lhs;
     }

@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,7 +13,7 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
-    @Test @Ignore
+    @Test
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
@@ -65,7 +66,7 @@ public class Chapter21Test {
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV", 5,null);
+        testCPU(src,"riscv"    , "SystemV", 3,null);
         testCPU(src,"arm"      , "SystemV", 3,null);
     }
 
