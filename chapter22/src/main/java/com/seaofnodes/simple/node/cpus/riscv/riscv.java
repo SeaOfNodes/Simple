@@ -256,6 +256,7 @@ public class riscv extends Machine {
     static RegMask callInMask( TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
@@ -446,7 +447,7 @@ public class riscv extends Machine {
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con);
         case TypeFunPtr  tfp -> new TFPRISC(con);
-        case TypeMemPtr  tmp -> throw Utils.TODO();
+        case TypeMemPtr  tmp -> new TMPRISC(con);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
