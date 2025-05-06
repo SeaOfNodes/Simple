@@ -2,8 +2,8 @@ package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;

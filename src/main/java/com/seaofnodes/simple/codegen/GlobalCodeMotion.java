@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.IterPeeps.WorkList;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.Utils;
 import java.util.*;
 
 public abstract class GlobalCodeMotion {
@@ -36,7 +37,7 @@ public abstract class GlobalCodeMotion {
             return;             // Been there, done that
         if( def instanceof ReturnNode && use instanceof CallEndNode )
             return;
-        assert !( def instanceof CallNode && use instanceof FunNode );
+        assert !( def instanceof CallNode && use instanceof FunNode ); // All calls unwired now
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
@@ -141,8 +142,8 @@ public abstract class GlobalCodeMotion {
     private static CFGNode[] LATE = new CFGNode[1];
     // Load NIDs at their CFG block choices, checked against Store blocks.
     private static int[] ANTI = new int[1];
-    private static final ArrayList<Node> TOUCHED = new ArrayList<>();
-    private static final ArrayList<Node> PLACED = new ArrayList<>();
+    private static final AryInt TOUCHED = new AryInt();
+    private static final Ary<Node> PLACED = new Ary<>(Node.class);
     private static final WorkList<Node> WORK = new WorkList<>();
 
     private static void schedLate( CodeGen code ) {
@@ -161,13 +162,19 @@ public abstract class GlobalCodeMotion {
         for( Node n : PLACED )
             if( !(n instanceof ProjNode) )
                 n.setDef(0,LATE[n._nid]);
-        for( Node n : TOUCHED )
-            LATE[n._nid] = null;
+        for( int i=0; i<TOUCHED.len(); i++ )
+            LATE[TOUCHED.at(i)] = null;
         TOUCHED.clear();
-        PLACED.clear();
+        clear(PLACED);
     }
 
-    private static void breadth(Node stop, ArrayList<Node> placed, CFGNode[] late, int[] anti, BitSet visit) {
+    // Ary.clear retains references; static scratch must release them as well.
+    private static void clear(Ary<Node> nodes) {
+        Arrays.fill(nodes._es,0,nodes._len,null);
+        nodes.clear();
+    }
+
+    private static void breadth(Node stop, Ary<Node> placed, CFGNode[] late, int[] anti, BitSet visit) {
         // Things on the worklist have some (but perhaps not all) uses done.
         WorkList<Node> work = WORK;
         work.push(stop);
@@ -196,7 +203,7 @@ public abstract class GlobalCodeMotion {
                 _doSchedLate(n,placed,late,anti);
             }
 
-            TOUCHED.add(n);
+            TOUCHED.push(n._nid);
 
             // A use just finished; reconsider its inputs and waiting loads,
             // even when the shared memory input was already scheduled.
@@ -213,7 +220,7 @@ public abstract class GlobalCodeMotion {
         }
     }
 
-    private static void _doSchedLate(Node n, ArrayList<Node> placed, CFGNode[] late, int[] anti) {
+    private static void _doSchedLate(Node n, Ary<Node> placed, CFGNode[] late, int[] anti) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
         CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
@@ -236,7 +243,7 @@ public abstract class GlobalCodeMotion {
             if( better(lca,best) )
                 best = lca;
         assert !(best instanceof IfNode);
-        placed.add(n);
+        placed.push(n);
         late[n._nid] = best;
     }
 

@@ -2,15 +2,16 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
 
 /**
  * Build a compound object
  */
 public class StructNode extends Node {
 
-    public TypeStruct _ts;
+    public final TypeStruct _ts;
+    public StructNode(TypeStruct ts) { _ts=ts; assert !ts._open; }
 
     @Override public String label() { return _ts==null ? "STRUCT?" : _ts.str(); }
 
@@ -20,7 +21,7 @@ public class StructNode extends Node {
         p.p(_ts._name).p(" {");
         for( int i=0; i<nIns(); i++ ) {
             p.p(_ts._fields[i]._fname).p(":");
-            p.p((in(i)==null ? Type.BOTTOM : in(i)._type).print(new SB()));
+            p.p(in(i)==null ? Type.BOTTOM : in(i)._type);
             p.p("; ");
         }
         return p.unchar("; ").p("}");
@@ -32,7 +33,7 @@ public class StructNode extends Node {
         Field[] fs = new Field[_ts._fields.length];
         for( int i=0; i<fs.length; i++ )
             fs[i] = _ts._fields[i].makeFrom(in(i)==null ? Type.TOP : in(i)._type);
-        return TypeStruct.make(_ts._name,fs);
+        return TypeStruct.make(_ts._name,false,fs);
     }
 
     @Override

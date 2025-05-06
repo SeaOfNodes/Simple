@@ -4,7 +4,7 @@ import com.seaofnodes.print.AssemblyAdapter;
 import com.seaofnodes.print.ASMPrinter.Data;
 import com.seaofnodes.print.ASMPrinter.Pool;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.util.ArrayList;

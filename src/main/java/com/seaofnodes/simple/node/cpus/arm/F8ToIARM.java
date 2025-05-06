@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.isa.Arm64;
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public class F8ToIARM extends MachConcreteNode implements MachNode {
     F8ToIARM(Node f8toi) { super(f8toi); }

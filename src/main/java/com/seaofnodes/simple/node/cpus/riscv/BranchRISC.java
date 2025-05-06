@@ -3,9 +3,10 @@ package com.seaofnodes.simple.node.cpus.riscv;
 import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Conditional branch such as: BEQ
 public class BranchRISC extends IfNode implements MachNode, RIPRelSize {

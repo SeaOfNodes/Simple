@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.isa.RiscV;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.util.Utils;
 
 public class SraIRISC extends ImmRISC {
     public SraIRISC( Node and, int imm) {

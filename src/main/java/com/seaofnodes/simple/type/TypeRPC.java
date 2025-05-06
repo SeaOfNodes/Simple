@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -48,10 +48,6 @@ public class TypeRPC extends Type {
         return "$["+(_any ? "-" : "")+_rpcs+"]";
     }
 
-    @Override public boolean isConstant() {
-        return !_any && _rpcs.size()==1;
-    }
-
     @Override
     public TypeRPC xmeet(Type other) {
         TypeRPC rpc = (TypeRPC)other;
@@ -87,7 +83,10 @@ public class TypeRPC extends Type {
     }
 
     @Override
-    public Type dual() { return make(!_any,_rpcs); }
+    Type xdual() { return new TypeRPC(!_any,_rpcs); }
+
+    @Override boolean _isConstant() { return !_any && _rpcs.size()==1; }
+    @Override boolean _isGLB(boolean mem) { return true; }
 
     @Override
     int hash() { return _rpcs.hashCode() ^ (_any ? -1 : 0) ; }

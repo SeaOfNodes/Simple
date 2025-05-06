@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.util;
 
 import java.lang.StringBuilder;
 import java.lang.reflect.Array;
@@ -36,6 +36,7 @@ public class Ary<E> extends AbstractList<E> implements List<E> {
 
     /** @return last element */
     public E last( ) { return at(_len-1); }
+    public E last(int x ) { return at(_len-1+x); }
 
     /** Add element in amortized constant time
      *  @param e Element to add at end of list

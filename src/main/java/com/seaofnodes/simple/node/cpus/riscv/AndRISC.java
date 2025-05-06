@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public class AndRISC extends MachConcreteNode implements MachNode {
     public AndRISC(Node and) { super(and); }

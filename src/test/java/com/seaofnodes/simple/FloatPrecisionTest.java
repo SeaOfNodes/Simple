@@ -24,7 +24,7 @@ public class FloatPrecisionTest {
     }
 
     private static String evaluate(String src, long arg) {
-        CodeGen code = new CodeGen(src).parse().iter().finalizeIR();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         return Eval2.eval(code,arg);
     }
 

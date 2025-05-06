@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.isa.X86;
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.util.SB;
 
 public class TMPX86 extends ConstantNode implements MachNode, RIPRelSize{
     TMPX86(ConstantNode con ) { super(con); }
@@ -18,7 +18,11 @@ public class TMPX86 extends ConstantNode implements MachNode, RIPRelSize{
         short dst = enc.reg(this);
         X86.rexF(dst, 0, 0, true, enc);
         enc.add1(0x8D).add1(X86.modrm(X86.MOD.INDIRECT, dst, 0b101)).add4(0);
-        enc.largeConstant(this,((TypeMemPtr)_con)._obj,7-4,2/*ELF encoding PC32*/);
+        int opLen = 1/*rexF*/+1/*opcode 0x8D*/+1/*modrm*/+4/*pc rel offset*/;
+        // Base of constant array
+        TypeMemPtr tmp = (TypeMemPtr)_con;
+        int baseOff = tmp._obj.aryBase();
+        enc.largeConstant(this,tmp._obj,opLen-baseOff,2/*ELF encoding PC32*/);
     }
 
     // Delta is from opcode start

@@ -2,13 +2,15 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.graph.GraphObserver;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
-import java.util.BitSet;
-import java.util.HashMap;
+import java.util.*;
 
 @SuppressWarnings("unchecked")
 public class CodeGen {
@@ -21,7 +23,7 @@ public class CodeGen {
     public enum Phase {
         Parse,                  // Build ideal IR from source
         Iter,                   // Pessimistic peepholes
-        FinalizeIR,             // Remove unused internal function entries
+        FinalizeIR,             // Finish function cleanup and layouts
         TypeCheck,              // Check the surviving ideal graph
         LoopTree,               // Discover loops and connect nonreturning paths
         Select,                 // Select machine instructions
@@ -83,9 +85,13 @@ public class CodeGen {
     public final TypeInteger _arg;
 
     // ---------------------------
-    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
-    public CodeGen( String src, TypeInteger arg, long workListSeed ) {
+    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L, true ); }
+    public CodeGen( String src, TypeInteger arg) { this(src, arg==null ? TypeInteger.BOT : arg, 123L, true ); }
+
+    public CodeGen( String src, TypeInteger arg, long workListSeed, boolean reset ) {
         CODE = this;
+        if( reset ) Type.reset();
+        _main = makeFun(TypeFunPtr.MAIN);
         _phase = null;
         _callingConv = null;
         _start = new StartNode(arg);
@@ -139,18 +145,15 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
-    // Compute "function indices": FIDX.
-    // Each new request at the same signature gets a new FIDX.
-    private final HashMap<TypeTuple,Integer> FIDXS = new HashMap<>();
-    public TypeFunPtr makeFun( TypeTuple sig, Type ret ) {
-        Integer i = FIDXS.get(sig);
-        int fidx = i==null ? 0 : i;
-        FIDXS.put(sig,fidx+1);  // Track count per sig
+    //
+    private int _fidx =0;
+    public TypeFunPtr makeFun( TypeFunPtr fun ) {
+        int fidx = _fidx++;
         assert fidx<64;         // TODO: need a larger FIDX space
-        return TypeFunPtr.make((byte)2,sig,ret, 1L<<fidx );
+        return fun.makeFrom(fidx);
     }
     // Signature for MAIN
-    public final TypeFunPtr _main = makeFun(TypeTuple.MAIN,Type.BOTTOM);
+    public final TypeFunPtr _main;
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
@@ -200,7 +203,7 @@ public class CodeGen {
     public CodeGen iter() { return phase(Phase.Iter, _phase==Phase.Parse, () -> _iter.iterate(this)); }
 
     public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.Iter, () -> FinalizeIR.run(this)); }
-    public <N extends Node> N add( N n ) { return (N)_iter.add(n); }
+    public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
 
 

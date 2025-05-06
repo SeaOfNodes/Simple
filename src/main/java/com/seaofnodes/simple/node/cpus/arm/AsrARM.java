@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.isa.Arm64;
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 // Arithmetic Shift Right (register)
 public class AsrARM extends MachConcreteNode implements MachNode {

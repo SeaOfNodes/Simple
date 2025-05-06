@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.node.Node;
 
 // corresponds to slti,sltiu

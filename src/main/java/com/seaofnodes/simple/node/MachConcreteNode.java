@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
 
 // Generic machine-specific class, has a few Node implementations that have to

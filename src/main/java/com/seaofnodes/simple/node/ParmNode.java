@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 public class ParmNode extends PhiNode {
@@ -14,7 +13,7 @@ public class ParmNode extends PhiNode {
         super(label,declaredType,inputs);
         _idx = idx;
     }
-    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._declaredType); _idx = parm._idx; }
+    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._minType ); _idx = parm._idx; }
 
     @Override public String label() { return MemOpNode.mlabel(_label); }
 
@@ -30,14 +29,8 @@ public class ParmNode extends PhiNode {
     }
 
 
-    @Override
-    public Node idealize() {
-        if( inProgress() ) return null;
-        return super.idealize();
-    }
-
     // Always in-progress until we run out of unknown callers
-    @Override public boolean inProgress() { return fun().inProgress(); }
+    @Override public boolean inProgress() { return in(0) instanceof FunNode fun && fun.inProgress(); }
 
     @Override public boolean eq( Node n ) {
         return ((ParmNode)n)._idx==_idx && super.eq(n);

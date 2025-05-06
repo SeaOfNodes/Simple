@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.SB;
 
 public class NegARM extends MachConcreteNode implements MachNode {
     NegARM(Node sub) {
