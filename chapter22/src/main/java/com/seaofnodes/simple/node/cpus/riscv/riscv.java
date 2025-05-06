@@ -311,12 +311,13 @@ public class riscv extends Machine {
         // 52 = 64-12
         return ti.isConstant() && ((ti.value()<<52)>>52) == ti.value();
     }
+
     // True if HIGH 20-bit signed immediate, with all zeros low.
-    public static boolean imm20Exact(TypeInteger ti) {
+    public static boolean imm20Exact(long x) {
         // shift left 32 to clear out the upper 32 bits.
         // shift right SIGNED to sign-extend upper 32 bits; then shift 12 more to clear out lower 12 bits.
         // shift left 12 to re-center the bits.
-        return ti.isConstant() && (((ti.value()<<32)>>>44)<<12) == ti.value();
+        return (((x<<32)>>>44)<<12) == x;
     }
 
     @Override public Node instSelect( Node n ) {
@@ -431,7 +432,7 @@ public class riscv extends Machine {
         case TypeInteger ti -> {
             if( imm12(ti) ) yield new IntRISC(con);
             long x = ti.value();
-            if( imm20Exact(ti) ) yield new LUI((int)x);
+            if( imm20Exact(x) ) yield new LUI((int)x);
             if( (x<<32)>>32 == x ) { // Signed lower 32-bit immediate
                 // Here, the low 12 bits get sign-extended, which means if
                 // bit11 is set, the value is negative and lowers the LUI
