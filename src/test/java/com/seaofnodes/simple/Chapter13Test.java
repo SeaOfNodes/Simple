@@ -40,22 +40,22 @@ return head.next.i;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
+struct LLI { LLI? next; int q; };
 LLI? !head = null;
 while( arg ) {
     LLI !x = new LLI;
     x.next = head;
-    x.i = arg;
+    x.q = arg;
     head = x;
     arg = arg-1;
 }
 if( !head ) return 0;
 LLI? next = head.next;
 if( next==null ) return 1;
-return next.i;
+return next.q;
 """);
-        code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        code.parse().opto().typeCheck();
+        assertEquals("return Phi(Region,0,1,.q);", code.print());
         assertEquals("2", Eval2.eval(code,  3));
     }
 
@@ -108,10 +108,10 @@ return n.next;
 """
 struct M { int m; };
 struct N { M next; int i; };
-N n = new N { next = null; }
+N n = new N { next = null; };
 return n.next;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
     }
 
@@ -124,15 +124,15 @@ N !n = new N;
 n.i = 3.14;
 return n.i;
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type i64",e.getMessage()); }
     }
 
     @Test
     public void testNullRef4() {
         CodeGen code = new CodeGen("return -null-5/null-5;");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot '//' null",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
@@ -180,7 +180,7 @@ return new S1.s=new S2;
     public void testcheckNull() {
         CodeGen code = new CodeGen(
 """
-struct I {int i;};
+struct I { int i; };
 struct P { I? pi; };
 P !p1 = new P;
 P !p2 = new P;
@@ -197,32 +197,52 @@ return p1.pi.i + 1;
     public void testCoRecur2() {
         CodeGen code = new CodeGen(
 """
-struct A { L? a; T? b; F? c; };  A? !a = new A;
-struct B { M? a; U? b; G? c; };  B? !b = new B;
-struct C { N? a; V? b; H? c; };  C? !c = new C;
-struct D { O? a; W? b; I? c; };  D? !d = new D;
-struct E { P? a; X? b; J? c; };  E? !e = new E;
-struct F { Q? a; Y? b; K? c; };  F? !f = new F;
-struct G { R? a; Z? b; L? c; };  G? !g = new G;
-struct H { S? a; A? b; M? c; };  H? !h = new H;
-struct I { T? a; B? b; N? c; };  I? !i = new I;
-struct J { U? a; C? b; O? c; };  J? !j = new J;
-struct K { V? a; D? b; P? c; };  K? !k = new K;
-struct L { W? a; E? b; Q? c; };  L? !l = new L;
-struct M { X? a; F? b; R? c; };  M? !m = new M;
-struct N { Y? a; G? b; S? c; };  N? !n = new N;
-struct O { Z? a; H? b; T? c; };  O? !o = new O;
-struct P { A? a; I? b; U? c; };  P? !p = new P;
-struct Q { B? a; J? b; V? c; };  Q? !q = new Q;
-struct R { C? a; K? b; W? c; };  R? !r = new R;
-struct S { D? a; L? b; X? c; };  S? !s = new S;
-struct T { E? a; M? b; Y? c; };  T? !t = new T;
-struct U { F? a; N? b; Z? c; };  U? !u = new U;
-struct V { G? a; O? b; A? c; };  V? !v = new V;
-struct W { H? a; P? b; B? c; };  W? !w = new W;
-struct X { I? a; Q? b; C? c; };  X? !x = new X;
-struct Y { J? a; R? b; D? c; };  Y? !y = new Y;
-struct Z { K? a; S? b; E? c; };  Z? !z = new Z;
+struct A { B? f0; C? f1; };  A !a = new A;
+struct B { C? f0; A? f1; };  B !b = new B;
+struct C { A? f0; B? f1; };  C !c = new C;
+
+a.f0=b;  a.f1=c;
+b.f0=c;  b.f1=a;
+c.f0=a;  c.f1=b;
+
+return a.f0.f1.f0.f1.f0;
+
+""");
+        code.parse().opto().typeCheck().GCM().localSched();
+        assertEquals("return B;", code._stop.toString());
+        assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
+    }
+
+    @Test
+    public void testCoRecur3() {
+        CodeGen code = new CodeGen(
+"""
+struct A { L? a; T? b; F? c; };  A !a = new A;
+struct B { M? a; U? b; G? c; };  B !b = new B;
+struct C { N? a; V? b; H? c; };  C !c = new C;
+struct D { O? a; W? b; I? c; };  D !d = new D;
+struct E { P? a; X? b; J? c; };  E !e = new E;
+struct F { Q? a; Y? b; K? c; };  F !f = new F;
+struct G { R? a; Z? b; L? c; };  G !g = new G;
+struct H { S? a; A? b; M? c; };  H !h = new H;
+struct I { T? a; B? b; N? c; };  I !i = new I;
+struct J { U? a; C? b; O? c; };  J !j = new J;
+struct K { V? a; D? b; P? c; };  K !k = new K;
+struct L { W? a; E? b; Q? c; };  L !l = new L;
+struct M { X? a; F? b; R? c; };  M !m = new M;
+struct N { Y? a; G? b; S? c; };  N !n = new N;
+struct O { Z? a; H? b; T? c; };  O !o = new O;
+struct P { A? a; I? b; U? c; };  P !p = new P;
+struct Q { B? a; J? b; V? c; };  Q !q = new Q;
+struct R { C? a; K? b; W? c; };  R !r = new R;
+struct S { D? a; L? b; X? c; };  S !s = new S;
+struct T { E? a; M? b; Y? c; };  T !t = new T;
+struct U { F? a; N? b; Z? c; };  U !u = new U;
+struct V { G? a; O? b; A? c; };  V !v = new V;
+struct W { H? a; P? b; B? c; };  W !w = new W;
+struct X { I? a; Q? b; C? c; };  X !x = new X;
+struct Y { J? a; R? b; D? c; };  Y !y = new Y;
+struct Z { K? a; S? b; E? c; };  Z !z = new Z;
 
 a.a=l;  a.b=t; a.c=f;
 b.a=m;  b.b=u; b.c=g;
@@ -256,7 +276,6 @@ return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 """);
         code.parse().opto().typeCheck().GCM().localSched();
         assertEquals("return R;", code._stop.toString());
-        assertEquals("R{a=C{a=N{a=Y{a=J{a=U{a=F{a=Q{a=B{a=M{a=X{a=I{a=T{a=E{a=P{a=A{a=L{a=W{a=H{a=S{a=D{a=O{a=Z{a=K{a=V{a=G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
+        assertEquals("R{a=C{a=N},b=V},c=H}},b=K{a=$cyclic,b=D{a=O},b=W},c=I}},c=P}},c=$cyclic}", Eval2.eval(code,  0));
     }
-
 }

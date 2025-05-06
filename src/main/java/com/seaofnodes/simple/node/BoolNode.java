@@ -3,8 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import static com.seaofnodes.simple.type.TypeInteger.*;
 
 abstract public class BoolNode extends Node {
@@ -28,7 +28,7 @@ abstract public class BoolNode extends Node {
         Type t2 = in(2)._type;
         // Exactly equals?
         if( t1.isHigh() || t2.isHigh() )
-            return BOOL.dual();
+            return (TypeInteger)BOOL.dual();
         if( in(1)==in(2) )
             // LT fails, both EQ and LE succeed
             return this instanceof LT ? FALSE : TRUE;

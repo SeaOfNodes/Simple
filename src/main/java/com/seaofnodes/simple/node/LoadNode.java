@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 /**
@@ -51,15 +52,29 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type t = MemMergeNode.contents(mem(),_alias,this);
-        // Update declared forward ref to the actual.
-        if( _declaredType.isFRef() && t instanceof TypeMemPtr tmp && !tmp.isFRef() )
-            _declaredType = tmp;
-        return err()==null ? _declaredType.join(t) : _declaredType;
+        if( !(mem()._type instanceof TypeMem mem) )
+            return _declaredType; // No memory yet?  Declared type
+        assert !_declaredType.isFRef();
+        // No lifting if ptr might null-check
+        if( err()!=null || !(ptr()._type instanceof TypeMemPtr tmp) )
+            return _declaredType; // No pointer yet?  Declared type
+        Type t = tmp._obj.field(_name)._t;
+        if( t instanceof TypeConAry ary ) {
+            t = ary.elem();     // TODO: if offset is known, can peek the constant
+        }
+        // Lift from declared type and memory input
+        t = t.join(_declaredType).join(MemMergeNode.contents(mem(),_alias,this));
+        if( _declaredType.isFinal() )
+            t = t.makeRO(); // Deep final applied
+        return t;
     }
 
     @Override
     public Node idealize() {
+        if( mem() instanceof CastNode cast ) {
+            setDef(1,cast.in(1));
+            return this;
+        }
         if( mem() instanceof MemMergeNode merge ) {
             setDef(1,CodeGen.CODE.add(merge.alias(_alias)));
             return this;
@@ -116,7 +131,7 @@ public class LoadNode extends MemOpNode {
     // Load a flavored zero from a New
     private Node zero(NewNode nnn) {
         TypeStruct ts = nnn._ptr._obj;
-        Type zero = ts._fields[ts.findAlias(_alias)]._type.makeZero();
+        Type zero = ts._fields[ts.findAlias(_alias)]._t.makeZero();
         assert zero.isa(_type); // Catch an uninitialized non-null field
         return castRO(new ConstantNode(zero).peephole());
     }
@@ -131,6 +146,7 @@ public class LoadNode extends MemOpNode {
             if( mem==stop ) return mem;
             switch( mem ) {
             case MemMergeNode merge: mem=merge.alias(_alias); break;
+            case CastNode cast: mem=cast.in(1); break;
             case StoreNode st:
                 addDep(st.ptr());
                 if( _alias==st._alias && ptr==st.ptr() && off()==st.off() ) return st;

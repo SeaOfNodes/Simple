@@ -23,9 +23,8 @@ val hashCode = { String self ->
 
 val _hashCodeString = { String self ->
     int hash=0;
-    if( self.cs )
-        for( int i=0; i< self.cs#; i++ )
-            hash = hash*31 + self.cs[i];
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
     if( !hash ) hash = 123456789;
     return hash;
 };

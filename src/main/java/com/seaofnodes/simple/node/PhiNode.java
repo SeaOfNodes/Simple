@@ -3,24 +3,33 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 
 public class PhiNode extends Node {
 
     public final String _label;
 
-    // The Phi type we compute must stay within the domain of the Phi.
-    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
-    final Type _declaredType;
+    // The Phi type we compute must stay within the domain of the Phi.  Example
+    // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
+    Type _minType;
 
-    public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
-    public PhiNode(PhiNode phi, String label, Type declaredType) { super(phi); _label = label; _type = _declaredType = declaredType; }
-    public PhiNode(PhiNode phi) { super(phi); _label = phi._label; _declaredType = phi._declaredType;  }
-
+    public PhiNode(String label, Type minType, Node... inputs) {
+        super(inputs);
+        _label = label;
+        assert minType!=null;
+        _minType = minType;
+    }
+    // Used by ParmNode
+    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; _type = _minType = minType; }
+    // Used by instruction Selection
+    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._minType );  }
+    // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
         super(new Node[]{r});
         _label = "";
-        _declaredType = sample._type;
+        _minType = sample._type;
         while( nIns() < r.nIns() )
             addDef(sample);
     }
@@ -41,21 +50,26 @@ public class PhiNode extends Node {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMem() { return _declaredType instanceof TypeMem; }
+    @Override public boolean isMem() { return _minType instanceof TypeMem; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _declaredType;
+        if( r.inProgress() ) return _minType;
         // Set type to local top of the starting type
-        Type t = _declaredType.glb(false).dual();//Type.TOP;
+        //Type t = _minType.dual();
+        Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( addDep(r.in(i))._type != Type.XCONTROL )
+            if( addDep(r.in(i))._type != Type.XCONTROL ) {
+                if( in(i)._type==Type.BOTTOM )
+                    return Type.BOTTOM;
                 t = t.meet(in(i)._type);
+            }
+        t = t.join( _minType );
         return t;
     }
 
@@ -63,13 +77,27 @@ public class PhiNode extends Node {
     public Node idealize() {
         if( !(region() instanceof RegionNode r ) )
             return in(1);       // Input has collapse to e.g. starting control.
+        // Can upgrade minType even while in-progress
+        if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
+            TypeMemPtr tmp2 = (TypeMemPtr)CodeGen.CODE.P.TYPES.get(tmp._obj._name);
+            if( tmp2!=null && tmp2 != _minType ) {
+                _minType = tmp2;
+                return this;
+            }
+        }
         if( r.inProgress() || r.nIns()<=1 )
             return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
-        if (live != null)
-            return live;
+        if( live != null ) {
+            if( live._type.isa(_type) )
+                return live;
+            // Let the bulk input split this alias before collapsing a precise Phi.
+            if( live instanceof BulkMemPhiNode ) return null;
+            // Keep the Phi upcast
+            return new CastNode(_type,null,live);
+        }
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )
@@ -165,6 +193,12 @@ public class PhiNode extends Node {
                     ins[i] = in(i).in(j);
                     t = t.meet(ins[i]._type);
                 }
+                // Not accepts both pointers and integers, but a Phi cannot mix them.
+                if( t==Type.BOTTOM ) {
+                    for( int i=1; i<ins.length; i++ ) addDep(ins[i]);
+                    cp.kill();
+                    return null;
+                }
                 PhiNode phi = j==1 && op instanceof MemOpNode mem
                     ? new MemPhiNode(_label,mem._alias,ins)
                     : PhiNode.make(_label,t.glb(false),ins);
@@ -213,9 +247,19 @@ public class PhiNode extends Node {
         return in(nIns()-1) == null;
     }
 
-    // Never equal if inProgress
+    // Never equal if inProgress.
+    // Also, joins
     @Override public boolean eq( Node n ) {
-        return !inProgress();
+        if( inProgress() ) return false;
+        Type min = ((PhiNode)n)._minType;
+        if( _minType==min ) return true;
+        Type mt = min.meet(_minType);
+        if( min!=mt && _minType!=mt ) return false;
+        //// Theory says these 2 Phis CAN be merged/GVNd, but I need to pick the
+        //// most general minType.
+        //_minType = ((PhiNode)n)._minType = mt;
+        //return true;
+        return false;
     }
 
     @Override

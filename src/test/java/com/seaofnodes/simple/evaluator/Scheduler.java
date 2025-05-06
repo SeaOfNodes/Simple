@@ -1,9 +1,8 @@
 package com.seaofnodes.simple.evaluator;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
-
+import com.seaofnodes.simple.util.Utils;
 import java.util.*;
 
 /**

@@ -118,9 +118,52 @@ public class RegAllocTestSupport {
         assertTrue(BuildLRG.run(0,new RegAlloc(code)));
     }
 
+    private static class CallOp extends CallNode implements MachNode {
+        CallOp(Node ctrl, Node def) { super(null,ctrl,null,def,def); }
+        @Override public RegMask regmap(int i) { return i==2 ? A : i==3 ? B : null; }
+        @Override public RegMask outregmap() { return null; }
+        @Override public void encoding(Encoding enc) { throw new AssertionError(); }
+    }
+
+    public static void popularUses() {
+        for( int calls=0; calls<=2; calls++ ) {
+            CodeGen code = graph();
+            RegAlloc alloc = new RegAlloc(code);
+            RegionNode block = new RegionNode(null,code._start,code._start);
+            Op def = new Op(new RegMask(7L),null,null,false,block);
+            LRG lrg = alloc.newLRG(def);
+            lrg._machDef = def;
+            lrg._mask = new RegMask(0L);
+            Op ab = new Op(null,new RegMask(3L),null,false,block,def);
+            Op bc = new Op(null,new RegMask(6L),null,false,block,def);
+            Op a = new Op(null,A,null,false,block,def,def);
+            Op b = new Op(null,B,null,false,block,def);
+            Op dep = new Op(null,null,null,false,block,def);
+            CallOp call = calls>0 ? new CallOp(block,def) : null;
+            if( calls==2 ) new CallOp(block,def);
+            boolean split = alloc.splitEmptyMaskByUse((byte)0,lrg);
+            assertEquals(calls<2,split);
+            if( !split ) { assertSame(def,a.in(1)); assertSame(def,b.in(1)); continue; }
+            // Two shared copies, even with overlapping masks and repeated inputs.
+            assertTrue(a.in(1) instanceof SplitNode);
+            assertTrue(b.in(1) instanceof SplitNode);
+            assertNotSame(a.in(1),b.in(1));
+            assertSame(a.in(1),a.in(2));
+            assertSame(b.in(1),ab.in(1));
+            assertSame(b.in(1),bc.in(1));
+            assertSame(def,dep.in(1)); // A scheduling dependency has no register.
+            assertEquals(3,def.nOuts()); // Two copies and the dependency.
+            if( call!=null ) {
+                assertSame(a.in(1),call.in(2));
+                assertSame(b.in(1),call.in(3));
+            }
+        }
+    }
+
     // Check the scheduled graph before encoding adds untyped branches or rewrites tail calls.
     public static class CheckedCodeGen extends CodeGen {
         public CheckedCodeGen(String src) { super(src); }
+        public CheckedCodeGen(String src, TypeInteger arg) { super(src,arg); }
         @Override public CodeGen regAlloc() {
             super.regAlloc();
             checkRegisters(this);
