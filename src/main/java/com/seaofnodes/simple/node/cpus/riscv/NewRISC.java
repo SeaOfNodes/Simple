@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.ASMPrinter;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class NewRISC extends NewNode implements MachNode, RIPRelSize {
     // A pre-zeroed chunk of memory.

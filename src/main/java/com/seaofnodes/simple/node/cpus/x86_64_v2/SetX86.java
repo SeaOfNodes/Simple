@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Corresponds to the x86 instruction "sete && setne".
 // Use result of comparison without jump.

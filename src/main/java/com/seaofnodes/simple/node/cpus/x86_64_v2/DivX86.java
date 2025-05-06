@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public class DivX86 extends MachConcreteNode implements MachNode {
     DivX86( Node div ) { super(div); }

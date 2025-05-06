@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.Utils;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;

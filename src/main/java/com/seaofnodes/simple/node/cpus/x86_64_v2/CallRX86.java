@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.CallNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.util.SB;
 
 public class CallRX86 extends CallNode implements MachNode {
     CallRX86( CallNode call ) { super(call); }

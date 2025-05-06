@@ -3,7 +3,7 @@ package com.seaofnodes.simple.print;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import java.util.*;
-import static com.seaofnodes.simple.Utils.TODO;
+import static com.seaofnodes.simple.util.Utils.TODO;
 
 /**
  * Simple visualizer that outputs GraphViz dot format.
@@ -155,7 +155,7 @@ public class GraphVisualizer {
     private void scope( StringBuilder sb, ScopeNode scope ) {
         sb.append("\tnode [shape=plaintext];\n");
         int last = scope.nIns();
-        int max = scope._lexSize.size();
+        int max = scope.depth();
         for( int i = 0; i < max; i++ ) {
             int level = max-i-1;
             String scopeName = makeScopeName(scope, level);
@@ -169,7 +169,7 @@ public class GraphVisualizer {
             sb.append("\t\t\t<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
             // Add the scope level
             sb.append("\t\t\t<TR><TD BGCOLOR=\"cyan\">").append(level).append("</TD>");
-            int lexStart=scope._lexSize.at(level);
+            int lexStart = scope._kinds.at(level)._lexSize;
             for( int j=lexStart; j<last; j++ ) {
                 var v = scope._vars.at(j);
                 sb.append("<TD PORT=\"").append(makePortName(scopeName, v._name)).append("\">").append(v._name).append("</TD>");
@@ -243,7 +243,7 @@ public class GraphVisualizer {
             while( def instanceof ScopeNode lazy )
                 def = lazy.in(v._idx);
             if( def==null ) continue;
-            while( level < scope._lexSize.size() && v._idx >= scope._lexSize.at(level) )
+            while( level < scope.depth() && v._idx >= scope._kinds.at(level)._lexSize )
                 level++;
             String scopeName = makeScopeName(scope, level-1);
             sb.append("\t")

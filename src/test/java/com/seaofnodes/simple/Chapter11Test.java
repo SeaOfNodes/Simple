@@ -20,7 +20,7 @@ while(---- -arg) {
                 }
             }
         {
-            int kzEl_r7EYz=3*----0!=-arg<(37*--97!=0/arg==arg)<=-(--arg!=0);
+            int kzEl_r7EYz = (3*----0!=-arg) < (37*--97!=0/arg==arg) <= -(--arg!=0);
             while(kzEl_r7EYz<---1) {
                 kzEl_r7EYz=kzEl_r7EYz+kzEl_r7EYz*arg>=24;
                 if(7) continue;

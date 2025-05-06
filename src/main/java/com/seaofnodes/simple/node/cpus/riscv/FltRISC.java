@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.TypeFloat;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
     FltRISC(ConstantNode con) { super(con); }

@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.util.SB;
 import java.util.BitSet;
 
 public abstract class SplitNode extends MachConcreteNode {

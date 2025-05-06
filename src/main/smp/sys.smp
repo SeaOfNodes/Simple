@@ -29,6 +29,148 @@ struct sys {
             return dst;
         };
     };
+
+    // Ary/Vector of u8s - a resizable array of bytes.
+    struct aryu8 {
+        u32 !len = 0;
+        u8[] !buf;
+        // Grow as needed
+        val _grow = { int len2 ->
+            if( len+len2 < buf# ) return self;
+            int newlen = buf# * 2;
+            while( len+len2 >= newlen ) newlen *= 2;
+            u8[] buf2 = new u8[newlen];
+            sys.ary.copy(buf2,0,buf,0,buf#);
+            buf = buf2;
+            self;
+        };
+
+        // Add a character to aryu8
+        val add = { u8 c ->
+            _grow(1).buf[len++] = c;
+            self;
+        };
+
+        // Add a plain array to the aryu8
+        val addAry = { u8[~] ary ->
+            _grow(ary#);
+            sys.ary.copy(buf,len,ary,0,ary#);
+            len += ary#;
+            self;
+        };
+
+        // Remove x chars from the tail.
+        val undo = { int x ->
+            len = len >= x ? len-x : 0;
+            self;
+        };
+
+        // Print ASCII number into aryu8
+        val num = { i64 x ->
+            if( !x ) { add('0'); return self; }
+            if( x < 0 ) { add('-'); x = -x; }
+            i64 ten = 1, log = 0;
+            while( ten <= x ) { ten *= 10; log++; }
+            for( int i=0; i<log; i++ ) {
+                ten /= 10;
+                i64 q = x/ten;
+                u8 digit = q+'0';
+                add(digit);
+                x -= q*ten;
+            }
+            self;
+        };
+
+        // Write to fd, returns the number of bytes written (len).
+        val write = { i32 fd -> i64 ptr = buf; sys.libc.write(fd,ptr,len); };
+    };
+
+
+    // Scanner; a simple string parser.
+    struct Scan {
+        int !x;
+        u8[~] buf;
+
+        // Skip whitespace
+        val skip = { ->
+            while( buf[x] <= ' ' )
+                x++;
+            return self;
+        };
+
+        // True if find required character, and skip it; else False.
+        val match = { u8 c ->
+            skip();
+            if( buf[x] != c ) return false;
+            x++;
+            return true;
+        };
+
+        // Parse a simple number
+        val number = { ->
+            skip();
+            bool neg = match('-');
+            i64 n = 0;
+            while( '0' <= buf[x] & buf[x] <= '9' )
+                n = n*10 + (buf[x++] - '0');
+            return neg ? -n : n;
+        };
+    };
+
+    // Ary/Vector of i64s
+    struct aryi64 {
+        u32 !len = 0;
+        i64[] !buf;
+        // Grow as needed
+        val _grow = { int len2 ->
+            if( len+len2 < buf# ) return self;
+            int newlen = buf# * 2;
+            while( len+len2 >= newlen ) newlen *= 2;
+            i64[] buf2 = new i64[newlen];
+            for( int i=0; i<buf#; i++ )
+                buf2[i] = buf[i];
+            buf = buf2;
+            self;
+        };
+
+        // Add a i64 to aryu8
+        val add = { i64 c ->
+            _grow(1).buf[len++] = c;
+            self;
+        };
+
+        // Write to aryu8
+        val str = { ->
+            // TODO: clunky default constructor syntax
+            var str = new sys.aryu8 { buf = new u8[1]; }.add('[');
+            for( int i=0; i<len; i++ )
+                str.num(buf[i]).add(',').add(' ');
+            str.undo(2).add(']');
+        };
+    };
+
+    // Parse a comma-separated list of numbers, wrapped with square brackets,
+    // with optional whitespace  e.g. "[ -17, 0,99,12456789   ]  ".
+    // parseAryI64 & aryi64.str are bijections modulo whitespace.
+    // Returns null if the parse failed.
+    val parseAryI64 = { u8[~] str ->
+        sys.Scan !s = new sys.Scan{ buf = str; };
+        if( !s.match('[') ) return null;
+        // Array of parsed results
+        var nums = new sys.aryi64{ buf=new i64[1]; };
+        // Parse a list of numbers
+        if( !s.match(']') ) {        // Handle the empty list
+            // Parse "123, " until a something else
+            while( s.x < s.buf# ) {
+                nums.add(s.number());
+                if( !s.match(',') )
+                    break;
+            };
+            if( !s.match(']') ) return null; // Close the list
+        }
+        return nums;
+    };
+
     struct io {
         // Print string to stdout
         val p = { u8[~] str ->

@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.cpus.arm.arm;
+import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
 
 public class EvalArm64 {
@@ -572,11 +573,16 @@ public class EvalArm64 {
                 break;
             }
             case 0xD6: {
+                if( (ir & 0xFFFF) != 0 ) throw Utils.TODO();
+                if( ((ir>>16) & 0xFF) != 0x5F ) throw Utils.TODO(); // 0x3F is register call
                 rdid = -1;
+                int rn = ir << 22 >> 27;
+                assert rn == 0;
+                pc = (int)regs[30];
                 // Return to zero breaks simulation
-                if(regs[30] == 0)
-                    break outer;
-                throw Utils.TODO();
+                if( pc==0 ) break outer;
+                pc -= 4;        // Undo post-increment
+                break;
             }
 
             case 0xF1: {

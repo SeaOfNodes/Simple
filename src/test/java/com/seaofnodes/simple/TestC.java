@@ -1,6 +1,9 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,7 +30,7 @@ public abstract class TestC {
     }
 
     // Compile and run a simple program
-    public static void run( String dir, String file, String expected, int spills ) throws IOException {
+    public static void run( String dir, String file, TypeInteger arg, String expected, int spills, boolean standalone) throws IOException {
         // Files
         String  cfile = dir+"/"+file+".c"  ;
         String  sfile = dir+"/"+file+".smp";
@@ -35,15 +38,28 @@ public abstract class TestC {
 
         // Compile and export Simple
         String src = Files.readString(Path.of(sfile));
-        run(src,CALL_CONVENTION,"",cfile,efile,"S",expected,spills);
+        run(src,CALL_CONVENTION,arg, "",standalone? null: cfile,efile,"S",expected,spills);
+    }
+    public static void run(String dir, String file, String expected, int spills ) throws IOException {
+        run(dir, file,null, expected, spills, false);
     }
 
-    public static void run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
+    public static void runS(String file, String expected, int spills ) throws IOException {
+        run("src/test/java/com/seaofnodes/simple/progs", file, null, expected, spills, true);
+    }
+
+    public static void runS(String file, TypeInteger arg, String expected, int spills ) throws IOException {
+        run("src/test/java/com/seaofnodes/simple/progs", file, arg, expected, spills, true);
+    }
+
+
+    public static void run( String src, String simple_conv, TypeInteger arg, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
         String bin = efile+xtn;
         String obj = bin+".o";
         String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
+
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);
 

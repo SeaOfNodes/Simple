@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  */
 public class Fuzzer {
 
-    private static final int EVAL_TIMEOUT = 1000;
+    private static final int EVAL_TIMEOUT = 10000;
 
     /**
      * List of exceptions already encountered.
@@ -82,10 +82,10 @@ public class Fuzzer {
     private static void runCheck(String script, boolean valid) {
         CodeGen code1;
         try {
-            code1 = FuzzerUtils.parse(script, 123);
+            code1 = FuzzerUtils.parse(script, 123, true);
         } catch (RuntimeException e1) {
             try {
-                FuzzerUtils.parse(script, 456);
+                FuzzerUtils.parse(script, 456, false);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
                     if (!valid || e1.getClass() == Parser.ParseException.class) return;
@@ -95,7 +95,7 @@ public class Fuzzer {
             }
             throw e1;
         }
-        CodeGen code2 = FuzzerUtils.parse(script, 456);
+        CodeGen code2 = FuzzerUtils.parse(script, 456, false);
         checkGraphs(code1, code2, 0);
         checkGraphs(code1, code2, 1);
         checkGraphs(code1, code2, 10);

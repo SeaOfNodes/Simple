@@ -10,6 +10,7 @@
 
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 

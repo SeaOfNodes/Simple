@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.util.Utils;
 
 // In-memory linking
 public class LinkMem {

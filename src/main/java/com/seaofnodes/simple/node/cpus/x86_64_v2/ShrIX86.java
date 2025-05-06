@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.node.Node;
-
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.util.SB;
 
 public class ShrIX86 extends MachConcreteNode implements MachNode {
     final int _imm;

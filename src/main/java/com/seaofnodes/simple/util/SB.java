@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.util;
 
 /** Tight/tiny StringBuilder wrapper.
  *  Short short names on purpose; so they don't obscure the printing.

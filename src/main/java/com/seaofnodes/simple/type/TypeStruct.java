@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import java.util.ArrayList;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.*;
+import java.util.*;
 
 /**
  * Represents a struct type.
@@ -11,69 +11,129 @@ public class TypeStruct extends Type {
 
     // A Struct has a name and a set of fields; the fields themselves have
     // names, types and aliases.  The name has no semantic meaning, but is
-    // useful for debugging.  Briefly during parsing a Struct can be a
-    // forward-ref; in this case the _fields array is null.
+    // useful for debugging.
 
-    // Its illegal to attempt to load a field from a forward-ref struct.
+    // During parsing a mid-declaration struct is flagged as a "open".  It is
+    // treated as having infinite fields with correct name and type BOTTOM.
 
-    // Example: "int rez = new S.x; struct S { int x; } return rez;" // Error, S not defined
-    // Rewrite: "struct S { int x; } int rez = new S.x; return rez;" // Ok, no forward ref
-    //
-    // During the normal optimization run, struct types "bottom out" at further
-    // struct references, so we don't have to handle e.g. cyclic types.  The
-    // "bottom out" is again the forward-ref struct.
-    public final String _name;
-    public final Field[] _fields;
-    public final TypeConAry _con; // Optional, constant array contents
+    public String _name;  // Struct name
+    public boolean _open; // infinite fields are all true:BOTTOM, false:TOP
+    public Field[] _fields;
 
-    private TypeStruct(String name, TypeConAry con, Field[] fields) {
+    private TypeStruct(String name, boolean open, Field[] fields) {
         super(TSTRUCT);
         _name = name;
+        _open = open;
         _fields = fields;
-        _con = con;
     }
+
+    private static final Ary<TypeStruct> FREE = new Ary<>(TypeStruct.class);
+    // Return a filled-in TypeStruct; either from free list or alloc new.
+    private static TypeStruct malloc(String name, boolean open, Field[] fields) {
+        if( FREE.isEmpty() ) return new TypeStruct(name,open,fields);
+        TypeStruct ts = FREE.pop();
+        assert ts.isFree();
+        ts._name = name;
+        ts._open = open;
+        ts._fields = fields;
+        return ts;
+    }
+    // Free ts; return this.
+    @Override TypeStruct free(Type t) {
+        TypeStruct ts = (TypeStruct)t;
+        assert !ts.isFree() && !ts._terned;
+        ts._fields = null;
+        ts._offs = null;
+        ts._dual = null;
+        ts._hash = 0;
+        FREE.push(ts);
+        return this;
+    }
+    @Override boolean isFree() { return _fields==null; }
+
 
     // All fields directly listed
-    public static TypeStruct make(String name, TypeConAry con, Field... fields) { return new TypeStruct(name, con, fields).intern(); }
-    public static TypeStruct make(String name, Field... fields) { return make(name, TypeConAry.BOT, fields); }
-    public static final TypeStruct TOP = make("$TOP",new Field[0]);
-    public static final TypeStruct BOT = make("$BOT",new Field[0]);
-    public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
-    // Forward-ref version
-    public static TypeStruct makeFRef(String name) { return make(name, (Field[])null); }
-    // Make a read-only version
-    @Override public TypeStruct makeRO() {
-        if( isFinal() ) return this;
-        Field[] flds = new Field[_fields.length];
-        for( int i=0; i<flds.length; i++ )
-            flds[i] = _fields[i].makeRO();
-        return make(_name,flds);
+    public static TypeStruct make(String name, boolean open, Field... fields) {
+        TypeStruct ts = malloc(name, open, fields);
+        TypeStruct t2 = ts.intern();
+        if( t2==ts ) return ts;
+        return VISIT.isEmpty() ? t2.free(ts) : ts.delayFree(ts);
     }
+    // New open struct with no fields
+    public static TypeStruct open( String name ) { return make(name,true); }
 
     // Array
-    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias) {
-        return makeAry(name,len,lenAlias,body,bodyAlias,false,TypeConAry.BOT);
+    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias, boolean efinal) {
+        return make(name,false,
+                    Field.make("#" ,len , lenAlias,true  ,false),
+                    Field.make("[]",body,bodyAlias,efinal,false));
     }
-    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias, boolean efinal, TypeConAry con) {
-        assert body instanceof TypeInteger || body instanceof TypeFloat || (body instanceof TypeNil tn && tn.nullable());
-        assert efinal || con==TypeConAry.BOT; // No mutable constant arrays
-        return make(name,
-                    con,
-                    Field.make("#" ,len , lenAlias,true ),
-                    Field.make("[]",body,bodyAlias,efinal));
+
+    public TypeStruct add( Field f ) {
+        assert _open && find(f._fname)==-1; // No double field names
+        Field[] flds = Arrays.copyOf(_fields,_fields.length+1);
+        flds[_fields.length] = f;
+        return make(_name,true,flds);
     }
+    public TypeStruct replace( Field f ) {
+        assert !_open;
+        Field[] flds = Arrays.copyOf(_fields,_fields.length);
+        flds[find(f._fname)] = f;
+        return make(_name,false,flds);
+    }
+
+
+    public final TypeStruct close() {
+        return (TypeStruct)recurOpen()._close().recurClose();
+    }
+    @Override TypeStruct _close() {
+        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+        if( ts!=null ) return ts;
+        ts = recurPre(_name,false);
+        Field[] flds = ts._fields;
+
+        // Now start the recursion
+        for( int i=0; i<flds.length; i++ )
+            flds[i].setType(_fields[i]._t._close());
+
+        return ts;
+    }
+
+    static final AryInt CEQUALS = new AryInt();
+
+    public  static final TypeStruct BOT = open("$STRUCT");
+    public  static final TypeStruct TOP = BOT.dual();
+    public  static final TypeStruct TEST= make("test",false,Field.TEST);
+    private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2,false);
+    private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4,false);
+    private static final TypeStruct ABC = makeAry("[]u8",TypeInteger.constant(3),-1,TypeConAryB.ABC,-4,true);
 
     // A pair of self-cyclic types
-    private static final TypeStruct S1F = makeFRef("S1");
-    private static final TypeStruct S2F = makeFRef("S2");
-    public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false) );
-    private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false) );
+    private static final TypeStruct SINT0  = open("%SINT");
+    private static final TypeStruct SFLT0  = open("%SFLT");
+    private static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false, false));
+    private static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false, false));
+    public  static final TypeStruct SFLT2  = SFLT1.close();
 
-    private static final TypeStruct ARY = makeAry("[i64]",TypeInteger.U32,-1,TypeInteger.BOT,-2);
-    private static final TypeStruct STR = makeAry("[u8]",TypeInteger.U32,-1,TypeInteger.U8,-2);
-    private static final TypeStruct HELLO= makeAry("[u8]",TypeInteger.constant(3),-1,TypeInteger.U8,-2,true,TypeConAryB.ABC);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); ts.add(ARY); ts.add(STR); ts.add(HELLO); }
+    public static void gather(ArrayList<Type> ts) {
+        ts.add(BOT);
+        ts.add(TEST);
+        ts.add(ARY);
+        ts.add(STR);
+        ts.add(ABC);
+        ts.add(SINT0);
+        ts.add(SFLT0);
+        ts.add(SINT1);
+        ts.add(SFLT1);
+        ts.add(SFLT2);
+        ts.add(((TypeMemPtr)(SFLT2.field("s1")._t))._obj);
+        // Break cyclic init: built a struct
+        Field fcalloc = Field.make("calloc",TypeFunPtr.CALLOC,-2,true,true);
+        TypeStruct scalloc = make("calloc",false,fcalloc);
+        ts.add(scalloc);
+
+    }
 
     // Find field index by name
     public int find(String fname) {
@@ -95,10 +155,10 @@ public class TypeStruct extends Type {
         return -1;
     }
 
-
     @Override
-    Type xmeet(Type t) {
+    TypeStruct xmeet(Type t) {
         TypeStruct that = (TypeStruct) t;
+        assert !isFree() && !that.isFree();
         if( this==TOP ) return that;
         if( that==TOP ) return this;
         if( this==BOT ) return BOT;
@@ -112,94 +172,152 @@ public class TypeStruct extends Type {
         // And the answer is: "don't ask".
         if( !_name.equals(that._name) )
             return BOT;         // It's a struct; that's about all we know
-        if( this._fields==null ) return that;
-        if( that._fields==null ) return this;
-        if( _fields.length != that._fields.length ) return BOT;
-        // Just do field meets
-        Field[] flds = new Field[_fields.length];
-        for( int i=0; i<_fields.length; i++ ) {
+
+        // if equal, no matters.
+        // if short is BOT, chop     ; recurPre on short.
+        // if short is TOP, copy long; recurPre on long.
+        TypeStruct min = _fields.length < that._fields.length ? this : that;
+        if( _fields.length != that._fields.length && (min._open ^ min==this) )
+            return that.xmeet(this);
+
+        // Check all other fields are sanely similar; same struct type but
+        // different field contents (e.g. field "age" is either 'int' or '18').
+        int len = Math.min(_fields.length,that._fields.length);
+        for( int i=0; i<len; i++ ) {
             Field f0 = _fields[i], f1 = that._fields[i];
-            if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias )
+            if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias || f0._one != f1._one )
                 return BOT;
-            flds[i] = (Field)f0.meet(f1);
         }
-        TypeConAry con = (TypeConAry)_con.meet(that._con);
-        return make(_name, con, flds);
+
+        // See if we get a mid-recursion hit; breaks cycles
+        Integer pid = pid(that);
+        TypeStruct ts = (TypeStruct)VISIT.get(pid);
+        if( ts!=null ) return ts;
+        // If not mid-recursion, we are now; flag recursion.
+        boolean notRecur = VISIT.isEmpty();
+        if( notRecur ) recurOpen();
+
+        // Setup and install the type, prior to recursing, so we can find our
+        // recursive self again.
+        ts = recurPre(pid,_open | that._open);
+
+        // Recurse all common fields
+        Field[] flds = ts._fields;
+        for( int i=0; i<len; i++ ) {
+            Field f0 = _fields[i], f1 = that._fields[i];
+            flds[i].setType(f0._t.meet(f1._t ));
+            flds[i]._final = f0._final | f1._final;
+        }
+
+        // Handle extra fields via `_open`
+        for( int i=len; i<_fields.length; i++ )
+            flds[i].setType(_fields[i]._t );
+
+        // Cleanup post-recursion; intern/install at cycle end
+        if( notRecur ) ts = (TypeStruct)ts.recurClose();
+        return ts;
     }
 
     @Override
-    public TypeStruct dual() {
-        if( this==TOP ) return BOT;
-        if( this==BOT ) return TOP;
-        if( _fields == null ) return this;
+    TypeStruct xdual() {
+        if( _name=="$STRUCT" )
+            return malloc("$STRUCT",false,new Field[0]);
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i].dual();
-        TypeConAry con = _con.dual();
-        return make(_name,con,flds);
+        return malloc(_name,!_open,flds);
     }
 
-    // Keeps the same struct, but lower-bounds all fields.
-    @Override public TypeStruct glb(boolean mem) {
-        if( _glb(mem) ) return this;
-        // Need to glb each field
+    // Recursive dual
+    @Override TypeStruct rdual() {
+        if( _dual!=null ) return dual();
+        assert !_terned;
         Field[] flds = new Field[_fields.length];
+        TypeStruct d = malloc(_name,!_open,flds);
+        (_dual = d)._dual = this; // Cross link duals
         for( int i=0; i<_fields.length; i++ )
-            flds[i] = _fields[i].glb(mem);
-        return make(_name,flds);
-    }
-    private boolean _glb(boolean mem) {
-        if( _fields!=null )
-          for( Field f : _fields )
-              if( f.glb(mem) != f )
-                 return false;
-        return true;
+            flds[i] = _fields[i]._terned ? _fields[i].dual() : _fields[i].rdual();
+        return d;
     }
 
     // Is forward-reference
-    @Override public boolean isFRef() { return _fields==null; }
-    // All fields are final
-    @Override public boolean isFinal() {
-        if( _fields==null ) return true;
-        for( Field fld : _fields )
-            if( !fld.isFinal() )
+    @Override public boolean isFRef() { return _open; }
+
+    @Override boolean _isConstant() {
+        if( VISIT.containsKey(_uid) ) return true; // Cycles assume constant
+        VISIT.put(_uid,this);
+        // Check all fields for being constant
+        for( Field field : _fields )
+            if( !field._isConstant() )
                 return false;
         return true;
     }
 
-    @Override public boolean isConstant() {
-        int len = _fields.length;
-        // If we have a constant array, then ignore the last 2 array fields-
-        // they are effectively constant.
-
-        // Fields are given sizes according to their types at *offset time*.
-        // And thus layout, packing & padding are determined by the Types
-        // at *offset-time*, which means *offset-time* has to be picked
-        // when types are Stable - post/during TypeCheck.
-
-        // The array-length field is shared with other like-sized arrays, so
-        // you are allowed to mix "abc" and "very_hugh_>256_char_string" and
-        // the resulting TMP can query the length field (getting 3 or >256
-        // respectively), and reading from a prolly 16bit length field.
-
-        // Basically asking: forward-flow declared-types, are these compatible?
-        // Only array-lengths have an issue here?  So internally name fields
-        // `#0` or `#1` or `#2` or `#3`.
-        //
-        // Also means I cannot track exact array length without losing the
-        // "declared type requires a 4-byte field".
-        //
-        // Same-same for all fields in a struct, space in memory is based on
-        // declared-type at least, possible (future work) optimized where all
-        // memory versions of the same field get a smaller footprint (or even a
-        // constant past or moved into prototype) past construction
-
-        if( _con!=TypeConAry.BOT ) len -= 2;
-        // Check all fields for being constant
-        for( int i=0; i<len; i++ )
-            if( !_fields[i].isConstant() )
+    // All fields are final
+    @Override boolean _isFinal() {
+        if( _open ) return false;     // May have more more non-final fields
+        if( VISIT.containsKey(_uid) ) // Test: been here before?
+            return true;              // Cycles assume final
+        VISIT.put(_uid,this);         // Set: dont do this again
+        for( Field fld : _fields )
+            if( !fld._isFinal() )
                 return false;
         return true;
+    }
+
+    private TypeStruct recurPre(Object key, boolean open) {
+        // Make a clone of original; suitable for hashing so can build
+        // e.g. TMPs to clone as part of cycles - but will fail the 'eq' check
+        // until the entire cycle is built.
+        Field[] flds  = new Field[_fields.length];
+        for( int i=0; i<flds.length; i++ )
+            flds[i] = _fields[i].malloc(); // Blank copy, but can be hashed
+        TypeStruct ts = malloc(_name, open, flds );
+        VISIT.put(key,ts);
+        return ts;
+    }
+
+    // Make a read-only version
+    @Override TypeStruct _makeRO() {
+        // Check for already visited
+        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+        if( ts!=null ) return ts;   // Already visited
+        ts = recurPre(_name,_open); // Make a new type with blank fields
+        Field[] flds = ts._fields;
+        for( Field fld : flds ) fld._final = true;
+
+        // Now start the recursion
+        for( int i=0; i<flds.length; i++ )
+            flds[i].setType(_fields[i]._t._makeRO());
+
+        return ts;
+    }
+
+
+    // All fields are at GLB already
+    boolean isGLB2() {
+        if( VISIT.containsKey(_uid) ) return true; // Cycles assume GLB
+        VISIT.put(_uid,this);
+        for( Field fld : _fields )
+            if( !fld.isGLB2() )
+                return false;
+        return true;
+    }
+
+    // Keeps the same struct, but lower-bounds all fields.
+    public TypeStruct glb2() {
+        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+        if( ts!=null ) return ts;
+        ts = recurPre(_name,_open);
+        Field[] flds = ts._fields;
+        for( int i=0; i<flds.length; i++ )
+            flds[i]._final = true ;
+
+        // Now start the recursion
+        for( int i=0; i<flds.length; i++ )
+            flds[i].setType(_fields[i]._t._glb(true));
+
+        return ts;
     }
 
     // log_size for a struct is not defined, unless its exactly some power of
@@ -209,48 +327,79 @@ public class TypeStruct extends Type {
     @Override public int alignment() {
         int align = 0;
         for( Field f : _fields )
-            align = Math.max(align, (f._fname!="[]" || _con==TypeConAry.BOT ? f._type : _con).alignment());
+            align = Math.max(align, f._t.alignment());
         return align;
     }
 
-    @Override
-    boolean eq(Type t) {
+    // If false, always false.
+    // If true , maybe true, need to check recursive fields.
+    private boolean static_eq( TypeStruct ts ) {
+        return _name.equals(ts._name) && _open==ts._open && _fields.length==ts._fields.length;
+    }
+
+    @Override boolean eq(Type t) {
+        // Recursive; so use cyclic equals
+        if( !VISIT.isEmpty() ) {
+            assert CEQUALS.isEmpty();
+            boolean rez = cycle_eq(t);
+            CEQUALS.clear();
+            return rez;
+        }
+        // Normal equals
         TypeStruct ts = (TypeStruct)t; // Invariant
-        if( !_name.equals(ts._name) || _con!=ts._con )
-            return false;
-        if( _fields == ts._fields ) return true;
-        if( _fields==null || ts._fields==null ) return false;
-        if( _fields.length!=ts._fields.length )
-            return false;
+        if( !static_eq(ts) ) return false;
+        if( _fields==ts._fields ) return true;
         for( int i = 0; i < _fields.length; i++ )
-            if( _fields[i] != ts._fields[i] )
+            if( !_fields[i].eq(ts._fields[i]) )
+                return false;
+        return true;
+    }
+
+    @Override boolean cycle_eq(Type t) {
+        if( this==t ) return true;
+        TypeStruct ts = (TypeStruct)t; // Invariant
+        if( !static_eq(ts) ) return false;
+        if( _fields==ts._fields ) return true;
+        // Check to see if we've ever compared this pair of types before;
+        // if so, then assume the cycle is equal here.
+        int pid = pid(ts);
+        if( CEQUALS.find(pid)!= -1 ) return true;
+        CEQUALS.push(pid);
+        // Recursively check fields
+        for( int i = 0; i < _fields.length; i++ )
+            if( !_fields[i].cycle_eq(ts._fields[i]) )
                 return false;
         return true;
     }
 
     @Override
     int hash() {
-        long hash = _name.hashCode();
-        if( _fields != null )
-            for( Field f : _fields )
-                hash = Utils.rot(hash,13) ^ f.hashCode();
-        return Utils.fold(hash ^ _con.hashCode());
+        long hash = _name.hashCode() ^ (_open ? 4 : 0);
+        for( Field f : _fields )
+            hash = Utils.rot(hash,13) ^ ((long)f._fname.hashCode() * f._alias);
+        return Utils.fold(hash);
     }
+
+    @Override int nkids() { return _fields.length; }
+    @Override Type at( int idx ) { return _fields[idx]; }
+    @Override void set( int idx, Type t ) { _fields[idx] = (Field)t; }
 
     @Override
-    public SB print(SB sb) {
-        if( _con!=TypeConAry.BOT ) return sb.p(_con.str());
+    SB _print(SB sb, BitSet visit, boolean html ) {
+        if( isFree() ) return sb.p("FREE:").p(_name);
+        if( isAry() && field("[]")._t instanceof TypeConAry con )
+            return sb.p(con.str());
         sb.p(_name);
-        if( _fields == null || isAry() ) // Forward reference struct, just print the name
-            return sb.p(isFinal() ? "" : "!");
+        if( html || isAry() )
+            return sb;
         sb.p(" {");
         for( Field f : _fields )
-            f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");
+            (f._t ==null ? sb.p("---") : f._t.print(sb,visit,html)).p(f._final ? " " : " !").p(f._fname).p("; ");
+        if( _open ) sb.p("... ");
         return sb.p("}");
     }
-    @Override public SB gprint( SB sb ) { return sb.p(_name); }
 
-    @Override public String str() { return _con==TypeConAry.BOT ? _name : _con.str(); }
+    @Override public String str() { return (isFree() ? "FREE:":"")+_name; }
 
 
     public boolean isAry() { return _fields.length>=2 && _fields[_fields.length-1]._fname=="[]"; }
@@ -262,7 +411,7 @@ public class TypeStruct extends Type {
     }
     public int aryScale() {
         assert isAry();
-        return _fields[1]._type.log_size();
+        return _fields[1]._t.log_size();
     }
 
 
@@ -273,42 +422,44 @@ public class TypeStruct extends Type {
         return _offs[idx];
     }
     private int[] offsets() {    // Field byte offsets
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
         // Compute a layout for a collection of fields
         assert _fields != null; // No forward refs
 
         // Compute a layout
-        int[] cnts = new int[5]; // Count of fields at log field size
-        int flen = _fields.length;
-        if( isAry() ) flen--;   // Array field is aligned differently
-        for( int i=0; i<flen; i++ )
-            cnts[_fields[i]._type.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
-        int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
-        // Compute offsets to the start of each power-of-2 aligned fields.
-        int[] offs = new int[4];
-        for( int i=3; i>=0; i-- ) {
-            offs[i] = off;
-            off += cnts[i]<<i;
-        }
-        // Assign offsets to all fields.
-        // Really a hidden radix sort.
         _offs = new int[_fields.length+1];
-        for( int i=0; i<flen; i++ ) {
-            int log = _fields[i]._type.log_size();
-            _offs[idx++] = offs[log]; // Field offset
-            offs[log] += 1<<log;      // Next field offset at same alignment
-            cnts[log]--;              // Count down, should be all zero at end
-        }
-
-        // Array bits
-        if( isAry() ) {
+        if( isAry() ) {         // Arrays used fixed u32 len, padding to elems, var length
+            assert _fields[1]._fname=="[]";
             // Pad out to the element alignment
-            int align = (_fields[flen]._fname!="[]" || _con==TypeConAry.BOT ? _fields[flen]._type : _con).alignment();
-            off = (off + ((1<<align)-1)) & -(1<<align);
-            _offs[flen] = off;
-            if( _con!=TypeConAry.BOT )
-                _offs[flen+1] = off+_con.len();
-        } else
+            int align = _fields[1]._t.alignment();
+            _offs[1] = (4 + ((1<<align)-1)) & -(1<<align);
+            if( _fields[1]._t instanceof TypeConAry ary ) // Array length is well-defined for constants, not defined for runtime arrays
+                _offs[2] = _offs[1]+ary.len();
+
+        } else {
+            int[] cnts = new int[5]; // Count of fields at log field size
+            int flen = _fields.length;
+            for( int i=0; i<flen; i++ )
+                if( !_fields[i]._one )
+                    cnts[_fields[i]._t.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
+            int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
+            // Compute offsets to the start of each power-of-2 aligned fields.
+            int[] offs = new int[4];
+            for( int i=3; i>=0; i-- ) {
+                offs[i] = off;
+                off += cnts[i]<<i;
+            }
+            // Assign offsets to all fields.
+            // Really a hidden radix sort.
+            for( int i=0; i<flen; i++ ) {
+                if( _fields[i]._one ) continue;
+                int log = _fields[i]._t.log_size();
+                _offs[idx++] = offs[log]; // Field offset
+                offs[log] += 1<<log;      // Next field offset at same alignment
+                cnts[log]--;              // Count down, should be all zero at end
+            }
             _offs[flen] = off; // Max struct size, no trailing padding
+        }
         return _offs;
     }
 

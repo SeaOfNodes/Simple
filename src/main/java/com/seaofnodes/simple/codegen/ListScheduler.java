@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.IterPeeps.WorkList;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import java.util.*;
 
 public abstract class ListScheduler {

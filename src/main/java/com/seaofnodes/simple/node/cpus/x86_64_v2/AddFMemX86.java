@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class AddFMemX86 extends MemOpX86 {
     AddFMemX86( AddFNode add, LoadNode ld , Node base, Node idx, int off, int scale, Node val ) {

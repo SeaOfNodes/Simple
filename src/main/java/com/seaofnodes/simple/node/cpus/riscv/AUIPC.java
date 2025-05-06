@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Add upper 20bits to PC.  Immediate comes from the relocation info.
 public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {

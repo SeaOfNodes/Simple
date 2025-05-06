@@ -1,12 +1,11 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.SplitNode;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class SplitARM extends SplitNode {
     SplitARM(String kind, byte round) { super(kind,round,new Node[2]);}
