@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.Encoding.BAOS;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.codegen.Encoding.BAOS;
+import com.seaofnodes.simple.util.Ary;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

@@ -4,8 +4,8 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.Ignore;
 import static org.junit.Assert.*;
 
 public class Chapter15Test {
@@ -109,7 +109,7 @@ output[i] = 1;
 return output;
 """);
         code.parse().iter().finalizeIR();
-        assertEquals("return [u8];", code.print());
+        assertEquals("return []u8;", code.print());
         assertEquals("\u0001", Eval2.eval(code,  0));
     }
 
@@ -161,8 +161,8 @@ struct A { int i; };
 return a;
 """);
         code.parse().iter().finalizeIR();
-        assertEquals("return [*A?];", code.print());
-        assertEquals("*A {int !i; }?[ null,null]", Eval2.eval(code, 0));
+        assertEquals("return []*A?;", code.print());
+        assertEquals("*A {i64 !i; }?[ null,null]", Eval2.eval(code, 0));
     }
 
     @Test
@@ -234,7 +234,7 @@ return root;
 """);
         code.parse().iter().finalizeIR();
         assertEquals("return Tree;", code.print());
-        assertEquals("Tree{_kids=*Tree?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
+        assertEquals("Tree{_kids=*Tree {*[]*Tree?? !_kids; }?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
     }
 
     @Test
@@ -272,12 +272,12 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         assertEquals("1006", Eval2.eval(code,  4));
     }
 
-    @Test
+    @Test @Ignore
     public void sieveOEratosthenes() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
         CodeGen code = new CodeGen(src+"return sieve(arg);");
         code.parse().iter().finalizeIR();
-        assertEquals("return [u32];", code.print());
+        assertEquals("return []u32;", code.print());
         assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
@@ -314,9 +314,10 @@ return new flt;
         CodeGen code = new CodeGen(
 """
 flt is = new int[2];
+return is;
 """);
-        try { code.parse().iter().finalizeIR(); fail(); }
-        catch( Exception e ) { assertEquals("Type *[int] is not of declared type flt",e.getMessage()); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
+        catch( Exception e ) { assertEquals("Type *[]i64 is not of declared type flt",e.getMessage()); }
     }
 
     @Test

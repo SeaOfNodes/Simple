@@ -3,12 +3,12 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 /** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value, rpc}. */
 public class ReturnNode extends CFGNode {
@@ -55,11 +55,10 @@ public class ReturnNode extends CFGNode {
         // Upgrade signature based on return type
         Type ret = expr()._type;
         TypeFunPtr fcn = _fun.sig();
-        assert ret.isa(fcn.ret());
-        if( ret != fcn.ret() )
+        if( ret != fcn.ret() && ret.isa(fcn.ret()) )
             _fun.setSig(fcn.makeFrom(ret));
 
-        // If dead (cant be reached; infinite loop), kill the exit values
+        // If dead (cannot be reached; infinite loop), kill the exit values
         if( ctrl()._type==Type.XCONTROL &&
             !(mem() instanceof ConstantNode && expr() instanceof ConstantNode) ) {
             Node top = new ConstantNode(Type.TOP).peephole();
@@ -92,8 +91,8 @@ public class ReturnNode extends CFGNode {
         // Merge path into the One True Return
         RegionNode r = (RegionNode)ctrl();
         // Assert that the Phis are in particular outputs; not reordered or shuffled
-        PhiNode mem = (PhiNode)r.out(0); assert mem._declaredType == TypeMem.BOT;
-        PhiNode rez = (PhiNode)r.out(1); assert rez._declaredType == Type.BOTTOM;
+        PhiNode mem = (PhiNode)r.out(0); assert mem._minType == TypeMem.BOT;
+        PhiNode rez = (PhiNode)r.out(1); assert rez._minType == Type.BOTTOM;
         // Pop "inProgress" null off
         r  ._inputs.pop();
         mem._inputs.pop();

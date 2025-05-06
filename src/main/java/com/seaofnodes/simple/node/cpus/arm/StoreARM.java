@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
 import com.seaofnodes.isa.Arm64;
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.StoreNode;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.StoreNode;
+import com.seaofnodes.simple.util.SB;
 
 // Store memory addressing on ARM
 // Support imm, reg(direct), or reg+off(indirect) addressing

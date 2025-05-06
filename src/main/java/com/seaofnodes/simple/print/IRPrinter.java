@@ -3,7 +3,7 @@ package com.seaofnodes.simple.print;
 import com.seaofnodes.print.IRAdapter;
 import com.seaofnodes.simple.node.*;
 import java.util.ArrayList;
-import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 
 /** This chapter's read-only IR facts and the familiar debugger entry points. */

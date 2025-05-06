@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
 
@@ -496,7 +496,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1; // Prefer the backedge in loops
+        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Prefer the backedge in loops
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }
