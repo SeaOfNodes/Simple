@@ -2,9 +2,9 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 
 public class IfNode extends CFGNode implements MultiNode {
 
@@ -88,8 +88,8 @@ public class IfNode extends CFGNode implements MultiNode {
         return switch( bop ) {
         case "<"  -> ">" ;
         case "<=" -> ">=";
-        case "==" -> "!=";
-        case "!=" -> "==";
+        case "==" -> "==";
+        case "!=" -> "!=";
         case ">"  -> "<" ;
         case ">=" -> "<=";
         default -> throw Utils.TODO();

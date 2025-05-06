@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Utils;
-import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 /** RegMask
  *  A "register mask" - 1 bit set for each allowed register.  In addition,
