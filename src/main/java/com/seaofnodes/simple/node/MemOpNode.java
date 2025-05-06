@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
 

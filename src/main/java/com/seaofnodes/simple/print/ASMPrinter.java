@@ -1,13 +1,13 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.Encoding.Relo;
+import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.HashSet;
 
 public abstract class ASMPrinter {
@@ -98,7 +98,8 @@ public abstract class ASMPrinter {
         if( fun._name != null ) sb.p(fun._name).p(" ");
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
-        iadr = (iadr + 15)&-16; // All function entries padded to 16 align
+        if( code._encoding!=null && code._encoding._padFunHeads )
+            iadr = (iadr + 15)&-16; // All function entries padded to 16 align
 
         if( fun._frameAdjust != 0 )
             iadr = doInst(iadr,sb,code,fun,cfgidx,fun,true,true);

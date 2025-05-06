@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public class I2f8X86 extends MachConcreteNode implements MachNode {
     I2f8X86(Node i2f8 ) { super(i2f8); }

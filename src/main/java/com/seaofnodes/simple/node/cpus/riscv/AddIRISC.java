@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.util.Utils;
 
 public class AddIRISC extends ImmRISC {
     // Used to inst-selection as a direct match against an ideal Add/Sub
