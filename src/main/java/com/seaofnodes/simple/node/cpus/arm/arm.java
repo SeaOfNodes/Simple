@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 
 public class arm extends Machine {
     public arm( CodeGen code ) {

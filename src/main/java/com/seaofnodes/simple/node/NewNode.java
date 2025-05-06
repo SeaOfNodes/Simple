@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
+
 import java.util.BitSet;
 
 /**
@@ -27,8 +27,7 @@ public class NewNode extends Node implements MultiNode {
         // Malloc-length in slot 1
         assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
         for( int i=0; i<_len; i++ )
-            // Memory slices for all fields.
-            assert nodes[2+i]._type.isa(TypeMem.BOT);
+          assert ptr._obj._fields[i]._one || nodes[2 + i]._type.isa( TypeMem.BOT );
     }
 
     public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
@@ -37,7 +36,7 @@ public class NewNode extends Node implements MultiNode {
 
     @Override public String label() { return "new_"+glabel(); }
     @Override public String glabel() {
-        return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str();
+        return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._t.str() : _ptr._obj.str();
     }
 
     @Override
@@ -65,17 +64,30 @@ public class NewNode extends Node implements MultiNode {
         ts[0] = Type.CONTROL;
         ts[1] = _ptr;
         for( int i=0; i<fs.length; i++ ) {
-            Type mt = in(i+2)._type;
-            TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
-            Type tfld = mem._t.meet(mem._t.makeZero());
-            Type tfld2 = tfld.join(fs[i]._type);
-            ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
+            if( _ptr._obj._fields[i]._one ) {
+                // Once-only fields use the declared type
+                ts[i+2] = _ptr._obj._fields[i]._t;
+            } else {
+                // Others take from the inputs
+                Type mt = in(i+2)._type;
+                TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
+                Type tfld = mem._t.meet(mem._t.makeZero());
+                Type tfld2 = tfld.join(fs[i]._t );
+                ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
+            }
         }
         return TypeTuple.make(ts);
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        Node progress=null;
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof CastNode cast )
+                progress = setDef(i,cast.in(1));
+        }
+        return progress == null ? null : this;
+    }
 
     @Override
     public boolean eq(Node n) { return this == n; }

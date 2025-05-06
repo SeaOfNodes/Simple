@@ -1,8 +1,13 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.Utils;
+
 import java.util.*;
 
 /**
@@ -19,18 +24,26 @@ public class ScopeNode extends MemMergeNode {
     public static final String ARG0 = "arg";
     public static final String MEM0 = "$mem";
 
-    // All active/live variables in all nested scopes, all run together
+    // All active/live variables in all nested scopes, all run together.
+    // Maps 1-to-1 to the _inputs array.
     public final Ary<Var> _vars;
 
-    // Size of each nested lexical scope
-    public final Ary<Integer> _lexSize;
-
     // Lexical scope is typed:
-    // - Block scope - basic block scoping
-    // - Constructor - struct type is defined, and here we give values to all fields
-    // - Function - out-of-scope lookups restricted to final constants
-    public enum Kind { Block, Constructor, Function };
+    public static class Kind {
+        // Basic block scoping
+        public static class Block  extends Kind { }
+        // Function scope
+        public static class Func   extends Kind { }
+        // Struct definition, mapping types  to fields
+        public static class Define extends Kind { public Define(TypeMemPtr tmp) { _tmp=tmp; } public final TypeMemPtr _tmp; }
+        // Struct allocation, mapping values to fields
+        public static class Alloc  extends Kind { public Alloc (TypeMemPtr tmp) { _tmp=tmp; } public final TypeMemPtr _tmp; }
+
+        public int _lexSize;     // Number of Vars in this scope
+    }
     public final Ary<Kind> _kinds;
+    // Lexical scope nesting depth
+    public int depth() { return _kinds._len; }
 
     // Extra guards; tested predicates and casted results
     private final Ary<Node> _guards;
@@ -38,10 +51,9 @@ public class ScopeNode extends MemMergeNode {
     // A new ScopeNode
     public ScopeNode() {
         super(true);
-        _vars   = new Ary<>(Var    .class);
-        _lexSize= new Ary<>(Integer.class);
-        _kinds  = new Ary<>(Kind   .class);
-        _guards = new Ary<>(Node   .class);
+        _vars   = new Ary<>(Var .class);
+        _kinds  = new Ary<>(Kind.class);
+        _guards = new Ary<>(Node.class);
     }
 
     @Override public String label() { return "Scope"; }
@@ -51,9 +63,9 @@ public class ScopeNode extends MemMergeNode {
         sb.append("Scope[ ");
         int j=1;
         for( int i=0; i<nIns(); i++ ) {
-            if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
+            if( j < depth() && i == _kinds.at(j)._lexSize ) { sb.append("| "); j++; }
             Var v = _vars.at(i);
-            sb.append(v.type().print(new SB()));
+            sb.append(v.type());
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);
@@ -90,17 +102,14 @@ public class ScopeNode extends MemMergeNode {
     public Node mem(Node n) { return setDef(1,n); }
 
     public void push( Kind kind ) {
-        assert _lexSize._len==_kinds._len;
-        _lexSize.push(_vars.size());
-        _kinds  .push(kind);
+        kind._lexSize = _vars.size();
+        _kinds.push(kind);
     }
 
     // Pop a lexical scope
     public void pop() {
-        assert _lexSize._len==_kinds._len;
         promote();              // Promote forward references to the next outer scope
-        int n = _lexSize.pop();
-        _kinds.pop();
+        int n = _kinds.pop()._lexSize;
         popUntil(n);            // Pop off inputs going out of scope
         _vars.setLen(n);        // Pop off variables going out of scope
     }
@@ -109,29 +118,56 @@ public class ScopeNode extends MemMergeNode {
     // Look for forward references in the last lexical scope and promote to the
     // next outer lexical scope.  At the last scope declare them an error.
     public void promote() {
-        int n = _lexSize.last();
+        Kind kind = _kinds.last();
+        int n = kind._lexSize;
         for( int i=n; i<nIns(); i++ ) {
             Var v = var(i);
             if( !v.isFRef() ) continue;
-            if( _lexSize._len==1 )
+            if( depth()==1 )
                 throw Parser.error("Undefined name '" + v._name + "'",v._loc);
-            _vars.swap(n,i);
+            _vars  .swap(n,i);
             _inputs.swap(n,i);
             v._idx = n;
-            n++;
-            _lexSize.set(_lexSize._len-1,n);
+            kind._lexSize = ++n;
         }
     }
 
 
-    public boolean inConstructor() { return _kinds.last() == Kind.Constructor; }
+    public boolean inConstructor() { return _kinds.last() instanceof Kind.Define; }
+    public boolean inAllocation () { return _kinds.last() instanceof Kind.Alloc ; }
+    public boolean inFunction   () { return _kinds.last() instanceof Kind.Func  ; }
 
-    // Is v outside any current function scope?
-    public boolean outOfFunction( Var v ) {
-        for( int i=_lexSize._len-1; i>=0 && v._idx<_lexSize.at(i); i-- )
-            if( _kinds.at(i)==Kind.Function )
-                return true;
-        return false;
+    public Kind kind( Var v ) {
+        for( int i=depth()-1; i>=0; i-- )
+            if( v._idx >= _kinds.at(i)._lexSize )
+                return _kinds.at(i);
+        throw Utils.TODO();
+    }
+
+    // Return the kind for the defining scope, or a function scope if found
+    // first.  Block scopes means the variable can be r/w directly in the
+    // scope, Function scopes require final constants (no capture), and
+    // Constructor scopes mean an instance variable reference.
+
+    // Walk up-lexical scope looking for defining lexical Kind.
+    // - Skip any amount of nested block scopes
+    // - Walking out of a function requires v be a final constant (for now) -
+    // and we can stop walking.
+
+    // - Walking out of a method and (skipping Blocks) into the matching struct
+    // is OK, and this is a instance var load.
+
+    // - Walking out of a method and into the wrong struct is an error;
+    // including nested structs containing (no nested classes yet)
+
+    // Returns error, forward-ref, ok containing struct, ok containing function/block.
+
+    public String outOfFunction( Var v ) {
+        //if( v==null ) return null; // Prolly forward reference
+        //int i; for( i=_lexSize._len-1; i>=0 && v._idx<_lexSize.at(i); i-- )
+        //    if( _kinds.at(i)=="{->}" ) return "{->}";
+        //return _kinds.at(i);
+        throw Utils.TODO();
     }
 
 
@@ -149,9 +185,9 @@ public class ScopeNode extends MemMergeNode {
      * Create a new variable name in the current scope
      */
     public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
-        assert _lexSize.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
-        if( _lexSize._len > 0 )
-            for( int i=_vars.size()-1; i>=_lexSize.last(); i-- ) {
+        assert _kinds.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
+        if( depth() > 0 )
+            for( int i=_vars.size()-1; i>=_kinds.last()._lexSize; i-- ) {
                 Var n = var(i);
                 if( n._name.equals(name) ) {
                     if( !n.isFRef() ) return false;       // Double define
@@ -214,7 +250,7 @@ public class ScopeNode extends MemMergeNode {
                 : loop.setDef(v._idx,new PhiNode(v._name, v.type(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
-        assert !v._final || st==null;
+        //assert !v._final || st==null;
         if( st!=null ) setDef(v._idx,st); // Set new value
         return v;
     }
@@ -240,7 +276,6 @@ public class ScopeNode extends MemMergeNode {
         // 2) Make the new ScopeNode a user of all the nodes bound
         // 3) Ensure that the order of defs is the same to allow easy merging
         dup._vars   .addAll(_vars   );
-        dup._lexSize.addAll(_lexSize);
         dup._kinds  .addAll(_kinds  );
         dup._guards .addAll(_guards );
         // The dup'd guards all need dup'd keepers, to keep proper accounting

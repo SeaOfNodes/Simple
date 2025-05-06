@@ -1,6 +1,19 @@
 // -*- mode: java;  -*-
-// Should fold away sign extend
-struct Person { i8 age;};
-Person !p = new Person;
-p.age = (arg<<48)>>48;
-return 0;
+//2298769344378917493
+//========= Reduced =========
+struct s0 {
+    bool v1;
+    i16 v2;
+    int v3;
+    i8 v4;
+    byte v5;
+};
+while(new s0.v3)
+    while(new s0.v5<<new s0.v4) {}
+if(0) {
+    if(0) {
+        flt !P5ZUD4=new s0.v2;
+    }
+    while(0) {}
+}
+return new s0.v1;

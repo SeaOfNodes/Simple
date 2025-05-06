@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.NotNode;
+import com.seaofnodes.simple.util.SB;
 
 public class NotRISC extends MachConcreteNode implements MachNode {
     public NotRISC(NotNode not) { super(not); }

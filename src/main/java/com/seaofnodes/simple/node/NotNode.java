@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 public class NotNode extends Node {
@@ -20,7 +20,7 @@ public class NotNode extends Node {
     @Override
     public TypeInteger compute() {
         Type t0 = in(1)._type;
-        if( t0.isHigh() )  return TypeInteger.BOOL.dual();
+        if( t0.isHigh() )  return (TypeInteger)TypeInteger.BOOL.dual();
         if( t0 == Type.NIL || t0 == TypeInteger.ZERO ) return TypeInteger.TRUE;
         if( t0 instanceof TypeNil tn && tn.notNull() ) return TypeInteger.FALSE;
         if( t0 instanceof TypeInteger i && (i._min > 0 || i._max < 0) ) return TypeInteger.FALSE;

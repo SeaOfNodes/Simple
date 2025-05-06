@@ -1,11 +1,10 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMemPtr;
-
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
@@ -40,9 +39,15 @@ public class CastNode extends Node {
     @Override
     public Type compute() {
         // Cast array to int
-        if( _t == TypeInteger.BOT && in(1)._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
+        Type t1 = in(1)._type;
+        if( _t == TypeInteger.BOT && t1 instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             return _t;
-        return in(1)._type.join(_t);
+        // Freeze if the join is high but both inputs are low
+        Type tj = t1.join(_t);
+        if( tj.isHigh() && !t1.isHigh() )
+            return _type==null ? _t : _type;
+
+        return tj;
     }
 
     @Override
@@ -64,6 +69,6 @@ public class CastNode extends Node {
         // Has a condition to test, so OK
         if( in(0) != null ) return null;
         // No condition to test, so this must optimize away
-        throw Utils.TODO();
+        return Parser.error( "Type " + in(1)._type.str() + " is not of declared type " + _t.str(), null );
     }
 }

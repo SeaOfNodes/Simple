@@ -1,31 +1,14 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 
 /**
  * Integer Type
  */
 public class TypeInteger extends Type {
-
-    public final static TypeInteger ZERO= make(0,0);
-    public final static TypeInteger FALSE=ZERO;
-    public final static TypeInteger TRUE= make(1,1);
-
-    public final static TypeInteger I1  = make(-1,0);
-    public final static TypeInteger I8  = make(-128,127);
-    public final static TypeInteger I16 = make(-32768,32767);
-    public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1);
-    public final static TypeInteger BOT = make(Long.MIN_VALUE,Long.MAX_VALUE);
-    public final static TypeInteger TOP = BOT.dual();
-
-    public final static TypeInteger U1  = make(0,1);
-    public final static TypeInteger BOOL= U1;
-    public final static TypeInteger U8  = make(0,255);
-    public final static TypeInteger U16 = make(0,65535);
-    public final static TypeInteger U32 = make(0,(1L<<32)-1);
-
     /**
      * Describes an integer *range* - everything from min to max; both min and
      * max are inclusive.  If min==max, this is a constant.
@@ -33,23 +16,50 @@ public class TypeInteger extends Type {
      * If min <= max, this is a  below center (towards bottom).
      * If min >  max, this is an above center (towards top).
      */
-    public final long _min, _max;
+    public long _min, _max;
 
-    private TypeInteger(long min, long max) {
-        super(TINT);
-        _min = min;
-        _max = max;
+    private static final Ary<TypeInteger> FREE = new Ary<>(TypeInteger.class);
+    private TypeInteger(long min, long max) { super(TINT); init(min,max); }
+    private TypeInteger init(long min, long max) { _min = min; _max = max; return this; }
+    public static TypeInteger malloc(long lo, long hi) { return FREE.isEmpty() ? new TypeInteger(lo,hi) : FREE.pop().init(lo,hi); }
+    public static TypeInteger make(long lo, long hi) {
+        TypeInteger i = malloc(lo,hi);
+        TypeInteger t2 = i.intern();
+        return t2==i ? i : t2.free(i);
+    }
+    @Override TypeInteger free(Type t) {
+        TypeInteger i = (TypeInteger)t;
+        i._min = i._max = 0;
+        i._hash = 0;
+        i._dual = null;
+        FREE.push(i);
+        return this;
     }
 
-    // Strict non-zero contract
-    public static TypeInteger make(long lo, long hi) { return new TypeInteger(lo,hi).intern(); }
-
     public static TypeInteger constant(long con) { return make(con, con); }
+
+    public final static TypeInteger ZERO= make(0,0);
+    public final static TypeInteger FALSE=ZERO;
+    public final static TypeInteger TRUE= make(1,1);
+    public final static TypeInteger TWO = make(2,2); // Shows up in some Simple tests as the starting argument
+
+    public final static TypeInteger I1  = make(-1,0);
+    public final static TypeInteger I8  = make(-128,127);
+    public final static TypeInteger I16 = make(-32768,32767);
+    public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1);
+    public final static TypeInteger BOT = make(Long.MIN_VALUE,Long.MAX_VALUE);
+    public final static TypeInteger TOP = (TypeInteger)BOT.dual();
+
+    public final static TypeInteger U1  = make(0,1);
+    public final static TypeInteger BOOL= U1;
+    public final static TypeInteger U8  = make(0,255);
+    public final static TypeInteger U16 = make(0,65535);
+    public final static TypeInteger U32 = make(0,(1L<<32)-1);
 
     public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); }
 
     @Override public String str() {
-        if( isConstant() ) return ""+_min;
+        if( _isConstant() ) return ""+_min;
         long lo = _min, hi = _max;
         String x = "";
         if( hi < lo ) {
@@ -59,7 +69,7 @@ public class TypeInteger extends Type {
         return x+_str(lo,hi);
     }
     private static String _str(long lo, long hi) {
-        if( lo==Long.MIN_VALUE && hi==Long.MAX_VALUE ) return "int";
+        if( lo==Long.MIN_VALUE && hi==Long.MAX_VALUE ) return "i64";
         if( lo==       0 && hi==         1 ) return "bool";
         if( lo==      -1 && hi==         0 ) return "i1";
         if( lo==    -128 && hi==       127 ) return "i8";
@@ -72,7 +82,6 @@ public class TypeInteger extends Type {
     }
 
     @Override public boolean isHigh    () { return _min >  _max; }
-    @Override public boolean isConstant() { return _min == _max; }
 
     @Override public int log_size() {
         if( isHigh() ) return 0; // High types are dead, and should never hit code emission.
@@ -110,12 +119,15 @@ public class TypeInteger extends Type {
 
     @Override
     public Type xmeet(Type other) {
+        if( other instanceof TypeConAry ary ) return ary.imeet(this);
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
         return make(Math.min(_min,i._min), Math.max(_max,i._max));
     }
 
-    @Override public TypeInteger dual() { return make(_max,_min); }
+    @Override TypeInteger xdual() {
+        return _min==_max ? this : malloc(_max,_min);
+    }
 
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
@@ -125,10 +137,17 @@ public class TypeInteger extends Type {
         return this;
     }
     @Override public Type makeZero() { return ZERO; }
-    @Override public Type glb(boolean mem) { return mem ? (isHigh() ? dual() : this) : BOT; }
+    @Override boolean _isConstant() { return _min == _max; }
+    @Override boolean _isGLB(boolean mem) { return _glb(mem)==this; }
+    @Override Type _glb(boolean mem) {
+        if( !mem ) return BOT;
+        // GLB is not well-defined in memory; depends on the size of the memory field
+        if( _isConstant() ) return BOT;
+        return isHigh() ? dual() : this;
+    }
+
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max); }
     @Override public boolean eq( Type t ) {
-        TypeInteger i = (TypeInteger)t; // Contract
-        return _min==i._min && _max==i._max;
+        return t instanceof TypeInteger i && _min==i._min && _max==i._max;
     }
 }

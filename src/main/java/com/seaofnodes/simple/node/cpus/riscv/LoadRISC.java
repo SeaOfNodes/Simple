@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 // Load memory addressing on RISC
 // Support imm, reg(direct), or reg+off(indirect) addressing

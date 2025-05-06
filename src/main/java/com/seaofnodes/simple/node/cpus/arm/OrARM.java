@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 // Not using the ORRS variant.
 public class OrARM extends MachConcreteNode implements MachNode {

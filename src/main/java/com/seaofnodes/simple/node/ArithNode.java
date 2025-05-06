@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
+
 import java.util.BitSet;
 
 public abstract class ArithNode extends Node {
@@ -56,7 +56,10 @@ public abstract class ArithNode extends Node {
         if( in(1) instanceof PhiNode lhs &&
             in(2) instanceof PhiNode rhs &&
             lhs.nIns() >= 2 && !lhs.inProgress() &&
-            lhs.region()==rhs.region() ) {
+            lhs.region()==rhs.region() &&
+            lhs.nIns()>2 && // A 1-input Phi will collapse already
+            // Disallow with self-looping phi; these will collapse
+            (lhs.in(2)!=lhs && rhs.in(2)!=rhs) ) {
             // Profit check: only 1 instance of `this` will remain, all the
             // others will fold to constants.
             int cnt=0;
@@ -73,7 +76,7 @@ public abstract class ArithNode extends Node {
                         : copy(lhs.in(i), rhs.in(i)).peephole();
                 }
                 String label = lhs._label==rhs._label ? lhs._label : lhs._label + rhs._label;
-                return new PhiNode(label,lhs._declaredType,ns).peephole();
+                return new PhiNode(label,lhs._minType,ns).peephole();
             }
         }
         return null;

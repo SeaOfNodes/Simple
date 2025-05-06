@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 public class IfNode extends CFGNode implements MultiNode {
@@ -87,8 +87,8 @@ public class IfNode extends CFGNode implements MultiNode {
         return switch( bop ) {
         case "<"  -> ">" ;
         case "<=" -> ">=";
-        case "==" -> "!=";
-        case "!=" -> "==";
+        case "==" -> "==";
+        case "!=" -> "!=";
         case ">"  -> "<" ;
         case ">=" -> "<=";
         default -> throw Utils.TODO();

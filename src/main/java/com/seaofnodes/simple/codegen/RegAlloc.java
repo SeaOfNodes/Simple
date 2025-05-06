@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.node.*;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -398,8 +398,8 @@ public class RegAlloc {
         // If the minLoopDepth is less than the maxLoopDepth: for-all defs and
         // uses, if at minLoopDepth or lower, split after def and before use.
         for( Node n : _ns ) {
-            if( n instanceof SplitNode ) continue; // Ignoring splits; since spilling need to split in a deeper loop
-            if( n.isDead() ) continue; // Some Clonable went dead by other spill changes
+            if( n instanceof SplitNode && min!=max ) continue; // Ignoring splits; since spilling need to split in a deeper loop
+            if( n.isDead() ) continue; // Some Cloneable went dead by other spill changes
             // If this is a 2-address commutable op (e.g. AddX86, MulX86) and the rhs has only a single user,
             // commute the inputs... which chops the LHS live ranges' upper bound to just the RHS.
             if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 )
