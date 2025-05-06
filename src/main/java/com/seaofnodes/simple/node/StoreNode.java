@@ -44,8 +44,7 @@ public class StoreNode extends MemOpNode {
     @Override
     public Type compute() {
         Type val = val()._type;
-        if( _declaredType.isFRef() && val instanceof TypeMemPtr tmp && !tmp.isFRef() )
-            _declaredType = tmp;
+        assert !_declaredType.isFRef();
         Type t = val.join(_declaredType).meet(MemMergeNode.contents(mem(),_alias,this));
         return TypeMem.make(_alias,t);
     }
@@ -57,6 +56,11 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
+
+        if( mem() instanceof CastNode cast ) {
+            setDef(1,cast.in(1));
+            return this;
+        }
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.

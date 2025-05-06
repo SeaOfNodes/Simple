@@ -1,13 +1,15 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.BitSet;
 
 /**
  * Represents a Scalar; a single register-sized value.
  */
 public class TypePtr extends TypeNil {
+    private static final String[] STRS = new String[]{"~ptr","~nptr","nptr","ptr"};
 
     private TypePtr(byte nil) { super(TPTR,nil);  }
 
@@ -15,8 +17,8 @@ public class TypePtr extends TypeNil {
     // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}
     public static TypePtr XPTR = new TypePtr((byte)0).intern();
     public static TypePtr XNPTR= new TypePtr((byte)1).intern();
-    public static TypePtr NPTR = new TypePtr((byte)2).intern();
-    public static TypePtr PTR  = new TypePtr((byte)3).intern();
+    public static TypePtr NPTR = (TypePtr)XNPTR.dual();
+    public static TypePtr PTR  = (TypePtr)XPTR.dual();
     private static final TypePtr[] PTRS = new TypePtr[]{XPTR,XNPTR,NPTR,PTR};
 
     public static void gather(ArrayList<Type> ts) { ts.add(PTR); ts.add(NPTR); }
@@ -28,7 +30,7 @@ public class TypePtr extends TypeNil {
         return PTRS[xmeet0(that)];
     }
 
-    @Override public TypePtr dual() { return PTRS[dual0()]; }
+    @Override TypePtr xdual() { return new TypePtr((byte)(3-_nil)); }
 
     // High scalar loses, low scalar wins
     @Override TypeNil nmeet(TypeNil tn) {
@@ -45,9 +47,9 @@ public class TypePtr extends TypeNil {
     // 0->xscalar, 1->nscalar, 2->nscalar, 3->scalar
     @Override Type meetX() { return _nil==0 ? XNIL : (_nil==3 ? PTR : NPTR); }
 
-    @Override public TypePtr glb(boolean mem) { return PTR; }
+    boolean _isGLB(boolean mem) { return this==PTR; }
+    @Override TypePtr _glb(boolean mem) { return PTR; }
 
-    private static final String[] STRS = new String[]{"~ptr","~nptr","nptr","ptr"};
     @Override public String str() { return STRS[_nil]; }
-    @Override public SB print(SB sb) { return sb.p(str()); }
+    @Override public SB _print(SB sb, BitSet visit, boolean html) { return sb.p(str()); }
 }

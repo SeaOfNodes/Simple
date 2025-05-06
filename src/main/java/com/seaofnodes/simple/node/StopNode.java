@@ -2,8 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.util.Utils;
 
 public class StopNode extends CFGNode {
 
