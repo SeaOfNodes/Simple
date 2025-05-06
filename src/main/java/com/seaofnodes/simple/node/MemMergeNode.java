@@ -67,9 +67,12 @@ public class MemMergeNode extends Node {
 
         // Fold defaults into the default
         boolean progress=false, allDefault=true;
-        for( int i=2; i<nIns(); i++ )
+        for( int i=2; i<nIns(); i++ ) {
+            if( in(i) instanceof CastNode cast )
+                { setDef(i,cast.in(1)); progress=true; }
             if( in(1) == in(i) ) { setDef(i,null); progress=true; }
             else                 { allDefault=false; }
+        }
 
         // If not merging any memory (all memory is just the default)
         if( allDefault )
@@ -121,7 +124,7 @@ public class MemMergeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.BOT,loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
+                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.make(alias,Type.BOTTOM),loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
             alias(alias,old);
         }
         // Memory projections are made lazily; expand as needed
@@ -137,7 +140,7 @@ public class MemMergeNode extends Node {
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), lhs._type.glb(true).meet(rhs._type.glb(true)), r, lhs, rhs).peephole());
+                alias(i, new PhiNode(Parser.memName(i), lhs._type.meet(rhs._type).glb(true), r, lhs, rhs).peephole());
             }
     }
 

@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
 import java.util.BitSet;
 
 /**
@@ -9,7 +9,8 @@ import java.util.BitSet;
  */
 public class StructNode extends Node {
 
-    public TypeStruct _ts;
+    public final TypeStruct _ts;
+    public StructNode(TypeStruct ts) { _ts=ts; assert !ts._open; }
 
     @Override public String label() { return _ts==null ? "STRUCT?" : _ts.str(); }
 
@@ -19,7 +20,7 @@ public class StructNode extends Node {
         sb.append(_ts._name).append(" {");
         for( int i=0; i<nIns(); i++ ) {
             sb.append(_ts._fields[i]._fname).append(":");
-            sb.append((in(i)==null ? Type.BOTTOM : in(i)._type).print(new SB()));
+            sb.append(in(i)==null ? Type.BOTTOM : in(i)._type);
             sb.append("; ");
         }
         sb.setLength(sb.length()-2);
@@ -32,7 +33,7 @@ public class StructNode extends Node {
         Field[] fs = new Field[_ts._fields.length];
         for( int i=0; i<fs.length; i++ )
             fs[i] = _ts._fields[i].makeFrom(in(i)==null ? Type.TOP : in(i)._type);
-        return TypeStruct.make(_ts._name,fs);
+        return TypeStruct.make(_ts._name,false,fs);
     }
 
     @Override

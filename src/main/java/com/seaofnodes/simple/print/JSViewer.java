@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Collection;
@@ -192,14 +192,14 @@ public class JSViewer implements AutoCloseable {
     private static void scope( SB sb, ScopeNode scope ) {
         sb.i().p("node [shape=plaintext];\n");
         int last = scope.nIns();
-        int max = scope._lexSize.size()+1; // One more than lexsize
+        int max = scope.depth()+1; // One more than lexsize
         for( int i = 0; i < max; i++ ) {
             int level = max-i-1;
             String scopeName = makeScopeName(scope, level);
             sb.i().p("subgraph cluster_").p(scopeName).p(" {\n").ii(); // Magic "cluster_" in the subgraph name
             sb.i().p(scopeName).p(" [label=<\n").ii();
             sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n");
-            int lexStart = level==0 ? 0 : scope._lexSize.at(level-1);
+            int lexStart = level==0 ? 0 : scope._kinds.at(level-1)._lexSize;
 
             // Special for memory ScopeMinNode
             MemMergeNode n = scope.nIns()>1 ? scope.mem() : null;
@@ -365,7 +365,7 @@ public class JSViewer implements AutoCloseable {
             while( def instanceof ScopeNode lazy )
                 def = lazy.in(v._idx);
             if( def==null ) continue;
-            while( level < scope._lexSize.size() && v._idx >= scope._lexSize.at(level) )
+            while( level < scope.depth() && v._idx >= scope._kinds.at(level)._lexSize )
                 level++;
             String scopeName = makeScopeName(scope, level);
             sb.i()

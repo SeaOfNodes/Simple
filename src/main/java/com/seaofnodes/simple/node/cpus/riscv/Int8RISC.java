@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.node.ConstantNode;
-
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.util.SB;
 
 // Special instruction for loading 8 byte constants from the constant pool.
 

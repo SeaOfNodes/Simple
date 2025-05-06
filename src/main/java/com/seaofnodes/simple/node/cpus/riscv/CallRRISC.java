@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public class CallRRISC extends CallNode implements MachNode {
     CallRRISC( CallNode call ) { super(call); }
@@ -25,7 +25,7 @@ public class CallRRISC extends CallNode implements MachNode {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(fptr())).p("  ");
         for( int i=0; i<nargs(); i++ )
-            sb.p(code.reg(arg(i))).p("  ");
+            sb.p(code.reg(arg(i))).p(", ");
         sb.unchar(2);
     }
 }

@@ -115,7 +115,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
@@ -141,7 +141,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
     }
 
@@ -290,7 +290,7 @@ return new s0;
 int v0=null.f0;
 """);
         try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Accessing unknown field 'f0' from 'null'",e.getMessage());  }
+        catch( Exception e ) {  assertEquals("Syntax error, expected ;: .",e.getMessage());  }
     }
 
     @Test
@@ -349,7 +349,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("return (const)s0;", code.print());
+        assertEquals("return s0;", code.print());
     }
 
 
