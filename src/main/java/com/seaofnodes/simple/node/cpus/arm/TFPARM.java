@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class TFPARM extends ConstantNode implements MachNode, RIPRelSize {
     TFPARM( ConstantNode con ) { super(con); }

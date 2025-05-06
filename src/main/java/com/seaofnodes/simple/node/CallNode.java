@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 /**
@@ -32,7 +32,7 @@ public class CallNode extends CFGNode {
         return sb.append(")");
     }
     public String name() {
-        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() && tfp.notNull() ) {
+        if( fptr()._type instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
             FunNode fun = CodeGen.CODE.link(tfp);
             if( fun !=null ) return fun._name;
             if( fptr() instanceof ExternNode ex )  return ex._extern;
@@ -162,8 +162,10 @@ public class CallNode extends CFGNode {
 
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
-            if( !arg(i+2)._type.isa(tfp.arg(i)) )
-                return Parser.error( "Argument #"+i+" isa "+arg(i+2)._type+", but must be a "+tfp.arg(i), _loc);
+            if( !arg(i+2)._type.isa(tfp.arg(i)) ) {
+                cend().addDep(arg(i+2)); // Upgrading arg type may allow inlining
+                return Parser.error( "Argument #" + i + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
+            }
 
         if( tfp.fidxs() < 0 )
             throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG

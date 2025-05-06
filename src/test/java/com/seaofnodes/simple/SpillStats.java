@@ -28,7 +28,8 @@ public class SpillStats extends RunListener {
 
     // The same native helpers serve old and new program cohorts.
     public static void recordNative(CodeGen code, String cpu, String abi) {
-        String cohort = ACTIVE!=null && ACTIVE._test.getTestClass()==Chapter22Test.class
+        String cohort = ACTIVE!=null && ACTIVE._test.getTestClass()==Chapter23Test.class
+            ? "Chapter23" : ACTIVE!=null && ACTIVE._test.getTestClass()==Chapter22Test.class
             ? "Chapter22" : "Chapter21";
         record(code,cohort,cpu,abi);
     }
@@ -46,7 +47,7 @@ public class SpillStats extends RunListener {
     }
 
     public static void main(String[] args) throws ClassNotFoundException {
-        if( args.length==0 ) args = new String[]{"Chapter20Test","Chapter21Test","Chapter21AllocTest","Chapter22Test","BrainFuckTest","MergeSortTest"};
+        if( args.length==0 ) args = new String[]{"Chapter20Test","Chapter21Test","Chapter21AllocTest","Chapter22Test","Chapter23Test","Chapter23AllocTest","BrainFuckTest","MergeSortTest"};
         Class<?>[] tests = new Class<?>[args.length];
         for( int i=0; i<args.length; i++ )
             tests[i] = Class.forName("com.seaofnodes.simple."+args[i]);

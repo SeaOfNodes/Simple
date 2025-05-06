@@ -1,9 +1,8 @@
 package com.seaofnodes.simple.evaluator;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-
+import com.seaofnodes.simple.util.Utils;
 import java.util.*;
 
 public class Evaluator {
@@ -190,7 +189,7 @@ public class Evaluator {
             if( n < 0 )
                 throw new NegativeArraySizeException(""+n);
             body = new Object[(int)n+1]; // Array body
-            var elem = type._fields[1]._type;
+            var elem = type._fields[1]._t;
             if (elem instanceof TypeInteger) {
                 for (int i=0; i<n; i++) body[i+1] = 0L;
             } else if (elem instanceof TypeFloat) {
@@ -203,7 +202,7 @@ public class Evaluator {
         } else {
             body = new Object[num = type._fields.length];
             for( int i=0; i<num; i++ )
-                body[i] = switch( alloc._ptr._obj._fields[i]._type ) {
+                body[i] = switch( alloc._ptr._obj._fields[i]._t ) {
                 case TypeInteger ti -> 0L;
                 case TypeFloat tf -> 0;
                 default -> null;

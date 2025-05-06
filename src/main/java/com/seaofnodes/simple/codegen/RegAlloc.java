@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.node.*;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -255,7 +255,11 @@ public class RegAlloc {
                 // A fixed-register clone with flexible uses must split at the uses.
                 !(lrg._1regDefCnt==1 && lrg._machDef.isClone() && lrg._1regUseCnt==0) )
                 return splitEmptyMaskSimple(round,lrg);
-            // More complex conflicts use loop-boundary splitting.
+            // Repeated single-reg uses from a single def.  Special for archs
+            // with more fixed regs.
+            if( !lrg._multiDef && lrg._1regDefCnt <= 1 && lrg._1regUseCnt > 2 )
+                if( splitEmptyMaskByUse(round,lrg) )
+                    return true;
         }
 
         // Generic split-by-loop depth.
@@ -283,6 +287,57 @@ public class RegAlloc {
         if( lrg._1regUseCnt==1 )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
+    }
+
+    // Popular single-def value: share a split among uses with compatible masks.
+    boolean splitEmptyMaskByUse( byte round, LRG lrg ) {
+        Node def = (Node)lrg._machDef;
+        // Snapshot distinct users: rewriting an input changes def's output list,
+        // and a call can use the same value in more than one argument.
+        Ary<Node> uses = new Ary<>(Node.class);
+        for( Node use : def._outputs )
+            if( uses.find(use)==-1 ) uses.push(use);
+
+        Ary<RegMask> rclass = new Ary<>(RegMask.class);
+        int ncalls=0;
+        for( Node use : uses )
+            if( use instanceof MachNode mach ) {
+                // Sharing copies across several calls usually loses to their kills.
+                if( use instanceof CallNode && ++ncalls > 1 ) return false;
+                for( int i=1; i<use.nIns(); i++ )
+                    if( use.in(i)==def && mach.regmap(i)!=null )
+                        putIntoRegClass(rclass,mach.regmap(i));
+            }
+        if( rclass._len <= 1 ) return false;
+
+        for( RegMask rmask : rclass ) {
+            Node split = makeSplit(def,"popular",round,lrg,rmask);
+            split.insertAfter(def);
+            if( split.nIns()>1 ) split.setDef(1,def);
+            for( Node use : uses )
+                if( use instanceof MachNode mach )
+                    for( int i=1; i<use.nIns(); i++ ) {
+                        RegMask mask = mach.regmap(i);
+                        if( use.in(i)==def && mask!=null && mask.overlap(rmask) ) {
+                            assert rmask.and(mask)==rmask;
+                            use.setDefOrdered(i,split);
+                        }
+                    }
+        }
+        return true;
+    }
+
+    // Narrowing preserves all earlier users of a class; new classes are disjoint.
+    // Each use contains its first overlapping class, so one pass suffices.
+    private static void putIntoRegClass( Ary<RegMask> rclass, RegMask rmask ) {
+        for( int i=0; i<rclass._len; i++ ) {
+            RegMask omask = rclass.at(i);
+            if( !omask.overlap(rmask) ) continue;
+            if( omask.and(rmask)!=omask )
+                rclass.set(i,new RegMask(omask.copy().and(rmask)));
+            return;
+        }
+        rclass.push(rmask);
     }
 
     // Self conflicts require Phis (or two-address).
@@ -351,8 +406,8 @@ public class RegAlloc {
         // If the minLoopDepth is less than the maxLoopDepth: for-all defs and
         // uses, if at minLoopDepth or lower, split after def and before use.
         for( Node n : _ns ) {
-            if( n instanceof SplitNode ) continue; // Ignoring splits; since spilling need to split in a deeper loop
-            if( n.isDead() ) continue; // Some Clonable went dead by other spill changes
+            if( n instanceof SplitNode && min!=max ) continue; // Ignoring splits; since spilling need to split in a deeper loop
+            if( n.isDead() ) continue; // Some Cloneable went dead by other spill changes
             // If this is a 2-address commutable op (e.g. AddX86, MulX86) and the rhs has only a single user,
             // commute the inputs... which chops the LHS live ranges' upper bound to just the RHS.
             if( n instanceof MachNode mach && lrg(n)==lrg && mach.twoAddress()==1 && mach.commutes() && n.in(2).nOuts()==1 )
@@ -492,9 +547,9 @@ public class RegAlloc {
         }
     }
 
-    private Node makeSplit( Node def, String kind, byte round, LRG lrg, RegMask use ) {
-        // A clone must be able to satisfy the use's register class.
-        Node split = def instanceof MachNode mach && mach.isClone() && (use==null || mach.outregmap().overlap(use))
+    private Node makeSplit( Node def, String kind, byte round, LRG lrg, RegMask umask ) {
+        // Clone simple constants if possible
+        Node split = def instanceof MachNode mach && mach.isClone() && (umask==null || mach.outregmap().overlap(umask))
             ? mach.copy()
             : _code._mach.split(kind,round,lrg);
         _lrgs.put(split,lrg);

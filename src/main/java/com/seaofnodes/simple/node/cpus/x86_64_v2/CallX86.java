@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.SB;
 
 public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     final TypeFunPtr _tfp;
@@ -42,7 +42,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(_name).p("  ");
         for( int i=0; i<nargs(); i++ )
-            sb.p(code.reg(in(i+2))).p("  ");
+            sb.p(code.reg(in(i+2))).p(", ");
         sb.unchar(2);
     }
 }

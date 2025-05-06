@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import java.util.ArrayList;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 
 /**
  * Represents a constant array of primitives
@@ -13,9 +13,8 @@ public class TypeConAry<A> extends Type {
     // One of byte,short,int,long,float,double array
     public final A _ary;
 
-    TypeConAry( boolean any, A ary ) { super(TCONARY); _any = any; _ary = ary; }
-    private static final TypeConAry TOP = new TypeConAry(true ,null).intern();
-    public  static final TypeConAry BOT = new TypeConAry(false,null).intern();
+    TypeConAry( boolean any, byte type, A ary ) { super(type); _any = any; _ary = ary; }
+    public static final TypeConAry BOT = new TypeConAry(false, TINT, null).intern();
     public static void gather(ArrayList<Type> ts) {
         ts.add(BOT);
         TypeConAryB.gather(ts);
@@ -23,42 +22,56 @@ public class TypeConAry<A> extends Type {
     }
 
     @Override public String str() { return (_any?"~":"") + "[]"; }
-    @Override public boolean isConstant() { return true; }
-    @Override public TypeConAry dual() {
-        if( this== BOT ) return TOP;
-        if( this== TOP ) return BOT;
+    @Override TypeConAry xdual() {
+        if( _ary==null )
+            return new TypeConAry(!_any,_type,null);
         return this;
     }
 
     @Override Type xmeet(Type t) {
+        if( t instanceof TypeInteger ti ) return imeet(ti);
         TypeConAry ary = (TypeConAry)t; // Invariant
-        if( this==TOP ) return ary ;
-        if( ary ==TOP ) return this;
+        if( this==BOT ) return BOT;
+        if( ary ==BOT ) return BOT;
+        if( this==BOT.dual() ) return ary ;
+        if( ary ==BOT.dual() ) return this;
         assert _ary!=ary._ary;  // Already interned and this!=t
-        return BOT;
+        return elem().meet(ary.elem());
     }
+    Type imeet( TypeInteger ti ) {
+        if( this==BOT.dual() ) return ti;
+        if( this==BOT        ) return BOT;
+        Type elem = elem();
+        if( !(elem instanceof TypeInteger) ) return BOTTOM;
+        if( ti.isHigh() && elem.isa(ti.dual()) )
+            return this;
+        return elem.meet(ti);
+    }
+
+
+    @Override public boolean isHigh() { return this==TOP; }
+    @Override boolean _isConstant() { return true; }
 
     // Meet-over-elements type
     public Type elem() {
         if( _ary==null )
-            return _any ? TOP : BOTTOM;
+            return _any ? Type.TOP : BOTTOM;
         int len = len();
         long min = Long.MAX_VALUE;
         long max = Long.MIN_VALUE;
         for( int i=0; i<len; i++ ) {
-            min = Math.min(min,at(i));
-            max = Math.max(max,at(i));
+            min = Math.min(min,at8(i));
+            max = Math.max(max,at8(i));
         }
         return TypeInteger.make(min,max);
     }
-    public long at(int idx) { throw Utils.TODO(); }
+    public long at8(int idx) { throw Utils.TODO(); }
     public int len() { throw Utils.TODO(); }
-    @Override public int alignment() { return 0; }
+    @Override public int log_size() { throw Utils.TODO(); }
     public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }
 
     @Override boolean eq(Type t) {
-        TypeConAry ary = (TypeConAry)t; // Invariant
-        return _any==ary._any && ary._ary==null;
+        return t instanceof TypeConAry ary && _any==ary._any && ary._ary==null;
     }
 
     @Override int hash() {

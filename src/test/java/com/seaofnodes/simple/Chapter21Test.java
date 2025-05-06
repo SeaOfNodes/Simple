@@ -4,6 +4,7 @@ import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -90,6 +91,30 @@ public class Chapter21Test {
         assertTrue("Ordinary calls must survive optimization",checkArmCalls(src,"run",4,27)>0);
     }
 
+    @Test public void testArmVectorGrowth() throws IOException {
+        String src = """
+            struct _Vec {
+                u32 !len;
+                int[] !buf;
+                val grow = { int sz ->
+                    var buf2 = new int[sz];
+                    for( int i=0; i<len; i++ ) buf2[i]=buf[i];
+                    buf=buf2;
+                };
+                val add = { int e ->
+                    if( len>=buf# ) grow(buf#*2);
+                    buf[len++]=e;
+                    return self;
+                };
+            };
+            val run = { int arg ->
+                val v = new _Vec{buf=new int[4];}.add(2).add(3).add(5).add(7).add(11);
+                return v.len*100+v.buf[arg];
+            };
+            """;
+        checkArmCalls(src,"run",4,511);
+    }
+
     private static int checkArmCalls(String src, String entryName, int arg, int result) throws IOException {
         CodeGen code = new CodeGen(src).driver("arm","SystemV",null);
         byte[] image = new byte[1<<20];
@@ -132,19 +157,7 @@ public class Chapter21Test {
     }
 
 
-    @Test public void testArmSubtractRegisters() {
-        EvalArm64 cpu = new EvalArm64(new byte[16],16);
-        cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.
-        for( long[] pair : new long[][]{{7,3},{3,7},{Long.MIN_VALUE,1},{1L<<40,3}} ) {
-            cpu._pc = 0;
-            cpu.regs[1] = pair[0]; cpu.regs[2] = pair[1];
-            cpu.N=true; cpu.Z=false; cpu.C=true; cpu.V=true;
-            assertEquals(0,cpu.step(1));
-            assertEquals(pair[0]-pair[1],cpu.regs[0]);
-            assertTrue(cpu.N); assertFalse(cpu.Z); assertTrue(cpu.C); assertTrue(cpu.V);
-        }
-    }
-
+    @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
 
     @Test public void testNarrowStores() throws IOException {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
@@ -192,7 +205,20 @@ public class Chapter21Test {
         fail("A failing native program must fail the test, even with empty stdout");
     }
 
-    @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
+    @Test public void testArmSubtractRegisters() {
+        EvalArm64 cpu = new EvalArm64(new byte[16],16);
+        cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.
+        for( long[] pair : new long[][]{{7,3},{3,7},{Long.MIN_VALUE,1},{1L<<40,3}} ) {
+            cpu._pc = 0;
+            cpu.regs[1] = pair[0]; cpu.regs[2] = pair[1];
+            cpu.N=true; cpu.Z=false; cpu.C=true; cpu.V=true;
+            assertEquals(0,cpu.step(1));
+            assertEquals(pair[0]-pair[1],cpu.regs[0]);
+            assertTrue(cpu.N); assertFalse(cpu.Z); assertTrue(cpu.C); assertTrue(cpu.V);
+        }
+    }
+
+
     @Test public void testRisc64BitStore() {
         byte[] mem = new byte[24];
         EvalRisc5 cpu = new EvalRisc5(mem,mem.length);
@@ -222,6 +248,7 @@ public class Chapter21Test {
     }
 
 
+    // Enabled in Chapter 23; measured there by Chapter23AllocTest.
     @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
@@ -328,11 +355,11 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes, 178);
+        TestC.run("sieve",sprimes, 186);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 89, false);
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 92, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -344,7 +371,7 @@ public class Chapter21Test {
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", 100, 93, false);
+        EvalArm64 A5 = TestArm64.build("sieve", 100, 94, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
@@ -358,14 +385,14 @@ public class Chapter21Test {
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run("fib", fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 9, 16, false);
+        EvalRisc5 R5 = TestRisc5.build("fib", 9, 17, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("fib", 9, 16, false);
+        EvalArm64 A5 = TestArm64.build("fib", 9, 17, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
         // Return register X0 holds fib(8)==55

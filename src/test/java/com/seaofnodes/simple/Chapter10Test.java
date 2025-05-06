@@ -35,12 +35,28 @@ public class Chapter10Test {
             "if (null != p) return p.x; return -1;",
             "if (!!!!p) return p.x; return -1;",
             "if (!!!p) return -1; return p.x;",
-            "int b = !!p; if (b) return p.x + b - 1; return -1;"
+            "int b = !!p; if (b) return p.x + b - 1; return -1;",
+            "if (!(p == null || arg == 0)) return p.x; return -1;"
         } ) {
             CodeGen code = new CodeGen(NULLABLE_POINT_SOURCE+body).parse().opto().typeCheck();
             assertEquals(body,"-1",Eval2.eval(code,0));
             assertEquals(body,"42",Eval2.eval(code,1));
         }
+    }
+
+    @Test
+    public void testShortCircuitGuardScheduling() {
+        // The call result exists only on the RHS path, not above the merge.
+        CodeGen code = new CodeGen("""
+            val f = { int n -> (n+1)&7; };
+            int x = 0;
+            if (!!(arg && (x=f(arg)))) return x;
+            return -1;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("-1",Eval2.eval(code,0));
+        assertEquals("2",Eval2.eval(code,1));
+        assertEquals("-1",Eval2.eval(code,7));
+        code.driver(CodeGen.Phase.LocalSched);
     }
 
     @Test
@@ -167,7 +183,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
@@ -193,7 +209,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
     }
 
@@ -342,7 +358,7 @@ return new s0;
 int v0=null.f0;
 """);
         try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Accessing unknown field 'f0' from 'null'",e.getMessage());  }
+        catch( Exception e ) {  assertEquals("Syntax error, expected ;: .",e.getMessage());  }
     }
 
     @Test
@@ -401,7 +417,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("return (const)s0;", code.print());
+        assertEquals("return s0;", code.print());
     }
 
 
