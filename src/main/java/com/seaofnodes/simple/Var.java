@@ -13,6 +13,7 @@ public class Var {
     // promotions.
     public int _idx;             // index in containing scope
     private Type _type;          // Declared type
+    public boolean _init;        // Explicit declaration initializer
     public boolean _final;       // Final field
     public boolean _fref;        // Forward ref
     public Parser.Lexer _loc;    // Source location

@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 
 /**
@@ -12,7 +12,7 @@ public abstract class TypeNil extends Type {
     // 1 = high-subclass no nil
     // 2 = low -subclass no nil
     // 3 = low -subclass also nil
-    final byte _nil;
+    byte _nil;
 
     TypeNil(byte t, byte nil ) { super(t); _nil = nil; }
 
@@ -45,18 +45,18 @@ public abstract class TypeNil extends Type {
     }
 
     @Override public boolean isHigh       () { return _nil <= 1; }
-    @Override public boolean isConstant   () { return false; }
     @Override public boolean isHighOrConst() { return isHigh() || isConstant(); }
-
-    @Override public Type glb(boolean mem) { return Type.NIL; }
 
     public boolean notNull() { return _nil==1 || _nil==2; }
     public boolean nullable() { return _nil==3; }
+
+    @Override boolean _isConstant() { return false; }
+    @Override Type _glb(boolean mem) { return Type.NIL; }
 
     final String q() { return _nil == 1 || _nil == 2 ? "" : "?"; }
     final String x() { return isHigh() ? "~" : ""; }
 
     int hash() { return _nil<<17; }
 
-    boolean eq(TypeNil ptr) { return _nil == ptr._nil; }
+    @Override boolean eq(Type ptr) { return ptr instanceof TypeNil nil && _nil ==nil._nil; }
 }
