@@ -567,6 +567,7 @@ public class arm extends Machine {
     static RegMask callInMask(TypeFunPtr tfp, int idx ) {
         if( idx==0 ) return CodeGen.CODE._rpcMask;
         if( idx==1 ) return null;
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
@@ -729,13 +730,13 @@ public class arm extends Machine {
     private Node con( ConstantNode con ) {
         if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
         return switch( con._con ) {
-            case TypeInteger ti  -> new IntARM(con);
-            case TypeFloat   tf  -> new FloatARM(con);
-            case TypeFunPtr  tfp -> new TFPARM(con);
-            case TypeMemPtr tmp -> new ConstantNode(con);
-            case TypeNil tn  -> throw Utils.TODO();
-            // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-            case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
+        case TypeInteger ti -> new IntARM(con);
+        case TypeFloat   tf -> new FloatARM(con);
+        case TypeFunPtr tfp -> new TFPARM(con);
+        case TypeMemPtr tmp -> new TMPARM(con);
+        case TypeNil tn  -> throw Utils.TODO();
+        // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
+        case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
         };
     }
 

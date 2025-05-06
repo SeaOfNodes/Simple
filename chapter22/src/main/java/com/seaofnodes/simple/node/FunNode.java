@@ -21,7 +21,7 @@ public class FunNode extends RegionNode {
 
     public String _name;        // Debug name
 
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) { super(loc,nodes); _sig = sig; }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { super(loc,nodes); _name=name; _sig = sig; }
     public FunNode( FunNode fun ) {
         super( fun, fun==null ? null : fun._loc );
         if( fun!=null ) {
@@ -67,6 +67,11 @@ public class FunNode extends RegionNode {
             CODE.add(this);
             _sig = sig;
         }
+    }
+
+    public void setName( String name ) {
+        if( _name==null ) _name=name;
+        else _name += "."+name;
     }
 
     @Override

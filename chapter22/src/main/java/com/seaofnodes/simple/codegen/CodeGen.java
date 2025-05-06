@@ -166,6 +166,22 @@ public class CodeGen {
 
         // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
+
+        // Not really a true optimistic pass, but look for unlinked functions.
+        // This can be removed, which may trigger another round of pessimistic.
+        // This is the point where we flip from a virtual Call Graph (any call
+        // can call any function) to having a correct (but conservative) CG.
+
+        FunNode main = link(_main);
+        for( Node use : _start._outputs )
+            if( use instanceof FunNode fun &&
+                fun.nIns()==2 && fun.in(1)==_start && fun != main &&
+                    (fun._name==null || fun._name.startsWith("sys.")) ) {
+                add(fun).setDef(1,Parser.XCTRL);
+                addAll(fun._outputs);
+            }
+        _iter.iterate(this);
+
         _tOpto = (int)(System.currentTimeMillis() - t0);
 
         // TODO:
@@ -203,7 +219,7 @@ public class CodeGen {
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_stop);
+        _start.buildLoopTree(_start,_stop);
         _tLoopTree = (int)(System.currentTimeMillis() - t0);
         return this;
     }
@@ -261,7 +277,6 @@ public class CodeGen {
                 _retMasks[i++] = new RegMask(reg);
         _rpcMask = new RegMask(_mach.rpc());
         _retMasks[3] = _rpcMask;
-
 
         // Convert to machine ops
         long t0 = System.currentTimeMillis();

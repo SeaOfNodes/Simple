@@ -33,7 +33,7 @@ public class Chapter22Test {
 
 
     @Test public void testJig1() throws IOException {
-        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, true);
+        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // do assertEquals here
@@ -113,10 +113,23 @@ return cc.cz;
         assertEquals("25", Eval2.eval(code, 0));
     }
 
-    @Test @Ignore
+    @Test
     public void testHelloWorld() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
-        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",13);
+        //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
+        //TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",0);
+        //
+        //// Evaluate on RISC5 emulator
+        //EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        //int trap = R5.step(100);
+        //assertEquals(0,trap);
+        //assertEquals(0,R5.regs[riscv.A0]);
+
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
+        int trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
     }
 
 

@@ -1,10 +1,15 @@
 // -*- mode: java;  -*-
-struct s0 {
-    u16 v0;
-    i16 v3;
-    u32 v5;
+// theory: conservative approx to a CG will link all target fcsn.
+// unlinked *local* fcns with *no* TFP constants can be declared unreachable and removed.
+
+// Newtons approximation to the square root
+val sqrt = { int x ->
+    int guess = x;
+    while( 1 ) {
+        int next = (x/guess + guess)/2;
+        if( next == guess ) return guess;
+        guess = next;
+    }
 };
-return new s0.v3;
-if(0)
-    while(new s0.v5+new s0.v5) return 0;
-return new s0.v0;
+int cast_int = arg+2;
+return sqrt(arg) + sqrt(cast_int);

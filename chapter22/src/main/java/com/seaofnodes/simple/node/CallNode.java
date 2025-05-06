@@ -32,8 +32,11 @@ public class CallNode extends CFGNode {
         return sb.append(")");
     }
     public String name() {
-        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-            return CodeGen.CODE.link(tfp)._name;
+        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+            FunNode fun = CodeGen.CODE.link(tfp);
+            if( fun !=null ) return fun._name;
+            if( fptr() instanceof ExternNode ex )  return ex._extern;
+        }
         return null;
     }
 
@@ -139,7 +142,7 @@ public class CallNode extends CFGNode {
                 assert linked(fun);
                 int idx = fun._inputs.find(this);
                 for( Node use : fun._outputs )
-                    if( use instanceof ParmNode parm )
+                    if( use instanceof ParmNode )
                         use.delDef(idx);
                 fun.delDef(idx);
                 cend().delDef(cend()._inputs.find(fun.ret()));
@@ -161,6 +164,9 @@ public class CallNode extends CFGNode {
         for( int i=0; i<tfp.nargs(); i++ )
             if( !arg(i+2)._type.isa(tfp.arg(i)) )
                 return Parser.error( "Argument #"+i+" isa "+arg(i+2)._type+", but must be a "+tfp.arg(i), _loc);
+
+        if( tfp.fidxs() < 0 )
+            throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG
 
         return null;
     }

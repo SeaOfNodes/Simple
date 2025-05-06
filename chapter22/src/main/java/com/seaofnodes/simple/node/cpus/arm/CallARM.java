@@ -23,9 +23,12 @@ public class CallARM extends CallNode implements MachNode, RIPRelSize {
     @Override public TypeFunPtr tfp() { return _tfp; }
     @Override public RegMask regmap(int i) { return arm.callInMask(_tfp,i); }
     @Override public RegMask outregmap() { return null; }
+    @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 
     @Override public void encoding( Encoding enc ) {
-        enc.relo(this);
+        FunNode fun = CodeGen.CODE.link(_tfp);
+        if( fun==null ) enc.external(this,_name);
+        else enc.relo(this);
         // BL
         enc.add4(arm.b(arm.OP_CALL,0)); // Target patched at link time
     }

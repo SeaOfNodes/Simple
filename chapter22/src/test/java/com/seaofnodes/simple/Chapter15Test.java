@@ -253,10 +253,10 @@ return new flt;
     public void testBad1() {
         CodeGen code = new CodeGen(
 """
-int is = new int[2];
+flt is = new int[2];
 """);
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type *[int] is not of declared type int",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type *[int] is not of declared type flt",e.getMessage()); }
     }
 
     @Test

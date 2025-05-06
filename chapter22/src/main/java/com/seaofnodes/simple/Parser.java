@@ -196,7 +196,7 @@ public class Parser {
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,null,_code._start));
+        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,_nestedType,null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -656,6 +656,9 @@ public class Parser {
             t = tmp.makeRO();
             expr = peep(new ReadOnlyNode(expr));
         }
+        // Auto-widen array to i64
+        if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
+            expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),con(tmp._obj.aryBase())));
         // Auto-widen int to float
         expr = widenInt( expr, t );
         // Auto-narrow wide ints to narrow ints
@@ -678,7 +681,10 @@ public class Parser {
      * exprAsgn = var '=' exprAsgn | expr
      */
     private Node parseDeclarationStatement() {
+        int old = pos();
         Type t = type();
+        if( peek('.') )         // Ambiguity static vars: "type.var", parse as expression
+            { pos(old); t=null; }
         if( t == null )
             return require(parseAsgn(),";");
 
@@ -725,7 +731,7 @@ public class Parser {
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
                 if( expr instanceof ExternNode ) t = expr._type; // Upgrade declared type to exact function
-                else _code.link(tfp)._name = name; // Assign debug name to Simple function
+                else _code.link(tfp).setName(name); // Assign debug name to Simple function
             }
 
         } else {
@@ -1122,7 +1128,6 @@ public class Parser {
                 throw error("Accessing unknown STATIC field");
             return init.in(idx);
         }
-
 
         // Expect an identifier now
         Var n = requireLookupId();
