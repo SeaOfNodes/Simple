@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.util.SB;
 
 public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     TMPRISC(ConstantNode con) { super(con); }

@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
-import com.seaofnodes.simple.SB;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 

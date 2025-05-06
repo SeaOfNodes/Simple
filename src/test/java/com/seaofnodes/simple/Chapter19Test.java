@@ -303,7 +303,7 @@ return A[1];
     public void sieveOfEratosthenes() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return [u32];", code.print());
+        assertEquals("return []u32;", code.print());
         //assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
@@ -316,7 +316,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (shli,Parm_x($fun2,int)); return (mul,Parm_x($fun1,int),x); return (add,#2,(muli,#2)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun21,i64),x); return (shli,Parm_x($fun22,i64)); ]", code.print());
     }
 
     @Test
@@ -327,6 +327,6 @@ val sq = { int x -> x*x; };
 return sq(arg) + sq(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (mul,Parm_x(sq,int),x); return (add,#2,#2); ]", code.print());
+        assertEquals("Stop[ return (add,#2,#2); return (mul,Parm_x(sq,i64),x); ]", code.print());
     }
 }

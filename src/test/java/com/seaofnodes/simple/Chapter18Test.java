@@ -64,7 +64,7 @@ return x2;
 };
 """);
         code.parse().opto();
-        assertEquals("return (Parm_x(sq,int)*x);", code._stop.toString());
+        assertEquals("return (Parm_x(sq,i64)*x);", code._stop.toString());
         //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
@@ -78,7 +78,7 @@ var sq = { int x ->
 return sq(arg)+sq(3);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return (Parm_x(sq,int)*x); return (#2+#2); ]", code._stop.toString());
+        assertEquals("Stop[ return (#2+#2); return (Parm_x(sq,i64)*x); ]", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
 
@@ -116,7 +116,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (Parm_x($fun2,int,3)<<1); return (Parm_x($fun1,int,3)*x); return #2; ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return (Parm_x($fun21,i64,3)*x); return (Parm_x($fun22,i64,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -126,7 +126,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*#2)); return #2; ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,i64,arg,(x-1))*#2)); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -158,7 +158,7 @@ val g = {->2;};
 return 2;
 """);
         code.parse().opto().typeCheck().GCM();
-        assertEquals("Stop[ return 2; return 1; return 1; ]", code._stop.toString());
+        assertEquals("Stop[ return 1; return 1; return 2; ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
@@ -176,7 +176,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Parm_i(x,int); return #2; ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return Parm_i(x,i64); ]", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -252,7 +252,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { int -> int #1}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #21}?",e.getMessage()); }
     }
 
 
@@ -348,7 +348,7 @@ if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Parm_i(i2i.o,int); return Phi(Region,#2,#2); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(i2i.o,i64); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

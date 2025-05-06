@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
@@ -310,6 +312,7 @@ public abstract class Node implements Cloneable {
             int idx = n._inputs.find(this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
+            CODE.add(n);
             CODE.addAll(n._outputs);
         }
         kill();
@@ -414,7 +417,7 @@ public abstract class Node implements Cloneable {
         // node.  If peeps are disabled, still allow high Phis to collapse;
         // they typically come from dead Regions, and we want the Region to
         // collapse, which requires the Phis to die first.
-        if( _type.isHighOrConst() && !isConst() )
+        if( !isConst() && _type.isHighOrConst() )
             return ConstantNode.make(_type).peephole();
 
         // Global Value Numbering

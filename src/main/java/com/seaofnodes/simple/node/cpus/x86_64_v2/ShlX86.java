@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.util.Utils;
 
 public class ShlX86 extends RegX86 {
     ShlX86( Node add ) { super(add); }
