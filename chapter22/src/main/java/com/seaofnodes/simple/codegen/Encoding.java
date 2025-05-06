@@ -497,16 +497,16 @@ public class Encoding {
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
-    public static int SENTINAL_CALLOC = -4;
-    public static int SENTINAL_WRITE  = -8;
+    public static int SENTINEL_CALLOC = -4;
+    public static int SENTINEL_WRITE  = -8;
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
             int start  = _opStart[src._nid];
             String dst =  _externals.get(src);
             int target = switch( dst ) {
-            case "calloc" -> SENTINAL_CALLOC;
-            case "write"  -> SENTINAL_WRITE ;
+            case "calloc" -> SENTINEL_CALLOC;
+            case "write"  -> SENTINEL_WRITE ;
             default -> throw Utils.TODO();
             };
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);

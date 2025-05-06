@@ -101,7 +101,7 @@ import java.util.Arrays;
                 if( (reladdy & 0x00100000)!=0 ) reladdy |= 0xffe00000; // Sign extension.
                 rval = pc + 4;
                 pc = pc + reladdy - 4;
-                if( pc+4 == Encoding.SENTINAL_WRITE ) {
+                if( pc+4 == Encoding.SENTINEL_WRITE ) {
                     PrintStream ps = switch((int)regs[10]) {
                     case 1 -> System.out;
                     case 2 -> System.err;
@@ -124,11 +124,11 @@ import java.util.Arrays;
                     break outer;
                 }
                 // Inline CALLOC effect
-                if( pc == Encoding.SENTINAL_CALLOC ) {
+                if( pc == Encoding.SENTINEL_CALLOC ) {
+                    assert (_heap&7) == 0; // 8-byte aligned
                     int size = (int)(regs[10]*regs[11]);
+                    size = (size+7) & -8; // 8-byte aligned
                     regs[10] = _heap; // Return next free address
-                    // Pre-zeroed; epsilon (null) collector, never recycles memory so always zero
-                    // Arrays.fill(_buf,_heap,_heap+size, (byte) 0 );
                     _heap += size;
                     pc = (int)(rval - 4); // Unwind PC, as-if returned from calloc
                 } else
