@@ -16,8 +16,8 @@ has a minimal syntax that can be parsed with a recursive descent parser.
 
 The Sea-of-Nodes is used for machine code generation in these industrial
 strength systems - but for this demonstration the backend is both difficult and
-less important.  This repo will eventually target X86 and at least one more
-machine with ahead-of-time compilation - but with an eye to JIT compilation.
+less important.  This repo targets X86, RISC5 and ARM64 at least with
+ahead-of-time compilation - but with an eye towards JIT compilation.
 
 This repo also is not intended to be a complete language in any sense, and so
 the backend starts with levering Java: the Evaluator (first appears in Chapter
@@ -65,5 +65,4 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 19](chapter19/README.md): Instruction selection and portable compilation
 * [Chapter 20](chapter20/README.md): Graph Coloring Register Allocation
 * [Chapter 21](chapter21/README.md): Instruction Encodings & ELF
-* [Chapter 22](chapter22/README.md): Strings And I/O
-
+* [Chapter 22](chapter22/README.md): A Simple Hello, World!

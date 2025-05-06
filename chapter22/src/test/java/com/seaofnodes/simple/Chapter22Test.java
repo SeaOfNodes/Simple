@@ -32,7 +32,7 @@ public class Chapter22Test {
     }
 
 
-    @Test public void testJig1() throws IOException {
+    @Test public void testR5Load() throws IOException {
         EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
@@ -121,6 +121,26 @@ return cc.cz;
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
+    }
+
+    @Test
+    public void testFinalArray() {
+        String src = """
+int N=4;
+i32[] !is = new i32[N];
+for( int i=0; i<N; i++ )
+    is[i] = i*i;
+val sum = { i32[~] is ->
+    int sum=0;
+    for( int i=0; i<is#; i++ )
+        sum += is[i];
+    return sum;
+};
+return sum(is);
+""";
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());
+        assertEquals("14", Eval2.eval(code, 0));
     }
 
 
