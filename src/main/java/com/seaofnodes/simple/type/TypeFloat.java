@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.Ary;
 import java.util.ArrayList;
 
 /**
@@ -9,29 +10,37 @@ import java.util.ArrayList;
  */
 public class TypeFloat extends Type {
 
-    public final static TypeFloat ONE = constant(1.0);
-    public final static TypeFloat FZERO = constant(0.0);
-    public final static TypeFloat F32 = make(32, 0);
-    public final static TypeFloat F64 = make(64, 0);
-
     // - high -64, high -32, con 0, low +32, low +64
-    public final byte _sz;
+    public byte _sz;
 
     /**
      * The constant value or 0
      */
-    public final double _con;
+    public double _con;
 
-    private TypeFloat(byte sz, double con) {
-        super(TFLT);
-        _sz = sz;
-        _con = con;
-    }
+    private static final Ary<TypeFloat> FREE = new Ary<>(TypeFloat.class);
+    private TypeFloat(byte sz, double con) { super(TFLT); init(sz,con); }
+    private TypeFloat init( byte sz, double con ) { _sz = sz; _con = con; return this; }
+    public static TypeFloat malloc(byte sz, double con) { return FREE.isEmpty() ? new TypeFloat(sz,con) : FREE.pop().init(sz,con); }
     private static TypeFloat make(int sz, double con) {
-        return new TypeFloat((byte)sz,con).intern();
+        TypeFloat f  = malloc((byte)sz,con);
+        TypeFloat t2 = f.intern();
+        return t2==f ? f : t2.free(f);
+    }
+    @Override TypeFloat free(Type t) {
+        TypeFloat f = (TypeFloat)t;
+        f._hash = 0;
+        f._dual=null;
+        FREE.push(f);
+        return this;
     }
 
     public static TypeFloat constant(double con) { return make(0, con); }
+
+    public final static TypeFloat ONE = constant(1.0);
+    public final static TypeFloat FZERO = constant(0.0);
+    public final static TypeFloat F32 = make(32, 0);
+    public final static TypeFloat F64 = make(64, 0);
 
     public static void gather(ArrayList<Type> ts) { ts.add(F64); ts.add(F32); ts.add(constant(3.141592653589793)); }
 
@@ -48,7 +57,6 @@ public class TypeFloat extends Type {
     private boolean isF32() { return ((float)_con)==_con; }
 
     @Override public boolean isHigh    () { return _sz< 0; }
-    @Override public boolean isConstant() { return _sz==0; }
     @Override public int log_size() { return _sz==32 || _sz==-32 ? 2 : 3; }
 
     public double value() { return _con; }
@@ -76,13 +84,20 @@ public class TypeFloat extends Type {
     }
 
     @Override
-    public Type dual() {
-        return isConstant() ? this : make(-_sz,0); // Constants are a self-dual
+    TypeFloat xdual() {
+        return _isConstant() ? this : new TypeFloat((byte)-_sz,0); // Constants are a self-dual
     }
 
-    @Override public Type makeZero() { return FZERO; }
-    @Override public Type glb(boolean mem) { return mem ? (isHigh() ? dual() : this)  : F64; }
+    @Override boolean _isGLB(boolean mem) { return _glb(mem)==this; }
+    @Override Type _glb(boolean mem) {
+        if( !mem ) return F64;
+        if( _isConstant() ) return isF32() ? F32 : F64;
+        return isHigh() ? dual() : this;
+    }
 
+    @Override boolean _isConstant() { return _sz==0; }
+
+    @Override public Type makeZero() { return FZERO; }
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }
     @Override
