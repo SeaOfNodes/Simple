@@ -2,10 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
+
 
 /** Allocate a zeroed object. Inputs {ctrl, $mem, size};
  *  results {ptr, $mem}.
@@ -30,14 +30,14 @@ public class NewNode extends Node implements MultiNode {
 
     public Field field(int alias) {
         for( Field f : _ptr._obj._fields )
-            if( f._alias==alias ) return f;
+            if( !f._one && f._alias==alias ) return f;
         return null;
     }
 
     public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; }
 
 
-    @Override public String label() { return "new_"+(_ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str()); }
+    @Override public String label() { return "new_"+(_ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._t.str() : _ptr._obj.str()); }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.p("new ").p(_ptr._obj.str());
     }
@@ -49,7 +49,14 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        Node progress=null;
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof CastNode cast )
+                progress = setDef(i,cast.in(1));
+        }
+        return progress == null ? null : this;
+    }
 
     @Override
     public boolean eq(Node n) { return this == n; }

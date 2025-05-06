@@ -36,13 +36,16 @@ public class MemMergeNode extends Node {
     // join it with the incoming contents for all previously allocated objects.
     // Phis use their cached types, so this query does not recurse around loops.
     static Type contents(Node mem, int alias, Node dep) {
-        dep.addDep(mem);
+        // A loop memory Phi can also be a user of the querying Store.
+        // Its type changing still needs to revisit this query.
+        dep.addDepForwards(mem);
+        if( mem instanceof CastNode cast ) return contents(cast.in(1),alias,dep);
         if( mem instanceof MemMergeNode merge )
             return contents(merge.alias(alias),alias,dep);
         if( mem instanceof ProjNode proj && proj.in(0) instanceof NewNode nnn ) {
             assert proj._idx==1 && nnn.field(alias)!=null;
             dep.addDep(nnn);
-            return contents(nnn.mem(),alias,dep).meet(nnn.field(alias)._type.makeZero());
+            return contents(nnn.mem(),alias,dep).meet(nnn.field(alias)._t.makeZero());
         }
         // Function parameters and call results may contain arbitrary heap values.
         // Their bulk memory types do not imply empty or zero-filled storage.
@@ -67,6 +70,7 @@ public class MemMergeNode extends Node {
     @Override public Node idealize() {
         boolean progress=false, allDefault=true;
         for( int i=2; i<nIns(); i++ ) {
+            if( in(i) instanceof CastNode cast ) { setDef(i,cast.in(1)); progress=true; }
             if( in(i)!=null && in(i)==in(1) ) { setDef(i,null); progress=true; }
             if( in(i) instanceof MemMergeNode mem ) {
                 setDef(i,CodeGen.CODE.add(mem.alias(i)));

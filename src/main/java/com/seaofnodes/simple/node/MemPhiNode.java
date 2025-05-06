@@ -22,7 +22,7 @@ public class MemPhiNode extends PhiNode {
         assert BulkMemPhiNode.checkMem(this,_alias);
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? TypeMem.TOP : _type;
-        if( r.inProgress() ) return _declaredType;
+        if( r.inProgress() ) return _minType;
         Type t = Type.TOP;
         for( int i=1; i<nIns(); i++ )
             if( addDep(r.in(i))._type!=Type.XCONTROL )

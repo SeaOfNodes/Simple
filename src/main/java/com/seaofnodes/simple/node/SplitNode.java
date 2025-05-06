@@ -2,9 +2,9 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.util.SB;
 
 public abstract class SplitNode extends MachConcreteNode {
     public final String _kind;  // Kind of split

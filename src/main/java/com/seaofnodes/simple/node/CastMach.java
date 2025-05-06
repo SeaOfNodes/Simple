@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.util.SB;
 
 /**
  * Cast a pointer to read-only
