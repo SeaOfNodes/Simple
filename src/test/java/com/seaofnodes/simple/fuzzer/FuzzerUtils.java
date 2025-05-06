@@ -94,13 +94,13 @@ class FuzzerUtils {
     /**
      * Parse and optimize using the given worklist seed
      */
-    public static CodeGen parse(String script, long workListSeed) {
+    public static CodeGen parse(String script, long workListSeed, boolean reset) {
         var err = System.err;
         var out = System.out;
         try {
             System.setErr(NULL_PRINT_STREAM);
             System.setOut(NULL_PRINT_STREAM);
-            var code = new CodeGen(script, TypeInteger.BOT, workListSeed);
+            var code = new CodeGen(script, TypeInteger.BOT, workListSeed, reset);
             return code.driver(CodeGen.Phase.LocalSched);
         } finally {
             System.setErr(err);

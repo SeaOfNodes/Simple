@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.isa.RiscV;
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.SB;
 
 public class F8ToIRISC extends MachConcreteNode implements MachNode {
     F8ToIRISC(Node f8toi) {super(f8toi);}

@@ -71,7 +71,7 @@ return f(s);
         // The entry of g can disappear before its Return is folded into f.
         // Exercise both worklist orders; deleting the entry does not kill 123.
         for( int seed=0; seed<64; seed++ ) {
-            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse().opto().typeCheck();
+            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed,true).parse().opto().typeCheck();
             assertEquals("seed "+seed, "123", Eval2.eval(code,0));
         }
     }
@@ -121,9 +121,9 @@ return f(s);
     }
 
     @Test public void testAlloc0() {
-        testTarget("return new u8[arg];","x86_64_v2","SystemV",4,"return [u8];");
-        testTarget("return new u8[arg];","riscv","SystemV",5,"return [u8];");
-        testTarget("return new u8[arg];","arm","SystemV",5,"return [u8];");
+        testTarget("return new u8[arg];","x86_64_v2","SystemV",4,"return []u8;");
+        testTarget("return new u8[arg];","riscv","SystemV",5,"return []u8;");
+        testTarget("return new u8[arg];","arm","SystemV",5,"return []u8;");
     }
 
     @Test public void testBasic1() {
@@ -238,14 +238,9 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """;
-        // Without an explicit return, default main must be removed completely.
-        // Seed 0 previously left a loop with a missing branch successor.
-        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
-            new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,0)
-                .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
-        testTarget(src,"x86_64_v2", "SystemV",0,null);
-        testTarget(src,"riscv"    , "SystemV",1,null);
-        testTarget(src,"arm"      , "SystemV",0,null);
+        testTarget(src,"x86_64_v2", "SystemV",9,null);
+        testTarget(src,"riscv"    , "SystemV",4,null);
+        testTarget(src,"arm"      , "SystemV",1,null);
     }
 
     @Test

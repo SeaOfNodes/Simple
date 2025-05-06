@@ -2,12 +2,12 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.*;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.io.InputStreamReader;
+import com.seaofnodes.simple.util.Utils;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.stream.Collectors;
 
 public class Simple {

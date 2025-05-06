@@ -1,8 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -51,7 +49,7 @@ return p;
     public void testStructFinal1() {
         CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
-Point p = new Point { x=5; y=6; };
+~Point p = new Point { x=5; y=6; };
 p.x++;
 return p;
 """);
@@ -63,7 +61,7 @@ return p;
     public void testStructFinal2() {
         CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
-Point p = new Point;
+~Point p = new Point;
 p.x++;
 return p;
 """);
@@ -88,8 +86,8 @@ Point p = new Point;
 p.x++;
 return p;
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test

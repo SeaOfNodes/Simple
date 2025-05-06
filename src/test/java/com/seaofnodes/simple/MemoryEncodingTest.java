@@ -176,7 +176,7 @@ public class MemoryEncodingTest {
             c.append("return 0;\n}\n");
             Files.writeString(Path.of(file+".c"),c);
             TestC.run("val memory = { int arg -> "+SOURCES[p]+" };",
-                TestC.CALL_CONVENTION,"",file+".c",file,"S","",-1);
+                TestC.CALL_CONVENTION,null,"",file+".c",file,"S","",-1);
         }
     }
 }

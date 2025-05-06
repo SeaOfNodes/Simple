@@ -53,7 +53,7 @@ public class Chapter11Test {
         // Seed 97 exposed a store selecting a bulk predecessor without queuing
         // it. Keep both the worklist assertion and the final heap check.
         for (int seed : new int[]{0,97,123,456}) {
-            var code = new CodeGen(Chapter10Test.NESTED_MEMORY,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse();
+            var code = new CodeGen(Chapter10Test.NESTED_MEMORY,com.seaofnodes.simple.type.TypeInteger.BOT,seed,false).parse();
             code.opto();
             assertEquals("S{x=9,y=25,z=17}",Eval2.eval(code,4));
         }

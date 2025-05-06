@@ -84,7 +84,7 @@ public class Chapter22Test {
             val test_cmp={->return c_i32()==-1;};
             """;
         for( String conv : new String[]{"SystemV","Win64"} )
-            TestC.run(src,conv,conv.equals("SystemV") ? "sysv_abi" : "ms_abi",
+            TestC.run(src,conv,com.seaofnodes.simple.type.TypeInteger.BOT,conv.equals("SystemV") ? "sysv_abi" : "ms_abi",
                       "src/test/java/com/seaofnodes/simple/progs/c_returns.c",
                       "build/objs/c_returns"+conv,"S","",-1);
     }
@@ -108,7 +108,7 @@ public class Chapter22Test {
                     assertEquals(0,cpu.step(1000));
                     assertEquals(0,cpu._pc);
                     cpu._pc = (int)cpu.regs[riscv.A0]; // Call the returned address.
-                    cpu.regs[riscv.A0] = 0x2000;
+                    cpu.regs[library ? riscv.A1 : riscv.A0] = 0x2000; // Methods also receive self.
                     assertEquals(0,cpu.step(1000));
                     assertEquals(0,cpu._pc);
                     if( library ) assertEquals("ok",cpu._stdout.toString());
@@ -119,7 +119,7 @@ public class Chapter22Test {
                     assertEquals(0,cpu.step(1000));
                     assertEquals(0,cpu._pc);
                     cpu._pc = (int)cpu.regs[0];
-                    cpu.regs[0] = 0x2000;
+                    cpu.regs[library ? 1 : 0] = 0x2000;
                     assertEquals(0,cpu.step(1000));
                     assertEquals(0,cpu._pc);
                     if( library ) assertEquals("ok",cpu._stdout.toString());
@@ -137,6 +137,7 @@ public class Chapter22Test {
         assertEquals("ok",TestC.gcc(obj,"","src/test/java/com/seaofnodes/simple/progs/funptr.c",false,
                                    "build/objs/funptr"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
     }
+
 
     @Test public void testRiscvRightShifts() {
         // SRAI, SRLI, SRA, SRL: a0 = -32 shifted by 4.
@@ -185,7 +186,7 @@ public class Chapter22Test {
         testCPU(src,"arm","SystemV",0,"return Top;");
     }
 
-
+    // Enabled in Chapter 23; measured there by Chapter23AllocTest.
     @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
@@ -351,7 +352,7 @@ return cc.cz;
     @Test
     public void testHelloWorld() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
-        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",0);
+        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
@@ -392,7 +393,7 @@ return sum(is);
     @Test @Ignore
     public void testEcho() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/echo.smp"));
-        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/echo","","",0);
+        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/echo","","",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("echo", 0, 2, false);
