@@ -33,16 +33,17 @@ public class Chapter22Test {
 
 
     @Test public void testJig1() throws IOException {
-        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, true);
+        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 4, true);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // do assertEquals here
     }
     @Test public void testStorePeep() {
         String src = """ 
-                i64 a = 123456789012345;
-                i32 b = a<<32>>>32; // truncate high order bits
-                return b;
+struct Person { i32 age;};
+Person !p = new Person;
+p.age += arg;
+return p.age;         
         """;
         testCPU(src,"x86_64_v2", "Win64"  ,0,"return -2045911175;");
         testCPU(src,"riscv"    , "SystemV",0,"return ( -2045911040 + #-135 );");
