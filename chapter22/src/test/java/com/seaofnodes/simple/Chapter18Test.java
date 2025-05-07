@@ -33,7 +33,7 @@ while(arg--) {
 }
 return a;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck();
         assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
         assertEquals("2", Eval2.eval(code,  1));

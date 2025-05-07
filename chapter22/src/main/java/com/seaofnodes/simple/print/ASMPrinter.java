@@ -198,7 +198,7 @@ public abstract class ASMPrinter {
 
         // Encoding
         int fatEncoding = 0;
-        if( code._encoding != null ) {
+        if( code._encoding != null && code._encoding._opLen!=null ) {
             int size = code._encoding._opLen[n._nid];
             if( code._asmLittle )
                 for( int i=0; i<Math.min(size,dopz); i++ )
@@ -247,7 +247,7 @@ public abstract class ASMPrinter {
         sb.nl();
 
         // Printing more op bits than fit
-        if( isMultiOp != null && code._encoding != null ) {
+        if( isMultiOp != null && code._encoding != null && code._encoding._opLen!=null ) {
             // Multiple ops, template style, no RA, no scheduling.  Print out
             // one-line-per-newline, with encoding bits up front.
             int size = code._encoding._opLen[n._nid];

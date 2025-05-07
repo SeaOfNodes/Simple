@@ -132,13 +132,13 @@ return n.i;
     public void testNullRef4() {
         CodeGen code = new CodeGen("return -null-5/null-5;");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
         CodeGen code = new CodeGen("return null+42;");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
     }
 
     @Test

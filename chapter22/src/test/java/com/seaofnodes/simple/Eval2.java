@@ -117,9 +117,7 @@ public abstract class Eval2 {
         if( code._start.uctrl()==null ) return ""; // The empty program
         SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
         // Force local scheduling phase
-        if( code._phase.ordinal() < CodeGen.Phase.TypeCheck .ordinal() )  code.typeCheck();
-        if( code._phase.ordinal() < CodeGen.Phase.Schedule  .ordinal() )  code.GCM();
-        if( code._phase.ordinal() < CodeGen.Phase.LocalSched.ordinal() )  code.localSched();
+        code.driver(CodeGen.Phase.LocalSched);
         // Set global, so don't have to pass everywhere
         CODE = code;
 

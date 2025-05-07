@@ -66,7 +66,7 @@ public abstract class Node implements Cloneable {
     // Make a Node using the existing arrays of nodes.
     // Used by any pass rewriting all Node classes but not the edges.
     Node( Node n ) {
-        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.InstSelect.ordinal();
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Select.ordinal();
         _nid = CODE.getUID(); // allocate unique dense ID
         _inputs  = new Ary<>(n==null ? new Node[0] : n._inputs.asAry());
         _outputs = new Ary<>(Node.class);

@@ -299,7 +299,7 @@ public class Encoding {
     private static boolean forwardsEmptyScan( CFGNode c, int bld ) {
         if( c.nOuts()!=1 || c.loopDepth()!=bld ) return false;
         return c.uctrl() instanceof RegionNode cfg &&
-            (cfg instanceof LoopNode || forwardsEmptyScan(cfg,bld));
+            ((cfg instanceof LoopNode && cfg._ltree==c._ltree) || forwardsEmptyScan(cfg,bld));
     }
 
     // Is the CFG from "next" to the end empty?  This means jumping to "next"

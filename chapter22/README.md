@@ -84,9 +84,10 @@ struct sys {
 };
 ```
 
-The `sys` import itself is Just Another `struct` like any other; it has fields
-and types declared internall.  Note that these assignments are all final and in
-the struct declaration, hence these are all *static* fields.
+The `sys` import itself is Just Another `struct` like any other struct; it has
+fields and assignments and types declared internally.  Note that these
+assignments are all final and in the struct declaration, hence these are all
+*static* fields.
 
 
 ## Casting a Pointer to an `i64`
@@ -102,9 +103,10 @@ struct base.
 ## Arrays of Constants and Constant Arrays
 
 The Simple type system now supports the notion of a "constant array" - an array
-of fixed constants, stored in the ELF file in the RODATA section.  We only
-support strings at the parser level: "Hello, World!" makes a `u8[13]` array
-containing ASCII bytes.
+of fixed constants, stored in the ELF file in the RODATA section.  Currently we
+only support strings at the parser level: "Hello, World!" makes a `u8[13]`
+array containing 13 ASCII bytes; like all arrays it has a length and will be
+range-checked in the future.
 
 A constant version of a non-constant array can be assigned using the `u8[~]`
 syntax.
@@ -126,5 +128,5 @@ val sum = { i32[~] is ->
 return sum(is);
 ```
 
-Note that this affects the deep contents of the array, and not the array
+Note that this affects the deep contents of the array and not the array
 variable itself.
