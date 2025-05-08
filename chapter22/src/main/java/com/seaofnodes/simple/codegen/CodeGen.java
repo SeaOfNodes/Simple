@@ -461,8 +461,10 @@ public class CodeGen {
     String printCFG() {
         if( _cfg==null ) return "no CFG";
         SB sb = new SB();
-        for( CFGNode cfg : _cfg )
-            IRPrinter.printLine(cfg,sb);
+        for( CFGNode cfg : _cfg ) {
+            sb.fix(8,""+cfg._idepth);
+            IRPrinter.printLine( cfg, sb );
+        }
         return sb.toString();
     }
 

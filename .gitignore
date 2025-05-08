@@ -2,8 +2,8 @@
 # Compiled class file
 *.class
 build/
-docs/examples/*.o
-docs/examples/*.exe
+*/docs/examples/*.o
+*/docs/examples/*.exe
 
 # Log file
 *.log

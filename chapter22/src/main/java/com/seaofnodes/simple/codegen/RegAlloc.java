@@ -163,7 +163,7 @@ public class RegAlloc {
             }
         // Cache reg masks for New and Call
         for( CFGNode bb : _code._cfg ) {
-            if( bb instanceof CallEndNode cend ) cend.cacheRegs(_code);
+            if( bb instanceof CallEndMach cend ) cend.cacheRegs(_code);
             for( Node n : bb._outputs )
                 if( n instanceof NewNode nnn ) nnn.cacheRegs(_code);
         }
@@ -565,7 +565,7 @@ public class RegAlloc {
             if( bb instanceof ReturnNode ret )
                 ret.fun().computeFrameAdjust(_code,maxReg);
             // Raise frame size by max stack args passed, even if ignored
-            if( bb instanceof CallEndNode cend )
+            if( bb instanceof CallEndMach cend )
                 maxReg = Math.max(maxReg,cend._xslot);
 
             for( int j=0; j<bb.nOuts(); j++ ) {
