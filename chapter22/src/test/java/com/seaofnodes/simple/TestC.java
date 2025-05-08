@@ -41,8 +41,20 @@ public abstract class TestC {
     public static void run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
         String bin = efile+xtn;
         String obj = bin+".o";
+        String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        String result = gcc(obj, c_conv, cfile, false, exe );
+        assertEquals(expected,result);
+
+        // Allocation quality not degraded
+        int delta = spills>>3;
+        if( delta==0 ) delta = 1;
+        if( spills != -1 )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+    }
+
+    public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
 
         // Compile the C program.  Compiling code and constants in the low
         // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
@@ -56,7 +68,7 @@ public abstract class TestC {
                 "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
                 "-g",
                 "-o",
-                bin,
+                args[0],
         });
         // Calling convention for C calls, if any
         if( cfile!=null ) {
@@ -64,6 +76,7 @@ public abstract class TestC {
             params.add("CALL_CONV="+c_conv);
         }
 
+        // Run GCC to link (optionally compile C driver code)
         Process gcc = new ProcessBuilder(params.asAry()).redirectErrorStream(true).start();
         int exit;
         try {
@@ -81,21 +94,13 @@ public abstract class TestC {
         //assertTrue(result.isEmpty()); // No data in error stream
 
         // Execute results
-        Process smp = new ProcessBuilder(bin).redirectErrorStream(true).start();
-        try { exit = (byte)smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
-        result = new String(smp.getInputStream().readAllBytes());
-        if( exit!=0 ) {
+        ProcessBuilder smp = new ProcessBuilder(args);
+        if( stdin ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
+        Process p = smp.start();
+        try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        result = new String(p.getInputStream().readAllBytes());
+        if( exit!=0 )
             System.err.println("exec exit code: "+exit);
-            System.err.println(result);
-        }
-        assertEquals( 0, exit );
-        assertEquals(expected,result);
-
-        // Allocation quality not degraded
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
-
+        return result;
     }
 }

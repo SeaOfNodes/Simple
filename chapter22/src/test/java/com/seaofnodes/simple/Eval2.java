@@ -289,9 +289,9 @@ public abstract class Eval2 {
     // Fetch without unboxing, searching up-Frame
     static Object val( Node n ) { return F.get(n); }
     // Fetch and unbox as primitive long
-    static long   x( Node n ) { Object d = F.get(n); return d==null ? 0 : (Long)  F.get(n);  }
+    static long   x( Node n ) { Object d = F.get(n); return d==null ? 0 : (Long)d;  }
     // Fetch and unbox as primitive double
-    static double d( Node n ) { Object d = F.get(n); return d==null ? 0 : (Double)F.get(n);  }
+    static double d( Node n ) { Object d = F.get(n); return d==null ? 0 : (Double)d;  }
     // Fetch and unbox a function constant
     static TypeFunPtr tfp(Node n) { return (TypeFunPtr)F.get(n); }
     // Fetch and unbox a closure
@@ -347,10 +347,19 @@ public abstract class Eval2 {
     }
 
     private static Object load( LoadNode ld ) {
-        TypeMemPtr tmp = (TypeMemPtr)ld.ptr()._type;
-        Object[] fs = (Object[])val(ld.ptr());
+        Object f = val(ld.ptr());
+        // Check for dense constant array
+        if( f instanceof TypeMemPtr tmp ) {
+            assert tmp._obj._con != TypeConAry.BOT;
+            if( ld._name.equals("#") )
+                return (long)tmp._obj._con.len();
+            int idx = offToIdx(x(ld.off()),tmp._obj);
+            return tmp._obj._con.at(idx);
+        }
+        Object[] fs = (Object[])f;
         if( ld._name.equals("#") )
             return (long)fs.length;
+        TypeMemPtr tmp = (TypeMemPtr)ld.ptr()._type;
         int idx = tmp._obj.isAry()
             ? offToIdx(x(ld.off()),tmp._obj)
             : tmp._obj.find(ld._name);
