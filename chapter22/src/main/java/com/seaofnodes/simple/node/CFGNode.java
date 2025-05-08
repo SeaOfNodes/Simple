@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -72,7 +73,9 @@ public abstract class CFGNode extends Node {
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
     public int _idepth;
-    public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    public int idepth() {
+        return CodeGen.CODE.validIDepth(_idepth) ? _idepth : (_idepth=CodeGen.CODE.iDepthFrom(idom().idepth()));
+    }
 
     // Return the immediate dominator of this Node and compute dom tree depth.
     public CFGNode idom(Node dep) { return cfg(0); }

@@ -563,10 +563,11 @@ public class arm extends Machine {
         return (opcode << 26) | delta;
     }
 
-    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx ) { return callInMask(tfp,idx); }
-    static RegMask callInMask(TypeFunPtr tfp, int idx ) {
+    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    static RegMask callInMask(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         if( idx==0 ) return CodeGen.CODE._rpcMask;
         if( idx==1 ) return null;
+        // Count floats in signature up to index
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
         // Count floats in signature up to index
         int fcnt=0;
@@ -789,8 +790,7 @@ public class arm extends Machine {
     private static int off;
     private static Node idx;
     private Node st(StoreNode st) {
-        Node xval = st.val() instanceof ConstantNode con && con._con == TypeInteger.ZERO ? null : st.val();
-        return new StoreARM(address(st),st.ptr(),idx,off,xval);
+        return new StoreARM(address(st),st.ptr(),idx,off,st.val());
     }
 
     // Gather addressing mode bits prior to constructing.  This is a builder

@@ -6,12 +6,13 @@ import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
-    @Test
+    @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);

@@ -21,7 +21,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public RegMask regmap(int i) {
         return riscv.callInMask(_tfp,i,fun()._maxArgSlot);
     }
-    @Override public RegMask outregmap() { return null; }
+    @Override public RegMask outregmap() { return riscv.RPC_MASK; }
     @Override public String name() { return _name; }
     @Override public TypeFunPtr tfp() { return _tfp; }
 

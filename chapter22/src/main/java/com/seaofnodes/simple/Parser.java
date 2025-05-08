@@ -653,7 +653,8 @@ public class Parser {
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
     private Node liftExpr( Node expr, Type t, boolean xfinal ) {
-        assert !(expr._type instanceof TypeMemPtr tmp) || !tmp.isFRef();
+        if( expr._type instanceof TypeMemPtr tmp && tmp.isFRef() )
+            throw error("Must define forward ref "+tmp._obj._name);
         // Final is deep on ptrs
         if( xfinal && t instanceof TypeMemPtr tmp ) {
             t = tmp.makeRO();
