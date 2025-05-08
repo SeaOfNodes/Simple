@@ -10,8 +10,8 @@ struct sys {
         {  i32 i64 u32 -> u32 } write = "C";
         // fd  buf len -> len
         {  i32 i64 u32 -> u32 } read = "C";
-        //// status
-        //{  i32 -> i32 } _exit = "C";
+        // status
+        {  i32 -> i32 } _exit = "C";
         // addr len prot flags fd  off -> void*
         {  i64  i64 i32  i32   i32 i32 -> i64 } mmap = "C";
         // mmap flags
@@ -22,6 +22,13 @@ struct sys {
         i32 MAP_PRIVATE = 2;
         i32 MAP_ANON = 32;
     };
+    struct ary {
+        val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
+            for( int i=0; i<len; i++ )
+                dst[i+doff] = src[i+soff];
+            return dst;
+        };
+    };
     struct io {
         // Print string to stdout
         val p = { u8[~] str ->
@@ -29,22 +36,23 @@ struct sys {
             return sys.libc.write(1,ptr,str#);
         };
 
-        //// Return stdin as a u8[]
-        //val stdin = { ->
-        //    var buf = new u8[8*1024];
-        //    i64 ptr = buf;
-        //    int len = 0;
-        //    while( true ) {
-        //        int rez = sys.libc.read(0,ptr,buf#);
-        //        if( rez < 0 ) sys.libc._exit(sys.libc.errno);
-        //        if( rez < buf# )
-        //            break;
-        //        sys.libc._exit(-2); // Need to implement
-        //    }
-        //    // Compress
-        //    var rez = new u8[len];
-        //    sys.ary.copy(buf,0,rez,0,len);
-        //    return rez;
-        //};
+        // Return stdin as a u8[]
+        val stdin = { ->
+            var buf = new u8[8*1024];
+            i64 ptr = buf;
+            int len = 0;
+            while( true ) {
+                int rez = sys.libc.read(0,ptr,buf#);
+                if( rez < 0 ) sys.libc._exit(sys.libc.errno);
+                len += rez;
+                if( rez < buf# )
+                    break;
+                sys.libc._exit(-2); // Need to implement
+            }
+            // Compress
+            var dst = new u8[len];
+            return sys.ary.copy(dst,0,buf,0,len);
+        };
+
     };
 };

@@ -174,13 +174,16 @@ public class CodeGen {
         // can call any function) to having a correct (but conservative) CG.
 
         FunNode main = link(_main);
-        for( Node use : _start._outputs )
+        for( int i=0; i<_start.nOuts(); i++ ) {
+            Node use = _start.out(i);
             if( use instanceof FunNode fun &&
                 fun.nIns()==2 && fun.in(1)==_start && fun != main &&
                     (fun._name==null || fun._name.startsWith("sys.")) ) {
                 add(fun).setDef(1,Parser.XCTRL);
                 addAll(fun._outputs);
+                i--;
             }
+        }
         _iter.iterate(this);
 
         _tOpto = (int)(System.currentTimeMillis() - t0);

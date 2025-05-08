@@ -116,7 +116,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (Parm_x($fun2,int,3)<<1); return #2; return (Parm_x($fun1,int,3)*x); ]", code._stop.toString());
+        assertEquals("Stop[ return (Parm_x($fun2,int,3)<<1); return (Parm_x($fun1,int,3)*x); return #2; ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }

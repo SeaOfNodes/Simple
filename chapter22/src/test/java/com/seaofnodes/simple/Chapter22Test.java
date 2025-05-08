@@ -144,4 +144,22 @@ return sum(is);
     }
 
 
+    @Test @Ignore
+    public void testEcho() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/echo.smp"));
+        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/echo","","",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("echo", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("echo", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
 }

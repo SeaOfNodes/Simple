@@ -167,7 +167,9 @@ public abstract class GlobalCodeMotion {
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use indirectly defines memory
-                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
+                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem) ||
+                             // Load-use use/defs memory
+                             memuse instanceof CallNode) )
                             continue outer;
 
                 // All uses done, schedule

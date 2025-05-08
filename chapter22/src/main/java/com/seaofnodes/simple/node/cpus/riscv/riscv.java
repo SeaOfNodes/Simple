@@ -327,8 +327,8 @@ public class riscv extends Machine {
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CallNode    call -> call(call);
-        case CastNode   cast  -> new CastRISC(cast);
-        case CallEndNode cend -> new CallEndRISC(cend);
+        case CastNode   cast  -> new CastMach(cast);
+        case CallEndNode cend -> new CallEndMach(cend);
         case CProjNode      c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode    divf -> new DivFRISC(divf);
@@ -346,7 +346,7 @@ public class riscv extends Machine {
         case ParmNode    parm -> new ParmRISC(parm);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
-        case ReadOnlyNode read-> new ReadOnlyNode(read);
+        case ReadOnlyNode read-> new ReadOnlyMach(read);
         case ReturnNode   ret -> new RetRISC(ret, ret.fun());
         case SarNode      sar -> sra(sar);
         case ShlNode      shl -> sll(shl);
