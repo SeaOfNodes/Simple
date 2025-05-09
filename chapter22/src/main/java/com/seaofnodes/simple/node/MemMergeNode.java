@@ -117,7 +117,7 @@ public class MemMergeNode extends Node {
 
     void _merge( MemMergeNode that, RegionNode r) {
         int len = Math.max(nIns(),that.nIns());
-        for( int i = 2; i < len; i++)
+        for( int i = 1; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by alias as it will trigger a phi creation

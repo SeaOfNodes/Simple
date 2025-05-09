@@ -39,7 +39,7 @@ public class SetX86 extends MachConcreteNode implements MachNode {
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, dst));
 
         // low 8 bites are set, now zero extend for next instruction
-        if( dst >= 8 ) enc.add1(x86_64_v2.rex(dst, dst, 0, false));
+        if( dst >= 4 ) enc.add1(x86_64_v2.rex(dst, dst, 0, false));
         enc.add1(0x0F); // opcode
         enc.add1(0xB6); // opcode
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, dst));

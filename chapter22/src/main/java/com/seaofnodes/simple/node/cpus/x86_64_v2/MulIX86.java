@@ -18,13 +18,13 @@ public class MulIX86 extends MachConcreteNode implements MachNode {
         enc.add1(x86_64_v2.rex(src, dst, 0));
         // opcode; 0x69 or 0x6B
         enc.add1( 0x69 + (x86_64_v2.imm8(_imm) ? 2 : 0) );
-        enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, src, dst) );
+        enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src) );
         // immediate(4 bytes) 32 bits or (1 byte)8 bits
         if( x86_64_v2.imm8(_imm) ) enc.add1(_imm);
         else                       enc.add4(_imm);
     }
     // General form: "addi  dst += #imm"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(code.reg(this)).p(" ").p(glabel()).p("= #").p(_imm);
+        sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" * #").p(_imm);
     }
 }
