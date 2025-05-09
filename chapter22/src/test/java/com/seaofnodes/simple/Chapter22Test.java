@@ -31,8 +31,6 @@ public class Chapter22Test {
             assertEquals(stop, code._stop.toString());
     }
 
-
-    // Store opt wipes out SEXT shifts
     @Test public void testSext() throws IOException {
         EvalRisc5 R5 = TestRisc5.build("sext_str_2", 0, 4, true);
         int trap = R5.step(100);
@@ -42,10 +40,14 @@ public class Chapter22Test {
 
     @Test public void testStorePeep() throws IOException{
         String src = """ 
-                i64 a = 123456789012345;
-                i32 b = a<<32>>>32; // truncate high order bits
-                return b;
+struct Person { i32 age;};
+Person !p = new Person;
+p.age += arg;
+return p.age;         
         """;
+        testCPU(src,"x86_64_v2", "Win64"  ,0,"return -2045911175;");
+        testCPU(src,"riscv"    , "SystemV",0,"return ( -2045911040 + #-135 );");
+        testCPU(src,"arm"      , "SystemV",0,"return -2045911175;");
         testCPU(src,"riscv"    , "SystemV",0,"return ( -2045911040 + #-135 );");
         EvalRisc5 R5 = TestRisc5.build("store_peep", 0, 0, true);
         int trap = R5.step(100);

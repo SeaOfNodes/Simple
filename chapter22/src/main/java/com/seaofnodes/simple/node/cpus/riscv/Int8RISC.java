@@ -32,7 +32,7 @@ public class Int8RISC extends ConstantNode implements MachNode, RIPRelSize {
 
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        short dst = (enc.reg(this));
+        short dst = enc.reg(this);
         short tmp = (short)riscv.T6;
         // AUIPC dst,#hi20_constant_pool
         enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, tmp, delta>>12));
