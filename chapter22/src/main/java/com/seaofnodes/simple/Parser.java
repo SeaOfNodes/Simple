@@ -1116,6 +1116,7 @@ public class Parser {
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return NIL;
+        if( match ("'"    ) ) return parseChar();
         if( match ("("    ) ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
         if( match ("{"    ) ) return require(func(),"}");
@@ -1548,6 +1549,10 @@ public class Parser {
         return new String(_lexer._input,start,pos()-start-1);
     }
 
+    // Already parsed "'"
+    private Node parseChar() {
+        return require(con(TypeInteger.constant(_lexer.nextChar())),"'");
+    }
 
     //////////////////////////////////
     // Utilities for lexical analysis

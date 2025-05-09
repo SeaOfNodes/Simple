@@ -273,7 +273,7 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case MemOpNode st:
-                if( !st._isLoad ) {
+                if( !st._isLoad && load._alias == st._alias ) {
                     assert late[mem._nid] != null;
                     lca = anti_dep( load, late[mem._nid], mem.cfg0(), lca, st );
                 }
