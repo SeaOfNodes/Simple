@@ -92,7 +92,7 @@ public class StoreNode extends MemOpNode {
             shl.in(2)._type.isConstant() ) {
             TypeInteger shrC = (TypeInteger) shr.in(2)._type;
             // if the store is unrelated to the shift amount, then get rid of the shift
-            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= (int)(Math.pow(2, _type.log_size()) * 8))
+            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= (int)(Math.pow(2, log_size()) * 8))
                 return setDef(3, shl.in(1));
         }
         return null;

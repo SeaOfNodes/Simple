@@ -31,32 +31,28 @@ public class Chapter22Test {
             assertEquals(stop, code._stop.toString());
     }
 
+    // Wipes out extra(not needed) SEXT shifts.
     @Test public void testSext() throws IOException {
-        EvalRisc5 R5 = TestRisc5.build("sext_str_2", 0, 4, true);
+        String src = """ 
+    struct Person { i32 age;};
+    Person !p = new Person;
+    p.age += arg;
+    return p.age;         
+       """;
+        EvalRisc5 R5 = TestRisc5.build("sext_str_2", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
+        testCPU(src, "x86_64_v2","Win64",0,"return 0;");
+        testCPU(src, "riscv","SystemV",4,"return .age;");
+        testCPU(src, "arm","SystemV",0,"return .age;");
         // do assertEquals here
     }
 
-    @Test public void testStorePeep() throws IOException{
-        String src = """ 
-struct Person { i32 age;};
-Person !p = new Person;
-p.age += arg;
-return p.age;         
-        """;
-        testCPU(src,"x86_64_v2", "Win64"  ,0,"return -2045911175;");
-        testCPU(src,"riscv"    , "SystemV",0,"return ( -2045911040 + #-135 );");
-        testCPU(src,"arm"      , "SystemV",0,"return -2045911175;");
-        testCPU(src,"riscv"    , "SystemV",0,"return ( -2045911040 + #-135 );");
-        EvalRisc5 R5 = TestRisc5.build("store_peep", 0, 0, true);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-    }
+
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
-        //TestC.run("person", person, 0);
+        TestC.run("person", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start

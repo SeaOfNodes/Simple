@@ -225,6 +225,7 @@ public class Type {
     public int log_size () {
         if (_type == 13)  // TypeMem
             return ((TypeMem)this)._t.log_size();
+        // Todo: needs to handle all cases, eg TypeInteger, or Float
         return 3;
     } // log-size of a type; log_size for a struct is usually undefined
     public int size() { return 1<<log_size(); }
