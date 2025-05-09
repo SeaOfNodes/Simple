@@ -125,7 +125,7 @@ public class FunNode extends RegionNode {
         return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
     }
     // Bypass Region idom, always assume idom is Start
-    @Override public CFGNode idom(Node dep) { return cfg(1); }
+    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : cfg(1); }
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()<2 || in(1) instanceof StartNode; }
