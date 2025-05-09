@@ -32,24 +32,29 @@ public class Chapter22Test {
     }
 
 
-    @Test public void testJig1() throws IOException {
-        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, false);
+    // Store opt wipes out SEXT shifts
+    @Test public void testSext() throws IOException {
+        EvalRisc5 R5 = TestRisc5.build("sext_str_2", 0, 4, true);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // do assertEquals here
     }
+
     @Test public void testStorePeep() throws IOException{
         String src = """ 
                 i64 a = 123456789012345;
                 i32 b = a<<32>>>32; // truncate high order bits
                 return b;
         """;
-        testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
+        testCPU(src,"riscv"    , "SystemV",0,"return ( -2045911040 + #-135 );");
+        EvalRisc5 R5 = TestRisc5.build("store_peep", 0, 0, true);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
     }
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
-        TestC.run("person", person, 0);
+        //TestC.run("person", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start

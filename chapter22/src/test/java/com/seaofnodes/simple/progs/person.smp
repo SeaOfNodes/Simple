@@ -1,6 +1,6 @@
 // -*-java-*-
 struct Person {
-    int age;
+    i32 age;
 };
 
 val fcn = { Person?[] ps, int x ->
