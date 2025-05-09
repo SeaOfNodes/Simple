@@ -54,7 +54,8 @@ public class MemMergeNode extends Node {
         MemMergeNode merge = new MemMergeNode(false);
         for( Node n : _inputs )
             merge.addDef(n);
-        merge._mem(1,null);
+        for( int i=1; i<nIns(); i++ )
+            merge._mem(i,null);
         return merge.peephole();
     }
 
@@ -132,7 +133,7 @@ public class MemMergeNode extends Node {
         for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
                 assert phi.in(2)==null;
-                phi.setDef(2,back.in(i)==scope ? phi : back.in(i)); // Fill backedge
+                phi.setDef(2,back.alias(i)==scope ? phi : back.alias(i)); // Fill backedge
             }
             if( exit_def == scope ) // Replace a lazy-phi on the exit path also
                 exit.alias(i,in(i));

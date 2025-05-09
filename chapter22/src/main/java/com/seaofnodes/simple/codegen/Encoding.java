@@ -299,7 +299,7 @@ public class Encoding {
     private static boolean forwardsEmptyScan( CFGNode c, int bld ) {
         if( c.nOuts()!=1 || c.loopDepth()!=bld ) return false;
         return c.uctrl() instanceof RegionNode cfg &&
-            (cfg instanceof LoopNode || forwardsEmptyScan(cfg,bld));
+            ((cfg instanceof LoopNode && cfg._ltree==c._ltree) || forwardsEmptyScan(cfg,bld));
     }
 
     // Is the CFG from "next" to the end empty?  This means jumping to "next"
@@ -322,7 +322,6 @@ public class Encoding {
             if( !(bb instanceof MachNode mach0) )
                 _opStart[bb._nid] = _bits.size();
             else if( bb instanceof FunNode fun ) {
-                padN(16,_bits);
                 _fun = fun;     // Currently encoding function
                 _opStart[bb._nid] = _bits.size();
                 mach0.encoding( this );
@@ -336,7 +335,6 @@ public class Encoding {
                 }
             }
         }
-        padN(16,_bits);
     }
 
     // --------------------------------------------------
@@ -497,16 +495,16 @@ public class Encoding {
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
-    public static int SENTINAL_CALLOC = -4;
-    public static int SENTINAL_WRITE  = -8;
+    public static int SENTINEL_CALLOC = -4;
+    public static int SENTINEL_WRITE  = -8;
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
             int start  = _opStart[src._nid];
             String dst =  _externals.get(src);
             int target = switch( dst ) {
-            case "calloc" -> SENTINAL_CALLOC;
-            case "write"  -> SENTINAL_WRITE ;
+            case "calloc" -> SENTINEL_CALLOC;
+            case "write"  -> SENTINEL_WRITE ;
             default -> throw Utils.TODO();
             };
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);

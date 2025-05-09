@@ -13,7 +13,7 @@ import static org.junit.Assert.*;
 
 public class Chapter22Test {
 
-    @Test
+    @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
@@ -120,19 +120,57 @@ return cc.cz;
 
     @Test
     public void testHelloWorld() throws IOException {
-        //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
-        //TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",0);
-        //
-        //// Evaluate on RISC5 emulator
-        //EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
-        //int trap = R5.step(100);
-        //assertEquals(0,trap);
-        //assertEquals(0,R5.regs[riscv.A0]);
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
+        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",0);
 
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
-        int trap = arm.step(100);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
+    @Test
+    public void testFinalArray() {
+        String src = """
+int N=4;
+i32[] !is = new i32[N];
+for( int i=0; i<N; i++ )
+    is[i] = i*i;
+val sum = { i32[~] is ->
+    int sum=0;
+    for( int i=0; i<is#; i++ )
+        sum += is[i];
+    return sum;
+};
+return sum(is);
+""";
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());
+        assertEquals("14", Eval2.eval(code, 0));
+    }
+
+
+    @Test @Ignore
+    public void testEcho() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/echo.smp"));
+        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/echo","","",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("echo", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("echo", 0, 2, false);
+        trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
     }

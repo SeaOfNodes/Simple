@@ -166,6 +166,8 @@ public abstract class GlobalCodeMotion {
                             !(memuse instanceof NewNode) &&
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
+                             // Load-use directly defines memory
+                             memuse instanceof CallNode ||
                              // Load-use indirectly defines memory
                              (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
                             continue outer;
@@ -199,6 +201,33 @@ public abstract class GlobalCodeMotion {
         if( n instanceof MemOpNode load && load._isLoad )
             lca = find_anti_dep(lca,load,early,late);
 
+
+        // Nodes setting a single register and getting killed will stay close
+        // to the uses, since they will be forced to spill anyway.  The kill
+        // check is very weak, and some may be hoisted only to spill in the RA.
+        if( n instanceof MachNode mach ) {
+            RegMask out = mach.outregmap();
+            if( out!=null && out.size1() ) {
+                int reg = mach.outregmap().firstReg();
+                // Look for kills
+                outer:
+                for( CFGNode lca2=lca; lca2 != early; lca2 = lca2.idom() ) {
+                    if( lca2 instanceof MachNode mach2 ) {
+                        for( int i=1; i<lca2.nIns(); i++ ) {
+                            RegMask mask = mach2.regmap(i);
+                            if( mask!=null && mask.test(reg) ) {
+                                early = lca2 instanceof IfNode ? lca2.idom() : lca2;
+                                break outer;
+                            }
+                        }
+                        RegMask kill = mach2.killmap();
+                        if( kill != null )
+                            throw Utils.TODO();
+                    }
+                }
+            }
+        }
+
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
@@ -230,8 +259,9 @@ public abstract class GlobalCodeMotion {
     // Least loop depth first, then largest idepth
     private static boolean better( CFGNode lca, CFGNode best ) {
         return lca.loopDepth() < best.loopDepth() ||
-                lca instanceof NeverNode ||
-                (lca.idepth() > best.idepth() || best instanceof IfNode);
+            lca instanceof NeverNode ||
+            lca.idepth() > best.idepth() ||
+            best instanceof IfNode;
     }
 
     private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late) {
@@ -243,14 +273,14 @@ public abstract class GlobalCodeMotion {
         for( Node mem : load.mem()._outputs ) {
             switch( mem ) {
             case MemOpNode st:
-                if( !st._isLoad ) {
+                if( !st._isLoad && load._alias == st._alias ) {
                     assert late[mem._nid] != null;
                     lca = anti_dep( load, late[mem._nid], mem.cfg0(), lca, st );
                 }
                 break; // Loads do not cause anti-deps on other loads
-            case CallNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+            case CallNode call:
+                assert late[call._nid]!=null;
+                lca = anti_dep(load,late[call._nid],call.cfg0(),lca,call);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.

@@ -16,8 +16,12 @@ abstract public class Machine {
     public abstract long callerSave();
     // List of never-save registers, e.g. RSP or a ZERO register if you have one
     public abstract long neverSave();
-    // Call Argument Mask
-    public abstract RegMask callArgMask(TypeFunPtr tfp, int arg);
+    // Call Argument Mask.  Passed in the function signature and argument
+    // number (2-based; 0 is for control and 1 for memory).  Also passed in a 0
+    // for the function itself, or for *outgoing* calls, the maximum stack slot
+    // given to the incoming function arguments (stack slots reserved for
+    // incoming arguments).
+    public abstract RegMask callArgMask(TypeFunPtr tfp, int arg, int maxArgSlot);
     // Return register mask, based on signature (GPR vs FPR)
     public abstract RegMask retMask(TypeFunPtr tfp);
     // Return PC register

@@ -11,7 +11,7 @@ public class CallRRARM extends CallNode implements MachNode {
     @Override public RegMask regmap(int i) {
         return i==_inputs._len
             ? arm.RMASK                // Function call target
-            : arm.callInMask(tfp(),i); // Normal argument
+            : arm.callInMask(tfp(),i,fun()._maxArgSlot); // Normal argument
     }
     @Override public RegMask outregmap() { return null; }
 

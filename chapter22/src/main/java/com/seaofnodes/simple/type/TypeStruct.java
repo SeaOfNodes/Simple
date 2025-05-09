@@ -241,7 +241,8 @@ public class TypeStruct extends Type {
     public SB print(SB sb) {
         if( _con!=TypeConAry.BOT ) return sb.p(_con.str());
         sb.p(_name);
-        if( _fields == null || isAry() ) return sb; // Forward reference struct, just print the name
+        if( _fields == null || isAry() ) // Forward reference struct, just print the name
+            return sb.p(isFinal() ? "" : "!");
         sb.p(" {");
         for( Field f : _fields )
             f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");

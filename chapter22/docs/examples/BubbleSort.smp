@@ -1,0 +1,88 @@
+// -*- mode: java;  -*-
+
+val _exit = { u8[~] msg ->
+    sys.io.p(msg);
+    sys.libc._exit(1);
+};
+val usage = { -> _exit("stdin must look like [4, 3, 2, 1]"); };
+
+// Scanner
+struct Scan {
+    int !x;
+    u8[~] buf;
+};
+
+// Skip whitespace
+val skip = { Scan s ->
+    while( s.buf[s.x] <= 32 )
+        s.x++;
+};
+
+// Require specific syntax or usage
+val require = { Scan s, u8 c ->
+    skip(s);
+    if( s.buf[s.x++] != c )
+        usage();
+};
+
+val peek = { Scan s, u8 c ->
+    skip(s);
+    if( s.buf[s.x] != c ) return false;
+    s.x++;
+    return true;
+};
+
+val number = { Scan s ->
+    skip(s);
+    i32 n = 0;
+    while( '0' <= s.buf[s.x] & s.buf[s.x] <= '9' )
+        n = n*10 + (s.buf[s.x++] - '0');
+    return n;
+};
+
+
+// Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
+val main = { ->
+    Scan !s = new Scan{ buf = sys.io.stdin(); };
+    require(s,'[');
+    // Array of parsed results
+    int[] !ns = new int[16];
+    i32 num = 0;
+    // Parse a list of numbers
+    if( !peek(s,']') ) {        // Handle the empty list
+        // Parse "123, " until a something else
+        while( s.x < s.buf# ) {
+            int n = number(s);
+            i32 q=n;
+            ns[num++] = n;
+            if( !peek(s,',') )
+                break;
+        };
+        require(s,']');         // Close the list
+    }
+
+    // Print a list of numbers
+    sys.io.p("[ ");
+    u8[] !buf = new u8[20];
+    for( int i=0; i<num; i++ ) {
+        int x = ns[i];
+        if( !x ) { sys.io.p("0, "); continue; }
+
+        u32 log=0, q=x;
+        while( q>0 )
+            { q/=10; log++; }
+        i32 raw=log;
+        sys.libc._exit(raw);
+    //    for( int j=0, a=x; j<log; j++ ) {
+    //        q = x/10;
+    //        buf[log-j] = '0'+(x-q*10);
+    //        x = q;
+    //    }
+    //    int raw = buf;
+    //    sys.libc.write(1,raw,log);
+    //    sys.io.p(", ");
+    }
+    sys.io.p("]");
+
+    return num;
+};

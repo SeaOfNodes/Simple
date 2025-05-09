@@ -448,8 +448,11 @@ public class Parser {
 
         // At exit the false control is the current control, and
         // the scope is the exit scope after the exit test.
-        _xScopes.pop();
-        _xScopes.push(exit);
+        // During sys parsing, there is no xscope here.
+        if( !_xScopes.isEmpty() ) {
+            _xScopes.pop();
+            _xScopes.push( exit );
+        }
         _scope = exit;
         return ZERO;
     }
@@ -650,7 +653,8 @@ public class Parser {
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
     private Node liftExpr( Node expr, Type t, boolean xfinal ) {
-        assert !(expr._type instanceof TypeMemPtr tmp) || !tmp.isFRef();
+        if( expr._type instanceof TypeMemPtr tmp && tmp.isFRef() )
+            throw error("Must define forward ref "+tmp._obj._name);
         // Final is deep on ptrs
         if( xfinal && t instanceof TypeMemPtr tmp ) {
             t = tmp.makeRO();
@@ -1112,6 +1116,7 @@ public class Parser {
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return ZERO;
         if( matchx("null" ) ) return NIL;
+        if( match ("'"    ) ) return parseChar();
         if( match ("("    ) ) return require(parseAsgn(), ")");
         if( matchx("new"  ) ) return alloc();
         if( match ("{"    ) ) return require(func(),"}");
@@ -1461,7 +1466,7 @@ public class Parser {
             throw error("Expected a function but got "+expr._type.glb(false).str());
         expr.keep();            // Keep while parsing args
 
-        Ary<Node> args = new Ary<Node>(Node.class);
+        Ary<Node> args = new Ary<>( Node.class );
         args.push(null);        // Space for ctrl,mem
         args.push(null);
         while( !peek(')') ) {
@@ -1544,6 +1549,10 @@ public class Parser {
         return new String(_lexer._input,start,pos()-start-1);
     }
 
+    // Already parsed "'"
+    private Node parseChar() {
+        return require(con(TypeInteger.constant(_lexer.nextChar())),"'");
+    }
 
     //////////////////////////////////
     // Utilities for lexical analysis

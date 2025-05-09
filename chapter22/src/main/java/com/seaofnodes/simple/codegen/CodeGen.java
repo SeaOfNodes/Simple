@@ -21,7 +21,7 @@ public class CodeGen {
         Opto,                   // Run ideal optimizations
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
-        InstSelect,             // Convert to target hardware nodes
+        Select,                 // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
         RegAlloc,               // Register allocation
@@ -55,14 +55,15 @@ public class CodeGen {
     public CodeGen driver( Phase phase ) { return driver(phase,null,null); }
     public CodeGen driver( Phase phase, String cpu, String callingConv ) {
         if( _phase==null )                       parse();
-        if( _phase.ordinal() < phase.ordinal() ) opto();
-        if( _phase.ordinal() < phase.ordinal() ) typeCheck();
-        if( _phase.ordinal() < phase.ordinal() ) loopTree();
-        if( _phase.ordinal() < phase.ordinal() && cpu != null ) instSelect(cpu,callingConv);
-        if( _phase.ordinal() < phase.ordinal() ) GCM();
-        if( _phase.ordinal() < phase.ordinal() ) localSched();
-        if( _phase.ordinal() < phase.ordinal() ) regAlloc();
-        if( _phase.ordinal() < phase.ordinal() ) encode();
+        int p1 = phase.ordinal();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Opto      .ordinal() ) opto();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.TypeCheck .ordinal() ) typeCheck();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LoopTree  .ordinal() ) loopTree();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Schedule  .ordinal() ) GCM();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LocalSched.ordinal() ) localSched();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.RegAlloc  .ordinal() ) regAlloc();
+        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Encoding  .ordinal() ) encode();
         return this;
     }
 
@@ -87,6 +88,24 @@ public class CodeGen {
     private int _alias = 2; // 0 is for control, 1 for memory
     public  int getALIAS() { return _alias++; }
 
+
+    // idepths are cached and valid until *inserting* CFG edges (deleting is
+    // OK).  This happens with inlining, which bumps the version to bulk
+    // invalidate the idepth caches.
+    private int _iDepthVersion = 0;
+    public void invalidateIDepthCaches() { _iDepthVersion++; }
+    public boolean validIDepth(int idepth) {
+        if( idepth==0 ) return false;
+        if( _iDepthVersion==0 ) return true;
+        return (idepth%100)==_iDepthVersion;
+    }
+    public int iDepthAt(int idepth) {
+        return 100*idepth+_iDepthVersion;
+    }
+    public int iDepthFrom(int idepth) {
+        assert idepth==0 || validIDepth(idepth);
+        return idepth+100;
+    }
 
     // Popular visit bitset, declared here, so it gets reused all over
     public final BitSet _visit = new BitSet();
@@ -173,13 +192,16 @@ public class CodeGen {
         // can call any function) to having a correct (but conservative) CG.
 
         FunNode main = link(_main);
-        for( Node use : _start._outputs )
+        for( int i=0; i<_start.nOuts(); i++ ) {
+            Node use = _start.out(i);
             if( use instanceof FunNode fun &&
                 fun.nIns()==2 && fun.in(1)==_start && fun != main &&
                     (fun._name==null || fun._name.startsWith("sys.")) ) {
                 add(fun).setDef(1,Parser.XCTRL);
                 addAll(fun._outputs);
+                i--;
             }
+        }
         _iter.iterate(this);
 
         _tOpto = (int)(System.currentTimeMillis() - t0);
@@ -247,7 +269,7 @@ public class CodeGen {
     public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
     public CodeGen instSelect( String cpu, String callingConv, String base ) {
         assert _phase.ordinal() == Phase.LoopTree.ordinal();
-        _phase = Phase.InstSelect;
+        _phase = Phase.Select;
 
         _callingConv = callingConv;
 
@@ -339,7 +361,7 @@ public class CodeGen {
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase.ordinal() <= Phase.InstSelect.ordinal();
+        assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 
@@ -439,8 +461,10 @@ public class CodeGen {
     String printCFG() {
         if( _cfg==null ) return "no CFG";
         SB sb = new SB();
-        for( CFGNode cfg : _cfg )
-            IRPrinter.printLine(cfg,sb);
+        for( CFGNode cfg : _cfg ) {
+            sb.fix(8,""+cfg._idepth);
+            IRPrinter.printLine( cfg, sb );
+        }
         return sb.toString();
     }
 

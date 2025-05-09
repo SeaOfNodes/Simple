@@ -288,7 +288,7 @@ public class RegAlloc {
         // all registers anyways.
         if( rclass._len <= 1 || ncalls > 1 ) return false;
 
-        // Split by classh
+        // Split by class
         Ary<Node> ns = new Ary<>(Node.class);
         for( RegMask rmask : rclass ) {
             ns.addAll(def._outputs);

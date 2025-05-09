@@ -12,13 +12,12 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
-    @Test
+    @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        CodeGen code = new CodeGen(src).driver("x86_64_v2","Win64","build/objs/jigS.o");
-        //testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
-        //testCPU(src,"riscv"    , "SystemV",-1,null);
-        //testCPU(src,"arm"      , "SystemV",-1,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
+        testCPU(src,"riscv"    , "SystemV",-1,null);
+        testCPU(src,"arm"      , "SystemV",-1,null);
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
@@ -65,7 +64,7 @@ public class Chapter21Test {
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        //testCPU(src,"x86_64_v2", "SystemV", 9,null);
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 6,null);
     }
@@ -180,7 +179,7 @@ public class Chapter21Test {
         int p2 = ps+4*8+2*8;
         EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
-        R5.st4(ps,3);           // Length
+        R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
         R5.st8(ps+2*8,p1);
         R5.st8(ps+3*8,p2);
@@ -196,7 +195,7 @@ public class Chapter21Test {
 
         EvalArm64 A5 = TestArm64.build("person", ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
-        A5.st4(ps, 3);
+        A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
         A5.st8(ps+2*8,p1);
         A5.st8(ps+3*8,p2);

@@ -31,13 +31,15 @@ public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = enc.reg(this);
         if(opLen == 8 ) {
-            // opstart of add
-            int next = opStart + opLen;
+            // ARM encoding delta is from PC & 0xFFF
+            int target = opStart+delta;
+            int base = opStart & ~0xFFF;
+            delta = target-base;
             int adrp_delta = delta >> 12;
             // patch upper 20 bits via adrp
             enc.patch4(opStart, arm.adrp(1, adrp_delta & 0b11, 0b10000, adrp_delta >> 2, dst));
             // low 12 bits via add
-            enc.patch4(next, arm.imm_inst_l(arm.OPI_ADD, delta & 0xfff, dst));
+            enc.patch4(opStart+4, arm.imm_inst_l(arm.OPI_ADD, delta & 0xfff, dst));
         } else {
             throw Utils.TODO();
         }

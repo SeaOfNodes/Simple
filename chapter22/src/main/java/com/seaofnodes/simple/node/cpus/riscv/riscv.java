@@ -252,8 +252,8 @@ public class riscv extends Machine {
         };
     }
 
-    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx ) { return callInMask(tfp,idx); }
-    static RegMask callInMask( TypeFunPtr tfp, int idx ) {
+    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
@@ -272,6 +272,7 @@ public class riscv extends Machine {
                 return cargs[idx-2-fcnt];
         }
         // Pass on stack slot(8 and higher)
+        if( maxArgSlot>0 ) throw Utils.TODO();
         return new RegMask(MAX_REG + 1 + (idx - 2));
     }
 
@@ -327,8 +328,8 @@ public class riscv extends Machine {
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CallNode    call -> call(call);
-        case CastNode   cast  -> new CastRISC(cast);
-        case CallEndNode cend -> new CallEndRISC(cend);
+        case CastNode   cast  -> new CastMach(cast);
+        case CallEndNode cend -> new CallEndMach(cend);
         case CProjNode      c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivFNode    divf -> new DivFRISC(divf);
@@ -346,7 +347,7 @@ public class riscv extends Machine {
         case ParmNode    parm -> new ParmRISC(parm);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
-        case ReadOnlyNode read-> new ReadOnlyNode(read);
+        case ReadOnlyNode read-> new ReadOnlyMach(read);
         case ReturnNode   ret -> new RetRISC(ret, ret.fun());
         case SarNode      sar -> sra(sar);
         case ShlNode      shl -> sll(shl);

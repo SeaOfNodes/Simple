@@ -20,7 +20,4 @@ public class ExternNode extends ConstantNode {
     @Override public String uniqueName() { return "Extern_" + _nid; }
 
     @Override public boolean eq(Node n) { return this==n; }
-
-    @Override int hash() { return _con.hashCode(); }
-
 }
