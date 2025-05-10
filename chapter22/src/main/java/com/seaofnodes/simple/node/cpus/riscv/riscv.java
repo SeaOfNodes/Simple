@@ -318,7 +318,7 @@ public class riscv extends Machine {
         // shift left 32 to clear out the upper 32 bits.
         // shift right SIGNED to sign-extend upper 32 bits; then shift 12 more to clear out lower 12 bits.
         // shift left 12 to re-center the bits.
-        return ti.isConstant() && (((ti.value()<<32)>>>44)<<12) == ti.value();
+        return ti.isConstant() && (((ti.value()<<32)>>44)<<12) == ti.value();
     }
 
     @Override public Node instSelect( Node n ) {

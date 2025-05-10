@@ -22,7 +22,7 @@ public class Chapter22Test {
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
 
-    static void testCPU( String src, String cpu, String os, int spills, String stop ) {
+    static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
@@ -30,15 +30,86 @@ public class Chapter22Test {
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
+        return code;
     }
 
 
-    @Test public void testR5Load() throws IOException {
-        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, false);
+    static int testCPUSize( String src, String cpu, String os, int spills, String stop ) {
+        return testCPU(src,cpu,os,spills,stop)._encoding._bits.size();
+    }
+
+    // Should not fold away
+    @Test public void testSextFail() throws IOException {
+        String src = """
+struct Person { i32 age;};
+Person !p = new Person;
+p.age = (arg<<17)>>17;
+return 0;
+""";
+        assertEquals(46, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
+        assertEquals(60, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
+        assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+
+        // do assertEquals here
+        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
+
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away", 0, 4, false);
+        trap = A5.step(100);
+        assertEquals(0,trap);
+
+    }
+
+    // Should not fold away
+    @Test public void testSextFail2() throws IOException {
+        String src = """
+
+                struct Person { i32 age;};
+                Person !p = new Person;
+                p.age = (arg<<48)>>48;
+                return 0;
+        """;
+
+        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away_2", 0, 4, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", 0, 4, false);
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+
+        assertEquals(46, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
+        assertEquals(60, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
+        assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+
+    }
+
+    // Should fold away
+    @Test public void testSextSuccess() throws IOException {
+        String src = """
+// Should fold away sign extend
+struct Person { i8 age;};
+Person !p = new Person;
+p.age = (arg<<48)>>48;
+return 0;
+       """;
+
+        EvalRisc5 R5 = TestRisc5.build("sext_str_fold_away", 0, 5, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+
+        EvalArm64 A5 = TestArm64.build("sext_str_fold_away", 0, 5, false);
+        int trap_arm = A5.step(100);
+        assertEquals(0,trap_arm);
+
+        assertEquals(41, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
+        assertEquals(56, testCPUSize(src, "riscv","SystemV",5,"return 0;"));
+        assertEquals(52, testCPUSize(src, "arm","SystemV",5,"return 0;"));
         // do assertEquals here
     }
+
+
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
@@ -164,5 +235,6 @@ return sum(is);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
     }
+
 
 }
