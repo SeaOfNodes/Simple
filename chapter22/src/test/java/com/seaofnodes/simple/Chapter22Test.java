@@ -32,13 +32,24 @@ public class Chapter22Test {
             assertEquals(stop, code._stop.toString());
     }
 
-
-    @Test public void testR5Load() throws IOException {
-        EvalRisc5 R5 = TestRisc5.build("riscv_load", 0, 0, false);
+    // Wipes out extra(not needed) SEXT shifts.
+    @Test public void testSext() throws IOException {
+        String src = """ 
+    struct Person { i32 age;};
+    Person !p = new Person;
+    p.age += arg;
+    return p.age;         
+       """;
+        EvalRisc5 R5 = TestRisc5.build("sext_str_2", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
+        testCPU(src, "x86_64_v2","Win64",0,"return 0;");
+        testCPU(src, "riscv","SystemV",4,"return .age;");
+        testCPU(src, "arm","SystemV",0,"return .age;");
         // do assertEquals here
     }
+
+
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
         String person = "6\n";
@@ -164,5 +175,6 @@ return sum(is);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
     }
+
 
 }

@@ -10,7 +10,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class LUI extends ConstantNode implements MachNode {
     public LUI( int imm20 ) {
         super(TypeInteger.constant(imm20));
-        assert riscv.imm20Exact((TypeInteger)_con);
+        assert (imm20 & 0xFFF)==0;
     }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

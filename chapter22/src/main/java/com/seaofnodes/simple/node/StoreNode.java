@@ -84,21 +84,17 @@ public class StoreNode extends MemOpNode {
             }
         }
 
-        // Store of zero after alloc
-        if( mem() instanceof ProjNode prj && prj.in(0) instanceof NewNode &&
-            prj.in(0)==ptr().in(0) &&  // Same NewNode memory & pointer
-            (val()._type==TypeInteger.ZERO || val()._type==Type.NIL ) )
-            return mem();
 
         // TODO: Needs more love: the shift amount depends on the store size
-        //if( val() instanceof SarNode shr &&
-        //    shr.in(1) instanceof ShlNode shl &&
-        //    shr.in(2)._type.isConstant() &&
-        //    shl.in(2)._type.isConstant() ) {
-        //    if( shl.in(2)._type == shr.in(2)._type )
-        //        return setDef(3, shl.in(1));
-        //}
-
+        if( val() instanceof SarNode shr &&
+            shr.in(1) instanceof ShlNode shl &&
+            shr.in(2)._type.isConstant() &&
+            shl.in(2)._type.isConstant() ) {
+            TypeInteger shrC = (TypeInteger) shr.in(2)._type;
+            // if the store is unrelated to the shift amount, then get rid of the shift
+            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= (int)(Math.pow(2, log_size()) * 8))
+                return setDef(3, shl.in(1));
+        }
         return null;
     }
 
