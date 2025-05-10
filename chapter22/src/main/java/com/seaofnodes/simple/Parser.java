@@ -643,7 +643,7 @@ public class Parser {
             throw error("Cannot reassign final '"+name+"'");
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr.keep(), def.type(), def._final);
+        Node lift = liftExpr(expr.keep(), def.type(), def._final, true);
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
@@ -652,7 +652,7 @@ public class Parser {
 
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
-    private Node liftExpr( Node expr, Type t, boolean xfinal ) {
+    private Node liftExpr( Node expr, Type t, boolean xfinal, boolean isLoad ) {
         if( expr._type instanceof TypeMemPtr tmp && tmp.isFRef() )
             throw error("Must define forward ref "+tmp._obj._name);
         // Final is deep on ptrs
@@ -660,16 +660,21 @@ public class Parser {
             t = tmp.makeRO();
             expr = peep(new ReadOnlyNode(expr));
         }
-        // Auto-widen array to i64
+        // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),con(tmp._obj.aryBase())));
         // Auto-widen int to float
         expr = widenInt( expr, t );
-        // Auto-narrow wide ints to narrow ints
-        expr = zsMask(expr,t);
+        // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
+        // the loaded value to match the declared sign/zero bits.  For stores,
+        // just force the type, acting "as if" the store silently truncates.
+        Type et = expr._type;
+        if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
+        else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
+
         // Type is sane
-        if( expr._type!=Type.BOTTOM && !expr._type.shallowISA(t) )
-            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
+        if( et!=Type.BOTTOM && !et.shallowISA(t) )
+            throw error("Type " + et.str() + " is not of declared type " + t.str());
         return expr;
     }
 
@@ -758,7 +763,7 @@ public class Parser {
         }
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, t, xfinal);
+        Node lift = liftExpr(expr, t, xfinal, true);
 
         if( xfinal && t instanceof TypeMemPtr tmp )
             t = tmp.makeRO();
@@ -1175,7 +1180,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t,false);
+        return liftExpr(peep(op.widen()),t,false,true);
     }
 
 
@@ -1368,7 +1373,7 @@ public class Parser {
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
             Node val = parseAsgn().keep();
-            Node lift = liftExpr( val, tf, f._final );
+            Node lift = liftExpr( val, tf, f._final, false );
 
             Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), lift, false);
             // Arrays include control, as a proxy for a safety range check.
