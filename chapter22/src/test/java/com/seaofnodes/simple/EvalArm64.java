@@ -2,8 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.cpus.arm.arm;
-
-import java.io.PrintStream;
+import java.io.ByteArrayOutputStream;
 
 public class EvalArm64 {
     // Memory image, always 0-based
@@ -15,8 +14,13 @@ public class EvalArm64 {
     final double[] fregs;
 
     int _pc;
+
     // Start of free memory for allocation
     int _heap;
+
+    // Standard out and err streams
+    ByteArrayOutputStream _stdout, _stderr;
+
     // Cycle counters
     int _cycle;
 
@@ -340,12 +344,12 @@ public class EvalArm64 {
                     rdid = -1;
                 }
                 if( pc == Encoding.SENTINEL_WRITE ) {
-                    PrintStream ps = switch((int)regs[0]) {
-                    case 1 -> System.out;
-                    case 2 -> System.err;
+                    ByteArrayOutputStream baos = switch((int)regs[0]) {
+                    case 1 -> _stdout==null ? (_stdout = new ByteArrayOutputStream()) : _stdout;
+                    case 2 -> _stderr==null ? (_stderr = new ByteArrayOutputStream()) : _stderr;
                     default -> throw new IllegalArgumentException();
                     };
-                    ps.write(_buf,(int)regs[1],(int)regs[2]);
+                    baos.write(_buf,(int)regs[1],(int)regs[2]);
                     regs[0] = regs[2];
                     pc = (int)rval;
                     rdid = -1;

@@ -1,5 +1,10 @@
 // -*- mode: java;  -*-
 
+// An implementation of
+// https://sampleprograms.io/projects/bubble-sort/
+//
+// Bubble sort, with reading (parsing) and writing (formatting) the data.
+
 val _exit = { u8[~] msg ->
     sys.io.p(msg);
     sys.libc._exit(1);
@@ -40,6 +45,19 @@ val number = { Scan s ->
     return n;
 };
 
+val sort = { int[] ns, int len ->
+    var done = false;
+    while( !done ) {
+        done = true;
+        for( var i = 0; i < len-1; i++ )
+            if( ns[i] > ns[i+1] ) {
+                int tmp = ns[i];
+                ns[i] = ns[i+1];
+                ns[i+1] = tmp; // Swap
+                done = false;
+            }
+    }
+};
 
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
@@ -47,23 +65,26 @@ val main = { ->
     require(s,'[');
     // Array of parsed results
     int[] !ns = new int[16];
-    i32 num = 0;
+    i32 len = 0;
     // Parse a list of numbers
     if( !peek(s,']') ) {        // Handle the empty list
         // Parse "123, " until a something else
         while( s.x < s.buf# ) {
             int n = number(s);
-            ns[num++] = n;
+            ns[len++] = n;
             if( !peek(s,',') )
                 break;
         };
         require(s,']');         // Close the list
     }
 
+    // Bubble sort array of integers
+    sort(ns,len);
+
     // Print a list of numbers
     sys.io.p("[ ");
     u8[] !junk = new u8[1];
-    for( int i=0; i<num; i++ ) {
+    for( int i=0; i<len; i++ ) {
         int x = ns[i];
         if( !x ) { sys.io.p("0, "); continue; }
 
@@ -81,6 +102,5 @@ val main = { ->
         sys.io.p(", ");
     }
     sys.io.p("]");
-
-    return num;
+    return 0;
 };

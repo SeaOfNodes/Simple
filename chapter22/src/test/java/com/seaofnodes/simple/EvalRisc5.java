@@ -10,11 +10,10 @@
 
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
-import java.io.PrintStream;
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 
- public class EvalRisc5 {
+public class EvalRisc5 {
 
     // Memory image, always 0-based
     public final byte[] _buf;
@@ -28,6 +27,9 @@ import java.util.Arrays;
 
     // Start of free memory for allocation
     int _heap;
+
+    // Standard out and err streams
+    ByteArrayOutputStream _stdout, _stderr;
 
     // Cycle counters
     int _cycle;
@@ -102,12 +104,12 @@ import java.util.Arrays;
                 rval = pc + 4;
                 pc = pc + reladdy - 4;
                 if( pc+4 == Encoding.SENTINEL_WRITE ) {
-                    PrintStream ps = switch((int)regs[10]) {
-                    case 1 -> System.out;
-                    case 2 -> System.err;
+                    ByteArrayOutputStream baos = switch((int)regs[10]) {
+                    case 1 -> _stdout==null ? (_stdout = new ByteArrayOutputStream()) : _stdout;
+                    case 2 -> _stderr==null ? (_stderr = new ByteArrayOutputStream()) : _stderr;
                     default -> throw new IllegalArgumentException();
                     };
-                    ps.write(_buf,(int)regs[11],(int)regs[12]);
+                    baos.write(_buf,(int)regs[11],(int)regs[12]);
                     regs[10] = regs[12];
                     rdid = 0;
                     pc = (int)(rval - 4); // Unwind PC, as-if returned from write

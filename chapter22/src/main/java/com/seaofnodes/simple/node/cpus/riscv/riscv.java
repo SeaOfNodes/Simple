@@ -420,7 +420,7 @@ public class riscv extends Machine {
             ? new SetIRISC(bool, (int)ti.value(),false)
             : new  SetRISC(bool, false);
         // x <= y - flip and negate; !(y < x); `slt tmp=y,x; xori dst=tmp,#1`
-        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1);
+        case "<=" -> new XorIRISC(new SetRISC(bool.swap12(), false),1,false);
         // x == y - sub and vs0 == `sub tmp=x-y; sltu dst=tmp,#1`
         case "==" -> new SetIRISC(new SubRISC(bool),1,true);
         default -> throw Utils.TODO();

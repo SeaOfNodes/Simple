@@ -116,12 +116,14 @@ return cc.cz;
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Hello, World!",R5._stdout.toString());
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
+        assertEquals("Hello, World!",arm._stdout.toString());
     }
 
     @Test
@@ -131,7 +133,7 @@ int N=4;
 i32[] !is = new i32[N];
 for( int i=0; i<N; i++ )
     is[i] = i*i;
-val sum = { i32[~] is ->
+val sum = { i32[~] is ->  // final array
     int sum=0;
     for( int i=0; i<is#; i++ )
         sum += is[i];
