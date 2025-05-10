@@ -15,7 +15,7 @@ Let's break it down.
 - `sys`: is Just A Variable Name.  Like other variables, it is looked up in the
   current scope... which looks completely empty.  Every Simple program now starts
   with the `sys` variable in-scope.  `sys` itself a normal `struct`
-  and is defined in `src/main/java/com/seaofnodes/simple/sys/sys.smp`.
+  and is defined in `src/main/smp/sys.smp`.
 - `sys.io.p`: lookup the `io` field in `sys` struct, which yields the `sys.io`
   struct; then a lookup of `p` (short for "print") in the `sys.io` struct.
   This returns a function.

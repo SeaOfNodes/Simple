@@ -141,7 +141,7 @@ public class Parser {
         _scope.mem(new MemMergeNode(false));
 
         // Parse the sys import
-        _lexer = new Lexer(com.seaofnodes.simple.sys.sys.SYS);
+        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
         while( !_lexer.isEOF() ) {
             parseStatement();
             _lexer.skipWhiteSpace();
@@ -794,7 +794,6 @@ public class Parser {
         require("{");
         while (!peek('}') && !_lexer.isEOF())
             parseStatement().isKill();
-
 
         // Grab the declarations and build fields and a Struct
         int lexlen = _scope._lexSize.last();

@@ -1,4 +1,4 @@
-package com.seaofnodes.simple.sys;
+package com.seaofnodes.simple;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,7 +15,7 @@ public abstract class sys {
 
     static {
         try {
-            SYS = Files.readString(Path.of("src/main/java/com/seaofnodes/simple/sys/sys.smp"));
+            SYS = Files.readString(Path.of("src/main/smp/sys.smp"));
         }
         catch( Exception e ) {
             throw new RuntimeException(e);
