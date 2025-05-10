@@ -84,16 +84,21 @@ public class StoreNode extends MemOpNode {
             }
         }
 
-
-        // TODO: Needs more love: the shift amount depends on the store size
         if( val() instanceof SarNode shr &&
             shr.in(1) instanceof ShlNode shl &&
             shr.in(2)._type.isConstant() &&
             shl.in(2)._type.isConstant() ) {
             TypeInteger shrC = (TypeInteger) shr.in(2)._type;
+
+            // size of the thing that sign-extends
+            int base_size = (1 << shr.in(1)._type.log_size()) << 3;
+            int not_affected_bits = base_size - (int) shrC.value();
+            int store_size = (1 << log_size()) << 3;
             // if the store is unrelated to the shift amount, then get rid of the shift
-            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= (int)(Math.pow(2, log_size()) * 8))
-                return setDef(3, shl.in(1));
+            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= store_size && not_affected_bits >= store_size) {
+                setDef(4, shl.in(1));
+                return this;
+            }
         }
         return null;
     }
