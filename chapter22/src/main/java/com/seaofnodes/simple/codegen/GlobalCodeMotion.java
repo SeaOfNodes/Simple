@@ -177,14 +177,22 @@ public abstract class GlobalCodeMotion {
             }
 
             // Walk all inputs and put on worklist, as their last-use might now be done
-            for( Node def : n._inputs )
-                if( def!=null && late[def._nid]==null ) {
+            for( Node def : n._inputs ) {
+                if( def!=null && late[def._nid]==null )
                     work.push(def);
-                    // if the def has a load use, maybe the load can fire
+                // if the def has a load use, maybe the load can fire
+                if( def!=null )
                     for( Node out : def._outputs )
                         if( out instanceof MemOpNode ld && ld._isLoad && late[ld._nid]==null )
                             work.push(ld);
+            }
+
+            if( n instanceof LoopNode loop ) {
+                for( Node phi : loop._outputs ) {
+                    if( phi instanceof PhiNode && late[phi._nid]==null )
+                        work.push(phi);
                 }
+            }
         }
     }
 

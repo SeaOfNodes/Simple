@@ -22,10 +22,6 @@ public abstract class ASMPrinter {
             if( code._cfg.at(i) instanceof FunNode fun )
                 iadr = print(iadr,sb,code,fun,i);
 
-        // Skip padding
-        while( ((iadr+7) & -8) > iadr )
-            iadr++;
-
         // constant pool
         iadr = (iadr+15)&-16; // pad to 16
         Encoding enc = code._encoding;

@@ -14,7 +14,7 @@ struct Scan {
 
 // Skip whitespace
 val skip = { Scan s ->
-    while( s.buf[s.x] <= 32 )
+    while( s.buf[s.x] <= ' ' )
         s.x++;
 };
 
@@ -53,7 +53,6 @@ val main = { ->
         // Parse "123, " until a something else
         while( s.x < s.buf# ) {
             int n = number(s);
-            i32 q=n;
             ns[num++] = n;
             if( !peek(s,',') )
                 break;
@@ -63,24 +62,23 @@ val main = { ->
 
     // Print a list of numbers
     sys.io.p("[ ");
-    u8[] !buf = new u8[20];
+    u8[] !junk = new u8[1];
     for( int i=0; i<num; i++ ) {
         int x = ns[i];
         if( !x ) { sys.io.p("0, "); continue; }
 
-        u32 log=0, q=x;
-        while( q>0 )
-            { q/=10; log++; }
-        i32 raw=log;
-        sys.libc._exit(raw);
-    //    for( int j=0, a=x; j<log; j++ ) {
-    //        q = x/10;
-    //        buf[log-j] = '0'+(x-q*10);
-    //        x = q;
-    //    }
-    //    int raw = buf;
-    //    sys.libc.write(1,raw,log);
-    //    sys.io.p(", ");
+        int ten = 1, log = 0;
+        while( ten <= x ) { ten *= 10; log++; }
+        ten /= 10;
+        for( int i=0; i<log; i++ ) {
+            int q = x/ten;
+            int r = x - q*ten;
+            junk[0] = q+'0';
+            sys.io.p(junk);
+            x = r;
+            ten /= 10;
+        }
+        sys.io.p(", ");
     }
     sys.io.p("]");
 

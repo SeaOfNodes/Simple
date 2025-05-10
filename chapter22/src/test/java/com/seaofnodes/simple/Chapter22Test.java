@@ -16,7 +16,7 @@ public class Chapter22Test {
     @Test @Ignore
     public void testJig() throws IOException {
         //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        String src = Files.readString(Path.of("doc/examples/BubbleSort.smp"));
+        String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);

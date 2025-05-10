@@ -359,11 +359,6 @@ public class Encoding {
             slide = 0;
             for( int i=0; i<len; i++ ) {
                 CFGNode bb = _code._cfg.at(i);
-                // Functions pad to align 16
-                if( bb instanceof FunNode ) {
-                    int newStart = _opStart[bb._nid]+slide;
-                    slide += (newStart+15 & -16)-newStart;
-                }
                 _opStart[bb._nid] += slide;
                 // Slide down all other (non-CFG) ops in the block
                 for( Node n : bb._outputs )
@@ -384,6 +379,23 @@ public class Encoding {
                     }
                 }
             }
+        }
+
+
+        // Go again, inserting padding on function headers.  Since no
+        // short-jumps span function headers, the padding will not make any
+        // short jumps fail.
+        for( int i=0; i<len; i++ ) {
+            CFGNode bb = _code._cfg.at(i);
+            // Functions pad to align 16
+            if( bb instanceof FunNode ) {
+                int newStart = _opStart[bb._nid]+slide;
+                slide += (newStart+15 & -16)-newStart;
+            }
+            _opStart[bb._nid] += slide;
+            for( Node n : bb._outputs )
+                if( n instanceof MachNode && !(n instanceof CFGNode) )
+                    _opStart[n._nid] += slide;
         }
 
 

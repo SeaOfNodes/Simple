@@ -559,7 +559,7 @@ public class RegAlloc {
     private void postColor() {
         int maxReg = -1;
         for( CFGNode bb : _code._cfg ) { // For all ops
-            if( bb instanceof FunNode fun )
+            if( bb instanceof FunNode )
                 maxReg = -1;   // Reset for new function
             // Compute frame size, based on arguments and largest reg seen
             if( bb instanceof ReturnNode ret )
