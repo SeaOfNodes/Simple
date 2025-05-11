@@ -71,6 +71,12 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
+        // Simple store-after-MemMerge to a known alias can bypass.  Happens when inlining.
+        if( mem() instanceof MemMergeNode mem ) {
+            setDef(1,mem.alias(_alias));
+            return this;
+        }
+
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
             int log = _declaredType.log_size();
@@ -84,6 +90,7 @@ public class StoreNode extends MemOpNode {
             }
         }
 
+        // Store will chop high order bits off; math to change those bits can be dropped.
         if( val() instanceof SarNode shr &&
             shr.in(1) instanceof ShlNode shl &&
             shr.in(2)._type.isConstant() &&

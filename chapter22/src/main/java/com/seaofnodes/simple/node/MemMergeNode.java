@@ -65,24 +65,38 @@ public class MemMergeNode extends Node {
     @Override public Node idealize() {
         if( inProgress() ) return null;
 
+        // Fold defaults into the default
+        boolean progress=false, allDefault=true;
+        for( int i=2; i<nIns(); i++ )
+            if( in(1) == in(i) ) { setDef(i,null); progress=true; }
+            else                 { allDefault=false; }
+
         // If not merging any memory (all memory is just the default)
-        if( allDefault() )
+        if( allDefault )
             return in(1);       // Become default memory
 
-        return null;
-    }
-    private boolean allDefault() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1) != in(i) )
-                return false;
-        return true;
+        // Collapse stacked all-mem
+        if( in(1) instanceof MemMergeNode mem ) {
+            // Goal is to swap my default mem with mem's default mem
+            for( int i=2; i<mem.nIns(); i++ ) {
+                if( mem.in(i) != null ) {
+                    // deeper default mem has a non-default
+                    if( i>=nIns() || in(i)==null )
+                        setDefX(i,mem.in(i));
+                }
+            }
+            setDef(1,mem.in(1));
+            return this;
+        }
+
+        return progress ? this : null;
     }
 
 
     public Node in( Var v ) { return in(v._idx); }
 
     public Node alias( int alias ) {
-        return in(alias<nIns() && in(alias)!=null ? alias : 1);
+        return alias < nIns() && in(alias)!=null ? in(alias) : in(1);
     }
 
     Node alias( int alias, Node st ) {

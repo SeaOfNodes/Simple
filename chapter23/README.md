@@ -12,8 +12,14 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 
 The idea is that structs have fields indexed by names, and arrays have fields
 indexed by numbers, and these ideas are compatible with each other.  This idea
-has been used by the C language for a long time - following a normal struct C
-allows an array and can index it with the usual array syntax.
+has been used by the C language for a long time - an array can follow a normal
+struct C and can index it with the usual array syntax.
+
+The alternative, using a field to hold a pointer to an array, exchanges some
+flexibility for an extra indirection.  The obvious flexibility allows swapping
+the array out (generally for a larger one) and this is the basis of very common
+`Vector` or `ArrayList` generic containers.
+
 
 ```java
 struct str {
