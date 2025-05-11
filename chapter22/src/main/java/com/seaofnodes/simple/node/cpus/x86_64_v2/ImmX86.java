@@ -20,7 +20,7 @@ public abstract class ImmX86 extends MachConcreteNode implements MachNode {
     abstract int opcode();
     abstract int mod();
 
-    @Override public final void encoding( Encoding enc ) {
+    @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this); // Also src1
         enc.add1(x86_64_v2.rex(0, dst, 0));
         // opcode; 0x81 or 0x83; 0x69 or 0x6B

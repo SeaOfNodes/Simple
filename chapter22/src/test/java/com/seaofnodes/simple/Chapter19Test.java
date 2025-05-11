@@ -81,7 +81,7 @@ return 0;
     @Test
     public void testBasic8() {
         CodeGen code = new CodeGen("return arg * 6;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (muli,arg,6);", code._stop.toString());
+        assertEquals("return (muli,arg);", code._stop.toString());
     }
 
     @Test
@@ -316,7 +316,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (shli,Parm_x($fun2,int)); return (mul,Parm_x($fun1,int),x); return (add,#2,(muli,#2,10)); ]", code.print());
+        assertEquals("Stop[ return (shli,Parm_x($fun2,int)); return (mul,Parm_x($fun1,int),x); return (add,#2,(muli,#2)); ]", code.print());
     }
 
     @Test

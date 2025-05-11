@@ -6,7 +6,11 @@ import com.seaofnodes.simple.codegen.*;
 
 public class MulIX86 extends MachConcreteNode implements MachNode {
     final int _imm;
-    MulIX86( Node add, int imm ) { super(add); _imm = imm; }
+    MulIX86( Node add, int imm ) {
+        super(add);
+        _inputs.pop();          // Pop the constant input
+        _imm = imm;             // Record the constant
+    }
     @Override public String op() { return "muli"; }
     @Override public String glabel() { return "*"; }
     @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }

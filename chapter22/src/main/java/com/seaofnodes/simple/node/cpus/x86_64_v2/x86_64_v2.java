@@ -63,7 +63,7 @@ public class x86_64_v2 extends Machine {
     public static RegMask XMM0_MASK = new RegMask(XMM0);
 
     // Encoding
-    public static int REX = 0x40;
+    public static int REX    = 0x40;
     public static int REX_W  = 0x48;
     public static int REX_WR = 0x4C;
     public static int REX_WRB= 0x4D;
