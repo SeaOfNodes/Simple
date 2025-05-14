@@ -2,7 +2,9 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Represents a struct type.
@@ -59,15 +61,21 @@ public class TypeStruct extends Type {
         assert efinal || con==TypeConAry.BOT; // No mutable constant arrays
         return make(name,
                     con,
-                    Field.make("#" ,len , lenAlias,true ),
-                    Field.make("[]",body,bodyAlias,efinal));
+                    Field.make("#" ,len , lenAlias,true  ,false ),
+                    Field.make("[]",body,bodyAlias,efinal,false));
+    }
+    // Add a field
+    public TypeStruct addField(Field f) {
+        Field fs[] = _fields==null ? new Field[1] : Arrays.copyOf(_fields,_fields.length+1);
+        fs[fs.length-1] = f;
+        return make(_name,_con,fs);
     }
 
     // A pair of self-cyclic types
     private static final TypeStruct S1F = makeFRef("S1");
     private static final TypeStruct S2F = makeFRef("S2");
-    public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false) );
-    private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false) );
+    public  static final TypeStruct S1  = make("S1", Field.make("a", TypeInteger.BOT, -1, false, false), Field.make("s2",TypeMemPtr.make((byte)2,S2F),-2, false, false) );
+    private static final TypeStruct S2  = make("S2", Field.make("b", TypeFloat  .F64, -3, false, false), Field.make("s1",TypeMemPtr.make((byte)2,S1F),-4, false, false) );
 
     private static final TypeStruct ARY = makeAry("[i64]",TypeInteger.U32,-1,TypeInteger.BOT,-2);
     private static final TypeStruct STR = makeAry("[u8]",TypeInteger.U32,-1,TypeInteger.U8,-2);
@@ -114,7 +122,8 @@ public class TypeStruct extends Type {
             return BOT;         // It's a struct; that's about all we know
         if( this._fields==null ) return that;
         if( that._fields==null ) return this;
-        if( _fields.length != that._fields.length ) return BOT;
+        if( this._fields.length > that._fields.length )
+            return that.xmeet(this);
         // Just do field meets
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ ) {
@@ -262,7 +271,7 @@ public class TypeStruct extends Type {
     }
     public int aryScale() {
         assert isAry();
-        return _fields[1]._type.log_size();
+        return _con!=TypeConAry.BOT ? _con.log_size() : _fields[1]._type.log_size();
     }
 
 
@@ -273,6 +282,7 @@ public class TypeStruct extends Type {
         return _offs[idx];
     }
     private int[] offsets() {    // Field byte offsets
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
         // Compute a layout for a collection of fields
         assert _fields != null; // No forward refs
 
@@ -281,7 +291,8 @@ public class TypeStruct extends Type {
         int flen = _fields.length;
         if( isAry() ) flen--;   // Array field is aligned differently
         for( int i=0; i<flen; i++ )
-            cnts[_fields[i]._type.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
+            if( !_fields[i]._one )
+                cnts[_fields[i]._type.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
         int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
         // Compute offsets to the start of each power-of-2 aligned fields.
         int[] offs = new int[4];
@@ -293,6 +304,7 @@ public class TypeStruct extends Type {
         // Really a hidden radix sort.
         _offs = new int[_fields.length+1];
         for( int i=0; i<flen; i++ ) {
+            if( _fields[i]._one ) continue;
             int log = _fields[i]._type.log_size();
             _offs[idx++] = offs[log]; // Field offset
             offs[log] += 1<<log;      // Next field offset at same alignment

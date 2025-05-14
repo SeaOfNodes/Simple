@@ -13,7 +13,7 @@ public class TypeConAryB extends TypeConAry<byte[]> {
     public static void gather(ArrayList<Type> ts) { ts.add(ABC); ts.add(ABCD); }
     @Override public long at(int idx) { return _ary[idx]; }
     @Override public int len() { return _ary.length; }
-    @Override public int alignment() { return 0; }
+    @Override public int log_size() { return 0; }
     @Override public String str() { return "[\""+new String(_ary)+"\"]"; }
     @Override boolean eq(Type t) { return Arrays.equals(_ary,((TypeConAryB)t)._ary); }
     @Override int hash() { return Arrays.hashCode(_ary); }

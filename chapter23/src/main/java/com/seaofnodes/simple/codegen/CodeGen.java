@@ -5,6 +5,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -186,6 +187,8 @@ public class CodeGen {
         // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
 
+        // OPTIMISTIC PASS GOES HERE
+
         // Not really a true optimistic pass, but look for unlinked functions.
         // This can be removed, which may trigger another round of pessimistic.
         // This is the point where we flip from a virtual Call Graph (any call
@@ -204,6 +207,21 @@ public class CodeGen {
         }
         _iter.iterate(this);
 
+        // Freeze field sizes; do struct layouts; convert field offsets into
+        // constants.
+        for( int i=0; i<_start.nOuts(); i++ ) {
+            Node use = _start.out(i);
+            if( use instanceof ConFldOffNode off ) {
+                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._obj._name);
+                off.subsume( off.asOffset(tmp._obj) );
+                i--;
+            }
+        }
+        _iter.iterate(this);
+
+        // To help with testing, sort StopNode returns by NID
+        Arrays.sort(_stop._inputs._es,0,_stop.nIns(),(x,y) -> x._nid - y._nid );
+
         _tOpto = (int)(System.currentTimeMillis() - t0);
 
         // TODO:
@@ -212,7 +230,7 @@ public class CodeGen {
         // loop unroll, peel, RCE, etc
         return this;
     }
-    public <N extends Node> N add( N n ) { return (N)_iter.add(n); }
+    public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
 
 

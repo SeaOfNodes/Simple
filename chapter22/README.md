@@ -8,7 +8,9 @@ will wait for another chapter.
 sys.io.p("Hello, World!");
 ```
 
-Yeah!  A 1-liner `Hello, World`!
+Yeah!  A 1-liner `Hello, World`!  This example can be found in
+`docs/examples/A_helloWorld.smp`.
+
 
 Let's break it down.
 

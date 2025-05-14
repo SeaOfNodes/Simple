@@ -38,8 +38,12 @@ public class LoadNode extends MemOpNode {
             if( _declaredType.isFRef() && mem._t instanceof TypeMemPtr tmp && !tmp.isFRef() )
                 _declaredType = tmp;
             // No lifting if ptr might null-check
-            if( err()==null )
-                return _declaredType.join(mem._t);
+            if( err()==null ) {
+                Type t = _declaredType.join(mem._t);
+                if( _declaredType.isFinal() )
+                    t = t.makeRO();
+                return t;
+            }
         }
         return _declaredType;
     }

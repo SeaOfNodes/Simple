@@ -638,8 +638,10 @@ public class Parser {
         // been written to, and this must be the final write.  Other writes
         // outside the constructor need to check the final bit.
         if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
-            // Inside a constructor, final assign is OK, outside nope
-            !(_scope.inConstructor() && def._idx >= _scope._lexSize.last()) )
+            // Inside a constructor, final assign is OK, outside nope.
+            // To be in the constructor scope, the alloc() call has added
+            // the constructor scope
+            !(_scope.inConstructor() && def._idx >= _scope._lexSize.last(-1)) )
             throw error("Cannot reassign final '"+name+"'");
 
         // Lift expression, based on type
@@ -662,7 +664,7 @@ public class Parser {
         }
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),con(tmp._obj.aryBase())));
+            expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),off(tmp._obj,tmp._obj.find("[]"))));
         // Auto-widen int to float
         expr = widenInt( expr, t );
         // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
@@ -726,10 +728,13 @@ public class Parser {
                 (t!=Type.BOTTOM &&
                  // no Bang AND
                  !hasBang &&
+                 // Locals are not-final by default
+                 !_scope.inFunction() &&
                  // not-null (expecting null to be set to not-null)
                  expr._type != Type.NIL &&
                  // Pointers are final by default; int/flt are not-final by default.
                  (t instanceof TypeNil));
+
             // var/val, then type comes from expression
             if( inferType ) {
                 if( expr._type==Type.NIL )
@@ -747,6 +752,7 @@ public class Parser {
             // Need an expression to infer the type.
             // Also, if not-null then need an initializing expression.
             // Allowed in a class def, because type/init will happen in the constructor.
+            if( t instanceof TypeNil tn && !tn.nullable() ) xfinal = true;
             if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inConstructor() )
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
@@ -764,7 +770,7 @@ public class Parser {
 
         // Lift expression, based on type
         Node lift = liftExpr(expr, t, xfinal, true);
-
+        // Rebuild the RO 't', not returned from liftExpr
         if( xfinal && t instanceof TypeMemPtr tmp )
             t = tmp.makeRO();
 
@@ -793,28 +799,36 @@ public class Parser {
         String typeName = requireId();
         if( old!=null ) typeName = old+"."+typeName;
         _nestedType = typeName;
+        TypeStruct ts = TypeStruct.makeFRef(typeName);
+        TYPES.put(typeName,TypeMemPtr.make(ts));
 
         // A Block scope parse, and inspect the scope afterward for fields.
         _scope.push(ScopeNode.Kind.Constructor);
         require("{");
-        while (!peek('}') && !_lexer.isEOF())
+        int nvars = _scope._lexSize.last();
+        while (!peek('}') && !_lexer.isEOF()) {
             parseStatement().isKill();
+            for( ; nvars < _scope._vars._len; nvars++ ) {
+                Var v = _scope.var(nvars);
+                if( v.isFRef() )  continue; // Promote to outer scope, not defined here
+                // THEORY: incrementally install fields into a FRef struct, which becomes "less FRef" over time.
+                // Method codes can use the declared fields.
+                Field f = Field.make(v._name,v.type(),_code.getALIAS(),v._final, v._final && _scope.in(v._idx)._type!=Type.TOP);
+                TYPES.put(typeName,TypeMemPtr.make(ts = ts.addField(f)));
+            }
+        }
 
         // Grab the declarations and build fields and a Struct
         int lexlen = _scope._lexSize.last();
-        int varlen = _scope._vars._len;
-        StructNode s = new StructNode();
-        Ary<Field> fs = new Ary<>(Field.class);
-        for( int i=lexlen; i<varlen; i++ ) {
+        if( ts._fields==null ) TYPES.put(typeName,TypeMemPtr.make(ts = TypeStruct.make(typeName)));
+        StructNode s = new StructNode(ts);
+        for( int i=lexlen; i<nvars; i++ ) {
             Var v = _scope.var(i);
             if( v.isFRef() )  continue; // Promote to outer scope, not defined here
             s.addDef(_scope.in(i)); // Keep the program code to generate instance
-            fs.push(Field.make(v._name,v.type(),_code.getALIAS(),v._final));
         }
         // Save instance default constructor
-        TypeStruct ts = s._ts = TypeStruct.make(typeName, fs.asAry());
         s.setType(s.compute()); // Do not call peephole, in case the entire struct is a big plain constant
-        TYPES.put(typeName, TypeMemPtr.make(ts));
         INITS.put(typeName,s.keep());
 
         // Done with struct/block scope
@@ -1244,6 +1258,10 @@ public class Parser {
             _scope.push(ScopeNode.Kind.Block);
             Lexer loc = loc();
             for( int i=0; i<fs.length; i++ )
+                // An initial TOP means the field needs to be initialized.  We
+                // store a BOT initially; any partial init will fall to BOT
+                // (merge BOT and the partial) and be obviously only a partial
+                // init.  To be initialized the field needs a full clobber.
                 _scope.define(fs[i]._fname, fs[i]._type, fs[i]._final, s.in(i)._type==Type.TOP ? con(Type.BOTTOM) : s.in(i), loc);
             // Parse the constructor body
             require(parseBlock(ScopeNode.Kind.Constructor),"}");
@@ -1253,7 +1271,7 @@ public class Parser {
         for( int i=idx; i<init.size(); i++ )
             if( init.at(i)._type == Type.TOP || init.at(i)._type == Type.BOTTOM )
                 throw error("'"+tmp._obj._name+"' is not fully initialized, field '" + fs[i-idx]._fname + "' needs to be set in a constructor");
-        Node ptr = newStruct(tmp._obj, con(tmp._obj.offset(fs.length)), idx, init );
+        Node ptr = newStruct(tmp._obj, off(tmp._obj, fs.length), idx, init );
         if( hasConstructor )
             _scope.pop();
         return ptr;
@@ -1276,18 +1294,20 @@ public class Parser {
         ns[1] = size;
         // Memory aliases for every field
         for( int i = 0; i < len; i++ )
-            ns[2+i] = memAlias(fs[i]._alias);
+            if( !fs[i]._one )
+                ns[2+i] = memAlias(fs[i]._alias);
         Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole().keep();
         for( int i = 0; i < len; i++ )
-            memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
+            if( !fs[i]._one )
+                memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
         Node ptr = new ProjNode(nnn.unkeep(),1,obj._name).peephole().keep();
 
         // Initial nonzero values for every field
         for( int i = 0; i < len; i++ ) {
             Node val = init.get( i + idx );
-            if( val._type != val._type.makeZero() ) {
+            if( !fs[i]._one && val._type != val._type.makeZero() ) {
                 Node mem = memAlias(fs[i]._alias);
-                Node st = new StoreNode(loc(),fs[i]._fname,fs[i]._alias,fs[i]._type,mem,ptr,con(obj.offset(i)),val,true).peephole();
+                Node st = new StoreNode(loc(),fs[i]._fname,fs[i]._alias,fs[i]._type,mem,ptr,off(obj,i),val,true).peephole();
                 memAlias(fs[i]._alias,st);
             }
         }
@@ -1297,9 +1317,9 @@ public class Parser {
 
     private static final Ary<Node> ALTMP = new Ary<>(Node.class);
     private Node newArray(TypeStruct ary, Node len) {
-        int base = ary.aryBase ();
+        ConFldOffNode base = off(ary, ary.find("[]"));
         int scale= ary.aryScale();
-        Node size = peep(new AddNode(con(base),peep(new ShlNode(null,len.keep(),con(scale)))));
+        Node size = peep(new AddNode(base,peep(new ShlNode(null,len.keep(),con(scale)))));
         ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._type.makeZero()));
         return newStruct(ary,size,0,ALTMP);
     }
@@ -1366,9 +1386,9 @@ public class Parser {
         // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
             // Array index math
-            ? peep(new AddNode(con(base.aryBase()),peep(new ShlNode(null,require(parseAsgn(),"]"),con(base.aryScale())))))
+            ? peep(new AddNode(off(base,base.find("[]")),peep(new ShlNode(null,require(parseAsgn(),"]"),con(base.aryScale())))))
             // Struct field offsets are hardwired
-            : con(base.offset(fidx))).keep();
+            : off(base,fidx)).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
@@ -1384,7 +1404,12 @@ public class Parser {
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
-        Node load = new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr.keep(), off);
+        // Keep expr for possible store update
+        expr.keep();
+        // Load field
+        Node load = f._one
+            ? INITS.get(base._name).in(base.find(name))
+            : new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr, off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
@@ -1445,6 +1470,9 @@ public class Parser {
         while( true ) {
             Type t = type();    // Arg type
             if( t==null ) break;
+            if( match("!") )
+                //t = t.makeRO();
+                System.out.println("makeMutable");
             String id = requireId();
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
@@ -1537,6 +1565,7 @@ public class Parser {
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
     public static Node con( long con ) { return con==0 ? ZERO : con(TypeInteger.constant(con));  }
     public static ConstantNode con( Type t ) { return (ConstantNode)new ConstantNode(t).peephole();  }
+    public static ConFldOffNode off( TypeStruct base, int fidx ) { return (ConFldOffNode)(new ConFldOffNode(base,fidx).peephole()); }
     public Node peep( Node n ) {
         // Peephole, then improve with lexically scoped guards
         return _scope.upcastGuard(n.peephole());

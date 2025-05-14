@@ -310,6 +310,7 @@ public abstract class Node implements Cloneable {
             int idx = n._inputs.find(this);
             n._inputs.set(idx,nnn);
             nnn.addUse(n);
+            CODE.add(n);
             CODE.addAll(n._outputs);
         }
         kill();

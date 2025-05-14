@@ -349,7 +349,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("return (const)s0;", code.print());
+        assertEquals("return s0;", code.print());
     }
 
 

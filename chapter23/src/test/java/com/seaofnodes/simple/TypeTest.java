@@ -15,11 +15,11 @@ public class TypeTest {
 
 
         TypeStruct s1 = TypeStruct.make("s1", new Field[]{
-                Field.make("a", TypeInteger.BOT,-1, false),
-                Field.make("b", TypeInteger.BOT,-2, false) });
+                Field.make("a", TypeInteger.BOT,-1, false, false),
+                Field.make("b", TypeInteger.BOT,-2, false, false) });
         TypeStruct s2 = TypeStruct.make("s2", new Field[]{
-                Field.make("a", TypeInteger.BOT,-3, false),
-                Field.make("b", TypeInteger.BOT,-4, false) });
+                Field.make("a", TypeInteger.BOT,-3, false, false),
+                Field.make("b", TypeInteger.BOT,-4, false, false) });
         Assert.assertEquals(s1.makeRO(), s1.glb(false));
         Assert.assertNotEquals(s1, s1.dual());
         Assert.assertEquals(s1.makeRO(), s1.dual().glb(false));

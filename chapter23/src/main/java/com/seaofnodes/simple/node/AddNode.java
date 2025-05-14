@@ -151,8 +151,8 @@ public class AddNode extends ArithNode {
     // Ties with in a category sort by node ID.
     // TRUE if swapping hi and lo.
     static boolean spine_cmp( Node hi, Node lo, Node dep ) {
-        if( lo._type.isConstant() ) return false;
-        if( hi._type.isConstant() ) return true ;
+        if( lo._type.isConstant() || lo instanceof ConFldOffNode ) return false;
+        if( hi._type.isConstant() || hi instanceof ConFldOffNode ) return true ;
 
         if( lo instanceof PhiNode lphi && lphi.region()._type==Type.XCONTROL ) return false;
         if( hi instanceof PhiNode hphi && hphi.region()._type==Type.XCONTROL ) return false;

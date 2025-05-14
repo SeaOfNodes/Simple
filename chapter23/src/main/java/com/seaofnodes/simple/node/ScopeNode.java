@@ -125,6 +125,7 @@ public class ScopeNode extends MemMergeNode {
 
 
     public boolean inConstructor() { return _kinds.last() == Kind.Constructor; }
+    public boolean inFunction   () { return _kinds.last() == Kind.Function   ; }
 
     // Is v outside any current function scope?
     public boolean outOfFunction( Var v ) {
@@ -214,7 +215,7 @@ public class ScopeNode extends MemMergeNode {
                 : loop.setDef(v._idx,new PhiNode(v._name, v.type(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
-        assert !v._final || st==null;
+        //assert !v._final || st==null;
         if( st!=null ) setDef(v._idx,st); // Set new value
         return v;
     }

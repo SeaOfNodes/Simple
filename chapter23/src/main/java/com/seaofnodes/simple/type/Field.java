@@ -19,58 +19,63 @@ public class Field extends Type {
     public final int _alias;
     // Field must be written to exactly once, no more, no less
     public final boolean _final;
+    // Field is final in the declaration; value is the same for all instances
+    // and will be moved to the class object
+    public final boolean _one;
 
-    private Field(String fname, Type type, int alias, boolean xfinal ) {
+    private Field(String fname, Type type, int alias, boolean xfinal, boolean one ) {
         super(TFLD);
         _fname = fname;
         _type  = type;
         _alias = alias;
         _final = xfinal;
+        _one   = one;
     }
     // Make with existing alias
-    public static Field make( String fname, Type type, int alias, boolean xfinal ) {
-        return new Field(fname,type,alias,xfinal).intern();
+    public static Field make( String fname, Type type, int alias, boolean xfinal, boolean one ) {
+        return new Field(fname,type,alias,xfinal,one).intern();
     }
     public Field makeFrom( Type type ) {
-        return type == _type ? this : new Field(_fname,type,_alias,_final).intern();
+        return type == _type ? this : new Field(_fname,type,_alias,_final,_one).intern();
     }
-    @Override public Field makeRO() { return _final ? this : make(_fname,_type.makeRO(),_alias,true);  }
+    @Override public Field makeRO() { return _final ? this : make(_fname,_type.makeRO(),_alias,true,_one);  }
     @Override public boolean isFinal() { return _final && _type.isFinal(); }
 
-    public static final Field TEST = make("test",Type.NIL,-2,false);
-    public static final Field TEST2= make("test",Type.NIL,-2,true);
+    public static final Field TEST = make("test",Type.NIL,-2,false,false);
+    public static final Field TEST2= make("test",Type.NIL,-2,true, false);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST2); }
 
     @Override Field xmeet( Type that ) {
         Field fld = (Field)that; // Invariant
         assert _fname.equals(fld._fname);
         assert _alias==fld._alias;
-        return make(_fname,_type.meet(fld._type),_alias,_final | fld._final);
+        assert _one  ==fld._one  ;
+        return make(_fname,_type.meet(fld._type),_alias,_final | fld._final, _one);
     }
 
     @Override
-    public Field dual() { return make(_fname,_type.dual(),_alias,!_final); }
+    public Field dual() { return make(_fname,_type.dual(),_alias,!_final,_one); }
 
     @Override public boolean isConstant() { return _type.isConstant(); }
 
     @Override public Field glb(boolean mem) {
         Type glb = _type.glb(mem);
-        return (glb==_type && _final) ? this : make(_fname,glb,_alias,true);
+        return (glb==_type && _final ) ? this : make(_fname,glb,_alias,true,_one);
     }
 
     // Override in subclasses
-    int hash() { return _fname.hashCode() ^ _type.hashCode() ^ _alias ^ (_final ? 1024 : 0); }
+    int hash() { return _fname.hashCode() ^ _type.hashCode() ^ _alias ^ (_final ? 1024 : 0) ^ (_one ? 2048 : 0); }
 
     boolean eq(Type t) {
         Field f = (Field)t;
-        return _fname.equals(f._fname) && _type==f._type && _alias==f._alias && _final==f._final;
+        return _fname.equals(f._fname) && _type==f._type && _alias==f._alias && _final==f._final && _one==f._one;
     }
 
 
     @Override
     public SB print( SB sb ) {
-        return _type.print(sb.p(_final?"":"!").p(_fname).p(":").p(_alias).p(" : "));
+        return _type.print(sb.p(_final?"":"!").p(_one?"$":"").p(_fname).p(":").p(_alias).p(" : "));
     }
 
-    @Override public String str() { return (_final?"":"!")+_fname; }
+    @Override public String str() { return (_final?"":"!")+(_one?"$":"")+_fname; }
 }

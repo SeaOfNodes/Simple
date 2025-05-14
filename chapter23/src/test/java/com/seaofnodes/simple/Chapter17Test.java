@@ -170,13 +170,13 @@ return s.x;
     }
 
     @Test public void testVar6() {
-        CodeGen code = new CodeGen("struct S{int x;}; S s=new S; s.x++; return s.x; // Error initializer so x is immutable ");
+        CodeGen code = new CodeGen("struct S{int x;}; val s = new S; s.x++; return s.x; // Error initializer so x is immutable ");
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test public void testVar7() {
-        CodeGen code = new CodeGen("struct S{int x;}; S s=new S{x=3;}; s.x++; return s.x; // Error initializer so x is immutable ");
+        CodeGen code = new CodeGen("struct S{int x;}; val s = new S{x=3;}; s.x++; return s.x; // Error initializer so x is immutable ");
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
@@ -491,11 +491,11 @@ return new A;
     @Test
     public void testForward1() {
         CodeGen code = new CodeGen("""
-struct A{
+struct A {
     B?[]? nil_array_of_b;
-    B?[]  not_array_of_b = new B?[0];
+    B?[]  not_array_of_b;
 };
-return new A.not_array_of_b;
+return new A{not_array_of_b = new B?[0]; }.not_array_of_b;
 """);
         code.parse().opto();
         assertEquals("return (const)[*B?];", code.print());

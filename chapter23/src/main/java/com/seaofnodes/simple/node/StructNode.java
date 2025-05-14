@@ -9,7 +9,8 @@ import java.util.BitSet;
  */
 public class StructNode extends Node {
 
-    public TypeStruct _ts;
+    public final TypeStruct _ts;
+    public StructNode(TypeStruct ts) { _ts=ts; }
 
     @Override public String label() { return _ts==null ? "STRUCT?" : _ts.str(); }
 

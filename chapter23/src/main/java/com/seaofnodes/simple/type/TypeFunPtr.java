@@ -90,7 +90,8 @@ public class TypeFunPtr extends TypeNil {
         sb.p(x()).p("{ ");
         if( _sig._types!=null )
             for( Type t : _sig._types )
-                _print(sb,g,t).p(" ");
+                //_print(sb,g,t).p(" ");
+                sb.p(t.str()).p(" ");
         _print(sb.p(g ? "&rarr; " : "-> "),g,_ret).p(" #");
         if( isHigh() ) sb.p("~");
         long fidxs = isHigh() ? ~_fidxs : _fidxs;
