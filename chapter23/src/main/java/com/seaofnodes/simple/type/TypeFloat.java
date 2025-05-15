@@ -23,7 +23,7 @@ public class TypeFloat extends Type {
     public final double _con;
 
     private TypeFloat(byte sz, double con) {
-        super(TFLT);
+        super(TFLT,true);
         _sz = sz;
         _con = con;
     }

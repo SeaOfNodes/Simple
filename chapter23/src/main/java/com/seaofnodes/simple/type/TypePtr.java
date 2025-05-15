@@ -7,9 +7,9 @@ import java.util.ArrayList;
 /**
  * Represents a Scalar; a single register-sized value.
  */
-public class TypePtr extends TypeNil {
+public final class TypePtr extends TypeNil {
 
-    private TypePtr(byte nil) { super(TPTR,nil);  }
+    private TypePtr(byte nil) { super(TPTR,nil,true);  }
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}

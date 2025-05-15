@@ -820,7 +820,8 @@ public class Parser {
 
         // Grab the declarations and build fields and a Struct
         int lexlen = _scope._lexSize.last();
-        if( ts._fields==null ) TYPES.put(typeName,TypeMemPtr.make(ts = TypeStruct.make(typeName)));
+        TYPES.put(typeName,TypeMemPtr.make(ts = ts.makeClosed(TypeConAry.BOT)));
+        TypeStruct ts2 = (TypeStruct)ts.close();             // Close AFTER installing in table
         StructNode s = new StructNode(ts);
         for( int i=lexlen; i<nvars; i++ ) {
             Var v = _scope.var(i);

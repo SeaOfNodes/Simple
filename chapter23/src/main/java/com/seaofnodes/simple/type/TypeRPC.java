@@ -19,7 +19,7 @@ public class TypeRPC extends Type {
     final boolean _any;
 
     private TypeRPC(boolean any, HashSet<Integer> rpcs) {
-        super(TRPC);
+        super(TRPC,true);
         _any = any;
         _rpcs = rpcs;
     }

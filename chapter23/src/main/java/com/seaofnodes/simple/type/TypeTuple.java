@@ -8,7 +8,17 @@ public class TypeTuple extends Type {
 
     public final Type[] _types;
 
-    private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
+    private TypeTuple(Type[] types) {
+        super(TTUPLE,closed(types));
+        _types = types;
+    }
+    static boolean closed(Type[] types) {
+        if( types == null ) return false;
+        for( Type t : types )
+            if( !t._closed )
+                return false;
+        return true;
+    }
     public  static TypeTuple make(Type... types) { return new TypeTuple(types).intern(); }
 
     public static final TypeTuple BOT = new TypeTuple(new Type[0]).intern();
@@ -26,6 +36,22 @@ public class TypeTuple extends Type {
     public static final TypeTuple IF_FALSE   = make(new Type[]{Type.XCONTROL,Type. CONTROL});
 
     public  static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST); ts.add(START); ts.add(MAIN); ts.add(IF_TRUE); }
+
+    // Attempt to close an open type
+    @Override TypeTuple _close() {
+        Type[] ts = _types;
+        for( int i=0; i<_types.length; i++ ) {
+            Type t = _types[i].close();
+            if( t!=_types[i] && ts==_types) // Child updates
+                ts = _types.clone();        // So clone the type array
+            ts[i] = t;
+            _closed &= t._closed;
+        }
+        if( ts==_types ) return this;
+        TypeTuple tt = make(ts);
+        tt._closed = _closed;
+        return tt;
+    }
 
     @Override
     Type xmeet(Type other) {

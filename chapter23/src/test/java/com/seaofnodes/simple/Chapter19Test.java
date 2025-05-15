@@ -201,10 +201,7 @@ return sum;""");
 
     @Test
     public void testAlloc1() {
-        CodeGen code = new CodeGen(
-"""
-struct S { int a; S? c; };
-return new S;""");
+        CodeGen code = new CodeGen("struct S { int a; S? c; }; return new S;");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return S;", code.print());
     }

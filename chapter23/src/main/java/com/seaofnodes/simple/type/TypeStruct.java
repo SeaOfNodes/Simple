@@ -18,18 +18,44 @@ public class TypeStruct extends Type {
 
     // Its illegal to attempt to load a field from a forward-ref struct.
 
-    // Example: "int rez = new S.x; struct S { int x; } return rez;" // Error, S not defined
-    // Rewrite: "struct S { int x; } int rez = new S.x; return rez;" // Ok, no forward ref
+    // Example: "int rez = new S.x; struct S { int x; }; return rez;" // Error, S not defined
+    // Rewrite: "struct S { int x; }; int rez = new S.x; return rez;" // Ok, no forward ref
     //
     // During the normal optimization run, struct types "bottom out" at further
     // struct references, so we don't have to handle e.g. cyclic types.  The
     // "bottom out" is again the forward-ref struct.
+
+
+    // Some more thinking...
+    // TypeStruct has 4 lifetimes:
+    // - forward ref, no info except the name; _fields==null
+    // - mid def; some not all fields; fields!=null, _con==null
+    // - closed; all fields defined; some embedded FRefs; _con!=null
+    // - closed; no embedded FRefs; continuous improvement
+    //
+    // TMP will continuously try to upgrade until it gets a closed form.
+    // Upgrade is "in-place"; TMPs are equal based on TS name alone,
+    // except HashTable keeps larger one... which leads to having the
+    // single TS by name, and the One Named TS updates in place.
+    //
+    // Which also means, no partial TS smarts (cannot make a specific TS with
+    // sharper knowledge short of e.g. EA).  AA tried to keep the sharper TS
+    // always and I guess I backed away from this eventually...  hence the
+    // "shallow" vs "deeper".  Also keep the cycles in a local TypeMem
+    // tracking.  Goal is "1-deep unroll" for immediate obvious improvements.
+    // Top-level TS has all the above partial state, also has sharper immediate
+    // field values.  But no nested TS?
+
+    // Start with null-con to mean "in progress"
+
+
+
     public final String _name;
     public final Field[] _fields;
     public final TypeConAry _con; // Optional, constant array contents
 
     private TypeStruct(String name, TypeConAry con, Field[] fields) {
-        super(TSTRUCT);
+        super(TSTRUCT, con!=null && TypeTuple.closed(fields));
         _name = name;
         _fields = fields;
         _con = con;
@@ -42,7 +68,7 @@ public class TypeStruct extends Type {
     public static final TypeStruct BOT = make("$BOT",new Field[0]);
     public static final TypeStruct TEST = make("test",new Field[]{Field.TEST});
     // Forward-ref version
-    public static TypeStruct makeFRef(String name) { return make(name, (Field[])null); }
+    public static TypeStruct makeFRef(String name) { return make(name, null, (Field[])null); }
     // Make a read-only version
     @Override public TypeStruct makeRO() {
         if( isFinal() ) return this;
@@ -64,11 +90,33 @@ public class TypeStruct extends Type {
                     Field.make("#" ,len , lenAlias,true  ,false ),
                     Field.make("[]",body,bodyAlias,efinal,false));
     }
-    // Add a field
+    // Add a field to an in-progress TypeStruct
     public TypeStruct addField(Field f) {
         Field fs[] = _fields==null ? new Field[1] : Arrays.copyOf(_fields,_fields.length+1);
         fs[fs.length-1] = f;
-        return make(_name,_con,fs);
+        assert _con==null;
+        return make(_name,null,fs);
+    }
+    // Close off an in-progress TypeStruct
+    public TypeStruct makeClosed(TypeConAry con) {
+        assert _con==null;
+        return make(_name,con,_fields==null ? new Field[0] : _fields);
+    }
+
+    // Attempt to close an open type, knowing it WAS open, trial run as closed
+    @Override TypeStruct _close() {
+        Field[] fs = _fields;
+        int i=0; for( ; i<_fields.length; i++ ) {
+            Field f = (Field)_fields[i].close();
+            if( f!=_fields[i] && fs==_fields ) // Child updates
+                fs = _fields.clone();          // So clone the fields array
+            fs[i] = f;
+            _closed &= f._closed;
+        }
+        if( fs==_fields ) return this;
+        TypeStruct ts = make(_name,_con,fs);
+        ts._closed = _closed;
+        return ts;
     }
 
     // A pair of self-cyclic types
@@ -125,14 +173,20 @@ public class TypeStruct extends Type {
         if( this._fields.length > that._fields.length )
             return that.xmeet(this);
         // Just do field meets
-        Field[] flds = new Field[_fields.length];
-        for( int i=0; i<_fields.length; i++ ) {
+        Field[] flds = new Field[that._fields.length];
+        int i; for( i=0; i<_fields.length; i++ ) {
             Field f0 = _fields[i], f1 = that._fields[i];
             if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias )
                 return BOT;
             flds[i] = (Field)f0.meet(f1);
         }
-        TypeConAry con = (TypeConAry)_con.meet(that._con);
+        // Pick up the larger fields
+        for( ; i<that._fields.length; i++ )
+            flds[i] = that._fields[i];
+        // If field lengths are unequal, either or both are open/mid-progress.
+        // Pick up a con if possible, marking a closed TS
+        TypeConAry con = _con==null ? that._con
+            : (that._con==null ? _con : (TypeConAry)_con.meet(that._con));
         return make(_name, con, flds);
     }
 
@@ -144,7 +198,7 @@ public class TypeStruct extends Type {
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i].dual();
-        TypeConAry con = _con.dual();
+        TypeConAry con = _con==null ? null : _con.dual();
         return make(_name,con,flds);
     }
 
@@ -155,7 +209,7 @@ public class TypeStruct extends Type {
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i].glb(mem);
-        return make(_name,flds);
+        return make(_name,_con,flds);
     }
     private boolean _glb(boolean mem) {
         if( _fields!=null )
@@ -243,12 +297,12 @@ public class TypeStruct extends Type {
         if( _fields != null )
             for( Field f : _fields )
                 hash = Utils.rot(hash,13) ^ f.hashCode();
-        return Utils.fold(hash ^ _con.hashCode());
+        return Utils.fold(_con==null ? hash : hash ^ _con.hashCode());
     }
 
     @Override
     public SB print(SB sb) {
-        if( _con!=TypeConAry.BOT ) return sb.p(_con.str());
+        if( _con!=null && _con!=TypeConAry.BOT ) return sb.p(_con.str());
         sb.p(_name);
         if( _fields == null || isAry() ) // Forward reference struct, just print the name
             return sb.p(isFinal() ? "" : "!");
@@ -259,7 +313,7 @@ public class TypeStruct extends Type {
     }
     @Override public SB gprint( SB sb ) { return sb.p(_name); }
 
-    @Override public String str() { return _con==TypeConAry.BOT ? _name : _con.str(); }
+    @Override public String str() { return _con==null || _con==TypeConAry.BOT ? _name : _con.str(); }
 
 
     public boolean isAry() { return _fields.length>=2 && _fields[_fields.length-1]._fname=="[]"; }

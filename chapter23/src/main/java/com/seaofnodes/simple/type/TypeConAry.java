@@ -13,7 +13,7 @@ public class TypeConAry<A> extends Type {
     // One of byte,short,int,long,float,double array
     public final A _ary;
 
-    TypeConAry( boolean any, A ary ) { super(TCONARY); _any = any; _ary = ary; }
+    TypeConAry( boolean any, A ary ) { super(TCONARY,true); _any = any; _ary = ary; }
     private static final TypeConAry TOP = new TypeConAry(true ,null).intern();
     public  static final TypeConAry BOT = new TypeConAry(false,null).intern();
     public static void gather(ArrayList<Type> ts) {

@@ -24,7 +24,7 @@ public class Field extends Type {
     public final boolean _one;
 
     private Field(String fname, Type type, int alias, boolean xfinal, boolean one ) {
-        super(TFLD);
+        super(TFLD,type._closed);
         _fname = fname;
         _type  = type;
         _alias = alias;
@@ -44,6 +44,13 @@ public class Field extends Type {
     public static final Field TEST = make("test",Type.NIL,-2,false,false);
     public static final Field TEST2= make("test",Type.NIL,-2,true, false);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST2); }
+
+    @Override Type _close() {
+        Type t = _type.close();
+        Field f = makeFrom(t);
+        f._closed = _closed = t._closed;    // Pass if t passes, fail if t fails
+        return f;
+    }
 
     @Override Field xmeet( Type that ) {
         Field fld = (Field)that; // Invariant

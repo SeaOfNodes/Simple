@@ -14,7 +14,7 @@ public abstract class TypeNil extends Type {
     // 3 = low -subclass also nil
     final byte _nil;
 
-    TypeNil(byte t, byte nil ) { super(t); _nil = nil; }
+    TypeNil(byte t, byte nil, boolean closed ) { super(t,closed); _nil = nil; }
 
     public static void gather(ArrayList<Type> ts) { }
 

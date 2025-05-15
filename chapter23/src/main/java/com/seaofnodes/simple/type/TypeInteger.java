@@ -36,7 +36,7 @@ public class TypeInteger extends Type {
     public final long _min, _max;
 
     private TypeInteger(long min, long max) {
-        super(TINT);
+        super(TINT,true);
         _min = min;
         _max = max;
     }

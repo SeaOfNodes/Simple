@@ -1,7 +1,9 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.codegen.CodeGen;
 import java.util.ArrayList;
 
 /**
@@ -28,8 +30,7 @@ public class TypeMemPtr extends TypeNil {
     public final boolean _one;  // Singleton instance
 
     private TypeMemPtr(byte nil, TypeStruct obj, boolean singleton) {
-        super(TMEMPTR,nil);
-        assert obj!=null;
+        super(TMEMPTR,nil,obj._closed);
         _obj = obj;
         _one = singleton;
     }
@@ -52,6 +53,20 @@ public class TypeMemPtr extends TypeNil {
 
     public static final TypeMemPtr TEST= make((byte)2, TypeStruct.TEST);
     public static void gather(ArrayList<Type> ts) { ts.add(NOTBOT); ts.add(BOT); ts.add(TEST); }
+
+    // Attempt to close an open type, knowing it WAS open, trial run as closed
+    @Override Type _close() {
+        TypeMemPtr tmp = (TypeMemPtr)Parser.TYPES.get(_obj._name);
+        if( tmp._obj._con==null ) {
+            System.err.print("!");  // How often trialed & failed?
+            _closed = false;        // Failed, type is not yet fully defined
+            return this;            //
+        }
+        TypeStruct obj = (TypeStruct)tmp._obj.close();
+        tmp = makeFrom(obj);
+        _closed = tmp._closed = obj._closed;
+        return tmp;
+    }
 
     @Override
     public TypeNil xmeet(Type t) {

@@ -20,7 +20,7 @@ public class TypeMem extends Type {
     public final Type _t;       // Memory contents, some scalar type
 
     private TypeMem(int alias, Type t) {
-        super(TMEM);
+        super(TMEM,t._closed);
         assert alias!=0 || (t==Type.TOP || t==Type.BOTTOM);
         _alias = alias;
         _t = t;
@@ -31,6 +31,11 @@ public class TypeMem extends Type {
     public static final TypeMem BOT = make(0, Type.BOTTOM);
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(1,Type.NIL)); ts.add(make(1,TypeInteger.ZERO)); ts.add(BOT); }
+
+    // Attempt to close an open type
+    @Override Type _close() {
+        throw Utils.TODO();
+    }
 
     @Override
     TypeMem xmeet(Type t) {

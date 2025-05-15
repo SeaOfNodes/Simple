@@ -48,17 +48,20 @@ public class Type {
     static final byte TRPC    =17; // Return Program Control (Return PC or RPC)
 
     public final byte _type;
+    public       boolean _closed;
+    public final char _uid;
+    private static int UID=1;
 
     public boolean is_simple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
-    protected Type(byte type) { _type = type; }
+    protected Type(byte type, boolean closed) { _type = type; _closed=closed; _uid = (char)UID++; }
 
-    public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
-    public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
-    public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
-    public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
-    public static final Type NIL      = new Type( TNIL   ).intern(); // low null of all flavors
-    public static final Type XNIL     = new Type( TXNIL  ).intern(); // high or choice null
+    public static final Type BOTTOM   = new Type( TBOT   , true).intern(); // ALL
+    public static final Type TOP      = new Type( TTOP   , true).intern(); // ANY
+    public static final Type CONTROL  = new Type( TCTRL  , true).intern(); // Ctrl
+    public static final Type XCONTROL = new Type( TXCTRL , true).intern(); // ~Ctrl
+    public static final Type NIL      = new Type( TNIL   , true).intern(); // low null of all flavors
+    public static final Type XNIL     = new Type( TXNIL  , true).intern(); // high or choice null
     public static Type[] gather() {
         ArrayList<Type> ts = new ArrayList<>();
         ts.add(BOTTOM);
@@ -90,6 +93,18 @@ public class Type {
     // Strict constant values, things on the lattice centerline.
     // Excludes both high and low values
     public boolean isConstant() { return _type==TNIL; }
+
+    // Attempt to close an open type.  "tik-tok" recursion pattern.  The "tik"
+    // common pattern checks for closed, and does a trial "tok" run if open.
+    // If the trail fails, it unwinds.
+    public final Type close() {
+        if( _closed ) return this;
+        _closed = true;         // Trial run
+        return _close();        // Attempt to close all child types
+    }
+    // Called knowing was-open-is-closed.  If children changes, will return a
+    // new Type.  If children fail trial, will return open even for self.
+    Type _close() { assert _closed; return this; }
 
     // ----------------------------------------------------------
 
@@ -132,7 +147,7 @@ public class Type {
         return eq(t);
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
-    boolean eq(Type t) { return true; }
+    boolean eq(Type t) { return _closed==t._closed; }
 
 
     // ----------------------------------------------------------

@@ -27,7 +27,7 @@ public class TypeFunPtr extends TypeNil {
     public final long _fidxs; // 63 unique functions per signature
 
     private TypeFunPtr(byte nil, TypeTuple sig, Type ret, long fidxs) {
-        super(TFUNPTR,nil);
+        super(TFUNPTR,nil,sig._closed && ret._closed);
         assert sig != null;
         _sig = sig;
         _ret = ret;
@@ -46,6 +46,20 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr MAIN  = make((byte)3,TypeTuple.MAIN,TypeInteger.BOT,-1);
     public static TypeFunPtr CALLOC= make((byte)3,TypeTuple.CALLOC,TypeMemPtr.BOT,-1);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); }
+
+    // Attempt to close an open type.  Known was-open is-marked-closed.  Trial
+    // run all children; if they all pass so do we.
+    @Override TypeFunPtr _close() {
+        Type sig = _sig.close();
+        Type ret = _ret.close();
+        if( !sig._closed || !ret._closed )
+            _closed = false;    // Trial fails
+        // May upgrade some children
+        if( sig==_sig && ret==_ret ) return this;
+        TypeFunPtr fun = make(_nil,(TypeTuple)sig,ret,_fidxs);
+        fun._closed = _closed;
+        return fun;
+    }
 
     @Override
     Type xmeet(Type t) {
