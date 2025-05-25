@@ -40,22 +40,22 @@ return head.next.i;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
+struct LLI { LLI? next; int q; };
 LLI? !head = null;
 while( arg ) {
     LLI !x = new LLI;
     x.next = head;
-    x.i = arg;
+    x.q = arg;
     head = x;
     arg = arg-1;
 }
 if( !head ) return 0;
 LLI? next = head.next;
 if( next==null ) return 1;
-return next.i;
+return next.q;
 """);
-        code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        code.parse().opto().typeCheck();
+        assertEquals("return Phi(Region,0,1,.q);", code.print());
         assertEquals("2", Eval2.eval(code,  3));
     }
 
@@ -108,10 +108,10 @@ return n.next;
 """
 struct M { int m; };
 struct N { M next; int i; };
-N n = new N { next = null; }
+N n = new N { next = null; };
 return n.next;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
     }
 
@@ -124,8 +124,8 @@ N !n = new N;
 n.i = 3.14;
 return n.i;
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type i64",e.getMessage()); }
     }
 
     @Test

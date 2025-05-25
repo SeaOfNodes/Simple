@@ -13,16 +13,18 @@ public class TypeTest {
         Assert.assertEquals( Type.BOTTOM, TypeInteger.TRUE.meet(TypeNil.NIL) );
         Assert.assertEquals( Type.BOTTOM, TypeInteger.TOP.meet(TypeNil.NIL) );
 
-
-        TypeStruct s1 = TypeStruct.make("s1", new Field[]{
+        TypeStruct s1 = TypeStruct.make("s1",
                 Field.make("a", TypeInteger.BOT,-1, false, false),
-                Field.make("b", TypeInteger.BOT,-2, false, false) });
-        TypeStruct s2 = TypeStruct.make("s2", new Field[]{
+                Field.make("b", TypeInteger.BOT,-2, false, false) );
+        TypeStruct s2 = TypeStruct.make("s2",
                 Field.make("a", TypeInteger.BOT,-3, false, false),
-                Field.make("b", TypeInteger.BOT,-4, false, false) });
-        Assert.assertEquals(s1.makeRO(), s1.glb(false));
+                Field.make("b", TypeInteger.BOT,-4, false, false) );
+        TypeStruct x1ro = (TypeStruct)s1.makeRO();
+        TypeMemPtr p1 = TypeMemPtr.make(s1);
+        Assert.assertEquals(x1ro, ((TypeMemPtr)p1.glb(false))._obj);
         Assert.assertNotEquals(s1, s1.dual());
-        Assert.assertEquals(s1.makeRO(), s1.dual().glb(false));
+        TypeStruct s1dglb = ((TypeMemPtr)p1.dual().glb(false))._obj;
+        Assert.assertEquals(x1ro, s1dglb);
 
         TypeMem m1 = TypeMem.make(1,TypeNil.NIL);
         TypeMem m2 = TypeMem.make(2,TypeInteger.U16);
@@ -77,6 +79,18 @@ public class TypeTest {
         Assert.assertEquals(TypePtr.XNPTR, NULL_join_PTR);
         Type ptr1_dual = ptr1.dual();
         Type nullableptr1_dual = ptr1nil.dual();
+
+        // Cyclic check
+        Assert.assertFalse(TypeStruct.S1.isFinal());
+        Type s1ro  = TypeStruct.S1.makeRO();
+        Type s1ro2 = TypeStruct.S1.makeRO();
+        Assert.assertSame(s1ro,s1ro2);
+        Assert.assertTrue(s1ro.isFinal());
+
+        Assert.assertFalse(TypeStruct.S1.isConstant());
+        Type s1glb  = TypeStruct.S1.field("s2")._type.glb(false);
+        Type s1glb2 = TypeStruct.S1.field("s2")._type.glb(false);
+        Assert.assertSame(s1glb,s1glb2);
     }
 
     // Test theoretical properties.

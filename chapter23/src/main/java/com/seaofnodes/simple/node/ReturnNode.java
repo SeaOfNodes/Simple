@@ -1,12 +1,12 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 /**
@@ -100,8 +100,8 @@ public class ReturnNode extends CFGNode {
         // Merge path into the One True Return
         RegionNode r = (RegionNode)ctrl();
         // Assert that the Phis are in particular outputs; not reordered or shuffled
-        PhiNode mem = (PhiNode)r.out(0); assert mem._declaredType == TypeMem.BOT;
-        PhiNode rez = (PhiNode)r.out(1); assert rez._declaredType == Type.BOTTOM;
+        PhiNode mem = (PhiNode)r.out(0); assert mem._minType == TypeMem.BOT;
+        PhiNode rez = (PhiNode)r.out(1); assert rez._minType == Type.BOTTOM;
         // Pop "inProgress" null off
         r  ._inputs.pop();
         mem._inputs.pop();

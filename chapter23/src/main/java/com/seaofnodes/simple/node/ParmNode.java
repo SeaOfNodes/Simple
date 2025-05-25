@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import java.util.BitSet;
 
@@ -13,7 +12,7 @@ public class ParmNode extends PhiNode {
         super(label,declaredType,inputs);
         _idx = idx;
     }
-    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._declaredType); _idx = parm._idx; }
+    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._minType ); _idx = parm._idx; }
 
     @Override public String label() { return MemOpNode.mlabel(_label); }
 
@@ -44,7 +43,7 @@ public class ParmNode extends PhiNode {
     }
 
     // Always in-progress until we run out of unknown callers
-    @Override public boolean inProgress() { return fun().inProgress(); }
+    @Override public boolean inProgress() { return in(0) instanceof FunNode fun && fun.inProgress(); }
 
     @Override public boolean eq( Node n ) {
         return ((ParmNode)n)._idx==_idx && super.eq(n);

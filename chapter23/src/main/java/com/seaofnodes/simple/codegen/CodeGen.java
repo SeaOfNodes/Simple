@@ -1,14 +1,14 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
+import java.util.*;
 
 @SuppressWarnings("unchecked")
 public class CodeGen {
@@ -41,6 +41,7 @@ public class CodeGen {
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed ) {
         CODE = this;
+        Type.reset();
         _phase = null;
         _callingConv = null;
         _start = new StartNode(arg);
@@ -212,7 +213,7 @@ public class CodeGen {
         for( int i=0; i<_start.nOuts(); i++ ) {
             Node use = _start.out(i);
             if( use instanceof ConFldOffNode off ) {
-                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._obj._name);
+                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._name);
                 off.subsume( off.asOffset(tmp._obj) );
                 i--;
             }

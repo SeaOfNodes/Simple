@@ -126,7 +126,7 @@ p.x++;
 return p;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
@@ -138,7 +138,7 @@ p.x++;
 return p;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test
@@ -161,8 +161,8 @@ Point p = new Point;
 p.x++;
 return p;
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test

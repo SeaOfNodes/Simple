@@ -1,8 +1,10 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
 import java.util.*;
 
 /**
@@ -53,7 +55,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
             Var v = _vars.at(i);
-            sb.append(v.type().print(new SB()));
+            sb.append(v.type());
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);

@@ -115,7 +115,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
@@ -141,7 +141,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
     }
 

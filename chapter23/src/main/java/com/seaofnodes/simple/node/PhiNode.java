@@ -2,24 +2,32 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 public class PhiNode extends Node {
 
     public final String _label;
 
-    // The Phi type we compute must stay within the domain of the Phi.
-    // Example Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
-    final Type _declaredType;
+    // The Phi type we compute must stay within the domain of the Phi.  Example
+    // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
+    final Type _minType;
 
-    public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
-    public PhiNode(PhiNode phi, String label, Type declaredType) { super(phi); _label = label; _type = _declaredType = declaredType; }
-    public PhiNode(PhiNode phi) { super(phi); _label = phi._label; _declaredType = phi._declaredType;  }
-
+    public PhiNode(String label, Type minType, Node... inputs) {
+        super(inputs);
+        _label = label;
+        assert minType!=null;
+        _minType = minType;
+    }
+    // Used by ParmNode
+    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; _type = _minType = minType; }
+    // Used by instruction Selection
+    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._minType );  }
+    // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
         super(new Node[]{r});
         _label = "";
-        _declaredType = sample._type;
+        _minType = sample._type;
         while( nIns() < r.nIns() )
             addDef(sample);
     }
@@ -44,7 +52,7 @@ public class PhiNode extends Node {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMem() { return _declaredType instanceof TypeMem; }
+    @Override public boolean isMem() { return _minType instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
 
     @Override
@@ -52,16 +60,19 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _declaredType;
+        if( r.inProgress() ) return _minType;
         // Set type to local top of the starting type
-        Type t = _declaredType.glb(false).dual();
-        //Type t = Type.TOP;
+        //Type t = _minType.dual();
+        Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( addDep(r.in(i))._type != Type.XCONTROL )
+            if( addDep(r.in(i))._type != Type.XCONTROL ) {
+                if( in(i)._type==Type.BOTTOM )
+                    return Type.BOTTOM;
                 t = t.meet(in(i)._type);
-        //t = t.join(_declaredType);
+            }
+        t = t.join( _minType );
         return t;
     }
 
