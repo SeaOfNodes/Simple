@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.SB;
 import java.util.BitSet;
 
 /**
@@ -31,7 +31,7 @@ public class ConstantNode extends Node {
     }
 
     @Override public String  label() { return "#"+_con; }
-    @Override public String glabel() { return _con.gprint(new SB().p("#")).toString(); }
+    @Override public String glabel() { return "#"+_con.gprint(); }
     @Override public String uniqueName() { return "Con_" + _nid; }
 
     @Override
@@ -41,7 +41,7 @@ public class ConstantNode extends Node {
             if( fun!=null && fun._name != null )
                 return sb.append("{ ").append(fun._name).append("}");
         }
-        return sb.append(_con==null ? "---" : _con.print(new SB()));
+        return sb.append(_con==null ? "---" : _con.toString());
     }
 
     @Override public boolean isConst() { return true; }

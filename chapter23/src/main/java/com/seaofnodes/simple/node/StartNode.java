@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.*;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
-import static com.seaofnodes.simple.Utils.TODO;
+import static com.seaofnodes.simple.util.Utils.TODO;
 
 /**
  * The Start node represents the start of the function.

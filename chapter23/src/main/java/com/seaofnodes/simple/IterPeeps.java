@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
 import java.util.Arrays;

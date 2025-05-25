@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.util;
 
 import java.lang.StringBuilder;
 import java.lang.reflect.Array;

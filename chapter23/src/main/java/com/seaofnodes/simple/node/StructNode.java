@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
 import java.util.BitSet;
 
 /**
@@ -20,7 +20,7 @@ public class StructNode extends Node {
         sb.append(_ts._name).append(" {");
         for( int i=0; i<nIns(); i++ ) {
             sb.append(_ts._fields[i]._fname).append(":");
-            sb.append((in(i)==null ? Type.BOTTOM : in(i)._type).print(new SB()));
+            sb.append(in(i)==null ? Type.BOTTOM : in(i)._type);
             sb.append("; ");
         }
         sb.setLength(sb.length()-2);

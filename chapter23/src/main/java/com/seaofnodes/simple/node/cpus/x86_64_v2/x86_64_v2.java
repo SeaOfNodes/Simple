@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 
 public class x86_64_v2 extends Machine {
     public x86_64_v2( CodeGen code ) {}

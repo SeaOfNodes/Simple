@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Ary;
+import com.seaofnodes.simple.util.Ary;
 
 
 public interface MultiNode {

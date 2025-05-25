@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
 public class IfNode extends CFGNode implements MultiNode {

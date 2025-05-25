@@ -3,7 +3,7 @@ package com.seaofnodes.simple.print;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import java.util.*;
-import static com.seaofnodes.simple.Utils.TODO;
+import static com.seaofnodes.simple.util.Utils.TODO;
 
 /**
  * Simple visualizer that outputs GraphViz dot format.

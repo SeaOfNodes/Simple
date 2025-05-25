@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Ary;
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
 import java.util.*;
 
