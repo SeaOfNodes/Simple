@@ -1,6 +1,7 @@
 # Java stuff
 # Compiled class file
 *.class
+build/
 
 # Log file
 *.log
@@ -17,3 +18,4 @@ TAGS
 
 # Libs
 */lib/*jar
+Unicorn/

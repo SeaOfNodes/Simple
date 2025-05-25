@@ -1,5 +1,16 @@
 # Chapter 3: Variable Declarations
 
+# Table of Contents
+
+1. [Extensions to Intermediate Representation](#extensions-to-intermediate-representation)
+2. [Symbol Tables](#symbol-tables)
+3. [ScopeNode](#scopenode)
+4. [Demonstration](#demonstration)
+5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
+6. [Enabling peephole optimizations](#enabling-peephole-optimizations)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter03) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter02...linear-chapter03) it to the previous chapter.
+
 In this chapter we extend the language grammar to allow variable declarations. This allows us to write:
 
 ```
@@ -14,6 +25,7 @@ return c;
 ```
 
 Here is the [complete language grammar](docs/03-grammar.md) for this chapter.
+
 
 ## Extensions to Intermediate Representation
 
@@ -155,10 +167,12 @@ scope and deeper indices representing more nested scopes.
 Popping returns the current scope and moves to the outer one. 
 There is a direct one-to-one mapping between each index and its corresponding scope.
 
-The first nested scope(04-08)
+The first nested scope(04-08):
+
 ![Graph4](./docs/03-graph4.svg)
 
-The second nested scope(09-13)
+The second nested scope(09-13):
+
 ![Graph5](./docs/03-graph5.svg)
 
  - In both cases the index which represents the deepness of the scope is 1.

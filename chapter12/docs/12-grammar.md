@@ -20,8 +20,13 @@ statement
     | metaStatement
     ;
 
+PRIMTYPE
+    : 'int'
+    | 'flt'
+    ;
+
 field
-    : 'int' IDENTIFIER ';'
+    : PRIMTYPE IDENTIFIER ';'
     ;
 
 fields
@@ -66,8 +71,8 @@ structName
     ;
 
 declStatement
-    : 'int' IDENTIFIER '=' expression ';'
-    | structName IDENTIFIER ('?')? '=' expression ';'
+    : PRIMTYPE IDENTIFIER '=' expression ';'
+    | structName ('?')? IDENTIFIER '=' expression ';'
     ;
 
 returnStatement

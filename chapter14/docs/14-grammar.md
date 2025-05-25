@@ -1,87 +1,89 @@
-# Grammar for Chapter 13
+# Grammar for Chapter 14
 
 ```antlrv4
 grammar SimpleLanguage;
 
-program
-    : statement+ EOF
-    ;
+program : block EOF ;
+
+block : statement+ ;
+
 
 statement
-    : returnStatement
-    | structDeclaration
-    | declStatement
-    | blockStatment
-    | expressionStatement
+    : '{' block '}'
+    | returnStatement
     | ifStatement
     | whileStatement
     | breakStatement
-    | continueStatment
+    | continueStatement
     | metaStatement
+    | structDeclaration
+    | expressionStatement
     ;
 
-field
-    : 'int' IDENTIFIER ';'
-    ;
 
-fields
-    : field+
-    ;
+returnStatement : 'return' expression ';' ;
 
-structDeclaration
-    : 'struct' IDENTIFIER '{' fields '}'
-    ;
+ifStatement : 'if' '(' expression ')' statement ('else' statement)? ;
 
-whileStatement
-    : 'while' '(' expression ')' statement
-    ;
+whileStatement : 'while' '(' expression ')' statement ;
 
-breakStatement
-    : 'break' ';'
-    ;
+breakStatement : 'break' ';' ;
 
-continueStatement
-    : 'continue' ';'
-    ;
+continueStatement : 'continue' ';' ;
 
-ifStatement
-    : 'if' '(' expression ')' statement ('else' statement)?
-    ;
+metaStatement : '#showGraph' ';' ;
 
-metaStatement
-    : '#showGraph' ';'
-    ;
+structDeclaration : 'struct' IDENTIFIER '{' fields '}'  ;
+
+fields : field+ ;
+
+field : type IDENTIFIER ';'  ;
+
 
 expressionStatement
-    : IDENTIFIER '=' expression ';'
-    | fieldExpression '=' expression ';'
+    : type IDENTIFIER ';'
+    | type IDENTIFIER '=' expression ';'
+    |      IDENTIFIER '=' expression ';'
+    |                     expression
     ;
 
-blockStatement
-    : '{' statement+ '}'
+PRIMTYPE
+    : 'int'
+    | 'i8'
+    | 'i16'
+    | 'i32'
+    | 'i64'
+    | 'u8'
+    | 'u16'
+    | 'u32'
+    | 'flt'
+    | 'f32'
+    | 'f64'
+    | 'bool'
     ;
 
-structName
-    : IDENTIFIER
+type
+    : PRIMTYPE
+    | typeName ('?')?
     ;
 
-declStatement
-    : 'int' IDENTIFIER '=' expression ';'
-    | structName IDENTIFIER ('?')? '=' expression ';'
-    ;
+typeName : IDENTIFIER ;
 
-returnStatement
-    : 'return' expression ';'
-    ;
 
-expression
-    : comparisonExpression
-    ;
+expression : bitWiseExpression ;
 
+bitWiseExpression
+    : comparisonExpression ( '&' | '|' | '^' ) comparisonExpression)*
+    ;
+    
 comparisonExpression
-    : additiveExpression (('==' | '!='| '>'| '<'| '>='| '<=') additiveExpression)*
+    : shiftExpression (('==' | '!='| '>'| '<'| '>='| '<=') shiftExpression)*
     ;
 
+shiftExpression
+    : additiveExpression ( '<<' | '>>>' | '>>' ) additiveExpression)*
+    ;
+    
 additiveExpression
     : multiplicativeExpression (('+' | '-') multiplicativeExpression)*
     ;
@@ -93,37 +95,30 @@ multiplicativeExpression
 unaryExpression
     : ('-') unaryExpression
     | '!' unaryExpression
-    | primaryExpression
-    ;
-
-newExpression
-    : 'new' IDENTIFIER
-    ;
-
-fieldExpression
-    : primaryExpresson '.' IDENTIFIER
+    | primaryExpression postFix*
     ;
 
 primaryExpression
-    : IDENTIFIER
-    | INTEGER_LITERAL
+    : INTEGER_LITERAL
+    | '(' expression ')'
     | 'true'
     | 'false'
     | 'null'
     | newExpression
-    | '(' expression ')'
-    | fieldExpression
+    | IDENTIFIER
     ;
 
+newExpression : 'new' IDENTIFIER ;
+
+postFix : '.' IDENTIFIER [ '=' expression ] ;
+
 INTEGER_LITERAL
-    : [1-9][0-9]*
+    : [1-9]DIGIT*
     | [0]
     ;
 
-IDENTIFIER
-    : NON_DIGIT (NON_DIGIT | DIGIT)*
-    ;
+IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)*  ;
 
 NON_DIGIT: [a-zA-Z_];
-DEC_DIGIT: [0-9];
+DIGIT: [0-9];
 ```

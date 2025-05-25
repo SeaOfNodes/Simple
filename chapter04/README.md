@@ -1,5 +1,23 @@
 # Chapter 4: External Argument and Comparisons
 
+# Table of Contents
+
+1. [Extensions to Intermediate Representation](#extensions-to-intermediate-representation)
+2. [Projection Nodes](#projection-nodes)
+3. [Visualisation](#visualisation)
+5. [Initial values](#initial-values)
+6. [When Is Control Not-Null?](#when-is-control-not-null)
+5. [Note Regarding Visualizations](#note-regarding-visualizations)
+6. [Changes to Type System](#changes-to-type-system)
+7. [Tuple Types](#tuple-types)
+8. [$ctrl name binding](#ctrl-name-binding)
+9. [More Peephole Optimizations](#more-peephole-optimizations)
+10. [Peephole Walkthrough](#peephole-walkthrough)
+11. [Dead Code Elimination(DCE)](#dead-code-eliminationdce)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter04) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter03...linear-chapter04) it to the previous chapter.
+
+
 In this chapter we extend the language grammar with following features:
 
 * The program receives a single argument named `arg` of integer type from external environment.
@@ -9,6 +27,8 @@ In this chapter we extend the language grammar with following features:
   tracks the in scope `$ctrl` binding.
 
 Here is the [complete language grammar](docs/04-grammar.md) for this chapter.
+
+
 
 ## Extensions to Intermediate Representation
 
@@ -44,10 +64,122 @@ Projection nodes allow us to maintain labeled use-def edges as simple Node refer
 
 In the visuals, projection nodes are shown as rectangular boxes inside the node to which they are attached.
 
+### Visualisation
+
 ![ProjNode](./docs/projnode.png)
 
-In the visual above, the projection nodes have been tagged by the names associated with the outputs of the
-Start node.
+In the visual above, the projection nodes have been tagged by the names
+associated with the outputs of the Start node. Both MultiNode that contain
+Control and Control nodes are yellow.  `$ctrl` and `arg` are outputs(users) of
+StartNode(`START`) and have their MultiNode as their only input in slot 0.  The
+`label` has no semantics and is used during debug printing.
+
+```java 
+public ProjNode(MultiNode ctrl, int idx, String label) {
+    super(ctrl);
+```
+
+```java
+_scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
+_scope.define(ScopeNode.ARG0, new ProjNode(START, 1, ScopeNode.ARG0).peephole());
+```
+
+These projection nodes are going to extract the types for `CTRL` and `ARG0` from the `START` MultiNode.
+The MultiNode holds the types as a TypeTuple:
+
+```java
+public StartNode(Type[] args) {
+    super();
+    _args = new TypeTuple(args);
+```
+
+Extracting the types is based on the `_idx`:
+```java
+return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
+```
+
+### Initial values
+
+An argument is always provided, and defaults to `TypeInteger.BOT`.  Individual
+tests can (and do) pass in other integer values by calling `new Parser` with
+an argument:
+
+```java
+Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
+```
+
+The graph:
+
+![ProjNode](./docs/04-arg1.svg)
+
+- `$ctrl` and `arg` are both defined in the outermost symbol table, at lexical depth 0.
+- There is an empty global-scope symbol table created at depth 1; in the future
+  global variables will be defined here.
+- There is no line for the scope `$ctrl` because control is dead after the
+  return.  It is manually set to null, which calls `setDef` to kill the node
+  (and killed nodes are not part of the program and not visualized).
+
+```
+    ctrl(null);             // Kill control
+```
+
+- The `arg` projection node is not included in the cluster because arg is a
+  constant.  The `arg` was originally defined by a ProjNode; but when peephole
+  is called the computed type is a constant, and the ProjNode gets replaced
+  with a ConstantNode:
+    
+```java
+public final Node peephole( ) {
+    Type type = _type = compute(); 
+    /*   type = {TypeInteger@1527} "2"  */
+
+    if (_disablePeephole)
+        return this;
+    
+    // ProjNode is not a constant unlike its type.
+    if (!(this instanceof ConstantNode) && type.isConstant())
+        /* Create Constant(2) */
+        return deadCodeElim(new ConstantNode(type).peephole());
+    
+    /* won't get called */
+    ...
+```
+
+If you don't pass an argument you get `TypeInteger.BOT`
+
+```java 
+    Parser parser = new Parser("return arg; #showGraph;");
+    ...
+    
+public Parser(String source) {
+    this(source, TypeInteger.BOT);
+}
+    
+```
+
+We clearly see this is not a constant:
+
+```java
+public final static TypeInteger BOT = new TypeInteger(false, 1); 
+   /* _is_con = false */
+```
+
+So the `arg` projection node remains in the cluster:
+
+![ArgNode](./docs/04-arg2.svg)
+
+
+#### When Is Control Not-Null?
+
+In later chapters, `$ctrl`  will point to other control nodes, such as
+`If` and `Region` (and `Loop`), but for now with no other control flow it always gets set to null after a `Return`.
+
+#### Note Regarding Visualizations
+
+From this chapter onwards we omit the edges from Constants to Start node, mainly to reduce
+clutter and help draw reader's attention to the more important aspects of the graph.
+
+
 
 ## Changes to Type System
 
@@ -70,11 +202,9 @@ lattice.
 In this chapter we extend the Type hierarchy as follows:
 
 ```
-Type
-+-- TypeControl             (New - represents control token)
-+-- TypeInteger             (Enhanced - now has Top and Bottom types)
-+-- TypeBot
-+-- TypeTuple               (New - represents multi-valued result)
+Type              (Enhanced - now has Control, and a global Top and Bottom)
++-- TypeInteger   (Enhanced - now has Top and Bottom types)
++-- TypeTuple     (New - represents multi-valued result)
 ```
 
 Our enhanced Lattice looks like this:
@@ -83,14 +213,18 @@ Our enhanced Lattice looks like this:
 
 
 In this chapter we introduce the possibility of a program input variable named
-`arg`; all we know about this variable is that it is some integer value, but we do not know whether it is a constant or not.
+`arg`; all we know about this variable is that it is some integer value, but we
+do not know whether it is a constant or not.
 
-To support the requirements for non-constant integer values, we enhance `TypeInteger` to
-allow it to represent `IntTop` and `IntBot` integer types in addition to the earlier constant value.
+To support the requirements for non-constant integer values, we enhance
+`TypeInteger` to allow it to represent `IntTop` and `IntBot` integer types in
+addition to the earlier constant value.
 
-Now that integer values may be constants or non-constants, we need to introduce the "meet" operator
-in our lattice. The `meet` operator describes rules that define the resulting type when we combine
-integer values.
+Now that integer values may be constants or non-constants, we need to introduce
+the *meet* operator over our lattice. The `meet` operator describes rules that
+define the resulting type when we combine integer values.  In the lattice
+diagram you can start from the two elements being `meet` and follow the
+two arrows down the graph to the first point they meet.
 
 |        | IntBot | Con1   | Con2   | IntTop |
 |--------|--------|--------|--------|--------|
@@ -109,28 +243,38 @@ Currently, all our integer valued nodes are either a constant or a `IntBot` inte
 When we start optimizing loops, we will start seeing `IntTop` values.
 
 
+### Tuple Types
+
+Tuple types need a little more explaination: they are a fixed-size grouping of
+types; literally a `Type[]`.  Tuples represent a collection of otherwise
+unrelated types, and come from `MultiNode`s.  `ProjNode`s will take the
+appropriate `Type` array element out of a Tuple.  The `StartNode` now produces
+a 2-element `TypeTuple` with control and the type of `arg`: `[ctrl, TypeInteger.INTBOT]`
+
+The lattice `meet` operator on Tuples is done element by element; each array
+element recursively calls `meet`.  Tuples of mixed sizes are a internal
+compiler error, and the `meet` uses Bottom for them.
+
+
 ## `$ctrl` name binding
 
 In previous chapters, we had a hard coded control input edge from Start to
 Return. In this chapter we no longer have such a hard-wired edge.  Instead, we
 track the current in-scope control node via the name `$ctrl`.  This means that
-when we need to create an edge to the predecessor control node, we simply
-look up this name in the current scope.
+when we need to create an edge to the predecessor control node, we simply look
+up this name in the current scope.
 
 This introduces the idea that the control flow subgraph is a Petri net model.[^1]
 The control token moves virtually from node to node as execution proceeds.  The
 initial control token is in Start, it then moves via the Proj node to Return.
 In later chapters we will see how the token moves across branches.
 
-## Note Regarding Visualizations
-
-From this chapter onwards we omit the edges from Constants to Start node, mainly to reduce
-clutter and help draw reader's attention to the more important aspects of the graph.
 
 ## More Peephole Optimizations
 
-Now that we have non-constant integer values, we do additional optimizations, rearranging algebraic
-expressions to enable constant folding. For example:
+Now that we have non-constant integer values, we can do additional
+optimizations, rearranging algebraic expressions to enable constant
+folding. For example:
 
 ```
 return 1 + arg + 2;
@@ -140,18 +284,20 @@ We would expect the compiler to output `arg+3` here, but as it stands what we ge
 
 ![Graph1](./docs/04-pre-peephole.svg)
 
-We need to perform some algebraic simplifications to enable better outcome. For example,  we need to rearrange the
-expression as follows:
+We need to perform some algebraic simplifications to enable better outcome. For
+example, we need to rearrange the expression as follows:
 
 ```
 arg + (1 + 2)
 ```
 
-This then enables constant folding and the final outcome is shown below.
+This then enables constant folding and the final outcome is shown below.  By
+canonicalizing expressions we fold common addressing math constants, remove
+algebraic identities and generally simplify the code.
 
 ![Graph1](./docs/04-post-peephole.svg)
 
-Here is a (partial) list of peepholes introduced in this Chapter:
+Here is a list of peepholes introduced in this Chapter, more will be introduced in later chapters:
 
 | Before                | After                 | Description                                    |
 |-----------------------|-----------------------|------------------------------------------------|
@@ -162,8 +308,17 @@ Here is a (partial) list of peepholes introduced in this Chapter:
 | (con1 + (arg + con2)) | (arg + (con1 + con2)) | Move constants to right, to encourage folding  |
 | ((arg1 + con) + arg2) | ((arg1 + arg2) + con) | Move constants to right, to encourage folding  |
 | (arg + arg)           | (arg * 2)             | Sum-of-products form                           |
+| (arg - arg)           | 0                     | Sub of same is 0
+| (con / 1)             | con                   | Division by one
+| (arg == arg)          | 1                     | Compare of same
+| (arg != arg)          | 0                     | Compare of same
+| (arg < arg)           | 0                     | Compare of same
+| (arg > arg)           | 0                     | Compare of same
+| (arg <= arg)          | 1                     | Compare of same
+| (arg >= arg)          | 1                     | Compare of same
 
-## Code Walkthrough
+
+## Peephole Walkthrough
 
 The peephole optimizations introduced in this chapter are local. They are triggered during parsing
 as new nodes are created, before the newly created node has any uses.
@@ -217,14 +372,35 @@ public final Node peephole( ) {
 
 The peephole method does following:
 
-* Compute a Type for the node
-* If the Type is a Constant, replace with a ConstantNode, recursively invoking peephole on the new node
-* Otherwise, ask the Node for a better replacement via a call to `idealize()`.  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2))` becomes
-  `(x+(1+2))`.  By canonicalizing expressions we fold common addressing math constants, remove algebraic identities and generally simplify the code.
-  * Each Node subtype is responsible for deciding what the `idealize()` step should do. If there is a better replacement then the node returns a non `null` value.
-  * If we see a non `null` value, something changed, so we invoke `peephole()` again and then also run dead code elimination.
+- Compute a Type for the node.
+- If the Type is a Constant and the node is not a ConstantNode, replace with a
+  ConstantNode, recursively invoking peephole on the new constant.
+- Otherwise, ask the Node for a better replacement via a call to `idealize()`.
+  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2))`
+  becomes `(x+(1+2))`.
+- - Each Node subtype is responsible for deciding what the `idealize()` step
+  should do. If there is a better replacement then the node returns a non
+  `null` value.
+- - If we see a non `null` value, something changed, so we invoke `peephole()`
+  again and then also run dead code elimination on the (now dead and replaced)
+  `this` node.
 
 `peephole()` calls `deadCodeElim()` which is shown below.
+
+
+## Dead Code Elimination(DCE)
+
+We call `kill` every time a Node makes the 1-user-to-0-users transition during
+graph editing.  This commonly happens when replacing via peeps and exiting
+scopes.  This recursive `kill` amounts to Dead Code Elimination in many other
+compilers; here we call it in a very fine-grained way.  Many Nodes will be
+created by the parser, only to be killed before the very next lexeme is parsed.
+
+For more information please read the [appendix section](appendix/dce.md#appendix) on dead code elimination.
+
+The suggestively called `deadCodeElim` function is a thin wrapper over `kill`
+used by `peepholeOpt` to avoid prematurely killing a Node which only briefly
+makes the 1->0 users transition.
 
 ```java
 // m is the new Node, self is the old.
@@ -245,10 +421,10 @@ private Node deadCodeElim(Node m) {
 }
 ```
 
-Note the temporary add of a bogus user to the Node `m`.
-The reason this is done is that we know `m` is the new replacement and is alive,
-but since it is not yet part of the graph up the tree, it has no users yet.
-By adding a bogus user we prevent it being mistaken for dead and being killed.
+Note the temporary add of a bogus user to the Node `m`.  The reason this is
+done is that we know `m` is the new replacement and is alive, but since it is
+not yet hooked into the graph, it has no users yet.  By adding a bogus user we
+prevent it being mistaken for dead and being killed.
 
 [^1]: Click, C. (1995).
    Combining Analyses, Combining Optimizations, 131.

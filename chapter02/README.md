@@ -1,5 +1,18 @@
 # Chapter 2: Arithmetic
 
+
+# Table of Contents
+
+1. [Extensions to Intermediate Representation](#extensions-to-intermediate-representation)
+2. [Peephole Optimizations](#peephole-optimizations)
+3. [Constant Folding and Constant Propagation](#constant-folding-and-constant-propagation)
+4. [Nodes Pre Peephole Optimization](#nodes-pre-peephole-optimization)
+5. [Post-peephole](#post-peephole)
+6. [Demonstration](#demonstration)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter02) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter01...linear-chapter02) it to the previous chapter.
+
+
 In this chapter we extend the language grammar to include arithmetic operations such as addition, subtraction,
 multiplication, division, and unary minus. This allows us to write statements such as:
 
@@ -28,6 +41,18 @@ We extend the set of nodes by adding following additional node types.
 | Mul       | Data | Multiply two values           | Two data nodes, values are multiplied, order not important | Result of the multiply      |
 | Div       | Data | Divide a value by another     | Two data nodes, values are divided, order matters          | Result of the division      |
 | Minus     | Data | Negate a value                | One data node, value is negated                            | Result of the unary minus   |
+
+
+## *Value* equality vs *Reference* equality
+
+In much of Simple, Nodes are looked up (`find()` calls) via *reference*
+equality.  This is by far the most common case.  In [Chapter
+9](../chapter09/README.md) we introduce *value* equality for the first time.
+In both cases the choice of value-vs-reference equality is intentional: it is
+*never* correct to "just pick one or the other kind of equality".  When in
+doubt check the context: only *Global Value Numbering* uses value equality;
+everywhere we mean reference equality.
+
 
 ## Peephole Optimizations
 
@@ -91,17 +116,18 @@ Type
 ```
 
 It turns out that the set of values associated with a Type at a specific Node
-can be conveniently represented as a "lattice"
-https://en.wikipedia.org/wiki/Lattice_(order)
-.  Our lattice has the following structure:
+can be conveniently represented as a *lattice* 
+[wiki/Lattice_(order)](https://en.wikipedia.org/wiki/Lattice_(order)).  Our lattice has the following structure:
 
-![Lattice](./docs/02-lattice.svg)
+![Lattice](./docs/lattice.svg)
 
 Our lattice elements can be one of three types:
 
-* The highest element is "top", denoted by T; assigning T means that the Node's value may or may not be a compile time constant.
+* The highest element is "top", denoted by ⊤; assigning ⊤ means that the Node's
+  value may or may not be a compile time constant.
 * All elements in the middle are constants.
-* The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the Node's value is **not** a compile time constant.
+* The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the
+  Node's value is **not** a compile time constant.
 
 An invariant of peephole optimizations is that the type of a Node always moves
 *up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst
@@ -127,6 +153,7 @@ starting in [Chapter 4](../chapter04/README.md) and [Chapter
 There are other important properties of the Lattice that we discuss in [Chapter
 4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
 
+
 ## Nodes Pre Peephole Optimization
 
 The following visual shows how the graph looks like pre-peephole optimization:
@@ -138,9 +165,11 @@ The following visual shows how the graph looks like pre-peephole optimization:
 * The edges from Constants to Start are shown in dotted lines as these are not true control edges
 * We label each edge with its position in the node's list of inputs.
 
+
 ## Post-peephole
 
 ![Example Visual](./docs/02-post-peephole-ex1.svg)
+
 
 ## Demonstration
 To demonstrate how the optimisation works, let's consider the following code:

@@ -67,7 +67,7 @@ structName
 
 declStatement
     : 'int' IDENTIFIER '=' expression ';'
-    | structName IDENTIFIER ('?')? '=' expression ';'
+    | structName ('?')? IDENTIFIER '=' expression ';'
     ;
 
 returnStatement

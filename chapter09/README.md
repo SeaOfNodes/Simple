@@ -1,11 +1,27 @@
 # Chapter 9: Global Value Numbering and Iterative Peepholes
 
+# Table of Contents
+
+1. [Engineering Peepholes](#engineering-peepholes)
+2. [Global Value Numbering](#global-value-numbering)
+3. [Post-Parse Iterative Peepholes](#post-parse-iterative-peepholes)
+4. [Distant Neighbors](#distant-neighbors)
+5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
+6. [Other Concerns](#other-concerns)
+7. [Common SubExpressions via GVN](#common-subexpressions-via-gvn)
+    - [Example 1](#example-1)
+    - [Example 2](#example-2)
+8. [Post Parse Iterative Optimizations](#post-parse-iterative-optimizations)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter09) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter08...linear-chapter09) it to the previous chapter.
+
 In this chapter:
 
 * We add Global Value Numbering (Common Subexpression Elimination)
 * We add a post-parse iterate-peepholes-to-fixed-point optimization
 
 No language changes in this chapter, just adding optimizations.
+
 
 ## Engineering Peepholes
 
@@ -31,6 +47,14 @@ get the same result - and can be shared.
 * `ConstantNode` and a few others need some extra custom bits here: the
   constant 17 is not the same as 99, but both are the same `ConstantNode` class
   and label.  The `eq` and `hash` calls check (or hash) these extra bits.
+
+Note the intentional *value* equality here.  In many places in Simple we use
+*reference* equality - e.g. node/edge maintenance is via reference equality, not
+value equality, so e.g. the `Utils.find()` call finds via reference.  Through
+out the Simple project whenever a Node lookup is happening, beware if its via
+*value* or *reference* equality; this is not always explicitly called out but
+should be obvious from context.
+
 
 Since we edit the graph a lot, Nodes can have their inputs change which changes
 their hash which means they can't be found in the GVN table.  E.g. we swap out
@@ -244,6 +268,9 @@ return arg*arg-arg*arg;
 Without GVN the peepholes cannot see that both sides of the subtraction have the same value.
 
 ![Graph3](./docs/09-graph3.svg)
+
+- Each multiplication(*) node has two edges going to `arg`. 
+- In the example above, we fused them to make the graph more readable.
 
 With GVN, the peepholes can do a better job:
 

@@ -33,7 +33,7 @@ if( (arg/13)==0 ) {
 int r = g+h;
 return p-r;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }
 
@@ -53,8 +53,7 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
-        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 2;", stop.toString());
     }
 
@@ -70,8 +69,7 @@ else
     v.y = 3;
 return v;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+        StopNode stop = parser.parse().iterate();
         assertEquals("return new Vector2D;", stop.toString());
     }
 
@@ -84,7 +82,7 @@ struct s0 {
 s0? v1=null;
 int v3=v1.zAicm;
 """);
-        try { parser.parse(true);  fail(); }
+        try { parser.parse();  fail(); }
         catch( Exception e ) {  assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());  }
     }
 
@@ -94,7 +92,7 @@ int v3=v1.zAicm;
 struct s0 { int v0; }
 arg=0+new s0.0;
 """);
-        try { parser.parse(true); fail(); }
+        try { parser.parse(); fail(); }
         catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
     }
 
@@ -109,7 +107,7 @@ while (arg) {
 }
 return bar.a;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop11,0,(Phi_a+2));", stop.toString());
     }
 
@@ -122,7 +120,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
     }
 
@@ -135,7 +133,7 @@ if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'a'",e.getMessage()); }
     }
 
@@ -148,7 +146,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { parser.parse(true); fail(); }
+        try { parser.parse(); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
     }
 
@@ -161,7 +159,7 @@ if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region16,null,new Bar);", stop.toString());
     }
 
@@ -177,7 +175,7 @@ if( !bar ) rez=4;
 else bar.a = 1;
 return rez;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Region33,4,3);", stop.toString());
     }
 
@@ -194,7 +192,7 @@ while(arg) {
 }
 return ret;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) {
             assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
@@ -209,7 +207,7 @@ s0? v1=new s0;
 s0? v1;
 v1=new s0;
 """);
-        try { parser.parse(true); fail(); }
+        try { parser.parse(); fail(); }
         catch( Exception e ) { assertEquals("Redefining name 'v1'", e.getMessage()); }
     }
 
@@ -231,7 +229,7 @@ while( i.x < i.len ) {
 }
 return sum;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop15,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
 
@@ -248,12 +246,11 @@ while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
-    #showGraph;
+
 }
 return ret;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop11,new s0,Phi(Region31,new s0,Phi_ret));", stop.toString());
     }
 
@@ -267,12 +264,10 @@ while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
-        #showGraph;
 }
 return ret;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop13,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
     }
 
@@ -289,8 +284,7 @@ while(arg < 10) {
 }
 return ret;
 """);
-        StopNode stop = parser.parse(true).iterate(true);
-        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop11,new s0,Phi(Region30,new s0,Phi_ret));", stop.toString());
     }
 
@@ -304,7 +298,7 @@ if(0>=0) return new s0;
 return new s0;
 int v0=null.f0;
 """);
-        try { parser.parse(true); fail(); }
+        try { parser.parse(); fail(); }
         catch( Exception e ) { assertEquals("Accessing unknown field 'f0' from 'null'", e.getMessage()); }
     }
 
@@ -320,7 +314,7 @@ if(0) {
     }
 }
    """);
-        StopNode stop = parser.parse(true).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }
 
@@ -334,7 +328,7 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        StopNode stop = parser.parse(true).iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return new s0;", stop.toString());
     }
 
@@ -350,7 +344,7 @@ while(0<arg) {
 }
 return 0;
     """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
     }
 
     @Test
@@ -362,7 +356,7 @@ while(v0.f0) {}
 s0 v1 = v0;
 return v1;
     """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return new s0;", stop.toString());
     }
 
@@ -394,7 +388,7 @@ while(0) {}
         }    }
 }
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }
 
@@ -405,7 +399,7 @@ int v0=arg==0;
 while(v0) continue;
 return 0;
 """);
-        StopNode stop = parser.parse().iterate(true);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }
 

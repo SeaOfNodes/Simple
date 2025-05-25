@@ -1,5 +1,24 @@
 # Chapter 1: Introduction
 
+# Table of Contents
+
+1.  [Implementation Language](#implementation-language)
+2.  [Assumptions](#assumptions)
+3.  [Architecture](#architecture)
+4.  [Data Structures](#data-structures)
+5.  [Intermediate Representation as a Graph of Nodes](#intermediate-representation-as-a-graph-of-nodes)
+6.  [Nodes are in a Graph](#nodes-are-in-a-graph)
+7.  [Types of Nodes](#types-of-nodes)
+8.  [Unique Node ID](#unique-node-id)
+9.  [Start Node](#start-node)
+10. [Constant Node](#constant-node)
+11. [Return Node](#return-node)
+12. [Representation](#representation)
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter01) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch.
+
+
 In this chapter we aim to compile simple scripts such as:
 
 ```
@@ -10,9 +29,10 @@ We implement the `return` statement.
 The `return` statement accepts an `expression` as an argument.
 The only `expression` type is an integer literal, as shown in the example above.
 
+To implement this simple language, we introduce a few key components and data structures.
+
 Here is the [complete language grammar](docs/01-grammar.md) for this chapter.
 
-To implement this simple language, we introduce a few key components and data structures.
 
 ## Implementation Language
 
@@ -36,6 +56,8 @@ Our data structures are based upon the descriptions provided in following papers
 * [Combining Analyses, Combining Optimizations](https://dl.acm.org/doi/pdf/10.1145/201059.201061)
 * [A Simple Graph-Based Intermediate Representation](https://www.oracle.com/technetwork/java/javase/tech/c2-ir95-150110.pdf)
 * [Global Code Motion Global Value Numbering](https://courses.cs.washington.edu/courses/cse501/06wi/reading/click-pldi95.pdf)
+* [EasySSA](https://www.dropbox.com/scl/fi/0ww4sgl3ynep9hhe3i4xn/EasySSA.pdf?rlkey=2cp78hzxke62flkmyneiebzoz&dl=0)
+* [SeaOfNodes](https://www.dropbox.com/scl/fi/cxykfvlzsmlcatyg6rlbt/SeaOfNodes.pdf?rlkey=z6o7y3rwr6atrejilcze6r8x0&e=1&dl=0)
 
 Following the lead from above, we represent our intermediate representation using an object oriented data model. Details of the
 representation follow.

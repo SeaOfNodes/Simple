@@ -1,5 +1,24 @@
 # Chapter 11: Global Code Motion
 
+# Table of Contents
+
+1. [High Level Overview](#high-level-overview)
+2. [Scheduling Walk Through](#scheduling-walk-through)
+3. [Scheduling a Loop](#scheduling-a-loop)
+4. [Components of the Global Code Motion Algorithm ](#components-of-the-global-code-motion-algorithm)
+5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
+6. [Handling Infinite Loops](#handling-infinite-loops)
+7. [Dominators](#dominators)
+8. [Loop depth](#loop-depth)
+9. [Early Schedule](#early-schedule)
+10. [Late Schedule](#late-schedule)
+11. [Inserting Anti Dependencies](#inserting-anti-dependencies)
+12. [Video Walk Through](#video-walk-through)
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter11) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter10...linear-chapter11) it to the previous chapter.
+
+
 The original input source program defines a sequence in which things happen. As we parse the program into Sea of Nodes representation
 and perform various optimizations, this sequence is not fully maintained. The optimized Sea of Nodes graph is driven more
 by dependencies between nodes rather that the sequence of instructions in the original source program.
@@ -106,7 +125,7 @@ Following early schedule generation, we get:
 
 ![Graph5](./docs/graph5.svg)
 
-Note that the `arg === 5` comparison at this stage is not in the correct place.
+Note that the `arg == 5` comparison at this stage is not in the correct place.
 This is rectified after we complete late scheduling.
 
 ![Graph6](./docs/graph6.svg)

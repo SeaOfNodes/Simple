@@ -1,0 +1,2 @@
+// -*- mode: java;  -*-
+val allocIA = { int N -> return new u32[N]; };

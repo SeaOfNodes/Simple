@@ -1,0 +1,28 @@
+name: Linearize chapter history
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  linearize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0 # Fetch the full history
+      - name: Construct linear history and push to linear branch
+        run: |
+          git remote set-url origin https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          git config user.name 'GitHub Action'
+          git config user.email 'actions@github.com'
+          .github/workflows/linearize.sh
+          git remote add linear ./linear
+          git fetch linear
+          git checkout -b linear linear/main
+          git remote remove linear
+          git push -f origin refs/heads/linear 'refs/tags/linear-chapter*'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

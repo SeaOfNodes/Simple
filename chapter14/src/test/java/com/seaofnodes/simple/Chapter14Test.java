@@ -15,7 +15,7 @@ public class Chapter14Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -151,7 +151,7 @@ int j = -i; // Negating Long.MIN_VALUE wraps, cannot constant fold
 if (arg) j = 1;
 return j;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return Phi(Region28,1,(-((arg&9223372036854775807)+-9223372036854775808)));", stop.toString());
         assertEquals(-9223372036854775808L, Evaluator.evaluate(stop,  0));
         assertEquals(1L, Evaluator.evaluate(stop,  1));
@@ -163,7 +163,7 @@ return j;
 """
 return (arg >>> 1)==0;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return (!(arg>>>1));", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop, 0));
         assertEquals(1L, Evaluator.evaluate(stop, 1));
@@ -189,7 +189,7 @@ flt f = arg;
 arg = f & 0;
 return arg;
 """);
-        try { parser.parse(true).iterate(true); fail(); }
+        try { parser.parse().iterate(); fail(); }
         catch( Exception e ) { assertEquals("Cannot '&' FltBot",e.getMessage()); }
     }
 
@@ -263,7 +263,7 @@ if (arg&7) i=3;
 else       i=2;
 return (arg == i) == 1;
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return (arg==Phi(Region18,3,2));", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
         assertEquals(0L, Evaluator.evaluate(stop,  1));
@@ -282,7 +282,7 @@ while (1) {
     return i + -1;
 }
 """);
-        StopNode stop = parser.parse(false).iterate(true);
+        StopNode stop = parser.parse(false).iterate();
         assertEquals("return (Phi(Region43,((arg&3)+9223372036854775804),((arg&7)+9223372036854775800))+-1);", stop.toString());
         assertEquals(0x7FFFFFFFFFFFFFF7L, Evaluator.evaluate(stop,  0));
         assertEquals(0x7FFFFFFFFFFFFFFCL, Evaluator.evaluate(stop,  1));
@@ -309,7 +309,7 @@ f32 ff32 = 3.141592653589793;  if( ff32 != 3.1415927410125732) return 5;
 
 return 0;
 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate(false);
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }

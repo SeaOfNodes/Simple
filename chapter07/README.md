@@ -1,8 +1,21 @@
 # Chapter 7: While Statement
 
+# Table of Contents
+
+1. [Dealing With Back Edges](#dealing-with-back-edges)
+2. [New Node Types](#new-node-types)
+3. [Detailed Steps](#detailed-steps)
+4. [Visualization](#visualization)
+5. [Nested Loops](#nested-loops)
+5. [Loop With Nested If](#loop-with-nested-if)
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter07) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter06...linear-chapter07) it to the previous chapter.
+
+
 In this chapter we introduce the `while` statement.
 
 Here is the [complete language grammar](docs/07-grammar.md) for this chapter.
+
 
 ## Dealing With Back Edges
 
