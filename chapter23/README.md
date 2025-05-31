@@ -1,7 +1,120 @@
-# Chapter 23: TODO!
+# Chapter 23: Revisiting Types
 
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21) it to the previous chapter.
+In this chapter we revisit our Types and make some major changes:
+- Types are now *cyclic*: a Type can (indirectly) point to itself.
+- Types remain
+  [*interned*](https://en.wikipedia.org/wiki/Interning_(computer_science)) or
+  [*hash-consed*](https://en.wikipedia.org/wiki/Hash_consing).
+- Type objects are managed via an object pool
+- Newly created types probe the interning table, and if a hit is found, the
+  original is used, and the new type is returned to the object pool.
+- The intern table hit rate is something like 99.9%; nearly all types created
+  have already been created!  This last point turns into an interesting
+  performance win; much of the work in an optimizing compiler deals with
+  manipulating Types, keeping the count of Types small and fitting in the
+  faster levels of cache is a nice payoff.
+- Many of the interning algorithms require cycle-handling via some kind of
+  "visit bit".  One easy way to do this is add a *unique id* UID to every type,
+  a small dense integer that is used in bit-sets to avoid visiting a type more
+  than once.  Smaller UIDs use smaller bit-sets, which again fit in the faster
+  cache levels.
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
+
+
+## Why Cyclic Types?
+
+Cyclic types give us a sharper analysis than the alternative, and thus admit
+more programs or better optimizations or both.  In Simple's case Types are also
+used for type-checking, so sharper types means we allow more valid programs.
+
+**Why Cyclic Types *Now* **?  Because we hit them as soon as we allow a
+function definition inside of a struct which takes the struct as an argument,
+i.e. *methods*.
+
+```java
+// A String-like class, with methods
+struct String {
+    u8[~] buf; // Buffer of characters
+    // Return the index of character 'c' in string 'self'
+    val indexOf = { str self, u8 c ->
+        for( int i=0; i<self#; i++ )
+            if( self.buf[i]==c )
+                return i;
+        return -1; // 'c' not in 'self'
+    };
+};
+```
+
+Here we define a `String` class with an `indexOf` method; the string `self` is
+passed in and searched (you can imagine an alternative syntax where the `this`
+or `self` is implicit).  What is the type of `struct String`?
+
+`struct String { u8[~] buf; { String self, u8 c -> int } indexOf; }`
+
+Its the type named `String` with a field `u8[~] buf` and a final assigned
+constant field `indexOf` itself with type `{ String self, u8 c -> int }`.
+i.e., the type of `String` has a reference to itself, nested inside the type of
+`indexOf`.... i.e. `String`'s type is *cyclic*.
+
+
+## Less Cyclic Types
+
+This problem of cyclic types has been around for a long time, and there a
+number of tried and true methods.  One easy one is to have a type *definition*
+and a separate type *reference*.  The reference refers to the type by doing
+some kind of lookup; an easy one is via the type name and the parsers' symbol
+table i.e., some kind of hash table lookup.
+
+In this model the cycle is effectively avoided; all "back edges" in the cycle
+are really done by the reference edge (itself possibly a hash table lookup).
+So why not go down this route?
+
+Its because all type references lead back to the same type definition - which
+means any specialization of type information is lost, because *all* type
+references lead back to the same definition and you end up taking the MEET 
+over *all* paths.
+
+Here's an example, simple Linked List with a Java `Object` or a C `void*`
+payload:
+
+```java
+struct List {
+  List next;
+  Object payload;
+}
+// Then walk a collection of ints and build a List:
+List nums=null;
+for( int x : ary_ints ) nums = new List{next=nums; payload=x; }
+// Again for strings:
+List strs=null;
+for( String x : ary_strs ) nums = new List{next=strs; payload=x; }
+```
+
+What is the type of `nums`?  It's `*List`... which is `struct List { List
+*next; Object payload }`.  No sharpening of `Object` to `int` (nor `String`),
+because every List object has a payload of `Object` and `Object` MEET `int` is
+back to `Object`.
+
+It we allow truely cyclic types then in these kinds of places we can discover
+(or infer) a sharper type: `*List<int> { *List<int> next, int payload }`
+basically building up *generics* in the optimizer.  This is not generics or
+type-variables per-se, but it goes a long way towards them.
+
+
+## Handling cyclic types
+
+Now Simple can handle cyclic types directly.  This means we have `Type` objects
+whose child types can point back to the original - and that means [*recursive
+descent*] (https://en.wikipedia.org/wiki/Recursive_descent_parser) no longer
+works.
+
+Up till now we've used recursive descent when building up Types: child types
+are built first, then interned, then the interned children are used to build up
+the next layer.
+
 
 
 
