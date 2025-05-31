@@ -117,7 +117,7 @@ public abstract class Eval2 {
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
         if( code._start.uctrl()==null ) return ""; // The empty program
-        SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
+        SB trace = null; // = new SB(); // TRACE, set to null for off, new SB() for on
         // Force local scheduling phase
         code.driver(CodeGen.Phase.LocalSched);
         // Set global, so don't have to pass everywhere
@@ -304,9 +304,21 @@ public abstract class Eval2 {
         return switch ( t ) {
         case TypeInteger i -> i.isConstant() ? (Long  )i.value() : "INT";
         case TypeFloat   f -> f.isConstant() ? (Double)f.value() : "FLT";
-        case TypeMemPtr tmp -> tmp;
         case TypeFunPtr tfp -> tfp;
         case TypeMem mem -> "MEM";
+        case TypeMemPtr tmp -> {
+            if( tmp._obj.isAry() ) { // Constant array ptr
+                TypeConAry con = (TypeConAry)tmp._obj.field("[]")._t;
+                Object[] xs = new Object[con.len()+1];
+                xs[0] = (long)con.len();
+                for( int i=0; i<con.len(); i++ )
+                    xs[i+1] = (long)con.at(i);
+                yield xs;
+
+            } else {
+                throw Utils.TODO(); // Constant non-array ptr
+            }
+        }
         default -> null;
         };
     }
@@ -330,7 +342,7 @@ public abstract class Eval2 {
             if( n!=x || n<0 )
                 throw new NegativeArraySizeException(""+n);
             Object[] ary = new Object[n]; // Array body
-            var elem = type._fields[1]._type;
+            var elem = type._fields[1]._t;
             if (elem instanceof TypeInteger) {
                 Arrays.fill( ary, 0L );
             } else if (elem instanceof TypeFloat) {
@@ -344,7 +356,7 @@ public abstract class Eval2 {
         int num = type._fields.length;
         Object[] ptr = new Object[num];
         for( int i=0; i<num; i++ )
-            ptr[i] = con(type._fields[i]._type.makeZero());
+            ptr[i] = con(type._fields[i]._t.makeZero());
         return ptr;
     }
 
@@ -352,11 +364,12 @@ public abstract class Eval2 {
         Object f = val(ld.ptr());
         // Check for dense constant array
         if( f instanceof TypeMemPtr tmp ) {
-            assert tmp._obj._con != TypeConAry.BOT;
-            if( ld._name.equals("#") )
-                return (long)tmp._obj._con.len();
-            int idx = offToIdx(x(ld.off()),tmp._obj);
-            return tmp._obj._con.at(idx);
+            //assert tmp._obj._con != TypeConAry.BOT;
+            //if( ld._name.equals("#") )
+            //    return (long)tmp._obj._con.len();
+            //int idx = offToIdx(x(ld.off()),tmp._obj);
+            //return tmp._obj._con.at(idx);
+            throw Utils.TODO();
         }
         Object[] fs = (Object[])f;
         if( ld._name.equals("#") )
@@ -414,14 +427,11 @@ public abstract class Eval2 {
         case TypeMemPtr tmp -> {
             if( visit.containsKey(x) ) yield sb.p("$cyclic");
             visit.put(x,x);
-            // Since never can close the type cycle, without cyclic types, have
-            // to handle FRefs even here
-            if( tmp.isFRef() )
-                tmp = tmp.makeFrom(((TypeMemPtr)Parser.TYPES.get(tmp._obj._name))._obj);
+            assert !tmp.isFRef();
 
             Object[] xs = (Object[])x; // Array of fields
             if( tmp._obj.isAry() ) {
-                Type elem = tmp._obj._fields[1]._type;
+                Type elem = tmp._obj._fields[1]._t;
                 if( elem == TypeInteger.U8 ) {
                     // Shortcut u8[] as a String
                     for( Object o : xs )
@@ -429,6 +439,7 @@ public abstract class Eval2 {
                 } else {
                     // Array of elements
                     elem.print(sb).p("[ ");
+                    if( elem instanceof TypeConAry ) elem = TypeInteger.ZERO;
                     for( Object o : xs )
                         _print( elem, o, sb, visit ).p( "," );
                     sb.unchar().p("]");
@@ -437,7 +448,7 @@ public abstract class Eval2 {
                 sb.p(tmp._obj._name).p("{");
                 Field[] flds = tmp._obj._fields;
                 for( int i=0; i<flds.length; i++ )
-                    _print( flds[i]._type,xs[i], sb.p(flds[i]._fname).p("="), visit ).p(",");
+                    _print( flds[i]._t,xs[i], sb.p(flds[i]._fname).p("="), visit ).p(",");
                 sb.unchar().p("}");
             }
             yield sb;

@@ -3,7 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
 
 /**
@@ -36,7 +36,7 @@ public class NewNode extends Node implements MultiNode {
 
     @Override public String label() { return "new_"+glabel(); }
     @Override public String glabel() {
-        return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._type.str() : _ptr._obj.str();
+        return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._t.str() : _ptr._obj.str();
     }
 
     @Override
@@ -66,13 +66,13 @@ public class NewNode extends Node implements MultiNode {
         for( int i=0; i<fs.length; i++ ) {
             if( _ptr._obj._fields[i]._one ) {
                 // Once-only fields use the declared type
-                ts[i+2] = _ptr._obj._fields[i]._type;
+                ts[i+2] = _ptr._obj._fields[i]._t;
             } else {
                 // Others take from the inputs
                 Type mt = in(i+2)._type;
                 TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
                 Type tfld = mem._t.meet(mem._t.makeZero());
-                Type tfld2 = tfld.join(fs[i]._type);
+                Type tfld2 = tfld.join(fs[i]._t );
                 ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
             }
         }

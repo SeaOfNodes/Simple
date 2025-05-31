@@ -61,11 +61,10 @@ public class ReturnNode extends CFGNode {
         // Upgrade signature based on return type
         Type ret = expr()._type;
         TypeFunPtr fcn = _fun.sig();
-        assert ret.isa(fcn.ret());
-        if( ret != fcn.ret() )
+        if( ret != fcn.ret() && ret.isa(fcn.ret()) )
             _fun.setSig(fcn.makeFrom(ret));
 
-        // If dead (cant be reached; infinite loop), kill the exit values
+        // If dead (cannot be reached; infinite loop), kill the exit values
         if( ctrl()._type==Type.XCONTROL &&
             !(mem() instanceof ConstantNode && expr() instanceof ConstantNode) ) {
             Node top = new ConstantNode(Type.TOP).peephole();

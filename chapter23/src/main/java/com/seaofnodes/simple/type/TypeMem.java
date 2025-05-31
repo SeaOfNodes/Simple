@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import java.lang.Long;
-import java.util.BitSet;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.BitSet;
 
 
 /**
@@ -16,17 +16,36 @@ public class TypeMem extends Type {
     //  0 means TOP, no slice.
     //  0 means BOT, all memory.
     //  N means slice#N.
-    public final int _alias;
-    public final Type _t;       // Memory contents, some scalar type
+    public int _alias;
+    public Type _t;       // Memory contents, some scalar type
 
-    private TypeMem(int alias, Type t) {
-        super(TMEM);
+    private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
+    private TypeMem(int alias, Type t) { super(TMEM); init(alias,t); }
+    private TypeMem init(int alias, Type t) {
         assert alias!=0 || (t==Type.TOP || t==Type.BOTTOM);
         _alias = alias;
         _t = t;
+        return this;
     }
 
-    public static TypeMem make(int alias, Type t) { return new TypeMem(alias,t).intern(); }
+    public static TypeMem malloc(int alias, Type t) {
+        return FREE.isEmpty() ? new TypeMem(alias,t) : FREE.pop().init(alias,t);
+    }
+    public static TypeMem make(int alias, Type t) {
+        TypeMem f = malloc(alias,t);
+        TypeMem f2 = f.intern();
+        return f2==f ? f : f2.free(f);
+    }
+    @Override TypeMem free(Type t) {
+        TypeMem mem = (TypeMem)t;
+        mem._alias= -99;
+        mem._dual = null;
+        mem._hash = 0;
+        FREE.push(mem);
+        return this;
+    }
+    private boolean isFree() { return _alias == -99; }
+
     public static final TypeMem TOP = make(0, Type.TOP   );
     public static final TypeMem BOT = make(0, Type.BOTTOM);
 
@@ -45,13 +64,48 @@ public class TypeMem extends Type {
     }
 
     @Override
-    public Type dual() {
-        return make(_alias,_t.dual());
+    Type xdual() { return _t._dual==_t ? this : malloc(_alias,_t.dual()); }
+
+    @Override TypeMem tern() {
+        if( _terned ) return this;
+        _t = _t.tern();
+        TypeMem told = (TypeMem)INTERN.get(this);
+        return told==null ? this : told.delayFree(this);
+    }
+
+    @Override TypeMem rdual() {
+        if( _dual!=null ) return dual();
+        assert !_terned;
+        TypeMem d = malloc(_alias,null);
+        (_dual = d)._dual = this; // Cross link duals
+        d._t = _t._terned ? _t.dual() : _t.rdual();
+        return d;
+    }
+
+    @Override Type install() {
+        if( !_t._terned ) {
+            Type t = _t.install();
+            if( t != _t ) { // If we now update during install, we have update the dual also
+                _t = t;
+                ((TypeMem)_dual)._t = t._dual;
+            }
+        }
+        return _intern();
+    }
+
+    @Override void rfree() {
+        assert !isFree();
+        Type t = _t;
+        free(this);             // Free 'this'
+        if( !t._terned )
+            t.rfree();
     }
 
     @Override public boolean isHigh() { return _t.isHigh(); }
     @Override public int log_size() { throw Utils.TODO(); }
-    @Override public Type glb(boolean mem) { return make(_alias,_t.glb(true)); }
+    @Override boolean _isFinal() { return _t._isFinal(); }
+    @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
+    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true)); }
 
     @Override int hash() { return 9876543 + _alias + _t.hashCode(); }
 
@@ -60,15 +114,15 @@ public class TypeMem extends Type {
         return _alias == that._alias && _t == that._t;
     }
 
-    @Override public SB print(SB sb) {
-        sb.p("#");
-        if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
-        return _t.print(sb.p(_alias).p(":"));
+    @Override boolean cycle_eq(Type t) {
+        TypeMem that = (TypeMem) t; // Invariant
+        return _alias == that._alias && _t.cycle_eq(that._t);
     }
-    @Override public SB gprint(SB sb) {
+
+    @Override public SB _print(SB sb, BitSet visit, boolean html) {
         sb.p("#");
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
-        return _t.gprint(sb.p(_alias).p(":"));
+        return _t.print(sb.p(_alias).p(":"),visit,html);
     }
 
     @Override public String str() { return toString(); }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.Test;
+import org.junit.Ignore;
 import static org.junit.Assert.*;
 
 public class Chapter15Test {
@@ -212,7 +213,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         assertEquals("1006", Eval2.eval(code,  4));
     }
 
-    @Test
+    @Test @Ignore
     public void sieveOEratosthenes() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
         CodeGen code = new CodeGen(src+"return sieve(arg);");

@@ -494,13 +494,13 @@ return new A;
         CodeGen code = new CodeGen("""
 struct A {
     B?[]? nil_array_of_b;
-    B?[]  not_array_of_b;
+    B?[]      array_of_b;
 };
-return new A{not_array_of_b = new B?[0]; }.not_array_of_b;
+return new A{array_of_b = new B?[0]; }.array_of_b;
 """);
         code.parse().opto();
         assertEquals("return (const)[]*B?;", code.print());
-        assertEquals("*B?[]", Eval2.eval(code,0));
+        assertEquals("*B {... }?[]", Eval2.eval(code,0));
     }
 
     // ---------------------------------------------------------------

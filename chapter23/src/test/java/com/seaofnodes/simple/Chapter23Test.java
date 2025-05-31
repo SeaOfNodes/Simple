@@ -1,8 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.node.cpus.arm.arm;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import com.seaofnodes.simple.type.TypeInteger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,7 +51,7 @@ struct Scan {
         return true;
     };
 };
-Scan s = new Scan{ buf = "  q"; };
+Scan !s = new Scan{ buf = "  q"; };
 return Scan.peek(s,'q');
         """;
 
@@ -78,11 +77,11 @@ struct Scan {
 };
 val s = new Scan{ buf = "  q"; };
 Scan.skip(s);
-return 0;
+return s.x;
         """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {int x; *[u8] buf; { *Scan -> 0 #0} skip; }, but must be a *Scan {int !x; *[u8] buf; }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> 0 #8} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
     };
 
 

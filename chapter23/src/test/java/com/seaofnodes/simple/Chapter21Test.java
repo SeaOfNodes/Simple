@@ -13,7 +13,7 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
-    @Test @Ignore
+    @Test
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);

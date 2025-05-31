@@ -492,12 +492,11 @@ public class Encoding {
             while( off < foff ) { bits.write(0); off++; };
             // Constant array fields are special
             if( f._fname=="[]" ) {   // Must be a constant array
-                ts._con.write(bits); // Write the constant array bits
-                off += ts._con.len();
+                ((TypeConAry)f._t).write(bits);
+                off += ((TypeConAry)f._t).len();
             } else {
-                int log = f._type.log_size();
-                if( f._fname=="#" )  addN(log,ts._con.len(),bits); // Must be a constant array
-                else                 addN(log,f._type      ,bits);
+                int log = f._t.log_size();
+                addN(log,f._t,bits);
                 off += 1<<log;
             }
         }

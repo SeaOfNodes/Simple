@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
-import com.seaofnodes.simple.Utils;
-import java.util.ArrayList;
-import java.util.HashMap;
+import com.seaofnodes.simple.util.*;
+import java.util.*;
 
 /**
  * These types are part of a Monotone Analysis Framework,
@@ -21,8 +19,33 @@ import java.util.HashMap;
  * simple constant folding e.g. 1+2 == 3 stuff.
  */
 
-public class Type {
+public class Type /*implements Cloneable*/ {
+    // Interning tables
+
+    // Main intern table; a collection of all unique types.
     static final HashMap<Type,Type> INTERN = new HashMap<>();
+    // Starting intern table; used to rapidly reset the main table between tests
+    private static final HashMap<Type,Type> INTERN0= new HashMap<>();
+    // Lifetime management during cyclic installs is complex; this is used to
+    // track created-but-already-interned objects
+    private static final Ary<Type> FREES = new Ary<>(Type.class);
+    // "visit" bit management, based solely on _uid
+    static final BitSet BITS = new BitSet();
+
+    // "visit" bit management.  Key varies by kind of visit:
+
+    // - "close" an open cyclic type.  Used by the Parser, it will hit on
+    //   same-named structs, even if the structs have different states of
+    //   completion/fields.
+    // - "uid/name" - Either the UID or name works (unlike "close" which must
+    //   use the name).  Used to make cyclic copies with changes, like make
+    //   read-only where there should be only 1 copy of a name in a cycle.
+    // - "pair of uids" - For recursive MEET, where we need to key off two types
+    static final HashMap<Object,Type> VISIT = new HashMap<>();
+
+    // Every Type has a UID to allow visit bits on cyclic visits
+    private static int UID=1;
+    public char _uid;           // Unique ID for every type
 
     // ----------------------------------------------------------
     // Simple types are implemented fully here.  "Simple" means: the code and
@@ -38,33 +61,42 @@ public class Type {
     static final byte TPTR    = 7; // All nil-able scalar values
     static final byte TINT    = 8; // All Integers; see TypeInteger
     static final byte TFLT    = 9; // All Floats  ; see TypeFloat
-    static final byte TMEMPTR =10; // Memory pointer to a struct type
-    static final byte TFUNPTR =11; // Function pointer; unique signature and code address (just a bit)
+    static final byte TCONARY =10; // Constant array
+    static final byte TRPC    =11; // Return Program Control (Return PC or RPC)
     static final byte TTUPLE  =12; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TSTRUCT =14; // Structs; tuples with named fields
-    static final byte TFLD    =15; // Named fields in structs
-    static final byte TCONARY =16; // Constant array
-    static final byte TRPC    =17; // Return Program Control (Return PC or RPC)
 
+    static final byte TCYCLIC =13; // Has internal pointers, needs recursive treatment
+    static final byte TMEMPTR =13; // Memory pointer to a struct type
+    static final byte TFUNPTR =14; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =15; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TSTRUCT =16; // Structs; tuples with named fields
+    static final byte TFLD    =17; // Named fields in structs
+
+    // Basic RTTI, useful for a lot of fast tests.
     public final byte _type;
+    public boolean _terned;
 
     public boolean is_simple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
-    protected Type(byte type) { _type = type; }
+    static final int[] CNTS = new int[TFLD+1];
+    protected Type(byte type) {
+        _type = type;           // RTTI
+        _uid = (char)UID++;     // A unique ID for every type
+        assert _uid!=0;         // Overflow
+        CNTS[type]++;
+    }
 
     public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
-    public static final Type TOP      = new Type( TTOP   ).intern(); // ANY
+    public static final Type TOP      = BOTTOM.dual();
     public static final Type CONTROL  = new Type( TCTRL  ).intern(); // Ctrl
-    public static final Type XCONTROL = new Type( TXCTRL ).intern(); // ~Ctrl
+    public static final Type XCONTROL = CONTROL.dual();
     public static final Type NIL      = new Type( TNIL   ).intern(); // low null of all flavors
-    public static final Type XNIL     = new Type( TXNIL  ).intern(); // high or choice null
+    public static final Type XNIL     = NIL.dual();
     public static Type[] gather() {
         ArrayList<Type> ts = new ArrayList<>();
         ts.add(BOTTOM);
         ts.add(CONTROL);
         ts.add(NIL);
-        ts.add(XNIL);
         TypeNil.gather(ts);
         TypePtr.gather(ts);
         TypeInteger.gather(ts);
@@ -77,6 +109,7 @@ public class Type {
         TypeTuple.gather(ts);
         TypeRPC.gather(ts);
         TypeConAry.gather(ts);
+
         int sz = ts.size();
         for( int i = 0; i < sz; i++ )
             ts.add(ts.get(i).dual());
@@ -86,10 +119,6 @@ public class Type {
     // Is high or on the lattice centerline.
     public boolean isHigh       () { return _type==TTOP || _type==TXCTRL || _type==TXNIL; }
     public boolean isHighOrConst() { return isHigh() || isConstant(); }
-
-    // Strict constant values, things on the lattice centerline.
-    // Excludes both high and low values
-    public boolean isConstant() { return _type==TNIL; }
 
     // ----------------------------------------------------------
 
@@ -106,14 +135,68 @@ public class Type {
 
     // Factory method which interns "this"
     @SuppressWarnings("unchecked")
-    public  <T extends Type> T intern() {
-        T nnn = (T)INTERN.get(this);
-        if( nnn==null )
-            INTERN.put(nnn=(T)this,this);
-        return nnn;
+    <T extends Type> T intern() {
+        //assert check();
+        assert !_terned;        // Do not ask for already-interned
+        T t2 = (T)INTERN.get(this);
+        if( t2!=null ) {
+            assert t2._dual != null;  // Prior is complete with dual
+            assert this != t2;        // Do not hashcons twice, should not get self back
+            return t2;                // Return prior
+        }
+        // Mid recursive type construction
+        if( !VISIT.isEmpty() && _type >= TCYCLIC ) {
+            // No intern attempt at all
+            return (T)this;
+        }
+        // Not in type table
+        _dual = null;           // No dual yet
+        INTERN.put(this,this);  // Put in table without dual
+        _terned = true;
+        //Util.hash_quality_check_per(INTERN,"INTERN");
+        T d = xdual(); // Compute dual without requiring table lookup, and not setting name
+        _dual = d;
+        if( this==d ) return d; // Self-symmetric?  Dual is self
+        assert !equals(d);      // Self-symmetric is handled by caller
+        assert d._dual==null;   // Else dual-dual not computed yet
+        assert INTERN.get(d)==null;
+        d._dual = (T)this;
+        INTERN.put(d,d);        // Install dual also
+        d._terned = true;
+        //assert check();
+        return (T)this;
     }
 
-    private int _hash;          // Hash cache; not-zero when set.
+    // Recursive visit elsewhere, interns with dual already
+    <T extends Type> T _intern() {
+        //assert check();
+        assert !_terned;
+        Type t = INTERN.get(this);
+        if( t!=null ) return (T)t.delayFree(this).delayFree(_dual);
+        assert !INTERN.containsKey( _dual );
+        INTERN.put(this,this);
+        INTERN.put(_dual,_dual);
+        _terned = _dual._terned = true;
+        return (T)this;
+        //assert check();
+    }
+
+    private static boolean check() {
+        for( Type t : INTERN.keySet() ) {
+            Type t2 = INTERN.get(t);
+            assert t==t2;
+        }
+        return true;
+    }
+
+    public static Type find(int uid) {
+        for( Type t : INTERN.keySet() )
+            if( t._uid==uid ) return t;
+        return null;
+    }
+
+
+    int _hash;          // Hash cache; not-zero when set.
     @Override
     public final int hashCode() {
         if( _hash!=0 ) return _hash;
@@ -132,8 +215,34 @@ public class Type {
         return eq(t);
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
-    boolean eq(Type t) { return true; }
+    boolean       eq(Type t) { return this==t; }
+    boolean cycle_eq(Type t) { assert _type < TCYCLIC; return eq(t); }
+    // A pair of uids
+    int pid( Type that ) {
+        return _uid < that._uid ? (_uid<<16 | that._uid) : (that._uid<<16 | _uid);
+    }
 
+    // Clear and re-insert the basic Type INTERN table
+    public static void reset() {
+        VISIT.clear();
+        FREES.clear();
+        if( INTERN0.isEmpty() ) {
+            // First time run all <clinit> and collect basic types
+            Type t = TypeRPC  .BOT; // Force class load, intern
+            Type u = TypeTuple.BOT; // Force class load, intern
+            Type w = TypePtr  .PTR; // Force class load, intern
+            INTERN0.putAll(INTERN);
+        } else {
+            // Later times, reset back to first time
+            for( Iterator<Type> it = INTERN.keySet().iterator(); it.hasNext(); ) {
+                Type t = it.next();
+                if( !INTERN0.containsKey(t) )
+                    { t._terned=false; t.free(t); }
+                it.remove();
+            }
+            INTERN.putAll(INTERN0);
+        }
+    }
 
     // ----------------------------------------------------------
     public final Type meet(Type t) {
@@ -172,17 +281,39 @@ public class Type {
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
 
-    public Type dual() {
-        return switch( _type ) {
-        case TBOT  -> TOP;
-        case TTOP  -> BOTTOM;
-        case TCTRL ->XCONTROL;
-        case TXCTRL-> CONTROL;
-        case TNIL  ->XNIL;
-        case TXNIL -> NIL;
+
+    // The dual is pre-computed on creation and available "for free" thereafter
+    Type _dual;
+    public final <T extends Type> T dual() { return (T)_dual; }
+
+    <T extends Type> T xdual() {
+        return (T)new Type(switch( _type ) {
+            case TBOT  -> TTOP;
+            case TTOP  -> TBOT;
+            case TCTRL -> TXCTRL;
+            case TXCTRL-> TCTRL;
+            case TNIL  -> TXNIL;
+            case TXNIL -> TNIL;
         default -> throw Utils.TODO(); // Should not reach here
-        };
+        });
     }
+
+    // Recursive dual.  Visit all types recursively.  Each visited type is
+    // *new*, and hits in the intern table, or not.  If not, we recursively
+    // call rdual to get its dual, and cross-link the duals.  If hitting, we
+    // use the intern type and mark the prior type for freeing.
+    Type tern() { assert _type < TCYCLIC; return this; }
+    Type rdual() { assert !_terned; return xdual(); }
+    Type install() { return this; }
+    Type free(Type free) { return this; }
+
+    <T extends Type> T delayFree(Type free) {
+        assert !free._terned;
+        FREES.push(free);
+        return (T)this;
+    }
+    void rfree() { }
+
 
     // ----------------------------------------------------------
     // Our lattice is defined with a MEET and a DUAL.
@@ -203,18 +334,87 @@ public class Type {
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
 
-    /** Compute greatest lower bound in the lattice.  If values are in memory,
-     *  ints and floats cannot widen. */
-    public Type glb(boolean mem) { return Type.BOTTOM; }
-
     // Is forward-reference
     public boolean isFRef() { return false; }
 
-    // All reachable struct Fields are final
-    public boolean isFinal() { return true; }
+    // ----------------------------------------------------------
 
-    // Make all reachable struct Fields final
-    public Type makeRO() { return this; }
+    Type recurOpen() { assert VISIT.isEmpty(); VISIT.put(0L,BOTTOM); return this; }
+    Type recurClose() {
+        VISIT.remove(0L);       // Just ignore the sentinel
+        Ary<Type> ts = new Ary<>(Type.class);
+        ts.addAll(VISIT.values());
+        if( ts.find(this)== -1 ) ts.add(this);
+
+        // Pass #1: replace already interned fields
+        assert BITS.isEmpty();
+        for( int i=0; i<ts._len; i++ )
+            if( ts.at(i).tern()._terned )
+                ts.del(i--);
+        BITS.clear();
+
+        // Pass#2: compute recursive duals
+        for( Type t : ts )
+            t.rdual();
+
+        // Recursive install
+        for( Type t : ts )
+            if( !t._terned && INTERN.get(t)==null )
+                t.install();
+
+        Type rez = INTERN.get(this);
+        assert rez!=null;
+
+        // Free up any created-but-already interned
+        for( Type t : FREES )
+            t.rfree();
+        // Occasionally leaking 'this'
+
+        FREES.clear();
+        VISIT.clear();
+        return rez;
+    }
+    static boolean recurClose(boolean rez) { VISIT.clear(); return rez; }
+
+
+    // Strict constant values, things on the lattice centerline.
+    // Excludes both high and low values
+    public final boolean isConstant() { return recurClose(recurOpen()._isConstant()); }
+    boolean _isConstant() { return _type==TNIL; }
+
+    // All reachable struct Fields are final
+    public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
+    boolean _isFinal() { assert _type < TCYCLIC; return true; }
+
+    public final Type makeRO() {
+        if( isFinal() ) return this;
+        return recurOpen()._makeRO().recurClose();
+    }
+    Type _makeRO() { return this; }
+
+    // Compute greatest lower bound in the lattice.  If values are in memory,
+    // ints and floats cannot widen.
+    public final boolean isGLB(boolean mem) { return recurClose(recurOpen()._isGLB(mem)); };
+    boolean _isGLB(boolean mem) {
+        return switch(_type) {
+        case TBOT -> false;
+        case TNIL -> false;
+        case TCTRL -> true;
+        case TXCTRL -> false;
+        case TXNIL -> false;
+        case TTOP -> false;
+        default -> throw Utils.TODO();
+        };
+    }
+    public final Type glb(boolean mem) {
+        if( isGLB(mem) ) return this;
+        Type glb = recurOpen()._glb(mem).recurClose();
+        assert this.isa(glb);
+        return glb;
+    }
+    Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
+
+    Type _close() { return this; }
 
     // ----------------------------------------------------------
 
@@ -231,11 +431,21 @@ public class Type {
     // This is a more verbose dev-friendly print.
     @Override
     public final String toString() {
-        return print(new SB()).toString();
+        return print(new SB(), new BitSet(), false).toString();
     }
+    public final String gprint() {
+        return print(new SB(), new BitSet(), true).toString();
+    }
+    public final SB  print(SB sb) { return print(sb, new BitSet(), false); }
+    public final SB gprint(SB sb) { return print(sb, new BitSet(), true ); }
 
-    public SB  print(SB sb) { return sb.p(str()); }
-    public SB gprint(SB sb) { return print(sb); }
+    // Used during recursive printing, or combined with SB Node printing
+    public final SB print(SB sb, BitSet visit, boolean html ) {
+        if( visit.get(_uid) ) return sb.p(str());
+        visit.set(_uid);
+        return _print(sb,visit,html);
+    }
+    SB _print(SB sb, BitSet visit, boolean html ) { return sb.p(str()); }
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }

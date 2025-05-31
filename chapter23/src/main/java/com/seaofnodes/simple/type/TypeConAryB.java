@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.io.ByteArrayOutputStream;
 
 public class TypeConAryB extends TypeConAry<byte[]> {
-    private TypeConAryB(byte[] bs) { super(false,bs); }
+    private TypeConAryB(byte[] bs) { super(false,TINT,bs); }
     public static TypeConAryB make( byte[] bs ) { return new TypeConAryB(bs).intern(); }
     public static TypeConAryB make( String s ) { return make(s.getBytes()); }
     static final TypeConAryB ABC  = make("abc");
