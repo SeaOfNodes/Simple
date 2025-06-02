@@ -121,6 +121,9 @@ the next layer.
 
 
 
+
+
+
 ## Unifying Structs and Arrays
 
 The idea is that structs have fields indexed by names, and arrays have fields

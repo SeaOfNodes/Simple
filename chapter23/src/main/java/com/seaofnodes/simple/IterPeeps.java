@@ -82,6 +82,7 @@ public class IterPeeps {
                     // there's a new user), and replace in the graph.
                     if( x != n ) {
                         for( Node z : n. _inputs ) _work.push(z);
+                        for( Node z : x._outputs ) _work.push(z);
                         n.subsume(x);
                     }
                 }

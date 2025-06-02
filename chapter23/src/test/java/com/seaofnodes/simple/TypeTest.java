@@ -26,10 +26,10 @@ public class TypeTest {
         TypeStruct s1dglb = ((TypeMemPtr)p1.dual().glb(false))._obj;
         Assert.assertTrue(x1ro.isa(s1dglb));
 
-        TypeMem m1 = TypeMem.make(1,TypeNil.NIL);
-        TypeMem m2 = TypeMem.make(2,TypeInteger.U16);
-        TypeMem m3 = TypeMem.make(3,TypeFloat.F64);
-        TypeMem m4 = TypeMem.make(4,TypeInteger.BOT);
+        TypeMem m1 = TypeMem.make(2,TypeNil.NIL);
+        TypeMem m2 = TypeMem.make(3,TypeInteger.U16);
+        TypeMem m3 = TypeMem.make(4,TypeFloat.F64);
+        TypeMem m4 = TypeMem.make(5,TypeInteger.BOT);
 
         Assert.assertNotEquals(m1, m2);
         Assert.assertNotEquals(m2, m3);
@@ -37,11 +37,11 @@ public class TypeTest {
 
         Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
         Assert.assertEquals(TypeMem   .BOT, m1.meet(m2));
-        Assert.assertEquals(TypeMem.make(0,Type.BOTTOM), m1.meet(m3));
+        Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.meet(m3));
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
-        Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.glb(false));
-        Assert.assertEquals(TypeMem.make(1,Type.XNIL), m1.dual());
+        Assert.assertEquals(TypeMem.make(2,Type.BOTTOM), m1.glb(false));
+        Assert.assertEquals(TypeMem.make(2,Type.XNIL), m1.dual());
         Assert.assertEquals(m4.dual(), m4.glb(false).dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);

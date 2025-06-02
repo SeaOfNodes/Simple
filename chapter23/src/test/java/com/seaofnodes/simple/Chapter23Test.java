@@ -39,12 +39,12 @@ struct Scan {
     int !x;
     u8[~] buf;
     // Skip whitespace
-    val skip = { Scan s ->
+    val skip = {% Scan s ->
         while( s.buf[s.x] <= ' ' )
             s.x++;
     };
     // Peek a character; if matched consume it, else false.
-    val peek = { Scan s, u8 c ->
+    val peek = {% Scan s, u8 c ->
         skip(s);
         if( s.buf[s.x] != c ) return false;
         s.x++;
@@ -58,7 +58,7 @@ return Scan.peek(s,'q');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return Phi(Region,0,1);", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,16,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,1,null);
     };
 
     @Test
@@ -70,7 +70,7 @@ struct Scan {
     int !x;
     u8[~] buf;
     // Skip whitespace
-    val skip = { Scan s ->
+    val skip = {% Scan s ->
         while( s.buf[s.x] <= ' ' )
             s.x++;
     };
@@ -82,6 +82,32 @@ return s.x;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> 0 #8} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+    };
+
+
+    @Test
+    public void testMethod() {
+        String src =
+"""
+// A hypothetical scanner class
+struct Scan {
+    int !x;
+    u8[~] buf;
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+    };
+};
+Scan !s = new Scan{ buf = "  q"; };
+s.skip();
+return s.x;
+        """;
+
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals("return Phi(Loop,0,(Phi_x+1));", code._stop.toString());
+        assertEquals("2", Eval2.eval(code, 0));
+        testCPU(src,"x86_64_v2", "Win64"  ,1,null);
     };
 
 

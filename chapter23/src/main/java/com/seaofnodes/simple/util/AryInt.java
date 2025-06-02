@@ -28,10 +28,8 @@ public class AryInt {
     return i < _len ? _es[i] : 0;
   }
   /** @return last element */
-  public int last( ) {
-    range_check(0);
-    return _es[_len-1];
-  }
+  public int last( ) { return at(_len-1); }
+  public int last(int x ) { return at(_len-1+x); }
 
   /** @return remove and return last element */
   public int pop( ) {
@@ -114,6 +112,15 @@ public class AryInt {
     while( _len+es.length > _es.length ) _es = Arrays.copyOf(_es,_es.length<<1);
     System.arraycopy(es,0,_es,_len,es.length);
     _len += es.length;
+    return this;
+  }
+
+  /** @param es Array to be added */
+  public AryInt addAll( AryInt ary ) {
+    if( ary._len==0 ) return this;
+    while( _len+ary._len > _es.length ) _es = Arrays.copyOf(_es,_es.length<<1);
+    System.arraycopy(ary._es,0,_es,_len,ary._len);
+    _len += ary._len;
     return this;
   }
 

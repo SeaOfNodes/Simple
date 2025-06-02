@@ -13,16 +13,16 @@ import java.util.BitSet;
 public class TypeMem extends Type {
 
     // Which slice of memory?
-    //  0 means TOP, no slice.
-    //  0 means BOT, all memory.
-    //  N means slice#N.
+    //  1 and TOP means no slice.
+    //  1 and BOT means all memory.
+    //  N means alias slice#N.
     public int _alias;
     public Type _t;       // Memory contents, some scalar type
 
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
     private TypeMem(int alias, Type t) { super(TMEM); init(alias,t); }
     private TypeMem init(int alias, Type t) {
-        assert alias!=0 || (t==Type.TOP || t==Type.BOTTOM);
+        assert alias>1 || (t==Type.TOP || t==Type.BOTTOM);
         _alias = alias;
         _t = t;
         return this;
@@ -46,10 +46,10 @@ public class TypeMem extends Type {
     }
     private boolean isFree() { return _alias == -99; }
 
-    public static final TypeMem TOP = make(0, Type.TOP   );
-    public static final TypeMem BOT = make(0, Type.BOTTOM);
+    public static final TypeMem TOP = make(1, Type.TOP   );
+    public static final TypeMem BOT = make(1, Type.BOTTOM);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(make(1,Type.NIL)); ts.add(make(1,TypeInteger.ZERO)); ts.add(BOT); }
+    public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); }
 
     @Override
     TypeMem xmeet(Type t) {
@@ -58,7 +58,7 @@ public class TypeMem extends Type {
         if( that==TOP ) return this;
         if( this==BOT ) return BOT;
         if( that==BOT ) return BOT;
-        int alias = _alias==that._alias ? _alias : 0;
+        int alias = _alias==that._alias ? _alias : 1;
         Type mt = _t.meet(that._t);
         return make(alias,mt);
     }

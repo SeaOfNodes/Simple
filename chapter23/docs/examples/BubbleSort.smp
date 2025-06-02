@@ -17,13 +17,15 @@ val usage = { -> _exit("stdin must look like [4, 3, 2, 1]"); };
 struct Scan {
     int !x;
     u8[~] buf;
+
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+    };
+
 };
 
-// Skip whitespace
-val skip = { Scan s ->
-    while( s.buf[s.x] <= ' ' )
-        s.x++;
-};
 
 
 // Require specific syntax or usage

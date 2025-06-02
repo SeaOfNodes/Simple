@@ -11,7 +11,7 @@ public class PhiNode extends Node {
 
     // The Phi type we compute must stay within the domain of the Phi.  Example
     // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
-    final Type _minType;
+    Type _minType;
 
     public PhiNode(String label, Type minType, Node... inputs) {
         super(inputs);
@@ -96,8 +96,10 @@ public class PhiNode extends Node {
         // Simple Phi-after-MemMerge to a known alias can bypass.  Happens when inlining.
         if( _type instanceof TypeMem tmem && tmem._alias!=0 ) {
             for( int i=1; i<nIns(); i++ )
-                if( in(i) instanceof MemMergeNode mem )
-                    throw Utils.TODO();
+                if( in(i) instanceof MemMergeNode mem ) {
+                    setDef(i,mem.alias(tmem._alias));
+                    return this;
+                }
         }
 
         // Generic "pull down op"
@@ -217,9 +219,18 @@ public class PhiNode extends Node {
         return in(nIns()-1) == null;
     }
 
-    // Never equal if inProgress
+    // Never equal if inProgress.
+    // Also, joins
     @Override public boolean eq( Node n ) {
-        return !inProgress();
+        if( inProgress() ) return false;
+        Type min = ((PhiNode)n)._minType;
+        if( _minType==min ) return true;
+        Type mt = min.meet(_minType);
+        if( min!=mt && _minType!=mt ) return false;
+        // Theory says these 2 Phis CAN be merged/GVNd, but I need to pick the
+        // most general minType.
+        _minType = ((PhiNode)n)._minType = mt;
+        return true;
     }
 
     @Override

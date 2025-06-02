@@ -309,10 +309,9 @@ public abstract class Eval2 {
         case TypeMemPtr tmp -> {
             if( tmp._obj.isAry() ) { // Constant array ptr
                 TypeConAry con = (TypeConAry)tmp._obj.field("[]")._t;
-                Object[] xs = new Object[con.len()+1];
-                xs[0] = (long)con.len();
+                Object[] xs = new Object[con.len()];
                 for( int i=0; i<con.len(); i++ )
-                    xs[i+1] = (long)con.at(i);
+                    xs[i] = (long)con.at(i);
                 yield xs;
 
             } else {
@@ -327,8 +326,7 @@ public abstract class Eval2 {
     private static int offToIdx( long off, TypeStruct t) {
         off -= t.aryBase();
         int scale = t.aryScale();
-        long mask = (1L << scale)-1;
-        assert (off & mask) == 0;
+        assert (off & ((1L << scale)-1)) == 0;
         return (int)(off>>scale);
     }
 

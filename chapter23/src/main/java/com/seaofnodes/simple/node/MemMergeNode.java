@@ -121,7 +121,7 @@ public class MemMergeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.BOT,loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
+                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.make(alias,Type.BOTTOM),loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
             alias(alias,old);
         }
         // Memory projections are made lazily; expand as needed
