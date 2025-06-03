@@ -290,7 +290,7 @@ return new s0;
 int v0=null.f0;
 """);
         try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Accessing unknown field 'f0' from 'null'",e.getMessage());  }
+        catch( Exception e ) {  assertEquals("Syntax error, expected ;: .",e.getMessage());  }
     }
 
     @Test

@@ -13,7 +13,8 @@ public class Chapter23Test {
 
     @Test @Ignore
     public void testJig() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
+        //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
+        String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
@@ -39,12 +40,12 @@ struct Scan {
     int !x;
     u8[~] buf;
     // Skip whitespace
-    val skip = {% Scan s ->
+    val skip = { Scan s ->
         while( s.buf[s.x] <= ' ' )
             s.x++;
     };
     // Peek a character; if matched consume it, else false.
-    val peek = {% Scan s, u8 c ->
+    val peek = { Scan s, u8 c ->
         skip(s);
         if( s.buf[s.x] != c ) return false;
         s.x++;
@@ -70,18 +71,18 @@ struct Scan {
     int !x;
     u8[~] buf;
     // Skip whitespace
-    val skip = {% Scan s ->
-        while( s.buf[s.x] <= ' ' )
-            s.x++;
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+        return self;
     };
 };
 val s = new Scan{ buf = "  q"; };
-Scan.skip(s);
-return s.x;
+return s.skip().x;
         """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> 0 #8} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {8} skip; } #8} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
     };
 
 
@@ -98,16 +99,19 @@ struct Scan {
         while( buf[x] <= ' ' )
             x++;
     };
+    val require = { u8 ch ->
+        skip();
+        buf[x++]==ch;
+    };
 };
-Scan !s = new Scan{ buf = "  q"; };
-s.skip();
-return s.x;
+Scan !s = new Scan{ buf = "  [1,2]"; };
+return s.require('[');
         """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return Phi(Loop,0,(Phi_x+1));", code._stop.toString());
-        assertEquals("2", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,1,null);
+        assertEquals("return (.[]==91);", code._stop.toString());
+        assertEquals("1", Eval2.eval(code, 0));
+        testCPU(src,"x86_64_v2", "Win64"  ,16,null);
     };
 
 

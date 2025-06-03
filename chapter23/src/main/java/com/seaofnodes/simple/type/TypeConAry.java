@@ -60,12 +60,12 @@ public class TypeConAry<A> extends Type {
         long min = Long.MAX_VALUE;
         long max = Long.MIN_VALUE;
         for( int i=0; i<len; i++ ) {
-            min = Math.min(min,at(i));
-            max = Math.max(max,at(i));
+            min = Math.min(min,at8(i));
+            max = Math.max(max,at8(i));
         }
         return TypeInteger.make(min,max);
     }
-    public long at(int idx) { throw Utils.TODO(); }
+    public long at8(int idx) { throw Utils.TODO(); }
     public int len() { throw Utils.TODO(); }
     @Override public int log_size() { throw Utils.TODO(); }
     public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }

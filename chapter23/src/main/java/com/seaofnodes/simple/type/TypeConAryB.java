@@ -11,7 +11,7 @@ public class TypeConAryB extends TypeConAry<byte[]> {
     static final TypeConAryB ABC  = make("abc");
     static final TypeConAryB ABCD = make("abcd");
     public static void gather(ArrayList<Type> ts) { ts.add(ABC); ts.add(ABCD); }
-    @Override public long at(int idx) { return _ary[idx]; }
+    @Override public long at8(int idx) { return _ary[idx]; }
     @Override public int len() { return _ary.length; }
     @Override public int log_size() { return 0; }
     @Override public String str() { return "[\""+new String(_ary)+"\"]"; }

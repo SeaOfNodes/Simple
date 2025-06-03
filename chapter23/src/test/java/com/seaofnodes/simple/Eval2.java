@@ -311,7 +311,7 @@ public abstract class Eval2 {
                 TypeConAry con = (TypeConAry)tmp._obj.field("[]")._t;
                 Object[] xs = new Object[con.len()];
                 for( int i=0; i<con.len(); i++ )
-                    xs[i] = (long)con.at(i);
+                    xs[i] = con.at8(i);
                 yield xs;
 
             } else {

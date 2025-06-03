@@ -8,7 +8,7 @@ public class TypeConAryI extends TypeConAry<int[]> {
     public static TypeConAryI make( int[] bs ) { return new TypeConAryI(bs).intern(); }
     private static final TypeConAryI I123  = make(new int[]{1,2,3});
     public static void gather(ArrayList<Type> ts) { ts.add(I123); }
-    @Override public long at(int idx) { return _ary[idx]; }
+    @Override public long at8(int idx) { return _ary[idx]; }
     @Override public int len() { return _ary.length; }
     @Override public int log_size() { return 2; }
     @Override public String str() { return "[i32]"; }

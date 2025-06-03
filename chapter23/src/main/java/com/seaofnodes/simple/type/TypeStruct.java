@@ -157,6 +157,7 @@ public class TypeStruct extends Type {
     @Override
     TypeStruct xmeet(Type t) {
         TypeStruct that = (TypeStruct) t;
+        assert !isFree() && !that.isFree();
         if( this==TOP ) return that;
         if( that==TOP ) return this;
         if( this==BOT ) return BOT;
@@ -249,20 +250,6 @@ public class TypeStruct extends Type {
         return d;
     }
 
-    @Override TypeStruct install() {
-        Type x = _intern();
-        assert x==this;
-        for( int i=0; i < _fields.length; i++ ) {
-            if( !_fields[i]._terned ) {
-                Field t = (Field)_fields[i].install();
-                if( t != _fields[i] ) { // If we now update during install, we have update the dual also
-                    _fields[i] = t;
-                    ((TypeStruct)_dual)._fields[i] = (Field)t._dual;
-                }
-            }
-        }
-        return this;
-    }
     @Override void rfree() {
         if( isFree() ) return;
         Field[] flds = _fields;
@@ -410,6 +397,10 @@ public class TypeStruct extends Type {
             hash = Utils.rot(hash,13) ^ ((long)f._fname.hashCode() * f._alias);
         return Utils.fold(hash);
     }
+
+    @Override int nkids() { return _fields.length; }
+    @Override Type at( int idx ) { return _fields[idx]; }
+    @Override void set( int idx, Type t ) { _fields[idx] = (Field)t; }
 
     @Override
     SB _print(SB sb, BitSet visit, boolean html ) {

@@ -222,6 +222,12 @@ public class Type /*implements Cloneable*/ {
         return _uid < that._uid ? (_uid<<16 | that._uid) : (that._uid<<16 | _uid);
     }
 
+    // At/Set child at 'idx' to t
+    Type at ( int idx ) { throw Utils.TODO(); }
+    void set( int idx, Type t ) { throw Utils.TODO(); }
+    int nkids() { assert _type < TTUPLE; return 0; }   // Number of kids
+
+
     // Clear and re-insert the basic Type INTERN table
     public static void reset() {
         VISIT.clear();
@@ -304,8 +310,25 @@ public class Type /*implements Cloneable*/ {
     // use the intern type and mark the prior type for freeing.
     Type tern() { assert _type < TCYCLIC; return this; }
     Type rdual() { assert !_terned; return xdual(); }
-    Type install() { return this; }
     Type free(Type free) { return this; }
+    final Type install() {
+        if( this instanceof TypeStruct ) {
+            Type x = _intern();     // Stop the recursion
+            assert x==this;
+        }
+        int nkids = nkids();
+        for( int i=0; i<nkids; i++ ) {
+            Type kid = at(i);
+            if( !kid._terned ) {
+                Type ikid = kid.install();
+                if( ikid != kid ) {
+                    set(i,ikid);
+                    _dual.set(i,ikid.dual());
+                }
+            }
+        }
+        return this instanceof TypeStruct ? this : _intern();
+    }
 
     <T extends Type> T delayFree(Type free) {
         assert !free._terned;

@@ -23,7 +23,7 @@ struct sys {
         i32 MAP_ANON = 32;
     };
     struct ary {
-        val copy = {% u8[] dst, int doff, u8[~] src, int soff, int len ->
+        val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
             for( int i=0; i<len; i++ )
                 dst[i+doff] = src[i+soff];
             return dst;
@@ -31,13 +31,13 @@ struct sys {
     };
     struct io {
         // Print string to stdout
-        val p = {% u8[~] str ->
+        val p = { u8[~] str ->
             i64 ptr = str;  // cast array base to i64
             return sys.libc.write(1,ptr,str#);
         };
 
         // Return stdin as a u8[]
-        val stdin = {% ->
+        val stdin = { ->
             var buf = new u8[8*1024];
             i64 ptr = buf;
             int len = 0;

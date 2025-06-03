@@ -22,28 +22,23 @@ struct Scan {
     val skip = { ->
         while( buf[x] <= ' ' )
             x++;
+        return self;
+    };
+
+    // True if find required character, and skip it; else False.
+    val peek = { u8 c ->
+        skip();
+        if( buf[x] != c ) return false;
+        x++;
+        return true;
     };
 
 };
 
 
 
-// Require specific syntax or usage
-val require = { Scan s, u8 c ->
-    skip(s);
-    if( s.buf[s.x++] != c )
-        usage();
-};
-
-val peek = { Scan s, u8 c ->
-    skip(s);
-    if( s.buf[s.x] != c ) return false;
-    s.x++;
-    return true;
-};
-
 val number = { Scan s ->
-    skip(s);
+    s.skip();
     i32 n = 0;
     while( '0' <= s.buf[s.x] & s.buf[s.x] <= '9' )
         n = n*10 + (s.buf[s.x++] - '0');
@@ -67,20 +62,20 @@ val sort = { int[] ns, int len ->
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
     Scan !s = new Scan{ buf = sys.io.stdin(); };
-    require(s,'[');
+    if( !s.peek('[') ) usage();
     // Array of parsed results
     int[] !ns = new int[16];
     i32 len = 0;
     // Parse a list of numbers
-    if( !peek(s,']') ) {        // Handle the empty list
+    if( !s.peek(']') ) {        // Handle the empty list
         // Parse "123, " until a something else
         while( s.x < s.buf# ) {
             int n = number(s);
             ns[len++] = n;
-            if( !peek(s,',') )
+            if( !s.peek(',') )
                 break;
         };
-        require(s,']');         // Close the list
+        if( !s.peek(']') ) usage(); // Close the list
     }
 
     // Bubble sort array of integers

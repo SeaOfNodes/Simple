@@ -112,5 +112,8 @@ public class TypeTuple extends Type {
         return true;
     }
 
+    @Override int nkids() { return _types.length; }
+    @Override Type at( int idx ) { return _types[idx]; }
+    @Override void set( int idx, Type t ) { _types[idx] = t; }
 
 }

@@ -1,7 +1,24 @@
 // -*- mode: java;  -*-
-//239201634239801974
+//2620510713993920707
 //========= Reduced =========
-    arg=0&0;
-    if(0)
-        while(arg&1) 0;
-        return arg>>>arg;
+while(0) {}
+struct s0 {
+    i16 v1;
+    i16 v2;
+    byte v3;
+    u1 v4;
+};
+struct s1 {
+    u1 v5;
+    i16 v6;
+    i32 v7;
+    byte v9;
+};
+if(new s1.v5)
+    while(new s0.v1) {}
+else {
+    int v10=0;
+    while(v10+new s1.v6&1)
+        v10=new s0.v4+new s1.v7;
+}
+while(new s1.v9+new s0.v3+new s0.v2>=new s0.v4) {}

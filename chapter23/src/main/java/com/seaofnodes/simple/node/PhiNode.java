@@ -94,7 +94,7 @@ public class PhiNode extends Node {
                 return null;
 
         // Simple Phi-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( _type instanceof TypeMem tmem && tmem._alias!=0 ) {
+        if( _type instanceof TypeMem tmem && tmem._alias!=1 ) {
             for( int i=1; i<nIns(); i++ )
                 if( in(i) instanceof MemMergeNode mem ) {
                     setDef(i,mem.alias(tmem._alias));
@@ -227,10 +227,11 @@ public class PhiNode extends Node {
         if( _minType==min ) return true;
         Type mt = min.meet(_minType);
         if( min!=mt && _minType!=mt ) return false;
-        // Theory says these 2 Phis CAN be merged/GVNd, but I need to pick the
-        // most general minType.
-        _minType = ((PhiNode)n)._minType = mt;
-        return true;
+        //// Theory says these 2 Phis CAN be merged/GVNd, but I need to pick the
+        //// most general minType.
+        //_minType = ((PhiNode)n)._minType = mt;
+        //return true;
+        return false;
     }
 
     @Override

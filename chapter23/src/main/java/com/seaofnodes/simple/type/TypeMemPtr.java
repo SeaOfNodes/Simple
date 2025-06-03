@@ -73,6 +73,7 @@ public class TypeMemPtr extends TypeNil {
     @Override
     public TypeNil xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
+        assert !isFree() && !that.isFree();
         return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), _one & that._one);
     }
 
@@ -93,17 +94,6 @@ public class TypeMemPtr extends TypeNil {
         (_dual = d)._dual = this; // Cross link duals
         d._obj = _obj._terned ? _obj.dual() : _obj.rdual();
         return d;
-    }
-
-    @Override TypeMemPtr install() {
-        if( !_obj._terned ) {
-            TypeStruct obj = _obj.install();
-            if( obj != _obj ) {
-                _obj = obj;
-                ((TypeMemPtr)_dual)._obj = (TypeStruct)obj._dual;
-            }
-        }
-        return _intern();
     }
 
     @Override void rfree() {
@@ -152,6 +142,10 @@ public class TypeMemPtr extends TypeNil {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
         return super.eq(ptr) && _one == ptr._one && _obj.cycle_eq(ptr._obj);
     }
+
+    @Override int nkids() { return 1; }
+    @Override Type at( int idx ) { return _obj; }
+    @Override void set( int idx, Type t ) { _obj = (TypeStruct)t; }
 
     @Override public String str() {
         if( this== NOTBOT) return "*void";

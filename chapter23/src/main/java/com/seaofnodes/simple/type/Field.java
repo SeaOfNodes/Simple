@@ -103,17 +103,6 @@ public class Field extends Type {
         return d;
     }
 
-    @Override Field install() {
-        if( !_t._terned ) {
-            Type t = _t.install();
-            if( t != _t ) { // If we now update during install, we have update the dual also
-                _t = t;
-                ((Field)_dual)._t = t._dual;
-            }
-        }
-        return _intern();
-    }
-
     @Override void rfree() {
         assert !isFree();
         Type t = _t;
@@ -147,6 +136,9 @@ public class Field extends Type {
         return static_eq(f) && _t.cycle_eq(f._t );
     }
 
+    @Override int nkids() { return 1; }
+    @Override Type at( int idx ) { return _t; }
+    @Override void set( int idx, Type t ) { _t = t; }
 
     @Override
     public SB _print( SB sb, BitSet visit, boolean html ) {

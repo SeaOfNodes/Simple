@@ -82,17 +82,6 @@ public class TypeMem extends Type {
         return d;
     }
 
-    @Override Type install() {
-        if( !_t._terned ) {
-            Type t = _t.install();
-            if( t != _t ) { // If we now update during install, we have update the dual also
-                _t = t;
-                ((TypeMem)_dual)._t = t._dual;
-            }
-        }
-        return _intern();
-    }
-
     @Override void rfree() {
         assert !isFree();
         Type t = _t;
@@ -118,6 +107,10 @@ public class TypeMem extends Type {
         TypeMem that = (TypeMem) t; // Invariant
         return _alias == that._alias && _t.cycle_eq(that._t);
     }
+
+    @Override int nkids() { return 1; }
+    @Override Type at( int idx ) { return _t; }
+    @Override void set( int idx, Type t ) { _t = t; }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
         sb.p("#");

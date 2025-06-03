@@ -141,15 +141,6 @@ public class TypeFunPtr extends TypeNil {
         return d;
     }
 
-    @Override TypeFunPtr install() {
-        if( !_ret._terned )
-            _ret = _ret.install();
-        for( int i=0; i<_sig.length; i++ )
-            if( !_sig[i]._terned )
-                _sig[i] = _sig[i].install();
-        return _intern();
-    }
-
     @Override void rfree() {
         if( isFree() ) return;
         Type[] sig = _sig;
@@ -170,7 +161,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override boolean _isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }
 
-    @Override boolean _isFinal() { throw Utils.TODO(); }
+    @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }
     @Override TypeFunPtr _glb(boolean mem) { return this; }
     @Override TypeFunPtr _close() {
@@ -191,6 +182,16 @@ public class TypeFunPtr extends TypeNil {
     public Type ret() { return _ret; }
     public int nargs() { return _sig.length; }
     public int fidx() { assert Long.bitCount(_fidxs)==1; return Long.numberOfTrailingZeros(_fidxs); }
+
+
+    @Override int nkids() { return _sig.length+1; }
+    @Override Type at( int idx ) {
+        return idx == _sig.length ? _ret : _sig[idx];
+    }
+    @Override void set( int idx, Type t ) {
+        if( idx == _sig.length ) _ret = t;
+        else _sig[idx] = t;
+    }
 
     @Override
     int hash() {
@@ -237,7 +238,7 @@ public class TypeFunPtr extends TypeNil {
         return true;
     }
 
-    @Override public String str() { return print(new SB(), new BitSet(), false).toString(); }
+    @Override public String str() { return "{"+printFIDX()+"}"; }
 
     SB _print(SB sb, BitSet visit, boolean html ) {
         sb.p(x()).p("{ ");
@@ -246,13 +247,16 @@ public class TypeFunPtr extends TypeNil {
                 sb.p(t.str()).p(" "); // Short form in signature
         _ret.print(sb.p(html ? "&rarr; " : "-> "),visit,html).p(" #");
         // Print fidxs
-        if( isHigh() ) sb.p("~");
+        return sb.p(printFIDX()).p("}").p(q());
+    }
+    String printFIDX() {
+        String tilde = isHigh() ? "~" : "";
         long fidxs = isHigh() ? ~_fidxs : _fidxs;
         String fidx = fidxs==0 ? ""
             : Long.bitCount(fidxs) == 1 ? ""+Long.numberOfTrailingZeros(fidxs)
             : fidxs == -1 ? "ALL"
             : "b"+Long.toBinaryString(fidxs); // Just some function bits
-        return sb.p(fidx).p("}").p(q());
+        return tilde+fidx;
     }
 
     // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) { int fidxs = Long.numberOfTrailingZeros(fidxs); ... }

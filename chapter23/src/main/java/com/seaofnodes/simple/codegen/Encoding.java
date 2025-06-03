@@ -45,6 +45,9 @@ public class Encoding {
     public int [] _opStart;     // Start  of opcodes, by _nid
     public byte[] _opLen;       // Length of opcodes, by _nid
 
+    // Function headers now padded when printing
+    public boolean _padFunHeads;
+
     // Big Constant relocation info.
     public static class Relo {
         public final Node _op;
@@ -290,6 +293,9 @@ public class Encoding {
         // Fall/false into a full block, Jump/true to an empty block.
         if( f.nOuts()>1 && t.nOuts()==1 ) return false;
         if( t.nOuts()>1 && f.nOuts()==1 ) return true ;
+        // Jump to a merge point, assuming other things are jumping there as well
+        if( f.out(0) instanceof RegionNode ) return true ;
+        if( t.out(0) instanceof RegionNode ) return false;
         // Everything else equal, use pre-order
         return t._pre > f._pre;
     }
@@ -397,7 +403,7 @@ public class Encoding {
                 if( n instanceof MachNode && !(n instanceof CFGNode) )
                     _opStart[n._nid] += slide;
         }
-
+        _padFunHeads = true;
 
         // Copy/slide the bits to make space for all the longer branches
         int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
@@ -414,6 +420,7 @@ public class Encoding {
             }
             _bits.set(bits,bits.length);
         }
+
     }
 
 
