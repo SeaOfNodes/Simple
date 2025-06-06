@@ -177,8 +177,8 @@ public class Type /*implements Cloneable*/ {
         INTERN.put(this,this);
         INTERN.put(_dual,_dual);
         _terned = _dual._terned = true;
-        return (T)this;
         //assert check();
+        return (T)this;
     }
 
     private static boolean check() {
@@ -240,12 +240,14 @@ public class Type /*implements Cloneable*/ {
             INTERN0.putAll(INTERN);
         } else {
             // Later times, reset back to first time
+            VISIT.put(0,CONTROL); // Defeat assert
             for( Iterator<Type> it = INTERN.keySet().iterator(); it.hasNext(); ) {
                 Type t = it.next();
                 if( !INTERN0.containsKey(t) )
                     { t._terned=false; t.free(t); }
                 it.remove();
             }
+            VISIT.clear();
             INTERN.putAll(INTERN0);
         }
     }
@@ -310,7 +312,8 @@ public class Type /*implements Cloneable*/ {
     // use the intern type and mark the prior type for freeing.
     Type tern() { assert _type < TCYCLIC; return this; }
     Type rdual() { assert !_terned; return xdual(); }
-    Type free(Type free) { return this; }
+    Type  free(Type free) { return this; }
+    void rfree() { }
     final Type install() {
         if( this instanceof TypeStruct ) {
             Type x = _intern();     // Stop the recursion
@@ -335,7 +338,6 @@ public class Type /*implements Cloneable*/ {
         FREES.push(free);
         return (T)this;
     }
-    void rfree() { }
 
 
     // ----------------------------------------------------------

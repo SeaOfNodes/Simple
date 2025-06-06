@@ -67,9 +67,12 @@ public class MemMergeNode extends Node {
 
         // Fold defaults into the default
         boolean progress=false, allDefault=true;
-        for( int i=2; i<nIns(); i++ )
+        for( int i=2; i<nIns(); i++ ) {
+            if( in(i) instanceof CastNode cast )
+                { setDef(i,cast.in(1)); progress=true; }
             if( in(1) == in(i) ) { setDef(i,null); progress=true; }
             else                 { allDefault=false; }
+        }
 
         // If not merging any memory (all memory is just the default)
         if( allDefault )
@@ -137,7 +140,7 @@ public class MemMergeNode extends Node {
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), lhs._type.glb(true).meet(rhs._type.glb(true)), r, lhs, rhs).peephole());
+                alias(i, new PhiNode(Parser.memName(i), lhs._type.meet(rhs._type).glb(true), r, lhs, rhs).peephole());
             }
     }
 

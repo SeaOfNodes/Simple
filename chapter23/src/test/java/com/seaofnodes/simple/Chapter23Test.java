@@ -59,7 +59,7 @@ return Scan.peek(s,'q');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return Phi(Region,0,1);", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,1,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,17,null);
     };
 
     @Test
@@ -82,7 +82,7 @@ return s.skip().x;
         """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {8} skip; } #8} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {17} skip; } #17} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
     };
 
 

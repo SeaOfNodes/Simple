@@ -27,15 +27,6 @@ public class TypeMem extends Type {
         _t = t;
         return this;
     }
-
-    public static TypeMem malloc(int alias, Type t) {
-        return FREE.isEmpty() ? new TypeMem(alias,t) : FREE.pop().init(alias,t);
-    }
-    public static TypeMem make(int alias, Type t) {
-        TypeMem f = malloc(alias,t);
-        TypeMem f2 = f.intern();
-        return f2==f ? f : f2.free(f);
-    }
     @Override TypeMem free(Type t) {
         TypeMem mem = (TypeMem)t;
         mem._alias= -99;
@@ -45,6 +36,17 @@ public class TypeMem extends Type {
         return this;
     }
     private boolean isFree() { return _alias == -99; }
+
+    public static TypeMem malloc(int alias, Type t) {
+        return FREE.isEmpty() ? new TypeMem(alias,t) : FREE.pop().init(alias,t);
+    }
+    public static TypeMem make(int alias, Type t) {
+        TypeMem f = malloc(alias,t);
+        TypeMem f2 = f.intern();
+        if( f2==f ) return f;
+        if( VISIT.isEmpty() ) f2.free(f); else f2.delayFree(f);
+        return f2;
+    }
 
     public static final TypeMem TOP = make(1, Type.TOP   );
     public static final TypeMem BOT = make(1, Type.BOTTOM);

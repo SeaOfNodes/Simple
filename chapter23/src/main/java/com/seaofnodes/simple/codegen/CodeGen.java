@@ -192,19 +192,22 @@ public class CodeGen {
         // This can be removed, which may trigger another round of pessimistic.
         // This is the point where we flip from a virtual Call Graph (any call
         // can call any function) to having a correct (but conservative) CG.
-
-        FunNode main = link(_main);
-        for( int i=0; i<_start.nOuts(); i++ ) {
-            Node use = _start.out(i);
-            if( use instanceof FunNode fun &&
-                fun.nIns()==2 && fun.in(1)==_start && fun != main &&
+        int progress = 0;
+        while( progress != _start.nOuts() ) {
+            progress = _start.nOuts();
+            FunNode main = link(_main);
+            for( int i=0; i<_start.nOuts(); i++ ) {
+                Node use = _start.out(i);
+                if( use instanceof FunNode fun &&
+                    fun.nIns()==2 && fun.in(1)==_start && fun != main &&
                     (fun._name==null || fun._name.startsWith("sys.")) ) {
-                add(fun).setDef(1,Parser.XCTRL);
-                addAll(fun._outputs);
-                i--;
+                    add(fun).setDef(1,Parser.XCTRL);
+                    addAll(fun._outputs);
+                    i--;
+                }
             }
+            _iter.iterate(this);
         }
-        _iter.iterate(this);
 
         // Freeze field sizes; do struct layouts; convert field offsets into
         // constants.

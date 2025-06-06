@@ -29,6 +29,94 @@ struct sys {
             return dst;
         };
     };
+
+    // Ary/Vector of u8s
+    struct aryu8 {
+        u32 !len = 0;
+        u8[] !buf;
+        // Grow as needed
+        val _grow = { int len2 ->
+            if( len+len2 < buf# ) return self;
+            int newlen = buf# * 2;
+            while( len+len2 >= newlen ) newlen *= 2;
+            u8[] buf2 = new u8[newlen];
+            sys.ary.copy(buf2,0,buf,0,buf#);
+            buf = buf2;
+            self;
+        };
+
+        // Add a character to aryu8
+        val add = { u8 c ->
+            _grow(1).buf[len++] = c;
+            self;
+        };
+
+        // Add a plain array to the aryu8
+        val addAry = { u8[~] ary ->
+            _grow(ary#);
+            sys.ary.copy(buf,len,ary,0,ary#);
+            len += ary#;
+            self;
+        };
+
+        // Remove x chars
+        val undo = { int x ->
+            len = len >= x ? len-x : 0;
+            self;
+        };
+
+        // Print ASCII number into aryu8
+        val num = { i64 x ->
+            if( !x ) { add('0'); return self; }
+            if( x < 0 ) { add('-'); x = -x; }
+            i64 ten = 1, log = 0;
+            while( ten <= x ) { ten *= 10; log++; }
+            for( int i=0; i<log; i++ ) {
+                ten /= 10;
+                i64 q = x/ten;
+                u8 digit = q+'0';
+                add(digit);
+                x -= q*ten;
+            }
+            self;
+        };
+
+        // Write to fd
+        val write = { i32 fd -> i64 ptr = buf; sys.libc.write(fd,ptr,len); };
+    };
+
+    // Ary/Vector of i64s
+    struct aryi64 {
+        u32 !len = 0;
+        i64[] !buf;
+        // Grow as needed
+        val _grow = { int len2 ->
+            if( len+len2 < buf# ) return self;
+            int newlen = buf# * 2;
+            while( len+len2 >= newlen ) newlen *= 2;
+            i64[] buf2 = new i64[newlen];
+            for( int i=0; i<buf#; i++ )
+                buf2[i] = buf[i];
+            buf = buf2;
+            self;
+        };
+
+        // Add a i64 to aryu8
+        val add = { i64 c ->
+            _grow(1).buf[len++] = c;
+            self;
+        };
+
+        // Write to aryu8
+        val str = { ->
+            // TODO: clunky default constructor syntax
+            var str = new sys.aryu8 { buf = new u8[1]; }.add('[');
+            for( int i=0; i<len; i++ )
+                str.num(buf[i]).add(',').add(' ');
+            str.undo(2).add(']');
+        };
+    };
+
     struct io {
         // Print string to stdout
         val p = { u8[~] str ->

@@ -26,34 +26,33 @@ struct Scan {
     };
 
     // True if find required character, and skip it; else False.
-    val peek = { u8 c ->
+    val match = { u8 c ->
         skip();
         if( buf[x] != c ) return false;
         x++;
         return true;
     };
-
+    // Parse a simple number
+    val number = { ->
+        skip();
+        bool neg = match('-');
+        i64 n = 0;
+        while( '0' <= buf[x] & buf[x] <= '9' )
+            n = n*10 + (buf[x++] - '0');
+        return neg ? -n : n;
+    };
 };
 
 
-
-val number = { Scan s ->
-    s.skip();
-    i32 n = 0;
-    while( '0' <= s.buf[s.x] & s.buf[s.x] <= '9' )
-        n = n*10 + (s.buf[s.x++] - '0');
-    return n;
-};
-
-val sort = { int[] ns, int len ->
+val sort = { sys.aryi64 nums ->
     var done = false;
     while( !done ) {
         done = true;
-        for( var i = 0; i < len-1; i++ )
-            if( ns[i] > ns[i+1] ) {
-                int tmp = ns[i];
-                ns[i] = ns[i+1];
-                ns[i+1] = tmp; // Swap
+        for( var i = 0; i < nums.len-1; i++ )
+            if( nums.buf[i] > nums.buf[i+1] ) {
+                int tmp = nums.buf[i];
+                nums.buf[i] = nums.buf[i+1];
+                nums.buf[i+1] = tmp; // Swap
                 done = false;
             }
     }
@@ -62,45 +61,24 @@ val sort = { int[] ns, int len ->
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
     Scan !s = new Scan{ buf = sys.io.stdin(); };
-    if( !s.peek('[') ) usage();
+    if( !s.match('[') ) usage();
     // Array of parsed results
-    int[] !ns = new int[16];
-    i32 len = 0;
+    var nums = new sys.aryi64{ buf=new i64[1]; };
     // Parse a list of numbers
-    if( !s.peek(']') ) {        // Handle the empty list
+    if( !s.match(']') ) {        // Handle the empty list
         // Parse "123, " until a something else
         while( s.x < s.buf# ) {
-            int n = number(s);
-            ns[len++] = n;
-            if( !s.peek(',') )
+            nums.add(s.number());
+            if( !s.match(',') )
                 break;
         };
-        if( !s.peek(']') ) usage(); // Close the list
+        if( !s.match(']') ) usage(); // Close the list
     }
 
     // Bubble sort array of integers
-    sort(ns,len);
+    sort(nums);
 
-    // Print a list of numbers
-    sys.io.p("[ ");
-    u8[] !junk = new u8[1];
-    for( int i=0; i<len; i++ ) {
-        int x = ns[i];
-        if( !x ) { sys.io.p("0, "); continue; }
-
-        int ten = 1, log = 0;
-        while( ten <= x ) { ten *= 10; log++; }
-        ten /= 10;
-        for( int i=0; i<log; i++ ) {
-            int q = x/ten;
-            int r = x - q*ten;
-            junk[0] = q+'0';
-            sys.io.p(junk);
-            x = r;
-            ten /= 10;
-        }
-        sys.io.p(", ");
-    }
-    sys.io.p("]");
+    // Print a list of numbers to stdout
+    nums.str().write(1);
     return 0;
 };

@@ -59,6 +59,11 @@ public class StoreNode extends MemOpNode {
     @Override
     public Node idealize() {
 
+        if( mem() instanceof CastNode cast ) {
+            setDef(1,cast.in(1));
+            return this;
+        }
+
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&

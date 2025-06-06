@@ -59,7 +59,9 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr make( byte nil, boolean open, Type[] sig, Type ret, long fidxs ) {
         TypeFunPtr fun = malloc(nil,open,sig,ret,fidxs);
         TypeFunPtr f2  = fun.intern();
-        return f2==fun ? fun : f2.free(fun);
+        if( f2==fun ) return fun;
+        if( VISIT.isEmpty() ) f2.free(fun); else f2.delayFree(fun);
+        return f2;
     }
     public static TypeFunPtr make( boolean nil, boolean open, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),open,sig,ret,-1); }
 

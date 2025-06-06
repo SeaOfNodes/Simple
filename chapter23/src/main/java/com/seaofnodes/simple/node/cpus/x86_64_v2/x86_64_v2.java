@@ -486,7 +486,8 @@ public class x86_64_v2 extends Machine {
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
         // Operands swap in the encoding directly, no need for Set/Jmp to swap `bop`
-        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld._declaredType))
+        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld._declaredType) &&
+            (val!=null || bool.op()=="==" || bool.op()=="!=") )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate

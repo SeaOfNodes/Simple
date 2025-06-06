@@ -36,12 +36,6 @@ public class ParmNode extends PhiNode {
     }
 
 
-    @Override
-    public Node idealize() {
-        if( inProgress() ) return null;
-        return super.idealize();
-    }
-
     // Always in-progress until we run out of unknown callers
     @Override public boolean inProgress() { return in(0) instanceof FunNode fun && fun.inProgress(); }
 

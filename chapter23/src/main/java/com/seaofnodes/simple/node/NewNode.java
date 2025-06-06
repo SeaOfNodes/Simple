@@ -80,7 +80,14 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override
-    public Node idealize() { return null; }
+    public Node idealize() {
+        Node progress=null;
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof CastNode cast )
+                progress = setDef(i,cast.in(1));
+        }
+        return progress == null ? null : this;
+    }
 
     @Override
     public boolean eq(Node n) { return this == n; }

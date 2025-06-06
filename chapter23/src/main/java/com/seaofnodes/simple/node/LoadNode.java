@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -55,6 +56,11 @@ public class LoadNode extends MemOpNode {
         Node ptr = ptr();
         Node mem = mem();
 
+        if( mem instanceof CastNode cast ) {
+            setDef(1,cast.in(1));
+            return this;
+        }
+
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
             ptr == st.ptr() && off() == st.off() ) { // Must check same object
@@ -64,7 +70,11 @@ public class LoadNode extends MemOpNode {
 
         // Simple load-after-MemMerge to a known alias can bypass.  Happens when inlining.
         if( mem instanceof MemMergeNode mem2 ) {
-            setDef(1,mem2.alias(_alias));
+            Node memA = mem2.alias(_alias);
+            for( Node ld : memA._outputs )
+                if( ld instanceof LoadNode )
+                    CodeGen.CODE.add(ld);
+            setDef(1,memA);
             return this;
         }
 
@@ -117,6 +127,7 @@ public class LoadNode extends MemOpNode {
                 default: throw Utils.TODO();
                 }
                 break;
+            case CastNode cast: mem = cast.in(1); break;
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
 
             default:

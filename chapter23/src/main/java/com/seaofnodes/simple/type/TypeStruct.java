@@ -56,7 +56,9 @@ public class TypeStruct extends Type {
     public static TypeStruct make(String name, boolean open, Field... fields) {
         TypeStruct ts = malloc(name, open, fields);
         TypeStruct t2 = ts.intern();
-        return t2==ts ? ts : t2.free(ts);
+        if( t2==ts ) return ts;
+        if( VISIT.isEmpty() ) t2.free(ts); else ts.delayFree(ts);
+        return t2;
     }
     // New open struct with no fields
     public static TypeStruct open( String name ) { return make(name,true); }

@@ -55,7 +55,9 @@ public class Field extends Type {
     public static Field make( String fname, Type type, int alias, boolean xfinal, boolean one ) {
         Field f = malloc(fname,type,alias,xfinal,one);
         Field f2 = f.intern();
-        return f2==f ? f : f2.free(f);
+        if( f2==f ) return f;
+        if( VISIT.isEmpty() ) f2.free(f); else f2.delayFree(f);
+        return f2;
     }
     public Field makeFrom( Type type ) {
         return type == _t ? this : make(_fname,type,_alias,_final,_one);

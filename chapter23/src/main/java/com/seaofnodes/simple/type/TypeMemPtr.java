@@ -40,7 +40,9 @@ public class TypeMemPtr extends TypeNil {
     public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one) {
         TypeMemPtr tmp = malloc(nil, obj, one);
         TypeMemPtr t2 = tmp.intern();
-        return t2==tmp ? tmp : t2.free(tmp);
+        if( t2==tmp ) return tmp;
+        if( VISIT.isEmpty() ) t2.free(tmp); else t2.delayFree(tmp);
+        return t2;
     }
     @Override TypeMemPtr free(Type t) {
         TypeMemPtr tmp = (TypeMemPtr)t;

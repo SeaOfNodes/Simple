@@ -87,8 +87,8 @@ public class IfNode extends CFGNode implements MultiNode {
         return switch( bop ) {
         case "<"  -> ">" ;
         case "<=" -> ">=";
-        case "==" -> "!=";
-        case "!=" -> "==";
+        case "==" -> "==";
+        case "!=" -> "!=";
         case ">"  -> "<" ;
         case ">=" -> "<=";
         default -> throw Utils.TODO();

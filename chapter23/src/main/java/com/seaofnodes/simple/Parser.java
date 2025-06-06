@@ -84,8 +84,7 @@ public class Parser {
     FunNode _fun;               // Current function being parsed
 
     // Mapping from a type name to a Type.  The string name matches
-    // `type.str()` call.  No TypeMemPtrs are in here, because Simple does not
-    // have C-style '*ptr' references.
+    // `type.str()` call.
     public static HashMap<String, Type> TYPES = defaultTypes();
 
     // Mapping from a type name to the constructor for a Type.
@@ -191,9 +190,15 @@ public class Parser {
      *  Parses a function body, assuming the header is parsed.
      */
     private ReturnNode parseFunctionBody( TypeFunPtr sig, Lexer loc, String... ids) {
+        // If this is a method, record & restore the existing struct fields,
+        // which are also the struct initializers.  The method might update
+        // mutable fields, so when the function parse is done reset back to
+        // pre-function-parse values.
+        Node[] preParse = new Node[_scope.nIns()];
+        for( int i=0; i<_scope.nIns(); i++ )
+            preParse[i] = _scope.in(i)==null ? null : _scope.in(i).keep();
+
         // Stack parser state on the local Java stack, and unstack it later
-        Node oldctrl = ctrl().keep();
-        Node oldmem  = _scope.mem().keep();
         FunNode oldfun  = _fun;
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
@@ -216,6 +221,7 @@ public class Parser {
         fun.setRet(ret);
         assert ret.inProgress();
         _code._stop.addDef(ret);
+
 
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
@@ -261,9 +267,10 @@ public class Parser {
         _fun = oldfun;
         _breakScope = breakScope;
         _continueScope = continueScope;
-        // Reset control and memory to pre-function parsing days
-        ctrl(oldctrl.unkeep());
-        _scope.mem(oldmem.unkeep());
+
+        // Reset all fields to pre-parse days
+        for( int i=0; i<preParse.length; i++ )
+            _scope.setDef(i,preParse[i]==null ? null : preParse[i].unkeep());
 
         return ret;
     }
@@ -623,18 +630,24 @@ public class Parser {
     private Node parseAsgn() {
         int old = pos();
         String name = _lexer.matchId();
+        int old_pre_equals = pos();
         // Just a plain expression, no assignment.
         // Distinguish `var==expr` from `var=expr`
         if( name==null || KEYWORDS.contains(name) || !matchOpx('=','=') )
             {  pos(old);  return parseExpression();  }
 
-        // Parse assignment expression
-        Node expr = parseAsgn();
-
-        // Final variable to update
+        // Find variable to update
         Var def = _scope.lookup(name);
         if( def==null )
             throw error("Undefined name '" + name + "'");
+
+        // If a method var, allow nested blocks and methods, but not fcns or other structs.
+        // Else safety check for accessing fields out of function scope.
+        if( instance(def) ) {
+            pos(old_pre_equals);  // setup for `self.name = expr`
+            Node self = _scope.in(_scope.lookup("self")); // Insert self reference
+            return parsePostfixName(self,name);
+        }
 
         // TOP fields are for late-initialized fields; these have never
         // been written to, and this must be the final write.  Other writes
@@ -644,6 +657,9 @@ public class Parser {
             // The alloc() call added the allocation scope
             !(_scope.inAllocation() && def._idx >= _scope._kinds.last(-1)._lexSize) )
             throw error("Cannot reassign final '"+name+"'");
+
+        // Parse assignment expression
+        Node expr = parseAsgn();
 
         // Lift expression, based on type
         Node lift = liftExpr(expr.keep(), def.type(), def._final, true);
@@ -656,7 +672,7 @@ public class Parser {
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
     private Node liftExpr( Node expr, Type t, boolean xfinal, boolean isLoad ) {
-        if( expr._type instanceof TypeMemPtr tmp && tmp.isFRef() )
+        if( expr._type instanceof TypeMemPtr tmp && TYPES.get(tmp._obj._name).isFRef() )
             throw error("Must define forward ref "+tmp._obj._name);
         // Final is deep on ptrs
         if( xfinal && t instanceof TypeMemPtr tmp ) {
@@ -718,6 +734,7 @@ public class Parser {
         String name = requireId();
         // Optional initializing expression follows
         boolean xfinal = false;
+        boolean fld_final = false; // Field is final, but not deeply final
         Node expr;
         if( match("=") ) {
             expr = isExternDecl()
@@ -753,7 +770,6 @@ public class Parser {
             // Need an expression to infer the type.
             // Also, if not-null then need an initializing expression.
             // Allowed in a class def, because type/init will happen in the constructor.
-            if( t instanceof TypeNil tn && !tn.nullable() ) xfinal = true;
             if( (inferType || (t instanceof TypeNil tn && !tn.nullable() )) && !_scope.inConstructor() )
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
@@ -767,11 +783,15 @@ public class Parser {
             // the constructor and that's when we'll discover the type.
             case Type tt -> { assert tt==Type.BOTTOM; yield con(tt); }
             };
+            // Nullable fields are set in the constructor, but remain shallow final.
+            // e.g. final pointer to a r/w array
+            if( t instanceof TypeNil tn && !tn.nullable() && !hasBang )
+                fld_final = true;
         }
 
         // Lift expression, based on type
         Node lift = liftExpr(expr, t, xfinal, true);
-        // Rebuild the RO 't', not returned from liftExpr
+        // Rebuild the deep RO 't', not returned from liftExpr
         if( xfinal && t instanceof TypeMemPtr tmp )
             t = tmp.makeRO();
 
@@ -780,7 +800,7 @@ public class Parser {
         if( !lift._type.isa(t) )
             lift = peep(new CastNode(t,null,lift));
         // Define a new name
-        if( !_scope.define(name,t,xfinal,lift, loc) )
+        if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
         return lift;
     }
@@ -833,6 +853,12 @@ public class Parser {
         // Save instance default constructor
         s.setType(s.compute()); // Do not call peephole, in case the entire struct is a big plain constant
         INITS.put(typeName,s.keep());
+
+        // Having finalized the struct, upgrade all the 'self' pointers
+        for( Node n : s._inputs )
+            if( n._type instanceof TypeFunPtr tfp && _code.link(tfp) instanceof FunNode fun )
+                _code.addAll( fun._outputs );
+
 
         // Done with struct/block scope
         _nestedType = old;
@@ -1120,24 +1146,8 @@ public class Parser {
         }
         if (match("-")) return peep(new MinusNode(parseUnary()).widen());
         if (match("!")) return peep(new   NotNode(parseUnary()));
-
-
-        // CNC -
-        // "roll" PostFix to trailing name lookup.
-        // Primary includes static/self name lookup.
-        // Primary returns either normal Node Expr OR
-        //         returns with (expr/TMP/field_name) - as a special Node
-
-        Node primary = parsePrimary();
-        //// null return only for method refs
-        //if( primary == null ) {
-        //    String id = _lexer.matchId();
-        //    Var vself = _scope.lookup("self");
-        //    Node self = _scope.in(vself);
-        //    return parsePostfixName(self,id);
-        //}
-        //return parsePostfix(primary);
-        return primary;
+        // Else be a primary expression
+        return parsePrimary();
     }
 
     /**
@@ -1162,24 +1172,13 @@ public class Parser {
         if( match ("{"    ) ) return parsePostfix(require(func(),"}"));
 
         // Parse static variable lookup: `type.fld` in the type namespace
+        // CNC: not a full type parse, just a typename parse
         int pos = pos();
         Type t = type();
-        //if( t!=null && match(".") ) {
-        //    String fld = requireId();
-        //    TypeMemPtr tmp = ((TypeMemPtr)t);
-        //    String tname = tmp._obj._name;
-        //    StructNode init = INITS.get(tname);
-        //    int idx = tmp._obj.find(fld);
-        //    if( idx == -1 )
-        //        throw error("Accessing unknown STATIC field");
-        //    //return init.in(idx);
-        //    // return PostFixName();
-        //    throw Utils.TODO();
-        //}
         if( t!=null ) {
             if( peek('.') )
                 return parsePostfix(con(t));
-            //pos(pos);
+            //pos(pos); // TODO: not a `type.fld`
             //return null;
             throw Utils.TODO();
         }
@@ -1195,57 +1194,63 @@ public class Parser {
         String id = _lexer.matchId();
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
-        Var n = _scope.lookup(id);
+        Var var = _scope.lookup(id);
 
-        if( n==null ) {
+        if( var==null ) {
             // If missing, assume a forward reference
             _scope.define(id, FRefNode.FREF_TYPE, true, XCTRL, loc());
-            n = _scope.lookup(id);
+            var = _scope.lookup(id);
         }
 
-        // If final constant, normal var handling
-        Node def = _scope.in(n._idx);
-        Kind kind = _scope.kind(n);
-
-        // If a method var, allow nested blocks and methods, but not fcns or other structs
-        if( kind instanceof Kind.Define ) {
-            for( int i = _scope.depth()-1; i>=0 && n._idx < _scope._kinds.at(i)._lexSize; i-- ) {
-                Kind xkind = _scope._kinds.at(i);
-                if( xkind instanceof Kind.Block ) continue;
-                if( xkind instanceof Kind.Func ) {
-                    if( _scope._kinds.at(i-1)==kind ) {
-                        // Instance reference; insert "self."
-                        Node self = _scope.in(_scope.lookup("self"));
-                        return parsePostfixName(self,id);
-                    }
-                }
-                throw Utils.TODO();
-            }
-        } else {
-            // If a normal var, allow any nested blocks, and a last fcn -
-            // but not functions further out (which involves capture).
-            for( int i = _scope.depth()-1; i>=0 && n._idx < _scope._kinds.at(i)._lexSize; i-- )
-                if( _scope._kinds.at(i) instanceof Kind.Func &&
-                    !(def instanceof FRefNode) && !(n._final && def._type.isConstant()) )
-                    throw error("Variable '"+n._name+"' is out of function scope and must be a final constant");
+        // If a method var, allow nested blocks and methods, but not fcns or other structs.
+        // Else safety check for accessing fields out of function scope.
+        if( instance(var) ) {
+            Node self = _scope.in(_scope.lookup("self")); // Insert self reference
+            return parsePostfixName(self,id);
         }
 
         // Load local value
-        Node rvalue = _scope.in(n);
+        Node rvalue = _scope.in(var);
         if( rvalue._type == Type.BOTTOM )
             if( rvalue instanceof FRefNode )
                 return parsePostfix(rvalue);
-            else throw error("Cannot read uninitialized field '"+n._name+"'");
+            else throw error("Cannot read uninitialized field '"+id+"'");
 
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
         if( ch==0  )            // Normal primary, check for postfix updates
             return parsePostfix(rvalue);
         // Assign-update direct into Scope
-        Node op = opAssign(ch,rvalue, n.type() );
-        _scope.update(n,op);
+        Node op = opAssign(ch,rvalue, var.type() );
+        _scope.update(var,op);
         return postfix(ch) ? rvalue.unkeep() : op;
-        //throw Utils.TODO();
+    }
+
+    // true if instance variable lookup (var is in any number of nested blocks,
+    // then an instance function then inside a struct declaration).
+    private boolean instance(Var var ) {
+        // If a method var, allow nested blocks and methods, but not fcns or other structs
+        Kind kind = _scope.kind(var);
+        if( kind instanceof Kind.Define ) {
+            for( int i = _scope.depth()-1; i>=0 && var._idx < _scope._kinds.at(i)._lexSize; i-- ) {
+                Kind xkind = _scope._kinds.at(i);
+                if( xkind instanceof Kind.Block ) continue;
+                if( xkind instanceof Kind.Func ) {
+                    if( _scope._kinds.at(i-1)==kind )
+                        return true; // Instance variable: lookup in a method in a decl
+                }
+                throw Utils.TODO();
+            }
+        } else {
+            // If a normal var, allow any nested blocks, and a last fcn -
+            // but not functions further out (which involves capture).
+            Node def = _scope.in(var._idx);
+            for( int i = _scope.depth()-1; i>=0 && var._idx < _scope._kinds.at(i)._lexSize; i-- )
+                if( _scope._kinds.at(i) instanceof Kind.Func &&
+                    !(def instanceof FRefNode) && !(var._final && def._type.isConstant()) )
+                    throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
+        }
+        return false;
     }
 
     // Check for assign-update, "x += e0".
@@ -1444,6 +1449,8 @@ public class Parser {
             throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
 
         // Find the field from the Type.  Lookup in the base object field names.
+        TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
+        ptr = (TypeMemPtr)ptr.join(ptr2);// Upgrade to latest TYPES
         TypeStruct base = ptr._obj;
         int fidx = base.find(name);
         if( fidx == -1 )
