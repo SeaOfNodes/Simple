@@ -255,9 +255,10 @@ public class TypeStruct extends Type {
 
     // All fields are final
     @Override boolean _isFinal() {
-        if( _open ) return false;
-        if( VISIT.containsKey(_uid) ) return true; // Cycles assume final
-        VISIT.put(_uid,this);
+        if( _open ) return false;     // May have more more non-final fields
+        if( VISIT.containsKey(_uid) ) // Test: been here before?
+            return true;              // Cycles assume final
+        VISIT.put(_uid,this);         // Set: dont do this again
         for( Field fld : _fields )
             if( !fld._isFinal() )
                 return false;
@@ -278,9 +279,10 @@ public class TypeStruct extends Type {
 
     // Make a read-only version
     @Override TypeStruct _makeRO() {
+        // Check for already visited
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
-        if( ts!=null ) return ts;
-        ts = recurPre(_name,_open);
+        if( ts!=null ) return ts;   // Already visited
+        ts = recurPre(_name,_open); // Make a new type with blank fields
         Field[] flds = ts._fields;
         for( Field fld : flds ) fld._final = true;
 

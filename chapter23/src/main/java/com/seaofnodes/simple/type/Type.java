@@ -306,10 +306,82 @@ public class Type /*implements Cloneable*/ {
         });
     }
 
-    // Recursive dual.  Visit all types recursively.  Each visited type is
-    // *new*, and hits in the intern table, or not.  If not, we recursively
-    // call rdual to get its dual, and cross-link the duals.  If hitting, we
-    // use the intern type and mark the prior type for freeing.
+
+    // ----------------------------------------------------------
+    // Our lattice is defined with a MEET and a DUAL.
+    // JOIN is dual of meet of both duals.
+    public final Type join(Type t) {
+        if( this==t ) return this;
+        return dual().meet(t.dual()).dual();
+    }
+
+    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
+    public boolean isa( Type t ) { return meet(t)==t; }
+
+    // True if this "isa" t up to named structures
+    public boolean shallowISA( Type t ) { return isa(t); }
+
+    public Type nonZero() { return TypePtr.NPTR; }
+
+    // Make a zero version of this type, 0 for integers and null for pointers.
+    public Type makeZero() { return Type.NIL; }
+
+    // Is forward-reference
+    public boolean isFRef() { return false; }
+
+    // ----------------------------------------------------------
+
+    // Cyclic types!  Flag the start of a cyclic type by putting a sentinel in
+    // VISIT (and eventually clearing VISIT when done).  Then do a normal
+    // recursive descent visit of all types; this will accumilate types without
+    // interning them.  When done we have to visit the possibly cyclic type and
+    // intern the whole cycle, possibly hitting the entire cycle on a prior
+    // interned cycle.  Any sub-part might also be interned, including whole
+    // disjoint cycles.
+
+    // E.g. a new type: "A<->B -> C1<->D1" gets created; the "C1<->D1" cycle
+    // already exists as "C0<->D0", but the "A<->B" cycle is new.  The "A<->B"
+    // cycle will get interned - except the pointer to C1 needs to get replaced
+    // with C0.  The "C1<->D1" cycle gets freed and "B" will point to the
+    // "C0<->D0" cycle.
+
+    Type recurOpen() { assert VISIT.isEmpty(); VISIT.put(0L,BOTTOM); return this; }
+    Type recurClose() {
+        VISIT.remove(0L);       // Just ignore the sentinel
+        Ary<Type> ts = new Ary<>(Type.class);
+        ts.addAll(VISIT.values());
+        if( ts.find(this)== -1 ) ts.add(this);
+
+        // Pass #1: replace already interned fields
+        assert BITS.isEmpty();
+        for( int i=0; i<ts._len; i++ )
+            if( ts.at(i).tern()._terned )
+                ts.del(i--);
+        BITS.clear();
+
+        // Pass#2: compute recursive duals
+        for( Type t : ts )
+            t.rdual();
+
+        // Pass#3: Recursive install
+        for( Type t : ts )
+            if( !t._terned && INTERN.get(t)==null )
+                t.install();
+        // Upgrade the result
+        Type rez = INTERN.get(this);
+        assert rez!=null;
+
+        // Pass#4?: Free up any created-but-already interned
+        for( Type t : FREES )
+            t.rfree();
+        FREES.clear();
+        VISIT.clear();
+        return rez;
+    }
+
+    // Read-only recursive visits do not *make* cyclic types and so the cleanup
+    // is much easier.
+    static boolean recurClose(boolean rez) { VISIT.clear(); return rez; }
 
     final Type tern() {
         if( _terned ) return this;
@@ -323,8 +395,13 @@ public class Type /*implements Cloneable*/ {
         return told==null ? this : told.delayFree(this);
     }
 
+    // Recursive dual.  Visit all types recursively.  Each visited type is
+    // *new*, and hits in the intern table, or not.  If not, we recursively
+    // call rdual to get its dual, and cross-link the duals.  If hitting, we
+    // use the intern type and mark the prior type for freeing.
     Type rdual() { assert !_terned; return xdual(); }
 
+    // Recursively free type and children
     final void rfree() {
         if( isFree() ) return;
         int nkids = nkids();
@@ -362,75 +439,12 @@ public class Type /*implements Cloneable*/ {
         return this instanceof TypeStruct ? this : _intern();
     }
 
-
-    // ----------------------------------------------------------
-    // Our lattice is defined with a MEET and a DUAL.
-    // JOIN is dual of meet of both duals.
-    public final Type join(Type t) {
-        if( this==t ) return this;
-        return dual().meet(t.dual()).dual();
-    }
-
-    // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    public boolean isa( Type t ) { return meet(t)==t; }
-
-    // True if this "isa" t up to named structures
-    public boolean shallowISA( Type t ) { return isa(t); }
-
-    public Type nonZero() { return TypePtr.NPTR; }
-
-    // Make a zero version of this type, 0 for integers and null for pointers.
-    public Type makeZero() { return Type.NIL; }
-
-    // Is forward-reference
-    public boolean isFRef() { return false; }
-
-    // ----------------------------------------------------------
-
-    Type recurOpen() { assert VISIT.isEmpty(); VISIT.put(0L,BOTTOM); return this; }
-    Type recurClose() {
-        VISIT.remove(0L);       // Just ignore the sentinel
-        Ary<Type> ts = new Ary<>(Type.class);
-        ts.addAll(VISIT.values());
-        if( ts.find(this)== -1 ) ts.add(this);
-
-        // Pass #1: replace already interned fields
-        assert BITS.isEmpty();
-        for( int i=0; i<ts._len; i++ )
-            if( ts.at(i).tern()._terned )
-                ts.del(i--);
-        BITS.clear();
-
-        // Pass#2: compute recursive duals
-        for( Type t : ts )
-            t.rdual();
-
-        // Recursive install
-        for( Type t : ts )
-            if( !t._terned && INTERN.get(t)==null )
-                t.install();
-
-        Type rez = INTERN.get(this);
-        assert rez!=null;
-
-        // Free up any created-but-already interned
-        for( Type t : FREES )
-            t.rfree();
-        // Occasionally leaking 'this'
-
-        FREES.clear();
-        VISIT.clear();
-        return rez;
-    }
-    static boolean recurClose(boolean rez) { VISIT.clear(); return rez; }
-
-
     // Strict constant values, things on the lattice centerline.
     // Excludes both high and low values
     public final boolean isConstant() { return recurClose(recurOpen()._isConstant()); }
     boolean _isConstant() { return _type==TNIL; }
 
-    // All reachable struct Fields are final
+    // Are all reachable struct Fields are final?
     public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
     boolean _isFinal() { assert _type < TCYCLIC; return true; }
 

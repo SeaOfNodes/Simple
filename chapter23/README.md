@@ -1,12 +1,30 @@
-# Chapter 23: Revisiting Types
+# Chapter 23: Methods and Revisiting Types
 
+In this chapter add *methods*, functions defined in structs which take a
+hiddent `self` argument and can access the struct fields.  Here is an
+`indexOf` method in a String-like class:
 
-In this chapter we revisit our Types and make some major changes:
+```java
+// A String-like class, with methods
+struct String {
+    u8[~] buf; // Buffer of read-only characters
+    
+    // Return the index of the first character 'c' or -1
+    val indexOf = { u8 c ->           // Hidden 'self' argument
+        for( int i=0; i<buf#; i++ )   // Direct access to `buf` field
+            if( buf[i]==c )
+                return i;
+        return -1;                    // 'c' not in 'self'
+    };
+};
+```
+
+Also in this chapter we revisit our Types and make some major changes:
 - Types are now *cyclic*: a Type can (indirectly) point to itself.
 - Types remain
   [*interned*](https://en.wikipedia.org/wiki/Interning_(computer_science)) or
   [*hash-consed*](https://en.wikipedia.org/wiki/Hash_consing).
-- Type objects are managed via an object pool
+- Type objects are managed via an object pool.
 - Newly created types probe the interning table, and if a hit is found, the
   original is used, and the new type is returned to the object pool.
 - The intern table hit rate is something like 99.9%; nearly all types created
@@ -19,6 +37,10 @@ In this chapter we revisit our Types and make some major changes:
   a small dense integer that is used in bit-sets to avoid visiting a type more
   than once.  Smaller UIDs use smaller bit-sets, which again fit in the faster
   cache levels.
+- As a consequence, our types are cyclic (the goal!), and **faster** and have a
+  more complex implementation.  **Using** the types remains the same; the same
+  Type API is used when creating them, MEETing, making Read-Only, printing,
+  etc; only the implementation details change.
 
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
@@ -30,32 +52,18 @@ Cyclic types give us a sharper analysis than the alternative, and thus admit
 more programs or better optimizations or both.  In Simple's case Types are also
 used for type-checking, so sharper types means we allow more valid programs.
 
-**Why Cyclic Types *Now* **?  Because we hit them as soon as we allow a
+**Why Cyclic Types Now**?  Because we hit them as soon as we allow a
 function definition inside of a struct which takes the struct as an argument,
-i.e. *methods*.
+i.e. *methods* talking a *self* argument.
 
-```java
-// A String-like class, with methods
-struct String {
-    u8[~] buf; // Buffer of characters
-    // Return the index of character 'c' in string 'self'
-    val indexOf = { str self, u8 c ->
-        for( int i=0; i<self#; i++ )
-            if( self.buf[i]==c )
-                return i;
-        return -1; // 'c' not in 'self'
-    };
-};
-```
-
-Here we define a `String` class with an `indexOf` method; the string `self` is
-passed in and searched (you can imagine an alternative syntax where the `this`
-or `self` is implicit).  What is the type of `struct String`?
+Lets look at our `String.indexOf` example above.  Here we define a `String`
+class with an `indexOf` method; a hiddent argument string `self` is passed in
+and searched.  What is the type of `struct String`?
 
 `struct String { u8[~] buf; { String self, u8 c -> int } indexOf; }`
 
-Its the type named `String` with a field `u8[~] buf` and a final assigned
-constant field `indexOf` itself with type `{ String self, u8 c -> int }`.
+It is the type named `String` with a field `u8[~] buf` and a final assigned
+constant field `indexOf`, itself with type `{ String self, u8 c -> int }`.
 i.e., the type of `String` has a reference to itself, nested inside the type of
 `indexOf`.... i.e. `String`'s type is *cyclic*.
 
@@ -63,466 +71,388 @@ i.e., the type of `String` has a reference to itself, nested inside the type of
 ## Less Cyclic Types
 
 This problem of cyclic types has been around for a long time, and there a
-number of tried and true methods.  One easy one is to have a type *definition*
-and a separate type *reference*.  The reference refers to the type by doing
-some kind of lookup; an easy one is via the type name and the parsers' symbol
-table i.e., some kind of hash table lookup.
+number of tried and true methods for dealing with them.  One easy one is to
+have a type *definition* and a separate type *reference*.  The reference refers
+to the type by doing some kind of lookup; an easy one is via the type name and
+the parsers' symbol table i.e., some kind of hash table lookup.
 
 In this model the cycle is effectively avoided; all "back edges" in the cycle
 are really done by the reference edge (itself possibly a hash table lookup).
+
 So why not go down this route?
 
-Its because all type references lead back to the same type definition - which
+Because all type references lead back to the same type definition - which
 means any specialization of type information is lost, because *all* type
 references lead back to the same definition and you end up taking the MEET 
 over *all* paths.
 
-Here's an example, simple Linked List with a Java `Object` or a C `void*`
-payload:
+Here's example, a Linked List with a Java `Object` or a C `void*` payload:
 
 ```java
 struct List {
   List next;
-  Object payload;
+  Object payload;  // equivalently: void*
 }
 // Then walk a collection of ints and build a List:
-List nums=null;
-for( int x : ary_ints ) nums = new List{next=nums; payload=x; }
+List nums = null;
+for( int x : ary_ints ) 
+    nums = new List{next=nums; payload=x; }
+    
 // Again for strings:
-List strs=null;
-for( String x : ary_strs ) nums = new List{next=strs; payload=x; }
+List strs = null;
+for( String x : ary_strs ) 
+    strs = new List{next=strs; payload=x; }
 ```
 
-What is the type of `nums`?  It's `*List`... which is `struct List { List
-*next; Object payload }`.  No sharpening of `Object` to `int` (nor `String`),
-because every List object has a payload of `Object` and `Object` MEET `int` is
-back to `Object`.
+What is the type of `nums`?  It's `*List`... which is:
+
+```
+struct List { List *next; Object payload }
+```
+
+No sharpening of `Object` to `int` nor `String` because every List object
+has a payload of `Object` and `Object` MEET `int` is back to `Object`.
 
 It we allow truely cyclic types then in these kinds of places we can discover
 (or infer) a sharper type: `*List<int> { *List<int> next, int payload }`
-basically building up *generics* in the optimizer.  This is not generics or
-type-variables per-se, but it goes a long way towards them.
+basically building up *generics* in the optimizer.  This is not generics in the
+language nor type-variables per-se, but it goes a long way towards them.
 
 
 ## Handling cyclic types
 
-Now Simple can handle cyclic types directly.  This means we have `Type` objects
-whose child types can point back to the original - and that means [*recursive
-descent*] (https://en.wikipedia.org/wiki/Recursive_descent_parser) no longer
-works.
+In this Chapter Simple handles cyclic types directly.  This means we have
+`Type` objects whose child types can point back to the original - and that
+means 
+[*recursive descent*](https://en.wikipedia.org/wiki/Recursive_descent_parser) 
+no longer works on Types.
 
 Up till now we've used recursive descent when building up Types: child types
 are built first, then interned, then the interned children are used to build up
-the next layer.
+the next layer.  Because each layer is interned and because recursive descent
+stops at interned Types we avoid repeating work at shared Types.  This makes
+operations on the current Types linear in the *delta* between the old and new
+Types, i.e. incremental and fast.
+
+With the new cyclic types we now run into the problem that we cannot intern a
+cycle until we see the whole cycle.  Also hash tables require an equality
+check and we cannot use recursive descent to compare a cycle for equality.
+
+The standard way to deal with cycles in a graph is with some kind of *visited*
+notion, a "I have been here before" indicator.  We will use a hashtable keyed
+from a unique type ID; "visited" just means your unique ID is a key in the
+table.  Every Type thus picks up a unique ID from a global counter.  Since we
+will be interning Types we only need as many unique IDs as we have unique Types
+(plus a few spare to build and intern cycles).  From prior history I know this
+number is typically maxes out in the low thousands so a small integer will do.
+
+Another thing - we want to keep as much of the our existing infrastructure as
+we can, so we are going to keep all our existing recursive descent visitations
+with some small modifications.
+
+`TypeStructs` exist in every Type cycle (except pure function type cycles,
+where a function takes *itself* as an argument, which are weird and we kinda
+don't care how they get handled).  So in the core part of every `TypeStruct`
+generator we'll set an element in a global `VISIT` hashtable to signal the
+start of a cyclic Type creation - and we'll check for those elements to stop
+cycling.
 
 
 
 
+Time for an example!
 
-
-
-
-
-
-## Unifying Structs and Arrays
-
-The idea is that structs have fields indexed by names, and arrays have fields
-indexed by numbers, and these ideas are compatible with each other.  This idea
-has been used by the C language for a long time - an array can follow a normal
-struct C and can index it with the usual array syntax.
-
-The alternative, using a field to hold a pointer to an array, exchanges some
-flexibility for an extra indirection.  The obvious flexibility allows swapping
-the array out (generally for a larger one) and this is the basis of very common
-`Vector` or `ArrayList` generic containers.
+Lets go with a linked list, where we might have cycles of unrelated payloads
+(but here only strings).  Might you, linked-list is almost always the wrong
+structure for any given job (being wildly inefficent compared to easy
+alternatives) but it is a great tutorial data structure.
 
 
 ```java
-struct str {
-    int  hash; // A cache of the strings hash code
-    u32  #;    // The array length
-    u8   [];   // Array of bytes
-};
-
-str X = "abc";
-print(X.hash); // Read the hash field
-X[0]=='a';     // Read array element 0
-X#;            // Length of the array
-
-```
-
-Here, the field named `#` holds the array length and the field named `[]` is
-the actual array, which follows the other fields directly in memory.
-Here is another example for variable length array:
-
-```java
-struct vecInt {
-    u32  size; // Actual number of elements
-    u32  #;    // The array length or capacity
-    int  [];   // Array of integers.
+struct List { 
+    List? !next; // Next pointer or null
+    str !name;   // Payload
 };
 ```
 
-The obvious limit here is that the array cannot be directly resized; it is
-literally in the same memory block as the leading fields.  Such a `vecInt` can
-be *re-allocated* to a new larger `vecInt`, but the original `vecInt` will be
-reclaimed - you cannot use the same `vecInt` reference forever.
+And the type of this struct matches its declaration:
 
-Any number of named fields are allowed:
+`struct List { List*? next, str !name };`
+
+We can use this to build up a list of strings:
 
 ```java
-struct Class {
-    str     className;
-    str     professor;
-    int     time;
-    int     credits;
-    Class   prerequisite;
-    u16     #; // Limit of 65535 students per class
-    Student [];
+var list = new List{ name="Hello"; };
+list = new List { list, name="World"; };
+```
+
+
+### Checking a cyclic type for Read-Only / Final
+
+Suppose at some point we want to make a read-only immutable version:
+```java
+val hello = list; // Make a read-only version
+print(hello);     // Pass along the read-only version
+```
+
+What is the type of `hello`?  It is the read-only type of `List`... and `List` is
+a cyclic type.  Lets look at `Type.makeRO`:
+
+```java
+public final Type makeRO() {
+    if( isFinal() ) return this; // First check if already read-only
+    return recurOpen()._makeRO().recurClose();
+}
+```
+
+and `isFinal()`:
+
+```java
+// Are all reachable struct Fields are final?
+public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
+boolean _isFinal() { assert _type < TCYCLIC; return true; }
+```
+
+We call `recurOpen()` to start/open the recursive walk, do the recursion
+calling `_isFinal()` and end/close the recursive walk, and return a boolean
+answer.  `_isFinal()` is NOT Java final, and is overridden in the Type subclasses.
+Most subclasses just forward the problem along:
+
+`@Override boolean _isFinal() { return _obj._isFinal(); }`
+
+until we hit `TypeStruct`:
+
+```java
+@Override boolean _isFinal() {
+    if( _open ) return false;     // May have more more non-final fields
+    if( VISIT.containsKey(_uid) ) // Test: been here before?
+        return true;              // Cycles assume final
+    VISIT.put(_uid,this);         // Set: dont do this again
+    for( Field fld : _fields )
+        if( !fld._isFinal() )
+            return false;
+    return true;
+}
+```
+
+Here we see a common pattern in dealing with cycles: the **test-and-set**.  We
+check for any hard and fast answers (open structs are never read-only; they are
+only partially defined and as-yet-unparsed non-final fields may appear), then
+we **test** if we have been here before, and if so stop the recursion and
+return some kind of answer.  For "isFinal" the returned answer is "yes final"
+as long as everything else in the cycle is also final.
+
+If we have not already checked this Type, we **set** the "visit" bit indicating
+we've been here before, and then proceed to do normal recursive-descent on the
+fields asking the same question recursively.
+
+For our example, we open the recursion (set a sentinel in `VISIT`), call
+`makeRO` on `struct List`, which then calls `_isFinal` which then checks
+the `_open` flag (not open), checks the `VISIT` (not visited), sets the
+UID in `VISIT`and starts walking the fields.  Fields check:
+
+`@Override boolean _isFinal() { return _final && _t._isFinal(); }`
+
+The first field is `List*? !next`, which is not-final, so immediately returns
+`false`, which stops `_isFinal` on `List` and the whole `isFinal()` call returns
+`false`, and ends/closes the recursion (clears `VISIT`).
+
+
+### Making a cyclic type for Read-Only / Final
+
+To make the build-then-intern more obvious, lets put unique IDs on all our
+Types.  Here is the Type of `List` with sample UIDs following each unique type.
+Fields are also just types so also get UIDs.
+
+```
+struct List#2 {       // struct List has UID#2
+  List#2*?#3 !next#4, // Field  next has UID#3, type ptr-or-null#3 to List#2
+  str#1 !name#5       // Field  name has UID#5, type str#1
 };
 ```
 
-Or self-reference:
+You can see from the repeated UIDs that `List#2` happens twice... because List
+is cyclic.
+
+Now we do really need to make a cyclic type, and so our `makeRO()` call falls
+into the next line:
+
+`return recurOpen()._makeRO().recurClose();`.
+
+Once again `recurOpen` starts/opens our recursive walk, and then we call
+`_makeRO()` which is overridden in every child Type class.  Lets look at
+`TypeStruct`s version:
 
 ```java
-struct NTree {
-    Some   val;
-    u8     #;   // Length is 0-255
-    NTree  [];  // More NTrees
-};
+// Make a read-only version
+@Override TypeStruct _makeRO() {
+    // Check for already visited
+    TypeStruct ts = (TypeStruct)VISIT.get(_name);
+    if( ts!=null ) return ts;   // Already visited
+    ts = recurPre(_name,_open); // Make a new type with blank fields
+    Field[] flds = ts._fields;
+    for( Field fld : flds ) fld._final = true;
+
+    // Now start the recursion
+    for( int i=0; i<flds.length; i++ )
+        flds[i].setType(_fields[i]._t._makeRO());
+
+    return ts;
+}
 ```
 
-The syntax rules are:
-- the last field is named `[]` and can be of any type.
-- the second-to-last field is named `#` and must be some unsigned integer type
-  representing the maximum array length.
-- may require a leading space in front of ` []`
-  
-  
-  
-### Constructors and Arrays
+First up is the **test-and-set**.  The **test** is by type name; we attempt to
+get a `List` TypeStruct from `VISIT`, and if successful we return early -
+without recursion.  This means we can only have one `List` object in a R/O
+cycle of types.  You can imagine a tangle of multiple nested cyclic types where
+some are "List-of-int" and some are "List-of-Lists-of-", but here in the name
+of simplicity we choose to approximate our types to only a single instance of
+`List`.
 
-The allocation includes the array length, and can include a constructor:
-`new NTree{val=17;}[2];`
+In this example on first visit of `List` we will miss in `VISIT`.  The next call
+to `ts = recurPre(_name,_open)` does common shared pre-recursive work: we make
+a new `TypeStruct` and **set** it in the `VISIT` table.  The new `TypeStruct`
+is a blank version of `List` will all fields attached; we force these fields to
+be final right away but they are missing their types:
 
-The constructor is optional, the array length is not.
-
-Optional function for initializing arrays, allows for write-once final arrays:
-`new u8[buffer#,{ u32 idx -> buffer[idx].toUpperCase() }]`
-
-
-
-### Changing array max length
-
-An issue for large numbers of range-checked small arrays is that reserving a
-full 4 bytes for array length can substantially increase the array overhead.
-Simple allows for arrays to have smaller max lengths, although these are
-treated as a different type than arrays with different max lengths.
-
-```java
-struct x0 { u8  #; u8[]; }; // Array limited to 0-255 length
-struct x1 { u16 #; u8[]; }; // Array limited to 0-65535 length
-struct x2 { u32 #; u8[]; }; // 
-struct x3 { u64 #; u8[]; }; // 
-
-x0 x = "abc"; // 4 bytes total: [3, 'a', 'b', 'c']
-x1 y = "def"; // 6 bytes total: [3,  0 , 'd', 'e', 'f', 0,]; 1 pad byte to acheieve 2-byte alignment
-x = y;  // ERROR, "x1 is not x0", no auto-widening
-x += y; // OK, 7 bytes total: [6, 'a', 'b', 'c', 'd', 'e', 'f']
-y += x; // OK, 8 bytes total: [6,  0 , 'd', 'e', 'f', 'a', 'b', 'c']
-
-x += "VeryLongString.... ....255_chars"; // Runtime RangeCheck
-
-// Explicit conversion to widen string
-y = "" + x;
 ```
+struct List#12 {
+  ____ next#14,
+  ____ name#15
+}
+```
+
+
+Finally, we recursively call `_makeRO` on all the field types and set them in.
+We call `_fields[i]._t._makeRO()` on a `TypeMemPtr` which makes a new
+TMP after calling `_makeRO()` on the recursive `List`.
+
+This recursion comes right back to `TypeStruct._makeRO()`, and hits in the
+`VISIT` table on the same type name.  Unwinding the first field set, we have:
+
+```
+struct List#12 {
+  List#12 *? #13 next#14, // Recursve next field makes a cycle
+  ____  name#15
+}
+```
+
+You should notice all new UIDs for all the Types.  Since we cannot intern yet,
+we cannot end up with prior types.  The second field `str name` does already
+exist, so we end up with:
+
+```
+struct List#12 {
+  List#12 *? #13 next#14, // Recursve next field makes a cycle
+  str#2 name#15           // Reuse the interned type strt#2
+}
+```
+
+At this point the recursion unwinds and we head into the complex
+`Type.recurClose()`.  You might try single-stepping through the code for a few
+examples; the `TypeTest.testList` test builds these types.  Here is a high
+level summary:
+
+Copy all the visited types out of `VISIT` for easier management; we might find
+some of these types already interned, and then we'll remove them from further
+processing; this is easier if they are not in a HashMap.
+
+**Pass#1:** look for pre-existing interned parts not in any cycle, and just
+replace them.  We could have a new cycle of Types with pointers off to older
+interned types... that we made copies of.  After this step, we'll still have
+new cycles but the output edges will point to prior types if possible.
+Replaced types hit the delayed `FREES` list.
+
+**Pass#2:** All types have their *duals* pre-computed and directly available.
+Make the recursive cyclic duals now.
+
+**Pass#3:** Install the new types.  It *is* possible to now discover common
+pointers to newly interned types, and so again we need to test and replace as
+we go (and put the unused types on the delayed `FREES` list again).  This step
+requires hash table probe - which requires a cyclic hash and cyclic equals.
+
+**Pass#4:** Free up all the delayed-free Types now, to be recycled in future
+Type productions.
+
+In the end, the new `List` cyclic type is wholly interned - with a R/W version
+of `List#2` pointing back to the R/W `List#2` and the R/O version `List#12`
+pointing back to the same R/W `List#12`.
+
+
+
+### Cyclic HashCode and Equals
+
+Cyclic `hashCodes` and `equals` deserve more discussion.  When compare two
+cycles for equivalence we want to be equivalent regardless of where the
+comparison starts.  i.e. cycle `A<->B` should be equal to cycle `B<->A`.  This
+means they both need the same hashcode, and this means we cannot use
+order-varying hashes!
+
+E.g. Suppose A has static hash value 1 (plus something recursively from B's
+hash), and vice-versa B has static hash value 3 (and something recursive from
+A), and we compute hashes as `parent.hash*7 + child.hash`.  If we compute A's
+hash as `A.hash * 7 + B.hash` we get `1 * 7 + 3 == 10`, and then later we start
+from B we get: `B.hash * 7 + A.hash` and which then becomes `3 * 7 + 1 ==
+22`... and their hashes differ so the hash table might miss the equivalence.
+Also, if we simply use recursive descent in the cycle we'll
+recurse until stack overflow and crash.  
+
+We fix this by having `TypeStruct.hash()` *not* recurse - thus its hash
+function is somewhat weak, depending only on the field names and aliases.
+
+*Cyclic-equals* is triggered by the `VISIT` table being not-empty, and uses
+another unrelated *visit* table, the `CEQUALS` table, to seperate concerns from
+`VISIT`.  The cycle-equals check proceeds like the normal `eq` with recursive
+descent on the parts, and some up-front hard-and-fast static checks - and the
+ubiquitous **test-and-set** pattern before the recursion.
+
+If we ever compare the same two types for cycle-equals again, we assume they
+will be cycle-equals (all other things being equals).
+
 
 
 ## Methods and Final Fields and Classes
 
 Methods are simply function values (final fields) declared inside a struct that
-take an implicit `this` argument.
+take an implicit `self` argument.
 
-Final field declared in the original struct definition are *values* and cannot
-change; they are the same for all structs.  They get moved out of the struct's
-memory footprint and into a *class* - a collection of values from the final
-fields.  Classes are just plain namespaces and have no concrete implementation;
-they are not reified.
+Final fields declared in the original struct definition are *values* and cannot
+change; they are the same for all instances.  They get moved out of the
+struct's memory footprint and into a *class* - a collection of values from the
+final fields.  Classes are just plain namespaces and have no concrete
+implementation; they are not reified.
 
 ```java
 struct vecInt {
+    u32 !len;   // Actual number of elements
+    int[] !buf; // Array of integers.
+    
     // Since "add" is declared with `val` in the original struct definition,
     // it is a final field and is moved out of here to the class.
     
-    // Add an element to a vector, possibly returning a new larger vector.
+    // Method: Add an element to a vector, possibly returning a new larger vector.
     val add = { int e ->
-        if( size >= # ) return copy(# ? #*2 : 1).add(e);
-        [size++] = e; 
-        return this;
+        if( len >= buf# ) _grow(buf#*2)
+        buf[len++] = e; 
+        self;
     };
-    // Copy 'this' to a new larger size
-    val copy = { int sz2 -> 
-        val v2 = new vecInt[sz2];
-        for( int i=0; i<size; i++ )
-            v2[i] = [i];
-        v2.size = size;
-        sys.libc.free(this); // Needs a better Mem Management solution
-        return v2;
+    
+    // Method: Internal: copy buf to a new size
+    val _grow = { int sz -> 
+        val buf2 = new int[sz];
+        for( int i=0; i<len; i++ )
+            buf2[i] = buf[i];
+        free(buf);  // Needs a better Mem Management solution
     };
 
-    u32  size; // Actual number of elements
-    u32  #;    // The array length or capacity
-    int  [];   // Array of integers.
 };
 
-val primes = new vecInt[0].add(2).add(3).add(5).add(7);
+val primes = new vecInt{}.add(2).add(3).add(5).add(7);
 
 ```
 
 Here the `val add` field is a *value* field, a constant function value.  It is
 moved out of the basic `vecInt` object into `vecInt`'s *class*, and takes no
-storage space in `vecInt` objects.  The same happens for `copy`.  The size of a
-`vecInt` is thus 2 `u32` words, plus `#*sizeof(int)`, plus any padding
-(probably none here).
-
-The actual usage of this `vecInt` class differs from other similar classes in
-other languages:
-
-- The data and header object are *inlined*, one level of indirection (and
-  possible cache miss cost) is avoided.
-- The array cannot be resized without resizing the entire object.  Once the
-  array is full, further adds will return a **new** larger `vecInt`.
-  
-Lifetime management to avoid using an older version of `vecInt` awaits a later
-chapter.
-
-
-### Two flavors of extendable arrays/strings: an extra indirection or not
-
-With an extra indirection you get e.g. Java `ArrayList` or C++ `Vector`.
-
-Without, then any call which extends the extendable array return a potentially 
-new object, only growing as needed.
-
-```java
-val vec1 = new vecInt[0].add(2); // len=1, capacity=1
-val vec2 = vec1.add(3); // NEW vecInt returned, only is deleted; len=2; capacity=2;
-vec1[0]; // ERROR, vec1 has been freed by call to `vec1.add(3)`
-vec2[0]; // OK
-vec2[1]; // OK
-vec2[2]; // Runtime error, AIOOBE
-```
-
-
-## A String Implementation
-
-Default strings have names like "str", "cstr", "ustr" or such.
-
-Always unicode8 with explicit u8 manipulations.  Unicode "characters" will come
-as function calls over the base implementation, probably in another string class.
-
-## Default string
-
-Efficiently growable via concantenation.  Supports a variety of IO/printf functions.
-The underlying array can be shared mutable if you ask for this.
-The defaults will always be private mutable and read-only shared.
-
-```java
-struct str {
-
-    // Add a string to the string, possibly growing
-    val add = { str str ->
-        val self = this;
-        for( int i=0; i<str#; i++ )
-            self = self.add(str[i]);
-        return self;
-    };
-
-    // Add an char to the string, possibly growing
-    val add = { u8 e ->
-        if( len >= # ) return copy(# ? #*2 : 1).add(e);
-        [size++] = e; 
-        return this;
-    };
-    
-    // Copy 'this' to a new larger size
-    val copy = { int sz2 -> 
-        val v2 = new str[sz2];
-        for( int i=0; i<len; i++ )
-            v2[i] = [i];
-        v2.len = len;
-        sys.libc.free(this); // Needs a better Mem Management solution
-        return v2;
-    };
-
-    val print { -> sys.libc.write(1/*stdout*/,[]/*array base as argument to C*/,len); return this; }
-
-    u32 len; // In-use size
-    u32 #;   // Max length is 4Gig, although variants can request smaller lengths
-    u8  [];  // Character data
-};
-```
-
-
-### A Final String
-
-Intended to be a **immutable** string, possibly used as a base for a **secure**
-string.  This needs to be created all at once, and probably requires a
-defensive copy.
-
-```java
-struct sstr {
-    // Possible static call syntax; no references to "this"
-    val make { str str -> new sstr[str#,str.at] };
-    
-    // Array contents are immutable.
-    // Still figuring out good syntax for this.
-    u8 #;
-    u8 [~]; // Middlin '~'?  Makes primitive array contents *immutable* and requires constructor syntax
-};
-
-// Construction requires a function that produces the array contents.
-// Here we are defining a defensive copy over `buf`.
-sstr safe = new sstr[buf.len,{ int idx -> buf[idx]; }];
-sstr safe = sstr.make("abc"); // Defensive copy is made
-```
-
-
-### A Extendable String (aka StringBuilder or StringBuffer)
-
-This API is intended to be a drop-in for a `StringBuilder` style, and takes an
-extra indirection with each usage.
-
-```java
-struct xstr {
-    str !_str; // The extra indirection is here
-    val add = { str str -> _str = str.add2(str); };
-    val write = { int fd -> _str.write(fd); };
-};
-```
-
-### A Unicode String
-
-This API is intended to support unicode character manipulation over a plain `str`
-
-```java
-struct ustr {
-    // Assuming idx is at the start of a character, return the character
-    // as a 32b integer.  Returns junk integer if not at a character start.
-    // For all ASCII strings this will amount to a simple byte load.
-    // For bytes with high order bits set, this may read 1-4 characters.
-    val at = { int idx -> ... };
-};
-// Unicode character iterator
-struct ucharator { 
-// Return successive unicode character codes
-};
-```
-
-### A "C" string
-
-A zero-terminated string, but the length has to be available directly
-
-```java
-struct cstr {
-    u8 #; // length including the trailing zero
-    u8[]; // always ends in a zero byte; suitable for direct passing to C string functions
-};
-```
-
-### A "german string": a very short string that can exist in a register
-
-Length in memory is 1 byte (3 bits?) of length, then 0-7 chars; max 8 chars.
-Fits in a 64 bit register.
-
-```java
-struct gstr { // aka germanString, or blend string and register "streg"
-    u3 #;   // Size is 0-7 bytes???
-    u8 [];  // Up to 7 bytes
-}
-// Using inlined object (see below).  All these strings are short and are
-// represented as packed integers in a 64b register.
-*gstr prize1 = "gold";
-*gstr prize2 = "silver";
-*gstr prize3 = "bronze";
-
-```
-
-### Main becomes `val main = { str[] args -> ...}`
-
-
-## Structs can be inlined
-
-Structs are normally by-reference, but can be converted to by-value by using
-the `*` operator, pronounced "contents of" (this name might be changed to
-e.g. `inline`).
-
-This is a name-space change only, you cannot take the address of the internal
-struct without entirely consuming its lifetime.  No "escaping".
-
-```java
-// 2 64-bit words, no other overheads
-struct Complex { f64 x,y; val len = { ->Math.sqrt(x*x+y*y); }; };
-
-// Current Simple rules: always by-reference
-struct ByRef {
-    Complex c;          // 4-byte pointer to a Complex
-};
-print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
-
-// New behavior: by value (inlining a struct)
-// The '*' syntax indicator can be something else, e.g. a keyword "inline"
-// I am pronouncing '*' as "contents of"
-struct ByValue {
-    *Complex c;         // c is inlined, full 16 bytes into ByValue
-};
-print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
-
-// Mixing Refs and Struct Values.  Basically, a ref can be converted
-// to a value by taking the "contents of" the ref, and values cannot
-// be *converted* to a ref, although they can be copied over a ref.
-ref. c =  val.c; // Error, mixing refs and values
-ref.*c =  val.c; // Allowed, whole structure copy.  Does not allocate, requires ref.c not-null
-val. c =  ref.c; // Error, mixing refs and values
-val. c = *ref.c; // Allowed, whole structure copy
-ref. c =  ref.c; // Allowed, pointer copy
-val. c =  val.c; // Allowed, whole structure copy.
-val *c =  val.c; // Error, cannot take "contents of" a value
-
-// Alternative syntax, to avoid the "contents of" being on LHS and field applying to being on RHS:
-ref.c = val.*c; // Assign into ref.c the "contents of" val.c
-
-// Arrays of inlined structures
-var ary = new *Complex[99]; // Array of 99 Complex objects, inlined
-
-// Calling methods has the same syntax
-ref.c.len();
-val.c.len();
-
-// Function arguments use the same typing, so can pass-by-value
-val math.sin = { *Complex c -> ... }; // Passes a complex by value
-math.sin(ref.*c); // Requires de-reference to pass by value
-math.sin(val. c); // Pass by value
-
-```
-
-
-
-## RoadMap for other chapters
-
-`&&` and `||`
-Drop `int` to `i32`.
-Drop `TypeMemPtr` to 4 bytes; using `mmap` to make heap in low 4G.
-Add optimistic pass SCCP to `opto`
-Default parser for-loop construction, or partial peel.
-    `for( init; test; next ) body`
-becomes:
-```java
-{ init;       // Normal scope entry to bound lifetime of index variable
-if( !test ) { // Zero-trip count test
-    do {
-        body;
-        next;
-    } while( test ); // Exit test at loop bottom by default
-} };
-```
+storage space in `vecInt` objects.  The same happens for `_grow`.  The size of
+a `vecInt` is thus a `u32` word, a pointer to an `int[]` plus
+`buf#*sizeof(int)`, plus any padding (probably none here).

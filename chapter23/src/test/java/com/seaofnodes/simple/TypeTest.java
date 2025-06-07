@@ -179,4 +179,20 @@ public class TypeTest {
             if( !(t0 instanceof Field || t0 instanceof TypeStruct || t0 instanceof TypeTuple || t0 instanceof TypeConAry ) )
                 Assert.assertTrue(t0.isa(t0.glb(false)));
     }
+
+    @Test
+    public void testList() {
+        TypeStruct list = TypeStruct.open("List");
+        TypeMemPtr plist = TypeMemPtr.makeNullable(list);
+        list = list.add(Field.make("next", plist, 2, false, false ) );
+        list = list.add(Field.make("x", TypeInteger.BOT, 3, false, false));
+        // Make a cyclic type
+        list = list.close();
+        // Fields are mutable
+        Assert.assertFalse(list.isFinal());
+        TypeStruct flist = (TypeStruct)list.makeRO();
+        Assert.assertTrue(flist.isFinal());
+        Assert.assertNotSame( list, flist );
+
+    }
 }
