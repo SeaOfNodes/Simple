@@ -49,7 +49,7 @@ public class TypeStruct extends Type {
         FREE.push(ts);
         return this;
     }
-    boolean isFree() { return _fields==null; }
+    @Override boolean isFree() { return _fields==null; }
 
 
     // All fields directly listed
@@ -57,8 +57,7 @@ public class TypeStruct extends Type {
         TypeStruct ts = malloc(name, open, fields);
         TypeStruct t2 = ts.intern();
         if( t2==ts ) return ts;
-        if( VISIT.isEmpty() ) t2.free(ts); else ts.delayFree(ts);
-        return t2;
+        return VISIT.isEmpty() ? t2.free(ts) : ts.delayFree(ts);
     }
     // New open struct with no fields
     public static TypeStruct open( String name ) { return make(name,true); }
@@ -229,17 +228,6 @@ public class TypeStruct extends Type {
         return malloc(_name,!_open,flds);
     }
 
-    @Override TypeStruct tern() {
-        if( _terned ) return this;
-        if( !BITS.get(_uid) ) {
-            BITS.set(_uid);
-            for( int i=0; i<_fields.length; i++ )
-                _fields[i] = _fields[i].tern();
-        }
-        TypeStruct told = (TypeStruct)INTERN.get(this);
-        return told==null ? this : told.delayFree(this);
-    }
-
     // Recursive dual
     @Override TypeStruct rdual() {
         if( _dual!=null ) return dual();
@@ -250,16 +238,6 @@ public class TypeStruct extends Type {
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i]._terned ? _fields[i].dual() : _fields[i].rdual();
         return d;
-    }
-
-    @Override void rfree() {
-        if( isFree() ) return;
-        Field[] flds = _fields;
-        assert _dual==null;
-        free(this);
-        for( Field fld : flds )
-            if( !fld._terned )
-                fld.rfree();
     }
 
     // Is forward-reference

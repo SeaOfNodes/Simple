@@ -41,8 +41,7 @@ public class TypeMemPtr extends TypeNil {
         TypeMemPtr tmp = malloc(nil, obj, one);
         TypeMemPtr t2 = tmp.intern();
         if( t2==tmp ) return tmp;
-        if( VISIT.isEmpty() ) t2.free(tmp); else t2.delayFree(tmp);
-        return t2;
+        return VISIT.isEmpty() ? t2.free(tmp) : t2.delayFree(tmp);
     }
     @Override TypeMemPtr free(Type t) {
         TypeMemPtr tmp = (TypeMemPtr)t;
@@ -53,7 +52,7 @@ public class TypeMemPtr extends TypeNil {
         FREE.push(tmp);
         return this;
     }
-    private boolean isFree() { return _obj==null; }
+    @Override boolean isFree() { return _obj==null; }
 
     static TypeMemPtr make(byte nil, TypeStruct obj) { return make(nil, obj, false); }
     public static TypeMemPtr make        (TypeStruct obj) { return make((byte)2, obj); }
@@ -82,13 +81,6 @@ public class TypeMemPtr extends TypeNil {
     @Override
     TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), _one); }
 
-    @Override TypeMemPtr tern() {
-        if( _terned ) return this;
-        _obj = _obj.tern();
-        TypeMemPtr told = (TypeMemPtr)INTERN.get(this);
-        return told==null ? this : told.delayFree(this);
-    }
-
     @Override TypeMemPtr rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
@@ -96,14 +88,6 @@ public class TypeMemPtr extends TypeNil {
         (_dual = d)._dual = this; // Cross link duals
         d._obj = _obj._terned ? _obj.dual() : _obj.rdual();
         return d;
-    }
-
-    @Override void rfree() {
-        assert !isFree();
-        Type t = _obj;
-        free(this);             // Free 'this'
-        if( !t._terned )
-            t.rfree();
     }
 
     // RHS is NIL; do not deep-dual when crossing the center line

@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 
 public class Chapter23Test {
 
-    @Test @Ignore
+    @Test
     public void testJig() throws IOException {
         //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
@@ -82,7 +82,7 @@ return s.skip().x;
         """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {17} skip; } #17} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {21} skip; } #21} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
     };
 
 

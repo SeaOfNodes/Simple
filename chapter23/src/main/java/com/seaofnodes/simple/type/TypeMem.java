@@ -35,7 +35,7 @@ public class TypeMem extends Type {
         FREE.push(mem);
         return this;
     }
-    private boolean isFree() { return _alias == -99; }
+    @Override boolean isFree() { return _alias == -99; }
 
     public static TypeMem malloc(int alias, Type t) {
         return FREE.isEmpty() ? new TypeMem(alias,t) : FREE.pop().init(alias,t);
@@ -44,8 +44,7 @@ public class TypeMem extends Type {
         TypeMem f = malloc(alias,t);
         TypeMem f2 = f.intern();
         if( f2==f ) return f;
-        if( VISIT.isEmpty() ) f2.free(f); else f2.delayFree(f);
-        return f2;
+        return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
 
     public static final TypeMem TOP = make(1, Type.TOP   );
@@ -68,13 +67,6 @@ public class TypeMem extends Type {
     @Override
     Type xdual() { return _t._dual==_t ? this : malloc(_alias,_t.dual()); }
 
-    @Override TypeMem tern() {
-        if( _terned ) return this;
-        _t = _t.tern();
-        TypeMem told = (TypeMem)INTERN.get(this);
-        return told==null ? this : told.delayFree(this);
-    }
-
     @Override TypeMem rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
@@ -82,14 +74,6 @@ public class TypeMem extends Type {
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
         return d;
-    }
-
-    @Override void rfree() {
-        assert !isFree();
-        Type t = _t;
-        free(this);             // Free 'this'
-        if( !t._terned )
-            t.rfree();
     }
 
     @Override public boolean isHigh() { return _t.isHigh(); }

@@ -30,7 +30,7 @@ struct sys {
         };
     };
 
-    // Ary/Vector of u8s
+    // Ary/Vector of u8s - a resizable array of bytes.
     struct aryu8 {
         u32 !len = 0;
         u8[] !buf;
@@ -59,7 +59,7 @@ struct sys {
             self;
         };
 
-        // Remove x chars
+        // Remove x chars from the tail.
         val undo = { int x ->
             len = len >= x ? len-x : 0;
             self;
@@ -81,8 +81,40 @@ struct sys {
             self;
         };
 
-        // Write to fd
+        // Write to fd, returns the number of bytes written (len).
         val write = { i32 fd -> i64 ptr = buf; sys.libc.write(fd,ptr,len); };
+    };
+
+
+    // Scanner; a simple string parser.
+    struct Scan {
+        int !x;
+        u8[~] buf;
+
+        // Skip whitespace
+        val skip = { ->
+            while( buf[x] <= ' ' )
+                x++;
+            return self;
+        };
+
+        // True if find required character, and skip it; else False.
+        val match = { u8 c ->
+            skip();
+            if( buf[x] != c ) return false;
+            x++;
+            return true;
+        };
+
+        // Parse a simple number
+        val number = { ->
+            skip();
+            bool neg = match('-');
+            i64 n = 0;
+            while( '0' <= buf[x] & buf[x] <= '9' )
+                n = n*10 + (buf[x++] - '0');
+            return neg ? -n : n;
+        };
     };
 
     // Ary/Vector of i64s
@@ -115,6 +147,28 @@ struct sys {
                 str.num(buf[i]).add(',').add(' ');
             str.undo(2).add(']');
         };
+    };
+
+    // Parse a comma-separated list of numbers, wrapped with square brackets,
+    // with optional whitespace  e.g. "[ -17, 0,99,12456789   ]  ".
+    // parseAryI64 & aryi64.str are bijections modulo whitespace.
+    // Returns null if the parse failed.
+    val parseAryI64 = { u8[~] str ->
+        sys.Scan !s = new sys.Scan{ buf = str; };
+        if( !s.match('[') ) return null;
+        // Array of parsed results
+        var nums = new sys.aryi64{ buf=new i64[1]; };
+        // Parse a list of numbers
+        if( !s.match(']') ) {        // Handle the empty list
+            // Parse "123, " until a something else
+            while( s.x < s.buf# ) {
+                nums.add(s.number());
+                if( !s.match(',') )
+                    break;
+            };
+            if( !s.match(']') ) return null; // Close the list
+        }
+        return nums;
     };
 
     struct io {

@@ -49,15 +49,14 @@ public class Field extends Type {
         FREE.push(f);
         return this;
     }
-    boolean isFree() { return _t ==null; }
+    @Override boolean isFree() { return _t ==null; }
 
     // Make and intern with listed fields
     public static Field make( String fname, Type type, int alias, boolean xfinal, boolean one ) {
         Field f = malloc(fname,type,alias,xfinal,one);
         Field f2 = f.intern();
         if( f2==f ) return f;
-        if( VISIT.isEmpty() ) f2.free(f); else f2.delayFree(f);
-        return f2;
+        return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
     public Field makeFrom( Type type ) {
         return type == _t ? this : make(_fname,type,_alias,_final,_one);
@@ -89,13 +88,6 @@ public class Field extends Type {
     @Override
     Field xdual() { return malloc(_fname, _t.dual(),_alias,!_final,_one); }
 
-    @Override Field tern() {
-        if( _terned ) return this;
-        _t = _t.tern();
-        Field told = (Field)INTERN.get(this);
-        return told==null ? this : told.delayFree(this);
-    }
-
     @Override Field rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
@@ -103,14 +95,6 @@ public class Field extends Type {
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
         return d;
-    }
-
-    @Override void rfree() {
-        assert !isFree();
-        Type t = _t;
-        free(this);             // Free 'this'
-        if( !t._terned )
-            t.rfree();
     }
 
     @Override boolean _isConstant() { return _t._isConstant(); }

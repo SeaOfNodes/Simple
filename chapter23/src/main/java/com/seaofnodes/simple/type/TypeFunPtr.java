@@ -53,15 +53,14 @@ public class TypeFunPtr extends TypeNil {
         FREE.push(fun);
         return this;
     }
-    boolean isFree() { return _sig==null; }
+    @Override boolean isFree() { return _sig==null; }
 
     // All fields directly listed
     public static TypeFunPtr make( byte nil, boolean open, Type[] sig, Type ret, long fidxs ) {
         TypeFunPtr fun = malloc(nil,open,sig,ret,fidxs);
         TypeFunPtr f2  = fun.intern();
         if( f2==fun ) return fun;
-        if( VISIT.isEmpty() ) f2.free(fun); else f2.delayFree(fun);
-        return f2;
+        return VISIT.isEmpty() ? f2.free(fun) : f2.delayFree(fun);
     }
     public static TypeFunPtr make( boolean nil, boolean open, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),open,sig,ret,-1); }
 
@@ -117,18 +116,6 @@ public class TypeFunPtr extends TypeNil {
         return dual;
     }
 
-    @Override TypeFunPtr tern() {
-        if( _terned ) return this;
-        if( !BITS.get(_uid) ) {
-            BITS.set(_uid);
-            _ret = _ret.tern();
-            for( int i=0; i<_sig.length; i++ )
-                _sig[i] = _sig[i].tern();
-        }
-        TypeFunPtr told = (TypeFunPtr)INTERN.get(this);
-        return told==null ? this : told.delayFree(this);
-    }
-
     @Override TypeFunPtr rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
@@ -141,19 +128,6 @@ public class TypeFunPtr extends TypeNil {
         for( int i=0; i<_sig.length; i++ )
             sigs[i] = _sig[i]._terned ? _sig[i].dual() : _sig[i].rdual();
         return d;
-    }
-
-    @Override void rfree() {
-        if( isFree() ) return;
-        Type[] sig = _sig;
-        Type ret = _ret;
-        assert _dual==null;
-        free(this);
-        if( !ret._terned )
-            ret.rfree();
-        for( Type arg : sig )
-            if( !arg._terned )
-                arg.rfree();
     }
 
     // RHS is NIL; do not deep-dual when crossing the centerline

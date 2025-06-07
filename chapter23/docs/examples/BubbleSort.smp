@@ -5,45 +5,6 @@
 //
 // Bubble sort, with reading (parsing) and writing (formatting) the data.
 
-
-val _exit = { u8[~] msg ->
-    sys.io.p(msg);
-    sys.libc._exit(1);
-};
-
-val usage = { -> _exit("stdin must look like [4, 3, 2, 1]"); };
-
-// Scanner
-struct Scan {
-    int !x;
-    u8[~] buf;
-
-    // Skip whitespace
-    val skip = { ->
-        while( buf[x] <= ' ' )
-            x++;
-        return self;
-    };
-
-    // True if find required character, and skip it; else False.
-    val match = { u8 c ->
-        skip();
-        if( buf[x] != c ) return false;
-        x++;
-        return true;
-    };
-    // Parse a simple number
-    val number = { ->
-        skip();
-        bool neg = match('-');
-        i64 n = 0;
-        while( '0' <= buf[x] & buf[x] <= '9' )
-            n = n*10 + (buf[x++] - '0');
-        return neg ? -n : n;
-    };
-};
-
-
 val sort = { sys.aryi64 nums ->
     var done = false;
     while( !done ) {
@@ -60,19 +21,11 @@ val sort = { sys.aryi64 nums ->
 
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
-    Scan !s = new Scan{ buf = sys.io.stdin(); };
-    if( !s.match('[') ) usage();
-    // Array of parsed results
-    var nums = new sys.aryi64{ buf=new i64[1]; };
-    // Parse a list of numbers
-    if( !s.match(']') ) {        // Handle the empty list
-        // Parse "123, " until a something else
-        while( s.x < s.buf# ) {
-            nums.add(s.number());
-            if( !s.match(',') )
-                break;
-        };
-        if( !s.match(']') ) usage(); // Close the list
+    // Parse array of numbers from stdin
+    var nums = sys.parseAryI64( sys.io.stdin() );
+    if( !nums ) {
+        sys.io.p("stdin must look like [4, 3, 2, 1]");
+        return 1;
     }
 
     // Bubble sort array of integers

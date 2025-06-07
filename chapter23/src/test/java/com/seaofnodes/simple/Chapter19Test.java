@@ -316,7 +316,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun17,i64),x); return (shli,Parm_x($fun18,i64)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun21,i64),x); return (shli,Parm_x($fun22,i64)); ]", code.print());
     }
 
     @Test

@@ -310,10 +310,39 @@ public class Type /*implements Cloneable*/ {
     // *new*, and hits in the intern table, or not.  If not, we recursively
     // call rdual to get its dual, and cross-link the duals.  If hitting, we
     // use the intern type and mark the prior type for freeing.
-    Type tern() { assert _type < TCYCLIC; return this; }
+
+    final Type tern() {
+        if( _terned ) return this;
+        if( !BITS.get(_uid) ) {
+            BITS.set(_uid);
+            int nkids = nkids();
+            for( int i=0; i<nkids; i++ )
+                set(i,at(i).tern());
+        }
+        Type told = INTERN.get(this);
+        return told==null ? this : told.delayFree(this);
+    }
+
     Type rdual() { assert !_terned; return xdual(); }
-    Type  free(Type free) { return this; }
-    void rfree() { }
+
+    final void rfree() {
+        if( isFree() ) return;
+        int nkids = nkids();
+        for( int i=0; i<nkids; i++ )
+            if( !at(i)._terned )
+                at(i).rfree();
+        free(this);
+    }
+
+    Type free(Type free) { return this; }
+    boolean isFree() { return false; }
+
+    <T extends Type> T delayFree(Type free) {
+        assert !free._terned;
+        FREES.push(free);
+        return (T)this;
+    }
+
     final Type install() {
         if( this instanceof TypeStruct ) {
             Type x = _intern();     // Stop the recursion
@@ -331,12 +360,6 @@ public class Type /*implements Cloneable*/ {
             }
         }
         return this instanceof TypeStruct ? this : _intern();
-    }
-
-    <T extends Type> T delayFree(Type free) {
-        assert !free._terned;
-        FREES.push(free);
-        return (T)this;
     }
 
 

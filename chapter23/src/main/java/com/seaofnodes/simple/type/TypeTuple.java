@@ -29,7 +29,7 @@ public class TypeTuple extends Type {
         FREE.push(tt);
         return this;
     }
-    private boolean isFree() { return _types==null; }
+    @Override boolean isFree() { return _types==null; }
 
 
     public static final TypeTuple BOT = malloc(new Type[0]).intern();
