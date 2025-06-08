@@ -1,3 +1,9 @@
+# Chapter 24: 
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.
+
+
 
 
 ## Unifying Structs and Arrays
