@@ -2,13 +2,11 @@ package com.seaofnodes.simple.print;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashMap;
+
+import java.util.*;
 
 public abstract class IRPrinter {
 
@@ -38,14 +36,134 @@ public abstract class IRPrinter {
     }
 
 
-    public static String prettyPrint(Node node, int depth) {
-        return CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Schedule.ordinal()
-            ? _prettyPrintScheduled( node, depth )
-            : _prettyPrint( node, depth );
+    // Bulk whole program pretty print
+    public static String prettyPrint( CodeGen code ) {
+        if( code._start._ltree==null )
+            code._start.buildLoopTree(code._stop);
+        BitSet visit = code.visit();
+        SB sb = new SB();
+        printLine(code._start,sb);
+
+        // All the global constants
+        for( Node n : code._start._outputs )
+            if( !(n instanceof FunNode) )
+                printLine(n,sb);
+        sb.nl();
+
+        // All the functions
+        Ary<Node> rpo = new Ary<>(Node.class);
+        for( Node n : code._start._outputs )
+            if( n instanceof FunNode fun )
+                _funWalk(fun,sb,rpo,visit);
+
+        visit.clear();
+        return sb.toString();
     }
 
+    // Walk and print whole functions at a time, in CG order
+    private static void _funWalk( FunNode fun, SB sb, Ary<Node> rpo, BitSet visit) {
+        if( fun._ltree._par._head instanceof FunNode fun2 )
+            _funWalk(fun2,sb,rpo,visit);
+        if( visit.get(fun._nid) ) return;
+        _funRPO(fun,rpo,visit);
+
+        sb.p("--- ");
+        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "));
+        sb.p("----------------------\n");
+
+        boolean gap=false;
+        for( int i=rpo._len-1; i>=0; i-- ) {
+            Node n = rpo.at(i);
+            if( (n instanceof MultiNode && !(n instanceof CallEndNode)) || (n instanceof RegionNode && !(n instanceof FunNode)) || n instanceof CallNode )
+                gap=true;
+            if( gap ) { sb.nl(); gap=false; }
+            printLine(n,sb);
+            if( !(n instanceof CallNode) && multiChild(n) && i>0 && !multiChild(rpo.at(i-1)) )
+                gap=true;
+        }
+
+        sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ----------------------\n\n");
+        rpo.clear();
+    }
+
+    // Walk and gather RPO nodes.
+    private static void _funRPO(Node n, Ary<Node> rpo, BitSet visit) {
+        if( visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);              // Stop recursion
+        // Walk outputs ordered
+        if( !(n instanceof ReturnNode) ) {
+            if( n instanceof CFGNode ) {
+                // If nodes walk outer loops before inner, so they hit the
+                // Return first, so Return is at the bottom of the RPO.
+                if( n instanceof IfNode iff ) {
+                    CProjNode c0 = iff.cproj(0);
+                    CProjNode c1 = iff.cproj(1);
+                    if( c0._ltree.depth() > c1._ltree.depth() )
+                        { c0 = c1; c1 = iff.cproj(0); }
+                    _funRPO(c0,rpo,visit);
+                    _funRPO(c1,rpo,visit);
+                } else {
+                    // CFG to CFG first
+                    for( Node use : n._outputs )
+                        if( use instanceof CFGNode && !(use instanceof FunNode) ) // Do not walk from a CallNode to a FunNode
+                            _funRPO(use,rpo,visit);
+                }
+                // Walk CFG to data eventually
+                for( Node use : n._outputs )
+                    if( !(use instanceof CFGNode) )
+                        _funRPO(use,rpo,visit);
+            } else {
+                // Do not walk from a non-CFG to a CFG; CFGs walk to CFGs to preserve CFG order.
+                // Do not walk *into* Phis; wait for the Region to walk the Phis
+                for( Node use : n._outputs ) {
+                    if( !(use instanceof CFGNode) && !(use instanceof PhiNode) )
+                        _funRPO(use,rpo,visit);
+                }
+            }
+        }
+
+        // If parent is a Multi, do not add (yet).
+        // If self   is a Multi, add self and children.
+        if( multiChild(n) || n instanceof CallEndNode ) {
+            // nothing
+        } else if( n instanceof MultiNode ) {
+            // Now lump all multi/projections together
+            printMulti(n,rpo);
+        } else if( n instanceof CallNode call ) {
+            printMulti(call.cend(),rpo);
+            rpo.add(call);
+        } else if( n instanceof RegionNode ) {
+            // Now lump all Phis together
+            int old = rpo._len;
+            for( Node use : n._outputs )
+                if( use instanceof PhiNode )
+                    rpo.add(use);
+            // Sort by label?  Want Phis before control outputs
+            Arrays.sort( rpo._es, old, rpo._len, (x,y) -> y.label().compareTo(x.label()) );
+            rpo.add(n);
+        } else {
+            rpo.add(n);         // Post-order add
+        }
+    }
+
+    private static boolean multiChild(Node n) {
+        return n instanceof Proj || n instanceof PhiNode;
+    }
+
+    private static void printMulti(Node n, Ary<Node> rpo) {
+        // Now lump all multi/projections together
+        for( Node use : n._outputs )
+            rpo.add(use);
+        // Sort by projection order
+        Arrays.sort( rpo._es,rpo._len-n.nOuts(),rpo._len, (x,y) -> ((Proj)y).idx() - ((Proj)x).idx() );
+        rpo.add(n);
+    }
+
+
+
+    // ----------------------------------------
     // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
-    private static String _prettyPrint( Node node, int depth ) {
+    public static String prettyPrint(Node node, int depth) {
         // First, a Breadth First Search at a fixed depth.
         BFS bfs = new BFS(node,depth);
         // Convert just that set to a post-order
@@ -178,154 +296,9 @@ public abstract class IRPrinter {
         }
     }
 
-    public static String _prettyPrint( CodeGen code ) {
-        SB sb = new SB();
-        // Print the Start "block"
-        printLine(code._start,sb);
-        for( Node n : code._start._outputs )
-            printLine(n,sb);
-        sb.nl();
-
-        // Skip start, stop
-        for( int i=1; i<code._cfg._len-1; i++ ) {
-            CFGNode blk = code._cfg.at(i);
-            if( blk.blockHead() && (!(blk instanceof CProjNode) || (blk.cfg0() instanceof IfNode )) ) {
-                if( blk instanceof FunNode fun )
-                    sb.p("--- ").p(fun.label()).p(" ---------------------------").nl();
-                // Print block header
-                sb.p("%-13.13s".formatted(label(blk)+":"));
-                sb.p( "     ".repeat(4) ).p(" [[  ");
-                if( blk instanceof RegionNode )
-                    for( int j=1; j<blk.nIns(); j++ )
-                        label(sb,blk.cfg(j));
-                else
-                    label(sb,blk.cfg(0));
-                sb.p(" ]]  \n");
-            }
-            printLine(blk,sb);
-            if( blk instanceof ReturnNode ret )
-                sb.p("--- ").p(ret.fun().label()).p(" ---------------------------").nl();
-
-            // Block contents
-            for( Node n : blk._outputs ) {
-                if( n instanceof CFGNode cfg ) continue;
-                printLine(n,sb);
-                if( !(n instanceof CFGNode) && n instanceof MultiNode )
-                    for( Node use : n._outputs )
-                        if( use instanceof ProjNode )
-                            printLine(use,sb);
-            }
-        }
-
-        printLine(code._stop,sb);
-        return sb.toString();
-    }
-
-    // Bulk pretty printer, knowing scheduling information is available
-    private static String _prettyPrintScheduled( Node node, int depth ) {
-        // Backwards DFS walk to depth.
-        HashMap<Integer,Integer> ds = new HashMap<>();
-        Ary<Node> ns = new Ary<>(Node.class);
-        _walk(ds,ns,node,depth);
-        // Remove data projections, these are force-printed behind their multinode head
-        for( int i=0; i<ns.size(); i++ ) {
-            if( ns.get(i) instanceof ProjNode proj && !(proj.in(0) instanceof CFGNode) ) {
-                ns.del(i--);
-                ds.remove(proj._nid);
-            }
-        }
-        // Print by block with least idepth
-        SB sb = new SB();
-        Ary<Node> bns = new Ary<>(Node.class);
-        while( !ds.isEmpty() ) {
-            CFGNode blk = null;
-            for( Node n : ns ) {
-                CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : n.cfg0();
-                if( blk==null || cfg.idepth() < blk.idepth() )
-                    blk = cfg;
-            }
-            Integer d = ds.remove(blk._nid);
-            ns.del(ns.find(blk));
-
-            // Print block header
-            sb.p("%-13.13s".formatted(label(blk)+":"));
-            sb.p( "     ".repeat(4) ).p(" [[  ");
-            if( blk instanceof StartNode ) ;
-            else if( blk instanceof RegionNode || blk instanceof StopNode )
-                for( int i=(blk instanceof StopNode ? 3 : 1); i<blk.nIns(); i++ )
-                    label(sb,blk.cfg(i));
-            else
-                label(sb,blk.cfg(0));
-            sb.p(" ]]  \n");
-            printLine(blk,sb);
-
-            // Collect block contents that are in the depth limit
-            bns.clear();
-            int xd = Integer.MAX_VALUE;
-            for( Node use : blk._outputs ) {
-                Integer i = ds.get(use._nid);
-                if( i!=null && !(use instanceof CFGNode cfg && cfg.blockHead()) ) {
-                    if( bns.find(use)==-1 )
-                        bns.add(use);
-                    xd = Math.min(xd,i);
-                }
-            }
-            // Print Phis up front, if any
-            for( int i=0; i<bns.size(); i++ )
-                if( bns.get(i) instanceof PhiNode phi )
-                    printLine( phi, sb,bns,i--,ds,ns);
-
-            // Print block contents in depth order, bumping depth until whole block printed
-            for( ; !bns.isEmpty(); xd++ )
-                for( int i=0; i<bns.size(); i++ ) {
-                    Node n = bns.get(i);
-                    if( ds.get(n._nid)==xd ) {
-                        printLine( n, sb, bns, i--, ds,ns );
-                        if( n instanceof MultiNode && !(n instanceof CFGNode) ) {
-                            for( Node use : n._outputs ) {
-                                if( use instanceof ProjNode )
-                                    printLine(use,sb,bns,bns.indexOf(use),ds,ns);
-                            }
-                        }
-                    }
-                }
-            sb.p("\n");
-        }
-        return sb.toString();
-    }
-
-    private static void _walk( HashMap<Integer,Integer> ds, Ary<Node> ns, Node node, int d ) {
-        Integer nd = ds.get(node._nid);
-        if( nd!=null && d <= nd ) return; // Been there, done that
-        Integer old = ds.put(node._nid,d) ;
-        if( old == null )
-          ns.add(node);
-        if( d == 0 ) return;    // Depth cutoff
-        for( Node def : node._inputs )
-            if( def != null &&
-                !(node instanceof LoopNode loop && loop.back()==def) &&
-                // Don't walk into or out of functions
-                !(node instanceof CallEndNode && def instanceof ReturnNode) &&
-                !(node instanceof FunNode && def instanceof CallNode) &&
-                !(node instanceof ParmNode && !(def instanceof FunNode))
-            )
-                _walk(ds,ns,def,d-1);
-    }
-
     static String label( CFGNode blk ) {
         if( blk instanceof StartNode ) return "START";
         return (blk instanceof LoopNode ? "LOOP" : "L")+blk._nid;
-    }
-    static void label( SB sb, CFGNode blk ) {
-        if( !blk.blockHead() ) blk = blk.cfg(0);
-        sb.p( "%-9.9s ".formatted( label( blk ) ) );
-    }
-    static void printLine( Node n, SB sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, Ary<Node> ns ) {
-        printLine( n, sb );
-        if( i != -1 ) bns.del(i);
-        ds.remove(n._nid);
-        int idx = ns.find(n);
-        if( idx!=-1 ) ns.del(idx);
     }
 
 }

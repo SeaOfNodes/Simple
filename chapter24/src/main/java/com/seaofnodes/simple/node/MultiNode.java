@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.util.Ary;
 
-
 public interface MultiNode {
 
     abstract Ary<Node> outs();

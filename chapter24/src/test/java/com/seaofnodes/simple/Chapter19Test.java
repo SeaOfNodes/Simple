@@ -24,7 +24,7 @@ return 0;
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck().loopTree().GCM().localSched();
         assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
         //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }

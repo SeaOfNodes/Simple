@@ -142,7 +142,7 @@ struct S { int i; };
 val newS = { int x -> return new S { i=x; }; };
 return newS(1).i;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck().loopTree().GCM();
         assertEquals("return 1;", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -157,7 +157,7 @@ val f = {->1;};
 val g = {->2;};
 return 2;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck().loopTree().GCM();
         assertEquals("Stop[ return 1; return 1; return 2; ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -330,7 +330,7 @@ for(;;) {
     if (s) return s.f;
 }
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck().loopTree().GCM();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }

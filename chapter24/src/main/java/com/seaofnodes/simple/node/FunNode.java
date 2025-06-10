@@ -32,6 +32,7 @@ public class FunNode extends RegionNode {
             _sig = TypeFunPtr.BOT;
             _name = "";
         }
+        _ltree._head = this;
     }
 
     @Override

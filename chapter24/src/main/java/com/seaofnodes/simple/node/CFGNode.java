@@ -5,9 +5,8 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.HashSet;
+
+import java.util.*;
 
 /** Control Flow Graph Nodes
  * <p>
@@ -107,19 +106,19 @@ public abstract class CFGNode extends Node {
 
     // ------------------------------------------------------------------------
     // Loop nesting
-    public LoopNode loop() { return _ltree._head; }
+    public CFGNode loop() { return _ltree._head; }
     public int loopDepth() { return _ltree==null ? 0 : _ltree.depth(); }
 
     public LoopTree _ltree;
     public int _pre;            // Pre-order numbers for loop tree finding
-    static class LoopTree {
-        LoopTree _par;
-        final LoopNode _head;
+    public static class LoopTree {
+        public LoopTree _par;
+        public CFGNode _head;
         int _depth;
-        LoopTree(LoopNode head) { _head = head; }
-        @Override public String toString() { return "LOOP"+_head._nid; }
-        int depth() {
-            return _depth==0 ? (_par==null ? 0 : (_depth = _par.depth()+1)) : _depth;
+        LoopTree(CFGNode head) { _head = head; }
+        @Override public String toString() { return label(_head); }
+        public int depth() {
+            return _depth==0 ? (_head instanceof FunNode || _par==null ? 0 : (_depth = _par.depth()+1)) : _depth;
         }
     }
 
@@ -127,52 +126,79 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start is a LoopNode which contains all at depth 1.
-    public void buildLoopTree(StartNode start, StopNode stop) {
-        // Unlink all linked calls.  This can remove RPC constants which
-        // shuffled the StartNode outputs so requires a while loop.
+    public void buildLoopTree(StopNode stop) {
+        // Walk all functions individually, building loop trees internally
+        _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree(this);
+        BitSet post = CodeGen.CODE.visit();
+        post.set(stop._nid);
+        int pre = 2;
+        for( Node use : _outputs )
+            if( use instanceof FunNode fun ) {
+                fun.ret()._ltree = fun._ltree = new LoopTree(fun);
+                pre = fun._bltWalk(pre,fun,stop, post);
+            }
+        post.clear();
+
+        // Build a crude call-graph: walk all functions' calls recursively and
+        // then treat the function LoopTree parent as the deepest called
+        // function.
+        var depth = new IdentityHashMap<FunNode, Integer>();
+        for( Node use : _outputs )
+            if( use instanceof FunNode fun )
+                fun._funWalk(this,depth);
+
+        // Hopefully done with the CG now.  Unlink all linked calls.  This can
+        // remove RPC constants which shuffled the StartNode outputs so
+        // requires a while loop.
         boolean done=false;
         while(!done) {
             done = true;
-            for( Node use : start._outputs )
+            for( Node use : _outputs )
                 if( use instanceof FunNode fun )
                     for( Node c : fun._inputs )
                         if( c instanceof CallNode call )
                             { call.unlink_all(); done=false; }
         }
-
-        _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        _bltWalk(2,null,stop, new BitSet());
     }
+
     int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
+
+        if( this instanceof ReturnNode ) {
+            post.set(_nid);
+            return pre;
+        }
+
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg && !skip( usecfg ) )
-                pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post );
+            if( use instanceof CFGNode usecfg && !(use instanceof FunNode) )
+                pre = usecfg._bltWalk( pre, fun, stop, post );
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
         for( Node use : _outputs ) {
-            if( !(use instanceof CFGNode usecfg) ) continue;
-            if( skip(usecfg) ) continue;
+            if( !(use instanceof CFGNode usecfg) || use instanceof FunNode )
+                continue;
             if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
                 usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
                 continue;
             // Child visited but not post-visited?
             if( !post.get(usecfg._nid) ) {
                 // Must be a backedge to a LoopNode then
-                ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
+                ltree = usecfg._ltree = new LoopTree(usecfg);
             } else {
                 // Take child's loop choice, which must exist
                 ltree = usecfg._ltree;
                 // If falling into a loop, use the target loop's parent instead
                 if( ltree._head == usecfg ) {
-                    if( ltree._par == null )
+                    if( ltree._par == null ) {
                         // This loop never had an If test choose to take its
                         // exit, i.e. it is a no-exit infinite loop.
-                        ltree._par = ltree._head.forceExit(fun,stop)._ltree;
+                        ((LoopNode) ltree._head).forceExit( fun, stop );
+                        ltree._par = fun._ltree;
+                    }
                     ltree = ltree._par;
                 }
             }
@@ -193,16 +219,32 @@ public abstract class CFGNode extends Node {
         return pre;
     }
 
-    private boolean skip(CFGNode usecfg) {
-        // Only walk control users that are alive.
-        // Do not walk from a Call to linked Fun's.
-        return usecfg instanceof XCtrlNode ||
-                (this instanceof CallNode && usecfg instanceof FunNode) ||
-                (this instanceof ReturnNode && usecfg instanceof CallEndNode);
+    int _funWalk( CFGNode start, IdentityHashMap<FunNode, Integer> depths ) {
+        FunNode self = (FunNode)this;
+        Integer d = depths.get(self);
+        if( d!=null ) return d;
+        depths.put(self,0);
+        LoopTree deepest = start._ltree;
+        int depth = 0;
+        for( Node n : _inputs )
+            if( n instanceof CallNode call ) {
+                FunNode fun = call.fun();
+                int dfun = fun._funWalk(start,depths);
+                if( dfun > depth ) { depth = dfun; deepest = fun._ltree; }
+            }
+        assert _ltree._par == null;
+        _ltree._par = deepest;
+        depths.put(self,depth+1);
+        return depth;
     }
 
 
-    public String label( CFGNode target ) {
-        return (target instanceof LoopNode ? "LOOP" : "L")+target._nid;
+    public static String label( CFGNode target ) {
+        return switch(target) {
+        case StartNode start -> start.label();
+        case FunNode fun -> fun.label();
+        case LoopNode loop -> "LOOP"+target._nid;
+        default -> "L"+target._nid;
+        };
     }
 }

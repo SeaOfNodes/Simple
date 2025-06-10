@@ -114,7 +114,7 @@ Options:
                     });
                 }
 
-                System.err.println(IRPrinter.prettyPrint(code._stop, 9999));
+                System.err.println(IRPrinter.prettyPrint(code));
             }
         }
     }

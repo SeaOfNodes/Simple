@@ -184,13 +184,14 @@ public class Encoding {
     // not-taken (this is the default prediction on most hardware).  Layout is
     // still Reverse Post Order but with more restrictions.
     private void basicBlockLayout() {
-        IdentityHashMap<LoopNode,Ary<CFGNode>> rpos = new IdentityHashMap<>();
+        IdentityHashMap<CFGNode,Ary<CFGNode>> rpos = new IdentityHashMap<>();
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
         rpos.put(_code._start.loop(),rpo);
         BitSet visit = _code.visit();
         rpo.add(_code._stop);
         for( Node n : _code._start._outputs )
             if( n instanceof FunNode fun ) {
+                rpos.put(fun.loop(),rpo);
                 int x = rpo._len;
                 _rpo_cfg(fun, visit, rpos );
                 assert rpo.at(x) instanceof ReturnNode;
@@ -205,7 +206,7 @@ public class Encoding {
     }
 
 
-    private void _rpo_cfg(CFGNode bb, BitSet visit, IdentityHashMap<LoopNode,Ary<CFGNode>> rpos ) {
+    private void _rpo_cfg(CFGNode bb, BitSet visit, IdentityHashMap<CFGNode,Ary<CFGNode>> rpos ) {
         if( bb==null || visit.get(bb._nid) ) return;
         visit.set(bb._nid);
         CFGNode next = bb.uctrl();

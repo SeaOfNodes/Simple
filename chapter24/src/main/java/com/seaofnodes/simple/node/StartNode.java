@@ -15,7 +15,7 @@ import static com.seaofnodes.simple.util.Utils.TODO;
  * In ch10 we also add mem aliases as structs get defined; each field in struct
  * adds a distinct alias to Start's tuple.
  */
-public class StartNode extends LoopNode implements MultiNode {
+public class StartNode extends CFGNode implements MultiNode {
 
     final Type _arg;
 
@@ -29,7 +29,8 @@ public class StartNode extends LoopNode implements MultiNode {
       return sb.append(label());
     }
 
-  @Override public CFGNode cfg0() { return null; }
+    @Override public CFGNode cfg0() { return null; }
+    @Override public boolean blockHead() { return true; }
 
     // Get the one control following; error to call with more than one e.g. an
     // IfNode or other multi-way branch.  For Start, its "main"

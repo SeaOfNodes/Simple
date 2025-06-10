@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
 
@@ -82,10 +83,20 @@ public class NewNode extends Node implements MultiNode {
     @Override
     public Node idealize() {
         Node progress=null;
+        // Skip memory casts
         for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof CastNode cast )
                 progress = setDef(i,cast.in(1));
         }
+
+        // Skip MemMerge
+        for( int i=2; i<nIns(); i++ ) {
+            if( in( i ) instanceof MemMergeNode mem ) {
+                int alias = _ptr._obj._fields[i-2]._alias;
+                progress = setDef(i,mem.alias(alias));
+            }
+        }
+
         return progress == null ? null : this;
     }
 

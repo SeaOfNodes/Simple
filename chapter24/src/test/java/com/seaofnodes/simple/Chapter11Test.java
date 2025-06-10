@@ -288,8 +288,8 @@ else {
         }
 }
 """);
-        code.parse().opto().typeCheck().GCM();
-        assertEquals("return 9;", code.print());
+        code.parse().opto().typeCheck().loopTree().GCM();
+        assertEquals("return Phi(Region,9,Top,Top,Top,Top);", code.print());
     }
 
 

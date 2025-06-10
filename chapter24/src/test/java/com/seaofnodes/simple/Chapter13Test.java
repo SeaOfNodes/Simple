@@ -208,7 +208,7 @@ c.f0=a;  c.f1=b;
 return a.f0.f1.f0.f1.f0;
 
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.parse().opto().typeCheck().loopTree().GCM().localSched();
         assertEquals("return B;", code._stop.toString());
         assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
     }
@@ -274,7 +274,7 @@ z.a=k;  z.b=s; z.c=e;
 return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.parse().opto().typeCheck().loopTree().GCM().localSched();
         assertEquals("return R;", code._stop.toString());
         assertEquals("R{a=C{a=N},b=V},c=H}},b=K{a=$cyclic,b=D{a=O},b=W},c=I}},c=P}},c=$cyclic}", Eval2.eval(code,  0));
     }

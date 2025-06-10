@@ -6,7 +6,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 
 import java.util.BitSet;
 
-public class ProjNode extends Node {
+public class ProjNode extends Node implements Proj {
 
     // Which slice of the incoming multipart value
     public final int _idx;
@@ -51,4 +51,6 @@ public class ProjNode extends Node {
 
     @Override
     int hash() { return _idx; }
+
+    @Override public int idx() { return _idx; }
 }

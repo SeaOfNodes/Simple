@@ -261,7 +261,7 @@ public class CodeGen {
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_start,_stop);
+        _start.buildLoopTree(_stop);
         _tLoopTree = (int)(System.currentTimeMillis() - t0);
         return this;
     }
@@ -456,6 +456,7 @@ public class CodeGen {
         return this;
     }
 
+
     // ---------------------------
     public boolean _asmLittle=true;
     SB asm(SB sb) { return ASMPrinter.print(sb,this); }
@@ -469,16 +470,14 @@ public class CodeGen {
 
     // Debugging helper
     @Override public String toString() {
-        return _phase.ordinal() > Phase.Schedule.ordinal()
-            ? IRPrinter._prettyPrint( this )
-            : _stop.p(9999);
+        return IRPrinter.prettyPrint( this );
     }
 
     // Debugging helper
     public Node f(int idx) { return _stop.find(idx); }
 
 
-    String printCFG() {
+    public String printCFG() {
         if( _cfg==null ) return "no CFG";
         SB sb = new SB();
         for( CFGNode cfg : _cfg ) {

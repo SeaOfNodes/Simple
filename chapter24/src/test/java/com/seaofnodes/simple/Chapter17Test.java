@@ -548,7 +548,7 @@ for( int j=0; j<nprimes; j++ )
     rez[j] = primes[j];
 return rez;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck().loopTree().GCM();
         assertEquals("return []i64;", code.print());
         assertEquals("i64[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }

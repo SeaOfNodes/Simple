@@ -13,36 +13,79 @@ public abstract class GlobalCodeMotion {
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( CodeGen code ) {
-        Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
-        _rpo_cfg(null, code._start, code.visit(), rpo);
+        BitSet visit = code.visit();
+        RPOCFG(code,visit);
+
+        schedEarly(code._cfg, code._start, visit);
+
+        // Break up shared global constants by functions
+        breakUpGlobalConstants(code._start);
+
+        visit.clear();
+        schedLate (code);
+    }
+
+
+    public static void RPOCFG( CodeGen code, BitSet visit ) {
+        IdentityHashMap<CFGNode.LoopTree,Ary<CFGNode>> rpos = new IdentityHashMap<>();
+        visit.set(code._start._nid);
+        var rpo = new Ary<>(CFGNode.class);
+        rpos.put(code._start._ltree,rpo);
+        for( Node use : code._start._outputs )
+            if( use instanceof FunNode fun )
+                _rpo_fun( fun, visit, rpos, rpo );
+
         // Reverse in-place
         for( int i=0; i< rpo.size()>>1; i++ )
             rpo.swap(i,rpo.size()-1-i);
         // Set global CFG
         code._cfg = rpo;
-
-        schedEarly(code);
-
-        // Break up shared global constants by functions
-        breakUpGlobalConstants(code._start);
-
-        code._visit.clear();
-        schedLate (code);
     }
 
-    // Post-Order of CFG
-    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
-        if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
-            return;             // Been there, done that
-        if( def instanceof ReturnNode && use instanceof CallEndNode )
-            return;
-        assert !( def instanceof CallNode && use instanceof FunNode );
-        visit.set(cfg._nid);
-        for( Node useuse : cfg._outputs )
-            _rpo_cfg(cfg,useuse,visit,rpo);
-        rpo.add(cfg);
+    private static void _rpo_fun(FunNode fun, BitSet visit, IdentityHashMap<CFGNode.LoopTree,Ary<CFGNode>> rpos, Ary<CFGNode> rpo ) {
+        if( visit.get(fun._nid) ) return;
+        visit.set(fun._nid);
+        rpos.put(fun._ltree,rpo);
+        if( fun._ltree._par._head instanceof FunNode fun2 )
+            _rpo_fun(fun2,visit,rpos,rpo);
+        visit.clear(fun._nid);
+        _rpo_cfg(fun,visit,rpos,rpo);
+        rpos.remove(fun._ltree);
     }
 
+
+    // Walk and record post-order.  Walk functions and loops as nesting SESE
+    // regions with private post-orders.  Use the loop membership to map a node
+    // to its post-order list, where the outermost start-loop...
+    private static void _rpo_cfg(CFGNode bb, BitSet visit, IdentityHashMap<CFGNode.LoopTree,Ary<CFGNode>> rpos, Ary<CFGNode> rpo ) {
+        if( bb==null || visit.get(bb._nid) ) return;
+        visit.set(bb._nid);
+
+        // Loops run an inner "rpo_cfg", then append the entire loop body in
+        // place.  This keeps loop bodies completely contained, although if
+        // Some Day Later we have real profile data we ought to arrange the
+        // branch orderings based on frequency.
+        if( bb instanceof LoopNode ) {
+            rpo = new Ary<>(CFGNode.class); // Private RPO for the loop
+            rpos.put(bb._ltree,rpo);        // Find it via loop tree
+        }
+
+        for( Node use : bb._outputs )
+            if( use instanceof CFGNode cfg && !(use instanceof FunNode) )
+                _rpo_cfg(cfg,visit,rpos,rpo);
+
+        rpos.get(bb._ltree).add(bb);
+
+        if( bb instanceof LoopNode ) {
+            Ary<CFGNode> outer = rpos.get(bb._ltree._par);
+            outer.addAll(rpo); // Append to original CFG
+            rpos.remove(bb._ltree);
+        }
+
+    }
+
+
+    // ------------------------------------------------------------------------
     // Break up shared global constants by functions
     private static void breakUpGlobalConstants( Node start ) {
         // For all global constants
@@ -89,35 +132,35 @@ public abstract class GlobalCodeMotion {
     // (except at loops).  Since defs are visited first - and hoisted as early
     // as possible, when we come to a use we place it just after its deepest
     // input.
-    private static void schedEarly(CodeGen code) {
+    private static void schedEarly(Ary<CFGNode> cfgs, StartNode start, BitSet visit) {
         // Reverse Post-Order on CFG
-        for( CFGNode cfg : code._cfg ) {
+        for( CFGNode cfg : cfgs ) {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
-                _schedEarly(n,code );
+                _schedEarly(n,start,visit );
             if( cfg instanceof RegionNode )
                 for( Node phi : cfg._outputs )
                     if( phi instanceof PhiNode )
-                        _schedEarly(phi,code );
+                        _schedEarly(phi,start,visit );
         }
     }
 
-    private static void _schedEarly(Node n, CodeGen code) {
-        if( n==null || code._visit.get(n._nid) ) return; // Been there, done that
+    private static void _schedEarly(Node n, StartNode start, BitSet visit) {
+        if( n==null || visit.get(n._nid) ) return; // Been there, done that
         assert !(n instanceof CFGNode);
-        code._visit.set(n._nid);
+        visit.set(n._nid);
         // Schedule not-pinned not-CFG inputs before self.  Since skipping
         // Pinned, this never walks the backedge of Phis (and thus spins around
         // a data-only loop), eventually attempting relying on some pre-visited-
         // not-post-visited data op with no scheduled control.
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
-                _schedEarly(def,code);
+                _schedEarly(def,start,visit);
 
         // If not-pinned (e.g. constants, projections, phi) and not-CFG
         if( !n.isPinned() ) {
             // Schedule at deepest input
-            CFGNode early = code._start; // Maximally early, lowest idepth
+            CFGNode early = start; // Maximally early, lowest idepth
             if( n.in(0) instanceof CFGNode cfg ) early = cfg;
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )

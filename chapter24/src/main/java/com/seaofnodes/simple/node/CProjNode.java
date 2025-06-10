@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
-public class CProjNode extends CFGNode {
+public class CProjNode extends CFGNode implements Proj {
 
     // Which slice of the incoming multipart value
     public int _idx;
@@ -65,4 +65,5 @@ public class CProjNode extends CFGNode {
     @Override
     int hash() { return _idx; }
 
+    @Override public int idx() { return _idx; }
 }

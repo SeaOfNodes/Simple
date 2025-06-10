@@ -11,7 +11,7 @@ import java.util.HashSet;
 
 public class LoopNode extends RegionNode {
     public LoopNode( Parser.Lexer loc, Node entry ) { super(loc,null,entry,null); }
-    public LoopNode( LoopNode loop ) { super(loop); }
+    public LoopNode( LoopNode loop ) { super(loop);  _ltree._head = this; }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }
@@ -54,7 +54,7 @@ public class LoopNode extends RegionNode {
         setDef(2,t);            // True continues loop, False (never) exits loop
         ReturnNode ret = fun.ret();
         iff._ltree = t._ltree = _ltree;
-        ret._ltree = f._ltree = stop._ltree;
+        ret._ltree = f._ltree = fun._ltree;
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
