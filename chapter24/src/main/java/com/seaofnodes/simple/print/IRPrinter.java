@@ -103,7 +103,7 @@ public abstract class IRPrinter {
                     _funRPO(c0,rpo,visit);
                     _funRPO(c1,rpo,visit);
                 } else {
-                    // CFG to CFG first
+                    // CFG to CFG before CFG to data
                     for( Node use : n._outputs )
                         if( use instanceof CFGNode && !(use instanceof FunNode) ) // Do not walk from a CallNode to a FunNode
                             _funRPO(use,rpo,visit);
@@ -113,8 +113,10 @@ public abstract class IRPrinter {
                     if( !(use instanceof CFGNode) )
                         _funRPO(use,rpo,visit);
             } else {
-                // Do not walk from a non-CFG to a CFG; CFGs walk to CFGs to preserve CFG order.
-                // Do not walk *into* Phis; wait for the Region to walk the Phis
+                // Do not walk from a non-CFG to a CFG; CFGs walk to CFGs to
+                // preserve CFG order.  Do not walk *into* Phis; wait for the
+                // Region to walk the Phis (otherwise you visit some of the
+                // Phis ahead of others forcing the Phis to be spread around).
                 for( Node use : n._outputs ) {
                     if( !(use instanceof CFGNode) && !(use instanceof PhiNode) )
                         _funRPO(use,rpo,visit);
@@ -125,7 +127,7 @@ public abstract class IRPrinter {
         // If parent is a Multi, do not add (yet).
         // If self   is a Multi, add self and children.
         if( multiChild(n) || n instanceof CallEndNode ) {
-            // nothing
+            // nothing; delay until Multi-head or CallNode
         } else if( n instanceof MultiNode ) {
             // Now lump all multi/projections together
             printMulti(n,rpo);
@@ -164,141 +166,43 @@ public abstract class IRPrinter {
     // ----------------------------------------
     // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
     public static String prettyPrint(Node node, int depth) {
-        // First, a Breadth First Search at a fixed depth.
-        BFS bfs = new BFS(node,depth);
         // Convert just that set to a post-order
-        ArrayList<Node> rpos = new ArrayList<>();
-        BitSet visit = new BitSet();
-        for( int i=bfs._lim; i< bfs._bfs.size(); i++ )
-            postOrd( bfs._bfs.get(i), null, rpos, visit, bfs._bs);
+        Ary<Node> post = new Ary<>(Node.class);
+        var visit = new IdentityHashMap<Node,Integer>();
+        postOrd( node, 0, depth, visit, post);
+
         // Reverse the post-order walk
         SB sb = new SB();
-        boolean gap=false;
-        for( int i=rpos.size()-1; i>=0; i-- ) {
-            Node n = rpos.get(i);
-            if( n instanceof CFGNode || n instanceof MultiNode ) {
-                if( !gap ) sb.p("\n"); // Blank before multihead
-                if( n instanceof FunNode fun )
-                    fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ")).p("----------------------\n");
-                printLine( n, sb );         // Print head
-                while( --i >= 0 ) {
-                    Node t = rpos.get(i);
-                    if( !(t.in(0) instanceof MultiNode) ) { i++; break; }
-                    printLine( t, sb );
-                }
-                if( n instanceof ReturnNode ret ) {
-                    FunNode fun = ret.fun();
-                    sb.p("--- ");
-                    if( fun != null )
-                        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "));
-                    sb.p("----------------------\n");
-                }
-                if( !(n instanceof CallNode) ) {
-                    sb.p("\n"); // Blank after multitail
-                    gap = true;
-                }
-            } else {
-                printLine( n, sb );
-                gap = false;
+        for( int i=0; i<post._len; i++ ) {
+            Node n = post.at(i);
+            if( n instanceof RegionNode || n instanceof MultiNode ||
+                (i>0 && multiChild(post.at(i-1)) && !multiChild(n)) )
+                sb.nl();
+            if( n instanceof FunNode fun )
+                fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ")).p("----------------------\n");
+            printLine( n, sb );         // Print head
+            if( n instanceof ReturnNode ret ) {
+                FunNode fun = ret.fun();
+                sb.p("--- ").p(fun==null ? "" : fun._name).p("----------------------\n");
             }
         }
         return sb.toString();
     }
 
-    private static void postOrd(Node n, Node prior, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
-        if( !bfs.get(n._nid) )
-            return;  // Not in the BFS visit
-        if( n instanceof FunNode && !(prior instanceof StartNode) )
-            return;                     // Only visit Fun from Start
-        if( visit.get(n._nid) ) return; // Already post-order walked
-        visit.set(n._nid);
-        // First walk the CFG, then everything
-        if( n instanceof CFGNode ) {
-            for( Node use : n._outputs )
-                // Follow CFG, not across call/function borders, and not around backedges
-                if( use instanceof CFGNode && !(n instanceof CallNode && use instanceof FunNode) &&
-                    use.nOuts() >= 1 &&  !(use._outputs.get(0) instanceof LoopNode) )
-                    postOrd(use, n, rpos,visit,bfs);
-            for( Node use : n._outputs )
-                // Follow CFG, not across call/function borders
-                if( use instanceof CFGNode && !(n instanceof CallNode && use instanceof FunNode) )
-                    postOrd(use,n,rpos,visit,bfs);
-        }
-        // Follow all outputs
-        for( Node use : n._outputs )
-            if( use != null &&
-                !(n instanceof CallNode && use instanceof FunNode) &&
-                (n instanceof FunNode || !(use instanceof ParmNode)) )
-                postOrd(use, n, rpos,visit,bfs);
-        // Post-order
-        rpos.add(n);
-    }
 
-    // Breadth-first search, broken out in a class to keep in more independent.
-    // Maintains a root-set of Nodes at the limit (or past by 1 if MultiHead).
-    public static class BFS {
-        // A breadth first search, plus MultiHeads for any MultiTails
-        public final ArrayList<Node> _bfs;
-        public final BitSet _bs; // Visited members by node id
-        public final int _depth; // Depth limit
-        public final int _lim; // From here to _bfs._len can be roots for a reverse search
-        public BFS( Node base, int d ) {
-            _depth = d;
-            _bfs = new ArrayList<>();
-            _bs = new BitSet();
-
-            add(base);                 // Prime the pump
-            int idx=0, lim=1;          // Limit is where depth counter changes
-            while( idx < _bfs.size() ) { // Ran out of nodes below depth
-                Node n = _bfs.get(idx++);
-                for( Node def : n._inputs )
-                    if( def!=null && !_bs.get(def._nid) )
-                        add(def);
-                if( idx==lim ) {    // Depth counter changes at limit
-                    if( --d < 0 )
-                        break;      // Ran out of depth
-                    lim = _bfs.size();  // New depth limit
-                }
-            }
-            // Toss things past the limit except multi-heads
-            while( idx < _bfs.size() ) {
-                Node n = _bfs.get(idx);
-                if( n instanceof MultiNode ) idx++;
-                else del(idx);
-            }
-            // Root set is any node with no inputs in the visited set
-            lim = _bfs.size();
-            for( int i=_bfs.size()-1; i>=0; i-- )
-                if( !any_visited(_bfs.get(i)) )
-                    swap( i,--lim);
-            _lim = lim;
+    private static void postOrd( Node n, int d, int cutoff, IdentityHashMap<Node,Integer> visit, Ary<Node> post ) {
+        Integer depth = visit.get(n);
+        if( depth!=null && depth >= d ) return; // Been there, done that
+        if( d >= cutoff && !multiChild(n) )
+            return;               // Too deep, except get all the multi-childs
+        visit.put(n,d);
+        for( Node def : n._inputs ) {
+            if( def != null &&
+                // Do not walk across linked function boundaries
+                !(n instanceof CallEndNode && def instanceof ReturnNode) )
+                postOrd(def, d+1, cutoff, visit, post);
         }
-        void swap( int x, int y ) {
-            if( x==y ) return;
-            Node tx = _bfs.get(x);
-            Node ty = _bfs.get(y);
-            _bfs.set(x,ty);
-            _bfs.set(y,tx);
-        }
-        void add(Node n) {
-            _bfs.add(n);
-            _bs.set(n._nid);
-        }
-        void del(int idx) {
-            _bs.clear(_bfs.get(idx)._nid);
-            Utils.del(_bfs, idx);
-        }
-        boolean any_visited( Node n ) {
-            for( Node def : n._inputs )
-                if( def!=null && _bs.get(def._nid) )
-                    return true;
-            return false;
-        }
-    }
-
-    static String label( CFGNode blk ) {
-        if( blk instanceof StartNode ) return "START";
-        return (blk instanceof LoopNode ? "LOOP" : "L")+blk._nid;
+        post.add(n);
     }
 
 }
