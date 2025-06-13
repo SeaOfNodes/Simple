@@ -13,13 +13,19 @@ import static org.junit.Assert.*;
 public abstract class TestRisc5 {
 
     public static EvalRisc5 build( String file, int arg, int spills, boolean print ) throws IOException {
-        return build("src/test/java/com/seaofnodes/simple/progs",file, null, arg, spills, print);
+        String dir = "src/test/java/com/seaofnodes/simple/progs";
+        String src = Files.readString(Path.of(dir + "/"+file+".smp"));
+        return build(dir,src, file, null, arg, spills, print);
+    }
+
+    public static EvalRisc5 build( String name, String src, int arg, int spills, boolean print ) throws IOException {
+        String dir = "src/test/java/com/seaofnodes/simple/progs";
+        return build(dir, src ,name, null, arg, spills, print);
     }
 
     // Compile and run a simple program
-    public static EvalRisc5 build( String dir, String file, String main, int arg, int spills, boolean print ) throws IOException {
+    public static EvalRisc5 build( String dir, String src, String file, String main, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
-        String src = Files.readString(Path.of(dir+"/"+file+".smp"));
         CodeGen code = new CodeGen(src).driver("riscv", "SystemV",null);
         if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 

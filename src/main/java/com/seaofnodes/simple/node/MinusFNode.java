@@ -20,7 +20,8 @@ public class MinusFNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeFloat i0)
+        if( in(1)._type.isHigh() ) return TypeFloat.TOP;
+        if( in(1)._type instanceof TypeFloat i0)
             return i0.isConstant() ? TypeFloat.constant(-i0.value()) : i0;
         return TypeFloat.F64;
     }

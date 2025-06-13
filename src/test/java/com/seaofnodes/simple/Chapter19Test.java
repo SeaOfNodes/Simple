@@ -23,7 +23,38 @@ return 0;
 
     @Test
     public void testString() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        String src =
+"""
+struct String {
+    u8[] cs;
+    int _hashCode;
+};
+
+// Compare two Strings
+val equals = { String self, String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { String self ->
+    int hash=0;
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+""";
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
         assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
         //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
@@ -292,8 +323,20 @@ return A[1];
 
     @Test
     public void testNewton() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg;  return test_sqrt(farg);";
+        String src =
+"""
+val test_sqrt = { flt x ->
+    flt epsilon = 1e-15;
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( guess-epsilon <= next & next <= guess+epsilon ) return guess;
+        //if( guess==next ) return guess;
+        guess = next;
+    }
+};
+flt farg = arg;  return test_sqrt(farg);
+""";
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
     };
@@ -301,7 +344,39 @@ return A[1];
 
     @Test
     public void sieveOfEratosthenes() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/sieve.smp"));
+        String src =
+"""
+val sieve = { int N ->
+    // The main Sieve array
+    bool[] !ary = new bool[N];
+    // The primes less than N
+    u32[] !primes = new u32[N>>1];
+    // Number of primes so far, searching at index p
+    int nprimes = 0, p=2;
+    // Find primes while p^2 < N
+    while( p*p < N ) {
+        // skip marked non-primes
+        while( ary[p] ) p++;
+        // p is now a prime
+        primes[nprimes++] = p;
+        // Mark out the rest non-primes
+        for( int i = p + p; i < ary#; i+= p )
+            ary[i] = true;
+        p++;
+    }
+
+    // Now just collect the remaining primes, no more marking
+    for( ; p < N; p++ )
+        if( !ary[p] )
+            primes[nprimes++] = p;
+
+    // Copy/shrink the result array
+    u32[] !rez = new u32[nprimes];
+    for( int j=0; j < nprimes; j++ )
+        rez[j] = primes[j];
+    return rez;
+};
+""";
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return []u32;", code.print());
         //assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
@@ -316,7 +391,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun21,i64),x); return (shli,Parm_x($fun22,i64)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun21,[2-3]),x); return (shli,Parm_x($fun22,[2-3])); ]", code.print());
     }
 
     @Test

@@ -80,14 +80,22 @@ public class FunNode extends RegionNode {
         // Only dead if no callers after SCCP
         if( unknownCallers() )
             return Type.CONTROL;
-        return super.compute();
+        Type t = Type.XCONTROL;
+        for (int i = 1; i < nIns(); i++) {
+            // Since no unknown callers, we are not main and the Start input
+            // will be a Tuple with XControl, so ignore it.  Need to be called
+            // from someplace other than Start
+            if( !(in(i) instanceof StartNode) )
+                t = t.meet(in(i)._type);
+        }
+        return t;
     }
 
     @Override
     public Node idealize() {
 
-        // Some linked path dies
-        Node progress = deadPath();
+        // Some linked path dies, except main never kills Start
+        Node progress = deadPath(unknownCallers());
         if( progress!=null ) {
             if( nIns()==3 && in(2) instanceof CallNode call )
                 CODE.add(call.cend()); // If Start and one call, check for inline
@@ -95,8 +103,11 @@ public class FunNode extends RegionNode {
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() )
-            throw Utils.TODO();
+        if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() ) {
+            setSig(_sig.makeFrom(tt.ret()));
+            return this;
+        }
+
 
         // When can we assume no callers?  Or no other callers (except main)?
         // In a partial compilation, we assume Start gets access to any/all
@@ -110,8 +121,10 @@ public class FunNode extends RegionNode {
         // to collapse
         if( unknownCallers() ) return null;
 
-        // If down to a single input, become that input
-        if( nIns()==2 && !hasPhi() ) {
+        // If folding (already inlined) down to a single input, become that input.
+        // Cannot collapse if not-inlining, and might not inline if call site
+        // calls multiple targets.
+        if( _folding && nIns()==2 && !hasPhi() ) {
             CODE.add( CODE._stop ); // Stop will remove dead path
             CODE.add( _ret );       // Return will compute to TOP control
             return in(1); // Collapse if no Phis; 1-input Phis will collapse on their own
@@ -176,6 +189,14 @@ public class FunNode extends RegionNode {
         return in;
     }
 
+    // FunNodes must match signature (equivalent: no 2 FunNodes are ever GVN'able)
+    @Override public boolean eq( Node n ) {
+        return _sig == ((FunNode)n)._sig;
+    }
+
+    @Override public int hash() {
+        return _sig.hashCode();
+    }
 
     // ------------
     // MachNode specifics, shared across all CPUs

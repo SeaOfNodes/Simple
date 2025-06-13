@@ -14,8 +14,8 @@ import java.util.BitSet;
  */
 
 public class ConFldOffNode extends ConstantNode {
-    public final String _name;         // Struct name
-    public final String _fname;       // Field name
+    public final String _name;  // Struct name
+    public final String _fname; // Field name
     public ConFldOffNode( String name, String fname ) { super(TypeInteger.BOT); _name = name; _fname = fname; }
 
     @Override public String label() {
@@ -37,7 +37,7 @@ public class ConFldOffNode extends ConstantNode {
 
     @Override public boolean eq(Node n) {
         ConFldOffNode off = (ConFldOffNode)n; // Invariant
-        return _name==off._name && _fname==off._fname && super.eq(n);
+        return _name.equals(off._name) && _fname.equals(off._fname) && super.eq(n);
     }
     @Override int hash() { return super.hash() * _name.hashCode() * _fname.hashCode(); }
 }

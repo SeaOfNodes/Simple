@@ -1,12 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.print.ASMPrinter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -73,8 +68,20 @@ return sqrt(arg) + sqrt(cast_int);
 
     @Test
     public void testNewtonFloat() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);";
+        String src =
+"""
+val test_sqrt = { flt x ->
+    flt epsilon = 1e-15;
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( guess-epsilon <= next & next <= guess+epsilon ) return guess;
+        //if( guess==next ) return guess;
+        guess = next;
+    }
+};
+flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);
+""";
         testCPU(src,"x86_64_v2", "SystemV",39,null);
         testCPU(src,"riscv"    , "SystemV",17,null);
         testCPU(src,"arm"      , "SystemV",18,null);
@@ -92,7 +99,17 @@ return sqrt(arg) + sqrt(cast_int);
 
     @Test
     public void testArray1() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
+        String src =
+"""
+int[] !ary = new int[arg];
+// Fill [0,1,2,3,4,...]
+for( int i=0; i<ary#; i++ )
+    ary[i] = i;
+// Fill [0,1,3,6,10,...]
+for( int i=0; i<ary#-1; i++ )
+    ary[i+1] += ary[i];
+return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
+""";
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 8,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
@@ -101,7 +118,38 @@ return sqrt(arg) + sqrt(cast_int);
 
     @Test
     public void testString() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        String src =
+"""
+struct String {
+    u8[] cs;
+    int _hashCode;
+};
+
+// Compare two Strings
+val equals = { String self, String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { String self ->
+    int hash=0;
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+""";
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 3,null);
         testCPU(src,"arm"      , "SystemV", 3,null);

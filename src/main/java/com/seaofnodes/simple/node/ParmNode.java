@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMemPtr;
 import java.util.BitSet;
 
 public class ParmNode extends PhiNode {
@@ -38,6 +40,25 @@ public class ParmNode extends PhiNode {
 
     // Always in-progress until we run out of unknown callers
     @Override public boolean inProgress() { return in(0) instanceof FunNode fun && fun.inProgress(); }
+
+    @Override
+    public Node idealize() {
+        if( !(region() instanceof FunNode) )
+            return in(1);       // Input has collapse to e.g. starting control.
+        // If function is folding, do all possible peeps
+        if( fun()._folding ) return super.idealize();
+
+        // Can upgrade minType even while in-progress
+        if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
+            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
+            if( tmp2!=null && tmp2 != _minType ) {
+                _minType = tmp2;
+                return this;
+            }
+        }
+        // Skip most phi optimizations on parms
+        return null;
+    }
 
     @Override public boolean eq( Node n ) {
         return ((ParmNode)n)._idx==_idx && super.eq(n);

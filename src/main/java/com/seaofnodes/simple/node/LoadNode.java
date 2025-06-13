@@ -34,20 +34,32 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        if( !(mem()._type instanceof TypeMem mem) )
-            return _declaredType; // No memory yet?  Declared type
+        Type tmem = mem()._type;
+        if( !(tmem instanceof TypeMem mem) )
+            return tmem; // No memory yet?  Assume TOP/BOT
         assert !_declaredType.isFRef();
         // No lifting if ptr might null-check
-        if( err()!=null || !(ptr()._type instanceof TypeMemPtr tmp) )
-            return _declaredType; // No pointer yet?  Declared type
-        Type t = tmp._obj.field(_name)._t;
-        if( t instanceof TypeConAry ary ) {
+        Type tptr = ptr()._type;
+        if( err() != null )
+            return _declaredType;
+        if( !(tptr instanceof TypeMemPtr tmp) )
+            return tptr; // No pointer yet?  Assume TOP/BOT
+        // Load field from object
+        Field f = tmp._obj.field(_name);
+        // No field?  Open objects might yet get the field when falling;
+        // closed objects with missing field are an error.
+        if( f == null )
+            return tmp.isHigh() ? Type.TOP : _declaredType;
+        Type t = f._t;
+        // Load member of constant array
+        if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
-        }
         // Lift from declared type and memory input
-        t = t.join(_declaredType).join(mem._t);
+        t = t.join(mem._t);
         if( _declaredType.isFinal() )
             t = t.makeRO(); // Deep final applied
+        // Pinch between declared type
+        t = t.join(_declaredType);
         return t;
     }
 

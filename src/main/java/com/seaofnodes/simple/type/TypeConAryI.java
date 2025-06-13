@@ -12,6 +12,6 @@ public class TypeConAryI extends TypeConAry<int[]> {
     @Override public int len() { return _ary.length; }
     @Override public int log_size() { return 2; }
     @Override public String str() { return "[i32]"; }
-    @Override boolean eq(Type t) { return Arrays.equals(_ary,((TypeConAryI)t)._ary); }
+    @Override boolean eq(Type t) { return t instanceof TypeConAryI ary && Arrays.equals(_ary,ary._ary); }
     @Override int hash() { return Arrays.hashCode(_ary); }
 }

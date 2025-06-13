@@ -1,5 +1,0 @@
-// Should fold away sign extend
-struct Person { i8 age;};
-Person !p = new Person;
-p.age = (arg<<48)>>48;
-return 0;
