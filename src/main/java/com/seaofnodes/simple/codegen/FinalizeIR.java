@@ -8,24 +8,6 @@ import java.util.Arrays;
 // Settle layouts and detach the analyzed call graph before the backend.
 abstract class FinalizeIR {
     static void run(CodeGen code) {
-        // SCCP kept conservative entries. Rewrites have now relinked the
-        // surviving calls, so remove uncalled bodies just as before SCCP.
-        int progress = -1;
-        while( progress != code._start.nOuts() ) {
-            progress = code._start.nOuts();
-            FunNode main = code.link(code._main);
-            for( int i=0; i<code._start.nOuts(); i++ ) {
-                Node use = code._start.out(i);
-                if( use instanceof FunNode fun && fun != main &&
-                    fun.nIns()==2 && fun.in(1)==code._start && !fun.hasPtr() &&
-                    (main!=null || fun._name==null || fun._name.startsWith("sys.")) ) {
-                    code.add(fun).setDef(1,Parser.XCTRL);
-                    code.addAll(fun._outputs);
-                    i--;
-                }
-            }
-            code._iter.iterate(code);
-        }
         fieldSizes(code);
         code._iter.iterate(code);
         removeCallGraph(code);
