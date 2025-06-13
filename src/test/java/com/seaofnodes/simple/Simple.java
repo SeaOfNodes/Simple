@@ -16,6 +16,8 @@ public class Simple {
 
     static final int DUMP_AFTER_PARSE = 1<<Phase.Parse.ordinal();
     static final int DUMP_AFTER_ITER = 1<<Phase.Iter.ordinal();
+    static final int DUMP_AFTER_OPTO = 1<<Phase.Opto.ordinal();
+    static final int DUMP_AFTER_ITER_POST_OPTO = 1<<Phase.IterPostOpto.ordinal();
     static final int DUMP_AFTER_FINALIZE_IR = 1<<Phase.FinalizeIR.ordinal();
     static final int DUMP_AFTER_TYPE_CHECK = 1<<Phase.TypeCheck.ordinal();
     static final int DUMP_AFTER_LOOP_TREE = 1<<Phase.LoopTree.ordinal();
@@ -40,6 +42,8 @@ Options:
   --dump                   - dump final intermediate representation
   --dump-after-parse           - dump intermediate representation after parsing
   --dump-after-iter            - dump intermediate representation after Iter
+  --dump-after-opto            - dump intermediate representation after Opto
+  --dump-after-iter-post-opto  - dump intermediate representation after IterPostOpto
   --dump-after-finalize-ir     - dump intermediate representation after FinalizeIR
   --dump-after-type-check      - dump intermediate representation after type checking
   --dump-after-loop-tree       - dump intermediate representation after loop-tree construction
@@ -125,7 +129,9 @@ Options:
             case "--dump":                    dump |= DUMP_FINAL; break;
             case "--dump-after-parse":          dump |= DUMP_AFTER_PARSE; break;
             case "--dump-after-finalize-ir":    dump |= DUMP_AFTER_FINALIZE_IR; break;
+            case "--dump-after-iter-post-opto": dump |= DUMP_AFTER_ITER_POST_OPTO; break;
             case "--dump-after-iter":           dump |= DUMP_AFTER_ITER; break;
+            case "--dump-after-opto":           dump |= DUMP_AFTER_OPTO; break;
             case "--dump-after-type-check":     dump |= DUMP_AFTER_TYPE_CHECK; break;
             case "--dump-after-loop-tree":      dump |= DUMP_AFTER_LOOP_TREE; break;
             case "--dump-after-select":         dump |= DUMP_AFTER_SELECT; break;
@@ -204,7 +210,7 @@ Options:
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
             String exe = TestC.OS.startsWith("Windows") ? base+".exe" : base;
-            String result = com.seaofnodes.simple.TestC.gcc(base+".o", null, null, true, exe);
+            String result = TestC.gcc(base+".o", null, null, true, exe);
             System.out.print(result);
         }
     }

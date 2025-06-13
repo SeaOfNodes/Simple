@@ -9,6 +9,7 @@ import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.util.*;
 
@@ -23,6 +24,8 @@ public class CodeGen {
     public enum Phase {
         Parse,                  // Build ideal IR from source
         Iter,                   // Pessimistic peepholes
+        Opto,                   // Optimistic SCCP within each function
+        IterPostOpto,           // Peepholes and inlining using SCCP results
         FinalizeIR,             // Finish function cleanup and layouts
         TypeCheck,              // Check the surviving ideal graph
         LoopTree,               // Discover loops and connect nonreturning paths
@@ -45,6 +48,8 @@ public class CodeGen {
         if( target==Phase.Export ) throw new IllegalArgumentException("Use exportELF with an output file or null for memory linking");
         step(target, Phase.Parse, this::parse, dump);
         step(target, Phase.Iter, this::iter, dump);
+        step(target, Phase.Opto, this::opto, dump);
+        step(target, Phase.IterPostOpto, this::iterPostOpto, dump);
         step(target, Phase.FinalizeIR, this::finalizeIR, dump);
         step(target, Phase.TypeCheck, this::typeCheck, dump);
         step(target, Phase.LoopTree, this::loopTree, dump);
@@ -145,7 +150,7 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
-    //
+    // Source of unique function indices
     private int _fidx =0;
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         int fidx = _fidx++;
@@ -153,23 +158,36 @@ public class CodeGen {
         return fun.makeFrom(fidx);
     }
     // Signature for MAIN
-    public final TypeFunPtr _main;
-    // Reverse from a constant function pointer to the IR function being called
-    public FunNode link( TypeFunPtr tfp ) {
-        assert tfp.isConstant();
-        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+    public TypeFunPtr _main;
+    public void setMain(FunNode main) {
+        _main = main.sig();
+        link(main);
+    }
+    // Reverse from a constant function pointer to the IR function being called.
+    // Error to call with a non-constant TFP
+    public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
+    // Read-only diagnostic lookup; preserve stale entries.
+    public FunNode _link(TypeFunPtr tfp) { return _link(tfp.fidx()); }
+    public FunNode _link(int fidx) { return _linker.atX(fidx); }
+    // Return the FunNode from a fidx, cleaning up dead entries.
+    public FunNode link( int fidx ) {
+        FunNode fun =_linker.atX(fidx);
+        if( fun!=null && fun.isDead() ) {
+            _linker.setX(fidx,null); fun = null; }
+        return fun;
     }
 
     // Insert linker mapping from constant function signature to the function
     // being called.
     public void link(FunNode fun) {
-        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+        int fidx = fun.sig().fidx();
+        _linker.setX(fidx,fun);
     }
 
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
-    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+    final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
     // Native symbols belong to function identities, not to one ExternNode.
     // Selection and spill copies can turn that node into an ordinary constant.
@@ -202,10 +220,13 @@ public class CodeGen {
     // Pessimistic peepholes reach a fixed point after parsing.
     public CodeGen iter() { return phase(Phase.Iter, _phase==Phase.Parse, () -> _iter.iterate(this)); }
 
-    public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.Iter, () -> FinalizeIR.run(this)); }
+    // SCCP computes types and queues changed nodes; Iter applies their rewrites.
+    public CodeGen opto() { return phase(Phase.Opto, _phase==Phase.Iter, () -> Opto.opto(this)); }
+    public CodeGen iterPostOpto() { return phase(Phase.IterPostOpto, _phase==Phase.Opto, () -> _iter.iterate(this)); }
+
+    public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.IterPostOpto, () -> FinalizeIR.run(this)); }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
-
 
     // ---------------------------
     // Last check for bad programs

@@ -319,14 +319,23 @@ public abstract class Eval2 {
             // Unknown-caller inputs are type placeholders, not heap constants.
             if( !tmp.isConstant() ) yield tmp;
             if( tmp._obj.isAry() ) { // Constant array ptr
-                TypeConAry con = (TypeConAry)tmp._obj.field("[]")._t;
-                Object[] xs = new Object[con.len()];
-                for( int i=0; i<con.len(); i++ )
-                    xs[i] = con.at8(i);
-                yield xs;
+                Type elem = tmp._obj.field("[]")._t;
+                if( elem instanceof TypeConAry con ) {
+                    Object[] xs = new Object[con.len()];
+                    for( int i=0; i<con.len(); i++ )
+                        xs[i] = con.at8(i);
+                    yield xs;
+                } else {
+                    // Generic constant array, used as a default input to a
+                    // function; should never execute.
+                    yield new Object[0];
+                }
 
             } else {
-                throw Utils.TODO(); // Constant non-array ptr
+                // Generic TMP (since Simple is not currently making actual
+                // memory constants), used as a default input to a function;
+                // should never execute.
+                yield tmp.toString();
             }
         }
         default -> null;

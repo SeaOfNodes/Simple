@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 
 /** Allocate a zeroed object. Inputs {ctrl, $mem, size};
@@ -45,7 +46,9 @@ public class NewNode extends Node implements MultiNode {
 
     @Override
     public TypeTuple compute() {
-        return TypeTuple.make(_ptr,TypeMem.BOT);
+        return in(0)._type.isHigh()
+            ? TypeTuple.make(_ptr.makeHigh(),TypeMem.TOP)
+            : TypeTuple.make(_ptr,TypeMem.BOT);
     }
 
     @Override

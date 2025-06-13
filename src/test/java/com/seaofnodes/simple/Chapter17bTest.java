@@ -52,7 +52,7 @@ return 1;
         CodeGen code = new CodeGen("""
 return arg++;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return arg;", code.print());
         assertEquals("0", Eval2.eval(code, 0));
     }
@@ -62,7 +62,7 @@ return arg++;
         CodeGen code = new CodeGen("""
 return arg+++arg++;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return ((arg<<1)+1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
@@ -73,7 +73,7 @@ return arg+++arg++;
 //   -(arg--)-(arg--)
 return -arg---arg--;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (-((arg<<1)+-1));", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
@@ -86,7 +86,7 @@ xs[0]++;
 xs[1]++;
 return xs[0];
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 2));
     }
@@ -98,7 +98,7 @@ u8[] !xs = new u8[1];
 xs[0]--;
 return xs[0];
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 255;", code.print());
         assertEquals("255", Eval2.eval(code, 2));
     }
@@ -111,7 +111,7 @@ struct S { u16 x; };
 s.x--;
 return s.x;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 65535;", code.print());
         assertEquals("65535", Eval2.eval(code, 2));
     }
@@ -119,7 +119,7 @@ return s.x;
     @Test
     public void testInc6() {
         CodeGen code = new CodeGen("return --arg;");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (arg+-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
     }
@@ -127,7 +127,7 @@ return s.x;
     @Test
     public void testInc7() {
         CodeGen code = new CodeGen("u8 x=0; return --x;");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 255;", code.print());
         assertEquals("255", Eval2.eval(code, 0));
     }
@@ -135,7 +135,7 @@ return s.x;
     @Test
     public void testInc8() {
         CodeGen code = new CodeGen("int x; x+=2; return x+=3;");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 5;", code.print());
         assertEquals("5", Eval2.eval(code, 0));
     }
@@ -143,7 +143,7 @@ return s.x;
     @Test
     public void testInc9() {
         CodeGen code = new CodeGen("flt x = 1.5; x++; return x;");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 2.5f;", code.print());
         assertEquals("2.5", Eval2.eval(code, 0));
     }
@@ -158,40 +158,40 @@ return s.x;
     // ---------------------------------------------------------------
     @Test public void testVar0() {
         CodeGen code = new CodeGen("var d; return d;");
-        try { code.parse().iter().finalizeIR(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
     }
 
     @Test public void testVar1() {
         CodeGen code = new CodeGen("val d; return d;");
-        try { code.parse().iter().finalizeIR(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
     }
 
     @Test public void testVar2() {
         CodeGen code = new CodeGen("int x; x=3; x++; return x; // Ok, no initializer so x is mutable ");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
     }
 
     @Test public void testVar3() {
         CodeGen code = new CodeGen("int x=3; x++; return x; // Ok, primitive so x is mutable despite initializer ");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
     }
 
     @Test public void testVar4() {
         CodeGen code = new CodeGen("struct S{int x;}; !S? !s; s=new S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar5() {
         CodeGen code = new CodeGen("struct S{int x;}; !S? !s; s=new S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
     }
@@ -210,14 +210,14 @@ return s.x;
 
     @Test public void testVar8() {
         CodeGen code = new CodeGen("struct S{int x;}; !S !s=new S; s.x++; return s.x; // Ok, has '!' so s.x is mutable ");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar9() {
         CodeGen code = new CodeGen("struct S{int x;}; var s=new S; s.x++; return s.x; // Ok, has var so s.x is mutable ");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
@@ -264,7 +264,7 @@ foo.bar.x++;           // Bumps to 5
 int x5 = xfoo.bar.x;   // Ok to read through xfoo, gets 5
 return x4*10+x5;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 45;", code.print());
         assertEquals("45", Eval2.eval(code, 0));
     }
@@ -289,7 +289,7 @@ A x = new A {
     b = new B;
 };
 """);
-        try { code.parse().iter().finalizeIR(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Cannot read uninitialized field 'b'",e.getMessage()); }
     }
 
@@ -345,7 +345,7 @@ return me;
         CodeGen code = new CodeGen("""
 return arg ? 1 : 2;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,1,2);", code.print());
         assertEquals("2", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -356,7 +356,7 @@ return arg ? 1 : 2;
         CodeGen code = new CodeGen("""
 return arg ? 0 : arg;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code, 0));
     }
@@ -368,7 +368,7 @@ struct Bar { int x; };
 var b = arg ? new Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -381,7 +381,7 @@ struct Bar { int x; };
 var b = arg ? new Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -395,7 +395,7 @@ struct Bar { !Bar? !next; int x; };
 var b = arg ? new Bar { next = (arg==2) ? new Bar{x=2;}; x=1; };
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,.x,0,.x);", code.print());
         assertEquals("0", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -408,7 +408,7 @@ return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0
 flt f=arg?1:1.2;
 return f;   // missing widening
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,1.0f,1.2);", code.print());
         assertEquals("1.2", Eval2.eval(code,  0));
     }
@@ -433,7 +433,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return sum;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -446,7 +446,7 @@ for( ; i<arg; i++ )
     sum += i;
 return sum;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -461,7 +461,7 @@ for( int i=0; ; i++ ) {
 }
 return sum;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -474,7 +474,7 @@ for( int i=0; i<arg; )
     sum += i++;
 return sum;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -487,7 +487,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return i;
 """);
-        try { code.parse().iter().finalizeIR(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Undefined name 'i'",e.getMessage()); }
     }
     @Test
@@ -495,7 +495,7 @@ return i;
         CodeGen code = new CodeGen("""
 for(;;arg++;) {}
 """);
-        try { code.parse().iter().finalizeIR(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected Unexpected code after expression: ;",e.getMessage()); }
     }
 
@@ -511,7 +511,7 @@ struct A{
 };
 return new A;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return A;", code.print());
         assertEquals("A{f1=null,f2=null}", Eval2.eval(code,0));
     }
@@ -525,7 +525,7 @@ struct A {
 };
 return new A{array_of_b = new !B?[0]; }.array_of_b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return []*B?;", code.print());
         assertEquals("*B {... }?[]", Eval2.eval(code,0));
     }
@@ -544,7 +544,7 @@ for( ; ptr; ptr = ptr.next )
     sum += ptr.i;
 return sum;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,0,(Phi_sum+.i));", code.print());
         assertEquals("45", Eval2.eval(code, 10));
     }

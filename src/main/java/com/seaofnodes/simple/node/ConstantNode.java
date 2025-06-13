@@ -44,7 +44,7 @@ public class ConstantNode extends Node {
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         if( _con instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
-            FunNode fun = CodeGen.CODE.link(tfp);
+            FunNode fun = CodeGen.CODE._link(tfp);
             if( fun!=null && fun._name != null )
                 return p.p("{ ").p(fun._name).p("}");
         }

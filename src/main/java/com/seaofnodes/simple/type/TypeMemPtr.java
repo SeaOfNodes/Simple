@@ -67,6 +67,7 @@ public class TypeMemPtr extends TypeNil {
     public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one,_ro); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
     @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one,_ro); }
+    public TypeMemPtr makeHigh() { return make((byte)0,_obj.makeHigh(),false); }
 
     private TypeMemPtr access(boolean ro) { _ro=ro; return this; }
 

@@ -1,3 +1,0 @@
-i64 a = 123456789012345;
-i32 b = a; // truncate high order bits
-return b;
