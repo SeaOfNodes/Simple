@@ -139,7 +139,7 @@ public class AddNode extends ArithNode {
      * dep can make progress.
      */
     static PhiNode pcon(Node op, Node dep) {
-        return op instanceof PhiNode phi && phi.allCons(dep) ? phi : null;
+        return op instanceof PhiNode phi && !(phi instanceof ParmNode) && phi.allCons(dep) ? phi : null;
     }
 
     // Compare two off-spine nodes and decide what order they should be in.

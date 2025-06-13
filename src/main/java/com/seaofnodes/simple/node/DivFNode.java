@@ -1,29 +1,18 @@
 package com.seaofnodes.simple.node;
 
-
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 
+import java.util.BitSet;
 
-public class DivFNode extends Node {
-    public DivFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class DivFNode extends ArithFNode {
+    public DivFNode(Node lhs, Node rhs) { super(lhs, rhs); }
 
     @Override public String label() { return "DivF"; }
 
-    @Override protected String format() { return "(%1/%2)"; }
+    @Override public String glabel() { return "/"; }
 
-    @Override
-    public Type compute() {
-        if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return Type.TOP;
-        if (in(1)._type instanceof TypeFloat i0 &&
-            in(2)._type instanceof TypeFloat i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeFloat.constant(i0.value()/i1.value());
-            // Two f32 inputs can still produce a result needing f64 precision.
-            return TypeFloat.F64;
-        }
-        return in(1)._type.meet(in(2)._type);
-    }
+    @Override double doOp( double x, double y ) { return x/y; }
 
     @Override
     public Node idealize() {

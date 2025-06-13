@@ -133,7 +133,7 @@ public class Parser {
 
     public void parse() {
         // Graph callbacks during scope setup need a source position.
-        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
+        _lexer = new Lexer(sys.SYS);
 
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
@@ -160,18 +160,26 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
+        // Gather an explicit main
+        FunNode xmain = null;
+        for( Node n : stop._inputs )
+            if( n instanceof ReturnNode ret && "main".equals(ret.fun()._name) )
+                if( xmain != null ) throw Utils.TODO();
+                else xmain = ret.fun();
+
         if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
             main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
+            if( xmain != null )
+                _code.setMain(xmain);
+
         } else {
             // We have a non-empty default main.
-            // Check for an explicit main
-            for( Node n : stop._inputs )
-                if( n instanceof FunNode fun && fun._name.equals("main") )
-                    // Found an explicit "main" AND we have a default "main"
-                    throw error("Cannot define both an explicit main and a default main");
+            if( xmain != null )
+                // Found an explicit "main" AND we have a default "main"
+                throw error("Cannot define both an explicit main and a default main");
             main._name = "main";
         }
 
@@ -540,9 +548,8 @@ public class Parser {
 
     // Parse a conditional expression, merging results.
     private Node parseTrinary( Node pred, String fside ) {
-        pred.keep();
-
         // IfNode takes current control and predicate
+        pred.keep();
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
@@ -708,7 +715,7 @@ public class Parser {
 
         // Type is sane
         if( et!=Type.BOTTOM && (!et.shallowISA(t) || !et.accessISA(t)) )
-            expr = peep(new CastNode(t,null,expr));
+            expr = peep(new CastNode(t.isConstant() ? t : t.widen(),null,expr));
         return expr;
     }
 
@@ -822,7 +829,7 @@ public class Parser {
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
         if( !lift._type.isa(t) )
-            lift = peep(new CastNode(t,null,lift));
+            lift = peep(new CastNode(t.widen(),null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
@@ -1063,6 +1070,11 @@ public class Parser {
         return lhs;
     }
 
+
+
+    /**
+     * Parse an eq/ne expression
+     */
     private Node parseEquality() {
         Node lhs = parseComparison();
         while( true ) {
@@ -1081,7 +1093,8 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : additiveExpr op additiveExpr
+     *     expr : shiftExpr < shiftExpr <= shiftExpr...
+     *     expr : shiftExpr > shiftExpr >= shiftExpr...
      * </pre>
      * @return an comparator expression {@link Node}, never {@code null}
      */
@@ -1588,6 +1601,8 @@ public class Parser {
         Type tf = f._t;
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
             tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
+        if( base.isAry() && tf instanceof TypeConAry con )
+            tf = con.elem();
 
         expr.keep();
         // Field offset; fixed for structs, computed for arrays
@@ -1752,7 +1767,6 @@ public class Parser {
 
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
-
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining

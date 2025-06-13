@@ -33,7 +33,7 @@ public class CallNode extends CFGNode {
     }
     public String name() {
         if( fptr()._type instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
-            FunNode fun = CodeGen.CODE.link(tfp);
+            FunNode fun = CodeGen.CODE._link(tfp);
             if( fun !=null ) return fun._name;
             if( fptr() instanceof ExternNode ex )  return ex._extern;
         }
@@ -115,16 +115,15 @@ public class CallNode extends CFGNode {
     }
 
     // True if Fun is linked to this Call
-    boolean linked( FunNode fun ) {
+    public boolean linked( FunNode fun ) {
         for( Node n : fun._inputs )
             if( n == this )
                 return true;
         return false;
     }
 
-
     // Link so this calls fun
-    private Node link( FunNode fun ) {
+    public Node link( FunNode fun ) {
         assert !linked(fun);
         fun.addDef(this);
         for( Node use : fun._outputs )
