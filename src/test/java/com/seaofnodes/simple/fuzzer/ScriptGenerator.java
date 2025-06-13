@@ -440,7 +440,7 @@ public class ScriptGenerator {
         int idx = random.nextInt(forwardStructs.size()+10);
         TypeStruct struct;
         if (idx < 10) {
-        var name = getStructName();
+            var name = getStructName();
             struct = new TypeStruct(name);
             forwardStructs.add(struct);
         } else {

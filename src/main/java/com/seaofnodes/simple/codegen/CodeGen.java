@@ -136,7 +136,10 @@ public class CodeGen {
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
-        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+        TypeFunPtr tfp_generic = tfp.makeFrom(Type.BOTTOM);
+        FunNode fun =_linker.get(tfp_generic);
+        if( fun!=null && fun.isDead() ) { _linker.remove(tfp_generic); fun = null; }
+        return fun;
     }
 
     // Insert linker mapping from constant function signature to the function

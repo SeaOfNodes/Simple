@@ -76,8 +76,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     CFGNode idom = call;
                     while( !(idom instanceof FunNode) && idom!=null )
                         idom = idom.idom();
+                    if( idom!=null ) addDep(idom);
                     // Inline?
-                    if( idom != fun && idom != null ) {
+                    if( idom != fun && idom != null && !((FunNode)idom)._folding ) {
                         // Trivial inline: rewrite
                         _folding = true;
                         // Rewrite Fun so the normal RegionNode ideal collapses

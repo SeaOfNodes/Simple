@@ -46,10 +46,10 @@ public class RegionNode extends CFGNode {
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
         if( !hasPhi() && nIns()>3 &&  // No Phi users, just a control user
-            in(1) instanceof CProjNode p1 &&
-            in(2) instanceof CProjNode p2 &&
-            addDep(p1.in(0))==addDep(p2.in(0)) &&
-            p1.in(0) instanceof IfNode iff ) {
+                in(1) instanceof CProjNode p1 &&
+                in(2) instanceof CProjNode p2 &&
+                addDep(p1.in(0))==addDep(p2.in(0)) &&
+                p1.in(0) instanceof IfNode iff ) {
             // Replace with the iff.ctrl directly
             if( nIns()==3 ) return iff.ctrl();
             // Just delete the path for fat Regions
@@ -101,8 +101,10 @@ public class RegionNode extends CFGNode {
         while( nouts != nOuts() ) {
             nouts = nOuts();
             for( int i=0; i<nOuts(); i++ )
-                if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
+                if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() ) {
+                    CodeGen.CODE.addAll(phi.in(path)._outputs);
                     CodeGen.CODE.addAll(phi.delDef(path)._outputs);
+                }
         }
         return isDead() ? Parser.XCTRL : delDef(path);
     }
@@ -130,10 +132,10 @@ public class RegionNode extends CFGNode {
             if( use instanceof PhiNode ) {
                 for( Node data : use._outputs ) {
                     if( !(data instanceof PhiNode phi2) || phi2.region()!=this )
-                        { addDep(use); if( data!=null ) addDep(data); return true; }
+                    { addDep(use); if( data!=null ) addDep(data); return true; }
                 }
             } else
-                { addDep(use);  return true; } // Control user
+            { addDep(use);  return true; } // Control user
         }
         return false;
     }
