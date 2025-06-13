@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
 public class ParmNode extends PhiNode {
@@ -33,6 +34,21 @@ public class ParmNode extends PhiNode {
 
     // Always in-progress until we run out of unknown callers
     @Override public boolean inProgress() { return in(0) instanceof FunNode fun && fun.inProgress(); }
+
+    @Override
+    public Type compute() {
+        Type t = super.compute();
+        // Recursion is a loop in disguise. A Parm merges the first argument
+        // with those from recursive calls, just as a loop Phi merges its entry
+        // and backedge. Use the widening rule in PhiNode.compute here too.
+        // CallEndNode.compute handles the separate cycle through return values;
+        // widening this Parm alone cannot stop f(x-1)+1 from growing its result.
+        if( t instanceof TypeInteger ti && t != _type &&
+            !ti.isHigh() && !ti.isConstant() &&
+            (!(_type instanceof TypeInteger oldi) || ti._widen <= oldi._widen) )
+            return ti.same_but_slightly_wider_than(_minType);
+        return t;
+    }
 
     @Override
     public Node idealize() {

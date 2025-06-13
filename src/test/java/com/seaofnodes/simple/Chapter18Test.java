@@ -406,8 +406,7 @@ return g();
     }
 
 
-    // Local SCCP cannot infer this recursive return type. The next chapter
-    // solves across calls and checks the same program's execution results.
+    // Mutual recursion: check results, independent of how much gets inlined.
     @Test
     public void testFcnMutRec() {
         CodeGen code = new CodeGen(
@@ -416,8 +415,11 @@ val is_even = { int x -> x ? is_odd (x-1) : true ; };
 val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
-        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Parser.ParseException e ) { assertEquals("No defined return type",e.getMessage()); }
+        code.driver(CodeGen.Phase.FinalizeIR);
+        assertEquals("1", Eval2.eval(code, 0));
+        assertEquals("0", Eval2.eval(code, 1));
+        assertEquals("1", Eval2.eval(code, 2));
+        assertEquals("0", Eval2.eval(code, 3));
     }
 
     // Forward ref to 'x' means that

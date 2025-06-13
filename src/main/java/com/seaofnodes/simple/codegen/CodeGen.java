@@ -24,7 +24,7 @@ public class CodeGen {
     public enum Phase {
         Parse,                  // Build ideal IR from source
         Iter,                   // Pessimistic peepholes
-        Opto,                   // Optimistic SCCP within each function
+        Opto,                   // Optimistic interprocedural SCCP
         IterPostOpto,           // Peepholes and inlining using SCCP results
         FinalizeIR,             // Finish function cleanup and layouts
         TypeCheck,              // Check the surviving ideal graph

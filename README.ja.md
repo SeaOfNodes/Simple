@@ -62,7 +62,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第22章](docs/chapter22/README.ja.md)：Simple の Hello, World!
 * [第23章](docs/chapter23/README.ja.md)：メソッドと型の再検討。
 * [第24a章](docs/chapter24a/README.ja.md)：関数内の SCCP
-* 第24b章：関数間の SCCP
+* [第24b章](docs/chapter24b/README.ja.md)：関数間の SCCP
 * 第25章：型が決まる前の SSA
 * 第26章：構築とプライベートメモリ
 * 第27章：エスケープ解析と未知の呼び出し元
