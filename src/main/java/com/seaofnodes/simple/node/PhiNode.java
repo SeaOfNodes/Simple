@@ -81,8 +81,9 @@ public class PhiNode extends Node {
         Type newt = t.join( _minType );
 
         // Widen loop Phis so integer ranges cannot grow one step per trip forever.
-        // Calls are opaque during SCCP here. The next chapter also widens at
-        // ParmNode and CallEndNode when solving through recursive calls.
+        // Recursion is a loop in disguise: ParmNode.compute widens arguments,
+        // and CallEndNode.compute widens results. Both are needed because the
+        // recursive result can feed itself without passing through a Parm.
         // Above-center ranges may still fall to unwidened constants.
         // Widen only below-center ranges to preserve monotonicity.
         if( region() instanceof LoopNode && // Only around loops
