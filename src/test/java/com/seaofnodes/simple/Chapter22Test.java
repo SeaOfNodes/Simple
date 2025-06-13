@@ -13,10 +13,27 @@ import static org.junit.Assert.*;
 
 public class Chapter22Test {
 
-    @Test @Ignore
+    @Test
     public void testJig() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        //String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
+        String src =
+                """
+                struct s0 {
+                    bool v1;
+                    i16 v2;
+                    int v3;
+                    i8 v4;
+                    byte v5;
+                };
+                while(new s0.v3)
+                    while(new s0.v5<<new s0.v4) {}
+                if(0) {
+                    if(0) {
+                        flt !P5ZUD4=new s0.v2;
+                    }
+                    while(0) {}
+                }
+                return new s0.v1;
+                """;
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
@@ -51,11 +68,11 @@ return 0;
         assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
 
         // do assertEquals here
-        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away", 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away", src,0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away", 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away", src, 0, 4, false);
         trap = A5.step(100);
         assertEquals(0,trap);
 
@@ -71,11 +88,11 @@ return 0;
                 return 0;
         """;
 
-        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away_2", 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away_2", src, 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 4, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
@@ -95,11 +112,11 @@ p.age = (arg<<48)>>48;
 return 0;
        """;
 
-        EvalRisc5 R5 = TestRisc5.build("sext_str_fold_away", 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build("sext_str_fold_away", src, 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_fold_away", 0, 5, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_fold_away", src, 0, 5, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
@@ -112,8 +129,19 @@ return 0;
 
     // Int now is changed to 4 bytes.
     @Test public void testPerson() throws IOException {
+        String src =
+"""
+struct Person {
+    i32 age;
+};
+
+val fcn = { Person?[] ps, int x ->
+    if( ps[x] )
+        ps[x].age++;
+};                
+""";
         String person = "6\n";
-        TestC.run("person", person, 0);
+        TestC.run(src, "person", null, person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -124,7 +152,7 @@ return 0;
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build("person", src, ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -140,7 +168,7 @@ return 0;
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("person", src, ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
@@ -179,18 +207,22 @@ return cc.cz;
 
     @Test
     public void testHelloWorld() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
+        String src =
+"""
+sys.io.p("Hello, World!");
+return 0;
+""";
         TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build("helloWorld", src, 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("Hello, World!",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
+        EvalArm64 arm = TestArm64.build("helloWorld", src,0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
@@ -220,17 +252,21 @@ return sum(is);
 
     @Test @Ignore
     public void testEcho() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/echo.smp"));
+        String src =
+"""
+// Echo stdin to stdout.
+return sys.io.p( sys.io.stdin() );
+""";
         TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/echo","","",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("echo", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build("echo", src, 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("echo", 0, 2, false);
+        EvalArm64 arm = TestArm64.build("echo", src, 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);

@@ -74,7 +74,6 @@ public class EvalArm64 {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
             }
-
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;
@@ -342,7 +341,6 @@ public class EvalArm64 {
                     regs[arm.X0] = _heap;
                     _heap += (int)size;
                     pc = (int)rval;
-                    rdid = -1;
                 }
                 if( pc == Encoding.SENTINEL_WRITE ) {
                     ByteArrayOutputStream baos = switch((int)regs[0]) {
@@ -353,33 +351,42 @@ public class EvalArm64 {
                     baos.write(_buf,(int)regs[1],(int)regs[2]);
                     regs[0] = regs[2];
                     pc = (int)rval;
-                    rdid = -1;
                 }
                 pc -= 4;
+                rdid = -1;
                 break;
             }
 
             case 0x9A: {
+                int encodedCond = (ir >> 12) & 0xF;
+                int decodedCond  = encodedCond ^ 1;
                 // conditional select(csel)
                 int rm = (ir >> 16) & 0x1F;
-                switch((ir >> 12) & 0xF) {
-                case 0x0: if(Z)  rval = regs[rm]; break; // eq
-                case 0x1: if(!Z) rval = regs[rm]; break; // ne
-                case 0x2: if(C)  rval = regs[rm]; break; // cs
-                case 0x3: if(!C) rval = regs[rm]; break;
-                case 0x4: if(N) rval  =  regs[rm]; break; // mi
-                case 0x5: if(!N) rval = regs[rm]; break; // pl
-                case 0x6: if(V) rval = regs[rm]; break; // vs
-                case 0x7: if(!V) rval = regs[rm]; break; // vc
-                case 0x8: if(C && !Z) rval = regs[rm]; break; // hi
-                case 0x9: if(!C || Z) rval = regs[rm]; break; // ls
-                case 0xA: if(N == V) rval = regs[rm]; break; // ge
-                case 0xB: if(N != V) rval = regs[rm]; break; // lt
-                case 0xC: if(!Z && N == V) rval  = regs[rm]; break; // gt
-                case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
-                case 0xE: rval = regs[rm]; break; // always executed(al)
-                default:  rval = regs[(ir >> 5) & 0x1F];
-                }
+                int rn = (ir >> 5)  & 0x1F;
+                boolean cond = switch (decodedCond) {
+                case 0x0 ->   Z            ;   // eq
+                case 0x1 ->  !Z            ;   // ne
+                case 0x2 ->   C            ;   // cs
+                case 0x3 ->  !C            ;
+                case 0x4 ->   N            ;   // mi
+                case 0x5 ->  !N            ;   // pl
+                case 0x6 ->   V            ;   // vs
+                case 0x7 ->  !V            ;   // vc
+                case 0x8 -> ( C && !Z )    ;   // hi
+                case 0x9 -> (!C ||  Z )    ;   // ls
+                case 0xA -> (      N == V) ;   // ge
+                case 0xB -> (      N != V) ;   // lt
+                case 0xC -> (!Z && N == V) ;   // gt
+                case 0xD -> ( Z || N != V );   // le
+                case 0xE -> true           ;   // always
+                case 0xF -> false          ;   // never
+                default -> throw Utils.TODO();
+                };
+//                int reg = cond ? rn : rm;
+//                rval = reg==31 ? 0 : regs[reg];
+//                if( cond ) rval++;
+                if(cond) rval = 1;
+                else rval = 0;
                 break;
             }
             case 0x9B: {       // mul

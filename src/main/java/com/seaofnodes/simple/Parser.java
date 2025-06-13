@@ -142,7 +142,7 @@ public class Parser {
         _scope.mem(new MemMergeNode(false));
 
         // Parse the sys import
-        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
+        _lexer = new Lexer(sys.SYS);
         while( !_lexer.isEOF() ) {
             parseStatement();
             _lexer.skipWhiteSpace();
@@ -160,18 +160,26 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
+        // Gather an explicit main
+        FunNode xmain = null;
+        for( Node n : stop._inputs )
+            if( n instanceof ReturnNode ret && "main".equals(ret.fun()._name) )
+                if( xmain != null ) throw Utils.TODO();
+                else xmain = ret.fun();
+
         if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
             main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
+            if( xmain != null )
+                _code.setMain(xmain);
+
         } else {
             // We have a non-empty default main.
-            // Check for an explicit main
-            for( Node n : stop._inputs )
-                if( n instanceof FunNode fun && fun._name.equals("main") )
-                    // Found an explicit "main" AND we have a default "main"
-                    throw error("Cannot define both an explicit main and a default main");
+            if( xmain != null )
+                // Found an explicit "main" AND we have a default "main"
+                throw error("Cannot define both an explicit main and a default main");
             main._name = "main";
         }
 
@@ -245,8 +253,13 @@ public class Parser {
             last = parseStatement();
 
         // Last expression is the return except for the top-level main
-        if( ctrl()._type==Type.CONTROL && fun.sig() != _code._main )
-            fun.addReturn(ctrl(), _scope.mem().merge(), last);
+        if( ctrl()._type==Type.CONTROL )
+            if( fun.sig() != _code._main )
+                fun.addReturn(ctrl(), _scope.mem().merge(), last);
+            else {
+                fun.setDef(1,XCTRL); // Kill default main
+                _code.addAll(fun._outputs);
+            }
 
         // Pop off the inProgress node on the multi-exit Region merge
         assert r.inProgress();
@@ -535,9 +548,8 @@ public class Parser {
 
     // Parse a conditional expression, merging results.
     private Node parseTrinary( Node pred, String fside ) {
-        pred.keep();
-
         // IfNode takes current control and predicate
+        pred.keep();
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
@@ -707,7 +719,7 @@ public class Parser {
 
         // Type is sane
         if( et!=Type.BOTTOM && !et.shallowISA(t) )
-            expr = peep(new CastNode(t,null,expr));
+            expr = peep(new CastNode(t.isConstant() ? t : t.widen(),null,expr));
         return expr;
     }
 
@@ -813,7 +825,7 @@ public class Parser {
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
         if( !lift._type.isa(t) )
-            lift = peep(new CastNode(t,null,lift));
+            lift = peep(new CastNode(t.widen(),null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
@@ -1032,15 +1044,34 @@ public class Parser {
     }
 
     private Node parseBitwise() {
-        Node lhs = parseComparison();
+        Node lhs = parseEquality();
         while( true ) {
             if( false ) ;
             else if( matchOp('&') ) lhs = new AndNode(loc(),lhs,null);
             else if( matchOp('|') ) lhs = new  OrNode(loc(),lhs,null);
             else if( match  ("^") ) lhs = new XorNode(loc(),lhs,null);
             else break;
-            lhs.setDef(2,parseComparison());
+            lhs.setDef(2,parseEquality());
             lhs = peep(lhs);
+        }
+        return lhs;
+    }
+
+
+
+    /**
+     * Parse an eq/ne expression
+     */
+    private Node parseEquality() {
+        Node lhs = parseComparison();
+        while( true ) {
+            boolean eq = false;
+            if( match("==") ) eq = true;
+            else if( !match("!=") ) break;
+            lhs.keep();
+            Node rhs = parseComparison();
+            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs).widen());
+            if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;
     }
@@ -1049,31 +1080,63 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : additiveExpr op additiveExpr
+     *     expr : shiftExpr < shiftExpr <= shiftExpr...
+     *     expr : shiftExpr > shiftExpr >= shiftExpr...
      * </pre>
      * @return an comparator expression {@link Node}, never {@code null}
      */
     private Node parseComparison() {
-        var lhs = parseShift();
+        Node lhs = parseShift();
+        int dir = 0;
+
         while( true ) {
-            int idx=0;  boolean negate=false;
-            // Test for any local nodes made, and "keep" lhs during peepholes
+            int dir0;
             if( false ) ;
-            else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
-            else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
-            else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
-            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
-            else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
-            else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
+            else if( match("<=" ) ) dir0 = -1;
+            else if( match(">=" ) ) dir0 = -2;
+            else if( match("<"  ) ) dir0 =  1;
+            else if( match(">"  ) ) dir0 =  2;
             else break;
-            // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseShift());
-            lhs = peep(lhs.widen());
-            if( negate )        // Extra negate for !=
-                lhs = peep(new NotNode(lhs));
+            lhs.keep();
+            // Check and record direction
+            if( dir==0 ) {
+                dir = Math.abs(dir0);
+                Node rhs = parseShift();
+                lhs = makeCompBool(dir0,lhs.unkeep(),rhs); // Convert to a bool
+            } else if( dir == Math.abs(dir0) ) {
+                // e0 < lhs < ???
+                Node ifNode = new IfNode(ctrl(), lhs).peephole();
+                Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
+                Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+                // False side does nothing
+                ScopeNode fScope = _scope.dup();
+                fScope.ctrl(ifF);
+                // True side executes next part of range
+                ctrl(ifT);
+                _scope.addGuards(ifT,lhs,false);
+                Node rhs = parseShift();
+                _scope.removeGuards(ifT); // TODO: I think should remain true as long as possible
+                Node next = makeCompBool(dir0, lhs, rhs).keep();
+                // Merge result
+                RegionNode r = ctrl(_scope.mergeScopes(fScope, loc()));
+                assert next._type.meet(lhs._type).isa( TypeInteger.BOOL );
+                lhs = peep(new PhiNode("",TypeInteger.BOOL,r,next.unkeep(),lhs.unkeep()));
+                r.peephole();
+            } else {
+                throw error("Mixing relational directions in a chained relational test");
+            }
         }
         return lhs;
     }
+
+    private Node makeCompBool( int dir0, Node lhs, Node rhs ) {
+        // Convert to a bool
+        if( Math.abs(dir0)==2 ) // Swap direction
+            { Node tmp = lhs; lhs = rhs; rhs = tmp; }
+        lhs = peep(dir0 < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs));
+        return peep(lhs.widen());
+    }
+
 
     /**
      * Parse an additive expression
@@ -1488,6 +1551,8 @@ public class Parser {
         Type tf = f._t;
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
             tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
+        if( base.isAry() && tf instanceof TypeConAry con )
+            tf = con.elem();
 
         // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
@@ -1657,7 +1722,6 @@ public class Parser {
 
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
-
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining

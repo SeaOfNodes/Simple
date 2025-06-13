@@ -282,7 +282,7 @@ Options:
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
             String exe = TestC.OS.startsWith("Windows") ? base+".exe" : base;
-            String result = com.seaofnodes.simple.TestC.gcc(base+".o", null, null, true, exe);
+            String result = TestC.gcc(base+".o", null, null, true, exe);
             System.out.print(result);
         }
     }

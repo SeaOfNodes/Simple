@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
@@ -204,9 +205,9 @@ public abstract class Node implements Cloneable {
     }
 
     // Insert the numbered input, sliding other inputs to the right
-    Node insertDef(int idx, Node new_def) {
-        _inputs.add(idx,null);
-        return setDef(idx,new_def);
+    public void insertDef(int idx, Node new_def) {
+        _inputs.insert(null,idx);
+        setDef(idx,new_def);
     }
 
 
@@ -234,7 +235,7 @@ public abstract class Node implements Cloneable {
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
-    protected boolean delUse( Node use ) {
+    public boolean delUse( Node use ) {
         _outputs.del(_outputs.find(use));
         return _outputs.isEmpty();
     }
@@ -485,7 +486,7 @@ public abstract class Node implements Cloneable {
     // If changing, add users to worklist.
     public Type setType(Type type) {
         Type old = _type;
-        assert old==null || type.isa(old); // Since _type not set, can just re-run this in assert in the debugger
+        assert old == null || type.isa(old) : "Monotonicity test failed";
         if( old == type ) return old;
         _type = type;       // Set _type late for easier assert debugging
         CODE.addAll(_outputs);
@@ -552,7 +553,7 @@ public abstract class Node implements Cloneable {
     Ary<Node> _deps;
 
     /**
-     * Add a node to the list of dependencies.  Only add it if its not an input
+     * Add a node to the list of dependencies.  Only add it if it's not an input
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
@@ -569,12 +570,12 @@ public abstract class Node implements Cloneable {
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
-    public void moveDepsToWorklist( ) {
-        if( _deps==null ) return;
-        CODE.addAll(_deps);
+    public void moveDepsToWorklist( ) { moveDepsToWorklist(CODE._iter); }
+    public void moveDepsToWorklist( IterPeeps iter ) {
+        if( _deps == null ) return;
+        iter.addAll(_deps);
         _deps.clear();
     }
-
 
     // Two nodes are equal if they have the same inputs and the same "opcode"
     // which means the same Java class, plus same internal parts.

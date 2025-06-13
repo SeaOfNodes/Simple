@@ -33,6 +33,7 @@ public class IfNode extends CFGNode implements MultiNode {
     @Override
     public Type compute() {
         // If the If node is not reachable then neither is any following Proj
+        assert !_inputs.isEmpty();
         if (ctrl()._type != Type.CONTROL && ctrl()._type != Type.BOTTOM )
             return TypeTuple.IF_NEITHER;
         Node pred = pred();

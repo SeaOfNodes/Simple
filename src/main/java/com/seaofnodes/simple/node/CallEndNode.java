@@ -39,16 +39,23 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Type compute() {
-        if( !(in(0) instanceof CallNode call) )
+        if( !(in(0) instanceof CallNode call) || call._type != Type.CONTROL )
             return TypeTuple.RET.dual();
-        Type ret = Type.BOTTOM;
-        if( addDep(call.fptr())._type instanceof TypeFunPtr tfp ) {
+        // Mid-fold, just take the one single callers' return type
+        if( _folding ) return in(1)._type;
+        // Grab the TFP and use the functions declared return type.
+        Type ftype = addDep(call.fptr())._type;
+        Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
+        if( ftype instanceof TypeFunPtr tfp ) {
             ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
             // across the linked returns and join with the function return type.
-            if( tfp.isConstant() && nIns()>1 ) {
-                assert nIns()==2;     // Linked exactly once for a constant
-                ret = ((TypeTuple)in(1)._type).ret(); // Return type
+            if( 1+tfp.nfcns() == nIns() ) { // A linked function for every concrete function
+                ret = Type.TOP;
+                for( int i=1; i<nIns(); i++ ) {
+                    Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
+                    ret = ret.meet(tret);
+                }
             }
         }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);
@@ -72,12 +79,17 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 // Expecting Start, and the Call
                 if( fun.nIns()==3 ) {
                     assert fun.in(1) instanceof StartNode && fun.in(2)==call;
-                    // Disallow self-recursive inlining (loop unrolling by another name)
+                    // Disallow self-recursive inlining (loop unrolling by another name).
+                    // Disallow if still folding other things, as it makes other
+                    // dependency checks carry long chains of half-folded calls.
                     CFGNode idom = call;
-                    while( !(idom instanceof FunNode) && idom!=null )
+                    while( true ) {
                         idom = idom.idom();
+                        if( idom instanceof FunNode ) break;
+                        if( idom instanceof CallEndNode cend && cend._folding ) break;
+                    }
                     // Inline?
-                    if( idom != fun && idom != null ) {
+                    if( idom instanceof FunNode fun2 && fun2 != fun && !fun2._folding ) {
                         // Trivial inline: rewrite
                         _folding = true;
                         // Rewrite Fun so the normal RegionNode ideal collapses
@@ -95,6 +107,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         // Bump the global version number invalidating them en-masse.
                         CodeGen.CODE.invalidateIDepthCaches();
                         return this;
+                    } else {
+                        addDep(idom);
                     }
                 } else {
                     addDep(fun);

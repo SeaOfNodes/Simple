@@ -14,6 +14,8 @@ public class PhiNode extends Node {
     // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     Type _minType;
 
+    int lattice_drop;
+
     public PhiNode(String label, Type minType, Node... inputs) {
         super(inputs);
         _label = label;
@@ -55,26 +57,43 @@ public class PhiNode extends Node {
     public CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMem() { return _minType instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
+    boolean isRPC() { return false; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _minType;
+        if( r.inProgress() )
+            // Loop-Phis must lift to the declared type, because that is how
+            // the Parser keeps precise types until the loop finishes parsing.
+            // Similar, ParmNodes use precise minType until all calls are
+            // linked (post opto).
+            return r instanceof LoopNode || (this instanceof ParmNode) ? _minType : Type.BOTTOM;
         // Set type to local top of the starting type
-        //Type t = _minType.dual();
         Type t = Type.TOP;
-        for (int i = 1; i < nIns(); i++)
+        for (int i = 1; i < nIns(); i++) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( addDep(r.in(i))._type != Type.XCONTROL ) {
+            Type ctrl = addDep(r.in(i))._type;
+            if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
                     return Type.BOTTOM;
                 t = t.meet(in(i)._type);
             }
-        t = t.join( _minType );
-        return t;
+        }
+        Type newt = t.join( _minType );
+
+        // phi loop widening part
+        if( region() instanceof LoopNode && // Only around loops
+            newt  instanceof TypeInteger newi &&
+            // Types changed and are falling (the optimistic case, expected to fall forever)
+            newi != _type ) {
+            if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
+                return newi.same_but_slightly_wider_than(_minType);
+        }
+
+        return newt;
     }
 
     @Override
@@ -83,7 +102,7 @@ public class PhiNode extends Node {
             return in(1);       // Input has collapse to e.g. starting control.
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr)CodeGen.CODE.P.TYPES.get(tmp._obj._name);
+            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
             if( tmp2!=null && tmp2 != _minType ) {
                 _minType = tmp2;
                 return this;
@@ -136,13 +155,14 @@ public class PhiNode extends Node {
                 Node val = in(3-nullx);
                 if( val instanceof CastNode cast )
                     val = cast.in(1);
-                if( addDep(r.idom(this)) instanceof IfNode iff && addDep(iff.pred())==val ) {
+                Node ridom = r.idom(this);
+                if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
-                }
+                } else if( ridom != null ) addDep(ridom);
             }
         }
 

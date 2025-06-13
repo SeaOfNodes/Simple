@@ -216,7 +216,9 @@ public class arm extends Machine {
         assert 0 <= rm && rm < 32;
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
-        return (opcode << 21) | (rm << 15) | (cond.ordinal() << 12) | (rn << 5) | rd;
+        // Is one of the standard conditions, excluding AL and NV, encoded in the "cond" field with its least significant bit inverted.
+        int actualCond = cond.ordinal() ^ 1;
+        return (opcode << 21) | (rm << 16) | (actualCond << 12) | (0b01 << 10) |  (rn << 5) | rd;
     }
 
     static public int cset(int opcode, COND cond, int rn, int rd) {
@@ -563,29 +565,6 @@ public class arm extends Machine {
         return (opcode << 26) | delta;
     }
 
-    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
-    static RegMask callInMask(TypeFunPtr tfp, int idx, int maxArgSlot ) {
-        if( idx==0 ) return CodeGen.CODE._rpcMask;
-        if( idx==1 ) return null;
-        // Count floats in signature up to index
-        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
-        // Count floats in signature up to index
-        int fcnt=0;
-        for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat)
-                fcnt++;
-        // Floats up to XMMS in XMM registers
-        if( tfp.arg(idx-2) instanceof TypeFloat ) {
-            if( fcnt < XMMS.length )
-                return XMMS[fcnt];
-        } else {
-            RegMask[] cargs = CALLINMASK;
-            if( idx-2-fcnt < cargs.length )
-                return cargs[idx-2-fcnt];
-        }
-        throw Utils.TODO(); // Pass on stack slot
-    }
-
     public static long decodeImm12(int imm12) {
         int immr = (imm12 >> 6) & 0x3F;
         int imms = imm12 & 0x3F;
@@ -607,6 +586,31 @@ public class arm extends Machine {
         }
         val = (val >>> immr) | val << (64-immr);
         return val;
+    }
+
+    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    static RegMask callInMask(TypeFunPtr tfp, int idx, int maxArgSlot ) {
+        if( idx==0 ) return CodeGen.CODE._rpcMask;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat)
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS.length )
+                return XMMS[fcnt];
+        } else {
+            RegMask[] cargs = CALLINMASK;
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        // Pass on stack slot (8 and higher)
+        if( maxArgSlot>0 ) throw Utils.TODO();
+        return new RegMask(MAX_REG + 1 + (idx - 2));
     }
 
     // Return the max stack slot used by this signature, or 0
@@ -691,7 +695,7 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, IfNode.negate(bool.op()));
+        return new SetARM(cmp, bool.op());
     }
     private Node _cmp(BoolNode bool) {
         if( bool.isFloat() )
