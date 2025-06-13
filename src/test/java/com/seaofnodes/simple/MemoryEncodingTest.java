@@ -66,7 +66,7 @@ public class MemoryEncodingTest {
             """
         };
         for( int p=0; p<sources.length; p++ ) {
-            CodeGen code=new CodeGen(sources[p]).parse().iter().finalizeIR();
+            CodeGen code=new CodeGen(sources[p]).driver(CodeGen.Phase.FinalizeIR);
             if( p==0 ) assertNull(code._stop.walk(n ->
                 n instanceof LoadNode ld && ld.ptr() instanceof ProjNode ptr &&
                 ptr.in(0) instanceof NewNode nn &&
@@ -112,8 +112,7 @@ public class MemoryEncodingTest {
     @Test public void testEmulatedMemory() throws IOException {
         for( String target : new String[]{"riscv","arm"} )
             for( int p=0; p<SOURCES.length; p++ ) {
-                CodeGen code = new CodeGen(SOURCES[p]).driver(target,"SystemV",null);
-                RegAllocTestSupport.checkRegisters(code);
+                CodeGen code = new RegAllocTestSupport.CheckedCodeGen(SOURCES[p]).driver(target,"SystemV",null);
                 int entry=0;
                 for( var n : code._start._outputs )
                     if( n instanceof FunNode fun && "main".equals(fun._name) )

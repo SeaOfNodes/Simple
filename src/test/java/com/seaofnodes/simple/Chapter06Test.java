@@ -15,7 +15,7 @@ public class Chapter06Test {
 if( true ) return 2;
 return 1;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 2;", code.print());
         assertTrue(code.ctrl() instanceof FunNode);
     }
@@ -29,7 +29,7 @@ if (arg)
     a = 2;
 return (arg < a) < 3; // Because (arg < a) is a bool/uint1/[0-1], its always less than 3
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
     }
 
@@ -44,7 +44,7 @@ else
   a=3;
 return a;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 2;", code.print());
         assertTrue(code.ctrl() instanceof FunNode);
     }
@@ -65,7 +65,7 @@ else
     b=5;
 return b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,42,5);", code.print());
     }
 
@@ -84,7 +84,7 @@ if( arg==2 )
 else
     b=5;
 return b;""");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,2,5);", code.print());
     }
 
@@ -104,7 +104,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.constant(2), 123L, true).parse().iter().finalizeIR();
+""", TypeInteger.constant(2), 123L, true).driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 5;", code.print());
     }
 
@@ -124,7 +124,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", TypeInteger.constant(1), 123L, true).parse().iter().finalizeIR();
+""", TypeInteger.constant(1), 123L, true).driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3;", code.print());
     }
 
@@ -144,7 +144,7 @@ else
     a=5;
 return a;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,3,5,4);", code.print());
     }
 
@@ -165,7 +165,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1), 123L, true);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3;", code.print());
     }
 
@@ -186,7 +186,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(3), 123L, true);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 4;", code.print());
     }
 
@@ -202,7 +202,7 @@ if( arg ) {
 }
 return a+b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,4,1);", code.print());
     }
 
@@ -221,7 +221,7 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(1), 123L, true);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 4;", code.print());
     }
 
@@ -239,7 +239,7 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(0), 123L, true);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
     }
 
@@ -257,7 +257,7 @@ if( arg ) {
 }
 return a+b+c;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,6,1,5);", code.print());
     }
 
@@ -278,7 +278,7 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(1), 123L, true);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 6;", code.print());
     }
 
@@ -298,7 +298,7 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(2), 123L, true);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 5;", code.print());
     }
 
