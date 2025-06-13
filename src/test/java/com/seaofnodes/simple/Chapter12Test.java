@@ -212,7 +212,7 @@ return a.f0.f1.f0.f1.f0;
 """);
         code.driver(CodeGen.Phase.LocalSched);
         assertEquals("return B;", code._stop.toString());
-        assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
+        assertEquals("B{f0=C{f0=A{f0=$cyclic,f1=$cyclic},f1=$cyclic},f1=$cyclic}", Eval2.eval(code,  0));
     }
 
     @Test
@@ -278,6 +278,12 @@ return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 """);
         code.driver(CodeGen.Phase.LocalSched);
         assertEquals("return R;", code._stop.toString());
-        assertEquals("R{a=C{a=N},b=V},c=H}},b=K{a=$cyclic,b=D{a=O},b=W},c=I}},c=P}},c=$cyclic}", Eval2.eval(code,  0));
+        // All forward shapes are complete now. Following field a visits
+        // all 26 objects before closing the cycle; b and c revisit them.
+        String expected = "$cyclic";
+        String chain = "RCNYJUFQBMXITEPALWHSDOZKVG";
+        for( int i=chain.length()-1; i>=0; i-- )
+            expected=chain.charAt(i)+"{a="+expected+",b=$cyclic,c=$cyclic}";
+        assertEquals(expected,Eval2.eval(code,0));
     }
 }

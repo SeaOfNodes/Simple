@@ -7,6 +7,7 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 public abstract class ArithFNode extends Node {
     public ArithFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    protected ArithFNode(ArithNode n) { super(n); }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.open().n(in(1)).p(glabel()).n(in(2)).close();

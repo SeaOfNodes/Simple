@@ -105,7 +105,7 @@ public class Field extends Type {
         Type glb = _t._glb(true);
         return (glb== _t && _final ) ? this : make(_fname,glb,_alias,true,_one);
     }
-    @Override Field _close() { return makeFrom( _t._close()); }
+    @Override Field _close(java.util.HashMap<String,Type> types) { return makeFrom( _t._close(types)); }
 
     // Override in subclasses
     int hash() { return _fname.hashCode() ^ _t.hashCode() ^ _alias ^ (_final ? 1024 : 0) ^ (_one ? 2048 : 0); }

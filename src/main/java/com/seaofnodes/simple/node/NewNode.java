@@ -14,7 +14,7 @@ import com.seaofnodes.simple.util.Utils;
  */
 public class NewNode extends Node implements MultiNode {
 
-    public final TypeMemPtr _ptr;
+    public TypeMemPtr _ptr;
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
@@ -28,6 +28,14 @@ public class NewNode extends Node implements MultiNode {
 
     public Node mem() { return in(1); }
     public Node size() { return in(2); }
+
+    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
+        TypeMemPtr ptr = (TypeMemPtr)_ptr.upgradeType(types);
+        if( ptr==_ptr ) return false;
+        unlock();
+        _ptr = ptr;
+        return true;
+    }
 
     public Field field(int alias) {
         for( Field f : _ptr._obj._fields )

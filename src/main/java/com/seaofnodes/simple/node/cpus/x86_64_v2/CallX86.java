@@ -15,7 +15,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
         assert tfp.isConstant();
         _tfp = tfp;
         FunNode fun = CodeGen.CODE.link(tfp);
-        _name = fun==null ? ((ExternNode)call.fptr())._extern : fun._name; // Can be null for extern calls
+        _name = fun==null ? CodeGen.CODE.externFunc(tfp) : fun._name;
     }
     @Override public String op() { return "call"; }
     @Override public String label() { return op(); }

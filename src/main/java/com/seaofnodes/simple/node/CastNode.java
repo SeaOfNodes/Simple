@@ -26,6 +26,14 @@ public class CastNode extends Node {
 
     @Override public String label() { return "("+_t.str()+")"; }
 
+    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
+        Type t = _t.upgradeType(types);
+        if( t==_t ) return false;
+        unlock();
+        _t = t;
+        return true;
+    }
+
 
     @Override public boolean isConst() { return true; }
 

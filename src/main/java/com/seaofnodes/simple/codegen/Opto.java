@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import java.util.BitSet;
 
 // Optimistic Algorithm
 abstract public class Opto {
@@ -50,6 +51,8 @@ abstract public class Opto {
 
         // OPTIMISTIC INTERPROCEDURAL SCCP
         sccp(code, oldTypes);
+        resolveNumericModes(code);
+        if( !code._iter._work.isEmpty() ) sccp(code, oldTypes);
 
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
@@ -179,4 +182,63 @@ abstract public class Opto {
             });
     }
 
+    // Resolve arithmetic modes which are ambiguous only because they belong to
+    // a recursive component.  Float wins because integer operands can be
+    // converted to float.
+    private static void resolveNumericModes(CodeGen code) {
+        final BitSet visited = new BitSet();
+        code._stop.walk(n -> {
+            if( n instanceof ModeNode modeNode && modeNode.mode()==0 ) {
+                visited.clear();
+                visited.set(n._nid); // Inspect inputs, not Bool's integer result
+                int mode = 0;
+                for( int i=1; i<n.nIns(); i++ )
+                    mode |= numericEvidence(n.in(i),visited);
+                // A closed recursive numeric component can have no remaining
+                // concrete evidence after SCCP, e.g. dead all-integer loops.
+                // With no float evidence, settle to integer.
+                if( mode == 0 )
+                    mode = 1;
+                if( mode != 0 )  {
+                    // If both evidence, FP wins
+                    modeNode.setMode((byte)((mode&2)==2 ? 2 : 1));
+                    code.add(n);
+                    code.addAll(n.outs());
+                }
+            }
+            return null;
+        });
+    }
+
+    // Gather numeric evidence through Phi and interprocedural return cycles.
+    // The visited set makes self- and mutually-recursive calls finite.
+    private static int numericEvidence(Node n, BitSet visited) {
+        if( n == null ) return 0;
+        if( visited.get(n._nid) ) return 0;
+        visited.set(n._nid);
+
+        Type t = n._type;
+        if( t instanceof TypeFloat   ) return 2;
+        if( t instanceof TypeInteger ) return 1;
+        if( t!=Type.BOTTOM && !(t instanceof TypeTuple) )
+            return 0; // Something unrelated, like a ptr
+
+        int evidence = 0;
+        assert !(n instanceof ConvertNode); // No test case
+        switch( n ) {
+        case ModeNode modeNode when modeNode.mode() != 0 -> { return modeNode.mode(); }
+        case ModeNode modeNode -> {}
+        case PhiNode phi -> {}
+        case ReturnNode ret -> {}
+        case ProjNode proj when proj.in(0) instanceof CallEndNode cend -> {
+            for( int i=1; i<cend.nIns(); i++ )
+                evidence |= numericEvidence(cend.in(i),visited);
+        }
+        default -> { return 0; }
+        }
+        for( int i=1; i<n.nIns(); i++ )
+            evidence |= numericEvidence(n.in(i),visited);
+
+        return evidence;
+    }
 }

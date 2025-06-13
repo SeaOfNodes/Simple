@@ -285,9 +285,9 @@ while (arg > 0) {
 }
 return arg;
 """;
-        testTarget(src,"x86_64_v2", "SystemV",3,null);
-        testTarget(src,"riscv"    , "SystemV",2,null);
-        testTarget(src,"arm"      , "SystemV",2,null);
+        testTarget(src,"x86_64_v2", "SystemV",1,null);
+        testTarget(src,"riscv"    , "SystemV",0,null);
+        testTarget(src,"arm"      , "SystemV",0,null);
     }
     // Original Chapter 20 allocation workload, kept fixed for cohort comparisons.
     @Test

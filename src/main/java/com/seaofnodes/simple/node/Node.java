@@ -71,7 +71,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
     }
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
-    public abstract String label();
+    public String label() { return getClass().getSimpleName().replace("Node",""); }
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
@@ -689,5 +689,17 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         for( Node def : _inputs  )  if( def != null && (x = def._find(nid,bs)) != null ) return x;
         for( Node use : _outputs )  if( use != null && (x = use._find(nid,bs)) != null ) return x;
         return null;
+    }
+
+    boolean _upgradeType(java.util.HashMap<String,Type> types) { return false; }
+    public final void upgradeType(java.util.HashMap<String,Type> types) {
+        Type old = _type;
+        _type = _type.upgradeType(types);
+        boolean progress = _upgradeType(types);
+        if( progress || old!=_type ) {
+            CODE.add(this);
+            CODE.addAll(_outputs);
+            moveDepsToWorklist();
+        }
     }
 }

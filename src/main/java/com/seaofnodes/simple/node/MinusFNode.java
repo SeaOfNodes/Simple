@@ -7,6 +7,7 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 public class MinusFNode extends Node {
     public MinusFNode(Node in) { super(null, in); }
+    public MinusFNode(MinusNode n) { super(n); }
 
     @Override public String label() { return "MinusF"; }
 

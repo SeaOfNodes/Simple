@@ -99,8 +99,9 @@ Pre-alloc               Post-Alloc    SP+48   RPC
     // Simple functions already return canonical full-width integer values.
     protected static TypeInteger cReturn(ProjNode prj) {
         if( prj._idx==2 && prj.in(0) instanceof CallEndNode cend &&
-            cend.call().fptr() instanceof ExternNode ext &&
-            ((TypeFunPtr)ext._con).ret() instanceof TypeInteger ret && ret.log_size()<3 )
+            cend.call().fptr()._type instanceof TypeFunPtr tfp &&
+            CodeGen.CODE.externFunc(tfp)!=null &&
+            tfp.ret() instanceof TypeInteger ret && ret.log_size()<3 )
             return ret;
         return null;
     }
