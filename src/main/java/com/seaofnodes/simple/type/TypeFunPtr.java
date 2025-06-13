@@ -158,8 +158,13 @@ public class TypeFunPtr extends TypeNil {
     public Type ret() { return _ret; }
     public int nargs() { return _sig.length; }
     public int fidx() { assert Long.bitCount(_fidxs)==1; return Long.numberOfTrailingZeros(_fidxs); }
+    public int nfcns() {
+        if( _fidxs < 0 ) return Integer.MAX_VALUE; // Infinite choices
+        return Long.bitCount(_fidxs);
+    }
 
 
+    // Used to walk over type structures
     @Override int nkids() { return _sig.length+1; }
     @Override Type at( int idx ) {
         return idx == _sig.length ? _ret : _sig[idx];
@@ -235,7 +240,7 @@ public class TypeFunPtr extends TypeNil {
         return tilde+fidx;
     }
 
-    // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) { int fidxs = Long.numberOfTrailingZeros(fidxs); ... }
+    // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) ) { int fidx = Long.numberOfTrailingZeros(fidxs); ... }
     public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
 
 }

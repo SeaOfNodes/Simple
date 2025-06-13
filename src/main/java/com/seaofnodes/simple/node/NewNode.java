@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
 
@@ -61,19 +62,27 @@ public class NewNode extends Node implements MultiNode {
     public TypeTuple compute() {
         Field[] fs = _ptr._obj._fields;
         Type[] ts = new Type[fs.length+2];
-        ts[0] = Type.CONTROL;
-        ts[1] = _ptr;
-        for( int i=0; i<fs.length; i++ ) {
-            if( _ptr._obj._fields[i]._one ) {
-                // Once-only fields use the declared type
-                ts[i+2] = _ptr._obj._fields[i]._t;
-            } else {
-                // Others take from the inputs
-                Type mt = in(i+2)._type;
-                TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
-                Type tfld = mem._t.meet(mem._t.makeZero());
-                Type tfld2 = tfld.join(fs[i]._t );
-                ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
+        if( in(0)._type.isHigh() ) {
+            ts[0] = Type.XCONTROL;
+            ts[1] = _ptr.makeHigh();
+            for( int i=0; i<fs.length; i++ )
+                ts[i+2] = Type.TOP;
+        } else {
+            ts[0] = Type.CONTROL;
+            ts[1] = _ptr;
+            for( int i=0; i<fs.length; i++ ) {
+                if( _ptr._obj._fields[i]._one ) {
+                    // Once-only fields use the declared type
+                    ts[i+2] = _ptr._obj._fields[i]._t;
+                } else {
+                    // Others take from the inputs
+                    Type mt = in(i+2)._type;
+                    TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
+                    //Type tfld = mem._t.meet(mem._t.makeZero());
+                    Type tfld = mem._t;
+                    Type tfld2 = tfld.join(fs[i]._t );
+                    ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
+                }
             }
         }
         return TypeTuple.make(ts);

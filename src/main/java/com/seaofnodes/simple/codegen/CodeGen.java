@@ -7,6 +7,7 @@ import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.util.*;
 
@@ -30,7 +31,6 @@ public class CodeGen {
         Export,                 // Export
     }
     public Phase _phase;
-
     // ---------------------------
     // Compilation source code
     public final String _src;
@@ -124,7 +124,7 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
-    //
+    // Source of unique function indices
     private int _fidx =0;
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         int fidx = _fidx++;
@@ -132,23 +132,33 @@ public class CodeGen {
         return fun.makeFrom(fidx);
     }
     // Signature for MAIN
-    public final TypeFunPtr _main;
-    // Reverse from a constant function pointer to the IR function being called
-    public FunNode link( TypeFunPtr tfp ) {
-        assert tfp.isConstant();
-        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+    public TypeFunPtr _main;
+    public void setMain(FunNode main) {
+        _main = main.sig();
+        link(main);
+    }
+    // Reverse from a constant function pointer to the IR function being called.
+    // Error to call with a non-constant TFP
+    public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
+    // Return the FunNode from a fidx
+    public FunNode link( int fidx ) {
+        FunNode fun =_linker.atX(fidx);
+        if( fun!=null && fun.isDead() ) {
+            _linker.setX(fidx,null); fun = null; }
+        return fun;
     }
 
     // Insert linker mapping from constant function signature to the function
     // being called.
     public void link(FunNode fun) {
-        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+        int fidx = fun.sig().fidx();
+        _linker.setX(fidx,fun);
     }
 
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
-    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+    final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
     // Parser object
     public final Parser P;
@@ -185,58 +195,13 @@ public class CodeGen {
         _phase = Phase.Opto;
         long t0 = System.currentTimeMillis();
 
-        // Pessimistic peephole optimization on a worklist
-        _iter.iterate(this);
-
-        // OPTIMISTIC PASS GOES HERE
-
-        // Not really a true optimistic pass, but look for unlinked functions.
-        // This can be removed, which may trigger another round of pessimistic.
-        // This is the point where we flip from a virtual Call Graph (any call
-        // can call any function) to having a correct (but conservative) CG.
-        int progress = 0;
-        while( progress != _start.nOuts() ) {
-            progress = _start.nOuts();
-            FunNode main = link(_main);
-            for( int i=0; i<_start.nOuts(); i++ ) {
-                Node use = _start.out(i);
-                if( use instanceof FunNode fun &&
-                    fun.nIns()==2 && fun.in(1)==_start && fun != main &&
-                    (fun._name==null || fun._name.startsWith("sys.")) ) {
-                    add(fun).setDef(1,Parser.XCTRL);
-                    addAll(fun._outputs);
-                    i--;
-                }
-            }
-            _iter.iterate(this);
-        }
-
-        // Freeze field sizes; do struct layouts; convert field offsets into
-        // constants.
-        for( int i=0; i<_start.nOuts(); i++ ) {
-            Node use = _start.out(i);
-            if( use instanceof ConFldOffNode off ) {
-                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._name);
-                off.subsume( off.asOffset(tmp._obj) );
-                i--;
-            }
-        }
-        _iter.iterate(this);
-
-        // To help with testing, sort StopNode returns by NID
-        Arrays.sort(_stop._inputs._es,0,_stop.nIns(),(x,y) -> x._nid - y._nid );
+        Opto.opto(this);
 
         _tOpto = (int)(System.currentTimeMillis() - t0);
-
-        // TODO:
-        // Optimistic
-        // TODO:
-        // loop unroll, peel, RCE, etc
         return this;
     }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
-
 
     // ---------------------------
     // Last check for bad programs

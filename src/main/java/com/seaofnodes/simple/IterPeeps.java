@@ -1,6 +1,8 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
@@ -46,7 +48,7 @@ import java.util.Random;
  */
 public class IterPeeps {
 
-    private final WorkList<Node> _work;
+    public final WorkList<Node> _work;
 
     public IterPeeps( long seed ) { _work = new WorkList<>(seed); }
 
@@ -59,7 +61,7 @@ public class IterPeeps {
      * Iterate peepholes to a fixed point
      */
     public void iterate( CodeGen code ) {
-        assert progressOnList(code);
+        assert progressOnList(code, _work, true);
         int cnt=0;
 
         Node n;
@@ -89,7 +91,7 @@ public class IterPeeps {
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
-                assert progressOnList(code); // Very expensive assert
+                assert progressOnList(code, _work, true); // Very expensive assert
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
@@ -109,18 +111,24 @@ public class IterPeeps {
     // neighbors and these should fail, but will then try to add dependencies
     // {@link #Node.addDep} which is a side effect in an assert.  The {@link
     // #midAssert} is used to stop this side effect.
-    private boolean progressOnList(CodeGen code) {
+    // Pessimistic solver assert
+    public static boolean progressOnList(CodeGen code, WorkList<Node> list, boolean dir ) {
         code._midAssert = true;
         Node changed = code._stop.walk( n -> {
-                Node m = n;
-                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
-                    if( _work.on(n) ) return null;
-                    m = n.peepholeOpt();
-                    if( m==null ) return null;
-                }
-                System.err.println("BREAK HERE FOR BUG");
-                return m;
-            });
+            Node m = n;
+            Type nval = n.compute();
+            if( (!n.iskeep() || n._nid<=8) &&  // Types must be forwards, even if on worklist
+                ( dir
+                  ? nval.isa(n._type) // Pesi: new value lifts over old
+                  : n._type.isa(nval) // Opto: new value falls over old
+                  ) ) {
+                if( list.on(n) ) return null;
+                m = n.peepholeOpt();
+                if( m==null ) return null;
+            }
+            System.err.println("BREAK HERE FOR BUG");
+            return m;
+        });
         code._midAssert = false;
         return changed==null;
     }
@@ -176,7 +184,7 @@ public class IterPeeps {
         /**
          * True if Node is on the WorkList
          */
-        boolean on( E x ) { return _on.get(x._nid); }
+        public boolean on( E x ) { return _on.get(x._nid); }
         boolean isEmpty() { return _len==0; }
 
         /**

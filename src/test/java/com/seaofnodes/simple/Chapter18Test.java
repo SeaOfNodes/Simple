@@ -116,7 +116,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return #2; return (Parm_x($fun21,i64,3)*x); return (Parm_x($fun22,i64,3)<<1); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return 9; return 6; ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -126,7 +126,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,i64,arg,(x-1))*#2)); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,i64)*#2)); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -142,7 +142,7 @@ struct S { int i; };
 val newS = { int x -> return new S { i=x; }; };
 return newS(1).i;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().opto().typeCheck();
         assertEquals("return 1;", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -157,8 +157,8 @@ val f = {->1;};
 val g = {->2;};
 return 2;
 """);
-        code.parse().opto().typeCheck().GCM();
-        assertEquals("Stop[ return 1; return 1; return 2; ]", code._stop.toString());
+        code.parse().opto().typeCheck();
+        assertEquals("return 1;", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
@@ -292,7 +292,7 @@ for(;;) {
 val g = { ->
     g();
 };
-return 0;
+return g();
 """);
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("No defined return type",e.getMessage()); }

@@ -60,7 +60,12 @@ public class MemMergeNode extends Node {
     }
 
 
-    @Override public Type compute() { return TypeMem.BOT; }
+    @Override public Type compute() {
+        for( Node n : _inputs )
+            if( n != null && !n._type.isHigh() )
+                return TypeMem.BOT;
+        return TypeMem.TOP;
+    }
 
     @Override public Node idealize() {
         if( inProgress() ) return null;
