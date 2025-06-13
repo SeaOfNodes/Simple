@@ -7,6 +7,22 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    // Removing zero must not reset the widening history of a remaining range.
+    @Test public void testNonZeroWidening() {
+        for( byte widen=0; widen<=3; widen++ ) {
+            TypeInteger pos = TypeInteger.make(0,255,widen).nonZero();
+            TypeInteger neg = TypeInteger.make(-255,0,widen).nonZero();
+            Assert.assertEquals("positive range widening",widen,pos._widen);
+            Assert.assertEquals("negative range widening",widen,neg._widen);
+            assertSame(TypeInteger.make(1,255,widen),pos);
+            assertSame(TypeInteger.make(-255,-1,widen),neg);
+            // Singleton ranges retain their widening level too.
+            assertSame(TypeInteger.make(1,1,widen),TypeInteger.make(0,1,widen).nonZero());
+            assertSame(TypeInteger.make(-1,-1,widen),TypeInteger.make(-1,0,widen).nonZero());
+        }
+        Assert.assertNull(TypeInteger.ZERO.nonZero());
+    }
+
     // Struct hashes omit field types, so interning compares unlike leaf kinds.
     @Test
     public void testCyclicLeafKinds() {

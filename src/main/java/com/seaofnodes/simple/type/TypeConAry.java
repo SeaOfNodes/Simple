@@ -1,56 +1,62 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 
 /**
  * Represents a constant array of primitives
  */
-public class TypeConAry<A> extends Type {
+public abstract class TypeConAry<A> extends Type {
     boolean _any;
-    // One of byte,short,int,long,float,double array
+    byte _widen;
+    // One of byte or int array
     public final A _ary;
 
-    TypeConAry( boolean any, A ary ) { super(TINT); _any = any; _ary = ary; }
-    public static final TypeConAry BOT = new TypeConAry(false,null).intern();
+    TypeConAry( boolean any, byte widen, A ary ) { super(TCONARY); _any = any; _widen = widen; _ary = ary; }
     public static void gather(ArrayList<Type> ts) {
-        ts.add(BOT);
         ts.add(TypeConAryB.ABC);
         ts.add(TypeConAryB.ABCD);
         ts.add(TypeConAryI.I123);
     }
+    // Fresh, uninterned type sharing this array; xdual must not intern.
+    abstract TypeConAry<A> _make(boolean any, byte widen);
 
-    @Override public String str() { return (_any?"~":"") + "[]"; }
-    @Override TypeConAry xdual() {
-        if( _ary==null )
-            return new TypeConAry(!_any,null);
-        return this;
-    }
+    @Override TypeConAry<A> xdual() { return _make( !_any, (byte)(3-_widen) ); }
 
     @Override Type xmeet(Type t) {
-        if( t instanceof TypeInteger ti ) return imeet(ti);
         TypeConAry ary = (TypeConAry)t; // Invariant
-        if( this==BOT ) return BOT;
-        if( ary ==BOT ) return BOT;
-        if( this==BOT.dual() ) return ary ;
-        if( ary ==BOT.dual() ) return this;
-        assert _ary!=ary._ary;  // Already interned and this!=t
+        // Same base array but different?
+        if( _equals(ary) )
+            // Return array with larger widen
+            return _widen >= ary._widen ? this : ary;
+        // Unrelated constant arrays, falls to some int range
         return elem().meet(ary.elem());
     }
-    Type imeet( TypeInteger ti ) {
-        if( this==BOT.dual() ) return ti;
-        if( this==BOT        ) return BOT;
-        Type elem = elem();
-        if( !(elem instanceof TypeInteger) ) return BOTTOM;
-        if( ti.isHigh() && elem.isa(ti.dual()) )
-            return this;
-        return elem.meet(ti);
+
+    Type ymeet( TypeInteger ti ) {
+        // if i can isa *each* element, then maybe can keep.
+        // no good to i.isa(elem()) because fails the dual
+        for( int j=0; j<len(); j++ )
+            if( !ti.isa(TypeInteger.make(at8(j),at8(j),ti._widen)) )
+                return ti.meet(elem());
+        byte widen = (byte)Math.max(_widen,ti._widen);
+        return widen==_widen ? this : _make(_any,widen).intern();
     }
 
+    private boolean _equals(TypeConAry ary) {
+        int len = len();
+        if( len != ary.len() ) return false;
+        for( int i=0; i<len; i++ )
+            if( at8(i) != ary.at8(i) )
+                return false;
+        return true;
+    }
 
     @Override public boolean isHigh() { return this==TOP; }
     @Override boolean _isConstant() { return true; }
+    @Override Type _glb(boolean mem) { return this; }
+    @Override boolean _isGLB(boolean mem) { return true; }
 
     // Meet-over-elements type
     public Type elem() {
@@ -63,20 +69,11 @@ public class TypeConAry<A> extends Type {
             min = Math.min(min,at8(i));
             max = Math.max(max,at8(i));
         }
-        return TypeInteger.make(min,max);
+        return TypeInteger.make(min,max,_widen);
     }
-    public long at8(int idx) { throw Utils.TODO(); }
-    public int len() { throw Utils.TODO(); }
-    @Override public int log_size() { throw Utils.TODO(); }
-    public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }
-
-    @Override boolean eq(Type t) {
-        return t instanceof TypeConAry ary && _any==ary._any && ary._ary==null;
-    }
-
-    @Override int hash() {
-        assert _ary==null;
-        return _any ? 1024 : 0;
-    }
+    public abstract long at8(int idx);
+    public abstract int len();
+    @Override public abstract int log_size();
+    public void write( ByteArrayOutputStream baos ) { throw Utils.TODO("Should not reach here: abstract constant array cannot be written"); }
 
 }

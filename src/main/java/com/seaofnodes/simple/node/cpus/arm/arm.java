@@ -239,7 +239,9 @@ public class arm extends Machine {
             if( idx-2-fcnt < cargs.length )
                 return cargs[idx-2-fcnt];
         }
-        throw Utils.TODO(); // Pass on stack slot
+        // Pass on stack slot (8 and higher)
+        if( maxArgSlot>0 ) throw Utils.TODO();
+        return new RegMask(MAX_REG + 1 + (idx - 2));
     }
 
     // Return the max stack slot used by this signature, or 0
@@ -326,7 +328,7 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, IfNode.negate(bool.op()));
+        return new SetARM(cmp, bool.op());
     }
     private Node _cmp(BoolNode bool) {
         if( bool.isFloat() )

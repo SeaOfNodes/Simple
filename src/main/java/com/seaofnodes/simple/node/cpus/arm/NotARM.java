@@ -20,7 +20,7 @@ public class NotARM extends MachConcreteNode implements MachNode{
         short reg1 = enc.reg(in(1));
         int subs = Arm64.imm_inst(Arm64.OP_SUBS, 0, reg1, self);
         enc.add4(subs);
-        int cset = Arm64.cond_set(Arm64.OP_CSET, 31, Arm64.COND.EQ, 63, reg1);
+        int cset = Arm64.cond_set(Arm64.OP_CSET, 31, Arm64.COND.EQ, 31, reg1);
         enc.add4(cset);
     }
 
