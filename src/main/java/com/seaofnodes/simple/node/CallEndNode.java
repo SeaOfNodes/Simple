@@ -15,22 +15,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
     private boolean _folding;
     public boolean folding() { return _folding; }
     public final TypeRPC _rpc;
-    // Pessimistic analysis may know more than the written signature. Preserve
-    // that summary when local SCCP disconnects the callee's return edges.
-    private Type _retType = Type.BOTTOM;
 
     public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
-    public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; _retType = cend._retType; }
-
-    public void freezeResult() {
-        if( _type instanceof TypeTuple tt ) {
-            unlock();
-            _retType = tt.ret();
-        }
-    }
-
-    @Override public boolean eq(Node n) { return _retType==((CallEndNode)n)._retType; }
-    @Override int hash() { return _retType.hashCode(); }
+    public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
 
     @Override public String label() { return "CallEnd"; }
     @Override public boolean blockHead() { return true; }
@@ -61,7 +48,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         Type ftype = addDep(call.fptr())._type;
         Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
         if( ftype instanceof TypeFunPtr tfp ) {
-            ret = tfp.ret().join(_retType);
+            ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
             // across the linked returns and join with the function return type.
             if( 1+tfp.nfcns() == nIns() ) { // A linked function for every concrete function
@@ -70,6 +57,16 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
                     ret = ret.meet(tret);
                 }
+                // Recursion is a loop in disguise. For f(x-1)+1, the result
+                // flows Return -> CallEnd -> Add -> Phi -> Return, without
+                // crossing ParmNode.compute's widening point. Widen here too,
+                // using the loop rule in PhiNode.compute. Keep constants and
+                // above-center ranges narrow, and stay within the return type.
+                Type oldret = _type instanceof TypeTuple tt ? tt.ret() : Type.TOP;
+                if( ret instanceof TypeInteger ti && ret != oldret &&
+                    !ti.isHigh() && !ti.isConstant() &&
+                    (!(oldret instanceof TypeInteger oldi) || ti._widen <= oldi._widen) )
+                    ret = ti.same_but_slightly_wider_than(TypeInteger.BOT).join(tfp.ret());
             }
         }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);
