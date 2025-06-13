@@ -248,7 +248,7 @@ public class Chapter21Test {
     }
 
 
-    // Enabled in Chapter 23; measured there by Chapter23AllocTest.
+    // Frozen Jig runs in Chapter23AllocTest; the revised input is in Chapter24AllocTest.
     @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
@@ -282,7 +282,17 @@ public class Chapter21Test {
 
     @Test
     public void testArray1() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/array1.smp"));
+        String src =
+"""
+int[] !ary = new int[arg];
+// Fill [0,1,2,3,4,...]
+for( int i=0; i<ary#; i++ )
+    ary[i] = i;
+// Fill [0,1,3,6,10,...]
+for( int i=0; i<ary#-1; i++ )
+    ary[i+1] += ary[i];
+return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
+""";
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
@@ -290,7 +300,19 @@ public class Chapter21Test {
 
     @Test
     public void testAntiDeps1() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/antiDep1.smp"));
+        String src =
+"""
+struct S { int f; };
+var v0 = new S;
+S? v1;
+if (arg) v1 = new S;
+if (v1) {
+    v0.f = v1.f;
+} else {
+    v0.f = 2;
+}
+return v0;
+""";
         testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
         testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
         testCPU(src,"arm"      , "SystemV",10,"return mov(mov(S));");
@@ -298,18 +320,92 @@ public class Chapter21Test {
 
     @Test
     public void testString() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
+        String src =
+"""
+struct String {
+    u8[] cs;
+    int _hashCode;
+};
+
+// Compare two Strings
+val equals = { String self, String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { String self ->
+    int hash=0;
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+""";
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 3,null);
         testCPU(src,"arm"      , "SystemV", 3,null);
     }
 
     @Test public void testStringExport() throws IOException {
-        TestC.run("stringHash", 9);
+        String src =
+"""
+struct String {
+    u8[] cs;
+    int _hashCode;
+};
+
+// Compare two Strings
+val equals = { String self, String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { String self ->
+    int hash=0;
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+""";
+        TestC.run(src, "stringHash",null, "", 9);
     }
 
     @Test public void testLoop2() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/loop2.smp"));
+        String src =
+"""
+int i = 0;
+while(true) {
+    i += 1;
+    if( i==0 ) continue;
+    if( i==1 ) continue;
+    if( i==2 ) break;
+    continue;
+}
+return i;
+""";
         testCPU(src,"x86_64_v2", "Win64"  ,0,"return (inc,Phi(Loop,0,inc));");
         testCPU(src,"riscv"    , "SystemV",0,"return ( Phi(Loop,0,addi) + #1 );");
         testCPU(src,"arm"      , "SystemV",0,"return (inc,Phi(Loop,0,inc));");
@@ -328,9 +424,22 @@ public class Chapter21Test {
 8  2.828427   (4.44089e-16)
 9  3.000000   (0)
 """;
-        TestC.run("newtonFloat",result,34);
+        String src =
+"""
+val test_sqrt = { flt x ->
+    flt epsilon = 1e-15;
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( guess-epsilon <= next & next <= guess+epsilon ) return guess;
+        //if( guess==next ) return guess;
+        guess = next;
+    }
+};
+""";
+        TestC.run(src, "newtonFloat", null, result, 34);
 
-        EvalRisc5 R5 = TestRisc5.build("newtonFloat", 0, 10, false);
+        EvalRisc5 R5 = TestRisc5.build("newtonFloat",src, 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
         int trap_r5 = R5.step(1000);
         assertEquals(0,trap_r5);
@@ -338,7 +447,7 @@ public class Chapter21Test {
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("newtonFloat", 0, 10, false);
+        EvalArm64 A5 = TestArm64.build("newtonFloat", src,0, 10, false);
         A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
         int trap_arm = A5.step(1000);
         assertEquals(0,trap_arm);
@@ -347,6 +456,39 @@ public class Chapter21Test {
 
 
     @Test public void testSieve() throws IOException {
+        String src =
+"""
+val sieve = { int N ->
+    // The main Sieve array
+    bool[] !ary = new bool[N];
+    // The primes less than N
+    u32[] !primes = new u32[N>>1];
+    // Number of primes so far, searching at index p
+    int nprimes = 0, p=2;
+    // Find primes while p^2 < N
+    while( p*p < N ) {
+        // skip marked non-primes
+        while( ary[p] ) p++;
+        // p is now a prime
+        primes[nprimes++] = p;
+        // Mark out the rest non-primes
+        for( int i = p + p; i < ary#; i+= p )
+            ary[i] = true;
+        p++;
+    }
+
+    // Now just collect the remaining primes, no more marking
+    for( ; p < N; p++ )
+        if( !ary[p] )
+            primes[nprimes++] = p;
+
+    // Copy/shrink the result array
+    u32[] !rez = new u32[nprimes];
+    for( int j=0; j < nprimes; j++ )
+        rez[j] = primes[j];
+    return rez;
+};
+""";
         // The primes
         int[] primes = new int[]  { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, };
         SB sb = new SB().p(primes.length).p("[");
@@ -355,11 +497,11 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes, 186);
+        TestC.run(src, "sieve", null, sprimes, 186);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 92, false);
+        EvalRisc5 R5 = TestRisc5.build("sieve", src, 100, 92, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -371,7 +513,7 @@ public class Chapter21Test {
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", 100, 94, false);
+        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 94, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
@@ -382,17 +524,30 @@ public class Chapter21Test {
     }
 
     @Test public void testFibExport() throws IOException {
+        String src =
+"""
+val fib = {int n ->
+    int f1=1;
+    int f2=1;
+    while( n-- > 1 ){
+        int temp = f1+f2;
+        f1=f2;
+        f2=temp;
+    }
+    return f2;
+};
+""";
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
-        TestC.run("fib", fib, 24);
+        TestC.run(src, "fib", null, fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", 9, 17, false);
+        EvalRisc5 R5 = TestRisc5.build("fib", src, 9, 17, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
         assertEquals(55,R5.regs[riscv.A0]);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("fib", 9, 17, false);
+        EvalArm64 A5 = TestArm64.build("fib", src, 9, 17, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
         // Return register X0 holds fib(8)==55

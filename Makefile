@@ -137,12 +137,6 @@ tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-spill-stats: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
-	@[ -d build/objs ] || mkdir -p build/objs
-	@$(JVM) com.seaofnodes.simple.SpillStats
-
-.PHONY: spill-stats
-
 fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
@@ -179,6 +173,12 @@ lib/hamcrest-core-1.3.jar:
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
+
+spill-stats: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+	@[ -d build/objs ] || mkdir -p build/objs
+	@$(JVM) com.seaofnodes.simple.SpillStats
+
+.PHONY: spill-stats
 
 .PHONY: build
 build: $(CLZDIR)/main/.mtag

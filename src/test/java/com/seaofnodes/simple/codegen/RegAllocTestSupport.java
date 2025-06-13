@@ -219,6 +219,33 @@ public class RegAllocTestSupport {
         assertFalse("A fixed definition clobbers even before coloring",uncolored.sameBlockNoClobber(copy));
     }
 
+    public static void coldLoopSelfConflict() {
+        for( boolean phiConflict : new boolean[]{false,true} ) {
+            CodeGen code = graph();
+            RegAlloc alloc = new RegAlloc(code);
+            Op init = new Op(A,null,null,false,code._start);
+            LoopNode loop = new LoopNode(null,code._start);
+            PhiNode phi = new PhiNode("loop",TypeInteger.BOT,loop,init,null);
+            Op back = new Op(A,A,null,false,loop,phi);
+            phi.setDef(2,back);
+            Op use = new Op(null,A,null,false,loop,phi);
+            loop.setDef(2,loop);
+            LRG lrg = alloc.newLRG(phi);
+            lrg._mask = A;
+            alloc.union(lrg,init); alloc.union(lrg,back);
+            lrg.selfConflict(back);
+            if( phiConflict ) lrg.selfConflict(phi);
+            assertTrue(alloc.splitSelfConflict((byte)0,lrg));
+            assertSame(phi,use.in(1)); // First try leaves the hot definition alone.
+            assertSame(back,phi.in(2));
+            if( phiConflict ) assertTrue(phi.in(1) instanceof SplitNode);
+            // Even if the first attempt made no graph change, retry must split.
+            assertTrue(alloc.splitSelfConflict((byte)1,lrg));
+            assertTrue(phi.in(2) instanceof SplitNode);
+            if( phiConflict ) assertTrue(use.in(1) instanceof SplitNode);
+        }
+    }
+
     public static void coalescing() {
         // Merge, incompatible masks, interference, capacity, and adjacency remapping.
         for( int kind=0; kind<5; kind++ ) {
