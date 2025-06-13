@@ -7,6 +7,7 @@ import java.util.BitSet;
 
 public class DivFNode extends ArithFNode {
     public DivFNode(Node lhs, Node rhs) { super(lhs, rhs); }
+    public DivFNode(ArithNode n) { super(n); }
 
     @Override public String label() { return "DivF"; }
 

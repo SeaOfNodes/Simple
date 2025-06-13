@@ -90,18 +90,27 @@ public class TypeStruct extends Type {
 
 
     public final TypeStruct close() {
-        return (TypeStruct)recurOpen()._close().recurClose();
+        return close(null);
     }
-    @Override TypeStruct _close() {
+    public final TypeStruct close(HashMap<String,Type> types) {
+        return (TypeStruct)recurOpen()._close(types).recurClose();
+    }
+    @Override TypeStruct _close(HashMap<String,Type> types) {
         Object key = isAry() ? _uid : _name;
         TypeStruct ts = (TypeStruct)VISIT.get(key);
         if( ts!=null ) return ts;
+        if( _open && types!=null && types.get(_name) instanceof TypeMemPtr ptr && !ptr._obj._open )
+            return ptr._obj._close(types);
+        // Closing A must not pretend that an undeclared B is an empty
+        // definition. The root is visited first; self references find it above.
+        // Keep other empty forward shapes open until their own declaration.
+        if( _open && _fields.length==0 && VISIT.size()>1 ) return this;
         ts = recurPre(key,false);
         Field[] flds = ts._fields;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._close());
+            flds[i].setType(_fields[i]._t._close(types));
 
         return ts;
     }
@@ -490,4 +499,16 @@ public class TypeStruct extends Type {
         return is;
     }
 
+
+    @Override Type _upgradeType(HashMap<String,Type> types) {
+        Type def = types.get(_name);
+        if( def instanceof TypeMemPtr ptr && !ptr._obj._open && _open )
+            return ptr._obj;
+        TypeStruct old = (TypeStruct)VISIT.get(_uid);
+        if( old!=null ) return old;
+        TypeStruct ts = recurPre(_uid,_open);
+        for( int i=0; i<_fields.length; i++ )
+            ts._fields[i].setType(_fields[i]._t._upgradeType(types));
+        return ts;
+    }
 }

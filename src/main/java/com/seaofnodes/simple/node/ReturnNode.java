@@ -91,8 +91,8 @@ public class ReturnNode extends CFGNode {
         // Merge path into the One True Return
         RegionNode r = (RegionNode)ctrl();
         // Assert that the Phis are in particular outputs; not reordered or shuffled
-        PhiNode mem = (PhiNode)r.out(0); assert mem._minType == TypeMem.BOT;
-        PhiNode rez = (PhiNode)r.out(1); assert rez._minType == Type.BOTTOM;
+        PhiNode mem = (PhiNode)r.out(0); assert mem.isMem();
+        PhiNode rez = (PhiNode)r.out(1); assert !rez.isMem();
         // Pop "inProgress" null off
         r  ._inputs.pop();
         mem._inputs.pop();
@@ -109,7 +109,26 @@ public class ReturnNode extends CFGNode {
 
     @Override public Parser.ParseException err() {
         if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
-        return expr()._type==Type.BOTTOM || expr()._type==Type.TOP ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
+        if( expr()._type==TypeScalar.BOT ) {
+            int kinds = returnKinds(expr(),new java.util.BitSet());
+            return mixerr((kinds&1)!=0,(kinds&2)!=0,(kinds&4)!=0,(kinds&8)!=0,_fun._loc);
+        }
+        return expr()._type==Type.BOTTOM || expr()._type==Type.TOP || expr()._type==TypeScalar.BOT ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
+    }
+
+    private static int returnKinds(Node n, java.util.BitSet visit) {
+        if( n==null || visit.get(n._nid) ) return 0;
+        visit.set(n._nid);
+        Type t=n._type;
+        if( t instanceof TypeInteger ) return 1;
+        if( t instanceof TypeFloat ) return 2;
+        if( t instanceof TypeMemPtr || t instanceof TypeFunPtr ) return 4;
+        if( t==Type.NIL ) return 8;
+        int kinds=0;
+        if( n instanceof PhiNode phi )
+            for( int i=1; i<n.nIns(); i++ )
+                if( phi.region().in(i)._type==Type.CONTROL ) kinds |= returnKinds(n.in(i),visit);
+        return kinds;
     }
 
     static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {

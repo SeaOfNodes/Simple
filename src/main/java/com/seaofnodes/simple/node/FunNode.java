@@ -254,4 +254,12 @@ public class FunNode extends RegionNode {
         return slotRotate*8;
     }
 
+
+    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
+        TypeFunPtr next = (TypeFunPtr)_sig.upgradeType(types);
+        if( next==_sig ) return false;
+        unlock();
+        _sig=next;
+        return true;
+    }
 }

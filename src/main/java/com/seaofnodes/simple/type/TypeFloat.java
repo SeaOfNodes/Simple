@@ -8,7 +8,7 @@ import java.util.ArrayList;
 /**
  * Float Type
  */
-public class TypeFloat extends Type {
+public class TypeFloat extends TypeScalar {
 
     // - high -64, high -32, con 0, low +32, low +64
     public byte _sz;

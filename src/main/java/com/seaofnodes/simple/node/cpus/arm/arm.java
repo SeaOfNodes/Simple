@@ -359,7 +359,7 @@ public class arm extends Machine {
         String op = "!=";
         if( iff.in(1) instanceof BoolNode bool ) op = bool.op();
         else if( iff.in(1)==null ) op = "=="; // Never-node cutout
-        else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
+        else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO),(byte)1));
         return new BranchARM(iff, op);
     }
 

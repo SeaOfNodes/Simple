@@ -427,21 +427,14 @@ public class ScopeNode extends Node {
             pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
         // This is a zero/null test.
         // Compute the positive test type.
-        Type tnz = pred._type.nonZero();
-        if( tnz!=null )
-            _addGuard(tnz,ctrl,pred);
-
-        // Compute the negative test type.
-        if( pred instanceof NotNode not ) {
-            Node npred = not.in(1);
-            Type tzero = npred._type.makeZero();
-            _addGuard(tzero,ctrl,npred);
-        }
+        _addGuard(true,ctrl,pred);
+        if( pred instanceof NotNode not )
+            _addGuard(false,ctrl,not.in(1));
     }
 
     // A Phi's value is available at its Region. Other data nodes require all
     // their inputs, including pinned control, to dominate the proposed guard.
-    private static boolean availableAt(Node n, CFGNode ctrl, BitSet visit) {
+    static boolean availableAt(Node n, CFGNode ctrl, BitSet visit) {
         if( n==null || n instanceof ConstantNode || visit.get(n._nid) ) return true;
         visit.set(n._nid);
         if( n instanceof PhiNode phi ) n = phi.region();
@@ -468,16 +461,14 @@ public class ScopeNode extends Node {
         return null;
     }
 
-    private void _addGuard(Type guard, Node ctrl, Node pred) {
-        Type tcast = guard.join(pred._type);
-        if( tcast != pred._type && !tcast.isHigh() ) {
-            Node cast = new CastNode(tcast,ctrl,pred.keep()).peephole().keep();
-            _guards.add(pred);
-            _guards.add(cast);
-            replace(pred,cast);
-        }
+    private void _addGuard(boolean nonZero, Node ctrl, Node pred) {
+        Node guard = new GuardNode(nonZero,ctrl,pred.keep()).peephole();
+        if( guard==pred ) { pred.unkeep(); return; }
+        guard.keep();
+        _guards.add(pred);
+        _guards.add(guard);
+        replace(pred,guard);
     }
-
 
     // Remove matching pred/cast pairs from this guarded region.
     public ScopeNode removeGuards( Node ctrl ) {
