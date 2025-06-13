@@ -47,8 +47,8 @@ public class TypeTest {
     // Test basic properties and GLB
     @Test
     public void testTypeAdHoc() {
-        Assert.assertEquals( Type.BOTTOM, TypeInteger.TRUE.meet(TypeNil.NIL) );
-        Assert.assertEquals( Type.BOTTOM, TypeInteger.TOP .meet(TypeNil.NIL) );
+        Assert.assertEquals( TypeScalar.BOT, TypeInteger.TRUE.meet(TypeNil.NIL) );
+        Assert.assertEquals( TypeScalar.BOT, TypeInteger.TOP .meet(TypeNil.NIL) );
 
         TypeStruct s1 = TypeStruct.make("s1",false,
                 Field.make("a", TypeInteger.BOT,-1, false, false),

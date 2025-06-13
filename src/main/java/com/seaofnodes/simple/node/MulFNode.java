@@ -7,6 +7,7 @@ import java.util.BitSet;
 
 public class MulFNode extends ArithFNode {
     public MulFNode(Node lhs, Node rhs) { super(lhs, rhs); }
+    public MulFNode(ArithNode n) { super(n); }
 
     @Override public String label() { return "MulF"; }
 

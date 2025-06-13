@@ -157,13 +157,13 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }
     @Override TypeFunPtr _glb(boolean mem) { return this; }
-    @Override TypeFunPtr _close() {
+    @Override TypeFunPtr _close(java.util.HashMap<String,Type> types) {
         Type[] sig = new Type[_sig.length];
         TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
         // Now start the recursion
-        fun._ret = _ret._close();
+        fun._ret = _ret._close(types);
         for( int i=0; i<sig.length; i++ )
-            sig[i] = _sig[i]._close();
+            sig[i] = _sig[i]._close(types);
 
         return fun;
     }
@@ -266,4 +266,15 @@ public class TypeFunPtr extends TypeNil {
     // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) ) { int fidx = Long.numberOfTrailingZeros(fidxs); ... }
     public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
 
+
+    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
+        TypeFunPtr old = (TypeFunPtr)VISIT.get(_uid);
+        if( old!=null ) return old;
+        Type[] sig = new Type[_sig.length];
+        TypeFunPtr fun = malloc(_nil,_open,sig,null,_fidxs);
+        VISIT.put(_uid,fun);
+        fun._ret = _ret._upgradeType(types);
+        for( int i=0; i<sig.length; i++ ) sig[i] = _sig[i]._upgradeType(types);
+        return fun;
+    }
 }

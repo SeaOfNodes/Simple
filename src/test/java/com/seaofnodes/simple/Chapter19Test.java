@@ -116,7 +116,7 @@ val _hashCodeString = { !String self ->
 };
 """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
         //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
 
@@ -398,7 +398,7 @@ val test_sqrt = { flt x ->
 flt farg = arg;  return test_sqrt(farg);
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
+        assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,Phi_guess,(divf,cvtf,Phi_guess)),0.5f));", code.print());
     };
 
 
