@@ -23,7 +23,7 @@ public class BulkMemPhiNode extends PhiNode {
     }
 
     private BulkMemPhiNode(String label, BitSet aliases, Node... inputs) {
-        super(label,TypeMem.BOT,inputs);
+        super(label,inputs);
         _aliases = aliases;
     }
 
@@ -31,6 +31,7 @@ public class BulkMemPhiNode extends PhiNode {
 
     public BulkMemPhiNode(BulkMemPhiNode phi) { super(phi); _aliases = phi._aliases; }
 
+    @Override public boolean isMem() { return true; }
     @Override public String label() { return "BulkPhi"+_aliases; }
 
     @Override

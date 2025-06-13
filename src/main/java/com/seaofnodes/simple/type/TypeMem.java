@@ -59,7 +59,10 @@ public class TypeMem extends Type {
         if( that==TOP ) return this;
         if( this==BOT ) return BOT;
         if( that==BOT ) return BOT;
-        int alias = _alias==that._alias ? _alias : 1;
+        // Different slices lose their alias and contents together. Their
+        // scalar meet alone cannot describe the unsplit bulk memory.
+        if( _alias!=that._alias ) return BOT;
+        int alias = _alias;
         Type mt = _t.meet(that._t);
         return make(alias,mt);
     }
@@ -107,4 +110,8 @@ public class TypeMem extends Type {
     }
 
     @Override public String str() { return toString(); }
+
+    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
+        return make(_alias,_t._upgradeType(types));
+    }
 }

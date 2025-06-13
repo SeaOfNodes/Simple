@@ -18,7 +18,7 @@ while(arg < 10) {
 return arg;
 """);
         code.parse();
-        assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
+        assertEquals("return Phi(Loop,arg,(Convert_i64(Phi_arg)+1));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 
@@ -71,7 +71,7 @@ while(a < 10) {
 return b;
 """);
         code.parse();
-        assertEquals("return Phi(Loop,2,Phi(Region,Phi_b,4));", code.print());
+        assertEquals("return Convert_i64(Phi(Loop,2,Phi(Region,Phi_b,4)));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 
@@ -107,7 +107,7 @@ while(a < 10) {
 return a;
 """);
         code.parse();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertEquals("return Phi(Loop,1,(Convert_i64(Phi_a)+3));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 
@@ -165,7 +165,7 @@ while(a < 10) {
 return a;
 """);
         code.parse();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertEquals("return Phi(Loop,1,(Convert_i64(Phi_a)+3));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 
@@ -198,7 +198,7 @@ while(a < 10) {
 return a;
 """);
         code.parse();
-        assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
+        assertEquals("return Phi(Loop,1,(Convert_i64(Phi_a)+3));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 
