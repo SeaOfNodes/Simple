@@ -16,7 +16,7 @@ public class Chapter14Test {
 """
 return 3.14;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -32,7 +32,7 @@ if( b < 0 ) c = -1;
 if( b > 2 ) c =  1;
 return c;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 99;", code.print());
         assertEquals("99", Eval2.eval(code,  0));
     }
@@ -45,7 +45,7 @@ u8 b = 123;
 b = b + 456;// Truncate
 return b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 67;", code.print());
         assertEquals("67", Eval2.eval(code,  0));
     }
@@ -59,7 +59,7 @@ u8 b = 123;
 while( b ) b = b + 456;// Truncate
 return b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
     }
 
@@ -72,7 +72,7 @@ b = b + 456;// Truncate
 u1 c = b;   // No more truncate needed
 return c;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -85,7 +85,7 @@ int b = 123;
 b = b+456 & 31;                 // Precedence
 return b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3;", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
@@ -99,7 +99,7 @@ struct Foo { u1 b; };
 f.b = 123;
 return f.b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -111,7 +111,7 @@ return f.b;
 i8 b = 255;                     // Chopped
 return b;                       // Sign extend
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return -1;", code.print());
         assertEquals("-1", Eval2.eval(code,  0));
     }
@@ -124,7 +124,7 @@ i8 b = arg;
 b = b + 1;// Truncate
 return b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (((((arg<<56)>>56)+1)<<56)>>56);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("-128", Eval2.eval(code, 127));
@@ -138,7 +138,7 @@ u16 mask = (1<<16)-1;           // AND mask
 int c = 123456789 & mask;
 return c;                       //
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 52501;", code.print());
         assertEquals("52501", Eval2.eval(code,  0));
     }
@@ -149,7 +149,7 @@ return c;                       //
 """
 return (arg | 123 ^ 456) >>> 1;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (((arg|123)^456)>>>1);", code.print());
         assertEquals("217", Eval2.eval(code,  0));
     }
@@ -175,7 +175,7 @@ while(arg) v1=-v0;
 while(v1) break;
 return v1;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,(((1<<arg)&1)&Shl),0);", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -194,7 +194,7 @@ if(0&0>>>0) {
 }
 return v0;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -220,7 +220,7 @@ f32 ff32 = 3.141592653589793;  if( ff32 != 3.1415927410125732) return 5;
 
 return 0;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }

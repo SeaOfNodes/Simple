@@ -55,7 +55,7 @@ public class Chapter14FloatTest {
 """
 return 3.14;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -66,7 +66,7 @@ return 3.14;
 """
 return 3.14;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -83,7 +83,7 @@ while( 1 ) {
 }
 return guess;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)*0.5f));", code.print());
         assertEquals("3.0", Eval2.eval(code,  9));
         assertEquals("1.414213562373095", Eval2.eval(code,  2));
@@ -96,7 +96,7 @@ return guess;
 flt x = arg;
 return x+1==x;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return ((flt)arg==(ToFloat+1.0f));", code.print());
         assertEquals("0", Eval2.eval(code, 1));
     }

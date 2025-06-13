@@ -41,7 +41,7 @@ public class ProjNode extends Node {
     @Override
     public Type compute() {
         Type t = in(0)._type;
-        return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
+        return t instanceof TypeTuple tt ? tt._types[_idx] : t.oob();
     }
 
     @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
