@@ -6,7 +6,9 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 
@@ -57,11 +59,12 @@ public class CodeGen {
     // All passes up to Phase, except ELF
     public CodeGen driver( Phase phase ) { return driver(phase,null,null); }
     public CodeGen driver( Phase phase, String cpu, String callingConv ) {
-        if( _phase==null )                       parse();
+        if( _phase==null ) parse();
         int p1 = phase.ordinal();
         if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Opto      .ordinal() ) opto();
         if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.TypeCheck .ordinal() ) typeCheck();
         if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LoopTree  .ordinal() ) loopTree();
+        if( p1 >= Phase.Export.ordinal() ) serialize(); // Include ideal graph in object file
         if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
         if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Schedule  .ordinal() ) GCM();
         if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LocalSched.ordinal() ) localSched();
@@ -72,7 +75,7 @@ public class CodeGen {
 
     // Run all the phases through final ELF emission
     public CodeGen driver( String cpu, String callingConv, String obj ) throws IOException {
-        return driver(Phase.Encoding,cpu,callingConv).exportELF(obj);
+        return driver(Phase.Export,cpu,callingConv).exportELF(obj);
     }
 
 
@@ -444,6 +447,12 @@ public class CodeGen {
         _encoding.encode();
         _tEncode = (int)(System.currentTimeMillis() - t0);
         return this;
+    }
+
+    // ---------------------------
+    BAOS _serial;
+    void serialize() {
+        _serial = Serialize.serialize(this);
     }
 
     // ---------------------------

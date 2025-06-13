@@ -3,6 +3,7 @@ package com.seaofnodes.simple.type;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 public class TypeTuple extends Type {
@@ -12,7 +13,7 @@ public class TypeTuple extends Type {
     private static final Ary<TypeTuple> FREE = new Ary<>(TypeTuple.class);
     private TypeTuple(Type[] types) { super(TTUPLE); _types = types; }
     private TypeTuple init( Type[] types ) { _types = types; return this; }
-    private static TypeTuple malloc(Type[] types) {
+    static TypeTuple malloc(Type[] types) {
         return FREE.isEmpty() ? new TypeTuple(types) : FREE.pop().init(types);
     }
     // All fields directly listed
@@ -82,6 +83,26 @@ public class TypeTuple extends Type {
 
     public Type ret() { assert _types.length==3; return _types[2]; }
 
+    @Override public int nkids() { return _types.length; }
+    @Override public Type at( int idx ) { return _types[idx]; }
+    @Override public void set( int idx, Type t ) { _types[idx] = t; }
+
+    // Reserve tags for tuples with 2,3,generic
+    @Override int TAGOFF() { return 4; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( _types.length==2 ) baos.write(TAGOFFS[_type] + 0);
+        else if( _types.length==3 ) baos.write(TAGOFFS[_type] + 1);
+        else if( _types.length==4 ) baos.write(TAGOFFS[_type] + 2);
+        // 2 or generic
+        else throw Utils.TODO();
+    }
+    static TypeTuple packedT( int tag, BAOS bais ) {
+        if( tag==0 ) return malloc(new Type[2]);
+        if( tag==1 ) return malloc(new Type[3]);
+        if( tag==2 ) return malloc(new Type[4]);
+        throw Utils.TODO();
+    }
+
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
         if( this==TOP ) return sb.p("[TOP]");
         if( this==BOT ) return sb.p("[BOT]");
@@ -111,9 +132,5 @@ public class TypeTuple extends Type {
                 return false;
         return true;
     }
-
-    @Override int nkids() { return _types.length; }
-    @Override Type at( int idx ) { return _types[idx]; }
-    @Override void set( int idx, Type t ) { _types[idx] = t; }
 
 }

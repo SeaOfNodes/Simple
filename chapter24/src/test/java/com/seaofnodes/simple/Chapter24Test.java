@@ -18,7 +18,6 @@ public class Chapter24Test {
     public void testBubbles() throws IOException {
         String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
-        String rez = IRPrinter.prettyPrint(code);
     }
 
     @Test

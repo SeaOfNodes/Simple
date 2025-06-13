@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Integer Type
@@ -144,6 +145,36 @@ public class TypeInteger extends Type {
         // GLB is not well-defined in memory; depends on the size of the memory field
         if( _isConstant() ) return BOT;
         return isHigh() ? dual() : this;
+    }
+    // Reserve tags for I64,I32,U32,0,constant,generic
+    @Override int TAGOFF() { return 7; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if(      this==BOT ) baos.write(TAGOFFS[_type] + 0);
+        else if( this==I32 ) baos.write(TAGOFFS[_type] + 1);
+        else if( this==U32 ) baos.write(TAGOFFS[_type] + 2);
+        else if( this==BOOL) baos.write(TAGOFFS[_type] + 3);
+        else if( this==ZERO) baos.write(TAGOFFS[_type] + 4);
+        else if( isConstant() ) {
+            baos.write(TAGOFFS[_type] + 5);
+            baos.packed8(_min);
+        } else {
+            baos.write(TAGOFFS[_type] + 6);
+            baos.packed8(_min);
+            baos.packed8(_max);
+        }
+    }
+
+    static Type packedT( int tag, BAOS bais ) {
+        return switch( tag ) {
+        case 0 -> BOT;
+        case 1 -> I32;
+        case 2 -> U32;
+        case 3 -> BOOL;
+        case 4 -> ZERO;
+        case 5 -> constant(bais.packed8());
+        case 6 -> make(bais.packed8(),bais.packed8());
+        default -> throw Utils.TODO();
+        };
     }
 
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max); }

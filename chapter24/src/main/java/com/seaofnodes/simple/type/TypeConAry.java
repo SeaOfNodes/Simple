@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Represents a constant array of primitives
@@ -14,7 +14,7 @@ public class TypeConAry<A> extends Type {
     public final A _ary;
 
     TypeConAry( boolean any, byte type, A ary ) { super(type); _any = any; _ary = ary; }
-    public static final TypeConAry BOT = new TypeConAry(false, TINT, null).intern();
+    public static final TypeConAry BOT = new TypeConAry(false, TCONARY, null).intern();
     public static void gather(ArrayList<Type> ts) {
         ts.add(BOT);
         TypeConAryB.gather(ts);
@@ -68,7 +68,20 @@ public class TypeConAry<A> extends Type {
     public long at8(int idx) { throw Utils.TODO(); }
     public int len() { throw Utils.TODO(); }
     @Override public int log_size() { throw Utils.TODO(); }
-    public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }
+    public void write( BAOS baos ) { throw Utils.TODO(); }
+
+    // Reserve tags for u8 array
+    @Override int TAGOFF() { return 1; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        assert log_size()==0 && !_any;
+        baos.write(TAGOFFS[TCONARY]+0);
+        baos.packed4(len());
+        baos.write((byte[])_ary);
+    }
+    static TypeConAry packedT( int tag, BAOS bais ) {
+        return TypeConAryB.make(bais.read(new byte[bais.packed4()]));
+    }
+
 
     @Override boolean eq(Type t) {
         return t instanceof TypeConAry ary && _any==ary._any && ary._ary==null;

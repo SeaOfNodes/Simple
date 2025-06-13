@@ -3,8 +3,11 @@ package com.seaofnodes.simple.type;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.BAOS;
+
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 
 
 /**
@@ -22,7 +25,7 @@ public class TypeMem extends Type {
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
     private TypeMem(int alias, Type t) { super(TMEM); init(alias,t); }
     private TypeMem init(int alias, Type t) {
-        assert alias>1 || (t==Type.TOP || t==Type.BOTTOM);
+        assert alias>1 || (t==Type.TOP || t==Type.BOTTOM || t==null);
         _alias = alias;
         _t = t;
         return this;
@@ -94,9 +97,22 @@ public class TypeMem extends Type {
         return _alias == that._alias && _t.cycle_eq(that._t);
     }
 
-    @Override int nkids() { return 1; }
-    @Override Type at( int idx ) { return _t; }
-    @Override void set( int idx, Type t ) { _t = t; }
+    @Override public int nkids() { return 1; }
+    @Override public Type at( int idx ) { return _t; }
+    @Override public void set( int idx, Type t ) { _t = t; }
+    // one tag for alias#1, one tag for generic alias
+    @Override int TAGOFF() { return 2; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( _alias==1 ) { baos.write(TAGOFFS[_type] + 0); return; }
+        // generic alias
+        baos.write(TAGOFFS[_type] + 1);
+        assert _alias <= 255;
+        baos.write(aliases.get(_alias));
+    }
+    static TypeMem packedT( int tag, BAOS bais ) {
+        if( tag==0 ) return malloc(1,null);
+        return malloc(bais.read(),null);
+    }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
         sb.p("#");

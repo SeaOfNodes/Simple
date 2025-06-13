@@ -1,12 +1,9 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.util.*;
+
 import java.util.*;
 
 
@@ -36,10 +33,7 @@ public class Encoding {
     // - RIP-relative to external chunks have a zero offset; the matching
     //   relocation info will be used to patch the correct value.
 
-    public static class BAOS extends ByteArrayOutputStream {
-        public byte[] buf() { return buf; }
-        void set( byte[] buf0, int count0 ) { buf=buf0; count=count0; }
-    };
+    ;
     final public BAOS _bits = new BAOS();
 
     public int [] _opStart;     // Start  of opcodes, by _nid
@@ -82,7 +76,12 @@ public class Encoding {
         return (buf[idx]&0xFF) | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
     }
     public long read8(int idx) {
-        return (read4(idx) & 0xFFFFFFFFL) | read4(idx+4);
+        //return (read4(idx) & 0xFFFFFFFFL) | read4(idx+4);
+        throw Utils.TODO();
+    }
+
+    public static int read4(byte[] buf, int idx) {
+        return (buf[idx]&0xFF) | (buf[idx+1]&0xFF) <<8 | (buf[idx+2]&0xFF)<<16 | (buf[idx+3]&0xFF)<<24;
     }
 
     // This buffer is invalid/moving until after all encodings are written

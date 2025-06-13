@@ -3,6 +3,7 @@ package com.seaofnodes.simple.type;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 /**
@@ -129,9 +130,21 @@ public class TypeMemPtr extends TypeNil {
         return super.eq(ptr) && _one == ptr._one && _obj.cycle_eq(ptr._obj);
     }
 
-    @Override int nkids() { return 1; }
-    @Override Type at( int idx ) { return _obj; }
-    @Override void set( int idx, Type t ) { _obj = (TypeStruct)t; }
+    @Override public int nkids() { return 1; }
+    @Override public Type at( int idx ) { return _obj; }
+    @Override public void set( int idx, Type t ) { _obj = (TypeStruct)t; }
+
+    // Reserve tags for null/not and one/general
+    @Override int TAGOFF() { return 4; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        assert _nil>=2;
+        baos.write(TAGOFFS[_type]
+                   + (_nil==2 ? 0 : 1)
+                   + (_one    ? 2 : 0) );
+    }
+    static TypeMemPtr packedT( int tag, BAOS bais ) {
+        return malloc((byte)((tag&1)+2),null,(tag&2)==2);
+    }
 
     @Override public String str() {
         if( this== NOTBOT) return "*void";

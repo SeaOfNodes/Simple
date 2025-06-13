@@ -1,9 +1,8 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
-import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Float Type
@@ -98,6 +97,29 @@ public class TypeFloat extends Type {
     @Override boolean _isConstant() { return _sz==0; }
 
     @Override public Type makeZero() { return FZERO; }
+
+    // Reserve tags for F64,F32,constant
+    @Override int TAGOFF() { return 3; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if(      this==F64 ) baos.write(TAGOFFS[_type] + 0);
+        else if( this==F32 ) baos.write(TAGOFFS[_type] + 1);
+        else {
+            assert isConstant();
+            baos.write(TAGOFFS[_type] + 2);
+            baos.packed8(Double.doubleToLongBits(_con));
+        }
+    }
+
+    static Type packedT( int tag, BAOS bais ) {
+        return switch( tag ) {
+        case 0 -> F64;
+        case 1 -> F32;
+        case 2 -> constant(Double.longBitsToDouble(bais.packed8()));
+        default -> throw Utils.TODO();
+        };
+    }
+
+
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }
     @Override

@@ -722,6 +722,8 @@ public abstract class Node implements Cloneable {
         return null;
     }
 
+    public void gather(HashMap<String,Integer> strs ) { }
+
     /**
      * Debugging utility to find a Node by index
      */

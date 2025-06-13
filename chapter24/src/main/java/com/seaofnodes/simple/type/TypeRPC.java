@@ -1,10 +1,9 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashSet;
+import com.seaofnodes.simple.util.BAOS;
+
+import java.util.*;
 
 /**
  *  Return Program Control or Return PC or RPC
@@ -87,6 +86,17 @@ public class TypeRPC extends Type {
 
     @Override boolean _isConstant() { return !_any && _rpcs.size()==1; }
     @Override boolean _isGLB(boolean mem) { return true; }
+    // Reserve tags for ALL, singleton, generic
+    @Override int TAGOFF() { return 3; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( this==BOT ) baos.write(TAGOFFS[_type] + 0);
+        // singleton, generic
+        else throw Utils.TODO();
+    }
+    static TypeRPC packedT( int tag, BAOS bais ) {
+        if( tag==0 ) return BOT;
+        throw Utils.TODO();
+    }
 
     @Override
     int hash() { return _rpcs.hashCode() ^ (_any ? -1 : 0) ; }

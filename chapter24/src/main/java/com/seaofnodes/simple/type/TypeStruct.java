@@ -380,9 +380,26 @@ public class TypeStruct extends Type {
         return Utils.fold(hash);
     }
 
-    @Override int nkids() { return _fields.length; }
-    @Override Type at( int idx ) { return _fields[idx]; }
-    @Override void set( int idx, Type t ) { _fields[idx] = (Field)t; }
+    @Override public int nkids() { return _fields.length; }
+    @Override public Type at( int idx ) { return _fields[idx]; }
+    @Override public void set( int idx, Type t ) { _fields[idx] = (Field)t; }
+    // Tags 0-5 - closed+#nflds (+name)
+    // Tags 6 - open   (+nflds+name)
+    // Tags 7 - closed (+nflds+name)
+    @Override int TAGOFF() { return 8; }
+    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( !_open && _fields.length < 6 ) {
+            baos.write(TAGOFFS[_type]+_fields.length);
+            baos.packed4(strs.get(_name));
+        } else throw Utils.TODO();
+    }
+    static TypeStruct packedT( int tag, BAOS bais, String[] strs ) {
+        if( tag < 6 ) {
+            String name = strs[bais.packed4()];
+            return malloc(name,false,new Field[tag]);
+        }
+        throw Utils.TODO();
+    }
 
     @Override
     SB _print(SB sb, BitSet visit, boolean html ) {

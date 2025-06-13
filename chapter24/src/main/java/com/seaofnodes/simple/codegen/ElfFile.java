@@ -1,15 +1,13 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.Encoding.BAOS;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.BAOS;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
-import java.util.Map;
 
 public class ElfFile {
 
@@ -22,21 +20,10 @@ public class ElfFile {
         // place name in the string table
         int pos = strtab._contents.size();
         byte[] name_bytes = name.getBytes();
-        strtab._contents.write(name_bytes, 0, name_bytes.length);
+        strtab._contents.write(name_bytes);
         // the strings are null terminated
         strtab._contents.write(0);
         return pos;
-    }
-
-    public static void write4( ByteArrayOutputStream bits, int op ) {
-        bits.write(op    );
-        bits.write(op>> 8);
-        bits.write(op>>16);
-        bits.write(op>>24);
-    }
-    public static void write8( ByteArrayOutputStream bits, long i64 ) {
-        write4(bits, (int) i64     );
-        write4(bits, (int)(i64>>32));
     }
 
     public static final int SYMBOL_SIZE = 4+1+1+2+8+8;
@@ -183,14 +170,14 @@ public class ElfFile {
     }
 
     public static class DataSection extends Section {
-        ByteArrayOutputStream _contents;
+        BAOS _contents;
 
         DataSection(String name, int type) {
             super(name, type);
-            _contents = new ByteArrayOutputStream();
+            _contents = new BAOS();
         }
 
-        DataSection(String name, int type, ByteArrayOutputStream contents) {
+        DataSection(String name, int type, BAOS contents) {
             super(name, type);
             _contents = contents;
         }
@@ -288,11 +275,11 @@ public class ElfFile {
             int offset = enc._opStart[nid] + enc._opLen[nid] - 4;
 
             // u64 offset
-            write8(text_rela._contents, offset);
+            text_rela._contents.write8(offset);
             // u64 info
-            write8(text_rela._contents, ((long)sym._index << 32L) | 4L /* PLT32 */);
+            text_rela._contents.write8(((long)sym._index << 32L) | 4L /* PLT32 */);
             // i64 addend
-            write8(text_rela._contents, -4);
+            text_rela._contents.write8(-4);
         }
 
         // Write relocations for the constant pool
@@ -302,9 +289,9 @@ public class ElfFile {
             glob._size = relo._t.size();
             glob._index = start_global++;
             symbols.push(glob);
-            write8(text_rela._contents, relo._opStart+relo._off);
-            write8(text_rela._contents, ((long)glob._index << 32L) | relo._elf );
-            write8(text_rela._contents, -4);
+            text_rela._contents.write8( relo._opStart+relo._off);
+            text_rela._contents.write8( ((long)glob._index << 32L) | relo._elf );
+            text_rela._contents.write8( -4);
         }
 
         text_rela._flags = SHF_INFO_LINK;
