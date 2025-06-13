@@ -1,4 +1,0 @@
-struct Person { i32 age;};
-Person !p = new Person;
-p.age = (arg<<17)>>17;
-return 0;

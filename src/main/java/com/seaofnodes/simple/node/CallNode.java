@@ -115,16 +115,15 @@ public class CallNode extends CFGNode {
     }
 
     // True if Fun is linked to this Call
-    boolean linked( FunNode fun ) {
+    public boolean linked( FunNode fun ) {
         for( Node n : fun._inputs )
             if( n == this )
                 return true;
         return false;
     }
 
-
     // Link so this calls fun
-    private Node link( FunNode fun ) {
+    public Node link( FunNode fun ) {
         assert !linked(fun);
         fun.addDef(this);
         for( Node use : fun._outputs )

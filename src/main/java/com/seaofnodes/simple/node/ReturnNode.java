@@ -116,12 +116,17 @@ public class ReturnNode extends CFGNode {
     }
 
     @Override public Parser.ParseException err() {
-        return expr()._type/*mt*/==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
+        if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
+        return expr()._type==Type.BOTTOM || expr()._type==Type.TOP ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
     }
 
     static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {
         if( !ti && !tf && !tp && !tn )
+            // Hit when the function never returns.  e.g. `f = { -> return f() };`
             return Parser.error("No defined return type", loc);
+        // Rather ugly way to print conflicting return types
+        int cnt = (ti?1:0) + (tf?1:0) + (tp||tn?1:0);
+        if( cnt==1 ) return null; // Uniform return type, something else errored and will report
         SB sb = new SB().p("No common type amongst ");
         if( ti ) sb.p("int and ");
         if( tf ) sb.p("f64 and ");

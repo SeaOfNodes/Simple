@@ -49,6 +49,9 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         if( _declaredType == TypeInteger.BOOL) func3=4; // LBU
         if( _declaredType == TypeInteger.U16 ) func3=5; // LHU
         if( _declaredType == TypeInteger.U32 ) func3=6; // LWU
+        if( _declaredType instanceof TypeInteger ti ) {
+            if( -128 <= ti._min && ti._max < 128 ) func3 = 0; // LB
+        }
 
         // float
         if( _declaredType == TypeFloat.F32) func3 = 2; // fLW   fSW

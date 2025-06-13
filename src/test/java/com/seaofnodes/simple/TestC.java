@@ -40,12 +40,29 @@ public abstract class TestC {
         String src = Files.readString(Path.of(sfile));
         run(src,CALL_CONVENTION,arg, "",standalone? null: cfile,efile,"S",expected,spills);
     }
+
+    // link with c and also inline
+    public static void run(String src, String file, TypeInteger arg, String expected, int spills) throws IOException {
+            String dir = "src/test/java/com/seaofnodes/simple/progs";
+            String cfile = dir+"/"+file+".c";
+            String efile = "build/objs/"+file;
+            run(src, CALL_CONVENTION, arg, "", cfile, efile, "S", expected, spills);
+    }
+
     public static void run(String dir, String file, String expected, int spills ) throws IOException {
         run(dir, file,null, expected, spills, false);
     }
 
+    // Do not link with c file - no inline.
     public static void runS(String file, String expected, int spills ) throws IOException {
         run("src/test/java/com/seaofnodes/simple/progs", file, null, expected, spills, true);
+    }
+
+
+    // Do not link with c file - just inline with source.
+    public static void runSF(String name, String src, TypeInteger arg, String expected, int spills ) throws IOException {
+        String efile = "build/objs/"+name;
+        run(src,CALL_CONVENTION,arg, "",null,efile,"S",expected,spills);
     }
 
     public static void runS(String file, TypeInteger arg, String expected, int spills ) throws IOException {

@@ -316,7 +316,8 @@ public class Type /*implements Cloneable*/ {
     }
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    public boolean isa( Type t ) { return meet(t)==t; }
+    // Applies for pessimistic case
+    public boolean isa( Type t )     { return meet(t)==t; }
 
     // True if this "isa" t up to named structures
     public boolean shallowISA( Type t ) { return isa(t); }
@@ -328,6 +329,9 @@ public class Type /*implements Cloneable*/ {
 
     // Is forward-reference
     public boolean isFRef() { return false; }
+
+    // Cap at limits
+    public Type oob() { return isHigh() ? TOP : BOTTOM; }
 
     // ----------------------------------------------------------
 
@@ -477,6 +481,7 @@ public class Type /*implements Cloneable*/ {
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
     Type _close() { return this; }
+    public Type widen() { return this; }
 
     // ----------------------------------------------------------
 

@@ -67,5 +67,5 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 21](docs/chapter21/README.md): Instruction Encodings & ELF
 * [Chapter 22](docs/chapter22/README.md): A Simple Hello, World!
 * [Chapter 23](docs/chapter23/README.md): Methods and Types Revisited
-* Chapter 24: Chained conditionals and SCCP
+* [Chapter 24](docs/chapter24/README.md): Chained conditionals and SCCP
 * Chapter 25: Modules and Separate Compilation

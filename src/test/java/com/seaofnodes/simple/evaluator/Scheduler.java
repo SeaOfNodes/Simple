@@ -594,7 +594,7 @@ public class Scheduler {
      * @param start The start node
      * @return The final schedule.
      */
-    public static Scheduler.Block schedule(StartNode start) {
+    public static Block schedule(StartNode start) {
         var scheduler = new Scheduler();
         scheduler.doMarkAlive(start);
         scheduler.doBuildCTF(start);

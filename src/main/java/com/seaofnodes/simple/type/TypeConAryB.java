@@ -15,7 +15,7 @@ public class TypeConAryB extends TypeConAry<byte[]> {
     @Override public int len() { return _ary.length; }
     @Override public int log_size() { return 0; }
     @Override public String str() { return "[\""+new String(_ary)+"\"]"; }
-    @Override boolean eq(Type t) { return Arrays.equals(_ary,((TypeConAryB)t)._ary); }
+    @Override boolean eq(Type t) { return t instanceof TypeConAryB ary && Arrays.equals(_ary,ary._ary); }
     @Override int hash() { return Arrays.hashCode(_ary); }
     @Override public void write( ByteArrayOutputStream baos ) { baos.write(_ary,0,_ary.length); }
 }
