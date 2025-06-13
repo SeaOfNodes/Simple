@@ -84,7 +84,7 @@ while( 1 ) {
 return guess;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)*0.5f));", code.print());
+        assertEquals("return Phi(Loop,(flt)arg,((Phi_guess+(ToFloat/Phi_guess))*0.5f));", code.print());
         assertEquals("3.0", Eval2.eval(code,  9));
         assertEquals("1.414213562373095", Eval2.eval(code,  2));
     }

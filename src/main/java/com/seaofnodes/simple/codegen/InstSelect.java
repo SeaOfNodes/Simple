@@ -65,7 +65,7 @@ class InstSelect {
         }
 
         // Produce a machine node from n; map it to flag as done so stops cycles.
-        map.put(n, x=_code._mach.instSelect(n) );
+        map.put(n, x=select(n) );
         // Stop retains the callable body. Its lifetime edge is not a machine operand.
         if( n instanceof FunPtrNode ) x._inputs.pop();
         // Walk machine op and replace inputs with mapped inputs
@@ -87,4 +87,25 @@ class InstSelect {
             }
     }
 
+
+    private Node select(Node n) {
+        if( n instanceof GuardNode guard ) return new GuardMach(guard);
+        if( n instanceof PtrToIntNode ptr ) return new PtrToIntMach(ptr);
+        Node op = n;
+        if( n instanceof ModeNode mode && mode.mode()==2 ) {
+            // Adapt to the existing CPU selectors. As with machine expansion,
+            // copy inputs without adding uses to the old graph; _instOuts
+            // rebuilds reverse edges after selection has finished.
+            op = switch(n) {
+            case AddNode add -> new AddFNode(add);
+            case SubNode sub -> new SubFNode(sub);
+            case MulNode mul -> new MulFNode(mul);
+            case DivNode div -> new DivFNode(div);
+            case MinusNode neg -> new MinusFNode(neg);
+            default -> n;
+            };
+            op._type = n._type;
+        }
+        return _code._mach.instSelect(op);
+    }
 }
