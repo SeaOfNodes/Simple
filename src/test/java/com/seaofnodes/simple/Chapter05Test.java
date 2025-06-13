@@ -20,7 +20,7 @@ else {
 }
 return a;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,(arg+2),(arg-3));", code.print());
     }
 
@@ -36,7 +36,7 @@ if (arg == 1) {
 }
 return c;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,4,3);", code.print());
     }
 
@@ -64,7 +64,7 @@ if( arg==1 )
 else
     b=a+1;
 return a+b;""");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return ((arg<<1)+Phi(Region,2,3));", code.print());
     }
 
@@ -79,7 +79,7 @@ if( arg==1 )
 else
     a=b+1;
 return a+b;""");
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return ((Phi(Region,(arg<<1),arg)+arg)+Phi(Region,4,5));", code.print());
     }
 
@@ -99,7 +99,7 @@ else
     a=5;
 return a;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,3,5,2,4);", code.print());
     }
 
@@ -115,7 +115,7 @@ if( arg==0 )
     b=2;
 return arg+a+b;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", code.print());
     }
 
@@ -130,7 +130,7 @@ if( arg==1 )
 }
 return a;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (arg==Phi(Region,3,2));", code.print());
     }
 
@@ -145,7 +145,7 @@ else
     a=3;
 return a;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3;", code.print());
     }
 

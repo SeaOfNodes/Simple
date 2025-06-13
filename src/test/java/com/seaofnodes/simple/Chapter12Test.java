@@ -14,7 +14,7 @@ public class Chapter12Test {
 """
 return 3.14;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -75,7 +75,7 @@ i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 17;", code.print());
     }
 
@@ -87,7 +87,7 @@ struct N { !N? !next; int i; };
 N n = new N;
 return n.next;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return null;", code.print());
     }
 
@@ -100,7 +100,7 @@ struct N { !M !next; int i; };
 N n = new N { next = new M; };
 return n.next;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (const)M;", code.print());
     }
 
@@ -150,7 +150,7 @@ return n.i;
 struct S{};
 return 0;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -162,7 +162,7 @@ return 0;
 struct S1 { !S2? !s; };
 return new S2;
 """);
-        try { code.parse().iter().finalizeIR(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
@@ -174,7 +174,7 @@ struct S1 { !S2? !s; };
 struct S2 { int x; };
 return new S1.s=new S2;
 """);
-        code.parse().iter().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return S2;", code.print());
     }
 
