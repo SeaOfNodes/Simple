@@ -27,7 +27,7 @@ public class PhaseTest {
         code.driver(Phase.LoopTree);
         assertEquals(Phase.LoopTree,code._phase);
         code.driver(Phase.LocalSched);
-        assertEquals("Parse Iter FinalizeIR TypeCheck LoopTree Schedule LocalSched",String.join(" ",phases));
+        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR TypeCheck LoopTree Schedule LocalSched",String.join(" ",phases));
         assertEquals("45",Eval2.eval(code,10));
     }
 
@@ -38,5 +38,19 @@ public class PhaseTest {
         byte[] bits = staged._encoding._bits.toByteArray();
         CodeGen direct = new CodeGen(SRC).driver(Phase.Encoding,"x86_64_v2","SystemV");
         assertArrayEquals(bits,direct._encoding._bits.toByteArray());
+    }
+
+    @Test public void testOptoRequiresIter() {
+        CodeGen code = new CodeGen(SRC).parse();
+        try {
+            code.opto();
+            fail("Opto must not implicitly run Iter");
+        } catch( AssertionError expected ) {
+            assertEquals("Cannot run Opto after Parse",expected.getMessage());
+        }
+        code.iter().opto();
+        assertEquals(Phase.Opto,code._phase);
+        code.driver(Phase.LocalSched);
+        assertEquals("45",Eval2.eval(code,10));
     }
 }
