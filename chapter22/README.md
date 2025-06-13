@@ -8,7 +8,9 @@ will wait for another chapter.
 sys.io.p("Hello, World!");
 ```
 
-Yeah!  A 1-liner `Hello, World`!
+Yeah!  A 1-liner `Hello, World`!  This example can be found in
+`docs/examples/A_helloWorld.smp`.
+
 
 Let's break it down.
 
@@ -27,7 +29,7 @@ Let's break it down.
   pool*, and from there in an ELF file's RODATA section.
 
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21) it to the previous chapter.
+    You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter22) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter21...linear-chapter22) it to the previous chapter.
 
 
 ## Nested Types and Static Fields
