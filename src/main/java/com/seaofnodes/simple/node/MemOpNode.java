@@ -22,7 +22,7 @@ import java.util.ArrayList;
 public abstract class MemOpNode extends Node {
 
     // The equivalence alias class
-    public final int _alias;
+    public int _alias;
 
     // True if load-like, false if store-like.
     //
@@ -142,5 +142,13 @@ public abstract class MemOpNode extends Node {
                 if( !deps.contains(use) ) deps.add(use);
             }
         }
+    }
+
+    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
+        Type next = _declaredType.upgradeType(types);
+        if( next==_declaredType ) return false;
+        unlock();
+        _declaredType=next;
+        return true;
     }
 }

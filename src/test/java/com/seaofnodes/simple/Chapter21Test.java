@@ -467,9 +467,17 @@ while(true) {
 }
 return i;
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (inc,Phi(Loop,0,inc));");
-        testCPU(src,"riscv"    , "SystemV",0,"return ( Phi(Loop,0,addi) + #1 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (inc,Phi(Loop,0,inc));");
+        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (!=0)(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)));");
+        testCPU(src,"riscv"    , "SystemV",0,"return (!=0)( Phi(Loop,0,Phi(Region,(!=0),(!=0),0)) + #1 );");
+        testCPU(src,"arm"      , "SystemV",0,"return (!=0)(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)));");
+        // Guards now survive into selection. They must preserve the loop's
+        // value through both continues and the final break without code.
+        EvalRisc5 r5 = TestRisc5.build("guardLoop",src,0,0,false);
+        assertEquals(0,r5.step(1000));
+        assertEquals(2,r5.regs[riscv.A0]);
+        EvalArm64 a5 = TestArm64.build("guardLoop",src,0,0,false);
+        assertEquals(0,a5.step(1000));
+        assertEquals(2,a5.regs[0]);
     }
 
     @Test public void testNewtonExport() throws IOException {
@@ -498,7 +506,7 @@ val test_sqrt = { flt x ->
     }
 };
 """;
-        TestC.run(src, "newtonFloat", null, result, 34);
+        TestC.run(src, "newtonFloat", null, result, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 34);
 
         EvalRisc5 R5 = TestRisc5.build("newtonFloat",src, 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;

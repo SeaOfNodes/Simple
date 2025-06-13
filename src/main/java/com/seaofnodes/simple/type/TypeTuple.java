@@ -18,6 +18,7 @@ public class TypeTuple extends Type {
     // All fields directly listed
     public static TypeTuple make(Type... types) {
         TypeTuple tt = malloc(types);
+        for( Type t : types ) if( !t._terned ) return tt;
         TypeTuple t2 = tt.intern();
         return t2==tt ? tt : t2.free(tt);
     }
@@ -59,6 +60,18 @@ public class TypeTuple extends Type {
     @Override TypeTuple xdual() {
         if( _types.length==0 ) return malloc(null);
         return malloc(TypeFunPtr.xdual(_types));
+    }
+
+    @Override int nkids() { return _types==null ? 0 : _types.length; }
+    @Override Type at(int idx) { return _types[idx]; }
+    @Override void set(int idx, Type t) { _types[idx]=t; }
+    @Override TypeTuple rdual() {
+        if( _dual!=null ) return dual();
+        TypeTuple d = malloc(new Type[_types.length]);
+        (_dual=d)._dual=this;
+        for( int i=0; i<_types.length; i++ )
+            d._types[i] = _types[i]._terned ? _types[i].dual() : _types[i].rdual();
+        return d;
     }
 
     @Override boolean _isConstant() {
@@ -112,8 +125,10 @@ public class TypeTuple extends Type {
         return true;
     }
 
-    @Override int nkids() { return _types.length; }
-    @Override Type at( int idx ) { return _types[idx]; }
-    @Override void set( int idx, Type t ) { _types[idx] = t; }
-
+    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
+        if( _types==null ) return this;
+        Type[] ts = new Type[_types.length];
+        for( int i=0; i<ts.length; i++ ) ts[i] = _types[i]._upgradeType(types);
+        return make(ts);
+    }
 }

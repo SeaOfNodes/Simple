@@ -8,7 +8,7 @@ import java.util.ArrayList;
 /**
  * Integer Type
  */
-public class TypeInteger extends Type {
+public class TypeInteger extends TypeScalar {
     /**
      * Describes an integer *range* - everything from min to max; both min and
      * max are inclusive.  If min==max, this is a constant.

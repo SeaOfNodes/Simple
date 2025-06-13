@@ -228,7 +228,7 @@ public class Parser {
         RegionNode r = new RegionNode( null,null,null).init();
         assert r.inProgress();
         PhiNode rmem = new BulkMemPhiNode(ScopeNode.MEM0,r,null).init();
-        PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null).init();
+        PhiNode rrez = new PhiNode(ScopeNode.ARG0,r,null).init();
         ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun).init();
         fun.setRet(ret);
         assert ret.inProgress();
@@ -617,7 +617,7 @@ public class Parser {
 
         // Merge results
         RegionNode r = ctrl(tScope.mergeScopes(fScope,loc()));
-        Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type).glb(false),r,lhs.unkeep(),rhs.unkeep()));
+        Node ret = peep(new PhiNode("",r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
         if( !fside.equals("else") && (err=ret.err()) !=null )  throw err;
@@ -664,7 +664,8 @@ public class Parser {
         // Else safety check for accessing fields out of function scope.
         if( instance(def) ) {
             pos(old_pre_equals);  // setup for `self.name = expr`
-            Node self = _scope.in(_scope.lookup("self")); // Insert self reference
+            Var selfVar = _scope.lookup("self");
+            Node self = liftExpr(_scope.in(selfVar),selfVar.type(),true);
             return parsePostfixName(self,name);
         }
 
@@ -690,33 +691,16 @@ public class Parser {
 
     // Apply declared access permissions; widen floats and narrow integers.
     // Early error if types do not match variable.
-    private Node liftExpr( Node expr, Type t, boolean isLoad ) {
-        if( expr._type instanceof TypeMemPtr tmp && TYPES.get(tmp._obj._name).isFRef() )
-            throw error("Must define forward ref "+tmp._obj._name);
-        // Read-only access is deep; a fixed binding alone does not remove access.
-        if( t instanceof TypeMemPtr tmp && tmp.isFinal() ) {
+    private Node liftExpr(Node expr, Type t, boolean isLoad) {
+        if( t==Type.BOTTOM || t==Type.TOP ) return expr;
+        // Constructor sentinels record missing initialization, not a value
+        // needing conversion. Keep them visible to the completion check.
+        if( expr instanceof ConstantNode && !(expr instanceof FRefNode) &&
+            (expr._type==Type.TOP || expr._type==Type.BOTTOM) ) return expr;
+        if( t instanceof TypeMemPtr tmp && tmp.isFinal() )
             expr = peep(new ReadOnlyNode(expr));
-        }
-        if( !expr._type.accessISA(t) )
-            throw error("Type " + expr._type.str() + " is not of declared type " + t.str());
-        // Auto-widen array to i64 (cast ptr to raw int bits)
-        if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
-        // Auto-widen int to float
-        expr = widenInt( expr, t );
-        // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
-        // the loaded value to match the declared sign/zero bits.  For stores,
-        // just force the type, acting "as if" the store silently truncates.
-        if( expr._type instanceof TypeFloat && t instanceof TypeInteger )
-            expr = peep(new ToIntegerNode(expr));
-        Type et = expr._type;
-        if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
-        else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
-
-        // Type is sane
-        if( et!=Type.BOTTOM && (!et.shallowISA(t) || !et.accessISA(t)) )
-            expr = peep(new CastNode(t.isConstant() ? t : t.widen(),null,expr));
-        return expr;
+        if( expr instanceof FunPtrNode && t instanceof TypeFunPtr ) return expr;
+        return peep(new ConvertNode(t,expr));
     }
 
     private Node widenInt( Node expr, Type t ) {
@@ -828,8 +812,6 @@ public class Parser {
 
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
-        if( !lift._type.isa(t) )
-            lift = peep(new CastNode(t.widen(),null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
@@ -1083,7 +1065,7 @@ public class Parser {
             else if( !match("!=") ) break;
             lhs.keep();
             Node rhs = parseComparison();
-            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs).widen());
+            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs));
             if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;
@@ -1149,7 +1131,7 @@ public class Parser {
         ctrl(ifT.unkeep());
         RegionNode r = fail.mergeScopes(_scope, loc()).init();
         _scope = fail;
-        return new PhiNode("",TypeInteger.BOOL,r,con(0),con(1)).peephole();
+        return new PhiNode("", r,con(0),con(1)).peephole();
     }
 
     private int parseCompDir() {
@@ -1164,7 +1146,7 @@ public class Parser {
         if( Math.abs(dir)==2 )
             { Node tmp=lhs; lhs=rhs; rhs=tmp; }
         Node cmp = dir < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs);
-        return peep(cmp.widen());
+        return peep(cmp);
     }
 
     /**
@@ -1187,7 +1169,7 @@ public class Parser {
             ParseException err;
             if( (err=lhs.err()) != null )
                 throw err;
-            lhs = peep(lhs.widen());
+            lhs = peep(lhs);
         }
         return lhs;
     }
@@ -1208,7 +1190,7 @@ public class Parser {
             else if( match("-") ) lhs = new SubNode(lhs,null);
             else break;
             lhs.setDef(2,parseMultiplication());
-            lhs = peep(lhs.widen());
+            lhs = peep(lhs);
         }
         return lhs;
     }
@@ -1229,7 +1211,7 @@ public class Parser {
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
             lhs.setDef(2,parseUnary());
-            lhs = peep(lhs.widen());
+            lhs = peep(lhs);
         }
         return lhs;
     }
@@ -1261,7 +1243,7 @@ public class Parser {
             // Reset, try again
             pos(old);
         }
-        if (match("-")) return peep(new MinusNode(parseUnary()).widen());
+        if (match("-")) return peep(new MinusNode(parseUnary()));
         if (match("!")) return peep(new   NotNode(parseUnary()));
         // Else be a primary expression
         return parsePrimary();
@@ -1326,13 +1308,18 @@ public class Parser {
         // If a method var, allow nested blocks and methods, but not fcns or other structs.
         // Else safety check for accessing fields out of function scope.
         if( instance(var) ) {
-            Node self = _scope.in(_scope.lookup("self")); // Insert self reference
+            Var selfVar = _scope.lookup("self");
+            Node self = liftExpr(_scope.in(selfVar),selfVar.type(),true);
             return parsePostfixName(self,id,pre);
         }
 
         // Load local value
-        Node rvalue = _scope.in(var);
-        if( rvalue._type == Type.BOTTOM )
+        Node oldValue = _scope.in(var);
+        if( oldValue instanceof ConstantNode && !(oldValue instanceof FRefNode) && oldValue._type==Type.BOTTOM )
+            throw error("Cannot read uninitialized field '"+id+"'");
+        Node rvalue = liftExpr(oldValue,var.type(),true);
+        if( rvalue!=oldValue ) _scope.update(var,rvalue);
+        if( rvalue instanceof ConstantNode && rvalue._type == Type.BOTTOM )
             if( rvalue instanceof FRefNode )
                 return parsePostfix(rvalue);
             else throw error("Cannot read uninitialized field '"+id+"'");
@@ -1409,7 +1396,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t,true);
+        return liftExpr(peep(op),t,true);
     }
 
 
@@ -1460,12 +1447,26 @@ public class Parser {
         }
         // Check that all fields are initialized
         for( int i=idx; i<init.size(); i++ )
-            if( init.at(i)._type == Type.TOP || init.at(i)._type == Type.BOTTOM )
+            if( missingInit(init.at(i),new java.util.BitSet()) )
                 throw error("'"+tmp._obj._name+"' is not fully initialized, field '" + fs[i-idx]._fname + "' needs to be set in a constructor");
         Node ptr = newStruct(tmp._obj, off(tmp._obj, " len"), idx, init );
         if( hasConstructor )
             _scope.pop();
         return ptr;
+    }
+
+    // The old constructor model requires each field on every path. An
+    // unresolved expression also has BOTTOM now, so inspect the actual
+    // sentinel and merges instead of mistaking an unknown type for no write.
+    private boolean missingInit(Node n, java.util.BitSet visit) {
+        if( n==null || visit.get(n._nid) || n instanceof FRefNode ) return false;
+        visit.set(n._nid);
+        if( n instanceof ConstantNode ) return n._type==Type.BOTTOM || n._type==Type.TOP;
+        if( n instanceof ConvertNode || n instanceof ReadOnlyNode ) return missingInit(n.in(1),visit);
+        if( n instanceof PhiNode phi )
+            for( int i=1; i<n.nIns(); i++ )
+                if( phi.region().in(i)!=null && phi.region().in(i)._type!=Type.XCONTROL && missingInit(n.in(i),visit) ) return true;
+        return false;
     }
 
 
@@ -1585,14 +1586,15 @@ public class Parser {
 
         // Sanity check expr for being a reference
         if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
+            return parseUnknownField(expr,name,pre);
 
         // Find the field from the Type.  Lookup in the base object field names.
         TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
         if( !ptr._obj.isAry() )
-            ptr = ptr.makeFrom((TypeStruct)ptr._obj.join(ptr2._obj)); // Resolve the shape, retaining access.
+            ptr = ptr.makeFrom(ptr2._obj); // The declaration fixes the field shape; retain this view's access.
         TypeStruct base = ptr._obj;
         int fidx = base.find(name);
+        if( fidx==-1 && base._open ) return parseUnknownField(expr,name,pre);
         if( fidx == -1 )
             throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
@@ -1624,7 +1626,7 @@ public class Parser {
         // Load field
         Node load = f._one && INITS.containsKey( base._name )
             ? INITS.get(base._name).in(base.find(name))
-            : new LoadNode(loc(),name, f._alias, tf, mem(), expr, off);
+            : new LoadNode(loc(),name, f._alias, mem(), expr, off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
@@ -1647,7 +1649,7 @@ public class Parser {
             // Method call: Loaded a function from a named field, AND the base
             // field type is final.
             if( load._type instanceof TypeFunPtr && name!="[]" &&
-                !(load instanceof ExternNode) &&
+                _code.externFunc((TypeFunPtr)load._type)==null &&
                 ((TypeMemPtr)TYPES.get(base._name))._obj.field(name)._final &&
                 // And calling a function
                 match("(") ) {
@@ -1663,6 +1665,52 @@ public class Parser {
         return parsePostfix(load);
     }
 
+
+    // Syntax fixes the access even when a forward definition or a loop
+    // leaves the receiver untyped. Resolve its alias and layout in the graph.
+    private Node parseUnknownField(Node expr, String name, int pre) {
+        expr.keep();
+        Node off = new FldOffNode(expr,name).peephole();
+        if( name.equals("[]") ) {
+            Node index = require(parseAsgn(),"]");
+            Node scale = new FldOffNode(expr,"<<").peephole();
+            off = peep(new AddNode(off,peep(new ShlNode(loc(),index,scale))));
+        }
+        off.keep();
+        if( pre==0 && matchOpx('=','=') ) {
+            Node value = parseAsgn().keep();
+            Node st = new StoreNode(loc(),name,1,Type.BOTTOM,mem(),expr,off,value,false);
+            st.setDef(0,ctrl());
+            mem(st.peephole());
+            expr.unkill();
+            off.unkill();
+            return value.unkeep();
+        }
+        Node load = new LoadNode(loc(),name,1,mem(),expr,off);
+        load.setDef(0,ctrl());
+        load = peep(load);
+        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
+        if( ch!=0 ) {
+            Node op = opAssign(ch,load,Type.BOTTOM).keep();
+            Node st = new StoreNode(loc(),name,1,Type.BOTTOM,mem(),expr,off,op,false);
+            st.setDef(0,ctrl());
+            mem(st.peephole());
+            // The field width is not known yet. A compound assignment returns
+            // the stored value after conversion; postfix returns the old load.
+            // Reading our own Store folds once its alias and width are known.
+            if( postfix(ch) ) load.unkeep();
+            if( pre!=0 || !postfix(ch) ) {
+                load = new LoadNode(loc(),name,1,mem(),expr,off);
+                load.setDef(0,ctrl());
+                load = peep(load);
+            }
+            load.keep();
+            op.unkill();
+        } else load.keep();
+        expr.unkill();
+        off.unkill();
+        return pre==0 ? parsePostfix(load.unkeep()) : load.unkeep();
+    }
 
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
     // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
@@ -1735,7 +1783,7 @@ public class Parser {
     private Node functionCall(Node fcn, Node self) {
         if( fcn._type == Type.NIL )
             throw error("Calling a null function pointer");
-        if( !(fcn instanceof FRefNode) && !fcn._type.isa(TypeFunPtr.BOT) )
+        if( !(fcn instanceof FRefNode) && fcn._type!=Type.BOTTOM && fcn._type!=TypeScalar.BOT && !fcn._type.isa(TypeFunPtr.BOT) )
             throw error("Expected a function but got "+fcn._type.glb(false).str());
         fcn.keep();            // Keep while parsing args
 
@@ -1920,6 +1968,10 @@ public class Parser {
         private final byte[] _input;
         // Tracks current position in input buffer
         private int _position = 0;
+
+        public boolean before(Lexer that) {
+            return that!=null && _input==that._input && _position<that._position;
+        }
 
         //
         private int _line_number = 1;

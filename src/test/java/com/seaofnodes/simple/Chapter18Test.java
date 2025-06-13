@@ -283,7 +283,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return #2; return Parm_i(x,i64); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Loop,arg,3); return Parm_i(x,i64); ]", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -454,7 +454,7 @@ if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,#2,1); return Parm_i(i2i.o,i64); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,arg,1); return Parm_i(i2i.o,i64); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

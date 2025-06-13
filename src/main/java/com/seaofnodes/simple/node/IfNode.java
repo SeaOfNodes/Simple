@@ -60,7 +60,9 @@ public class IfNode extends CFGNode implements MultiNode {
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
             for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() ) {
-                if( addDep(dom) instanceof IfNode iff && addDep(iff.pred())==pred() && prior instanceof CProjNode prj ) {
+                if( addDep(dom) instanceof IfNode iff && prior instanceof CProjNode prj &&
+                    (addDep(iff.pred())==pred() ||
+                     (pred() instanceof GuardNode guard && guard._nonZero && iff.pred()==guard.in(1))) ) {
                     setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }

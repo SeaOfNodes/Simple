@@ -202,6 +202,15 @@ public class CodeGen {
     public CodeGen parse() {
         return phase(Phase.Parse, _phase==null, () -> {
             P.parse();
+            // Close the declarations as a group before replacing old forward
+            // shapes in the graph. A can mention B before B mentions A; both
+            // must use the same complete cycle, including through functions.
+            HashMap<String,Type> closed = new HashMap<>();
+            for( var entry : Parser.TYPES.entrySet() )
+                if( entry.getValue() instanceof TypeMemPtr ptr && !ptr._obj._open )
+                    closed.put(entry.getKey(),ptr.makeFrom(ptr._obj.close(Parser.TYPES)));
+            Parser.TYPES.putAll(closed);
+            _start.walk(n -> { n.upgradeType(Parser.TYPES); return null; });
         });
     }
 

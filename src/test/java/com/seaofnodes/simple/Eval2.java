@@ -254,23 +254,24 @@ public abstract class Eval2 {
     private static Object compute( Node n ) {
         return switch( n ) {
         case AddFNode     adf  -> d(adf.in(1)) +  d(adf.in(2));
-        case AddNode      add  -> x(add.in(1)) +  x(add.in(2));
+        case AddNode add -> add.mode()==2 ? (Object)(d(add.in(1)) + d(add.in(2))) : (Object)(x(add.in(1)) + x(add.in(2)));
         case AndNode      and  -> x(and.in(1)) &  x(and.in(2));
         case BoolNode.EQF eqf  -> d(eqf.in(1)) == d(eqf.in(2)) ? 1L : 0L;
         case BoolNode.LEF lef  -> d(lef.in(1)) <= d(lef.in(2)) ? 1L : 0L;
         case BoolNode.LTF ltf  -> d(ltf.in(1)) <  d(ltf.in(2)) ? 1L : 0L;
         case BoolNode.EQ  eq   -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L; // Bool EQ supports pointers, nil, and integers
-        case BoolNode.LE  le   -> x(le .in(1)) <= x(le .in(2)) ? 1L : 0L;
-        case BoolNode.LT  lt   -> x(lt .in(1)) <  x(lt .in(2)) ? 1L : 0L;
+        case BoolNode.LE le -> (le.isFloat() ? d(le.in(1))<=d(le.in(2)) : x(le.in(1))<=x(le.in(2))) ? 1L : 0L;
+        case BoolNode.LT lt -> (lt.isFloat() ? d(lt.in(1))<d(lt.in(2)) : x(lt.in(1))<x(lt.in(2))) ? 1L : 0L;
         case CastNode    cast  -> val(cast.in(1));
+        case GuardNode guard -> val(guard.in(1));
         case ConstantNode con  -> con(con._con);
         case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
-        case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
+        case DivNode div -> div.mode()==2 ? (Object)(d(div.in(2))==0 ? 0D : d(div.in(1))/d(div.in(2))) : (Object)(x(div.in(2))==0 ? 0L : x(div.in(1))/x(div.in(2)));
         case LoadNode     ld   -> load(ld);
         case MinusFNode   mnf  -> - d(mnf.in(1));
-        case MinusNode    sub  -> - x(sub.in(1));
+        case MinusNode sub -> sub.mode()==2 ? (Object)(-d(sub.in(1))) : (Object)(-x(sub.in(1)));
         case MulFNode     mlf  -> d(mlf.in(1)) *  d(mlf.in(2));
-        case MulNode      mul  -> x(mul.in(1)) *  x(mul.in(2));
+        case MulNode mul -> mul.mode()==2 ? (Object)(d(mul.in(1)) * d(mul.in(2))) : (Object)(x(mul.in(1)) * x(mul.in(2)));
         case NewNode      alloc-> alloc(alloc);
         case NotNode      not  -> not(not);
         case OrNode       or   -> x(or .in(1)) |  x(or .in(2));
@@ -281,7 +282,7 @@ public abstract class Eval2 {
         case ShlNode      shl  -> x(shl.in(1)) << x(shl.in(2));
         case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
         case StoreNode    st   -> store(st);
-        case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
+        case SubNode sub -> sub.mode()==2 ? (Object)(d(sub.in(1)) - d(sub.in(2))) : (Object)(x(sub.in(1)) - x(sub.in(2)));
         case SubFNode     sbf  -> d(sbf.in(1)) -  d(sbf.in(2));
         case RoundF32Node rnd  -> (double)(float)d(rnd.in(1));
         case ToIntegerNode cvt -> (long)d(cvt.in(1));

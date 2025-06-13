@@ -7,7 +7,7 @@ import java.util.ArrayList;
 /**
  * Represents a constant array of primitives
  */
-public abstract class TypeConAry<A> extends Type {
+public abstract class TypeConAry<A> extends TypeScalar {
     boolean _any;
     byte _widen;
     // One of byte or int array

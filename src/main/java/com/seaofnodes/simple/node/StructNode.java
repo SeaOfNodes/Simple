@@ -10,8 +10,17 @@ import com.seaofnodes.simple.util.SB;
  */
 public class StructNode extends Node {
 
-    public final TypeStruct _ts;
+    public TypeStruct _ts;
     public StructNode(TypeStruct ts) { _ts=ts; assert !ts._open; }
+
+    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
+        if( _ts==null ) return false;
+        TypeStruct ts = (TypeStruct)_ts.upgradeType(types);
+        if( ts==_ts ) return false;
+        unlock();
+        _ts = ts;
+        return true;
+    }
 
     @Override public String label() { return _ts==null ? "STRUCT?" : _ts.str(); }
 

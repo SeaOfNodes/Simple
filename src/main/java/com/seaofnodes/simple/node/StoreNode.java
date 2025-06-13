@@ -43,6 +43,7 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Type compute() {
+        if( _alias==1 ) return TypeMem.BOT;
         Type val = val()._type;
         assert !_declaredType.isFRef();
         Type t = val.join(_declaredType).meet(MemMergeNode.contents(mem(),_alias,this));
@@ -51,6 +52,15 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( _alias==1 ) {
+            if( !(ptr()._type instanceof TypeMemPtr ptr) || ptr._obj._open ) return null;
+            Field field = ptr._obj.field(_name);
+            if( field==null ) return null;
+            Node value = new ConvertNode(field._t,val()).peephole();
+            StoreNode store = new StoreNode(_loc,_name,field._alias,field._t,mem(),ptr(),off(),value,_init);
+            store.setDef(0,in(0));
+            return new MemMergeNode(mem(),field._alias,store.peephole());
+        }
         if( mem() instanceof MemMergeNode merge ) {
             setDef(1,CodeGen.CODE.add(merge.alias(_alias)));
             return this;
@@ -138,8 +148,8 @@ public class StoreNode extends MemOpNode {
         if( ctrl==null ) return null;
 
         Node mem = phi.in(1);
-        Node init = new LoadNode(_loc,_name,_alias,_declaredType,mem,ptr(),off()).peephole();
-        Node value = CodeGen.CODE.add(new PhiNode(_name,_declaredType,loop,init,val()).peephole());
+        Node init = new LoadNode(_loc,_name,_alias,mem,ptr(),off()).peephole();
+        Node value = CodeGen.CODE.add(new PhiNode(_name,loop,init,val()).peephole());
         Node sink = new StoreNode(_loc,_name,_alias,_declaredType,mem,ptr(),off(),value,_init);
         // Break the memory cycle, killing the old store. Keep the Phi alive
         // even if that store was its last use, until our caller replaces it.
@@ -164,10 +174,11 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
-        if( ptr()._type == Type.TOP )
-            return null; // This means we have an error input, report elsewhere
-        TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( (tmp._ro || tmp._obj.field(_name)._final) && !_init )
+        if( !(ptr()._type instanceof TypeMemPtr tmp) )
+            return null; // Report the bad or unresolved receiver at its source.
+        Field field = tmp._obj.field(_name);
+        if( field==null ) return Parser.error("Cannot resolve field '"+_name+"'",_loc);
+        if( (tmp._ro || field._final) && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         return null;
     }

@@ -9,20 +9,21 @@ public class MemPhiNode extends PhiNode {
     public final int _alias;
 
     public MemPhiNode(String label, int alias, Node... inputs) {
-        super(label,TypeMem.make(alias,Type.BOTTOM),inputs);
+        super(label,inputs);
         assert alias > 1;
         _alias = alias;
     }
 
     public MemPhiNode(MemPhiNode phi) { super(phi); _alias = phi._alias; }
 
+    @Override public boolean isMem() { return true; }
     @Override public String label() { return "MemPhi_"+_alias; }
 
     @Override public Type compute() {
         assert BulkMemPhiNode.checkMem(this,_alias);
         if( !(region() instanceof RegionNode r) )
             return (region()._type==Type.XCONTROL || region()._type==Type.TOP) ? TypeMem.TOP : _type;
-        if( r.inProgress() ) return r instanceof LoopNode ? _minType : TypeMem.BOT;
+        if( r.inProgress() ) return r instanceof LoopNode ? TypeMem.make(_alias,Type.BOTTOM) : TypeMem.BOT;
         Type t = Type.TOP;
         for( int i=1; i<nIns(); i++ )
             if( addDep(r.in(i))._type!=Type.XCONTROL && r.in(i)._type!=Type.TOP )
