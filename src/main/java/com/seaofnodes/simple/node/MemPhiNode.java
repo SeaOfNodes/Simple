@@ -21,11 +21,11 @@ public class MemPhiNode extends PhiNode {
     @Override public Type compute() {
         assert BulkMemPhiNode.checkMem(this,_alias);
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL ? TypeMem.TOP : _type;
-        if( r.inProgress() ) return _minType;
+            return (region()._type==Type.XCONTROL || region()._type==Type.TOP) ? TypeMem.TOP : _type;
+        if( r.inProgress() ) return r instanceof LoopNode ? _minType : TypeMem.BOT;
         Type t = Type.TOP;
         for( int i=1; i<nIns(); i++ )
-            if( addDep(r.in(i))._type!=Type.XCONTROL )
+            if( addDep(r.in(i))._type!=Type.XCONTROL && r.in(i)._type!=Type.TOP )
                 t = t.meet(MemMergeNode.contents(in(i),_alias,this));
         return TypeMem.make(_alias,t);
     }

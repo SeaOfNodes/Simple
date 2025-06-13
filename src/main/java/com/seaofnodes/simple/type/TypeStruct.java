@@ -68,6 +68,12 @@ public class TypeStruct extends Type {
                     Field.make("#" ,len , lenAlias,true  ,false),
                     Field.make("[]",body,bodyAlias,efinal,false));
     }
+    public TypeStruct makeHigh() {
+        Field[] fs = new Field[_fields.length];
+        for( int i=0; i<_fields.length; i++ )
+            fs[i] = _fields[i].makeFrom(Type.TOP);
+        return make(_name,false,fs);
+    }
 
     public TypeStruct add( Field f ) {
         assert _open && find(f._fname)==-1; // No double field names
