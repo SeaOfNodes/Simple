@@ -118,7 +118,7 @@ public class RegAllocTestSupport {
             @Override public boolean commutes() { return true; }
         };
         RegionNode region = new RegionNode(null,code._start,code._start);
-        new PhiNode("sum",TypeInteger.BOT,region,add,a);
+        new PhiNode("sum",region,add,a);
         code._cfg.add(region);
         assertTrue(BuildLRG.run(0,new RegAlloc(code)));
     }
@@ -185,7 +185,7 @@ public class RegAllocTestSupport {
             Op def = new Op(A,null,null,false,code._start);
             Node top = new ConstantNode(com.seaofnodes.simple.type.Type.TOP);
             RegionNode region = new RegionNode(null,code._start,code._start);
-            PhiNode phi = new PhiNode("value",TypeInteger.BOT,region,slot==1 ? top : def,slot==2 ? top : def);
+            PhiNode phi = new PhiNode("value",region,slot==1 ? top : def,slot==2 ? top : def);
             phi._type = TypeInteger.BOT;
             new Op(null,A,null,false,region,phi);
             code._cfg.add(region);
@@ -255,7 +255,7 @@ public class RegAllocTestSupport {
             RegAlloc alloc = new RegAlloc(code);
             Op init = new Op(A,null,null,false,code._start);
             LoopNode loop = new LoopNode(null,code._start);
-            PhiNode phi = new PhiNode("loop",TypeInteger.BOT,loop,init,null);
+            PhiNode phi = new PhiNode("loop",loop,init,null);
             Op back = new Op(A,A,null,false,loop,phi);
             phi.setDef(2,back);
             Op use = new Op(null,A,null,false,loop,phi);

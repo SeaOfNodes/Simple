@@ -18,7 +18,7 @@ import com.seaofnodes.simple.util.SB;
  */
 
 public class ConstantNode extends Node {
-    public final Type _con;
+    public Type _con;
     public ConstantNode( Type type ) {
         super(new Node[]{CodeGen.CODE._start});
         _con = _type = type;
@@ -56,4 +56,12 @@ public class ConstantNode extends Node {
     @Override public Node idealize() { return null; }
     @Override public boolean eq(Node n) { return _con==((ConstantNode)n)._con; }
     @Override int hash() { return _con.hashCode(); }
+
+    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
+        Type next = _con.upgradeType(types);
+        if( next==_con ) return false;
+        unlock();
+        _con=next;
+        return true;
+    }
 }

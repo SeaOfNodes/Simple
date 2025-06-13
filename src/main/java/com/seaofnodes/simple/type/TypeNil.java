@@ -7,7 +7,7 @@ import java.util.ArrayList;
 /**
  * Nil-able Scalar types
  */
-public abstract class TypeNil extends Type {
+public abstract class TypeNil extends TypeScalar {
     // 0 = high-subclass choice nil
     // 1 = high-subclass no nil
     // 2 = low -subclass no nil

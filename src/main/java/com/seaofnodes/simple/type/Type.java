@@ -57,6 +57,7 @@ public class Type /*implements Cloneable*/ {
     static final byte TNIL    = 4; // low null of all flavors
     static final byte TXNIL   = 5; // high or choice null
     static final byte TSIMPLE = 6; // End of the Simple Types
+    static final byte TSCALAR = 6; // All register/field values, excluding control and memory
 
     static final byte TPTR    = 7; // All nil-able scalar values
     static final byte TINT    = 8; // All Integers; see TypeInteger
@@ -97,6 +98,7 @@ public class Type /*implements Cloneable*/ {
         ts.add(BOTTOM);
         ts.add(CONTROL);
         ts.add(NIL);
+        TypeScalar.gather(ts);
         TypeNil.gather(ts);
         TypePtr.gather(ts);
         TypeInteger.gather(ts);
@@ -267,6 +269,8 @@ public class Type /*implements Cloneable*/ {
         // Constant arrays meet their integer element types.
         if( this instanceof TypeConAry tcon && t    instanceof TypeInteger ti ) return tcon.ymeet(ti);
         if( t    instanceof TypeConAry tcon && this instanceof TypeInteger ti ) return tcon.ymeet(ti);
+        if( this instanceof TypeScalar scalar0 && t instanceof TypeScalar scalar1 )
+            return scalar0.smeet(scalar1);
         return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 
@@ -280,8 +284,14 @@ public class Type /*implements Cloneable*/ {
         if( _type==TTOP || t._type==TBOT ) return    t;
 
         // RHS TypeNil vs NIL/XNIL
-        if( _type==  TNIL ) return t instanceof TypeNil ptr ? ptr.meet0() : (t._type==TXNIL ? TypePtr.PTR : BOTTOM);
-        if( _type== TXNIL ) return t instanceof TypeNil ptr ? ptr.meetX() : (t._type== TNIL ? TypePtr.PTR : BOTTOM);
+        if( _type==TNIL || _type==TXNIL ) {
+            if( t instanceof TypeNil ptr ) return _type==TNIL ? ptr.meet0() : ptr.meetX();
+            if( t instanceof TypeScalar ) {
+                if( t._type==TSCALAR ) return t.isHigh() ? this : t;
+                return TypeScalar.BOT;
+            }
+            return t._type==(_type==TNIL ? TXNIL : TNIL) ? TypePtr.PTR : BOTTOM;
+        }
 
         // 'this' is only {TCTRL,TXCTRL}
         // Other non-simple RHS things bottom out
@@ -487,7 +497,7 @@ public class Type /*implements Cloneable*/ {
     }
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
-    Type _close() { return this; }
+    Type _close(HashMap<String,Type> types) { return this; }
     public Type widen() { return this; }
 
     // ----------------------------------------------------------
@@ -523,4 +533,11 @@ public class Type /*implements Cloneable*/ {
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }
+
+    // Closing declarations changes the meaning of forward shapes. Upgrade
+    // the whole graph together before starting the pessimistic fixed point.
+    public final Type upgradeType(HashMap<String,Type> types) {
+        return recurOpen()._upgradeType(types).recurClose();
+    }
+    Type _upgradeType(HashMap<String,Type> types) { return this; }
 }

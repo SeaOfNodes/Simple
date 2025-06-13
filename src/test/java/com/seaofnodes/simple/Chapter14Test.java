@@ -176,7 +176,7 @@ while(v1) break;
 return v1;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,(((1<<arg)&1)&Shl),0);", code.print());
+        assertEquals("return (Phi(Loop,(((1<<arg)&1)&Shl),0)&4294967295);", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 

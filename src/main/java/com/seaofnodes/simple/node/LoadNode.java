@@ -22,8 +22,10 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(loc, name, alias, true, glb, mem, ptr, off);
+    public LoadNode(Parser.Lexer loc, String name, int alias, Node mem, Node ptr, Node off) {
+        // The field declaration will supply storage width once the receiver
+        // is known. A parser guess must not bound the value of this Load.
+        super(loc, name, alias, true, Type.BOTTOM, mem, ptr, off);
     }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
@@ -52,37 +54,40 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type tmem = mem()._type;
-        if( !(tmem instanceof TypeMem mem) )
-            return tmem; // No memory yet?  Assume TOP/BOT
-        assert !_declaredType.isFRef();
-        // No lifting if ptr might null-check
-        Type tptr = ptr()._type;
-        if( err() != null )
-            return _declaredType;
-        if( !(tptr instanceof TypeMemPtr tmp) )
-            return tptr; // No pointer yet?  Assume TOP/BOT
-        // Load field from object
-        Field f = tmp._obj.field(_name);
-        // No field?  Open objects might yet get the field when falling;
-        // closed objects with missing field are an error.
-        if( f == null )
-            return tmp.isHigh() ? Type.TOP : _declaredType;
-        Type t = f._t;
-        // Load member of constant array
-        if( t instanceof TypeConAry ary )
-            t = ary.elem();     // TODO: if offset is known, can peek the constant
-        // Lift from declared type and memory input
-        t = t.join(MemMergeNode.contents(mem(),_alias,this));
-        if( ptr()._type.isFinal() || _declaredType.isFinal() )
-            t = t.makeRO(); // Deep final applied
-        // Pinch between declared type
-        t = t.join(_declaredType);
-        return t;
+        Type p = ptr()._type;
+        Type m = mem()._type;
+        if( p.isHigh() || m.isHigh() ) return TypeScalar.TOP;
+        if( p==Type.NIL || p==Type.BOTTOM ) return Type.BOTTOM;
+        if( !(p instanceof TypeMemPtr ptr) ) return TypeScalar.BOT;
+        if( ptr.nullable() ) return Type.BOTTOM;
+        Field field = ptr._obj.field(_name);
+        if( field==null ) return TypeScalar.BOT;
+        Type t = field._t;
+        if( t instanceof TypeConAry ary ) t=ary.elem();
+        if( _alias!=1 ) t=t.join(MemMergeNode.contents(mem(),_alias,this));
+        if( ptr.isFinal() ) t=t.makeRO();
+        return t==Type.TOP ? TypeScalar.TOP : t==Type.BOTTOM ? TypeScalar.BOT : t;
     }
 
     @Override
     public Node idealize() {
+        if( ptr()._type instanceof TypeMemPtr ptr && !ptr._obj._open ) {
+            Field field = ptr._obj.field(_name);
+            // Storage width comes from the declaration, not from a constant
+            // or range inferred for this particular object's current value.
+            Type declared = Parser.TYPES.get(ptr._obj._name);
+            if( declared instanceof TypeMemPtr shape && shape._obj.field(_name)!=null )
+                field=shape._obj.field(_name);
+            Type storage = field==null ? Type.BOTTOM : field._t instanceof TypeConAry ary ? ary.elem() : field._t;
+            if( field!=null && (_alias!=field._alias || _declaredType!=storage) ) {
+                unlock();
+                _alias=field._alias;
+                _declaredType=storage;
+                return this;
+            }
+        }
+        if( _alias==1 ) return null;
+
         if( mem() instanceof CastNode cast ) {
             setDef(1,cast.in(1));
             return this;
@@ -128,7 +133,7 @@ public class LoadNode extends MemOpNode {
                 !(ptr instanceof PhiNode p && p.region()==memphi.region()) ? memphi : null;
             if( find(memphi.in(2),ptr,stop,new BitSet())!=null ||
                 (!(memphi.region() instanceof LoopNode) && find(memphi.in(1),ptr,null,new BitSet())!=null) ) {
-                PhiNode phi = new PhiNode(_name,_declaredType,memphi.region()).keep();
+                PhiNode phi = new PhiNode(_name,memphi.region()).keep();
                 phi.setType(_type); // Backedge searches may return this value Phi.
                 for( int i=1; i<memphi.nIns(); i++ ) {
                     Node p = ptr instanceof PhiNode pp && pp.region()==memphi.region() ? pp.in(i) : ptr;
@@ -153,7 +158,7 @@ public class LoadNode extends MemOpNode {
     // the unchanged loop memory, or a merge whose every arm folds. Null fails.
     // Register dependencies so a later pointer/offset rewrite retries the query.
     private Node find(Node mem, Node ptr, Node stop, BitSet visit) {
-        if( ptr instanceof ReadOnlyNode ro ) ptr=ro.in(1);
+        ptr = address(ptr);
         while( mem!=null ) {
             addDep(mem);
             if( mem==stop ) return mem;
@@ -161,9 +166,17 @@ public class LoadNode extends MemOpNode {
             case MemMergeNode merge: mem=merge.alias(_alias); break;
             case CastNode cast: mem=cast.in(1); break;
             case StoreNode st:
+                // A symbolic Store may write this field. Wait for its alias;
+                // skipping it can make a compound assignment read the old value.
+                if( st._alias==1 ) return null;
                 addDep(st.ptr());
-                if( _alias==st._alias && ptr==st.ptr() && off()==st.off() ) return st;
-                if( _alias==st._alias && !neverAlias(ptr,st.ptr()) &&
+                if( _alias==st._alias && ptr==address(st.ptr()) && off()==st.off() ) {
+                    // A full-width load cannot narrow the forwarded value.
+                    if( _declaredType instanceof TypeInteger ti && ti.log_size()==3 &&
+                        !addDep(st.val())._type.isa(_type) ) return null;
+                    return st;
+                }
+                if( _alias==st._alias && !neverAlias(ptr,address(st.ptr())) &&
                     !addDep(off())._type.join(addDep(st.off())._type).isHigh() ) return null;
                 mem=st.mem();
                 break;
@@ -190,8 +203,15 @@ public class LoadNode extends MemOpNode {
         return null;
     }
 
+    // Guards and read-only views keep the same address. Retain the Load's
+    // guarded input for its null check, but compare actual addresses here.
+    private static Node address(Node ptr) {
+        while( ptr instanceof ReadOnlyNode || ptr instanceof GuardNode ) ptr=ptr.in(1);
+        return ptr;
+    }
+
     private Node folded(Node win) {
-        return win instanceof StoreNode st ? extend(castRO(st.val())) : zero((NewNode)win);
+        return win instanceof StoreNode st ? extend(castRO(st.val()),st._declaredType) : zero((NewNode)win);
     }
 
     // Materialize only after the profitability search succeeds. The value Phi
@@ -201,13 +221,13 @@ public class LoadNode extends MemOpNode {
         if( win!=null ) {
             if( win==stop ) return value;
             if( win instanceof MemPhiNode mp ) {
-                PhiNode phi=new PhiNode(_name,_declaredType,mp.region()).keep();
+                PhiNode phi=new PhiNode(_name,mp.region()).keep();
                 for( int i=1; i<mp.nIns(); i++ ) phi.addDef(load(mp.in(i),ptr,stop,value));
                 return phi.unkeep().peephole();
             }
             return folded(win).peephole();
         }
-        LoadNode ld=new LoadNode(_loc,_name,_alias,_declaredType,mem,ptr,off());
+        LoadNode ld=new LoadNode(_loc,_name,_alias,mem,ptr,off());
         ld.setDef(0,in(0));
         return ld.peephole();
     }
@@ -247,15 +267,24 @@ public class LoadNode extends MemOpNode {
 
     // When a load bypasses a store, the store might truncate bits - and the
     // load will need to zero/sign-extend.
-    private Node extend(Node val) {
-        if( !(_declaredType instanceof TypeInteger ti) ) return val;
+    // Use the matching Store's width: while a class is open, this Load may
+    // already know its alias but not yet have recorded its storage type.
+    private Node extend(Node val, Type storage) {
+        if( !(storage instanceof TypeInteger ti) ) return val;
         if( ti._min==0 )        // Unsigned
             return new AndNode(null,val,con(ti._max));
         // Signed extension
         int shift = Long.numberOfLeadingZeros(ti._max)-1;
         Node shf = con(shift);
-        if( shf._type==TypeInteger.ZERO )
+        if( shf._type==TypeInteger.ZERO ) {
+            // A constructor's loop Phi may still have an unsettled type.
+            // Wait for it instead of weakening the typed Load's users.
+            if( !val._type.isa(_type) ) {
+                addDep(val);
+                return null;
+            }
             return val;
+        }
         Node shl = new ShlNode(null,val,shf.keep()).peephole();
         return new SarNode(null,shl,shf.unkeep());
     }

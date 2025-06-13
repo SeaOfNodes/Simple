@@ -126,7 +126,7 @@ public class TypeMemPtr extends TypeNil {
     @Override TypeMemPtr _makeRO() { return withAccess(true); }
     @Override boolean _isGLB(boolean mem) { return _ro && _nil==3 && !_one && _obj.isGLB2(); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2(),false,true); }
-    @Override TypeMemPtr _close() { return makeFrom(_obj._close()); }
+    @Override TypeMemPtr _close(HashMap<String,Type> types) { return makeFrom(_obj._close(types)); }
 
 
     // True if this "isa" t up to named structures
@@ -173,5 +173,9 @@ public class TypeMemPtr extends TypeNil {
         if( this==TOP ) return sb.p("PtrTop");
         if( this== NOTBOT) return sb.p("*void");
         return _obj.print(sb.p(x()).p("*"),visit,html).p(q());
+    }
+
+    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
+        return makeFrom((TypeStruct)_obj._upgradeType(types));
     }
 }

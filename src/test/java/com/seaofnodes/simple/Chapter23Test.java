@@ -115,7 +115,7 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
                 """
                 int a = 1;
                 int b = 0;
-                
+
                 if(a++ || b++ ) {
                     if(b == 0 && a == 2) {
                         sys.io.p("Or");
@@ -149,7 +149,7 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
                 """
                 int a = 1;
                 int b = 1;
-                
+
                 if(a && b) {
                     sys.io.p("And");
                 } else {
@@ -186,14 +186,14 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
         String src2 =
                 """
                 struct S { !S? !fld; };
-                
+
                 val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
                 if( ptr && ptr.fld ) {
                   sys.io.p("true");
                 } else {
                   sys.io.p("false");
                 }
-                
+
                 return 0;
                 """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
@@ -221,13 +221,13 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
                 """
                 int a = 1;
                 int b = 1;
-                
+
                 int x=1;
                 int y=1;
                 int z=0;
-                
+
                 int g = x++ && y++ && z++;
-                
+
                 if(x == 2 && y == 2 && z == 1 && g == 0) {
                     sys.io.p("Effected");
                 } else {
@@ -259,13 +259,13 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
                 """
                 int a = 1;
                 int b = 1;
-                
+
                 int x = -1;
                 int y=1;
                 int z= -1;
-                
+
                 int g = x++ || y++ || z++;
-                
+
                 int switch = 0;
                 if(x == 4 || y == 4 || z == 4) {
                     switch = -1;
@@ -305,11 +305,11 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
                 // -*- mode: java;  -*-
                 int a = 1;
                 int b = 1;
-                
+
                 var sq = { int x ->
                     x*x;
                 };
-                
+
                 if(a && sq(0)) {
                     sys.io.p("And");
                 } else {
