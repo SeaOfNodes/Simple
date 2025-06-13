@@ -17,6 +17,20 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter24Test {
+    @Test public void testRecursiveWidening() {
+        String[] srcs = {
+            // Parm(x) must widen even though the recursive result is constant.
+            "val f = { int x, int limit -> x >= limit ? 0 : f(x+1,limit); }; return f(0,arg);",
+            // The growing result has its own cycle, which never crosses Parm(x).
+            "val f = { int x -> x <= 0 ? 0 : f(x-1)+1; }; return f(3);"
+        };
+        for( int i=0; i<srcs.length; i++ )
+            for( long seed : new long[]{0,42,126} ) {
+                var code = new CodeGen(srcs[i],TypeInteger.BOT,seed,true).driver(CodeGen.Phase.LocalSched);
+                assertEquals(i==0 ? "0" : "3",Eval2.eval(code,3));
+            }
+    }
+
     @Test public void testColdLoopSelfConflict() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coldLoopSelfConflict(); }
 
     @Test public void testPrintingDeadFunction() throws Exception {
