@@ -7,8 +7,6 @@ import java.util.BitSet;
 public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
 
-    @Override public String label() { return "Not"; }
-
     @Override public String glabel() { return "!"; }
 
     @Override

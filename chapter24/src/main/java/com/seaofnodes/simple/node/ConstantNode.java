@@ -3,8 +3,11 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * A Constant node represents a constant value.
@@ -23,6 +26,11 @@ public class ConstantNode extends Node {
         _con = _type = type;
     }
     public ConstantNode( ConstantNode con ) { super(con);  _con = con._type;  }
+    @Override public Tag serialTag() { return Tag.Con; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed2(types.get(_con)); // NPE if fails lookup
+    }
+    static Node make( BAOS bais, Type[] types)  { return new ConstantNode(types[bais.packed2()]); }
 
     public static Node make( Type type ) {
         if( type==Type. CONTROL ) return new CtrlNode();

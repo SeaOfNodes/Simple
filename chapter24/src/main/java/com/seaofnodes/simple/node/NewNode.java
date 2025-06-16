@@ -2,10 +2,11 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  *  Allocation!  Allocate a chunk of memory, and pre-zero it.
@@ -16,22 +17,32 @@ import java.util.BitSet;
 public class NewNode extends Node implements MultiNode {
 
     public final TypeMemPtr _ptr;
-    public final int _len;
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
         assert !ptr.nullable();
         _ptr = ptr;
-        _len = ptr._obj._fields.length;
+        if( nodes[0]==null ) return; // No asserts for deserializing, which is the only time no control at construction
+        int len = ptr._obj._fields.length;
         // Control in slot 0
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
         // Malloc-length in slot 1
         assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
-        for( int i=0; i<_len; i++ )
+        for( int i=0; i<len; i++ )
           assert ptr._obj._fields[i]._one || nodes[2 + i]._type.isa( TypeMem.BOT );
     }
 
-    public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
+    public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; }
+    @Override public Tag serialTag() { return Tag.New; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed1(nIns());          // Number of alias inputs
+        baos.packed2(types.get(_ptr)); // NPE if fails lookup
+    }
+    static Node make( BAOS bais, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeMemPtr ptr = (TypeMemPtr)types[bais.packed2()];
+        return new NewNode(ptr,ins);
+    }
 
     public Node mem (int idx) { return in(idx+2); }
 

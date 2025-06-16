@@ -102,16 +102,16 @@ public class TypeMem extends Type {
     @Override public void set( int idx, Type t ) { _t = t; }
     // one tag for alias#1, one tag for generic alias
     @Override int TAGOFF() { return 2; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         if( _alias==1 ) { baos.write(TAGOFFS[_type] + 0); return; }
         // generic alias
         baos.write(TAGOFFS[_type] + 1);
         assert _alias <= 255;
-        baos.write(aliases.get(_alias));
+        baos.packed1(aliases.get(_alias));
     }
-    static TypeMem packedT( int tag, BAOS bais ) {
+    static TypeMem packed( int tag, BAOS bais ) {
         if( tag==0 ) return malloc(1,null);
-        return malloc(bais.read(),null);
+        return malloc(bais.packed1(),null);
     }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {

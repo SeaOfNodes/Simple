@@ -84,9 +84,10 @@ public class TypeTest {
 
         // Cyclic check
         TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT2.field("s1")._t)._obj;
+        TypeStruct S1X = S1.close();
         Assert.assertFalse(s1.isFinal());
-        Type s1ro  = S1.makeRO();
-        Type s1ro2 = S1.makeRO();
+        Type s1ro  = S1X.makeRO();
+        Type s1ro2 = S1X.makeRO();
         Assert.assertSame(s1ro,s1ro2);
         Assert.assertTrue(s1ro.isFinal());
 

@@ -89,18 +89,17 @@ public class TypeTuple extends Type {
 
     // Reserve tags for tuples with 2,3,generic
     @Override int TAGOFF() { return 4; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         if( _types.length==2 ) baos.write(TAGOFFS[_type] + 0);
         else if( _types.length==3 ) baos.write(TAGOFFS[_type] + 1);
         else if( _types.length==4 ) baos.write(TAGOFFS[_type] + 2);
-        // 2 or generic
-        else throw Utils.TODO();
+        else baos.write(TAGOFFS[_type] + 3).packed2(_types.length);
     }
-    static TypeTuple packedT( int tag, BAOS bais ) {
+    static TypeTuple packed( int tag, BAOS bais ) {
         if( tag==0 ) return malloc(new Type[2]);
         if( tag==1 ) return malloc(new Type[3]);
         if( tag==2 ) return malloc(new Type[4]);
-        throw Utils.TODO();
+        return malloc(new Type[bais.packed2()]);
     }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {

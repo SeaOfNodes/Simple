@@ -106,7 +106,7 @@ public class Field extends Type {
         Type glb = _t._glb(true);
         return (glb== _t && _final ) ? this : make(_fname,glb,_alias,true,_one);
     }
-    @Override Field _close() { return makeFrom( _t._close()); }
+    @Override Field _close( String name ) { return makeFrom( _t._close(name)); }
 
     // Override in subclasses
     int hash() { return _fname.hashCode() ^ _t.hashCode() ^ _alias ^ (_final ? 1024 : 0) ^ (_one ? 2048 : 0); }
@@ -128,16 +128,16 @@ public class Field extends Type {
     @Override public void set( int idx, Type t ) { _t = t; }
     // Tags: final/!final, one,!one; +alias+name
     @Override int TAGOFF() { return 4; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         baos.write(TAGOFFS[_type]+
                    + (_final ? 1 : 0)
                    + (_one   ? 2 : 0) );
-        baos.packed4(aliases.get(_alias));
-        baos.packed4(strs   .get(_fname));
+        baos.packed2(aliases.get(_alias));
+        baos.packed2(strs   .get(_fname));
     }
-    static Field packedT( int tag, BAOS bais, String[] strs ) {
-        int alias = bais.packed4();
-        String fname = strs[bais.packed4()];
+    static Field packed( int tag, BAOS bais, String[] strs ) {
+        int alias = bais.packed2();
+        String fname = strs[bais.packed2()];
         return malloc(fname,null,alias,(tag&1)==1,(tag&2)==2);
     }
 

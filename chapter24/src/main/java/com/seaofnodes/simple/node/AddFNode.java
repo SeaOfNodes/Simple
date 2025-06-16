@@ -2,13 +2,11 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
-
 import java.util.BitSet;
 
 public class AddFNode extends Node {
     public AddFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
-
-    @Override public String label() { return "AddF"; }
+    @Override public Tag serialTag() { return Tag.AddF; }
 
     @Override public String glabel() { return "+"; }
 

@@ -1,12 +1,8 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-import java.util.Arrays;
 import java.util.BitSet;
-import java.util.HashSet;
-import static com.seaofnodes.simple.util.Utils.TODO;
 
 /**
  * The Start node represents the start of the function.
@@ -21,8 +17,7 @@ public class StartNode extends CFGNode implements MultiNode {
 
     public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
-
-    @Override public String label() { return "Start"; }
+    @Override public Tag serialTag() { return Tag.Start; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

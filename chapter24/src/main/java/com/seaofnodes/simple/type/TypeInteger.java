@@ -148,7 +148,7 @@ public class TypeInteger extends Type {
     }
     // Reserve tags for I64,I32,U32,0,constant,generic
     @Override int TAGOFF() { return 7; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         if(      this==BOT ) baos.write(TAGOFFS[_type] + 0);
         else if( this==I32 ) baos.write(TAGOFFS[_type] + 1);
         else if( this==U32 ) baos.write(TAGOFFS[_type] + 2);
@@ -164,7 +164,7 @@ public class TypeInteger extends Type {
         }
     }
 
-    static Type packedT( int tag, BAOS bais ) {
+    static Type packed( int tag, BAOS bais ) {
         return switch( tag ) {
         case 0 -> BOT;
         case 1 -> I32;

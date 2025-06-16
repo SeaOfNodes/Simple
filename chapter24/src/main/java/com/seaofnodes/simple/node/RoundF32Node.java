@@ -8,8 +8,6 @@ import java.util.BitSet;
 public class RoundF32Node extends Node {
     public RoundF32Node(Node lhs) { super(null, lhs); }
 
-    @Override public String label() { return "RoundF32"; }
-
     @Override public String glabel() { return "(f32)"; }
 
     @Override

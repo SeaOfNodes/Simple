@@ -10,7 +10,6 @@ import java.util.BitSet;
 public class ReadOnlyNode extends Node {
     public ReadOnlyNode( Node n ) { super(null,n); }
     public ReadOnlyNode( ReadOnlyNode n ) { super(n); }
-    @Override public String label() { return "ReadOnly"; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

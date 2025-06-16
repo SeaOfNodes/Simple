@@ -56,8 +56,6 @@ public class ScopeNode extends MemMergeNode {
         _guards = new Ary<>(Node.class);
     }
 
-    @Override public String label() { return "Scope"; }
-
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Scope[ ");

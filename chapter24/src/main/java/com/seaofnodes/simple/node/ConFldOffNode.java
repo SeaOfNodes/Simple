@@ -17,6 +17,7 @@ public class ConFldOffNode extends ConstantNode {
     public final String _name;         // Struct name
     public final String _fname;       // Field name
     public ConFldOffNode( String name, String fname ) { super(TypeInteger.BOT); _name = name; _fname = fname; }
+    @Override public Tag serialTag() { return Tag.ConFldOff; }
 
     @Override public String label() {
         return _fname == " len" ? "sizeof("+_name+")" : "#"+_fname;

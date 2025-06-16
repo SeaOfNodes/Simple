@@ -94,6 +94,35 @@ public class CodeGen {
     private int _alias = 2; // 0 is for control, 1 for memory
     public  int getALIAS() { return _alias++; }
 
+    // Next available function index
+    private int _fidx =0;
+    public TypeFunPtr makeFun( TypeFunPtr fun ) {
+        int fidx = _fidx++;
+        assert fidx<64;         // TODO: need a larger FIDX space
+        return fun.makeFrom(fidx);
+    }
+    // Signature for MAIN
+    public final TypeFunPtr _main;
+    // Reverse from a constant function pointer to the IR function being called
+    public FunNode link( TypeFunPtr tfp ) {
+        assert tfp.isConstant();
+        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+    }
+
+    // Insert linker mapping from constant function signature to the function
+    // being called.
+    public void link(FunNode fun) {
+        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+    }
+
+    // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
+    // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
+    // the return is not part of the match).
+    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+
+    // Next available RPC - Return Program Counter
+    private int _rpc = 1;
+    public int getRPC() { return _rpc++; }
 
     // idepths are cached and valid until *inserting* CFG edges (deleting is
     // OK).  This happens with inlining, which bumps the version to bulk
@@ -125,31 +154,6 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
-    //
-    private int _fidx =0;
-    public TypeFunPtr makeFun( TypeFunPtr fun ) {
-        int fidx = _fidx++;
-        assert fidx<64;         // TODO: need a larger FIDX space
-        return fun.makeFrom(fidx);
-    }
-    // Signature for MAIN
-    public final TypeFunPtr _main;
-    // Reverse from a constant function pointer to the IR function being called
-    public FunNode link( TypeFunPtr tfp ) {
-        assert tfp.isConstant();
-        return _linker.get(tfp.makeFrom(Type.BOTTOM));
-    }
-
-    // Insert linker mapping from constant function signature to the function
-    // being called.
-    public void link(FunNode fun) {
-        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
-    }
-
-    // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
-    // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
-    // the return is not part of the match).
-    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
 
     // Parser object
     public final Parser P;
@@ -387,6 +391,21 @@ public class CodeGen {
         assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
+
+
+        // Hopefully done with the CG now.  Unlink all linked calls.  This can
+        // remove RPC constants which shuffled the StartNode outputs so
+        // requires a while loop.
+        boolean done=false;
+        while(!done) {
+            done = true;
+            for( Node use : _start._outputs )
+                if( use instanceof FunNode fun )
+                    for( Node c : fun._inputs )
+                        if( c instanceof CallNode call )
+                            { call.unlink_all(); done=false; }
+        }
+
 
         GlobalCodeMotion.buildCFG(this);
         _tGCM = (int)(System.currentTimeMillis() - t0);

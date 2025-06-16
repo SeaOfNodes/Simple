@@ -99,7 +99,7 @@ public class TypeMemPtr extends TypeNil {
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
     @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
-    @Override TypeMemPtr _close() { return makeFrom(_obj._close()); }
+    @Override TypeMemPtr _close( String name ) { return makeFrom(_obj._close(name)); }
 
 
     // True if this "isa" t up to named structures
@@ -136,13 +136,13 @@ public class TypeMemPtr extends TypeNil {
 
     // Reserve tags for null/not and one/general
     @Override int TAGOFF() { return 4; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         assert _nil>=2;
         baos.write(TAGOFFS[_type]
                    + (_nil==2 ? 0 : 1)
                    + (_one    ? 2 : 0) );
     }
-    static TypeMemPtr packedT( int tag, BAOS bais ) {
+    static TypeMemPtr packed( int tag, BAOS bais ) {
         return malloc((byte)((tag&1)+2),null,(tag&2)==2);
     }
 

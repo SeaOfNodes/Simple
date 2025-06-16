@@ -6,10 +6,10 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
@@ -34,9 +34,21 @@ public class FunNode extends RegionNode {
         }
         _ltree._head = this;
     }
+    @Override public Tag serialTag() { return Tag.Fun; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        assert !_folding;
+        baos.packed1(nIns());          // Number of linked calls
+        baos.packed2(types.get(_sig)); // NPE if fails lookup
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
+        String name = strs[bais.packed2()];
+        return new FunNode(null,sig,name,ins);
+    }
 
-    @Override
-    public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
+    @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.

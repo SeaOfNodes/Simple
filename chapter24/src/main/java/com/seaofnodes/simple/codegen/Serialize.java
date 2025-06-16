@@ -2,9 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 abstract public class Serialize {
@@ -16,11 +14,13 @@ abstract public class Serialize {
         BAOS baos = write(nodes);
         // Inflate into POJOs; renumbers everything
         Ary<Node> nodes2 = read(new BAOS(baos.toByteArray()));
-        //BAOS baos2 = write(nodes2);
+        BAOS baos2 = write(nodes2);
 
         // Bi-jection
-        //assert baos.size()==baos2.size();
-        //assert Arrays.equals(baos.buf(),baos2.buf());
+        for( int i=0; i<baos.size(); i++ )
+            assert baos.buf()[i]==baos2.buf()[i];
+        assert baos.size()==baos2.size();
+        assert Arrays.equals(baos.buf(),baos2.buf());
 
         return baos;
     }
@@ -36,22 +36,31 @@ abstract public class Serialize {
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
-        for( Node n : nodes )
+        for( Node n : nodes ) {
             n._type.gather(types);
-        if( types.size() >= 1<<16 ) throw Utils.TODO();
+            if( n instanceof      FunNode fun ) fun.sig().gather(types);
+            if( n instanceof ConstantNode con ) con._con .gather(types);
+        }
+        // Radix sort by Type ID#
+        Type[] atypes = new Type[types.size()];
+        for( Type t : types.keySet() )
+            atypes[types.get(t)] = t;
 
         // Count unique aliases; they should all be in Types
         var aliases = new HashMap<Integer,Integer>();
         aliases.put(0,0);       // There is no alias 0, just a placeholder
         aliases.put(1,1);       // Always alias#1 maps to #1 for ALL MEM
-        for( Type t : types.keySet() ) {
+        for( Type t : atypes ) {
             if( t instanceof Field fld   ) gather(aliases,fld._alias);
             if( t instanceof TypeMem mem ) gather(aliases,mem._alias);
         }
 
+        // TODO: Count unique fidxs & fold
+
         // Count unique Strings
         var strs = new HashMap<String,Integer>();
-        for( Type t : types.keySet() ) {
+        strs.put("",0);         // Null string is always 0
+        for( Type t : atypes ) {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
             if( t instanceof TypeStruct ts ) gather(strs,ts . _name);
         }
@@ -69,14 +78,10 @@ abstract public class Serialize {
             baos.packedS(s);
 
         // C - Write unique Types
-        baos.packed4(types.size());
-        // Radix sort by Type ID#
-        Type[] atypes = new Type[types.size()];
-        for( Type t : types.keySet() )
-            atypes[types.get(t)] = t;
+        baos.packed4(atypes.length);
         // Write Types in ID# order, no children
         for( Type t : atypes )
-            t.packedT(baos,strs,aliases);
+            t.packed(baos,strs,aliases);
         // Write Types in ID# order, only child IDs
         for( Type t : atypes ) {
             int nkids = t.nkids();
@@ -85,18 +90,27 @@ abstract public class Serialize {
         }
 
 
+        // D - Write the nodes.  Since this is expected to be the bulk of the
+        // data, we might want to explore various options.
 
+        // How many nodes?
+        baos.packed4(nodes._len);
 
-        //// How many nodes?
-        //Encoding.addN(4,nodes._len,baos);
+        // Radix sort by Node ID#
+        IdentityHashMap<Node,Integer> anodes = new IdentityHashMap<>();
+        for( Node n : nodes )
+            anodes.put(n,anodes.size()+1); // +1 bias, reserve 0 for null
 
-        //// C - Write the nodes.  Since this is expected to be the bulk of the data,
-        //// we might want to explore various options.
-        //
-        //// First cut: 1 byte opcode, optional per-node info; , 1 byte nIns, 2 bytes nid x#ins
-        //for( Node n : nodes ) {
-        //    print(baos,n);
-        //}
+        // First cut: 1 byte opcode, optional per-node info, includes variable nIns
+        for( Node n : nodes )
+            n.packed(baos.write(n.serialTag().ordinal()),strs,types,aliases);
+        // Write out the input indices packed
+        for( Node n : nodes ) {
+            for( int i=0; i<n.nIns(); i++ )
+                baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
+            if( n instanceof FunNode fun )
+                baos.packed2(anodes.get(fun.ret()));
+        }
 
 
         return baos;
@@ -107,7 +121,6 @@ abstract public class Serialize {
     }
 
     static Ary<Node> read(BAOS bais) {
-        Ary<Node> nodes = new Ary<>(Node.class);
         // A - Read a header
         if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='E' )
             throw new IllegalArgumentException("Missing magic word");
@@ -121,25 +134,53 @@ abstract public class Serialize {
         // C - Packed read of #types, then types
         int ntypes = bais.packed4();
         // Map deserialized aliases to local aliases
-        HashMap<Integer,Integer> aliases = new HashMap<>();
-        Type[] types = Type.packedT(bais,strs,aliases,ntypes);
+        AryInt aliases = new AryInt();
+        Type[] types = Type.packed(bais,strs,aliases,ntypes);
 
 
-        //// Number of nodes
-        //int n = Encoding.read4(buf,idx); idx+= 4;
+        // D - Read the nodes
 
-        //// C - Read the nodes
-        //for( int i=0; i<n; i++ ) {
-        //    nodes.push(switch(buf[idx++]) {
-        //
-        //        default-> throw Utils.TODO();
-        //        });
-        //}
+        // Number of nodes
+        int num = bais.packed4();
+        // Packed array of nodes
+        Ary<Node> nodes = new Ary<>(Node.class);
+        for( int i=0; i<num; i++ )
+            nodes.push(Node.Tag.VALS[bais.read()].make(bais,strs,types,aliases));
+
+        // Node edges
+        for( Node n : nodes ) {
+            int len = n.nIns();
+            for( int i=0; i<len; i++ ) {
+                int idx = bais.packed2();
+                n.setDef(i,idx==0 ? null : nodes.at(idx-1));
+            }
+            if( n instanceof FunNode fun ) {
+                ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
+                fun.setRet(ret);
+                ret._fun = fun;
+            }
+        }
+
+        // Set the type field
+        for( Node n : nodes )
+            if( n._type == null )
+                n.setType(n.compute());
+
+        for( Node n : nodes )
+            if( n._type != null )
+                n.setType(n.compute());
+        assert check(nodes);
 
         // TODO: also get back #of aliases, #of fidxs, any other global constants
         return nodes;
     }
 
+    private static boolean check( Ary<Node> nodes ) {
+        for( Node n : nodes )
+            if( n._type != n.compute() )
+                return false;
+        return true;
+    }
 
     // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code ) {
@@ -207,7 +248,7 @@ abstract public class Serialize {
                 // Region to walk the Phis (otherwise you visit some of the
                 // Phis ahead of others forcing the Phis to be spread around).
                 for( Node use : n._outputs ) {
-                    if( !(use instanceof CFGNode) && !(use instanceof PhiNode) )
+                    if( use!=null && !(use instanceof CFGNode) && !(use instanceof PhiNode) )
                         _funRPO(use,rpo,visit);
                 }
             }

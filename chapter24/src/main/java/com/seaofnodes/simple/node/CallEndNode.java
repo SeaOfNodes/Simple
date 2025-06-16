@@ -3,7 +3,9 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  *  CallEnd
@@ -14,10 +16,22 @@ public class CallEndNode extends CFGNode implements MultiNode {
     private boolean _folding;
     public final TypeRPC _rpc;
 
-    public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
+    public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(CodeGen.CODE.getRPC()); }
     public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
+    @Override public Tag serialTag() { return Tag.CallEnd; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed1(nIns());
+        // Linked CallEnds depend on Return types which depend on CallEnds;
+        // break the cycle
+        baos.packed2(types.get(_type));
+    }
+    static Node make( BAOS bais, Type[] types )  {
+        Node cend = new CallEndNode((CallNode)null);
+        cend.setDefX(bais.packed1()-1,null);
+        cend._type = types[bais.packed2()];
+        return cend;
+    }
 
-    @Override public String label() { return "CallEnd"; }
     @Override public boolean blockHead() { return true; }
 
     public CallNode call() { return (CallNode)in(0); }

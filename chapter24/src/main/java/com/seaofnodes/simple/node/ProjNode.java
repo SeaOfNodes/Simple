@@ -1,10 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
-
+import com.seaofnodes.simple.util.BAOS;
 import java.util.BitSet;
+import java.util.HashMap;
 
 public class ProjNode extends Node implements Proj {
 
@@ -20,6 +22,14 @@ public class ProjNode extends Node implements Proj {
         _label = label;
     }
     public ProjNode(ProjNode p) { super(p); _idx = p._idx; _label = p._label; }
+    @Override public Tag serialTag() { return Tag.Proj; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed1(_idx);
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+    }
+    static Node make( BAOS bais, String[] strs )  {
+        return new ProjNode(null, bais.packed1(), strs[bais.packed2()] );
+    }
 
     @Override public String label() { return _label; }
 
@@ -53,4 +63,8 @@ public class ProjNode extends Node implements Proj {
     int hash() { return _idx; }
 
     @Override public int idx() { return _idx; }
+
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_label);
+    }
 }

@@ -16,11 +16,6 @@ public class StopNode extends CFGNode {
     public StopNode(StopNode stop) { super(stop);  _src = stop==null ? null : stop._src; }
 
     @Override
-    public String label() {
-        return "Stop";
-    }
-
-    @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         // For the sake of many old tests, and single value prints as "return val"
         ReturnNode ret1 = ret();

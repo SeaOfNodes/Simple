@@ -26,9 +26,9 @@ public class TypeRPC extends Type {
         return new TypeRPC(any,rpcs).intern();
     }
 
-    public static TypeRPC constant(int cend) {
+    public static TypeRPC constant(int rpc) {
         HashSet<Integer> rpcs = new HashSet<>();
-        rpcs.add(cend);
+        rpcs.add(rpc);
         return make(false,rpcs);
     }
 
@@ -88,15 +88,24 @@ public class TypeRPC extends Type {
     @Override boolean _isGLB(boolean mem) { return true; }
     // Reserve tags for ALL, singleton, generic
     @Override int TAGOFF() { return 3; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
-        if( this==BOT ) baos.write(TAGOFFS[_type] + 0);
-        // singleton, generic
-        else throw Utils.TODO();
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( this==BOT ) {
+            baos.write( TAGOFFS[_type] + 0 );
+        } else if( _rpcs.size()==1 ) { // Singleton
+            baos.write(TAGOFFS[_type] + 1);
+            for( int x : _rpcs ) baos.packed2(x);
+        } else {                // Generic
+            baos.write(TAGOFFS[_type] + 2);
+            for( int x : _rpcs ) baos.packed2(x);
+        }
     }
-    static TypeRPC packedT( int tag, BAOS bais ) {
+    static TypeRPC packed( int tag, BAOS bais ) {
         if( tag==0 ) return BOT;
+        if( tag==1 ) return constant(bais.packed2());
         throw Utils.TODO();
     }
+
+
 
     @Override
     int hash() { return _rpcs.hashCode() ^ (_any ? -1 : 0) ; }

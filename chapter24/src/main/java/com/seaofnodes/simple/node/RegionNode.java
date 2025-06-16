@@ -1,8 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.type.Type;
 import java.util.*;
 
@@ -13,9 +13,9 @@ public class RegionNode extends CFGNode {
     public RegionNode(Parser.Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
     public RegionNode(RegionNode r, Parser.Lexer loc) { super(r); _loc = loc; }
     public RegionNode(RegionNode r) { super(r); if( r!=null ) _loc = r._loc; }
-
-    @Override
-    public String label() { return "Region"; }
+    @Override public Tag serialTag() { return Tag.Region; }
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { baos.packed1(nIns()); }
+    static Node make( BAOS bais ) { return new RegionNode(null,new Node[bais.packed1()]); }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

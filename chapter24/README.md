@@ -12,14 +12,6 @@ theory:
 Goal:
 - read IR from .O, then print to .O is a bijection
 
-Goal:
-- print IR nicely
-
-Goal:
-- IR prints Call Graph RPO order, Functions within Call Graph, RPO within Functions
-- Multis always together, projections in idx# order
-- debug ASCII dump first, replace normal print with this version
-- remove/dump short-depth print version
 
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.

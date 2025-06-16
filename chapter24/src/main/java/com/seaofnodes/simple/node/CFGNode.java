@@ -146,19 +146,6 @@ public abstract class CFGNode extends Node {
         for( Node use : _outputs )
             if( use instanceof FunNode fun )
                 fun._funWalk(this,depth);
-
-        // Hopefully done with the CG now.  Unlink all linked calls.  This can
-        // remove RPC constants which shuffled the StartNode outputs so
-        // requires a while loop.
-        boolean done=false;
-        while(!done) {
-            done = true;
-            for( Node use : _outputs )
-                if( use instanceof FunNode fun )
-                    for( Node c : fun._inputs )
-                        if( c instanceof CallNode call )
-                            { call.unlink_all(); done=false; }
-        }
     }
 
     int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {

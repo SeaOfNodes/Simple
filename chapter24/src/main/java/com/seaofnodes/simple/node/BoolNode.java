@@ -15,9 +15,6 @@ abstract public class BoolNode extends Node {
     abstract public String op(); // String opcode name
 
     @Override
-    public String label() { return getClass().getSimpleName(); }
-
-    @Override
     public String glabel() { return op(); }
 
     @Override
@@ -82,6 +79,7 @@ abstract public class BoolNode extends Node {
 
     public static class EQ extends BoolNode {
         public EQ(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.EQ; }
         public String op() { return "=="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
@@ -94,6 +92,7 @@ abstract public class BoolNode extends Node {
 
     public static class NE extends BoolNode {
         public NE(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.NE; }
         public String op() { return "!="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
@@ -106,6 +105,7 @@ abstract public class BoolNode extends Node {
 
     public static class LT extends BoolNode {
         public LT(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.LT; }
         public String op() { return "<" ; }
         public String glabel() { return "&lt;"; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
@@ -119,6 +119,7 @@ abstract public class BoolNode extends Node {
 
     public static class LE extends BoolNode {
         public LE(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.LE; }
         public String op() { return "<="; }
         public String glabel() { return "&lt;="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
@@ -132,18 +133,21 @@ abstract public class BoolNode extends Node {
 
     public static class EQF extends EQ {
         public EQF(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.EQF; }
         @Override boolean doOp(double lhs, double rhs) { return lhs == rhs; }
         @Override public boolean isFloat() { return true; }
         @Override Node copy(Node lhs, Node rhs) { return new EQF(lhs,rhs); }
     }
     public static class LTF extends LT {
         public LTF(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.LTF; }
         @Override boolean doOp(double lhs, double rhs) { return lhs <  rhs; }
         @Override public boolean isFloat() { return true; }
         @Override Node copy(Node lhs, Node rhs) { return new LTF(lhs,rhs); }
     }
     public static class LEF extends LE {
         public LEF(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.LEF; }
         @Override boolean doOp(double lhs, double rhs) { return lhs <= rhs; }
         @Override public boolean isFloat() { return true; }
         @Override Node copy(Node lhs, Node rhs) { return new LEF(lhs,rhs); }
@@ -152,6 +156,7 @@ abstract public class BoolNode extends Node {
     // Unsigned less that, for range checks.  Not directly user writable.
     public static class ULT extends BoolNode {
         public ULT(Node lhs, Node rhs) { super(lhs,rhs); }
+        @Override public Tag serialTag() { return Tag.ULT; }
         public String op() { return "u<" ; }
         public String glabel() { return "u&lt;"; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {

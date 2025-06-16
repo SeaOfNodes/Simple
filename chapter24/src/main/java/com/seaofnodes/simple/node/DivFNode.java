@@ -7,8 +7,7 @@ import java.util.BitSet;
 
 public class DivFNode extends Node {
     public DivFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
-
-    @Override public String label() { return "DivF"; }
+    @Override public Tag serialTag() { return Tag.DivF; }
 
     @Override public String glabel() { return "/"; }
 

@@ -1,14 +1,13 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 import java.util.function.Function;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
@@ -77,8 +76,75 @@ public abstract class Node implements Cloneable {
         _hash = 0;
     }
 
+    // Disk/serialized opcode tags
+    public enum Tag {
+        AddF,Add,And,EQ,NE,LT,LE,EQF,LTF,LEF,ULT,
+        CallEnd,Call,Cast,ConFldOff,Con,CProj,
+        DivF,Div,Extern,Fun,If,Load,Loop,
+        MemMerge,MinusF,Minus,Mul,MulF,
+        New,Parm,Phi,Proj,Return,Region,
+        Sar,Shl,Shr,Start,Store,Sub,SubF,ToFloat,
+        XCtrl;
+        public static final Tag[] VALS = values();
+        public Node make( BAOS bais, String[] strs, Type[] types, AryInt aliases ) {
+            return switch(this) {
+            case Add    -> new   AddNode(null,null);
+            case AddF   -> new  AddFNode(null,null);
+            case And    -> new   AndNode(null,null,null);
+            case Div    -> new   DivNode(null,null);
+            case DivF   -> new  DivFNode(null,null);
+            case If     -> new    IfNode(null,null);
+            case Loop   -> new  LoopNode(null,null);
+            case Minus  -> new MinusNode(null);
+            case MinusF ->new MinusFNode(null);
+            case Mul    -> new   MulNode(null,null);
+            case MulF   -> new  MulFNode(null,null);
+            case Return ->new ReturnNode(null,null,null,null,null);
+            case Sar    -> new   SarNode(null,null,null);
+            case Shl    -> new   ShlNode(null,null,null);
+            case Shr    -> new   ShrNode(null,null,null);
+            case Start  -> new StartNode(TypeInteger.BOT);
+            case Sub    -> new   SubNode(null,null);
+            case SubF   -> new  SubFNode(null,null);
+            case ToFloat-> new ToFloatNode(null);
+            case XCtrl  -> new XCtrlNode();
+
+            case EQ    -> new  BoolNode.EQ (null,null);
+            case NE    -> new  BoolNode.NE (null,null);
+            case LT    -> new  BoolNode.LT (null,null);
+            case LE    -> new  BoolNode.LE (null,null);
+            case EQF   -> new  BoolNode.EQF(null,null);
+            case LTF   -> new  BoolNode.LTF(null,null);
+            case LEF   -> new  BoolNode.LEF(null,null);
+            case ULT   -> new  BoolNode.ULT(null,null);
+
+            case Call  ->      CallNode.make(bais);
+            case CallEnd->  CallEndNode.make(bais     ,types);
+            case Cast  ->      CastNode.make(bais     ,types);
+            case CProj ->     CProjNode.make(bais,strs);
+            case Con   ->  ConstantNode.make(bais     ,types);
+            case Extern->    ExternNode.make(bais,strs,types);
+            case Fun   ->       FunNode.make(bais,strs,types);
+            case Load  ->       new LoadNode(bais,strs,types,aliases);
+            case MemMerge->MemMergeNode.make(bais);
+            case New   ->       NewNode.make(bais     ,types);
+            case Parm  ->      ParmNode.make(bais,strs,types);
+            case Phi   ->       PhiNode.make(bais,strs,types);
+            case Proj  ->      ProjNode.make(bais,strs);
+            case Store ->      new StoreNode(bais,strs,types,aliases);
+            case Region->    RegionNode.make(bais);
+
+
+            default -> throw Utils.TODO();
+            };
+        }
+    };
+    public Tag serialTag() { throw Utils.TODO(); }
+    // Serialize extra data
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {}
+
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
-    public abstract String label();
+    public String label() { return serialTag().toString(); }
 
     // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() {
@@ -723,6 +789,7 @@ public abstract class Node implements Cloneable {
     }
 
     public void gather(HashMap<String,Integer> strs ) { }
+
 
     /**
      * Debugging utility to find a Node by index

@@ -2,12 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
 
-import static com.seaofnodes.simple.Parser.con;
-
 public class AddNode extends ArithNode {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Add; }
 
-    @Override public String label() { return "Add"; }
     @Override public String op() { return "+"; }
 
     @Override long doOp( long x, long y ) { return x + y; }

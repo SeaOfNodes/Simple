@@ -27,15 +27,13 @@ public class ReturnNode extends CFGNode {
         _fun = fun;
     }
     public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
+    @Override public Tag serialTag() { return Tag.Return; }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
     public Node expr() { return in(2); }
     public Node rpc () { return in(3); }
     @Override public FunNode fun() { return _fun; }
-
-    @Override
-    public String label() { return "Return"; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

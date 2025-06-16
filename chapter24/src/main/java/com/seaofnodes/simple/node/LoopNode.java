@@ -5,19 +5,19 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
-import java.util.HashSet;
+import java.util.HashMap;
 
 public class LoopNode extends RegionNode {
     public LoopNode( Parser.Lexer loc, Node entry ) { super(loc,null,entry,null); }
     public LoopNode( LoopNode loop ) { super(loop);  _ltree._head = this; }
+    @Override public Tag serialTag() { return Tag.Loop; }
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }
-
-    @Override
-    public String label() { return "Loop"; }
 
     @Override
     public Type compute() {

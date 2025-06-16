@@ -84,17 +84,18 @@ public class TypeStruct extends Type {
 
 
     public final TypeStruct close() {
-        return (TypeStruct)recurOpen()._close().recurClose();
+        return (TypeStruct)recurOpen()._close(_name).recurClose();
     }
-    @Override TypeStruct _close() {
+    @Override TypeStruct _close( String name ) {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
-        if( ts!=null ) return ts;
-        ts = recurPre(_name,false);
+        if( ts!=null && (!ts._open || _open) )
+            return ts;
+        ts = recurPre(_name, _open && name!=_name );
         Field[] flds = ts._fields;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._close());
+            flds[i].setType(_fields[i]._t._close(name));
 
         return ts;
     }
@@ -383,22 +384,22 @@ public class TypeStruct extends Type {
     @Override public int nkids() { return _fields.length; }
     @Override public Type at( int idx ) { return _fields[idx]; }
     @Override public void set( int idx, Type t ) { _fields[idx] = (Field)t; }
-    // Tags 0-5 - closed+#nflds (+name)
-    // Tags 6 - open   (+nflds+name)
-    // Tags 7 - closed (+nflds+name)
-    @Override int TAGOFF() { return 8; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
-        if( !_open && _fields.length < 6 ) {
-            baos.write(TAGOFFS[_type]+_fields.length);
-            baos.packed4(strs.get(_name));
-        } else throw Utils.TODO();
+    // Tags 0-4 - closed +#nflds (+name)
+    // Tags 5   - closed(+ nflds  +name)
+    // Tags 6-10- open   +#nflds (+name)
+    // Tags 11  - open  (+ nflds  +name)
+    @Override int TAGOFF() { return 12; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        baos.write(TAGOFFS[_type]+ (_open ? 6 : 0) + Math.min(5,_fields.length));
+        if( _fields.length >= 5 )
+            baos.packed2(_fields.length);
+        baos.packed2(strs.get(_name));
     }
-    static TypeStruct packedT( int tag, BAOS bais, String[] strs ) {
-        if( tag < 6 ) {
-            String name = strs[bais.packed4()];
-            return malloc(name,false,new Field[tag]);
-        }
-        throw Utils.TODO();
+    static TypeStruct packed( int tag, BAOS bais, String[] strs ) {
+        int ntag = tag >= 6 ? tag-6 : tag;
+        int nflds = ntag < 5 ? ntag : bais.packed2();
+        String name = strs[bais.packed2()];
+        return malloc(name,ntag!=tag,new Field[nflds]);
     }
 
     @Override

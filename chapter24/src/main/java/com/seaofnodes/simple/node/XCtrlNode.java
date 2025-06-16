@@ -7,7 +7,7 @@ import java.util.BitSet;
 
 public class XCtrlNode extends CFGNode {
     public XCtrlNode() { super(new Node[]{CodeGen.CODE._start}); }
-    @Override public String label() { return "Xctrl"; }
+    @Override public Tag serialTag() { return Tag.XCtrl; }
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append("Xctrl"); }
     @Override public boolean isConst() { return true; }
     @Override  public Type compute() { return Type.XCONTROL; }

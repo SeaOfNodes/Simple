@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 
@@ -20,13 +21,15 @@ public class MemMergeNode extends Node {
 
     public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
     public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
+    @Override public Tag serialTag() { return Tag.MemMerge; }
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { baos.packed1(nIns()); }
+    static Node make( BAOS bais )  { Node mem = new MemMergeNode(false); mem.setDefX(bais.packed1()-1,null); return mem; }
 
 
     // If being used by a Scope, this is "in progress" from the Parser.
     // Otherwise, it's a memory merge
     boolean inProgress() { return _inProgress; }
 
-    @Override public String label() { return "ALLMEM"; }
     @Override public boolean isMem() { return true; }
 
     @Override

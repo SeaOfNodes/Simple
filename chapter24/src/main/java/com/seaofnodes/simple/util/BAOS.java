@@ -22,35 +22,55 @@ public class BAOS {
     public void set( byte[] buf, int len ) { _buf=buf; _len=len; }
 
     // -----------------------------------------------------------------------
-    // Write a packed integer to the BAOS.  Track a histogram to make more
-    // intelligent choices in the future.
-    private static final HashMap<Long,Integer> PACKED_HISTOGRAM = new HashMap<>();
+    // Basic read, write (expand)
 
     private void grow(int len) {
         while( _len+len >= _buf.length )
             _buf = Arrays.copyOf(_buf,_buf.length*2);
     }
 
-    // Write a byte, grow as needed
-    public void write(int b) {
+    // Write a byte, grow as needed; silent chop
+    public BAOS write(int b) {
         grow(1);
-        _buf[_len++] = (byte)b;
+        _buf[_len++] = (byte)b; // Silent chop
+        return this;
     }
     // Read an UNSIGNED byte, AIOOBE if off end
     public int read() { return _buf[_len++] & 0xFF; }
 
-    public void write4( int x ) {
+    // write 2 bytes
+    public BAOS write2( int x ) {
+        grow(2);
+        _buf[_len++] = (byte)(x>> 0);
+        _buf[_len++] = (byte)(x>> 8);
+        return this;
+    }
+
+    // Read a u16 in 2 bytes
+    public int read2() { return read() | (read()<<8);  }
+
+    // write 4 bytes
+    public BAOS write4( int x ) {
         grow(4);
         _buf[_len++] = (byte)(x>> 0);
         _buf[_len++] = (byte)(x>> 8);
         _buf[_len++] = (byte)(x>>16);
         _buf[_len++] = (byte)(x>>24);
-    }
-    public void write8( long x ) {
-        write4((int) x     );
-        write4((int)(x>>32));
+        return this;
     }
 
+    // Read a i32 in 4 bytes
+    public int read4() { return read2() | (read2()<<16); }
+
+    // write 8 bytes
+    public BAOS write8( long x ) {
+        write4((int) x     );
+        write4((int)(x>>32));
+        return this;
+    }
+
+    // Read a i64 in 8 bytes
+    public long read8() { return ((long)read4() & 0xFFFFFFFFL) | ((long)read4()<<32); }
 
     // Write byte array
     public void write( byte[] bs ) {
@@ -66,47 +86,56 @@ public class BAOS {
         return bs;
     }
 
-    public void packed4(int x) {
-        Integer cnt = PACKED_HISTOGRAM.get(x);
-        PACKED_HISTOGRAM.put((long)x,cnt==null ? 1 : cnt+1);
-
-        // If 'x' fits in byte range, 1 byte, else 0x80 and then 4 bytes
-        if( -127 <= x && x <= 127 ) { write(x); return; }
-        write(0x80);
-        for( int i = 0; i < 4; i++ ) {
-            write(x);
-            x >>= 8;
-        }
-    }
-    public int packed4() {
-        int x = read();
-        if( x!=0x80 ) return x;
-        x=0;
-        for( int i = 0; i < 4; i++ )
-            x |= read()<<(i<<3);
-        return x;
-    }
-
-    public void packed8(long x) {
+    // -----------------------------------------------------------------------
+    // Write a packed integer to the BAOS.  Track a histogram to make more
+    // intelligent choices in the future.
+    private static final HashMap<Long,Integer> PACKED_HISTOGRAM = new HashMap<>();
+    private BAOS histo(long x) {
         Integer cnt = PACKED_HISTOGRAM.get(x);
         PACKED_HISTOGRAM.put(x,cnt==null ? 1 : cnt+1);
-
-        // If 'x' fits in byte range, 1 byte, else 0x80 and then 4 bytes
-        if( -127 <= x && x <= 127 ) { write((int)x); return; }
-        write(0x80);
-        for( int i = 0; i < 8; i++ ) {
-            write((int)x);
-            x >>= 8;
-        }
+        return this;
     }
 
+    // Write a u8 (checked)
+    public void packed1(int x) {
+        assert 0 <= x && x <= 255;
+        histo(x).write(x);
+    }
+
+    public int packed1() { return read(); }
+
+    // Write a u16 (checked)
+    public void packed2(int x) {
+        assert 0 <= x && x <= 65535;
+        ((0 <= x && x <= 254 ) ? write(x) : write(0xFF).write2(x)).histo(x);
+    }
+
+    // Read a packed u16
+    public int packed2() {
+        int x = read();
+        return x==0xFF ? read2() : x;
+    }
+
+    // Write a packed i32
+    public void packed4(int x) {
+        ((-127 <= x && x <= 127 ) ? write(x) : write(-128).write4(x)).histo(x);
+    }
+
+    // Read a packed i32
+    public int packed4() {
+        int x = _buf[_len++];   // Signed byte read
+        return x== -128 ? read4() : x;
+    }
+
+    // Write a packed i64
+    public void packed8(long x) {
+        ((-127 <= x && x <= 127 ) ? write((int)x) : write(-128).write8(x)).histo(x);
+    }
+
+    // Read a packed i64
     public long packed8() {
-        long x = read();
-        if( x!=0x80 ) return x;
-        x = 0;
-        for( int i = 0; i < 8; i++ )
-            x |= (long) read() <<(i<<3);
-        return x;
+        int x = _buf[_len++];   // Signed byte read
+        return x== -128 ? read8() : x;
     }
 
     public void packedS(String s) {

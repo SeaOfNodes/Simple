@@ -72,13 +72,13 @@ public class TypeConAry<A> extends Type {
 
     // Reserve tags for u8 array
     @Override int TAGOFF() { return 1; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         assert log_size()==0 && !_any;
         baos.write(TAGOFFS[TCONARY]+0);
         baos.packed4(len());
         baos.write((byte[])_ary);
     }
-    static TypeConAry packedT( int tag, BAOS bais ) {
+    static TypeConAry packed( int tag, BAOS bais ) {
         return TypeConAryB.make(bais.read(new byte[bais.packed4()]));
     }
 

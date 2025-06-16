@@ -3,9 +3,12 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Convenience common base for Load and Store.
@@ -75,7 +78,21 @@ public abstract class MemOpNode extends Node {
         _declaredType = Type.BOTTOM;
     }
 
-    static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
+    MemOpNode( BAOS bais, String[] strs, Type[] types, AryInt aliases, boolean isLoad ) {
+        this(null,
+             strs[bais.packed2()],
+             aliases.at(bais.packed2()),isLoad,
+             types[bais.packed2()],null,null,null);
+    }
+
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(aliases.get(_alias));
+        baos.packed2(types.get(_declaredType)); // NPE if fails lookup
+        assert _isLoad == this instanceof LoadNode; // No machine ops
+    }
+
+    static String mlabel(String name) { return "[]"==name ? "ary" : ("#"==name ? "len" : name); }
     String mlabel() { return mlabel(_name); }
 
     public Node mem() { return in(1); }

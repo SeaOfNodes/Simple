@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 
@@ -445,7 +444,7 @@ public class Type /*implements Cloneable*/ {
                 }
             }
         }
-        return this instanceof TypeStruct ? this : _intern();
+        return this instanceof TypeStruct || _terned ? this : _intern();
     }
 
     // Strict constant values, things on the lattice centerline.
@@ -485,7 +484,7 @@ public class Type /*implements Cloneable*/ {
     }
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
-    Type _close() { return this; }
+    Type _close( String name ) { return this; }
 
     // Recursively gather all types
     public void gather(HashMap<Type,Integer> types ) {
@@ -502,16 +501,17 @@ public class Type /*implements Cloneable*/ {
         if( TAGOFFS[TMAX-1]==0 )
             for( Type t : new Type[]{Type.XNIL,TypePtr.PTR,TypeInteger.BOT,TypeFloat.F64,TypeConAry.BOT,TypeRPC.BOT,TypeMemPtr.BOT,TypeFunPtr.BOT,TypeMem.BOT,Field.BOT,TypeStruct.BOT,TypeTuple.BOT} )
                 TAGOFFS[t._type+1] = TAGOFFS[t._type] + t.TAGOFF();
+        assert TAGOFFS[TMAX] <= 255;
         return TAGOFFS;
     }
     // Reserve 6 tags, 0-5, for plain Types
     int TAGOFF() { assert is_simple(); return 6; }
 
-    public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         assert is_simple();
         baos.write(_type);
     }
-    static Type packedT( int tag ) {
+    static Type packed( int tag ) {
         return switch( tag ) {
         case TBOT  -> BOTTOM;
         case TTOP  -> TOP;
@@ -523,33 +523,33 @@ public class Type /*implements Cloneable*/ {
     }
 
     // Produce a type with null child types
-    static Type packedT( BAOS bais, String[] strs ) {
+    static Type packed( BAOS bais, String[] strs ) {
         int x = bais.read();
         int type = Arrays.binarySearch( TAGOFFS, x );
         if( type < 0 ) type = -(type+1)-1;
         int off = x - TAGOFFS[type];
         return switch( type ) {
-        case 0, 1, 2, 3, 4, 5 -> Type.packedT( off );
-        case TINT    ->   TypeInteger.packedT( off, bais );
-        case TFLT    ->   TypeFloat  .packedT( off, bais );
-        case TCONARY ->   TypeConAry .packedT( off, bais );
-        case TRPC    ->   TypeRPC    .packedT( off, bais );
-        case TMEMPTR ->   TypeMemPtr .packedT( off, bais );
-        case TFUNPTR ->   TypeFunPtr .packedT( off, bais );
-        case TMEM    ->   TypeMem    .packedT( off, bais );
-        case TFLD    ->   Field      .packedT( off, bais, strs );
-        case TSTRUCT ->   TypeStruct .packedT( off, bais, strs );
-        case TTUPLE  ->   TypeTuple  .packedT( off, bais );
+        case 0, 1, 2, 3, 4, 5 -> Type.packed( off );
+        case TINT    ->   TypeInteger.packed( off, bais );
+        case TFLT    ->   TypeFloat  .packed( off, bais );
+        case TCONARY ->   TypeConAry .packed( off, bais );
+        case TRPC    ->   TypeRPC    .packed( off, bais );
+        case TMEMPTR ->   TypeMemPtr .packed( off, bais );
+        case TFUNPTR ->   TypeFunPtr .packed( off, bais );
+        case TMEM    ->   TypeMem    .packed( off, bais );
+        case TFLD    ->   Field      .packed( off, bais, strs );
+        case TSTRUCT ->   TypeStruct .packed( off, bais, strs );
+        case TTUPLE  ->   TypeTuple  .packed( off, bais );
         default -> throw Utils.TODO();
         };
     }
 
     // Read a packed Type array
-    public static Type[] packedT( BAOS bais, String[] strs, HashMap<Integer,Integer> aliases, int ntypes ) {
+    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, int ntypes ) {
         Type[] types = new Type[ntypes];
         // Read Types in ID# order, no children
         for( int i=0; i<ntypes; i++ )
-            types[i] = Type.packedT(bais,strs);
+            types[i] = Type.packed(bais,strs);
         // Start possibly recursive type collection
         BOTTOM.recurOpen();
         // Read Types in ID# order, only children
@@ -565,26 +565,27 @@ public class Type /*implements Cloneable*/ {
         // they are the same order (and the meet does not go to bottom), then
         // make a mapping from the serialized aliases to the local aliases.
         // For structs with *no* mapping, create a new local alias.
-        aliases.put(1,1); // Bottom maps to bottom alias always
+        aliases.setX(1,1); // Bottom maps to bottom alias always
         for( int i=0; i<ntypes; i++ ) {
             if( types[i] instanceof TypeStruct ts ) {
-                assert !ts._open; // No interning open structs?
+                //assert !ts._open; // No interning open structs?
                 // Find matching local structs
                 TypeMemPtr tmp = (TypeMemPtr)Parser.TYPES.get( ts._name );
                 if( tmp!=null ) {
-                    int flen = tmp._obj._fields.length;
-                    if( tmp._obj._open || flen != ts._fields.length )
+                    assert !tmp._obj._open;
+                    int flen = ts._fields.length;
+                    if( flen != tmp._obj._fields.length && !ts._open )
                         throw Utils.TODO("link error: incompatible structs");
                     // For all fields, map aliases
                     for( int j=0; j<flen; j++ ) {
-                        Field tfld = tmp._obj._fields[j]; // Existring   field
+                        Field tfld = tmp._obj._fields[j]; // Existing    field
                         Field dfld = ts      ._fields[j]; // Deserialize field
                         // Fields in structs must exactly align
                         if( !tfld._fname.equals(dfld._fname) )
                             throw Utils.TODO("link error: incompatible structs");
                         // Collect the alias mapping
-                        Integer deser_alias = aliases.get(dfld._alias);
-                        if( deser_alias==null ) aliases.put(dfld._alias,tfld._alias);
+                        int deser_alias = aliases.atX(dfld._alias);
+                        if( deser_alias==0 ) aliases.setX(dfld._alias,tfld._alias);
                         else assert deser_alias==tfld._alias;
                     }
                 } else {
@@ -595,8 +596,8 @@ public class Type /*implements Cloneable*/ {
         }
         // Walk all type aliases, and map to local aliases
         for( int i=0; i<ntypes; i++ ) {
-            if( types[i] instanceof Field   fld ) fld._alias = aliases.get(fld._alias);
-            if( types[i] instanceof TypeMem mem ) mem._alias = aliases.get(mem._alias);
+            if( types[i] instanceof Field   fld ) fld._alias = aliases.at(fld._alias);
+            if( types[i] instanceof TypeMem mem ) mem._alias = aliases.at(mem._alias);
         }
 
 

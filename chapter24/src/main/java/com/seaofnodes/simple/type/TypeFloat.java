@@ -100,7 +100,7 @@ public class TypeFloat extends Type {
 
     // Reserve tags for F64,F32,constant
     @Override int TAGOFF() { return 3; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         if(      this==F64 ) baos.write(TAGOFFS[_type] + 0);
         else if( this==F32 ) baos.write(TAGOFFS[_type] + 1);
         else {
@@ -110,7 +110,7 @@ public class TypeFloat extends Type {
         }
     }
 
-    static Type packedT( int tag, BAOS bais ) {
+    static Type packed( int tag, BAOS bais ) {
         return switch( tag ) {
         case 0 -> F64;
         case 1 -> F32;

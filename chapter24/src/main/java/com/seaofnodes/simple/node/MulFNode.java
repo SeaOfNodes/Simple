@@ -7,8 +7,7 @@ import java.util.BitSet;
 
 public class MulFNode extends Node {
     public MulFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
-
-    @Override public String label() { return "MulF"; }
+    @Override public Tag serialTag() { return Tag.MulF; }
 
     @Override public String glabel() { return "*"; }
 

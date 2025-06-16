@@ -138,13 +138,13 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }
     @Override TypeFunPtr _glb(boolean mem) { return this; }
-    @Override TypeFunPtr _close() {
+    @Override TypeFunPtr _close( String name ) {
         Type[] sig = new Type[_sig.length];
         TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
         // Now start the recursion
-        fun._ret = _ret._close();
+        fun._ret = _ret._close(name);
         for( int i=0; i<sig.length; i++ )
-            sig[i] = _sig[i]._close();
+            sig[i] = _sig[i]._close(name);
 
         return fun;
     }
@@ -168,22 +168,27 @@ public class TypeFunPtr extends TypeNil {
     }
     // Reserve tags for null/not and open/close, one fidx/bitset, 0-6 args
     // Tags 0-5 - not,close,1 fidx, 0-5 args (+fidx)
-    // Tag 6 - not ,open +fidxs+nargs
-    // Tag 7 - null,open +fidxs+nargs
-    // Tag 8 - null,close+fidxs+nargs
-    @Override int TAGOFF() { return 9; }
-    @Override public void packedT( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
-        if( _nil==2 && !_open && nargs()<6 ) {
+    // Tag 6 - not ,close+fidxs+nargs
+    // Tag 7 - null,close+fidxs+nargs
+    @Override int TAGOFF() { return 8; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        assert !_open;
+        if( _nil==2 && nargs()<6 ) {
             baos.write(TAGOFFS[_type] + nargs());
-            baos.packed4(fidx());
+            baos.packed2(fidx());
+        } else {
+            baos.write(TAGOFFS[_type] + 6 + (_nil==2 ? 0 : 1));
+            baos.packed1(nargs());
+            baos.packed8(_fidxs);
         }
-        //
-        else throw Utils.TODO();
     }
-    static TypeFunPtr packedT( int tag, BAOS bais ) {
+    static TypeFunPtr packed( int tag, BAOS bais ) {
         if( tag < 6 )
             return malloc((byte)2,false,new Type[tag],null,1L<<bais.read());
-        throw Utils.TODO();
+        byte nil = (byte)(tag==6 ? 2 : 3);
+        int nargs = bais.packed1();
+        long fidxs = bais.packed8();
+        return malloc(nil,false,new Type[nargs],null,fidxs);
     }
 
     @Override

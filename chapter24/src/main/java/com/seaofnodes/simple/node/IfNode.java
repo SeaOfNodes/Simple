@@ -12,9 +12,7 @@ public class IfNode extends CFGNode implements MultiNode {
         CodeGen.CODE.add(this); // Because idoms are complex, just add it
     }
     public IfNode(IfNode iff) { super(iff); }
-
-    @Override
-    public String label() { return "If"; }
+    @Override public Tag serialTag() { return Tag.If; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
