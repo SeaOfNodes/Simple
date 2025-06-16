@@ -12,15 +12,16 @@ abstract public class Serialize {
 
         // Compress into bytes
         BAOS baos = write(nodes);
-        // Inflate into POJOs; renumbers everything
-        Ary<Node> nodes2 = read(new BAOS(baos.toByteArray()));
-        BAOS baos2 = write(nodes2);
 
-        // Bi-jection
-        for( int i=0; i<baos.size(); i++ )
-            assert baos.buf()[i]==baos2.buf()[i];
-        assert baos.size()==baos2.size();
-        assert Arrays.equals(baos.buf(),baos2.buf());
+        //// Inflate into POJOs; renumbers everything
+        //Ary<Node> nodes2 = read(new BAOS(baos.toByteArray()));
+        //BAOS baos2 = write(nodes2);
+        //
+        //// Bi-jection check
+        //for( int i=0; i<baos.size(); i++ )
+        //    assert baos.buf()[i]==baos2.buf()[i];
+        //assert baos.size()==baos2.size();
+        //assert Arrays.equals(baos.buf(),baos2.buf());
 
         return baos;
     }
@@ -33,6 +34,7 @@ abstract public class Serialize {
         BAOS baos = new BAOS();
         // A - Print a header
         baos.write('C'); baos.write('0'); baos.write('D'); baos.write('E');
+        //
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();

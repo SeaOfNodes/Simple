@@ -78,8 +78,10 @@ public class ElfFile {
     public static final int SHF_WRITE     = 1;
     public static final int SHF_ALLOC     = 2;
     public static final int SHF_EXECINSTR = 4;
+    public static final int SHF_MERGE     = 16;
     public static final int SHF_STRINGS   = 32;
     public static final int SHF_INFO_LINK = 64;
+    public static final int SHF_EXCLUDE   = 0x800_0000;
 
     public static final int SECTION_HDR_SIZE = 64;
     abstract public static class Section {
@@ -218,6 +220,7 @@ public class ElfFile {
     }
 
     public void export(String fname) throws IOException {
+        // -------------------
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string
         strtab._contents.write(0);
@@ -227,6 +230,7 @@ public class ElfFile {
         SymbolSection symbols = new SymbolSection(".symtab", 2 /* SHT_STRTAB */);
         pushSection(symbols);
 
+        // -------------------
         // zero flag by default
         // we've already constructed this entire section in the encoding phase
         DataSection text = new DataSection(".text", 1 /* SHT_PROGBITS */, _code._encoding._bits);
@@ -262,6 +266,7 @@ public class ElfFile {
         for( Symbol a: symbols._symbols )
             a._index = start_global++;
 
+        // -------------------
         // create .text relocations
         DataSection text_rela = new DataSection(".rela.text", 4 /* SHT_RELA */);
         for( Node n : enc._externals.keySet()) {
@@ -305,6 +310,19 @@ public class ElfFile {
         sym._size = text_rela.size();
         symbols.push(sym);
 
+        // -------------------
+        if( _code._serial != null ) {
+            DataSection irdata = new DataSection("SimpleIR", 0 /* SHT_NULL */, _code._serial);
+            irdata._flags = SHF_MERGE | SHF_EXCLUDE;
+            pushSection(irdata);
+            Symbol sym2 = new Symbol(".simple.ir", num++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
+            sym2._name_pos = irdata._name_pos;
+            sym2._size = _code._serial.size();
+            symbols.push(sym2);
+        }
+
+
+        // -------------------
         // populate string table
         for( Section s : _sections ) { s._name_pos = writeCString(strtab, s._name); }
         for( Symbol s : symbols._symbols ) { s._name_pos = writeCString(strtab, s._name); }
