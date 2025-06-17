@@ -92,11 +92,11 @@ $(CLZDIR)/main/.mtag: $(main_classes) $(main_javas)
 	$(file > .argsM.txt , $(OODM))
 	@if [ ! -z "$(OODM)" ] ; then \
 	  echo "compiling main because " $< " and " `wc -w < .argsM.txt` " more files" ; \
-	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(OODM) >& .out.txt ; then \
+	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas) >& .out.txt ; then \
             cat .out.txt ; \
             exit 1; \
           fi ; \
-          rm -rf .out.txt ; \
+	  rm -rf .out.txt ; \
 	fi
 	@touch $(CLZDIR)/main/.mtag
 	@rm -f .argsM.txt
@@ -114,7 +114,7 @@ $(CLZDIR)/test/.ttag: $(test_classes) $(test_javas) $(CLZDIR)/main/.mtag
 	$(file > .argsT.txt $(OODT))
 	@if [ ! -z "$(OODT)" ] ; then \
 	  echo "compiling test because " $< " and " `wc -w < .argsT.txt` " more files" ; \
-	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(OODT) >& .out.txt ; then \
+	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas) >& .out.txt ; then \
             cat .out.txt ; \
             exit 1; \
           fi ; \

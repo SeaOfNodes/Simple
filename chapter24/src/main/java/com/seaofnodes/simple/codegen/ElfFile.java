@@ -312,13 +312,9 @@ public class ElfFile {
 
         // -------------------
         if( _code._serial != null ) {
-            DataSection irdata = new DataSection("SimpleIR", 0 /* SHT_NULL */, _code._serial);
+            DataSection irdata = new DataSection(".simple.ir", 0 /* SHT_NULL */, _code._serial);
             irdata._flags = SHF_MERGE | SHF_EXCLUDE;
             pushSection(irdata);
-            Symbol sym2 = new Symbol(".simple.ir", num++, SYM_BIND_LOCAL, SYM_TYPE_SECTION);
-            sym2._name_pos = irdata._name_pos;
-            sym2._size = _code._serial.size();
-            symbols.push(sym2);
         }
 
 

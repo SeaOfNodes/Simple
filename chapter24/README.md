@@ -1,6 +1,52 @@
 # Chapter 24: 
 
 
+Goal: seperate compilation
+
+- dump IR to .o file with code (done!).
+- Public vs private notion
+- Keep alive public; private DCEs as normal
+- 
+- Useful non-goal: no "package" in file; implicit when compiler by cmd-line path.
+- Useful non-goal: No "import" or "include" in file; all includes from cmd line.
+- Means, just like javac, cyclic defs require compiling all-at-once, produces as many .o's as needed.
+
+
+- Given a root compile path for all link+compiles
+- Structures with matching suffix file name are *public*.  Matches CaPiTaLiZaTiOn
+- Example: ROOT= "C:/Users/SELF/Desktop/Simple/chapter24/docs/examples/myproj".
+           FILE= "$ROOT/front/FrontEnd.smp"
+           NAME= "struct FrontEnd { ... }};" // Public struct front.FrontEnd
+           FILE= "$ROOT/util/Utils.smp"
+           NAME= "struct Utils { ... };"     // Public struct util.Utils
+           FILE= "$ROOT/front/support.smp"   // 
+           NAME= "struct stuff {}"           // Does not match "support", so not public
+- Compile time linking
+- - Can use fully qualified name (future: `var FE = front.FrontEnd`)
+- - Presence of name will trigger loading the matching name from .o file
+- - When dumping/printing the IR, do not include external entry point IR (kill default call entry); code was not inlined will link direct calls
+- - - Can include extern *private* calls; these must be present in the final linked form.
+
+- Within a struct, fields with leading underscore `_` are private, not visible
+  except inside this file (or even tighter: inside struct decl)
+  
+- Nested struct/module decl?
+  "struct front{}" in file $ROOT/front.smp
+  Has field "FrontEnd fe;", found/declared in file $ROOT/front/FrontEnd.smp
+  
+- RULES:
+  - Public if name does not start "_" and matching file; file search is same name dir ("front/FrontEnd.smp")
+  - Pack-private if name does not start "_" and non-matching file; file search is same dir (sideways)
+  - Private only works in struct declaration, 
+  - - No file search does "down" a other directory, nor up.
+  - - Fully qualified search names start at ROOT and only match public names.
+  
+  - Type name missing locally will check filesystem for matching ".smp";
+  - - if found && valid date-check vs matching ".o"
+  - - - read IR from .o
+  - - else include ".smp" and make .o
+
+
 Goal: faster local compiles.
 
 theory:
@@ -9,8 +55,6 @@ theory:
 - replace EXTERN calls with hooks to IR, then back to ITER
 - Drop the while(true){remove dead} pass, and just doing OPTO
 
-Goal:
-- read IR from .O, then print to .O is a bijection
 
 
 

@@ -40,6 +40,29 @@ public class CodeGen {
     public final TypeInteger _arg;
 
     // ---------------------------
+
+    /***
+        Most general case:
+        - Needs a $ROOT file path
+        - Needs a $OBJS file path
+        - Needs a collection of:
+        - - [ {src_path,src}, .... ]
+        - - - src_path - used to define visibility
+        - - - src (not in a file) for direct compilation
+        - If parse reveals FRef, lookup IR in $OBJ; lookup SRC in $ROOT
+        - - can add a new [src_path,src] pair to compile if out-of-date
+
+        Minimum case
+        - ROOT is null/CWD, no public file lookups (pack/private ok)
+        - OBJS is null/CWD
+        - Collection of 1
+        - - src_path is null/CWD, only lookup pack (sideways)
+        - - src must exist for parser
+
+
+     */
+
+    // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L, true ); }
     public CodeGen( String src, TypeInteger arg, long workListSeed, boolean reset ) {
         CODE = this;
@@ -60,16 +83,16 @@ public class CodeGen {
     public CodeGen driver( Phase phase ) { return driver(phase,null,null); }
     public CodeGen driver( Phase phase, String cpu, String callingConv ) {
         if( _phase==null ) parse();
-        int p1 = phase.ordinal();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Opto      .ordinal() ) opto();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.TypeCheck .ordinal() ) typeCheck();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LoopTree  .ordinal() ) loopTree();
-        if( p1 >= Phase.Export.ordinal() ) serialize(); // Include ideal graph in object file
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Schedule  .ordinal() ) GCM();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LocalSched.ordinal() ) localSched();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.RegAlloc  .ordinal() ) regAlloc();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Encoding  .ordinal() ) encode();
+        int p1 = phase.ordinal(), p2;
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) opto();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) typeCheck();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) loopTree();
+        p2 = _phase.ordinal(); if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) serialize(); // Include ideal graph in object file
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) GCM();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) localSched();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) regAlloc();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) encode();
         return this;
     }
 
@@ -155,6 +178,7 @@ public class CodeGen {
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
 
+    // ---------------------------
     // Parser object
     public final Parser P;
 
@@ -471,7 +495,9 @@ public class CodeGen {
     // ---------------------------
     BAOS _serial;
     void serialize() {
+        assert _phase.ordinal() == Phase.LoopTree.ordinal();
         _serial = Serialize.serialize(this);
+        // Does not change compiler phase; just records IR
     }
 
     // ---------------------------
