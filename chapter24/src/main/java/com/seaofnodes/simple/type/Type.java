@@ -64,15 +64,16 @@ public class Type /*implements Cloneable*/ {
     static final byte TFLT    = 8; // All Floats  ; see TypeFloat
     static final byte TCONARY = 9; // Constant array
     static final byte TRPC    =10; // Return Program Control (Return PC or RPC)
+    static final byte TFREF   =11; // Named forward-ref type, either a function or struct
 
-    static final byte TCYCLIC =11; // Has internal pointers, needs recursive treatment
-    static final byte TMEMPTR =11; // Memory pointer to a struct type
-    static final byte TFUNPTR =12; // Function pointer; unique signature and code address (just a bit)
-    static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TFLD    =14; // Named fields in structs
-    static final byte TSTRUCT =15; // Structs; tuples with named fields
-    static final byte TTUPLE  =16; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMAX    =17;
+    static final byte TCYCLIC =12; // Has internal pointers, needs recursive treatment
+    static final byte TMEMPTR =12; // Memory pointer to a struct type
+    static final byte TFUNPTR =13; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =14; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TFLD    =15; // Named fields in structs
+    static final byte TSTRUCT =16; // Structs; tuples with named fields
+    static final byte TTUPLE  =17; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMAX    =18;
 
     // Basic RTTI, useful for a lot of fast tests.
     public final byte _type;
@@ -112,6 +113,7 @@ public class Type /*implements Cloneable*/ {
         TypeTuple.gather(ts);
         TypeRPC.gather(ts);
         TypeConAry.gather(ts);
+        TypeFRef.gather(ts);
 
         int sz = ts.size();
         for( int i = 0; i < sz; i++ )
@@ -534,6 +536,7 @@ public class Type /*implements Cloneable*/ {
         case TFLT    ->   TypeFloat  .packed( off, bais );
         case TCONARY ->   TypeConAry .packed( off, bais );
         case TRPC    ->   TypeRPC    .packed( off, bais );
+        case TFREF   ->   TypeFRef   .packed( off, bais, strs );
         case TMEMPTR ->   TypeMemPtr .packed( off, bais );
         case TFUNPTR ->   TypeFunPtr .packed( off, bais );
         case TMEM    ->   TypeMem    .packed( off, bais );
@@ -568,7 +571,6 @@ public class Type /*implements Cloneable*/ {
         aliases.setX(1,1); // Bottom maps to bottom alias always
         for( int i=0; i<ntypes; i++ ) {
             if( types[i] instanceof TypeStruct ts ) {
-                //assert !ts._open; // No interning open structs?
                 // Find matching local structs
                 TypeMemPtr tmp = (TypeMemPtr)Parser.TYPES.get( ts._name );
                 if( tmp!=null ) {

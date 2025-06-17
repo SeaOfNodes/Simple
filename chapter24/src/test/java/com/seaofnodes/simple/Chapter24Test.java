@@ -24,7 +24,7 @@ public class Chapter24Test {
     public void testSys() throws IOException {
         // Produce build/objs/libsmp.o
         CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
-            driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"build/objs/libsmp.o");
+            driver(CodeGen.CPU_PORT,CodeGen.CALL_CONVENTION,"build/objs/libsmp.o");
     }
 
     @Test

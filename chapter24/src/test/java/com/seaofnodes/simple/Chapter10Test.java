@@ -78,7 +78,7 @@ s0? v1=null;
 int v3=v1.zAicm;
 """);
         try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());  }
+        catch( Exception e ) {  assertEquals("Accessing field 'zAicm' from 'null'",e.getMessage());  }
     }
 
     @Test

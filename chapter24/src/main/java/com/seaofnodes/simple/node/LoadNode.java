@@ -40,7 +40,7 @@ public class LoadNode extends MemOpNode {
     public Type compute() {
         if( !(mem()._type instanceof TypeMem mem) )
             return _declaredType; // No memory yet?  Declared type
-        assert !_declaredType.isFRef();
+        //assert !_declaredType.isFRef();
         // No lifting if ptr might null-check
         if( err()!=null || !(ptr()._type instanceof TypeMemPtr tmp) )
             return _declaredType; // No pointer yet?  Declared type

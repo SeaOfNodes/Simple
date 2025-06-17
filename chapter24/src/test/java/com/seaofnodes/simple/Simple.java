@@ -71,9 +71,9 @@ Options:
     }
 
     static void target() {
-        System.out.print(TestC.CPU_PORT);
+        System.out.print(CodeGen.CPU_PORT);
         System.out.print("-");
-        System.out.println(TestC.CALL_CONVENTION);
+        System.out.println(CodeGen.CALL_CONVENTION);
     }
 
     static void dump(CodeGen code, int dump, int pass) {
@@ -208,8 +208,8 @@ Options:
         String base = input_filename.substring(0,input_filename.length()-4);
 
         if (do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size) {
-            if (cpu == null) cpu = TestC.CPU_PORT;
-            if (abi == null) abi = TestC.CALL_CONVENTION;
+            if (cpu == null) cpu = CodeGen.CPU_PORT;
+            if (abi == null) abi = CodeGen.CALL_CONVENTION;
             do_codegen = true;
         }
 
@@ -279,9 +279,9 @@ Options:
             }
         }
         if (do_run) {
-            if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
+            if ( !CodeGen.CPU_PORT.equals( cpu ) || !CodeGen.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
-            String exe = TestC.OS.startsWith("Windows") ? base+".exe" : base;
+            String exe = CodeGen.OS.startsWith("Windows") ? base+".exe" : base;
             String result = com.seaofnodes.simple.TestC.gcc(base+".o", null, null, true, exe);
             System.out.print(result);
         }

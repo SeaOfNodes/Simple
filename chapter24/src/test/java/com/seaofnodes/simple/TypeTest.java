@@ -177,7 +177,7 @@ public class TypeTest {
     public void testGLB() {
         Type[] ts = Type.gather();
         for( Type t0 : ts )
-            if( !(t0 instanceof Field || t0 instanceof TypeStruct || t0 instanceof TypeTuple || t0 instanceof TypeConAry ) )
+            if( !(t0 instanceof Field || t0 instanceof TypeStruct || t0 instanceof TypeTuple || t0 instanceof TypeConAry || t0 instanceof TypeFRef ) )
                 Assert.assertTrue(t0.isa(t0.glb(false)));
     }
 

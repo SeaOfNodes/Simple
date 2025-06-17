@@ -12,10 +12,21 @@ import java.util.*;
 
 @SuppressWarnings("unchecked")
 public class CodeGen {
-    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
     // Last created CodeGen as a global; used all over to avoid passing about a
     // "context".
     public static CodeGen CODE;
+
+    // CPU port directory; at least x86_64_v2, risc5, arm
+    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
+
+    public static final String OS  = System.getProperty("os.name");
+    public static final String CPU = System.getProperty("os.arch");
+
+    public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "Win64" : "SystemV";
+    public static final String CPU_PORT = switch( CPU ) {
+        case "amd64" -> "x86_64_v2";
+        default -> throw Utils.TODO("Map Yer CPU Port Here");
+    };
 
     public enum Phase {
         Parse,                  // Parse ASCII text into Sea-of-Nodes IR
@@ -255,7 +266,7 @@ public class CodeGen {
             Node use = _start.out(i);
             if( use instanceof ConFldOffNode off ) {
                 TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._name);
-                off.subsume( off.asOffset(tmp._obj) );
+                off.subsume( off.asOffset(tmp._obj).peephole() );
                 i--;
             }
         }

@@ -82,7 +82,7 @@ return s.skip().x;
         """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {20} skip; } #20} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {1} skip; } #1} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
     };
 
 

@@ -1,10 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeStruct;
-import com.seaofnodes.simple.util.SB;
 import java.util.BitSet;
 
 /**
@@ -20,7 +17,7 @@ public class ConFldOffNode extends ConstantNode {
     @Override public Tag serialTag() { return Tag.ConFldOff; }
 
     @Override public String label() {
-        return _fname == " len" ? "sizeof("+_name+")" : "#"+_fname;
+        return _fname == "<<" ? "scale("+_name+")" : _fname == " len" ? "sizeof("+_name+")" : "#"+_fname;
     }
     @Override public String glabel() { return label(); }
     @Override public String uniqueName() { return "Off_" + _nid; }
@@ -32,7 +29,8 @@ public class ConFldOffNode extends ConstantNode {
 
     // Convert field offset to an integer
     public Node asOffset(TypeStruct ts) {
-        return new ConstantNode(TypeInteger.constant(ts.offset(_fname==" len" ? ts._fields.length : ts.find(_fname)))).peephole();
+        int off = _fname=="<<" ? ts.aryScale() : ts.offset(_fname==" len" ? ts._fields.length : ts.find(_fname));
+        return new ConstantNode(TypeInteger.constant(off));
     }
 
 

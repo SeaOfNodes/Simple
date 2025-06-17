@@ -13,15 +13,6 @@ import static org.junit.Assert.*;
 // Expects GCC from the default CLI, compiles C, compiles Simple, links and runs.
 public abstract class TestC {
 
-    public static final String OS  = System.getProperty("os.name");
-    public static final String CPU = System.getProperty("os.arch");
-
-    public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "Win64" : "SystemV";
-    public static final String CPU_PORT = switch( CPU ) {
-        case "amd64" -> "x86_64_v2";
-        default -> throw Utils.TODO("Map Yer CPU Port Here");
-    };
-
     public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
 
     public static void run( String file, String expected, int spills ) throws IOException {
@@ -37,15 +28,15 @@ public abstract class TestC {
 
         // Compile and export Simple
         String src = Files.readString(Path.of(sfile));
-        run(src,CALL_CONVENTION,"",cfile,efile,"S",expected,spills);
+        run(src,CodeGen.CALL_CONVENTION,"",cfile,efile,"S",expected,spills);
     }
 
     public static void run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
         String bin = efile+xtn;
         String obj = bin+".o";
-        String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
+        String exe = CodeGen.OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        CodeGen code = new CodeGen(src).driver( CodeGen.CPU_PORT, simple_conv, obj);
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);
 

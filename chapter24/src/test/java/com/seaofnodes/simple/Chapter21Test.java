@@ -216,7 +216,7 @@ public class Chapter21Test {
         // than what Win64 allows - so Win64 gets a lot more spills here.
         String arg_count = "191.000000\n";
         TestC.run("arg_count", arg_count,
-                  TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
+                  CodeGen.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
 
         EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0, false);
