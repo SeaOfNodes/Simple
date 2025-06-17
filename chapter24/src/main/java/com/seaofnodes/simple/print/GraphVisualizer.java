@@ -21,8 +21,8 @@ public class GraphVisualizer {
     public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
     public GraphVisualizer() { this(false); }
 
-    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._code._stop,parse._scope,parse._xScopes); }
-    public String generateDotOutput(StopNode stop, Node scope, Stack<ScopeNode> xScopes) {
+    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._code._stop,parse._scope,parse._xScopes,parse._code._srcs.at(0)); }
+    public String generateDotOutput(StopNode stop, Node scope, Stack<ScopeNode> xScopes, String src) {
 
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
@@ -30,7 +30,7 @@ public class GraphVisualizer {
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter18 {\n");
         sb.append("/*\n");
-        sb.append(stop._src);
+        sb.append(src);
         sb.append("\n*/\n");
 
         // To keep the Scopes below the graph and pointing up into the graph we

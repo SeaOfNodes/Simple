@@ -149,7 +149,7 @@ public class Parser {
         }
 
         // Reset lexer for program text
-        _lexer = new Lexer(_code._src);
+        _lexer = new Lexer(_code._srcs.at(0));
         _xScopes.push(_scope);
 
         // Parse whole program, as-if function header "{ int arg -> body }"
@@ -621,7 +621,7 @@ public class Parser {
      * @return {@code null}
      */
     Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(_code._stop,_scope,_xScopes));
+        System.out.println(new GraphVisualizer().generateDotOutput(_code._stop,_scope,_xScopes,_code._srcs.at(0)));
         return null;
     }
 

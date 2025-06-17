@@ -5,6 +5,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.Ary;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
@@ -100,7 +101,7 @@ class FuzzerUtils {
         try {
             System.setErr(NULL_PRINT_STREAM);
             System.setOut(NULL_PRINT_STREAM);
-            var code = new CodeGen(script, TypeInteger.BOT, workListSeed, reset);
+            var code = new CodeGen(null, null, null, new Ary<>(new String[]{script}), TypeInteger.BOT, workListSeed, reset);
             return code.driver(CodeGen.Phase.LocalSched);
         } finally {
             System.setErr(err);

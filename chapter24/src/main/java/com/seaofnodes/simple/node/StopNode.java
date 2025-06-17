@@ -6,14 +6,11 @@ import java.util.BitSet;
 
 public class StopNode extends CFGNode {
 
-    public final String _src;
-
-    public StopNode(String src) {
+    public StopNode() {
         super();
-        _src = src;
-        _type = compute();
+        _type = Type.BOTTOM;
     }
-    public StopNode(StopNode stop) { super(stop);  _src = stop==null ? null : stop._src; }
+    public StopNode(StopNode stop) { super(stop); }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

@@ -116,7 +116,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return #2; return (Parm_x($fun21,i64,3)*x); return (Parm_x($fun22,i64,3)<<1); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return (Parm_x($fun20,i64,3)*x); return (Parm_x($fun21,i64,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -252,7 +252,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #21}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #20}?",e.getMessage()); }
     }
 
 

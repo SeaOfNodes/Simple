@@ -5,9 +5,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
@@ -35,7 +33,10 @@ public class CodeGen {
 
     // ---------------------------
     // Compilation source code
-    public final String _src;
+    public final String _root;  // Path to project root    relative to process
+    public final String _objs;  // Path to project objects relative to process
+    public final Ary<String> _src_paths; // File paths to source, relative to root
+    public final Ary<String> _srcs;      // String source
     // Compile-time known initial argument type
     public final TypeInteger _arg;
 
@@ -63,16 +64,24 @@ public class CodeGen {
      */
 
     // ---------------------------
-    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L, true ); }
-    public CodeGen( String src, TypeInteger arg, long workListSeed, boolean reset ) {
+    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
+    public CodeGen( String src, TypeInteger arg, long workListSeed ) {
+        this( null,null,new Ary<String>(new String[1]),new Ary<String>(new String[]{src}), arg, workListSeed, true );
+    }
+
+    public CodeGen( String ROOT, String OBJS, Ary<String> src_paths, Ary<String> srcs, TypeInteger arg, long workListSeed, boolean reset ) {
+        if( srcs._len != 1 ) throw Utils.TODO();
         CODE = this;
         if( reset ) Type.reset();
         _main = makeFun(TypeFunPtr.MAIN);
         _phase = null;
         _callingConv = null;
         _start = new StartNode(arg);
-        _stop = new StopNode(src);
-        _src = src;
+        _stop = new StopNode();
+        _root = ROOT;
+        _objs = OBJS;
+        _src_paths = src_paths;
+        _srcs = srcs;
         _arg = arg;
         _iter = new IterPeeps(workListSeed);
         P = new Parser(this,arg);
@@ -434,7 +443,7 @@ public class CodeGen {
         GlobalCodeMotion.buildCFG(this);
         _tGCM = (int)(System.currentTimeMillis() - t0);
         if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
+            System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null,_srcs.at(0)));
         return this;
     }
 

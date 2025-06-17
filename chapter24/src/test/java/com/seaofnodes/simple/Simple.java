@@ -95,7 +95,7 @@ Options:
 
                 try {
                     Files.writeString(Path.of(fn),
-                                      new GraphVisualizer().generateDotOutput(code._stop, null, null));
+                                      new GraphVisualizer().generateDotOutput(code._stop, null, null,code._srcs.at(0)));
                 } catch(IOException e) { throw bad("Cannot write DOT file"); }
             } else {
                 if ((dump & DUMP_PASS_NAME) != 0) {
