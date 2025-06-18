@@ -2,11 +2,11 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.ScopeNode.Kind;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
-import com.seaofnodes.simple.node.ScopeNode.Kind;
 import java.util.*;
 
 /**
@@ -90,6 +90,9 @@ public class Parser {
     // Mapping from a type name to the constructor for a Type.
     public final HashMap<String, StructNode> INITS;
 
+    // Output/return result of unknown forward references for linker
+    public final Ary<Var> _frefs = new Ary<>(Var.class);
+
 
     public Parser(CodeGen code, TypeInteger arg) {
         _code = code;
@@ -132,8 +135,8 @@ public class Parser {
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
-    public void parse() {
-
+    public void parse(String src) {
+        _frefs.clear();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
@@ -141,15 +144,8 @@ public class Parser {
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
 
-        //// Parse the sys import
-        //_lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
-        //while( !_lexer.isEOF() ) {
-        //    parseStatement();
-        //    _lexer.skipWhiteSpace();
-        //}
-
         // Reset lexer for program text
-        _lexer = new Lexer(_code._srcs.at(0));
+        _lexer = new Lexer(src);
         _xScopes.push(_scope);
 
         // Parse whole program, as-if function header "{ int arg -> body }"
@@ -176,6 +172,11 @@ public class Parser {
         }
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
+
+        // Gather all unknown symbols for codegen/linker
+        for( Var v : _scope._vars )
+            if( v.type() instanceof TypeFRef fref )
+                _frefs.push(v);
 
         // Clean up and reset
         _xScopes.pop();
@@ -1198,7 +1199,7 @@ public class Parser {
 
         if( var==null ) {
             // If missing, assume a forward reference
-            _scope.define(id, Type.BOTTOM, true, XCTRL, loc());
+            _scope.define(id, TypeFRef.make(id), true, XCTRL, loc());
             var = _scope.lookup(id);
         }
 
@@ -1630,14 +1631,11 @@ public class Parser {
     private Node functionCall(Node fcn, Node self) {
         if( fcn._type == Type.NIL )
             throw error("Calling a null function pointer");
-        if( fcn._type instanceof TypeFRef fref ) {
-            throw Utils.TODO();
-        }
-
-        if( !(fcn instanceof FRefNode) && !fcn._type.isa(TypeFunPtr.BOT) )
+        if( !(fcn._type instanceof TypeFRef) && !fcn._type.isa(TypeFunPtr.BOT) )
             throw error("Expected a function but got "+fcn._type.glb(false).str());
         fcn.keep();            // Keep while parsing args
 
+        // Parse and gather call arguments
         Ary<Node> args = new Ary<>( Node.class );
         args.push(null);        // Space for ctrl,mem
         args.push(null);
@@ -1649,6 +1647,15 @@ public class Parser {
             args.push(arg.keep());
             if( !match(",") ) break;
         }
+
+        // Upgrade forward-refs, newly discovered to be required as a function
+        if( fcn._type instanceof TypeFRef fref ) {
+            Type[] sig = new Type[args._len-2];
+            for( int i=0; i<args._len-2; i++ )
+                sig[i] = args.at(i+2)._type.glb(false);
+          fcn._type = TypeFunPtr.make(true,false,sig,Type.BOTTOM);
+        }
+
         // Control & memory after parsing args
         args.set(0,ctrl().keep());
         args.set(1,_scope.mem().merge().keep());

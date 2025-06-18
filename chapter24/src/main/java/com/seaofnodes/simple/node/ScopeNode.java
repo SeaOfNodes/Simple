@@ -121,8 +121,6 @@ public class ScopeNode extends MemMergeNode {
         for( int i=n; i<nIns(); i++ ) {
             Var v = var(i);
             if( !v.isFRef() ) continue;
-            if( depth()==1 )
-                throw Parser.error("Undefined name '" + v._name + "'",v._loc);
             _vars  .swap(n,i);
             _inputs.swap(n,i);
             v._idx = n;

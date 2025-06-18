@@ -14,7 +14,7 @@ public class TypeFRef extends Type {
 
     private static final Ary<TypeFRef> FREE = new Ary<>(TypeFRef.class);
     private TypeFRef(String name) { super(TFREF); init(name); }
-    private TypeFRef init(String name) { _name = name; return this; }
+    private TypeFRef init(String name) { assert name!=null; _name = name; return this; }
     public static TypeFRef malloc(String name) { return FREE.isEmpty() ? new TypeFRef(name) : FREE.pop().init(name); }
     public static TypeFRef make(String name) {
         TypeFRef i = malloc(name);
@@ -30,13 +30,15 @@ public class TypeFRef extends Type {
         return this;
     }
 
+    public final static TypeFRef BOT = make("$");
     public final static TypeFRef TEST = make(" test");
 
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); }
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); }
 
     @Override public String str() { return "$"+_name; }
 
     @Override public boolean isHigh() { return _name.charAt(0)=='~'; }
+    @Override boolean _isGLB(boolean mem) { return true; }
 
     @Override public int log_size() { throw Utils.TODO(); }
 
@@ -45,7 +47,9 @@ public class TypeFRef extends Type {
         // Invariant from caller: 'this' != 'other' and same class (TypeFRef)
         TypeFRef fref = (TypeFRef)other; // Contract
         assert _name!=fref._name && !_name.equals(fref._name);
-        return Type.BOTTOM;
+        if( this==BOT.dual() ) return fref;
+        if( fref==BOT.dual() ) return this;
+        return BOT;
     }
 
     @Override TypeFRef xdual() {

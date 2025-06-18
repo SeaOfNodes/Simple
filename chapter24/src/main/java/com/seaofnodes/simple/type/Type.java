@@ -242,6 +242,7 @@ public class Type /*implements Cloneable*/ {
             Type t = TypeRPC  .BOT; // Force class load, intern
             Type u = TypeTuple.BOT; // Force class load, intern
             Type w = TypePtr  .PTR; // Force class load, intern
+            Type x = TypeFRef .BOT;
             INTERN0.putAll(INTERN);
         } else {
             // Later times, reset back to first time
@@ -497,7 +498,7 @@ public class Type /*implements Cloneable*/ {
             at(i).gather(types);
     }
 
-    // Compute serialization byte tag compressoion space
+    // Compute serialization byte tag compression space
     final static int[] TAGOFFS = new int[TMAX+1];
     public static int[] TAGOFFS() {
         if( TAGOFFS[TMAX-1]==0 )

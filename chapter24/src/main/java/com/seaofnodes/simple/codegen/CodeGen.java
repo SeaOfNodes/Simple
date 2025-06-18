@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
@@ -207,12 +208,23 @@ public class CodeGen {
     public CodeGen parse() {
         assert _phase == null;
         _phase = Phase.Parse;
-        long t0 = System.currentTimeMillis();
 
-        P.parse();
-        _tParse = (int)(System.currentTimeMillis() - t0);
+        // Parse all sources, as needed
+        for( int i=0; i<_srcs._len; i++ ) {
+            long t0 = System.currentTimeMillis();
+            P.parse(_srcs.at(i));
+            _tParse += (int)(System.currentTimeMillis() - t0);
+            linkOrParse(P._frefs);
+        }
+
+
         JSViewer.show();
         return this;
+    }
+
+    void linkOrParse(Ary<Var> frefs) {
+        for( Var v : frefs )
+            throw Parser.error("Undefined name '" + v._name + "'",v._loc);
     }
 
 
