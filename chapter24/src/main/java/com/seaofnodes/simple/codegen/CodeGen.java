@@ -150,7 +150,11 @@ public class CodeGen {
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {
         assert tfp.isConstant();
-        return _linker.get(tfp.makeFrom(Type.BOTTOM));
+        TypeFunPtr base = tfp.makeFrom(Type.BOTTOM);
+        FunNode fun = _linker.get(base);
+        // FunNodes die, lazily remove mappings to dead functions
+        if( fun!=null && fun.isDead() ) { _linker.remove(base); fun=null; }
+        return fun;
     }
 
     // Insert linker mapping from constant function signature to the function
@@ -239,6 +243,8 @@ public class CodeGen {
     public void iterCnt() { if( !_midAssert ) _iter_cnt++; }
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
 
+    public final Ary<FunNode> _funs = new Ary<>(FunNode.class);
+
     // Run ideal optimizations
     public int _tOpto;
     public CodeGen opto() {
@@ -251,25 +257,22 @@ public class CodeGen {
 
         // OPTIMISTIC PASS GOES HERE
 
-        // Not really a true optimistic pass, but look for unlinked functions.
-        // This can be removed, which may trigger another round of pessimistic.
-        // This is the point where we flip from a virtual Call Graph (any call
-        // can call any function) to having a correct (but conservative) CG.
-        int progress = 0;
-        while( progress != _start.nOuts() ) {
-            progress = _start.nOuts();
-            FunNode main = link(_main);
-            for( int i=0; i<_start.nOuts(); i++ ) {
-                Node use = _start.out(i);
-                if( use instanceof FunNode fun &&
-                    fun.nIns()==2 && fun.in(1)==_start && fun != main &&
-                    (fun._name==null || fun._name.startsWith("sys.")) ) {
-                    add(fun).setDef(1,Parser.XCTRL);
-                    addAll(fun._outputs);
-                    i--;
-                }
+        // Track all functions, including ones alive but not exported.  They
+        // still get special treatment, by the pretty-printer at least which
+        // wants to group nodes by function.
+        _funs.clear();
+        for( Node use : _start._outputs )
+            if( use instanceof FunNode fun )
+                _funs.add(fun);
+
+        for( int i=0; i<_funs._len; i++ ) {
+            FunNode fun = _funs.at(i);
+            if( fun.isDead() ) _funs.del(i--);
+            else if( !fun.isExported() ) {
+                add(fun).setDef(1,Parser.XCTRL); // Kill start input
+                addAll(fun._outputs);
+                _iter.iterate(this);
             }
-            _iter.iterate(this);
         }
 
         // Freeze field sizes; do struct layouts; convert field offsets into
@@ -324,7 +327,7 @@ public class CodeGen {
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_stop);
+        _start.buildLoopTree(_funs,_stop);
         _tLoopTree = (int)(System.currentTimeMillis() - t0);
         return this;
     }
@@ -388,9 +391,15 @@ public class CodeGen {
         _uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _stop, map );
+
+        // Remap local references to the machine ops
         _stop  = ( StopNode)map.get(_stop );
         StartNode start = (StartNode)map.get(_start);
         _start = start==null ? new StartNode(_start) : start;
+        // Remap function list
+        for( int i=0; i<_funs._len; i++ )
+            _funs.set(i,(FunNode)map.get(_funs.at(i)));
+        // Insert output edges
         _instOuts(_stop,visit());
         _visit.clear();
         _tInsSel = (int)(System.currentTimeMillis() - t0);
@@ -431,6 +440,9 @@ public class CodeGen {
         for( Node in : n._inputs )
             if( in!=null ) {
                 in._outputs.push(n);
+                // Keep invariant the CallEnd is slot 0 output of Call
+                if( in instanceof CallNode && n instanceof CallEndNode && in._outputs._len > 1 )
+                    in._outputs.swap(0,in._outputs._len-1);
                 _instOuts(in,visit);
             }
     }
@@ -455,11 +467,10 @@ public class CodeGen {
         boolean done=false;
         while(!done) {
             done = true;
-            for( Node use : _start._outputs )
-                if( use instanceof FunNode fun )
-                    for( Node c : fun._inputs )
-                        if( c instanceof CallNode call )
-                            { call.unlink_all(); done=false; }
+            for( FunNode fun : _funs )
+                for( Node c : fun._inputs )
+                    if( c instanceof CallNode call )
+                         { call.unlink_all(); done=false; }
         }
 
 

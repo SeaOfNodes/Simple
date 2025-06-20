@@ -204,7 +204,7 @@ public class Parser {
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,_nestedType,null,_code._start));
+        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -711,7 +711,7 @@ public class Parser {
      */
     private Node parseDeclarationStatement() {
         int old = pos();
-        Type t = type();
+        Type t = type(false);
         if( peek('.') )         // Ambiguity static vars: "type.var", parse as expression
             { pos(old); t=null; }
         if( t == null )
@@ -764,7 +764,7 @@ public class Parser {
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
                 if( expr instanceof ExternNode ) t = expr._type; // Upgrade declared type to exact function
-                else _code.link(tfp).setName(name); // Assign debug name to Simple function
+                else _code.link(tfp).setName(_nestedType==null ? name : _nestedType+"."+name); // Assign debug name to Simple function
             }
 
         } else {
@@ -876,7 +876,7 @@ public class Parser {
     // ref type position.
 
     // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
-    private Type type() {
+    private Type type(boolean required) {
         int old1 = pos();
         // Only type with a leading `{` is a function pointer...
         if( peek('{') ) return typeFunPtr();
@@ -899,8 +899,10 @@ public class Parser {
             String sname = _lexer.matchId();
             if( sname==null ) { pos(old2); break; }
             String tsname = tname+"."+sname;
-            t0 = TYPES.get(tsname);
-            if( t0==null ) { pos(old2); t0 = TYPES.get(tname); break; }
+            if( !required ) {
+                t0 = TYPES.get(tsname);
+                if( t0==null ) { pos(old2); t0 = TYPES.get(tname); break; }
+            }
             tname = tsname;
         }
 
@@ -957,7 +959,7 @@ public class Parser {
     private Type typeFunPtr() {
         int old = pos();        // Record lexer position
         match("{");             // Skip already-peeked '{'
-        Type t0 = type();       // Either return or first arg
+        Type t0 = type(true);   // Either return or first arg
         if( t0==null ) return posT(old); // Not a function
         if( match("}") )                 // No-arg function { -> type }
             return TypeFunPtr.make(match("?"),false,TypeFunPtr.TEMPTY,t0);
@@ -965,12 +967,12 @@ public class Parser {
         ts.push(t0);            // First argument
         while( true ) {
             if( match("->") ) { // End of arguments, parse return
-                Type ret = type();
+                Type ret = type(true);
                 if( ret==null || !match("}") )
                     return posT(old); // Not a function
                 return TypeFunPtr.make(match("?"),false,ts.asAry(),ret);
             }
-            Type t1 = type();
+            Type t1 = type(true);
             if( t1==null ) return posT(old); // Not a function
             ts.push(t1);
         }
@@ -1175,7 +1177,7 @@ public class Parser {
         // Parse static variable lookup: `type.fld` in the type namespace
         // CNC: not a full type parse, just a typename parse
         int pos = pos();
-        Type t = type();
+        Type t = type(false);
         if( t!=null ) {
             if( peek('.') )
                 return parsePostfix(con(t));
@@ -1288,7 +1290,7 @@ public class Parser {
        Parse an allocation
      */
     private Node alloc() {
-        Type t = type();
+        Type t = type(false);
         if( t==null ) throw error("Expected a type");
         // Parse ary[ length_expr ]
         if( match("[") ) {
@@ -1458,8 +1460,8 @@ public class Parser {
             throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
 
         // Find the field from the Type.  Lookup in the base object field names.
-        //TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
-        //ptr = (TypeMemPtr)ptr.join(ptr2);// Upgrade to latest TYPES
+        TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
+        ptr = (TypeMemPtr)ptr.join(ptr2);// Upgrade to latest TYPES
 
         TypeStruct base = ptr._obj;
         int fidx = base.find(name);
@@ -1608,7 +1610,7 @@ public class Parser {
         _lexer.skipWhiteSpace();
         Lexer loc = loc();      // First argument location
         while( true ) {
-            Type t = type();    // Arg type
+            Type t = type(true); // Arg type
             if( t==null ) break;
             String id = requireId();
             ts .push(t );       // Push type/arg pairs

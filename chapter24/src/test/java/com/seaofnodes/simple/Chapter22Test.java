@@ -204,13 +204,13 @@ int N=4;
 i32[] !is = new i32[N];
 for( int i=0; i<N; i++ )
     is[i] = i*i;
-val sum = { i32[~] is ->  // final array
+val _sum = { i32[~] is ->  // final array
     int sum=0;
     for( int i=0; i<is#; i++ )
         sum += is[i];
     return sum;
 };
-return sum(is);
+return _sum(is);
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());

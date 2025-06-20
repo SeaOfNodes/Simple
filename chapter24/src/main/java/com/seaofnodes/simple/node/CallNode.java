@@ -169,9 +169,6 @@ public class CallNode extends CFGNode {
                 return Parser.error( "Argument #" + i + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
             }
 
-        if( tfp.fidxs() < 0 )
-            throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG
-
         return null;
     }
 

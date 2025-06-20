@@ -106,6 +106,8 @@ public class AddNode extends ArithNode {
         }
         if( lphi==null ) return null;
         if( lphi.region().nIns() <=2 ) return null; // Phi is collapsing
+        if( lphi instanceof ParmNode )
+            return null; // TODO: Can do this for Parms if fcn is !inProgress (no unknown callers) and I touch all call sites with the new arg
 
         // RHS is a constant or a Phi of constants
         if( !(rhs instanceof ConstantNode) && pcon(rhs,op)==null )

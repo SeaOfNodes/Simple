@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.Utils;
 
 import java.util.*;
@@ -36,7 +37,6 @@ public abstract class CFGNode extends Node {
         if( cfg != null ) {
             _idepth = cfg._idepth;
             _ltree = cfg._ltree;
-            _pre = cfg._pre;
         }
     }
 
@@ -110,7 +110,6 @@ public abstract class CFGNode extends Node {
     public int loopDepth() { return _ltree==null ? 0 : _ltree.depth(); }
 
     public LoopTree _ltree;
-    public int _pre;            // Pre-order numbers for loop tree finding
     public static class LoopTree {
         public LoopTree _par;
         public CFGNode _head;
@@ -126,33 +125,38 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start is a LoopNode which contains all at depth 1.
-    public void buildLoopTree(StopNode stop) {
+    public void buildLoopTree(Ary<FunNode> funs, StopNode stop) {
         // Walk all functions individually, building loop trees internally
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree(this);
         BitSet post = CodeGen.CODE.visit();
         post.set(stop._nid);
+        AryInt pres = new AryInt();
         int pre = 2;
-        for( Node use : _outputs )
-            if( use instanceof FunNode fun ) {
+        for( int i=0; i<funs._len; i++ ) {
+            FunNode fun = funs.at(i);
+            if( fun.isDead() ) {
+                funs.del(i--);
+            } else {
                 fun.ret()._ltree = fun._ltree = new LoopTree(fun);
-                pre = fun._bltWalk(pre,fun,stop, post);
+                pre = fun._bltWalk(pres,pre,fun,stop, post);
             }
+        }
         post.clear();
 
         // Build a crude call-graph: walk all functions' calls recursively and
         // then treat the function LoopTree parent as the deepest called
         // function.
         var depth = new IdentityHashMap<FunNode, Integer>();
-        for( Node use : _outputs )
-            if( use instanceof FunNode fun )
-                fun._funWalk(this,depth);
+        for( FunNode fun : funs )
+            fun._funWalk(this,depth);
     }
 
-    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
+    int _bltWalk( AryInt pres, int pre, FunNode fun, StopNode stop, BitSet post ) {
         // Pre-walked?
-        if( _pre!=0 ) return pre;
-        _pre = pre++;
+        if( pres.atX(_nid)!=0 ) return pre;
+        pres.setX(_nid,pre++);
 
+        if( this instanceof CProjNode cprj ) cprj._pre = pre-1;
         if( this instanceof ReturnNode ) {
             post.set(_nid);
             return pre;
@@ -161,7 +165,7 @@ public abstract class CFGNode extends Node {
         // Pre-walk
         for( Node use : _outputs )
             if( use instanceof CFGNode usecfg && !(use instanceof FunNode) )
-                pre = usecfg._bltWalk( pre, fun, stop, post );
+                pre = usecfg._bltWalk( pres, pre, fun, stop, post );
 
         // Post-order work: find innermost loop
         LoopTree inner = null, ltree;
@@ -194,8 +198,10 @@ public abstract class CFGNode extends Node {
             // numbers to figure out innermost.
             if( inner == null ) { inner = ltree; continue; }
             if( inner == ltree ) continue; // No change
-            LoopTree outer = ltree._head._pre > inner._head._pre ? inner : ltree;
-            inner =          ltree._head._pre > inner._head._pre ? ltree : inner;
+            int ltree_pre = pres.at(ltree._head._nid);
+            int inner_pre = pres.at(inner._head._nid);
+            LoopTree outer = ltree_pre > inner_pre ? inner : ltree;
+            inner =          ltree_pre > inner_pre ? ltree : inner;
             inner._par = outer;
         }
         // Set selected loop
@@ -222,7 +228,7 @@ public abstract class CFGNode extends Node {
         assert _ltree._par == null;
         _ltree._par = deepest;
         depths.put(self,depth+1);
-        return depth;
+        return depth+1;
     }
 
 

@@ -31,9 +31,12 @@ public abstract class GlobalCodeMotion {
         visit.set(code._start._nid);
         var rpo = new Ary<>(CFGNode.class);
         rpos.put(code._start._ltree,rpo);
-        for( Node use : code._start._outputs )
-            if( use instanceof FunNode fun )
-                _rpo_fun( fun, visit, rpos, rpo );
+
+        for( int i=0; i<code._funs._len; i++ ) {
+            FunNode fun = code._funs.at(i);
+            if( fun.isDead() ) code._funs.del(i--);
+            else _rpo_fun( fun, visit, rpos, rpo );
+        }
 
         // Reverse in-place
         for( int i=0; i< rpo.size()>>1; i++ )
@@ -46,7 +49,7 @@ public abstract class GlobalCodeMotion {
         if( visit.get(fun._nid) ) return;
         visit.set(fun._nid);
         rpos.put(fun._ltree,rpo);
-        if( fun._ltree._par._head instanceof FunNode fun2 )
+        if( fun._ltree._par!=null && fun._ltree._par._head instanceof FunNode fun2 )
             _rpo_fun(fun2,visit,rpos,rpo);
         visit.clear(fun._nid);
         _rpo_cfg(fun,visit,rpos,rpo);
@@ -71,7 +74,8 @@ public abstract class GlobalCodeMotion {
         }
 
         for( Node use : bb._outputs )
-            if( use instanceof CFGNode cfg && !(use instanceof FunNode) )
+            if( use instanceof CFGNode cfg && !(use instanceof FunNode) &&
+                !(bb instanceof ReturnNode && use instanceof CallEndNode) )
                 _rpo_cfg(cfg,visit,rpos,rpo);
 
         rpos.get(bb._ltree).add(bb);

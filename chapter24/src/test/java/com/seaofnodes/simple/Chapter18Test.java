@@ -116,7 +116,8 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return #2; return (Parm_x($fun1,i64,3)*x); return (Parm_x($fun2,i64,3)<<1); ]", code._stop.toString());
+        String x = code.toString();
+        assertEquals("Stop[ return #2; return 9; return 6; ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -139,8 +140,8 @@ return fcn(3);
         CodeGen code = new CodeGen(
 """
 struct S { int i; };
-val newS = { int x -> return new S { i=x; }; };
-return newS(1).i;
+val _newS = { int x -> return new S { i=x; }; };
+return _newS(1).i;
 """);
         code.parse().opto().typeCheck().loopTree().GCM();
         assertEquals("return 1;", code._stop.toString());
@@ -167,12 +168,12 @@ return 2;
         CodeGen code = new CodeGen(
 """
 {int -> int}? i2i = null;
-var id = {{int->int} f-> return f;};
+var _id = {{int->int} f-> return f;};
 for(;;) {
     if (i2i) return i2i(arg);
     var x = {int i-> return i;};
     arg = x(3);
-    i2i = id(x);
+    i2i = _id(x);
 }
 """);
         code.driver(Phase.LocalSched);
@@ -184,11 +185,11 @@ for(;;) {
     public void testFcn9() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = null;
+{int -> int}? _i2i = null;
 for(;;) {
-    if (i2i) return i2i(arg);
-    var x = {int i-> return i;};
-    arg = x(3);
+    if (_i2i) return _i2i(arg);
+    var _x = {int i-> return i;};
+    arg = _x(3);
 }
 """);
         code.driver(Phase.LocalSched);
@@ -205,7 +206,7 @@ struct Person {
   int age;
 };
 
-val fcn = { Person?[] ps, int x ->
+val _fcn = { Person?[] ps, int x ->
   val tmp = ps[x];
   if( ps[x] )
     ps[x].age++;
@@ -214,7 +215,7 @@ val fcn = { Person?[] ps, int x ->
 var ps = new Person?[2];
 ps[0] = new Person;
 ps[1] = new Person;
-return fcn(ps,1);
+return _fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
         assertEquals("return 0;", code._stop.toString());
@@ -340,15 +341,15 @@ for(;;) {
     public void testInline() {
         CodeGen code = new CodeGen(
 """
-{int->int}?! i2i = {int i->return i;};
-{{int->int}->{int->int}}! f2f = {{int->int} f->return f;};
-val o = i2i;
-if (arg) i2i = null;
-if (i2i) return i2i(arg);
-return f2f(o)(1);
+{int->int}?! _i2i = {int i->return i;};
+{{int->int}->{int->int}}! _f2f = {{int->int} f->return f;};
+val o = _i2i;
+if (arg) _i2i = null;
+if (_i2i) return _i2i(arg);
+return _f2f(o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(i2i.o,i64); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(_i2i.o,i64); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

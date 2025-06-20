@@ -83,7 +83,7 @@ public abstract class Node implements Cloneable {
         DivF,Div,Extern,Fun,FRef,If,Load,Loop,
         MemMerge,MinusF,Minus,Mul,MulF,
         New,Parm,Phi,Proj,Return,Region,
-        Sar,Shl,Shr,Start,Store,Sub,SubF,ToFloat,
+        Sar,Shl,Shr,Start,Stop,Store,Sub,SubF,ToFloat,
         XCtrl;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, AryInt aliases ) {
@@ -104,6 +104,7 @@ public abstract class Node implements Cloneable {
             case Shl    -> new   ShlNode(null,null,null);
             case Shr    -> new   ShrNode(null,null,null);
             case Start  -> new StartNode(TypeInteger.BOT);
+            case Stop   -> new  StopNode();
             case Sub    -> new   SubNode(null,null);
             case SubF   -> new  SubFNode(null,null);
             case ToFloat-> new ToFloatNode(null);
@@ -619,7 +620,7 @@ public abstract class Node implements Cloneable {
     Ary<Node> _deps;
 
     /**
-     * Add a node to the list of dependencies.  Only add it if its not an input
+     * Add a node to the list of dependencies.  Only add it if it's not an input
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */

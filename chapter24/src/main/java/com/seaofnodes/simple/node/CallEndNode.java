@@ -84,7 +84,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
                 // Expecting Start, and the Call
-                if( fun.nIns()==3 ) {
+                if( fun.nIns()==3 && !fun.isExported() ) {
                     assert fun.in(1) instanceof StartNode && fun.in(2)==call;
                     // Disallow self-recursive inlining (loop unrolling by another name)
                     CFGNode idom = call;

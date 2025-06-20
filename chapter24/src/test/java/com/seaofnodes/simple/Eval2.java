@@ -60,6 +60,17 @@ public abstract class Eval2 {
                 : _prior.get(n);
         }
 
+        // Get RPC constant
+        ConstantNode getRPC( TypeRPC rpc ) {
+            if( _prior != null ) return _prior.getRPC(rpc);
+            assert rpc.isConstant();
+            for( Node n : _data.keySet() )
+                if( n instanceof ConstantNode con &&
+                    con._con==rpc )
+                    return con;
+            return null;
+        }
+
         // Short debugging print
         public String p() {
             return "#"+_uid + (_prior==null ? "" : " >> " + _prior.p());
@@ -117,7 +128,7 @@ public abstract class Eval2 {
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
         if( code._start.uctrl()==null ) return ""; // The empty program
-        SB trace = null; // = new SB(); // TRACE, set to null for off, new SB() for on
+        SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
         // Force local scheduling phase
         code.driver(CodeGen.Phase.LocalSched);
         // Set global, so don't have to pass everywhere
@@ -183,6 +194,15 @@ public abstract class Eval2 {
         // Parameters read from prior frame, Phis from local frame
         Frame frame = (r instanceof FunNode ? F._prior : F);
         boolean isMain = r instanceof FunNode fun && fun.sig().isa(CodeGen.CODE._main);
+        // Functions need to track their return Closure, so the RetNode can find it.
+        // If function is called from multiple places, there is a RPC Parm, handled below.
+        // If not, there will be a constant RPC that carries the Closure.
+        if( r instanceof FunNode fun && prior instanceof CallNode call ) {
+            TypeRPC rpc = call.cend()._rpc;
+            // Find the matching constant node
+            ConstantNode con = frame.getRPC(rpc);
+            if( con != null ) F.put(con,F.get(prior));
+        }
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
@@ -318,6 +338,7 @@ public abstract class Eval2 {
                 throw Utils.TODO(); // Constant non-array ptr
             }
         }
+        case TypeRPC rpc ->  null;
         default -> null;
         };
     }

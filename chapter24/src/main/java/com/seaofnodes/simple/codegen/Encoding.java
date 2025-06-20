@@ -272,7 +272,7 @@ public class Encoding {
     }
 
     // Should this test be inverted?
-    private static boolean shouldInvert(CFGNode t, CFGNode f, int bld) {
+    private static boolean shouldInvert(CProjNode t, CProjNode f, int bld) {
         int tld = t.loopDepth(), fld = f.loopDepth();
         // These next two are symmetric and can happen in any order; if `tld <
         // bld` is true, the `fld < bld` must be false, or else both directions

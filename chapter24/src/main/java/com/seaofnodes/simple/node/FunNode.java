@@ -22,7 +22,21 @@ public class FunNode extends RegionNode {
 
     public String _name;        // Debug name
 
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { super(loc,nodes); _name=name; _sig = sig; }
+
+    // Rules on exporting functions:
+    // Member of an exporting struct
+    // - exporting struct matches file path, each part is exporting
+    // - $ROOT/foo.smp contains "struct foo" is exporting
+    // - $ROOT/foo/bar.smp contains "struct bar" is exporting
+    // - $ROOT/baz.smp contains "struct quz" not exporting
+    // - $ROOT/baz/qux.smp contains "struct qux" not exporting because no "struct baz" exporting
+    // Has name that does not start `_`
+    // Top-level (no containing struct) is always "exporting"
+
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, Node... nodes ) {
+        super(loc,nodes);
+        _sig = sig;
+    }
     public FunNode( FunNode fun ) {
         super( fun, fun==null ? null : fun._loc );
         if( fun!=null ) {
@@ -45,7 +59,7 @@ public class FunNode extends RegionNode {
         Node[] ins = new Node[bais.packed1()];
         TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
         String name = strs[bais.packed2()];
-        return new FunNode(null,sig,name,ins);
+        return new FunNode(null,sig,ins).setName(name);
     }
 
     @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
@@ -83,9 +97,10 @@ public class FunNode extends RegionNode {
         }
     }
 
-    public void setName( String name ) {
+    public FunNode setName( String name ) {
         if( _name==null ) _name=name;
         else _name += "."+name;
+        return this;
     }
 
     @Override
@@ -124,7 +139,7 @@ public class FunNode extends RegionNode {
         if( unknownCallers() ) return null;
 
         // If down to a single input, become that input
-        if( nIns()==2 && !hasPhi() ) {
+        if( nIns()==2 && _folding && !hasPhi() ) {
             CODE.add( CODE._stop ); // Stop will remove dead path
             CODE.add( _ret );       // Return will compute to TOP control
             return in(1); // Collapse if no Phis; 1-input Phis will collapse on their own
@@ -139,7 +154,7 @@ public class FunNode extends RegionNode {
         return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
     }
     // Bypass Region idom, always assume idom is Start
-    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : (nIns()>1 ? cfg(1) : null); }
+    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : CodeGen.CODE._start; }
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
@@ -148,6 +163,15 @@ public class FunNode extends RegionNode {
 
     // Add a new function exit point.
     public void addReturn(Node ctrl, Node mem, Node rez) {  _ret.addReturn(ctrl,mem,rez);  }
+
+    // True if should be exported during CodeGen.
+    public boolean isExported() {
+        // Name does not have a leading underscore after type prefix:
+        // "sys.aryu8._grow" - not exported
+        // "sys.aryu8.add" - yes exported
+        return _name != null && _name.charAt(_name.lastIndexOf('.')+1) != '_';
+    }
+
 
     // Build the function body
     public BitSet body() {
@@ -240,4 +264,7 @@ public class FunNode extends RegionNode {
     @Override public void gather( HashMap<String,Integer> strs ) {
         Serialize.gather(strs,_name);
     }
+
+    @Override public boolean eq( Node n ) { return n==this; }
+
 }

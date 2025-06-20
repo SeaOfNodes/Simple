@@ -293,9 +293,9 @@ return A[1];
     @Test
     public void testNewton() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/newtonFloat.smp"))
-            + "flt farg = arg;  return test_sqrt(farg);";
+            + "flt farg = arg;  return newtonFloat(farg);";
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
+        assertEquals("Stop[ return #2; return Phi(Loop,Parm_x(newtonFloat,flt),(mulf,(addf,(divf,x,Phi_guess),Phi_guess),0.5f)); ]", code.print());
     };
 
 
@@ -316,7 +316,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun1,i64),x); return (shli,Parm_x($fun2,i64)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun1),x); return (shli,Parm_x($fun2)); ]", code.print());
     }
 
     @Test

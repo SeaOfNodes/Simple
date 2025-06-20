@@ -11,6 +11,7 @@ public class StopNode extends CFGNode {
         _type = Type.BOTTOM;
     }
     public StopNode(StopNode stop) { super(stop); }
+    @Override public Tag serialTag() { return Tag.Stop; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

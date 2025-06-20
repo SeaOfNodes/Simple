@@ -187,9 +187,9 @@ abstract public class Serialize {
     // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code ) {
         if( code._start._ltree==null )
-            code._start.buildLoopTree(code._stop);
+            code._start.buildLoopTree(code._funs,code._stop);
         Ary<Node> nodes = new Ary<>(Node.class);
-        BitSet visit = code.visit();
+        BitSet visit = new BitSet();
         nodes.add(code._start);
 
         // All the global constants
@@ -208,7 +208,7 @@ abstract public class Serialize {
 
     // Walk and print whole functions at a time, in CG order
     private static void _funWalk( FunNode fun, Ary<Node> rpo, BitSet visit ) {
-        if( fun._ltree._par._head instanceof FunNode fun2 )
+        if( fun._ltree !=null && fun._ltree._par != null && fun._ltree._par._head instanceof FunNode fun2 )
             _funWalk(fun2,rpo,visit);
         int start = rpo._len;
         _funRPO(fun,rpo,visit);
@@ -220,7 +220,7 @@ abstract public class Serialize {
 
     // Walk and gather RPO nodes.
     private static void _funRPO(Node n, Ary<Node> rpo, BitSet visit) {
-        if( visit.get(n._nid) ) return; // Been there, done that
+        if( n==null || visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);              // Stop recursion
         // Walk outputs ordered
         if( !(n instanceof ReturnNode) ) {
@@ -230,7 +230,7 @@ abstract public class Serialize {
                 if( n instanceof IfNode iff ) {
                     CProjNode c0 = iff.cproj(0);
                     CProjNode c1 = iff.cproj(1);
-                    if( c0._ltree.depth() > c1._ltree.depth() )
+                    if( c0._ltree!=null && c1._ltree!=null && c0._ltree.depth() > c1._ltree.depth() )
                         { c0 = c1; c1 = iff.cproj(0); }
                     _funRPO(c0,rpo,visit);
                     _funRPO(c1,rpo,visit);

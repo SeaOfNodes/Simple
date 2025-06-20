@@ -18,6 +18,9 @@ public class CProjNode extends CFGNode implements Proj {
     // Debugging label
     public String _label;
 
+    // Pre-order for tie-breaking during layout
+    public int _pre;
+
     public CProjNode(Node ctrl, int idx, String label) {
         super(ctrl);
         _idx = idx;

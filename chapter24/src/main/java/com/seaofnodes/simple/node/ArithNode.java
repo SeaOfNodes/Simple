@@ -55,35 +55,39 @@ public abstract class ArithNode extends Node {
     @Override public Node idealize() {
         if( in(1) instanceof PhiNode lhs &&
             in(2) instanceof PhiNode rhs &&
-            lhs.nIns() >= 2 && !lhs.inProgress() &&
+            lhs.nIns() >= 2 &&
             lhs.region()==rhs.region() &&
+            !(lhs instanceof ParmNode) &&
             lhs.nIns()>2 && // A 1-input Phi will collapse already
             // Disallow with self-looping phi; these will collapse
             (lhs.in(2)!=lhs && rhs.in(2)!=rhs) ) {
-            // Profit check: only 1 instance of `this` will remain, all the
-            // others will fold to constants.
-            int cnt=0;
-            for( int i=1; i<lhs.nIns(); i++ )
-                if( isCon(lhs,rhs,i) )
-                    cnt++;
-            if( lhs.nIns()-1 - cnt <= 1 ) {
-                // Profit!  Push up-phi and fold
-                Node[] ns = new Node[lhs.nIns()];
-                ns[0] = lhs.in(0);
-                for( int i=1; i<lhs.nIns(); i++ ) {
-                    ns[i] = isCon(lhs,rhs,i)
-                        ? new ConstantNode(con(lhs.in(i)._type, rhs.in(i)._type)).peephole()
-                        : copy(lhs.in(i), rhs.in(i)).peephole();
+            if( lhs.inProgress() ) addDep(lhs.region());
+            else {
+                // Profit check: only 1 instance of `this` will remain, all the
+                // others will fold to constants.
+                int cnt=0;
+                for( int i=1; i<lhs.nIns(); i++ )
+                    if( isCon(lhs,rhs,i) )
+                        cnt++;
+                if( lhs.nIns()-1 - cnt <= 1 ) {
+                    // Profit!  Push up-phi and fold
+                    Node[] ns = new Node[lhs.nIns()];
+                    ns[0] = lhs.in(0);
+                    for( int i=1; i<lhs.nIns(); i++ ) {
+                        ns[i] = isCon(lhs,rhs,i)
+                            ? new ConstantNode(con(lhs.in(i)._type, rhs.in(i)._type)).peephole()
+                            : copy(lhs.in(i), rhs.in(i)).peephole();
+                    }
+                    String label = lhs._label==rhs._label ? lhs._label : lhs._label + rhs._label;
+                    return new PhiNode(label,lhs._minType,ns).peephole();
                 }
-                String label = lhs._label==rhs._label ? lhs._label : lhs._label + rhs._label;
-                return new PhiNode(label,lhs._minType,ns).peephole();
             }
         }
         return null;
     }
 
-    static boolean isCon( PhiNode lhs, PhiNode rhs, int i ) {
-        return lhs.in(i)._type.isConstant() && rhs.in(i)._type.isConstant();
+    boolean isCon( PhiNode lhs, PhiNode rhs, int i ) {
+        return addDep(lhs.in(i))._type.isConstant() && addDep(rhs.in(i))._type.isConstant();
     }
 
 
