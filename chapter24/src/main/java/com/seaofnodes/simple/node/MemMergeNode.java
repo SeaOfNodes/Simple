@@ -105,7 +105,7 @@ public class MemMergeNode extends Node {
         return alias < nIns() && in(alias)!=null ? in(alias) : in(1);
     }
 
-    Node alias( int alias, Node st ) {
+    public Node alias( int alias, Node st ) {
         while( alias >= nIns() ) addDef(null);
         return setDef(alias,st);
     }

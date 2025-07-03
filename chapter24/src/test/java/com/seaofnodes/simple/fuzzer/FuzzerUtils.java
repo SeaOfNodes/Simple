@@ -101,7 +101,7 @@ class FuzzerUtils {
         try {
             System.setErr(NULL_PRINT_STREAM);
             System.setOut(NULL_PRINT_STREAM);
-            var code = new CodeGen(null, null, null, new Ary<>(new String[]{script}), TypeInteger.BOT, workListSeed, reset);
+            var code = new CodeGen(null, null, null, new Ary<>(new String[]{script}), workListSeed, reset);
             return code.driver(CodeGen.Phase.LocalSched);
         } finally {
             System.setErr(err);

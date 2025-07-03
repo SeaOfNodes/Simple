@@ -59,8 +59,23 @@ public class TypeStruct extends Type {
         if( t2==ts ) return ts;
         return VISIT.isEmpty() ? t2.free(ts) : ts.delayFree(ts);
     }
-    // New open struct with no fields
+
+    // New open struct with no fields; low-level open struct creator
     public static TypeStruct open( String name ) { return make(name,true); }
+    // New open struct with a no-arg constructor
+    public static TypeMemPtr makeConstructor( String name, int fidx ) {
+        TypeStruct self = open(name);
+        // Pointer to self
+        TypeMemPtr thsi = TypeMemPtr.make(self);
+        // Constructor takes no args and returns a ptr to self, and is not null
+        TypeFunPtr tfp = TypeFunPtr.make((byte)2, false, new Type[0], thsi, 1L<<fidx);
+        // Only field is the constructor, which is final singleton.
+        // No alias for singletons.
+        TypeStruct ts = self.add(Field.make(name, tfp, -1, true, true));
+        // Leave struct open, upgrade ptr
+        return TypeMemPtr.make(ts);
+    }
+
 
     // Array
     public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias, boolean efinal) {
@@ -73,15 +88,19 @@ public class TypeStruct extends Type {
         assert _open && find(f._fname)==-1; // No double field names
         Field[] flds = Arrays.copyOf(_fields,_fields.length+1);
         flds[_fields.length] = f;
-        return make(_name,true,flds);
+        return make(_name,_open,flds);
     }
     public TypeStruct replace( Field f ) {
-        assert !_open;
         Field[] flds = Arrays.copyOf(_fields,_fields.length);
         flds[find(f._fname)] = f;
-        return make(_name,false,flds);
+        return make(_name,_open,flds);
     }
-
+    public TypeStruct setX( int idx, Field f ) {
+        assert _open || idx != -1;
+        Field[] flds = Arrays.copyOf( _fields, idx == -1 ? (idx=_fields.length)+1 : _fields.length );
+        flds[idx] = f;
+        return make(_name,_open,flds);
+    }
 
     public final TypeStruct close() {
         return (TypeStruct)recurOpen()._close(_name).recurClose();
@@ -382,7 +401,7 @@ public class TypeStruct extends Type {
     }
 
     @Override public int nkids() { return _fields.length; }
-    @Override public Type at( int idx ) { return _fields[idx]; }
+    @Override public Field at( int idx ) { return _fields[idx]; }
     @Override public void set( int idx, Type t ) { _fields[idx] = (Field)t; }
     // Tags 0-4 - closed +#nflds (+name)
     // Tags 5   - closed(+ nflds  +name)

@@ -13,7 +13,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
         _tfp = tfp;
-        FunNode fun = CodeGen.CODE.link(tfp);
+        FunNode fun = CodeGen.CODE.link(tfp.fidx());
         _name = fun==null ? ((ExternNode)call.fptr())._extern : fun._name; // Can be null for extern calls
     }
     @Override public String op() { return "call"; }
@@ -25,7 +25,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
 
     @Override public void encoding( Encoding enc ) {
-        FunNode fun = CodeGen.CODE.link(_tfp);
+        FunNode fun = CodeGen.CODE.link(_tfp.fidx());
         if( fun==null ) enc.external(this,_name);
         else enc.relo(this);
         enc.add1(0xe8).add4(0);

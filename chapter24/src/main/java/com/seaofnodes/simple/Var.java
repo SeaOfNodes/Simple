@@ -30,8 +30,10 @@ public class Var {
     }
     public Type type() {
         if( !_type.isFRef() ) return _type;
+        if( !(_type instanceof TypeMemPtr tmp) ) return _type;
         // Update self to no longer use the forward ref type
-        Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
+        Type def = Parser.TYPES.get(tmp._obj._name);
+        if( def == null ) return _type;
         return (_type=_type.meet(def));
     }
 

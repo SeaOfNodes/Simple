@@ -14,7 +14,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
         assert tfp.isConstant();
         _inputs.pop(); // Pop constant target
         _tfp = tfp;
-        FunNode fun = CodeGen.CODE.link(tfp);
+        FunNode fun = CodeGen.CODE.link(tfp.fidx());
         _name = fun==null ? ((ExternNode)call.fptr())._extern : fun._name; // Can be null for extern calls
     }
 
@@ -29,7 +29,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         // Short form +/-4K:  beq r0,r0,imm12
         // Long form:  auipc rX,imm20/32; jal r0,[rX+imm12/32]
-        FunNode fun = CodeGen.CODE.link(_tfp);
+        FunNode fun = CodeGen.CODE.link(_tfp.fidx());
         if( fun==null ) enc.external(this,_name);
         else enc.relo(this);
         short rpc = enc.reg(this);

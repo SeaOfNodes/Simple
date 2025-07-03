@@ -335,9 +335,9 @@ return primeCount;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v=new S;
+S !v=new S();
 v.f = 2;
-int i=new S.f;
+int i=new S().f;
 i=v.f;
 if (arg) v.f=1;
 return i;
@@ -353,9 +353,9 @@ return i;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
+S !v = new S();
 v.f = arg;
-S !t = new S;
+S !t = new S();
 int i = 0;
 if (arg) {
     if (arg+1) v = t;
@@ -374,9 +374,9 @@ return i;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v0 = new S;
+S !v0 = new S();
 S? v1;
-if (arg) v1 = new S;
+if (arg) v1 = new S();
 if (v1) {
     v0.f = v1.f;
 } else {
@@ -394,9 +394,9 @@ return v0;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
+S !v = new S();
 v.f = arg;
-S t = new S;
+S t = new S();
 int i = v.f;
 if (arg+1) arg= 0;
 while (arg) v.f = 2;
@@ -411,7 +411,7 @@ return i;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
+S !v = new S();
 while(1) {
     while(arg+1) { arg=arg-1; }
     if (arg) break;
@@ -428,9 +428,9 @@ return v;
         CodeGen code = new CodeGen(
 """
 struct s { int v; };
-s !ptr=new s;
+s !ptr=new s();
 while( -arg )
-  ptr = new s;
+    ptr = new s();
 while(1)
   arg = arg+ptr.v;
 """);
@@ -443,8 +443,8 @@ while(1)
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
-S t = new S;
+S !v = new S();
+S t = new S();
 int i = v.f;
 while (arg) {
     v.f = arg;
@@ -461,8 +461,8 @@ return i;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
-S t = new S;
+S !v = new S();
+S t = new S();
 while(arg) {
     arg=arg-1;
     int f = v.f;
@@ -481,8 +481,8 @@ return arg;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
-S t = new S;
+S !v = new S();
+S t = new S();
 if (arg) {
     v.f=2;
     int i=t.f;
@@ -499,7 +499,7 @@ return v;
         CodeGen code = new CodeGen(
 """
 struct S { int f; };
-S !v = new S;
+S !v = new S();
 int i = arg;
 while (arg > 0) {
     int j = i/3;

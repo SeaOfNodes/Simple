@@ -58,6 +58,127 @@ theory:
 
 
 
+-------------------------
+
+vars can export; funs can be exported.
+
+No "_" leading var name
+AND
+  Var at top-level "main"
+  var same name as file base and prefix files exporting
+  File: $ROOT/foo.smp and "var foo = ..." or "struct foo {}"
+    then export and also dir $ROOT/foo exports.
+  Exporting struct allows non-underscore fields to access in other CU
+
+
+"struct foo" is typename, adds "var foo = ..." with default constructor
+- "struct foo { int x,y; }"
+- - "foo();"        // default no-arg constructor allocates  a foo and assigns zeros.
+- - "new foo{x=3};" // long hand constructor allows any fields set any order.
+- "struct bar { Person P; }" // Requires a Person P
+- - "bar(person)"    // default constructor takes requires args (only) and in-order
+- - "new bar{P=...}" // long hand constructor allows any fields set any order
+
+Now have a Var with "foo" name; can track exports under that name.
+At top-level Parse, before popping final scope
+- walk Vars
+- - if var matches basename && this compile-unit is exporting, gets exported; link-time & import symbol.
+- - - also "struct var" then gets exported.  Tracking on the Var not the struct.  Only matters for other importers.
+- - - - also insides of exported "struct var" without "_" visible to link-time & other importers.
+- - - Non-structs still link-time && import symbol.
+
+'another example:
+"var foo = { arg -> arg ? { x -> x*x } : { x -> x+x }}"
+Top-level "foo", so exporting both link & import time.
+All anon functions getting exported via TFP!
+
+Next CU builds as:
+"var main = { arg -> return foo(arg)(3); }"
+
+Implies: fcns exported if
+- TFP escapes to "Stop".  Those escaping to Stop are available on compatible Start default inputs.
+- also above rules:
+- Var is top-level, not leading underscore, final, constant?
+- - If value is not constant, cannot look until final-set.
+- Var matches base name, and prefix dir is exporting
+- - if matching "struct basename", then fields inside not "_" also escape.
+
+Could also?
+- Stop accepts top-level exporting Var values.
+- - BOth TMP & TFP.  Type is "[Ctrl,TMP,TFP]" ?
+- - So can leverage Tuple with leading Ctrl.  Not sure if I need to track mem escapes; too weak mem tracking now.
+- - But Fun uses Region, which requires plain "Ctrl".
+- - So TMP&TFP outside of normal type flows.  :-P
+- Since alive at Stop, Start keeps default input.
+- FunNode asks Start special - TFP escaped?  If not, kills Start input.
+- When compiling "main", no TMP,TFP escapes as long as thread from main does not call external value.
+- - Just give normal treatment?  Opto pass, starting from main, tracking external calls escaping TMP,TFP.
+- - Could be: Main - NOT START - gets initial control.  If Start ALSO gets Ctrl, then the default paths
+    are around for all fcns, etc.
+
+
+ooo... top-level only exports main???
+
+
+Ambiguity:
+
+"var fun = { [type id,]* -> body }"
+// Here, type is required
+"sys id" -> make a FRef sys
+"sys.aryi64" -> make a FRef sys AND FRef sys.aryi64
+
+"while { type id = ... ;"
+Type is optional:
+"sys    = expr;" // Prior existing sys var
+"sys id = expr;" // FRef sys type.
+
+Parse: "id0.id0.id0 id1" as `type("id0.id0.id0")`
+
+Ambiguity: "new id0.id0.id1.id1.id1" - No!
+           "new id0.id0 .id1.id1.id1" - Yes
+
+
+{ type id, ... -> body   // Function header; type.var not allowed
+{ type type... -> type } // Function type
+// NO: type.type.type...        // static types
+type id = ...            // decl statement
+type.var                 // static var
+new type                 // alloc
+new type.var             // alloc then var
+
+Conflate var and type; the bare type in a value context is the static var version.
+So the IR generated is:
+ Con(FRef).load(fld).load(fld) // also flds that are final from a single type also fold - no aliasing
+
+
+Ambiguity - 
+
+// external file#1
+"struct FRef { int fld; }" // sets local fld
+// external file#2
+"struct FRef { int x; }" // sets up-scope fld
+// local file 
+"fld = old; new FRef { fld = init; }" // Which field gets set?
+
+Question: mid-parse: recursive load & parse next file?  How to handle cycle cross-file refs?
+Rule: constructor blocks cannot assign to out-of-scope vars.
+Leaves field reads as ambiguous until FRef is resolved...
+Defeats purpose, requires unrelated scope... ==>> requires classic constructor.
+Drop constructor scope ...
+Require a constructor to set those fields.  Same name as struct.
+
+
+`    type` - as expr loads field of same name, yields a constructor function
+`new type ... `  - calls constructor no args
+`    type(args)` - calls constructor with args
+`new type(args)` - calls constructor with args
+`var myScan = Scan;` // Makes a new no-arg Scan
+
+
+So grammer is... `new expr-typed-as-constructor-fcn`, then can skip the no-arg parens.
+
+
+
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.
 
 

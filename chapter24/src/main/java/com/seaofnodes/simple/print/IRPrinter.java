@@ -53,7 +53,7 @@ public abstract class IRPrinter {
                 sb.nl();
             printLine(n,sb);
             if( n instanceof ReturnNode ret )
-                sb.p("--- ").p(ret._fun._name==null ? "" : ret._fun._name).p(" ----------------------\n");
+                sb.p("--- ").p(ret._fun==null || ret._fun._name==null ? "" : ret._fun._name).p(" ----------------------\n");
             prior = n;
         }
         return sb.toString();

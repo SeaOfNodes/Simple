@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 
@@ -13,10 +14,10 @@ import java.util.BitSet;
  */
 public class StartNode extends CFGNode implements MultiNode {
 
-    final Type _arg;
+    private boolean _inProgress;
 
-    public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
-    public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
+    public StartNode() { super((Node)null); _inProgress = true; _type = compute(); }
+    public StartNode(StartNode start) { super(start); }
     @Override public Tag serialTag() { return Tag.Start; }
 
     @Override
@@ -38,9 +39,45 @@ public class StartNode extends CFGNode implements MultiNode {
         return C;
     }
 
+    public void notInProgress() { _inProgress=false; }
+    public TypeFunPtr allEscapes() {
+        return (TypeFunPtr) ((TypeTuple)_type)._types[2];
+    }
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(Type.CONTROL,TypeMem.TOP,_arg);
+        TypeFunPtr tfp ;
+        if( _inProgress ) {
+            tfp = CodeGen.CODE.allExports();
+        } else {
+            tfp = TypeFunPtr.MAIN0; // "main" fidx, open, no args
+            for( Node n : _inputs )
+                if( n instanceof CallNode call ) {
+                    // All call args, minus the fcn ptr itself
+                    for( int i=1; i<call.nIns()-1; i++ ) {
+                        Type t = call.in(i)._type;
+                        if( t instanceof TypeMem mem ) {
+                            if( mem._t == Type.BOTTOM ) continue; // All the other escapes
+                            else throw Utils.TODO();
+                        } else if( t instanceof TypeMemPtr tmp ) {
+                            // Escaping function via ptr
+                            throw Utils.TODO();
+                        } else if( t instanceof TypeFunPtr ) {
+                            // Escaping function
+                            throw Utils.TODO();
+                        }
+                    }
+                }
+            for( Node n : _outputs ) {
+                if( n instanceof ConstantNode con && con._type instanceof TypeFunPtr ) {
+                    for( Node use : con._outputs )
+                        if( use instanceof ScopeNode scope )
+                            // In-use by parser, so escapes
+                            throw Utils.TODO();
+                }
+            }
+        }
+
+        return TypeTuple.make(Type.CONTROL,TypeMem.TOP,tfp);
     }
 
     @Override public Node idealize() { return null; }
@@ -48,5 +85,7 @@ public class StartNode extends CFGNode implements MultiNode {
     // No immediate dominator, and idepth==0
     @Override public int idepth() { return CodeGen.CODE.iDepthAt(0); }
     @Override public CFGNode idom(Node dep) { return null; }
+
+
 
 }

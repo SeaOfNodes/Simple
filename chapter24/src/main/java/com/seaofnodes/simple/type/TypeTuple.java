@@ -81,6 +81,7 @@ public class TypeTuple extends Type {
         return align;
     }
 
+    public Type mem() { assert _types.length==3; return _types[1]; }
     public Type ret() { assert _types.length==3; return _types[2]; }
 
     @Override public int nkids() { return _types.length; }

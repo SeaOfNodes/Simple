@@ -19,13 +19,12 @@ public class TypeFunPtr extends TypeNil {
     // A TypeFunPtr is Signature and a set of functions.
     public Type[] _sig;
     public Type _ret;
-    // TODO:
-    boolean _open;              // Extra args are true:BOTTOM, false:TOP
+    private boolean _open;      // Extra args are true:BOTTOM, false:TOP
     // Cheesy easy implementation for a small set; 1 bit per unique function
     // within the same Type[].  Can be upgraded to a BitSet for larger classes
     // of functions.  Negative means "these 63 concrete bits plus infinite
     // unknown more"
-    public long _fidxs; // 63 unique functions per signature
+    private long _fidxs; // 63 unique functions per signature
 
     private static final Ary<TypeFunPtr> FREE = new Ary<>(TypeFunPtr.class);
     private TypeFunPtr(byte nil, boolean open, Type[] sig, Type ret, long fidxs) { super(TFUNPTR,nil); init(nil,open,sig,ret,fidxs); }
@@ -61,6 +60,7 @@ public class TypeFunPtr extends TypeNil {
         return VISIT.isEmpty() ? f2.free(fun) : f2.delayFree(fun);
     }
     public static TypeFunPtr make( boolean nil, boolean open, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),open,sig,ret,-1); }
+    public static TypeFunPtr make( Type[] sig, Type ret ) { return make((byte)2,false,sig,ret,-1); }
 
 
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
@@ -73,11 +73,13 @@ public class TypeFunPtr extends TypeNil {
     static final Type[] TINTMEM = new Type[]{TypeInteger.BOT,TypeFloat.F32};
     static final Type[] TINTINT = new Type[]{TypeInteger.BOT,TypeInteger.BOT};
     public static TypeFunPtr BOT   = make((byte)3,true ,TEMPTY,Type.BOTTOM,-1);
+    public static TypeFunPtr MAIN0 = make((byte)3,true ,TEMPTY,Type.BOTTOM, 1);
+    public static TypeFunPtr ZERO  = make((byte)3,true ,TEMPTY,Type.BOTTOM, 0);
     public static TypeFunPtr TEST  = make((byte)2,false,TINTMEM,TypeInteger.BOT, 1);
     public static TypeFunPtr TEST0 = make((byte)3,false,TINTMEM,TypeInteger.BOT, 3);
     public static TypeFunPtr MAIN  = make((byte)3,false,TINT   ,Type.BOTTOM,-1); // Main can return anything
     public static TypeFunPtr CALLOC= make((byte)3,false,TINTINT,TypeMemPtr .BOT,-1);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT);  ts.add(MAIN);ts.add(CALLOC); }
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(ZERO); ts.add(MAIN); ts.add(CALLOC); }
 
     @Override
     Type xmeet(Type t) {
@@ -156,7 +158,10 @@ public class TypeFunPtr extends TypeNil {
     public Type ret() { return _ret; }
     public int nargs() { return _sig.length; }
     public int fidx() { assert Long.bitCount(_fidxs)==1; return Long.numberOfTrailingZeros(_fidxs); }
-
+    public boolean open() { return _open; }
+    public boolean hasFIDX( int fidx ) {
+        return (_fidxs & (1L<<fidx))!=0;
+    }
 
     @Override public int nkids() { return _sig.length+1; }
     @Override public Type at( int idx ) {

@@ -15,7 +15,7 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 public class FunNode extends RegionNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
-    boolean _folding;
+    public boolean _folding;
 
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
@@ -62,7 +62,9 @@ public class FunNode extends RegionNode {
         return new FunNode(null,sig,ins).setName(name);
     }
 
-    @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
+    @Override public String label() {
+        return (_folding ? "FOLD_" : "") + (_name == null ? "$fun"+_sig.fidx() : _name);
+    }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.
@@ -123,7 +125,7 @@ public class FunNode extends RegionNode {
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() )
+        if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() && tt.ret().isa(_sig.ret()) )
             throw Utils.TODO();
 
         // When can we assume no callers?  Or no other callers (except main)?
@@ -157,14 +159,17 @@ public class FunNode extends RegionNode {
     @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : CodeGen.CODE._start; }
 
     // Always in-progress until we run out of unknown callers
-    public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
+    public boolean unknownCallers() {
+        return nIns()>=2 && in(1) instanceof StartNode;
+    }
 
     @Override public boolean inProgress() { return unknownCallers(); }
 
     // Add a new function exit point.
     public void addReturn(Node ctrl, Node mem, Node rez) {  _ret.addReturn(ctrl,mem,rez);  }
 
-    // True if should be exported during CodeGen.
+    // True if should be exported during CodeGen.  *Exported* means it escapes,
+    // and also the linker can find it by name.
     public boolean isExported() {
         // Name does not have a leading underscore after type prefix:
         // "sys.aryu8._grow" - not exported
@@ -172,6 +177,12 @@ public class FunNode extends RegionNode {
         return _name != null && _name.charAt(_name.lastIndexOf('.')+1) != '_';
     }
 
+    // *Escaped* means the function pointer "escapes" (via direct return or
+    // stored in escaping memory) to unknown code - here StopNode, and thus
+    // must be assumed to be called by other unknown code.
+    public boolean isEscaped() {
+        throw Utils.TODO();
+    }
 
     // Build the function body
     public BitSet body() {

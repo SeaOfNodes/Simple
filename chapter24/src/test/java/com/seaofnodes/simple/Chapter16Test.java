@@ -184,12 +184,18 @@ return p;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
+struct LLI {
+    LLI? next;
+    int i;
+    val LLI = { LLI? next2, int i2 ->
+        next=next2;
+        i=i2;
+        self;
+    };
+};
 LLI? !head = null;
-while( arg ) {
-    head = new LLI { next=head; i=arg; };
-    arg = arg-1;
-}
+while( arg )
+    head = new LLI(head, arg--);
 if( !head ) return 0;
 LLI? next = head.next;
 if( !next ) return 1;
@@ -206,20 +212,23 @@ return next.i;
     public void testLinkedList2() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
+struct LLI {
+  LLI? next;
+  int i;
+  val LLI = { LLI? next2, int i2 -> next=next2; i=i2; self; };
+};
 LLI? !head = null;
 while( arg ) {
-    head = new LLI {
-        next=head;
-        // Any old code in the constructor
+    head = new LLI(head, {
+        // Any old code in the block
         int !tmp=arg;
         while( arg > 10 ) {
-            tmp = tmp + arg;
-            arg = arg - 1;
+            tmp += arg;
+            arg--;
         }
-        i=tmp;
-    };
-    arg = arg-1;
+        tmp; // block value
+    });
+    arg--;
 }
 if( !head ) return 0;
 LLI? next = head.next;
@@ -238,7 +247,7 @@ return next.i;
         CodeGen code = new CodeGen(
 """
 struct Square {
-    flt !side = arg;
+    flt side = arg;
     // Newtons approximation to the square root, computed in a constructor.
     // The actual allocation will copy in this result as the initial
     // value for 'diag'.
@@ -249,7 +258,7 @@ struct Square {
         diag = next;
     }
 };
-return new Square;
+return new Square();
 """);
         code.parse().opto();
         assertEquals("return Square;", code.print());

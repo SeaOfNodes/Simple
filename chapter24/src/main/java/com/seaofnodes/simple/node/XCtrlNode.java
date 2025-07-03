@@ -12,4 +12,5 @@ public class XCtrlNode extends CFGNode {
     @Override public boolean isConst() { return true; }
     @Override  public Type compute() { return Type.XCONTROL; }
     @Override public Node idealize() { return null; }
+    @Override public int idepth() { return 0; }
 }

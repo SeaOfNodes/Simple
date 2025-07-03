@@ -208,9 +208,15 @@ public abstract class Eval2 {
         int i;
         for( i = 0; i < r.nOuts(); i++ ) {
             if( !(r.out(i) instanceof PhiNode phi) ) break;
-            if( isMain && phi instanceof ParmNode parm && parm._idx==2 )
-                PHICACHE[i] = arg; // Reading the initial arguments to main()
-            else {
+            if( isMain ) {
+                Object obj = switch( ((ParmNode)phi)._idx ) {
+                case 0 -> frame.get(prior); // Exit program closure
+                case 1 -> frame.get(null);  // No memory
+                case 2 -> arg;              // Top arg passes in
+                default -> throw Utils.TODO();
+                };
+                PHICACHE[i] = obj;
+        } else {
                 Node n = phi instanceof ParmNode parm
                     // RPC reads the Call directly;
                     // Parms may not be linked, so read call args directly
@@ -238,7 +244,7 @@ public abstract class Eval2 {
         // Next Frame to use
         F = new Frame(F);
         // Target function and environment
-        return CODE.link(tfp(call.fptr()));
+        return CODE.link(tfp(call.fptr()).fidx());
     }
 
     private static CFGNode ret( ReturnNode ret ) {
@@ -467,7 +473,8 @@ public abstract class Eval2 {
                 sb.p(tmp._obj._name).p("{");
                 Field[] flds = tmp._obj._fields;
                 for( int i=0; i<flds.length; i++ )
-                    _print( flds[i]._t,xs[i], sb.p(flds[i]._fname).p("="), visit ).p(",");
+                    if( !(flds[i]._final && flds[i]._one) )
+                        _print( flds[i]._t,xs[i], sb.p(flds[i]._fname).p("="), visit ).p(",");
                 sb.unchar().p("}");
             }
             yield sb;

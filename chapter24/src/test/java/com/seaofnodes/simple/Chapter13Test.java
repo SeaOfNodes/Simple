@@ -24,7 +24,7 @@ return 3.14;
 struct LLI { LLI? next; int i; };
 LLI? !head = null;
 while( arg ) {
-    LLI !x = new LLI;
+    LLI !x = new LLI();
     x.next = head;
     x.i = arg;
     head = x;
@@ -33,7 +33,7 @@ while( arg ) {
 return head.next.i;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
     }
 
     @Test
@@ -43,7 +43,7 @@ return head.next.i;
 struct LLI { LLI? next; int q; };
 LLI? !head = null;
 while( arg ) {
-    LLI !x = new LLI;
+    LLI !x = new LLI();
     x.next = head;
     x.q = arg;
     head = x;
@@ -65,9 +65,9 @@ return next.q;
 """
 struct int0 { int i; flt0? f; };
 struct flt0 { flt f; int0? i; };
-int0 !i0 = new int0;
+int0 !i0 = new int0();
 i0.i = 17;
-flt0 !f0 = new flt0;
+flt0 !f0 = new flt0();
 f0.f = 3.14;
 i0.f = f0;
 f0.i = i0;
@@ -82,7 +82,7 @@ return f0.i.f.i.i;
         CodeGen code = new CodeGen(
 """
 struct N { N? next; int i; };
-N n = new N;
+N n = new N();
 return n.next;
 """);
         code.parse().opto();
@@ -94,8 +94,16 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = new M; };
+struct N {
+    M next;
+    int i;
+    // constructor
+    val N = { M m ->
+        next = m;
+        self;
+    };
+};
+N n = new N(new M());
 return n.next;
 """);
         code.parse().opto();
@@ -107,12 +115,12 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = null; };
+struct N { M next; int i; val N = { M m -> next=m; self; }; };
+N n = new N(null);
 return n.next;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #1 isa null, but must be a *M {i64 m; { *M -> *M #1} M; }",e.getMessage()); }
     }
 
     @Test
@@ -120,7 +128,7 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct N { N? next; int i; };
-N !n = new N;
+N !n = new N();
 n.i = 3.14;
 return n.i;
 """);
@@ -132,7 +140,7 @@ return n.i;
     public void testNullRef4() {
         CodeGen code = new CodeGen("return -null-5/null-5;");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot '//' null",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
@@ -158,10 +166,10 @@ return 0;
         CodeGen code = new CodeGen(
 """
 struct S1 { S2? s; };
-return new S2;
+return new S2();
 """);
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Unknown struct 'S2'",e.getMessage()); }
     }
 
     @Test
@@ -170,7 +178,7 @@ return new S2;
 """
 struct S1 { S2? s; };
 struct S2 { int x; };
-return new S1.s=new S2;
+return new S1().s=new S2();
 """);
         code.parse().opto();
         assertEquals("return S2;", code.print());
@@ -182,11 +190,11 @@ return new S1.s=new S2;
 """
 struct I { int i; };
 struct P { I? pi; };
-P !p1 = new P;
-P !p2 = new P;
-p2.pi = new I;
+P !p1 = new P();
+P !p2 = new P();
+p2.pi = new I();
 p2.pi.i = 2;
-if (arg) p1 = new P;
+if (arg) p1 = new P();
 return p1.pi.i + 1;
 """);
         try { code.parse().opto().typeCheck();  fail(); }
@@ -197,9 +205,9 @@ return p1.pi.i + 1;
     public void testCoRecur2() {
         CodeGen code = new CodeGen(
 """
-struct A { B? f0; C? f1; };  A !a = new A;
-struct B { C? f0; A? f1; };  B !b = new B;
-struct C { A? f0; B? f1; };  C !c = new C;
+struct A { B? f0; C? f1; };  A !a = new A();
+struct B { C? f0; A? f1; };  B !b = new B();
+struct C { A? f0; B? f1; };  C !c = new C();
 
 a.f0=b;  a.f1=c;
 b.f0=c;  b.f1=a;
@@ -217,32 +225,32 @@ return a.f0.f1.f0.f1.f0;
     public void testCoRecur3() {
         CodeGen code = new CodeGen(
 """
-struct A { L? a; T? b; F? c; };  A !a = new A;
-struct B { M? a; U? b; G? c; };  B !b = new B;
-struct C { N? a; V? b; H? c; };  C !c = new C;
-struct D { O? a; W? b; I? c; };  D !d = new D;
-struct E { P? a; X? b; J? c; };  E !e = new E;
-struct F { Q? a; Y? b; K? c; };  F !f = new F;
-struct G { R? a; Z? b; L? c; };  G !g = new G;
-struct H { S? a; A? b; M? c; };  H !h = new H;
-struct I { T? a; B? b; N? c; };  I !i = new I;
-struct J { U? a; C? b; O? c; };  J !j = new J;
-struct K { V? a; D? b; P? c; };  K !k = new K;
-struct L { W? a; E? b; Q? c; };  L !l = new L;
-struct M { X? a; F? b; R? c; };  M !m = new M;
-struct N { Y? a; G? b; S? c; };  N !n = new N;
-struct O { Z? a; H? b; T? c; };  O !o = new O;
-struct P { A? a; I? b; U? c; };  P !p = new P;
-struct Q { B? a; J? b; V? c; };  Q !q = new Q;
-struct R { C? a; K? b; W? c; };  R !r = new R;
-struct S { D? a; L? b; X? c; };  S !s = new S;
-struct T { E? a; M? b; Y? c; };  T !t = new T;
-struct U { F? a; N? b; Z? c; };  U !u = new U;
-struct V { G? a; O? b; A? c; };  V !v = new V;
-struct W { H? a; P? b; B? c; };  W !w = new W;
-struct X { I? a; Q? b; C? c; };  X !x = new X;
-struct Y { J? a; R? b; D? c; };  Y !y = new Y;
-struct Z { K? a; S? b; E? c; };  Z !z = new Z;
+struct A { L? a; T? b; F? c; };  A !a = new A();
+struct B { M? a; U? b; G? c; };  B !b = new B();
+struct C { N? a; V? b; H? c; };  C !c = new C();
+struct D { O? a; W? b; I? c; };  D !d = new D();
+struct E { P? a; X? b; J? c; };  E !e = new E();
+struct F { Q? a; Y? b; K? c; };  F !f = new F();
+struct G { R? a; Z? b; L? c; };  G !g = new G();
+struct H { S? a; A? b; M? c; };  H !h = new H();
+struct I { T? a; B? b; N? c; };  I !i = new I();
+struct J { U? a; C? b; O? c; };  J !j = new J();
+struct K { V? a; D? b; P? c; };  K !k = new K();
+struct L { W? a; E? b; Q? c; };  L !l = new L();
+struct M { X? a; F? b; R? c; };  M !m = new M();
+struct N { Y? a; G? b; S? c; };  N !n = new N();
+struct O { Z? a; H? b; T? c; };  O !o = new O();
+struct P { A? a; I? b; U? c; };  P !p = new P();
+struct Q { B? a; J? b; V? c; };  Q !q = new Q();
+struct R { C? a; K? b; W? c; };  R !r = new R();
+struct S { D? a; L? b; X? c; };  S !s = new S();
+struct T { E? a; M? b; Y? c; };  T !t = new T();
+struct U { F? a; N? b; Z? c; };  U !u = new U();
+struct V { G? a; O? b; A? c; };  V !v = new V();
+struct W { H? a; P? b; B? c; };  W !w = new W();
+struct X { I? a; Q? b; C? c; };  X !x = new X();
+struct Y { J? a; R? b; D? c; };  Y !y = new Y();
+struct Z { K? a; S? b; E? c; };  Z !z = new Z();
 
 a.a=l;  a.b=t; a.c=f;
 b.a=m;  b.b=u; b.c=g;

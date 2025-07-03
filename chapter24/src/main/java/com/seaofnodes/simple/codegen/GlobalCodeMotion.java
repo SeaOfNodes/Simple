@@ -32,10 +32,10 @@ public abstract class GlobalCodeMotion {
         var rpo = new Ary<>(CFGNode.class);
         rpos.put(code._start._ltree,rpo);
 
-        for( int i=0; i<code._funs._len; i++ ) {
-            FunNode fun = code._funs.at(i);
-            if( fun.isDead() ) code._funs.del(i--);
-            else _rpo_fun( fun, visit, rpos, rpo );
+        for( int fidx = 0; fidx<code.nfidxs(); fidx++ ) {
+            FunNode fun = code.link(fidx);
+            if( fun!=null )
+                _rpo_fun( fun, visit, rpos, rpo );
         }
 
         // Reverse in-place

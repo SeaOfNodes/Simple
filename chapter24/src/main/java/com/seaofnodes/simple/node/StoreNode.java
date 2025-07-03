@@ -60,13 +60,10 @@ public class StoreNode extends MemOpNode {
         if( mem == TypeMem.TOP ) return TypeMem.TOP;
         Type t = Type.BOTTOM;               // No idea on field contents
         // Same alias, lift val to the declared type and then meet into other fields
-        if( mem._alias == _alias ) {
-            assert !_declaredType.isFRef();
-            // Sharpen memory value; required for narrowing stores where the parser inserts
-            // zero/sign masking and somebody reads the TypeMem type.
-            val = val.join(_declaredType);
-            t = val.meet(mem._t);
-        }
+        if( mem._alias == _alias )
+            // Sharpen memory value; required for narrowing stores where the parser
+            // inserts zero/sign masking and somebody reads the TypeMem type.
+            t = val.join(_declaredType).meet(mem._t);
         return TypeMem.make(_alias,t);
     }
 

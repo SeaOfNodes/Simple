@@ -6,6 +6,7 @@ import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
@@ -16,28 +17,24 @@ public abstract class TestC {
     public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
 
     public static void run( String file, String expected, int spills ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs",file,expected,spills);
+        run("src/test/java/com/seaofnodes/simple/progs/",file,expected,spills);
     }
 
     // Compile and run a simple program
-    public static void run( String dir, String file, String expected, int spills ) throws IOException {
-        // Files
-        String  cfile = dir+"/"+file+".c"  ;
-        String  sfile = dir+"/"+file+".smp";
-        String  efile = "build/objs/"+file;
+    public static void run( String root, String file, String expected, int spills ) throws IOException {
 
         // Compile and export Simple
-        String src = Files.readString(Path.of(sfile));
-        run(src,CodeGen.CALL_CONVENTION,"",cfile,efile,"S",expected,spills);
-    }
-
-    public static void run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
-        String bin = efile+xtn;
-        String obj = bin+".o";
-        String exe = CodeGen.OS.startsWith("Windows") ? bin+".exe" : bin;
+        String src_name = file+".smp";
+        String src = Files.readString(Paths.get(root,src_name));
+        String simple_conv = CodeGen.CALL_CONVENTION;
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src).driver( CodeGen.CPU_PORT, simple_conv, obj);
-        String result = gcc(obj, c_conv, cfile, false, exe );
+        CodeGen code = new CodeGen(root, "build/objs/", src_name, src).driver( CodeGen.CPU_PORT, simple_conv);
+
+        String bin = "build/objs/"+file;
+        String obj = "build/objs/"+file+".o";
+        String c_conv = "";
+        String cfile = Paths.get(root,file+".c").toString();
+        String result = gcc(obj, c_conv, cfile, false, bin );
         assertEquals(expected,result);
 
         // Allocation quality not degraded

@@ -7,7 +7,6 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 
@@ -49,8 +48,6 @@ public class CodeGen {
     public final String _objs;  // Path to project objects relative to process
     public final Ary<String> _src_paths; // File paths to source, relative to root
     public final Ary<String> _srcs;      // String source
-    // Compile-time known initial argument type
-    public final TypeInteger _arg;
 
     // ---------------------------
 
@@ -76,27 +73,28 @@ public class CodeGen {
      */
 
     // ---------------------------
-    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L ); }
-    public CodeGen( String src, TypeInteger arg, long workListSeed ) {
-        this( null,null,new Ary<String>(new String[1]),new Ary<String>(new String[]{src}), arg, workListSeed, true );
+    public CodeGen( String src ) { this(src, 123L ); }
+    public CodeGen( String src, long workListSeed ) {
+        this( null,null,new Ary<>(new String[1]),new Ary<>(new String[]{src}), workListSeed, true );
     }
 
-    public CodeGen( String ROOT, String OBJS, Ary<String> src_paths, Ary<String> srcs, TypeInteger arg, long workListSeed, boolean reset ) {
+    public CodeGen( String ROOT, String OBJS, String src_path, String src ) {
+        this(ROOT, OBJS, new Ary<>(String.class){{add(src_path);}}, new Ary<>(String.class){{add(src);}}, 123L, true);
+    }
+
+    public CodeGen( String ROOT, String OBJS, Ary<String> src_paths, Ary<String> srcs, long workListSeed, boolean reset ) {
         if( srcs._len != 1 ) throw Utils.TODO();
         CODE = this;
         if( reset ) Type.reset();
         _main = makeFun(TypeFunPtr.MAIN);
         _phase = null;
         _callingConv = null;
-        _start = new StartNode(arg);
-        _stop = new StopNode();
         _root = ROOT;
         _objs = OBJS;
         _src_paths = src_paths;
         _srcs = srcs;
-        _arg = arg;
         _iter = new IterPeeps(workListSeed);
-        P = new Parser(this,arg);
+        P = new Parser(this);
     }
 
 
@@ -118,8 +116,8 @@ public class CodeGen {
     }
 
     // Run all the phases through final ELF emission
-    public CodeGen driver( String cpu, String callingConv, String obj ) throws IOException {
-        return driver(Phase.Export,cpu,callingConv).exportELF(obj);
+    public CodeGen driver( String cpu, String callingConv ) throws IOException {
+        return driver(Phase.Export,cpu,callingConv).exportELF();
     }
 
 
@@ -139,34 +137,47 @@ public class CodeGen {
     public  int getALIAS() { return _alias++; }
 
     // Next available function index
-    private int _fidx =0;
-    public TypeFunPtr makeFun( TypeFunPtr fun ) {
-        int fidx = _fidx++;
-        assert fidx<64;         // TODO: need a larger FIDX space
-        return fun.makeFrom(fidx);
+    private int _fidx = 0;
+    public int nfidxs() { return _fidx; } // Current max fidx
+    // "Linker" mapping from fidx to heads of function.  Functions can die and
+    // are lazily nulled out
+    private final Ary<FunNode> _linker = new Ary<>(FunNode.class);
+    // Get a new fidx/TFP
+    public TypeFunPtr makeFun( TypeFunPtr fun ) { return fun.makeFrom(getFIDX()); }
+    public int getFIDX() {
+        if( _iter!=null ) add(_start);            // Lower set of free escaped fidxs
+        assert _fidx<64;        // TODO: need a larger FIDX space
+        return _fidx++;
     }
+    // A conservative approximation of all exported functions
+    public TypeFunPtr allExports() {
+        if( _fidx <= 1 )
+            return TypeFunPtr.BOT;
+        throw Utils.TODO();
+    }
+
     // Signature for MAIN
     public final TypeFunPtr _main;
-    // Reverse from a constant function pointer to the IR function being called
-    public FunNode link( TypeFunPtr tfp ) {
-        assert tfp.isConstant();
-        TypeFunPtr base = tfp.makeFrom(Type.BOTTOM);
-        FunNode fun = _linker.get(base);
+
+    // Reverse from a fidx to the IR function being called
+    public FunNode link( int fidx ) {
+        FunNode fun = _linker.atX(fidx);
         // FunNodes die, lazily remove mappings to dead functions
-        if( fun!=null && fun.isDead() ) { _linker.remove(base); fun=null; }
+        if( fun!=null && fun.isDead() ) _linker.setX(fidx,fun=null);
         return fun;
     }
 
     // Insert linker mapping from constant function signature to the function
     // being called.
     public void link(FunNode fun) {
-        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+        int fidx = fun.sig().fidx();
+        assert _linker.atX(fidx)==null || _linker.atX(fidx).sig()==fun.sig();
+        _linker.setX(fidx,fun);
     }
 
-    // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
-    // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
-    // the return is not part of the match).
-    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+    public boolean hasMain() {
+        return _linker.atX(_main.fidx())!=null;
+    }
 
     // Next available RPC - Return Program Counter
     private int _rpc = 1;
@@ -218,7 +229,8 @@ public class CodeGen {
             long t0 = System.currentTimeMillis();
             P.parse(_srcs.at(i));
             _tParse += (int)(System.currentTimeMillis() - t0);
-            linkOrParse(P._frefs);
+            linkOrParseV(P._fref_vars );
+            linkOrParseT(P._fref_types);
         }
 
 
@@ -226,9 +238,13 @@ public class CodeGen {
         return this;
     }
 
-    void linkOrParse(Ary<Var> frefs) {
+    void linkOrParseV(Ary<Var> frefs) {
         for( Var v : frefs )
             throw Parser.error("Undefined name '" + v._name + "'",v._loc);
+    }
+    void linkOrParseT(Ary<TypeStruct> frefs) {
+        for( TypeStruct t : frefs )
+            throw Parser.error("Unknown struct '" + t._name + "'",null);
     }
 
 
@@ -242,8 +258,6 @@ public class CodeGen {
     // Stat gathering
     public void iterCnt() { if( !_midAssert ) _iter_cnt++; }
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
-
-    public final Ary<FunNode> _funs = new Ary<>(FunNode.class);
 
     // Run ideal optimizations
     public int _tOpto;
@@ -260,17 +274,15 @@ public class CodeGen {
         // Track all functions, including ones alive but not exported.  They
         // still get special treatment, by the pretty-printer at least which
         // wants to group nodes by function.
-        _funs.clear();
-        for( Node use : _start._outputs )
-            if( use instanceof FunNode fun )
-                _funs.add(fun);
-
-        for( int i=0; i<_funs._len; i++ ) {
-            FunNode fun = _funs.at(i);
-            if( fun.isDead() ) _funs.del(i--);
-            else if( !fun.isExported() ) {
+        TypeFunPtr allEscapes = _start.allEscapes();
+        for( int fidx=0; fidx<_linker._len; fidx++ ) {
+            if( allEscapes.hasFIDX(fidx) ) continue;
+            FunNode fun = link(fidx);
+            if( fun!=null && fun.unknownCallers() ) {
+                assert hasMain() || !fun.isExported();
                 add(fun).setDef(1,Parser.XCTRL); // Kill start input
                 addAll(fun._outputs);
+                _stop.delDef(_stop._inputs.find(fun.ret()));
                 _iter.iterate(this);
             }
         }
@@ -327,7 +339,7 @@ public class CodeGen {
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_funs,_stop);
+        _start.buildLoopTree(_stop);
         _tLoopTree = (int)(System.currentTimeMillis() - t0);
         return this;
     }
@@ -396,9 +408,6 @@ public class CodeGen {
         _stop  = ( StopNode)map.get(_stop );
         StartNode start = (StartNode)map.get(_start);
         _start = start==null ? new StartNode(_start) : start;
-        // Remap function list
-        for( int i=0; i<_funs._len; i++ )
-            _funs.set(i,(FunNode)map.get(_funs.at(i)));
         // Insert output edges
         _instOuts(_stop,visit());
         _visit.clear();
@@ -461,16 +470,13 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
 
 
-        // Hopefully done with the CG now.  Unlink all linked calls.  This can
-        // remove RPC constants which shuffled the StartNode outputs so
-        // requires a while loop.
-        boolean done=false;
-        while(!done) {
-            done = true;
-            for( FunNode fun : _funs )
+        // Hopefully done with the CG now.  Unlink all linked calls.
+        for( int fidx = 0; fidx<_linker._len; fidx++ ) {
+            FunNode fun = link(fidx);
+            if( fun!=null )
                 for( Node c : fun._inputs )
                     if( c instanceof CallNode call )
-                         { call.unlink_all(); done=false; }
+                        call.unlink_all();
         }
 
 
@@ -545,11 +551,11 @@ public class CodeGen {
 
     // ---------------------------
     // Exporting to external formats
-    public CodeGen exportELF(String fname) throws IOException {
+    public CodeGen exportELF() throws IOException {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
-        if( fname == null ) new LinkMem(this).link(); // In memory patching
-        else new ElfFile(this).export(fname); // External ELF file
+        if( _objs == null ) new LinkMem(this).link(); // In memory patching
+        else new ElfFile(this).export(); // External ELF file
         return this;
     }
 

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
@@ -94,7 +95,6 @@ public class IterPeeps {
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
         }
-
     }
 
     // Visit ALL nodes and confirm the invariant:

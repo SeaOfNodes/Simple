@@ -3,13 +3,13 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalCodeMotion;
 import com.seaofnodes.simple.print.IRPrinter;
-import org.junit.Ignore;
-import org.junit.Test;
-
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
+import org.junit.Ignore;
+import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter24Test {
@@ -22,10 +22,44 @@ public class Chapter24Test {
 
     @Test @Ignore
     public void testSys() throws IOException {
-        // Produce build/objs/libsmp.o
-        CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
-            driver(CodeGen.CPU_PORT,CodeGen.CALL_CONVENTION,"build/objs/libsmp.o");
+        // Produce build/objs/sys.o
+        CodeGen code =
+            new CodeGen("src/main/smp", // ROOT
+                        "build/objs/",  // Where objs go
+                        new Ary<>(String.class){{add("sys.smp");}},
+                        new Ary<>(String.class){{add(com.seaofnodes.simple.sys.SYS);}},
+                        123L,true).
+            driver(CodeGen.CPU_PORT,CodeGen.CALL_CONVENTION);
     }
+
+
+    @Test
+    public void testExport0() throws IOException {
+        // "struct foo" in file "foo.smp" is exported
+        String src_foo = "struct foo { val x = 3.14; val _y = 123; };";
+        CodeGen code_foo =
+            new CodeGen("",            // ROOT of project
+                        "build/objs/", // OBJS
+                        new Ary<>(String.class){{add("foo.smp");}},
+                        new Ary<>(String.class){{add( src_foo );}},
+                        123L/*seed*/, true)
+            .driver(CodeGen.CPU_PORT,CodeGen.CALL_CONVENTION);
+
+        // top-level default "main" uses foo
+        String src_main = "return new foo.x";
+        CodeGen code_main =
+            new CodeGen("",            // ROOT of project
+                        "build/objs/", // OBJS
+                        new Ary<>(String.class){{add("main.smp");}},
+                        new Ary<>(String.class){{add( src_main );}},
+                        123L/*seed*/, true)
+            .driver(CodeGen.CPU_PORT,CodeGen.CALL_CONVENTION);
+
+
+        // TODO: assert var foo is exported
+        throw Utils.TODO();
+    }
+
 
     @Test
     public void demoPrint() {

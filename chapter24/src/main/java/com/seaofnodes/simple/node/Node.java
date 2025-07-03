@@ -82,7 +82,7 @@ public abstract class Node implements Cloneable {
         CallEnd,Call,Cast,ConFldOff,Con,CProj,
         DivF,Div,Extern,Fun,FRef,If,Load,Loop,
         MemMerge,MinusF,Minus,Mul,MulF,
-        New,Parm,Phi,Proj,Return,Region,
+        New,Parm,Phi,Proj,ReadOnly,Return,Region,
         Sar,Shl,Shr,Start,Stop,Store,Sub,SubF,ToFloat,
         XCtrl;
         public static final Tag[] VALS = values();
@@ -99,11 +99,12 @@ public abstract class Node implements Cloneable {
             case MinusF ->new MinusFNode(null);
             case Mul    -> new   MulNode(null,null);
             case MulF   -> new  MulFNode(null,null);
+            case ReadOnly -> new ReadOnlyNode(null);
             case Return ->new ReturnNode(null,null,null,null,null);
             case Sar    -> new   SarNode(null,null,null);
             case Shl    -> new   ShlNode(null,null,null);
             case Shr    -> new   ShrNode(null,null,null);
-            case Start  -> new StartNode(TypeInteger.BOT);
+            case Start  -> new StartNode();
             case Stop   -> new  StopNode();
             case Sub    -> new   SubNode(null,null);
             case SubF   -> new  SubFNode(null,null);
@@ -506,6 +507,7 @@ public abstract class Node implements Cloneable {
 
         // Ask each node for a better replacement
         Node n = idealize();
+
         if( n != null )         // Something changed
             return n;           // Report progress
 
@@ -627,7 +629,7 @@ public abstract class Node implements Cloneable {
     <N extends Node> N addDep( N dep ) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
-        if( CODE._midAssert ) return dep;
+        if( CODE._midAssert || dep==null ) return dep;
         if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
         if( dep._deps   .find(this) != -1 ) return dep; // Already on list
         if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors

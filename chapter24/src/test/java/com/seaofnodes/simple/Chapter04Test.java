@@ -63,8 +63,8 @@ public class Chapter04Test {
     // Adding functions means `main` does not constant fold the incoming arg value
     @Ignore @Test
     public void testConstantArg() {
-        CodeGen code = new CodeGen("return arg; ", TypeInteger.constant(2), 123L).parse();
-        assertEquals("return 2;", code.expr().in(1).toString());
+        CodeGen code = new CodeGen("return arg; ", 123L).parse();
+        assertEquals("return arg;", code.expr().in(1).toString());
     }
 
     @Test

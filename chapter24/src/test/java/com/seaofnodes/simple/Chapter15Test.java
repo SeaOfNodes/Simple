@@ -26,7 +26,7 @@ return 3.14;
         CodeGen code = new CodeGen(
 """
 struct C { C? l; };
-C !c = new C;
+C !c = new C();
 c.l = c;
 return c;
 """);
@@ -103,7 +103,7 @@ return a;
 """);
         code.parse().opto();
         assertEquals("return []*A?;", code.print());
-        assertEquals("*A {i64 !i; }?[ null,null]", Eval2.eval(code, 0));
+        assertEquals("*A {i64 !i; { *A -> *A #1} A; }?[ null,null]", Eval2.eval(code, 0));
     }
 
     @Test
@@ -112,7 +112,7 @@ return a;
 """
 struct S { int x; flt y; };
 // A new S
-S !s = new S; s.x=99; s.y = 3.14;
+S !s = new S(); s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
 S?[]?[] !iss = new S?[]?[2];
@@ -142,7 +142,7 @@ return rez;
 """
 struct S { int x; flt y; };
 // A new S
-S !s = new S; s.x=99; s.y = 3.14;
+S !s = new S(); s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
 S?[]?[] !iss = new S?[]?[2];
@@ -168,21 +168,21 @@ return rez;""");
 """
 // Can we define a forward-reference array?
 struct Tree { Tree?[]? _kids; };
-Tree !root = new Tree;
+Tree !root = new Tree();
 root._kids = new Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
-root._kids[0] = new Tree;
+root._kids[0] = new Tree();
 return root;
 """);
         code.parse().opto();
         assertEquals("return Tree;", code.print());
-        assertEquals("Tree{_kids=*Tree {*[]*Tree?? !_kids; }?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
+        assertEquals("Tree{_kids=*Tree {*[]*Tree?? !_kids; { *Tree -> *Tree #1} Tree; }?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testNestedStructAddMemProj() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; int[] b; };
+struct S { int a; int[] b; val S = { -> b=new int[2]; }; };
 return 0;
 """);
         code.parse().opto();
@@ -227,11 +227,11 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         CodeGen code = new CodeGen(
 """
 struct S {int i; flt f;};
-S !s1 = new S;
-S !s2 = new S;
+S !s1 = new S();
+S !s2 = new S();
 s2.i = 3;
 s2.f = 2.0;
-if (arg) s1 = new S;
+if (arg) s1 = new S();
 return s1.i + s1.f;
 """);
         code.parse().opto();

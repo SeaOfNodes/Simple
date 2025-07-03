@@ -42,7 +42,7 @@ public class IfNode extends CFGNode implements MultiNode {
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
         if( t.isConstant() )
-            return (t==Type.NIL || t==TypeInteger.ZERO || (t instanceof TypeFunPtr tfp && tfp._fidxs==0) ) ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
+            return (t==Type.NIL || t==TypeInteger.ZERO || t==TypeFunPtr.ZERO ) ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
         // If adding a zero makes a difference, the predicate must not have a zero/null
         if( !t.makeZero().isa(t) )
             return TypeTuple.IF_TRUE;

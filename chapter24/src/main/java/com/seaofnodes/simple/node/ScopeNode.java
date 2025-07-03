@@ -33,7 +33,7 @@ public class ScopeNode extends MemMergeNode {
         // Basic block scoping
         public static class Block  extends Kind { }
         // Function scope
-        public static class Func   extends Kind { }
+        public static class Func   extends Kind { public Func(FunNode fun) { _fun=fun; } public final FunNode _fun; }
         // Struct definition, mapping types  to fields
         public static class Define extends Kind { public Define(TypeMemPtr tmp) { _tmp=tmp; } public final TypeMemPtr _tmp; }
         // Struct allocation, mapping values to fields
@@ -139,6 +139,13 @@ public class ScopeNode extends MemMergeNode {
                 return _kinds.at(i);
         throw Utils.TODO();
     }
+    public FunNode findFun() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Func func )
+                return func._fun;
+        // Calling 'return' from not-inside a function?
+        throw Utils.TODO();
+    }
 
     // Return the kind for the defining scope, or a function scope if found
     // first.  Block scopes means the variable can be r/w directly in the
@@ -193,11 +200,8 @@ public class ScopeNode extends MemMergeNode {
                     setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
                 }
             }
-        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==Parser.XCTRL);
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init instanceof FRefNode);
         _vars.add(v);
-        // Creating a forward reference
-        if( init==Parser.XCTRL )
-            init = new FRefNode(v._name).init();
         addDef(init);
         return true;
     }

@@ -128,12 +128,12 @@ public class Encoding {
     private final HashMap<Node,CFGNode> _internals = new HashMap<>();
     // Source is a Call, destination in the Fun.
     public Encoding relo( CallNode call ) {
-        _internals.put(call,_code.link(call.tfp()));
+        _internals.put(call,_code.link(call.tfp().fidx()));
         return this;
     }
     public Encoding relo( ConstantNode con ) {
         TypeFunPtr tfp = (TypeFunPtr)con._con;
-        _internals.put(con,_code.link(tfp));
+        _internals.put(con,_code.link(tfp.fidx()));
         return this;
     }
     public void jump( CFGNode jmp, CFGNode dst ) {

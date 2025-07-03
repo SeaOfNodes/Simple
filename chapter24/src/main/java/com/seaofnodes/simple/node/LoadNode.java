@@ -40,14 +40,12 @@ public class LoadNode extends MemOpNode {
     public Type compute() {
         if( !(mem()._type instanceof TypeMem mem) )
             return _declaredType; // No memory yet?  Declared type
-        //assert !_declaredType.isFRef();
         // No lifting if ptr might null-check
         if( err()!=null || !(ptr()._type instanceof TypeMemPtr tmp) )
             return _declaredType; // No pointer yet?  Declared type
         Type t = tmp._obj.field(_name)._t;
-        if( t instanceof TypeConAry ary ) {
+        if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
-        }
         // Lift from declared type and memory input
         t = t.join(_declaredType).join(mem._t);
         if( _declaredType.isFinal() )

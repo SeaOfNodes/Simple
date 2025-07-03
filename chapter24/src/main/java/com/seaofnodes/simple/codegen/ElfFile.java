@@ -4,9 +4,12 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.Paths;
 import java.util.HashMap;
 
 public class ElfFile {
@@ -219,7 +222,29 @@ public class ElfFile {
         }
     }
 
-    public void export(String fname) throws IOException {
+    // Write all obj files given
+    public void export() throws IOException {
+        // Make sure we can write to the dir
+        File objdir = new File(_code._objs);
+        objdir.mkdirs();
+
+        // Remove all obj files being written
+        for( String srcfile : _code._src_paths ) {
+            String base = srcfile.substring(0,srcfile.lastIndexOf("."));
+            Paths.get(_code._objs,base+".o").toFile().delete();
+        }
+
+        if( _code._src_paths._len != 1 )
+            throw Utils.TODO(); // Single shared CPOOL?  Seperate files written?
+
+        for( String srcfile : _code._src_paths ) {
+            String base = srcfile.substring(0,srcfile.lastIndexOf("."));
+            export2(Paths.get(_code._objs,base+".o").toString());
+        }
+    }
+
+    // Write one .o per source,
+    void export2(String fname) throws IOException {
         // -------------------
         DataSection strtab = new DataSection(".strtab", 3 /* SHT_SYMTAB */);
         // first byte is reserved for an empty string

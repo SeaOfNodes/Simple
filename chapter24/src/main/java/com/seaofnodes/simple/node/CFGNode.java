@@ -125,18 +125,18 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start is a LoopNode which contains all at depth 1.
-    public void buildLoopTree(Ary<FunNode> funs, StopNode stop) {
+    public void buildLoopTree(StopNode stop) {
         // Walk all functions individually, building loop trees internally
+        CodeGen code = CodeGen.CODE;
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree(this);
-        BitSet post = CodeGen.CODE.visit();
+        BitSet post = new BitSet();
         post.set(stop._nid);
         AryInt pres = new AryInt();
         int pre = 2;
-        for( int i=0; i<funs._len; i++ ) {
-            FunNode fun = funs.at(i);
-            if( fun.isDead() ) {
-                funs.del(i--);
-            } else {
+
+        for( int fidx = 0; fidx<code.nfidxs(); fidx++ ) {
+            FunNode fun = code.link(fidx);
+            if( fun!=null && !fun._folding ) {
                 fun.ret()._ltree = fun._ltree = new LoopTree(fun);
                 pre = fun._bltWalk(pres,pre,fun,stop, post);
             }
@@ -147,8 +147,9 @@ public abstract class CFGNode extends Node {
         // then treat the function LoopTree parent as the deepest called
         // function.
         var depth = new IdentityHashMap<FunNode, Integer>();
-        for( FunNode fun : funs )
-            fun._funWalk(this,depth);
+        for( Node n : _outputs )
+            if( n instanceof FunNode fun )
+                fun._funWalk(this,depth);
     }
 
     int _bltWalk( AryInt pres, int pre, FunNode fun, StopNode stop, BitSet post ) {
@@ -172,6 +173,8 @@ public abstract class CFGNode extends Node {
         for( Node use : _outputs ) {
             if( !(use instanceof CFGNode usecfg) || use instanceof FunNode )
                 continue;
+            if( usecfg instanceof ReturnNode ret && ret._fun==null )
+                continue; // Mid-inline dead ret
             if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
                 usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
                 continue;

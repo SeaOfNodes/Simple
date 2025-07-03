@@ -39,6 +39,7 @@ public class TypeFRef extends Type {
 
     @Override public boolean isHigh() { return _name.charAt(0)=='~'; }
     @Override boolean _isGLB(boolean mem) { return true; }
+    @Override public boolean isFRef() { return true; }
 
     @Override public int log_size() { throw Utils.TODO(); }
 

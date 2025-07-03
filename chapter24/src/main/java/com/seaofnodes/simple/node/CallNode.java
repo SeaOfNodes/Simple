@@ -17,9 +17,12 @@ public class CallNode extends CFGNode {
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
+    boolean _folding;
+
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
     @Override public Tag serialTag() { return Tag.Call; }
+    @Override public String label() { return _folding ? "FOLD_Call" : "Call"; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { baos.packed1(nIns()); }
     static Node make( BAOS bais )  { return new CallNode(null,new Node[bais.packed1()]); }
 
@@ -35,7 +38,7 @@ public class CallNode extends CFGNode {
     }
     public String name() {
         if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-            FunNode fun = CodeGen.CODE.link(tfp);
+            FunNode fun = CodeGen.CODE.link(tfp.fidx());
             if( fun !=null ) return fun._name;
             if( fptr() instanceof ExternNode ex )  return ex._extern;
         }
@@ -97,7 +100,7 @@ public class CallNode extends CFGNode {
         // point to this Call, and all his Parms point to the call arguments;
         // also the CallEnd points to the Return.
         Node progress = null;
-        if( fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
+        if( !_folding && fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
             // If fidxs is negative, then infinite unknown functions
             long fidxs = tfp.fidxs();
             if( fidxs > 0 ) {
@@ -105,8 +108,7 @@ public class CallNode extends CFGNode {
                 // Walk the (63 max) bits and link
                 for( ; fidxs!=0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
                     int fidx = Long.numberOfTrailingZeros(fidxs);
-                    TypeFunPtr tfp0 = tfp.makeFrom(fidx);
-                    FunNode fun = CodeGen.CODE.link(tfp0);
+                    FunNode fun = CodeGen.CODE.link(fidx);
                     if( fun!=null && !fun._folding && !linked(fun) )
                         progress = link(fun);
                 }

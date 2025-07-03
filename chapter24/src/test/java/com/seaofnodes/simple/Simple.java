@@ -251,7 +251,7 @@ Options:
             code.encode();
             dump(code, dump, DUMP_AFTER_ENCODE);
 
-            code.exportELF(base+".o");
+            code.exportELF();
         }
 
         dump(code, dump, DUMP_FINAL);

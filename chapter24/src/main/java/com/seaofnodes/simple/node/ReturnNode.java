@@ -28,6 +28,7 @@ public class ReturnNode extends CFGNode {
     }
     public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
     @Override public Tag serialTag() { return Tag.Return; }
+    @Override public String label() { return _fun!=null && _fun._folding ? "FOLD_Return" : "Return"; }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
@@ -54,7 +55,7 @@ public class ReturnNode extends CFGNode {
 
     @Override public Node idealize() {
         if( inProgress () ) return null;
-        if( _fun.isDead() ) return null;
+        if( _fun==null || _fun.isDead() ) return null;
 
         // Upgrade signature based on return type
         Type ret = expr()._type;

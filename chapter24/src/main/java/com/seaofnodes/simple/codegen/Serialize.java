@@ -187,7 +187,8 @@ abstract public class Serialize {
     // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code ) {
         if( code._start._ltree==null )
-            code._start.buildLoopTree(code._funs,code._stop);
+            // Side effect of printing is re-doing the loop tree
+            code._start.buildLoopTree(code._stop);
         Ary<Node> nodes = new Ary<>(Node.class);
         BitSet visit = new BitSet();
         nodes.add(code._start);
@@ -198,9 +199,11 @@ abstract public class Serialize {
                 nodes.add(n);
 
         // All the functions
-        for( Node n : code._start._outputs )
-            if( n instanceof FunNode fun )
+        for( int fidx = 0; fidx<code.nfidxs(); fidx++ ) {
+            FunNode fun = code.link(fidx);
+            if( fun!=null && !fun._folding )
                 _funWalk(fun,nodes,visit);
+        }
 
         visit.clear();
         return nodes;
