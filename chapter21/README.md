@@ -27,17 +27,16 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 
 1. [Instruction Encodings](#instruction-encodings)
 2. [Infrastructure](#infrastructure)
-3. [AMD64](#amd64)
-   - [REX PREFIX](#rex-prefix)
-   - [Large constants](#large-constants)
-   - [MODR/M](#modrm)
-   - [SIB](#sib)
-   - [Displacement](#displacement)
-   - [Immediate](#immediate)
+3. [Endianness](#endianness)
+4. [RISCV](#riscv)
+   - [Instruction formats](#instruction-formats)
    - [Float](#float)
-   - [Indirect](#indirectmemop)
-   - [Conditional flags](#conditional-flags)
-4. [ARM](#arm)
+   - [Indirect](#indirectmemop-2)
+   - [Branch](#branch)
+   - [Function Constant](#function-constant)
+   - [LUI](#lui)
+   - [Large constants](#large-constants)
+5. [ARM](#arm)
    - [Reg-form](#reg-form)
    - [Shift immediates](#shift-immediates)
         - [asri](#asrimmediate)
@@ -53,15 +52,17 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
    - [Branching](#branching-)
    - [Rip relative](#rip-relative)
    - [Compare](#compare)
-
-5. [RISCV](#riscv)
-   - [Instruction formats](#instruction-formats)
-   - [Float](#float)
-   - [Indirect](#indirectmemop-2)
-   - [Branch](#branch)
-   - [Function Constant](#function-constant)
-   - [LUI](#lui)
+6. [AMD64](#amd64)
+   - [REX PREFIX](#rex-prefix)
    - [Large constants](#large-constants)
+   - [MODR/M](#modrm)
+   - [SIB](#sib)
+   - [Displacement](#displacement)
+   - [Immediate](#immediate)
+   - [Float](#float)
+   - [Indirect](#indirectmemop)
+   - [Conditional flags](#conditional-flags)
+
 
 This chapter will add instruction encodings.  Instruction encoding refers to
 the representation of machine instructions in a specific binary format defined
@@ -75,9 +76,6 @@ To avoid ambiguity, we define the sources  of the information we use to encode t
 
 Currently, we support these architectures:
 
-### AMD64:
-For *x86-64(amd64):*, we use the latest Intel manual for the [encoding rules](https://www.felixcloutier.com/x86/).
-
 ### RISC-V:
 
 For *riscv* we currently target [RVA23U64](https://msyksphinz-self.github.io/riscv-isadoc/html/).
@@ -86,7 +84,10 @@ For *riscv* we currently target [RVA23U64](https://msyksphinz-self.github.io/ris
 For *arm*(aarch64) we use this collection for the [encoding rules](https://docsmirror.github.io/A64/20a23-06/index.html).
 *Note*: We only support 64 bits ARM encodings.
 
---- 
+### AMD64:
+For *x86-64(amd64):*, we use the latest Intel manual for the [encoding rules](https://www.felixcloutier.com/x86/).
+
+--------------------------------
 
 ## Instruction Encodings
 
@@ -149,6 +150,315 @@ _bits.write(op    );
 to the right, we can bring the next byte into the least significant position,
 allowing us to write each byte in sequence.
 
+
+--------------------------------
+
+## RISCV
+
+RISCV instructions are all 32 bits wide, and are always little-endian.  RISCV
+is a RISC architecture, it prioritizes "register-to-register" forms, and has
+very regular encodings.  We present RISCV first because it is the simplest
+encoding.
+
+
+#### Instruction formats
+
+##### R-TYPE
+This encoding format is used for reg-to-reg operations.
+Such as `AddRISC`, `MulRISC` etc.
+```java 
+public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
+     return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+}
+```
+
+##### I-TYPE
+This layout is used for immediate formats. Such as `AddIRISC`
+
+```java 
+ public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
+     assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
+     return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
+ }
+```
+
+##### S-TYPE
+
+This encoding format is used for `StoreRISC`.
+
+```java
+public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
+  assert imm12 >= 0;      // Masked to high zero bits by caller
+  int imm_lo = imm12 & 0x1F;
+  int imm_hi = imm12 >> 5;
+  return (imm_hi << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm_lo << 7) | opcode;
+}
+```
+
+##### B-TYPE
+
+This encoding layout is used by `BranchRISC`.
+```java
+ // immf = first imm
+ // immd = second imm
+ // BRANCH
+public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
+     return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
+ }
+```
+
+##### U-TYPE
+This layout is used for `AUIPC` and `LUI`(upper immediate is 20-bits).
+
+```java 
+ public static int u_type(int opcode, int rd, int imm20) {
+     return (imm20 << 12) | (rd << 7) | opcode;
+ }
+```
+
+##### J-TYPE
+Used for unconditional jumps. (`UJmpRISC`)
+```java 
+ public static int j_type(int opcode, int rd, int imm20) {
+     return imm20 << 12 | rd << 7 | opcode;
+ }
+```
+
+#### FLOAT
+For loading float constants, we use indirect memory load(PC-relative).
+``` 
+AUIPC dst,#hi20_constant_pool
+Load dst,[dst+#low12_constant_pool]
+```
+
+#### INDIRECT(MemOp)
+
+[Load](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw): `lw rd,offset(rs1)`
+
+[Store](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw): `sw rs2,offset(rs1)`
+
+#### BRANCH
+RISC-V is unusual because branch instructions include the comparison and branch target in one instruction.
+
+#### Immediates
+We only encode the imm form for the *ALU* operations if they fit into 12 bits (signed).
+Otherwise we do a Load Upper Immediate (high 20 bits) or both.
+
+```
+addiw	a5,a5,123
+```
+vs
+(do it with extra load):
+```
+addw a5,a5,a4
+```
+
+### FLOAT Constants
+- Stored in the **constant pool**.
+- Accessed via **PC-relative loads**.
+
+### INT Constants
+- **12-bit constants**
+   - Use `ADDI`
+- **20-bit constants**
+   - Use `LUI`
+- **32-bit constants**
+   - Use `LUI` + `ADDI` combo
+   - 
+
+#### Function Constants
+In our RISC-V code, when we need to load a function-local constant, we store
+the current PC into a register and use that as a base to access the
+constant. However, we usually try to avoid loads, since simple arithmetic like
+addition is faster and more efficient than accessing memory.
+
+```java 
+// auipc  t0,0
+// addi   t1,t0 + #0
+```
+
+
+--------------------------------
+
+## ARM
+Arm instructions are all 32 bits wide, and are always little-endian.
+Arm is a RISC architecture, it prioritizes "register-to-register" forms.
+
+#### Reg-form
+We encode the regs forms as [shifted registers](https://docsmirror.github.io/A64/2023-06/orr_log_shift.html).
+```
+orr reg1, reg2
+```
+```
+x0 = x0 | (x1 << 0)
+```
+The same thing applies for all the other reg forms.
+Because of this similarity, we can lift the encoding of the reg form to a common function.
+
+```java  
+short self = enc.reg(n);
+short reg1 = enc.reg(n.in(1));
+short reg2 = enc.reg(n.in(2));
+int body = r_reg(opcode, 0, reg2, 0,  reg1, self);
+enc.add4(body);
+```
+*imm6* and
+*shift*
+are irelevant for the reg form, so we just set them to 0.
+
+### Shift immediates
+This refers to: *asri, lsli, lsri*
+Encode to shift immediates if the shift amount is between [0, 63] inclusive.
+
+#### ASR(immediate)
+For arithmetic Shift Right immediates, we set *immr* to the immediate we wish to encode, and imms to `63` = `111111`.
+This is following the rules of [asri encoding](https://docsmirror.github.io/A64/2023-06/asr_sbfm.html).
+
+The `sf` bit is included in the opcode, `N` is implicitly added to the bitstream after the execution of the 
+`imm_shift` function.
+```java 
+enc.add4(arm.imm_shift(0b100100110,_imm, 0b111111, rn, rd));
+```
+
+#### LSL(immediate)
+
+```java 
+// UBFM <Xd>, <Xn>, #(-<shift> MOD 64), #(63-<shift>)
+// immr must be (-<shift> MOD 64) = 64 - shift
+enc.add4(arm.imm_shift(0b110100110, 64 - _imm, (64 - _imm) - 1, rn, rd));
+```
+
+We know that `_imm` is never a negative number and is between 0 and 63, so we can safely use `64 - _imm` as the `immr` value.
+We take away this form of the immediate from 64 to invert the bits.
+
+For *imms* - the following condition must hold *imms + 1 = immr*;
+After subbing in the values we get:
+
+> imms + 1 = 64 - _imm;
+
+> imms = (64 - _imm) - 1;
+
+Hence, the `imms` value is `(64 - _imm) - 1`.
+
+#### LSR(immediate)
+Same as *ASR*.
+
+
+#### Logical Immediates 
+Logical immediates refer to *andi, xori, orri*.
+
+```java 
+// Can we encode this in ARM's 12-bit LOGICAL immediate form?
+// Some combination of shifted bit-masks.
+private static int imm12Logical(TypeInteger ti) {
+    if( !ti.isConstant() ) return -1;
+    if( !ti.isConstant() ) return -1;
+    long val = ti.value();
+    if (val == 0 || val == -1) return -1; // Special cases are not allowed
+    int immr = 0;
+    // Rotate until we have 0[...]1
+    while (val < 0 || (val & 1)==0) {
+        val = (val >>> 63) | (val << 1);
+        immr++;
+    }
+    int size = 32;
+    long pattern = val;
+    // Is upper half of pattern the same as the lower?
+    while ((pattern & ((1L<<size)-1)) == (pattern >> size)) {
+        // Then only take one half
+        pattern >>= size;
+        size >>= 1;
+    }
+    size <<= 1;
+    int imms = Long.bitCount(pattern);
+    // Pattern should now be zeros followed by ones 0000011111
+    if (pattern != (1L<<imms)-1) return -1;
+    imms--;
+    if (size == 64) return 0x1000 | immr << 6 | imms;
+    return (32-size)<<1 | immr << 6 | imms;
+}
+```
+
+imm12Logical returns the 12-bit immediate encoding for logical operations if it is possible to encode it, otherwise -1.
+```java
+int imm12;
+return and.in(2) instanceof ConstantNode off && 
+off._con instanceof TypeInteger ti && (imm12 = imm12Logical(ti)) != -1
+? new AndIARM(and, imm12) 
+```
+```java 
+arm.imm_inst(enc,this,0b100100100,_imm); 
+```
+
+#### Float
+Similarly to x86, we have to subtract the offset to get the GPR register pair that corresponds to the *D* register.
+``` 
+short dst = (short)(enc.reg(this ) - arm.D_OFFSET);
+```
+For loading float constants we use the `ldr(literal)` instruction.
+The offset is added to the PC register to get the address of the literal.
+
+```java 
+// Any number that can be expressed as +/-n * 2-r,where n and r are integers, 16 <= n <= 31, 0 <= r <= 7.
+int body = arm.load_pc(0b01011100, 0, dst);
+```
+
+#### Large constants
+
+##### INT: We can use different combinations of movs(movz, movk, movn) - this allows us to avoid PC relative loading.
+
+##### FLOAT: We use the *LDR (immediate, SIMD&FP)* instruction relative to the PC
+
+
+#### Function constant 
+To load a function constant we store the current PC into x0 and use that to access the constant.
+Generally, we try to avoid load as adding is faster.
+```
+adrp    x0, 0
+add     x0, x0, 0
+```
+
+#### Conditional flags
+In arm we set the conditional flags after a comparison -
+this works similarly to x86.
+ 
+```
+int square(int a) {
+// subs
+// cset	w8, eq  // eq = none
+bool da = a == 1;
+    // bne
+    if(da == 1) {
+        return 1;
+    }
+    return 2;
+}
+```
+In arm comparisons are done with `subss` which does a subtraction between the two
+operands and also sets the flags.
+`CSET` is used to look up the flags and save it out to a register.
+
+Later on `b.ne` relies on this flag again when it attempts to conditionally execute a branch.
+
+#### INDIRECT(MemOp)
+Arm supports the following indirect forms:
+
+[Load](https://docsmirror.github.io/A64/2023-06/ldr_reg_gen.html): `ldr dst, [base + index]` where both, base and index are registers.
+
+[Load](https://docsmirror.github.io/A64/2023-06/ldr_imm_gen.html): `ldr dst, [base + #offset]` where base is a register and the offset is an immediate.
+
+[Store](https://docsmirror.github.io/A64/2023-06/str_reg_gen.html): `str dst, [base + index]`
+
+[Store](https://docsmirror.github.io/A64/2023-06/strb_imm.html): `str dst, [base + #offset]`
+
+If the offset is not a con
+#### Branching
+`B.cond` - branch [conditionally](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/Condition-codes?lang=en) to a label at a PC-relative offset.
+
+> cond = is one of the standard conditions.
+
+
+--------------------------------
 
 ## AMD64 X86-64
 
@@ -406,308 +716,7 @@ jne    1159 <square(int)+0x29>
 ``` 
 
 
-We'll see how this differs in ARM and RISCV.
-
----
-
-
-## ARM
-Arm instructions are all 32 bits wide, and are always little-endian.
-Arm is a RISC architecture, it prioritizes "register-to-register" forms.
-
-#### Reg-form
-We encode the regs forms as [shifted registers](https://docsmirror.github.io/A64/2023-06/orr_log_shift.html).
-```
-orr reg1, reg2
-```
-```
-x0 = x0 | (x1 << 0)
-```
-The same thing applies for all the other reg forms.
-Because of this similarity, we can lift the encoding of the reg form to a common function.
-
-```java  
-short self = enc.reg(n);
-short reg1 = enc.reg(n.in(1));
-short reg2 = enc.reg(n.in(2));
-int body = r_reg(opcode, 0, reg2, 0,  reg1, self);
-enc.add4(body);
-```
-*imm6* and
-*shift*
-are irelevant for the reg form, so we just set them to 0.
-
-### Shift immediates
-This refers to: *asri, lsli, lsri*
-Encode to shift immediates if the shift amount is between [0, 63] inclusive.
-
-#### ASR(immediate)
-For arithmetic Shift Right immediates, we set *immr* to the immediate we wish to encode, and imms to `63` = `111111`.
-This is following the rules of [asri encoding](https://docsmirror.github.io/A64/2023-06/asr_sbfm.html).
-
-The `sf` bit is included in the opcode, `N` is implicitly added to the bitstream after the execution of the 
-`imm_shift` function.
-```java 
-enc.add4(arm.imm_shift(0b100100110,_imm, 0b111111, rn, rd));
-```
-
-#### LSL(immediate)
-
-```java 
-// UBFM <Xd>, <Xn>, #(-<shift> MOD 64), #(63-<shift>)
-// immr must be (-<shift> MOD 64) = 64 - shift
-enc.add4(arm.imm_shift(0b110100110, 64 - _imm, (64 - _imm) - 1, rn, rd));
-```
-
-We know that `_imm` is never a negative number and is between 0 and 63, so we can safely use `64 - _imm` as the `immr` value.
-We take away this form of the immediate from 64 to invert the bits.
-
-For *imms* - the following condition must hold *imms + 1 = immr*;
-After subbing in the values we get:
-
-> imms + 1 = 64 - _imm;
-
-> imms = (64 - _imm) - 1;
-
-Hence, the `imms` value is `(64 - _imm) - 1`.
-
-#### LSR(immediate)
-Same as *ASR*.
-
-
-#### Logical Immediates 
-Logical immediates refer to *andi, xori, orri*.
-
-```java 
-// Can we encode this in ARM's 12-bit LOGICAL immediate form?
-// Some combination of shifted bit-masks.
-private static int imm12Logical(TypeInteger ti) {
-    if( !ti.isConstant() ) return -1;
-    if( !ti.isConstant() ) return -1;
-    long val = ti.value();
-    if (val == 0 || val == -1) return -1; // Special cases are not allowed
-    int immr = 0;
-    // Rotate until we have 0[...]1
-    while (val < 0 || (val & 1)==0) {
-        val = (val >>> 63) | (val << 1);
-        immr++;
-    }
-    int size = 32;
-    long pattern = val;
-    // Is upper half of pattern the same as the lower?
-    while ((pattern & ((1L<<size)-1)) == (pattern >> size)) {
-        // Then only take one half
-        pattern >>= size;
-        size >>= 1;
-    }
-    size <<= 1;
-    int imms = Long.bitCount(pattern);
-    // Pattern should now be zeros followed by ones 0000011111
-    if (pattern != (1L<<imms)-1) return -1;
-    imms--;
-    if (size == 64) return 0x1000 | immr << 6 | imms;
-    return (32-size)<<1 | immr << 6 | imms;
-}
-```
-
-imm12Logical returns the 12-bit immediate encoding for logical operations if it is possible to encode it, otherwise -1.
-```java
-int imm12;
-return and.in(2) instanceof ConstantNode off && 
-off._con instanceof TypeInteger ti && (imm12 = imm12Logical(ti)) != -1
-? new AndIARM(and, imm12) 
-```
-```java 
-arm.imm_inst(enc,this,0b100100100,_imm); 
-```
-
-#### Float
-Similarly to x86, we have to subtract the offset to get the GPR register pair that corresponds to the *D* register.
-``` 
-short dst = (short)(enc.reg(this ) - arm.D_OFFSET);
-```
-For loading float constants we use the `ldr(literal)` instruction.
-The offset is added to the PC register to get the address of the literal.
-
-```java 
-// Any number that can be expressed as +/-n * 2-r,where n and r are integers, 16 <= n <= 31, 0 <= r <= 7.
-int body = arm.load_pc(0b01011100, 0, dst);
-```
-
-#### Large constants
-
-##### INT: We can use different combinations of movs(movz, movk, movn) - this allows us to avoid PC relative loading.
-
-##### FLOAT: We use the *LDR (immediate, SIMD&FP)* instruction relative to the PC
-
-
-#### Function constant 
-To load a function constant we store the current PC into x0 and use that to access the constant.
-Generally, we try to avoid load as adding is faster.
-```
-adrp    x0, 0
-add     x0, x0, 0
-```
-
-#### Conditional flags
-In arm we set the conditional flags after a comparison -
-this works similarly to x86.
- 
-```
-int square(int a) {
-// subs
-// cset	w8, eq  // eq = none
-bool da = a == 1;
-    // bne
-    if(da == 1) {
-        return 1;
-    }
-    return 2;
-}
-```
-In arm comparisons are done with `subss` which does a subtraction between the two
-operands and also sets the flags.
-`CSET` is used to look up the flags and save it out to a register.
-
-Later on `b.ne` relies on this flag again when it attempts to conditionally execute a branch.
-
-#### INDIRECT(MemOp)
-Arm supports the following indirect forms:
-
-[Load](https://docsmirror.github.io/A64/2023-06/ldr_reg_gen.html): `ldr dst, [base + index]` where both, base and index are registers.
-
-[Load](https://docsmirror.github.io/A64/2023-06/ldr_imm_gen.html): `ldr dst, [base + #offset]` where base is a register and the offset is an immediate.
-
-[Store](https://docsmirror.github.io/A64/2023-06/str_reg_gen.html): `str dst, [base + index]`
-
-[Store](https://docsmirror.github.io/A64/2023-06/strb_imm.html): `str dst, [base + #offset]`
-
-If the offset is not a con
-#### Branching
-`B.cond` - branch [conditionally](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/Condition-codes?lang=en) to a label at a PC-relative offset.
-
-> cond = is one of the standard conditions.
-
----
-
-## RISCV
-RISCV instructions are all 32 bits wide, and are always little-endian.
-RISCV is a RISC architecture, it prioritizes "register-to-register" forms.
-
-#### Instruction formats
-
-##### R-TYPE
-This encoding format is used for reg-to-reg operations.
-Such as `AddRISC`, `MulRISC` etc.
-```java 
-public static int r_type(int opcode, int rd, int func3, int rs1, int rs2, int func7) {
-     return (func7 << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
-}
-```
-
-##### I-TYPE
-This layout is used for immediate formats. Such as `AddIRISC`
-
-```java 
- public static int i_type(int opcode, int rd, int func3, int rs1, int imm12) {
-     assert opcode >= 0 && rd >=0 && func3 >=0 && rs1 >=0 && imm12 >= 0; // Zero-extend by caller
-     return  (imm12 << 20) | (rs1 << 15) | (func3 << 12) | (rd << 7) | opcode;
- }
-```
-
-##### S-TYPE
-
-This encoding format is used for `StoreRISC`.
-
-```java
-public static int s_type(int opcode, int func3, int rs1, int rs2, int imm12) {
-  assert imm12 >= 0;      // Masked to high zero bits by caller
-  int imm_lo = imm12 & 0x1F;
-  int imm_hi = imm12 >> 5;
-  return (imm_hi << 25) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (imm_lo << 7) | opcode;
-}
-```
-
-##### B-TYPE
-
-This encoding layout is used by `BranchRISC`.
-```java
- // immf = first imm
- // immd = second imm
- // BRANCH
-public static int b_type(int opcode, int immf, int func3, int rs1, int rs2, int immd) {
-     return (immd << 25 ) | (rs2 << 20) | (rs1 << 15) | (func3 << 12) | (immf << 7) | opcode;
- }
-```
-
-##### U-TYPE
-This layout is used for `AUIPC` and `LUI`(upper immediate is 20-bits).
-
-```java 
- public static int u_type(int opcode, int rd, int imm20) {
-     return (imm20 << 12) | (rd << 7) | opcode;
- }
-```
-
-##### J-TYPE
-Used for unconditional jumps. (`UJmpRISC`)
-```java 
- public static int j_type(int opcode, int rd, int imm20) {
-     return imm20 << 12 | rd << 7 | opcode;
- }
-```
-
-#### FLOAT
-For loading float constants, we use indirect memory load(PC-relative).
-``` 
-AUIPC dst,#hi20_constant_pool
-Load dst,[dst+#low12_constant_pool]
-```
-
-#### INDIRECT(MemOp)
-
-[Load](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw): `lw rd,offset(rs1)`
-
-[Store](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw): `sw rs2,offset(rs1)`
-
-#### BRANCH
-RISC-V is unusual because branch instructions include the comparison and branch target in one instruction.
-
-#### Immediates
-We only encode the imm form for the *ALU* operations if they fit into 12 bits (signed).
-Otherwise we do a Load Upper Immediate (high 20 bits) or both.
-
-```
-addiw	a5,a5,123
-```
-vs
-(do it with extra load):
-```
-addw a5,a5,a4
-```
-
-### FLOAT Constants
-- Stored in the **constant pool**.
-- Accessed via **PC-relative loads**.
-
-### INT Constants
-- **12-bit constants**
-   - Use `ADDI`
-- **20-bit constants**
-   - Use `LUI`
-- **32-bit constants**
-   - Use `LUI` + `ADDI` combo
-   - 
-
-#### Function Constant
-In our RISC-V code, when we need to load a function-local constant, 
-we store the current PC into a register and use that as a base to access the constant. However, we usually try to avoid loads, since simple arithmetic like addition is faster and more efficient than accessing memory.
-
-```java 
-// auipc  t0,0
-// addi   t1,t0 + #0
-```
-
+--------------------------------
 
 
 ## Relocation
@@ -720,21 +729,22 @@ refers to other code and data; `call` instructions target subroutines,
 ### Local Relocation
 
 Local relocation patches up local, or self-referential, code; the most common
-form is branch targets.  When writing instructions into the `BAOS` (bit stream)
-forwards branches towards future instructions have an unknown offset - the
-offset depends on the size of the encodings in between the branch and target.
-For `riscv` and `arm` targets this sounds easy (and instructions are 4 bytes,
-so just count instructions)... except that some encodings use multiple
-instructions so are not actually 4 bytes long.  For X86's wild psuedo-random
-instruction lengths the act of figuring out the opcode length is just as hard
-as writing the opcode in the first place.
+form is branch targets.  When writing instructions into the `BAOS` (Byte Array
+Output Stream) forwards branches towards future instructions have an unknown
+offset - the offset depends on the size of the encodings in between the branch
+and target.  For `riscv` and `arm` targets this sounds easy (and instructions
+are 4 bytes, so just count instructions)... except that some encodings use
+multiple instructions so are not actually 4 bytes long.  For X86's wild
+psuedo-random instruction lengths the act of figuring out the opcode length is
+just as hard as writing the opcode in the first place.
 
-Alson X86 adds another wrinkle: short and long form branches.  If a branch
-target lies within a signed byte range (+/-127) X86 will use a 2 byte branch
-encoding, otherwise a 6 byte encoding.  Simple includes a pass to compact these
-branches and use 2 bytes wherever possible - but this pass has to slide code
-around to make space for the extra 4 bytes as needed, which changes all the
-other branch offsets.
+X86 adds another wrinkle: short and long form branches.  If a branch target
+lies within a signed byte range (+/-127) X86 will use a 2 byte branch encoding,
+otherwise a 6 byte encoding.  Simple includes a pass to compact these branches
+and use 2 bytes wherever possible - but this pass has to slide code around
+which changes all the other branch offsets.  The "compact" pass actually starts
+optimistically assuming all branches can use the 2 byte form, and then expands
+branches as needed (so really *expands* the code).
 
 Once the code is finally settled into "shape", a local relocation pass is made
 to update all the self-references.  Basically, the branch offsets in the byte
@@ -789,7 +799,7 @@ varies according to placement - same as for calls crossing compilation units.
 
 Also large constants can be shared across compilation units (one can imagine
 repeated uses of `pi` in HPC codes); sharing reduces cache footprint.  In any
-case, one the locations of the code and constants are known, the code needs to
+case, once the locations of the code and constants are known, the code needs to
 be patched to load at the correct offset.  Like the `call` example above, the
 load instruction variant and patch variant all need to agree.  An X86 might use
 either a 4-byte address or an 8-byte address depending on X86 variant; the
