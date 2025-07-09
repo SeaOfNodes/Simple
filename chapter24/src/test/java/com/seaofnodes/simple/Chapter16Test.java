@@ -72,7 +72,7 @@ return y;
     public void testConstruct0() {
         CodeGen code = new CodeGen("""
 struct X { int x=3; };
-X z = new X;
+X z = new X();
 return z.x;
 """);
         code.parse().opto();
@@ -83,8 +83,8 @@ return z.x;
     @Test
     public void testConstruct1() {
         CodeGen code = new CodeGen("""
-struct X { int !x; };
-X z = new X { x=3; };
+struct X { int !x; val X = { int arg -> x=arg; self; }; };
+X z = new X(3);
 return z.x;
 """);
         code.parse().opto();
@@ -95,8 +95,8 @@ return z.x;
     @Test
     public void testConstruct2() {
         CodeGen code = new CodeGen("""
-struct X { int x=3; };
-X z = new X { x = 4; };
+struct X { int x=3; val X = { int arg -> x=arg; self; }; };
+X z = new X( 4 );
 return z.x;
 """);
         code.parse().opto();
@@ -108,8 +108,8 @@ return z.x;
     @Test
     public void testStructFinal0() {
         CodeGen code = new CodeGen("""
-struct Point { int !x, !y; };
-Point p = new Point { x=3; y=4; };
+struct Point { int !x, !y; val Point = { int x, int y -> self.x=x; self.y=y; self; }; };
+Point p = new Point(3,4);
 return p;
 """);
         code.parse().opto();
@@ -120,8 +120,8 @@ return p;
     @Test
     public void testStructFinal1() {
         CodeGen code = new CodeGen("""
-struct Point { int x=3, y=4; };
-val p = new Point { x=5; y=6; };
+struct Point { int x=3, y=4; val Point = { int x, int y -> self.x=x; self.y=y; self; }; };
+val p = new Point(5,6);
 p.x++;
 return p;
 """);
@@ -133,7 +133,7 @@ return p;
     public void testStructFinal2() {
         CodeGen code = new CodeGen("""
 struct Point { int x=3, y=4; };
-val p = new Point;
+val p = new Point();
 p.x++;
 return p;
 """);
@@ -145,11 +145,14 @@ return p;
     public void testStructFinal3() {
         CodeGen code = new CodeGen("""
 struct Point { var x; var y; };
-Point p = new Point;
+Point p = new Point();
 p.x++;
 return p;
 """);
-        try { code.parse().opto(); fail(); }
+        try {
+            code.parse().opto();
+            fail();
+        }
         catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
     }
 
