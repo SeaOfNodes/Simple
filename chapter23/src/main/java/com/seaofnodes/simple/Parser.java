@@ -742,6 +742,7 @@ public class Parser {
                 : parseAsgn();
             // TOP means val and val is always final
             xfinal = (t==Type.TOP) ||
+                expr instanceof ExternNode ||
                 // BOTTOM is var and var is always not-final
                 (t!=Type.BOTTOM &&
                  // no Bang AND
