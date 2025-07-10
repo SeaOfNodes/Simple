@@ -24,13 +24,18 @@ while read -r chapter; do
   echo "Processing $chapter"
 
   chapter_number="$(sed 's/^chapter0*//' <<< "$chapter")"
-  chapter_title="$(head -n1 "$repo/$chapter/README.md" | sed 's/^# //')"
+
+  if [[ ! -f "$repo/$chapter/README.md" ]]; then
+    echo "Missing $chapter/READMD.md" >&2
+    echo "# Chapter $chapter_number" > "$repo/$chapter/README.md"
+  fi
+  chapter_title="$(grep '^#' "$repo/$chapter/README.md" | head -n1 | sed 's/^#* //')"
 
   # Extract the authors for this chapter from commit authors and the
   # Co-authored-by trailer.
   authors="$(git -C "$repo" log --format='%an <%ae>' --no-merges "$chapter")"
   co_authors="$(git -C "$repo" log --format=%B --no-merges "$chapter" |
-    tr -d $'\r' | ( grep '^ *Co-authored-by: ' || : ) | cut -d' ' -f2-)"
+    tr -d $'\r' | sed -n 's/^ *Co-authored-by: //p')"
   first_author="$(sort_authors <<< "$authors" | head -n1)"
   all_authors="$(sort_authors <<< "$authors"$'\n'"$co_authors")"
 
@@ -59,9 +64,10 @@ while read -r chapter; do
   # Add the files for the chapter.
   git rm -qr --ignore-unmatch .
   cp -R "$repo/$chapter/." .
+  mkdir -p docs
   mv README.md docs/
   mv docs chapter_docs
-  rm pom.xml
+  rm pom.xml || :
   git add .
 
   # Add the shared files in the root, except for README.md and pom.xml.
@@ -104,3 +110,5 @@ while read -r chapter; do
   # Tag the chapter, so it can be stably linked.
   git tag "linear-$chapter"
 done
+
+echo 'Done!'
