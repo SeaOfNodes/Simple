@@ -1175,14 +1175,50 @@ public class Parser {
      * </pre>
      * @return a multiply expression {@link Node}, never {@code null}
      */
+    private Node parseLogical() {
+        var lhs  = parseUnary();
+        while(true) {
+            if(false);
+            else if(match("&&")) {
+                /**
+                 *
+                 * tmp = 0;
+                 * if(a) {
+                 * tmp = b;
+                 * }
+                 */
+                Node tmp = new ConstantNode(TypeInteger.constant(0));
+                Node ifNode = new IfNode(ctrl(),lhs).peephole();
+
+                Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+                Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+
+                ctrl(ifT.unkeep());
+
+              // make if and return temporary
+            } else if(match("||")) {
+                /**
+                 *
+                 tmp = 0;
+                 if(a) {
+                 tmp =a;
+                 }
+                 else if (b) {
+                 tmp = b;
+                 }
+                 */
+            } else break;
+        }
+        return lhs;
+    }
     private Node parseMultiplication() {
-        var lhs = parseUnary();
+        var lhs = parseLogical();
         while( true ) {
             if( false ) ;
             else if( match("*") ) lhs = new MulNode(lhs,null);
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
-            lhs.setDef(2,parseUnary());
+            lhs.setDef(2,parseLogical());
             lhs = peep(lhs.widen());
         }
         return lhs;

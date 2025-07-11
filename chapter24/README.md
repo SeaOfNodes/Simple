@@ -507,16 +507,9 @@ math.sin(val. c); // Pass by value
 
 ```
 
+## The `&&` and `||`
 
 
-## RoadMap for other chapters
-
-`&&` and `||`
-Drop `int` to `i32`.
-Drop `TypeMemPtr` to 4 bytes; using `mmap` to make heap in low 4G.
-Add optimistic pass SCCP to `opto`
-Default parser for-loop construction, or partial peel.
-    `for( init; test; next ) body`
 becomes:
 ```java
 { init;       // Normal scope entry to bound lifetime of index variable

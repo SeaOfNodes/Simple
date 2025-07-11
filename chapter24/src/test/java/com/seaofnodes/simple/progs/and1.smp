@@ -1,0 +1,8 @@
+int a = 1;
+int b = 1;
+
+if(a && b) {
+    sys.io.p("And");
+} else {
+    sys.io.p("Or");
+}

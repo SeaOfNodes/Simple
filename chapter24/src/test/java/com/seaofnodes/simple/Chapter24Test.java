@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalCodeMotion;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
@@ -76,6 +77,48 @@ return a(3);
 """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
         String rez = IRPrinter.prettyPrint(code);
+    }
+
+
+    @Test
+    public void testOr() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/or1.smp"));
+        TestC.run(src,"Hello, World!",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Hello, World!",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Hello, World!",arm._stdout.toString());
+    }
+
+
+    @Test
+    public void testAnd() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/and1.smp"));
+        TestC.run(src,"Hello, World!",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Hello, World!",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Hello, World!",arm._stdout.toString());
     }
 
 
