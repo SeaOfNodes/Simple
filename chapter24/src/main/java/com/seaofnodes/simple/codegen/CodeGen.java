@@ -79,7 +79,7 @@ public class CodeGen {
     }
 
     public CodeGen( String ROOT, String OBJS, String src_path, String src ) {
-        this(ROOT, OBJS, new Ary<>(String.class){{add(src_path);}}, new Ary<>(String.class){{add(src);}}, 123L, true);
+        this(ROOT, OBJS, new Ary<>(String.class){{add(src_path); add(com.seaofnodes.simple.sys.SYS);}}, new Ary<>(String.class){{add(src);}}, 123L, true);
     }
 
     public CodeGen( String ROOT, String OBJS, Ary<String> src_paths, Ary<String> srcs, long workListSeed, boolean reset ) {

@@ -179,7 +179,6 @@ return cc.cz;
 
     @Test
     public void testHelloWorld() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
         TestC.run("helloWorld","Hello, World!",0);
 
         // Evaluate on RISC5 emulator

@@ -214,11 +214,11 @@ public class ScopeNode extends MemMergeNode {
 
     /**
      * Lookup a name in all scopes starting from most deeply nested.
-     *
-     * @param name Name to be looked up
-     * @return null if not found, or the implementing Node
-     */
-    public Var lookup( String name ) {
+            *
+            * @param name Name to be looked up
+            * @return null if not found, or the implementing Node
+                                */
+                                public Var lookup( String name ) {
         int idx = find(name);
         // -1 is missed in all scopes, not found
         return idx == -1 ? null : update(var(idx),null);

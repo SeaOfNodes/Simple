@@ -82,43 +82,42 @@ return a(3);
 
     @Test
     public void testOr() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/or1.smp"));
-        TestC.run(src,"Hello, World!",0);
+        TestC.run("or1","Or",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build("or1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Hello, World!",R5._stdout.toString());
+        assertEquals("Or",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
+        EvalArm64 arm = TestArm64.build("or1", 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Hello, World!",arm._stdout.toString());
+        assertEquals("Or",arm._stdout.toString());
     }
 
 
     @Test
     public void testAnd() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/and1.smp"));
-        TestC.run(src,"Hello, World!",0);
+        TestC.run(src,"And",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build("and1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Hello, World!",R5._stdout.toString());
+        assertEquals("And",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("helloWorld", 0, 2, false);
+        EvalArm64 arm = TestArm64.build("and1", 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Hello, World!",arm._stdout.toString());
+        assertEquals("And",arm._stdout.toString());
     }
 
 

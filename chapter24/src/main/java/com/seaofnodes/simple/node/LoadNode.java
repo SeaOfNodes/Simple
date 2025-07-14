@@ -43,7 +43,13 @@ public class LoadNode extends MemOpNode {
         // No lifting if ptr might null-check
         if( err()!=null || !(ptr()._type instanceof TypeMemPtr tmp) )
             return _declaredType; // No pointer yet?  Declared type
+        if(tmp._obj.field(_name) == null) {
+            System.out.print("Here");
+        }
         Type t = tmp._obj.field(_name)._t;
+        if(t == null) {
+            System.out.print("Here");
+        }
         if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
         // Lift from declared type and memory input

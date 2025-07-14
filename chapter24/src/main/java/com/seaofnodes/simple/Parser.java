@@ -153,6 +153,7 @@ public class Parser {
         _lexer = new Lexer(src);
         _xScopes.push(_scope);
 
+
         // Parse whole program, as-if function header "{ int arg -> body }"
         parseFunctionBody( _code._main,loc(),"arg");
 
@@ -1184,29 +1185,41 @@ public class Parser {
                  *
                  * tmp = 0;
                  * if(a) {
-                 * tmp = b;
+                 * // smt
                  * }
+                 * tmp = phi(b, 0)
                  */
-                Node tmp = new ConstantNode(TypeInteger.constant(0));
                 Node ifNode = new IfNode(ctrl(),lhs).peephole();
 
                 Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
                 Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
 
-                ctrl(ifT.unkeep());
+                // Leave it to scheduler to schedule the region node even though at this point its quite trivial
+                RegionNode r = new RegionNode(null, null, ifT, ifF).init();
+                return new PhiNode("", Type.BOTTOM, r, parseUnary(), ZERO).peephole();
 
               // make if and return temporary
             } else if(match("||")) {
                 /**
                  *
-                 tmp = 0;
-                 if(a) {
-                 tmp =a;
-                 }
-                 else if (b) {
-                 tmp = b;
+                 * tmp = 1;
+                 * if(!a) {
+                 *     tmp = b;
+                 * }
+                 * tmp = phi(1, b)
                  }
                  */
+                Node notN   = new NotNode(lhs).peephole();
+                Node ifN = new IfNode(ctrl(), notN).peephole();
+
+                Node ifT = new CProjNode(ifN.  keep(), 0, "True" ).peephole().keep();
+                Node ifF = new CProjNode(ifN.unkeep(), 1, "False").peephole();
+
+                // Leave it to scheduler to schedule the region node even though at this point its quite trivial
+                RegionNode r = new RegionNode(null, null, ifT.unkeep(), ifF).init();
+
+                return new PhiNode("", Type.BOTTOM, r, parseUnary(), con(TypeInteger.make(1, 1))).peephole();
+
             } else break;
         }
         return lhs;
