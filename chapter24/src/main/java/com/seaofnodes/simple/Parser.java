@@ -149,6 +149,18 @@ public class Parser {
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
 
+        // Parse the sys import
+        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
+        while( !_lexer.isEOF() ) {
+            parseStatement();
+            _lexer.skipWhiteSpace();
+        }
+
+        // Reset lexer for program text
+        _lexer = new Lexer(src);
+        _xScopes.push(_scope);
+
+
         // Reset lexer for program text
         _lexer = new Lexer(src);
         _xScopes.push(_scope);
@@ -829,9 +841,8 @@ public class Parser {
     private Node parseStruct() {
         // "struct" already parsed, so expect the struct name next.
         String old = _nestedType;
-        if( old != null ) throw Utils.TODO("deal with nested structs");
         String typeName = requireId();
-        //if( old!=null ) typeName = old+"."+typeName;
+        if( old != null ) typeName = old+"."+typeName;
         _nestedType = typeName;
         // New declared type
         TypeStruct ts = TypeStruct.open(typeName);
