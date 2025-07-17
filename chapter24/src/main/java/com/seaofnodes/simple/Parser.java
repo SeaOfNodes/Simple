@@ -1220,7 +1220,7 @@ public class Parser {
                  * tmp = phi(1, b)
                  }
                  */
-                Node notN   = new NotNode(lhs).peephole();
+                Node notN= new NotNode(lhs).peephole();
                 Node ifN = new IfNode(ctrl(), notN).peephole();
 
                 Node ifT = new CProjNode(ifN.  keep(), 0, "True" ).peephole().keep();
