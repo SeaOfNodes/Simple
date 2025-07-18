@@ -1,0 +1,10 @@
+// -*- mode: java;  -*-
+int a = 1;
+int b = 0;
+
+if(a || b) {
+    sys.io.p("Or");
+} else{
+    sys.io.p("And");
+}
+return 0;
