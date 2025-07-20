@@ -29,7 +29,7 @@ public abstract class TestC {
     }
 
     // Compile and run a simple program
-    public static void run( String dir, String file, String expected, int spills ) throws IOException {
+    public static void run( String dir, String file, String expected, int spills, boolean standalone) throws IOException {
         // Files
         String  cfile = dir+"/"+file+".c"  ;
         String  sfile = dir+"/"+file+".smp";
@@ -37,8 +37,16 @@ public abstract class TestC {
 
         // Compile and export Simple
         String src = Files.readString(Path.of(sfile));
-        run(src,CALL_CONVENTION,"",cfile,efile,"S",expected,spills);
+        run(src,CALL_CONVENTION,"",standalone? null: cfile,efile,"S",expected,spills);
     }
+    public static void run(String dir, String file, String expected, int spills ) throws IOException {
+        run(dir, file, expected, spills, false);
+    }
+
+    public static void runS(String file, String expected, int spills ) throws IOException {
+        run("src/test/java/com/seaofnodes/simple/progs", file, expected, spills, true);
+    }
+
 
     public static void run( String src, String simple_conv, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
         String bin = efile+xtn;

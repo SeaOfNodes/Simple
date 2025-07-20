@@ -1162,8 +1162,8 @@ public class Parser {
                 Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
 
                 // Leave it to scheduler to schedule the region node even though at this point its quite trivial
-                RegionNode r = new RegionNode(null, null, ifT, ifF).init();
-                return new PhiNode("", Type.BOTTOM, r, parseUnary(), ZERO).peephole();
+                RegionNode r = new RegionNode(null, null, ifT.unkeep(), ifF).init();
+                lhs = new PhiNode("", Type.BOTTOM, r, parseUnary(), ZERO).peephole();
 
                 // make if and return temporary
             } else if(match("||")) {
@@ -1176,7 +1176,7 @@ public class Parser {
                 // Leave it to scheduler to schedule the region node even though at this point its quite trivial
                 RegionNode r = new RegionNode(null, null, ifT.unkeep(), ifF).init();
 
-                return new PhiNode("", Type.BOTTOM, r, parseUnary(), con(TypeInteger.make(1, 1))).peephole();
+                lhs = new PhiNode("", Type.BOTTOM, r, parseUnary(), con(TypeInteger.make(1, 1))).peephole();
 
             } else break;
         }
