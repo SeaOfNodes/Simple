@@ -17,11 +17,11 @@ public abstract class TestC {
     public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
 
     public static void run( String file, String expected, int spills ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs/",file,expected,spills);
+        run("src/test/java/com/seaofnodes/simple/progs/",file,expected,spills, false);
     }
 
     // Compile and run a simple program
-    public static void run( String root, String file, String expected, int spills ) throws IOException {
+    public static void run( String root, String file, String expected, int spills, boolean standalone) throws IOException {
 
         // Compile and export Simple
         String src_name = file+".smp";
@@ -34,7 +34,7 @@ public abstract class TestC {
         String obj = "build/objs/"+file+".o";
         String c_conv = "";
         String cfile = Paths.get(root,file+".c").toString();
-        String result = gcc(obj, c_conv, cfile, false, bin );
+        String result = gcc(obj, c_conv, standalone? null: cfile, false, bin );
         assertEquals(expected,result);
 
         // Allocation quality not degraded
@@ -42,6 +42,10 @@ public abstract class TestC {
         if( delta==0 ) delta = 1;
         if( spills != -1 )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+    }
+
+    public static void runS(String file, String expected, int spills ) throws IOException {
+        run("src/test/java/com/seaofnodes/simple/progs", file, expected, spills, true);
     }
 
     public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
