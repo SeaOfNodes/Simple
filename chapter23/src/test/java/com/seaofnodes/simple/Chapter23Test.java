@@ -33,44 +33,6 @@ public class Chapter23Test {
     }
 
     @Test
-    public void testOr() throws IOException {
-        TestC.run("or1","Or",0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("or1", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Or",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("or1", 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("Or",arm._stdout.toString());
-    }
-
-    @Test
-    public void testAnd() throws IOException {
-        TestC.run("and1","And",0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and1", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("And",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and1", 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("And",arm._stdout.toString());
-    }
-
-    @Test
     public void testFRefFields() {
         String src =
 """

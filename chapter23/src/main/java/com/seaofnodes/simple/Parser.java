@@ -1095,58 +1095,6 @@ public class Parser {
     }
 
     /**
-     * Parse a logical expression.
-     * Syntax sugars: && and || are parsed as if-then-else
-     */
-    private Node parseLogical() {
-        var lhs  = parseUnary();
-        while(true) {
-            if(false);
-            else if(match("&&")) {
-                /**
-                 *
-                 * tmp = 0;
-                 * if(a) {
-                 * // smt
-                 * }
-                 * tmp = phi(b, 0)
-                 */
-                Node ifNode = new IfNode(ctrl(),lhs).peephole();
-
-                Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-                Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
-
-                // Leave it to scheduler to schedule the region node even though at this point its quite trivial
-                RegionNode r = new RegionNode(null, null, ifT, ifF).init();
-                return new PhiNode("", Type.BOTTOM, r, parseUnary(), ZERO).peephole();
-
-                // make if and return temporary
-            } else if(match("||")) {
-                /**
-                 *
-                 * tmp = 1;
-                 * if(!a) {
-                 *     tmp = b;
-                 * }
-                 * tmp = phi(1, b)
-                 }
-                 */
-                Node notN= new NotNode(lhs).peephole();
-                Node ifN = new IfNode(ctrl(), notN).peephole();
-
-                Node ifT = new CProjNode(ifN.  keep(), 0, "True" ).peephole().keep();
-                Node ifF = new CProjNode(ifN.unkeep(), 1, "False").peephole();
-
-                // Leave it to scheduler to schedule the region node even though at this point its quite trivial
-                RegionNode r = new RegionNode(null, null, ifT.unkeep(), ifF).init();
-
-                return new PhiNode("", Type.BOTTOM, r, parseUnary(), con(TypeInteger.make(1, 1))).peephole();
-
-            } else break;
-        }
-        return lhs;
-    }
-    /**
      * Parse an multiplicativeExpr expression
      *
      * <pre>
@@ -1155,13 +1103,13 @@ public class Parser {
      * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
-        var lhs = parseLogical();
+        var lhs = parseUnary();
         while( true ) {
             if( false ) ;
             else if( match("*") ) lhs = new MulNode(lhs,null);
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
-            lhs.setDef(2,parseLogical());
+            lhs.setDef(2,parseUnary());
             lhs = peep(lhs.widen());
         }
         return lhs;
