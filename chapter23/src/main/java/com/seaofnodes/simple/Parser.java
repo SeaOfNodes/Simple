@@ -550,7 +550,9 @@ public class Parser {
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
-        Node lhs = (stmt ? parseStatement() : parseAsgn()).keep(); // Parse true-side
+        Node lhs;
+        if(fside.equals("||")) lhs = con(1);
+        else lhs = (stmt ? parseStatement() : parseAsgn()).keep(); // Parse true-side
         _scope.removeGuards(ifT);
 
         // See if a one-sided def was made: "if(pred) int x = 1;" and throw.
@@ -566,10 +568,14 @@ public class Parser {
         // Up-cast predicate, even if not else clause, because predicate can
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);
-        boolean doRHS = match(fside);
+        boolean doRHS;
+        if(match("||")) doRHS = true;
+        if(match("&&")) doRHS = false;
+        else doRHS = match(fside);
+
         Node rhs = (doRHS
-            ? (stmt ? parseStatement() : parseAsgn())
-            : con(lhs._type.makeZero())).keep();
+                ? (stmt ? parseStatement() : parseAsgn())
+                : con(lhs._type.makeZero())).keep();
         _scope.removeGuards(ifF);
         if( doRHS )
             fScope = _scope;
@@ -1152,32 +1158,14 @@ public class Parser {
     }
 
     private Node parseLogical() {
-        var lhs  = parseUnary();
-        while(true) {
-            if(false);
-            else if(match("&&")) {
-                Node ifNode = new IfNode(ctrl(),lhs).peephole();
-
-                Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-                Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
-
-                // Leave it to scheduler to schedule the region node even though at this point its quite trivial
-                RegionNode r = new RegionNode(null, null, ifT.unkeep(), ifF).init();
-                lhs = new PhiNode("", Type.BOTTOM, r, parseUnary(), ZERO).peephole();
-
-                // make if and return temporary
-            } else if(match("||")) {
-                Node notN= new NotNode(lhs).peephole();
-                Node ifN = new IfNode(ctrl(), notN).peephole();
-
-                Node ifT = new CProjNode(ifN.  keep(), 0, "True" ).peephole().keep();
-                Node ifF = new CProjNode(ifN.unkeep(), 1, "False").peephole();
-
-                // Leave it to scheduler to schedule the region node even though at this point its quite trivial
-                RegionNode r = new RegionNode(null, null, ifT.unkeep(), ifF).init();
-
-                lhs = new PhiNode("", Type.BOTTOM, r, parseUnary(), con(TypeInteger.make(1, 1))).peephole();
-
+        Node lhs = parseUnary();
+        while (true) {
+            if (match("&&")) {
+                // Turn: lhs && rhs   →   lhs ? rhs : 0
+                lhs = parseTrinary(lhs, false, "&&");
+            } else if (match("||")) {
+                // Turn: lhs || rhs   →   lhs ? 1 : rhs
+                lhs = parseTrinary(lhs, false, "||");
             } else break;
         }
         return lhs;

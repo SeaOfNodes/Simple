@@ -70,6 +70,25 @@ public class Chapter23Test {
         assertEquals("And",arm._stdout.toString());
     }
 
+    @Test
+    public void testAndPtr() throws IOException {
+        TestC.runS("ptrand",TypeInteger.constant(1), "false",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("ptrand", 1, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("false",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("ptrand", 1, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("false",arm._stdout.toString());
+    }
+
     // conditional side effect
     @Test
     public void testCondSideEffAnd() throws IOException {

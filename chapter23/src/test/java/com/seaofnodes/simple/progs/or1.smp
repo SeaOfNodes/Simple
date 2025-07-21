@@ -2,8 +2,10 @@
 int a = 1;
 int b = 0;
 
-if(a || b) {
-    sys.io.p("Or");
+if(a++ || b++ ) {
+    if(b == 0) {
+        sys.io.p("Or");
+    }
 } else{
     sys.io.p("And");
 }
