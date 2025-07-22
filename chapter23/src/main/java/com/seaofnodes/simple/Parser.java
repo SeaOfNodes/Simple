@@ -537,6 +537,9 @@ public class Parser {
     private Node parseTrinary( Node pred, boolean stmt, String fside ) {
         pred.keep();
 
+        if(fside.equals("||")) {
+            System.out.print("Here");
+        }
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
@@ -552,7 +555,8 @@ public class Parser {
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
         Node lhs;
         if(fside.equals("||")) lhs = con(1);
-        else lhs = (stmt ? parseStatement() : parseAsgn()).keep(); // Parse true-side
+        else lhs = (stmt ? parseStatement() : parseAsgn()); // Parse true-side
+        lhs.keep();
         _scope.removeGuards(ifT);
 
         // See if a one-sided def was made: "if(pred) int x = 1;" and throw.
@@ -569,13 +573,18 @@ public class Parser {
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);
         boolean doRHS;
-        if(match("||")) doRHS = true;
-        if(match("&&")) doRHS = false;
+        Node rhs;
+        if(fside.equals("||")) doRHS = true;
         else doRHS = match(fside);
 
-        Node rhs = (doRHS
-                ? (stmt ? parseStatement() : parseAsgn())
-                : con(lhs._type.makeZero())).keep();
+        if(fside.equals("&&")) {
+            rhs = con(0);
+        } else {
+            rhs = (doRHS
+                    ? (stmt ? parseStatement() : parseAsgn())
+                    : con(lhs._type.makeZero()));
+        }
+        rhs.keep();
         _scope.removeGuards(ifF);
         if( doRHS )
             fScope = _scope;
@@ -807,6 +816,9 @@ public class Parser {
         if( !lift._type.isa(t) )
             lift = peep(new CastNode(t,null,lift));
         // Define a new name
+        if(name.equals("cd")) {
+            System.out.print("Here");
+        }
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
         return lift;
@@ -1161,10 +1173,10 @@ public class Parser {
         Node lhs = parseUnary();
         while (true) {
             if (match("&&")) {
-                // Turn: lhs && rhs   →   lhs ? rhs : 0
+                // x++ ? (y++ ? z++ : 0) : 0;
                 lhs = parseTrinary(lhs, false, "&&");
             } else if (match("||")) {
-                // Turn: lhs || rhs   →   lhs ? 1 : rhs
+                // x++ ? 1 : (y++ ? 1 : z++);
                 lhs = parseTrinary(lhs, false, "||");
             } else break;
         }
