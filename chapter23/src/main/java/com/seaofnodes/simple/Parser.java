@@ -537,9 +537,6 @@ public class Parser {
     private Node parseTrinary( Node pred, boolean stmt, String fside ) {
         pred.keep();
 
-        if(fside.equals("||")) {
-            System.out.print("Here");
-        }
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
@@ -816,9 +813,6 @@ public class Parser {
         if( !lift._type.isa(t) )
             lift = peep(new CastNode(t,null,lift));
         // Define a new name
-        if(name.equals("cd")) {
-            System.out.print("Here");
-        }
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
         return lift;
@@ -1023,15 +1017,30 @@ public class Parser {
      * </pre>
      * @return a bitwise expression {@link Node}, never {@code null}
      */
-    private Node parseBitwise() {
+
+    private Node parseLogical() {
         Node lhs = parseComparison();
+        while (true) {
+            if (match("&&")) {
+                // x++ ? (y++ ? z++ : 0) : 0;
+                lhs = parseTrinary(lhs, false, "&&");
+            } else if (match("||")) {
+                // x++ ? 1 : (y++ ? 1 : z++);
+                lhs = parseTrinary(lhs, false, "||");
+            } else break;
+        }
+        return lhs;
+    }
+
+    private Node parseBitwise() {
+        Node lhs = parseLogical();
         while( true ) {
             if( false ) ;
             else if( match("&") ) lhs = new AndNode(loc(),lhs,null);
             else if( match("|") ) lhs = new  OrNode(loc(),lhs,null);
             else if( match("^") ) lhs = new XorNode(loc(),lhs,null);
             else break;
-            lhs.setDef(2,parseComparison());
+            lhs.setDef(2,parseLogical());
             lhs = peep(lhs);
         }
         return lhs;
@@ -1122,13 +1131,13 @@ public class Parser {
      * @return a multiply expression {@link Node}, never {@code null}
      */
     private Node parseMultiplication() {
-        var lhs = parseLogical();
+        var lhs = parseUnary();
         while( true ) {
             if( false ) ;
             else if( match("*") ) lhs = new MulNode(lhs,null);
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
-            lhs.setDef(2,parseLogical());
+            lhs.setDef(2,parseUnary());
             lhs = peep(lhs.widen());
         }
         return lhs;
@@ -1169,19 +1178,7 @@ public class Parser {
         return parsePrimary();
     }
 
-    private Node parseLogical() {
-        Node lhs = parseUnary();
-        while (true) {
-            if (match("&&")) {
-                // x++ ? (y++ ? z++ : 0) : 0;
-                lhs = parseTrinary(lhs, false, "&&");
-            } else if (match("||")) {
-                // x++ ? 1 : (y++ ? 1 : z++);
-                lhs = parseTrinary(lhs, false, "||");
-            } else break;
-        }
-        return lhs;
-    }
+
     /**
      * Parse a primary expression:
      *

@@ -1,7 +1,4 @@
-struct S { S fld; };
-// arg==0, then ptr=null; prints false
-// arg==1, then ptr=new S(null); prints false
-// arg==2, then ptr=new S(new S(null)); prints true
+struct S { S? fld; };
+
 val ptr = arg ? null : new S(arg==1 ? null : new S(null));
-// Requires upcast of ptr after the && test, else should complain about null-deref
 sys.io.p( ptr && ptr.fld ? "true" : "false");
