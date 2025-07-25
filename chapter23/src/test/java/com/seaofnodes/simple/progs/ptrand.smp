@@ -1,4 +1,12 @@
 struct S { S? fld; };
 
-val ptr = arg ? null : new S(arg==1 ? null : new S(null));
-sys.io.p( ptr && ptr.fld ? "true" : "false");
+val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
+if(ptr && ptr.fld) {
+  sys.io.p("true");
+  }
+else{
+  sys.io.p("false");
+
+ }
+
+return 0;

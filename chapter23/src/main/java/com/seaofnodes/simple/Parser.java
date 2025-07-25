@@ -551,7 +551,7 @@ public class Parser {
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
         Node lhs;
-        if(fside.equals("||")) lhs = con(1);
+        if(fside.equals("||")) lhs = con(pred._type.nonZero());
         else lhs = (stmt ? parseStatement() : parseAsgn()); // Parse true-side
         lhs.keep();
         _scope.removeGuards(ifT);
@@ -575,7 +575,7 @@ public class Parser {
         else doRHS = match(fside);
 
         if(fside.equals("&&")) {
-            rhs = con(0);
+            rhs = con(lhs._type.makeZero());
         } else {
             rhs = (doRHS
                     ? (stmt ? parseStatement() : parseAsgn())

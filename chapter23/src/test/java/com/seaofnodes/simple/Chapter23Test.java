@@ -72,17 +72,17 @@ public class Chapter23Test {
 
     @Test
     public void testAndPtr() throws IOException {
-        TestC.runS("ptrand",TypeInteger.constant(1), "false",0);
+        TestC.runS("ptrand",TypeInteger.constant(1), "false",7);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("ptrand", 1, 2, false);
+        EvalRisc5 R5 = TestRisc5.build("ptrand", 1, 10, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("false",R5._stdout.toString());
 
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("ptrand", 1, 2, false);
+        //Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("ptrand", 1, 10, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
