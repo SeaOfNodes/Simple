@@ -551,10 +551,8 @@ public class Parser {
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
         Node lhs;
-        if(fside.equals("||")){
-            Type value = pred._type.nonZero() != null ? pred._type.nonZero() : pred._type.makeZero();
-            lhs = con(value);
-        }
+        if( fside.equals("||") ) lhs = pred;
+        else if( fside.equals("&&") ) lhs = parseLogical();
         else lhs = (stmt ? parseStatement() : parseAsgn()); // Parse true-side
         lhs.keep();
         _scope.removeGuards(ifT);
@@ -572,14 +570,14 @@ public class Parser {
         // Up-cast predicate, even if not else clause, because predicate can
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);
-        boolean doRHS;
         Node rhs;
-        if(fside.equals("||")) doRHS = true;
+        boolean doRHS;
+        if( fside.equals("&&") ) doRHS = false;
         else doRHS = match(fside);
 
-        if(fside.equals("&&")) {
-            rhs = con(lhs._type.makeZero());
-        } else {
+        if( fside.equals("||") ) rhs = parseLogical();
+        else if( fside.equals("&&") ) rhs = pred;
+        else {
             rhs = (doRHS
                     ? (stmt ? parseStatement() : parseAsgn())
                     : con(lhs._type.makeZero()));
@@ -1008,7 +1006,7 @@ public class Parser {
      * @return an expression {@link Node}, never {@code null}
      */
     private Node parseExpression() {
-        Node expr = parseBitwise();
+        Node expr = parseLogical();
         return match("?") ? parseTrinary(expr,false,":") : expr;
     }
 
@@ -1022,7 +1020,7 @@ public class Parser {
      */
 
     private Node parseLogical() {
-        Node lhs = parseComparison();
+        Node lhs = parseBitwise();
         while (true) {
             if (match("&&")) {
                 // x++ ? (y++ ? z++ : 0) : 0;
@@ -1036,14 +1034,14 @@ public class Parser {
     }
 
     private Node parseBitwise() {
-        Node lhs = parseLogical();
+        Node lhs = parseComparison();
         while( true ) {
             if( false ) ;
-            else if( match("&") ) lhs = new AndNode(loc(),lhs,null);
-            else if( match("|") ) lhs = new  OrNode(loc(),lhs,null);
-            else if( match("^") ) lhs = new XorNode(loc(),lhs,null);
+            else if( matchOp('&') ) lhs = new AndNode(loc(),lhs,null);
+            else if( matchOp('|') ) lhs = new  OrNode(loc(),lhs,null);
+            else if( match  ("^") ) lhs = new XorNode(loc(),lhs,null);
             else break;
-            lhs.setDef(2,parseLogical());
+            lhs.setDef(2,parseComparison());
             lhs = peep(lhs);
         }
         return lhs;
@@ -1732,6 +1730,7 @@ public class Parser {
     private boolean match (String syntax) { return _lexer.match (syntax); }
     // Match must be "exact", not be followed by more id letters
     private boolean matchx(String syntax) { return _lexer.matchx(syntax); }
+    private boolean matchOp(char c0 ) { return _lexer.matchOp(c0);  }
     private boolean matchOpx(char c0, char c1) { return _lexer.matchOpx(c0,c1);  }
     // Return true and do NOT skip if 'ch' is next
     private boolean peek(char ch) { return _lexer.peek(ch); }
@@ -1906,6 +1905,15 @@ public class Parser {
             if( !isIdLetter(peek()) ) return true;
             _position -= syntax.length();
             return false;
+        }
+        // Match this char, and the next char must be different.
+        // Handles '&&' vs '&'
+        boolean matchOp( char c0 ) {
+            skipWhiteSpace();
+            if( _position+1 >= _input.length || _input[_position]!=c0 || _input[_position+1]==c0 )
+                return false;
+            inc();
+            return true;
         }
         // Match these two characters in a row
         boolean matchOpx(char c0, char c1) {
