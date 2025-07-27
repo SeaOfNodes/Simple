@@ -530,11 +530,11 @@ public class Parser {
         // Parse predicate
         require("(");
         var pred = require(parseAsgn(), ")");
-        return parseTrinary(pred,true,"else");
+        return parseTrinary(pred,"else");
     }
 
     // Parse a conditional expression, merging results.
-    private Node parseTrinary( Node pred, boolean stmt, String fside ) {
+    private Node parseTrinary( Node pred, String fside ) {
         pred.keep();
 
         // IfNode takes current control and predicate
@@ -550,10 +550,14 @@ public class Parser {
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
-        Node lhs;
-        if( fside.equals("||") ) lhs = pred;
-        else if( fside.equals("&&") ) lhs = parseLogical();
-        else lhs = (stmt ? parseStatement() : parseAsgn()); // Parse true-side
+        // Parse true-side flavor
+        Node lhs = switch( fside ) {
+        case "else" -> parseStatement(); // if( pred )  stmts;
+        case ":"    -> parseAsgn();      //     pred ?  asgn;
+        case "&&"   -> parseLogical();   //     pred && expr
+        case "||"   -> pred;             //     pred || expr_is_ignored
+        default     -> throw Utils.TODO();
+        };
         lhs.keep();
         _scope.removeGuards(ifT);
 
@@ -570,18 +574,15 @@ public class Parser {
         // Up-cast predicate, even if not else clause, because predicate can
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);
-        Node rhs;
-        boolean doRHS;
-        if( fside.equals("&&") ) doRHS = false;
-        else doRHS = match(fside);
-
-        if( fside.equals("||") ) rhs = parseLogical();
-        else if( fside.equals("&&") ) rhs = pred;
-        else {
-            rhs = (doRHS
-                    ? (stmt ? parseStatement() : parseAsgn())
-                    : con(lhs._type.makeZero()));
-        }
+        // Parse false-side flavor
+        boolean doRHS = false;  // RHS is optional for if/else and trinary
+        Node rhs = switch( fside ) {
+        case "else" -> (doRHS=match(fside)) ? parseStatement() : con(lhs._type.makeZero());
+        case ":"    -> (doRHS=match(fside)) ? parseAsgn()      : con(lhs._type.makeZero());
+        case "&&"   -> rhs = pred;
+        case "||"   -> rhs = parseLogical();
+        default     -> throw Utils.TODO();
+        };
         rhs.keep();
         _scope.removeGuards(ifF);
         if( doRHS )
@@ -589,7 +590,7 @@ public class Parser {
         pred.unkeep();
 
         // Check the trinary widening int/flt
-        if( !stmt ) {
+        if( !fside.equals("else") ) {
             rhs = widenInt( rhs.unkeep(), lhs._type ).keep();
             lhs = widenInt( lhs.unkeep(), rhs._type ).keep();
         }
@@ -606,7 +607,7 @@ public class Parser {
         Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type).glb(false),r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
-        if( !stmt && (err=ret.err()) !=null )  throw err;
+        if( !fside.equals("else") && (err=ret.err()) !=null )  throw err;
         r.peephole();
         return ret;
     }
@@ -1007,7 +1008,7 @@ public class Parser {
      */
     private Node parseExpression() {
         Node expr = parseLogical();
-        return match("?") ? parseTrinary(expr,false,":") : expr;
+        return match("?") ? parseTrinary(expr,":") : expr;
     }
 
     /**
@@ -1022,13 +1023,10 @@ public class Parser {
     private Node parseLogical() {
         Node lhs = parseBitwise();
         while (true) {
-            if (match("&&")) {
-                // x++ ? (y++ ? z++ : 0) : 0;
-                lhs = parseTrinary(lhs, false, "&&");
-            } else if (match("||")) {
-                // x++ ? 1 : (y++ ? 1 : z++);
-                lhs = parseTrinary(lhs, false, "||");
-            } else break;
+            if( false ) ;
+            else if( match("&&") ) lhs = parseTrinary(lhs, "&&");
+            else if( match("||") ) lhs = parseTrinary(lhs, "||");
+            else break;
         }
         return lhs;
     }
