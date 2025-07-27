@@ -58,9 +58,7 @@ public abstract class TestC {
         String obj = bin+".o";
         String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
-        CodeGen code;
-        if(arg != null) code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
-        else code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);

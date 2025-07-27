@@ -1177,7 +1177,6 @@ public class Parser {
         return parsePrimary();
     }
 
-
     /**
      * Parse a primary expression:
      *
