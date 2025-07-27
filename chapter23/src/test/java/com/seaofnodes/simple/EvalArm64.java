@@ -573,11 +573,15 @@ public class EvalArm64 {
                 break;
             }
             case 0xD6: {
+                if( (ir & 0xFFFF) != 0 ) throw Utils.TODO();
+                if( ((ir>>16) & 0xFF) != 0x5F ) throw Utils.TODO(); // 0x3F is register call
                 rdid = -1;
+                int rn = ir << 22 >> 27;
+                pc = (int)regs[rn==0 ? 30 : rn];
                 // Return to zero breaks simulation
-                if(regs[30] == 0)
-                    break outer;
-                throw Utils.TODO();
+                if( pc==0 ) break outer;
+                pc -= 4;        // Undo post-increment
+                break;
             }
 
             case 0xF1: {

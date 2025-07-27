@@ -42,9 +42,9 @@ public class CallARM extends CallNode implements MachNode, RIPRelSize {
     }
 
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p(_name);
+        sb.p(_name).p("  ");
         for( int i=0; i<nargs(); i++ )
-            sb.p(code.reg(arg(i+2))).p("  ");
+            sb.p(code.reg(arg(i+2))).p(", ");
         sb.unchar(2);
     }
 }

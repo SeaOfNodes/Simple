@@ -57,7 +57,6 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
         sb.p(_name).p("  ");
         for( int i=0; i<nargs(); i++ )
             sb.p(code.reg(arg(i+2))).p(", ");
-        sb.unchar(2).p("  ").p(code.reg(fptr()));
-
+        sb.unchar(2);
     }
 }

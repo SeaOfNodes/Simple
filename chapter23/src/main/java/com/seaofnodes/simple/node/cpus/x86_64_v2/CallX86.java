@@ -42,7 +42,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(_name).p("  ");
         for( int i=0; i<nargs(); i++ )
-            sb.p(code.reg(in(i+2))).p("  ");
+            sb.p(code.reg(in(i+2))).p(", ");
         sb.unchar(2);
     }
 }
