@@ -577,7 +577,8 @@ public class EvalArm64 {
                 if( ((ir>>16) & 0xFF) != 0x5F ) throw Utils.TODO(); // 0x3F is register call
                 rdid = -1;
                 int rn = ir << 22 >> 27;
-                pc = (int)regs[rn==0 ? 30 : rn];
+                assert rn == 0;
+                pc = (int)regs[30];
                 // Return to zero breaks simulation
                 if( pc==0 ) break outer;
                 pc -= 4;        // Undo post-increment
