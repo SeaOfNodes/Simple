@@ -1062,7 +1062,13 @@ public class Parser {
             else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
             else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
             else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
-            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
+            else if( match("<" ) ) {
+                idx=2;
+                if(!(lhs instanceof PhiNode)) {
+                    System.out.print("Here");
+                }
+                lhs = new BoolNode.LT(lhs, null);
+            }
             else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
             else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
             else break;

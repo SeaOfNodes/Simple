@@ -408,7 +408,10 @@ if (60 <= score < 90) {
     sys.io.p("Pass");
 }
 ```
-
+Expressions that mix opposite directions of comparison, like using both <= and >=, are not allowed, because they create ambiguous logic.
+```java
+if (a <= b >= c)
+```
 This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating score.
 
 ## SCCP(top-down)

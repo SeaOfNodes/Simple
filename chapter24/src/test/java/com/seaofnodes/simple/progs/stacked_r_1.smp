@@ -1,0 +1,10 @@
+// -*- mode: java;  -*-
+int x = 15;
+
+if (10 < x < 20) {
+    sys.io.p("In range");
+} else {
+sys.io.p("Out of range");
+}
+
+return 0;
