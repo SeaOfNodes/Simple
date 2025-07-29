@@ -11,6 +11,22 @@ public class Chapter11Test {
 
     // A placeholder test used to rapidly rotate through fuzzer produced issues
     @Test
+    public void testMy() {
+     Parser parser = new Parser(
+             """
+                      int c = 12;
+            
+                      if (true) {
+                         c = 2;
+                      }
+                      return c * 2;
+                    """
+     );
+     StopNode stop = parser.parse().iterate();
+     assertEquals("return 4;", stop.toString());
+
+    }
+    @Test
     public void testFuzzer() {
         Parser parser = new Parser(
 """
@@ -294,6 +310,7 @@ else {
         StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ return 9; return 0; return 0; ]", stop.toString());
     }
+
 
 
     @Test

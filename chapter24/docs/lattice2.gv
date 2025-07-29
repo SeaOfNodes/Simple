@@ -1,0 +1,85 @@
+digraph Lattice {
+    compound = true;
+    // Define nodes
+    splines=false;
+    node [shape=oval, style=filled];
+    nodesep=0.2;
+    ranksep=0.4;
+
+    TOP [label="~scalar\n+int+tmp+0", fillcolor=black, fontcolor=white, group=center];
+
+    // ------------------------
+    PTRHQ [label="~tmp\n+tmp+0", fillcolor=green, fontcolor=white, group=left];
+    TOP -> PTRHQ
+
+    VALH_ [label="~nscalar\n+int+tmp", fillcolor=white, group=center];
+    TOP -> VALH_
+
+    INTHQ [label="~int\n+int+0", fillcolor=lightblue, group=right];
+    TOP -> INTHQ
+
+    LEFTHI [label="junk", style=invis, group=junkleft]
+  
+
+    PTRHQ -> LEFTHI-> VALH_ -> INTHQ [style=invis];
+    { rank=same; PTRHQ; LEFTHI; VALH_; INTHQ }
+
+    // ------------------------
+    PTRH_ [label="~ntmp\n+tmp", fillcolor=green, fontcolor=white, group=left];
+    VALH_ -> PTRH_
+    PTRHQ -> PTRH_
+
+    INTH_ [label="~nint\n+int", fillcolor=lightblue, group=right];
+    VALH_ -> INTH_
+    INTHQ -> INTH_
+    { rank=same; PTRH_; INTH_ }
+
+    // ------------------------
+    NILX_ [label="~nil\n[int,tmp]+0", fillcolor=aqua, group=junkleft];
+    INTHQ -> NILX_
+    PTRHQ -> NILX_
+    
+    NIL__ [label="nil\n[+int+tmp],0", fillcolor=pink];
+    VALH_ -> NIL__;
+    
+    NILX_ -> NIL__  [style=invis];
+    { rank=same; NIL__; NILX_ }
+
+    // ------------------------
+    PTRL_ [label="ntmp\ntmp", fillcolor=green, fontcolor=white, group=left];
+    PTRH_ -> PTRL_
+
+    INTL_ [label="nint\nint", fillcolor=lightblue, group=right];
+    INTH_ -> INTL_
+    { rank=same; PTRL_; INTL_ }
+    
+    // ------------------------
+    PTRL0 [label="tmp\ntmp,0", fillcolor=green, fontcolor=white, group=left];
+    PTRL_ -> PTRL0
+    NIL__ -> PTRL0
+
+    VALL_ [label="nscalar\nint,tmp", fillcolor=white, group=center];
+    PTRL_ -> VALL_
+    INTL_ -> VALL_
+    NILX_ -> VALL_
+
+    INTL0 [label="int\nint,0", fillcolor=lightblue, group=right];
+    INTL_ -> INTL0
+    NIL__ -> INTL0
+
+    PTRL0 -> VALL_ -> INTL0 [style=invis];
+    { rank=same; PTRL0; VALL_; INTL0 }
+
+    // ------------------------
+    BOT [label="scalar\nint,tmp,0", fillcolor=black, fontcolor=white, group=center];
+    PTRL0 -> BOT
+    INTL0 -> BOT
+    VALL_ -> BOT
+
+    // ------------------------
+    // Verticle alignment
+    TOP -> VALH_ -> VALL_ -> BOT [style=invis];
+    PTRHQ -> PTRH_ -> PTRL_ -> PTRL0 [style=invis];
+    INTHQ -> INTH_ -> INTL_ -> INTL0 [style=invis];
+    LEFTHI -> NILX_ [style=invis]
+}
