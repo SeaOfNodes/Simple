@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,6 +30,130 @@ public class Chapter23Test {
         if( stop != null )
             assertEquals(stop, code._stop.toString());
         return code;
+    }
+
+    @Test
+    public void testOr() throws IOException {
+        TestC.runS("or1","Or",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("or1", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Or",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("or1", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Or",arm._stdout.toString());
+    }
+
+    @Test
+    public void testAnd() throws IOException {
+        TestC.runS("and1","And",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("and1", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("And",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("and1", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("And",arm._stdout.toString());
+    }
+
+    @Test
+    public void testAndPtr() throws IOException {
+        String src =
+"""
+struct S { S? fld; };
+val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
+return ptr && ptr.fld ? "true" : "false";
+        """;
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("ptrand", 1, 8, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("false",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("ptrand", 1, 8, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("false",arm._stdout.toString());
+    }
+
+    // conditional side effect
+    @Test
+    public void testCondSideEffAnd() throws IOException {
+        TestC.runS("and2","Effected",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("and2", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Effected",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("and2", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Effected",arm._stdout.toString());
+    }
+
+
+    @Test
+    public void testCondSideEffOr() throws IOException {
+        TestC.runS("or2","Effected",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("or2", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Effected",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("or2", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Effected",arm._stdout.toString());
+    }
+
+    // test it with function calls
+    @Test
+    public void testFuncCall() throws IOException {
+        TestC.runS("and3","Or",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("and3", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Or",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("and3", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Or",arm._stdout.toString());
     }
 
     @Test

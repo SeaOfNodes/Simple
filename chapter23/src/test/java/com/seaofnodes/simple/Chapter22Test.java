@@ -180,7 +180,7 @@ return cc.cz;
     @Test
     public void testHelloWorld() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/helloWorld.smp"));
-        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/helloWorld","","Hello, World!",0);
+        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("helloWorld", 0, 2, false);
@@ -221,7 +221,7 @@ return sum(is);
     @Test @Ignore
     public void testEcho() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/echo.smp"));
-        TestC.run(src,TestC.CALL_CONVENTION,null,null,"build/objs/echo","","",0);
+        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/echo","","",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("echo", 0, 2, false);

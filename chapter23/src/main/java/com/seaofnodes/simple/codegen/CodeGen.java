@@ -39,6 +39,8 @@ public class CodeGen {
 
     // ---------------------------
     public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L, true ); }
+    public CodeGen( String src, TypeInteger arg) { this(src, arg==null ? TypeInteger.BOT : arg, 123L, true ); }
+
     public CodeGen( String src, TypeInteger arg, long workListSeed, boolean reset ) {
         CODE = this;
         if( reset ) Type.reset();

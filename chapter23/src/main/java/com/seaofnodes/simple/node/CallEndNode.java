@@ -86,6 +86,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         fun.setDef(2,call.ctrl());  // Bypass the Call;
                         fun.ret().setDef(3,null);   // Return is folding also
                         CodeGen.CODE.addAll(fun._outputs);
+                        // Repeat defs 1 layer down, for users of Parm (Phis)
+                        for( Node parm : fun._outputs )
+                            if( parm instanceof ParmNode )
+                                CodeGen.CODE.addAll(parm._outputs);
+
                         // Inlining immediately blows all cache idepth fields past the inline point.
                         // Bump the global version number invalidating them en-masse.
                         CodeGen.CODE.invalidateIDepthCaches();
