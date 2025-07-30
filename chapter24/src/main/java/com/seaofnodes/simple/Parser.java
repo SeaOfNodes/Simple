@@ -533,6 +533,31 @@ public class Parser {
         return parseTrinary(pred,"else");
     }
 
+    // parse down rhs
+    private Node make_and_conditional(Node lhs) {
+        lhs.keep();
+        Node ifNode = new IfNode(ctrl(), lhs).peephole();
+
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+
+        // true
+        ctrl(ifT.unkeep());
+
+        // false
+        ctrl(ifF.unkeep());
+        _scope.addGuards(ifF,lhs,true);
+        Node rhs = parseShift();
+        rhs.keep();
+        _scope.removeGuards(ifF);
+
+        RegionNode r = new RegionNode(null,null, ifT,ifF).init();
+        Node ret = peep(new PhiNode("",rhs._type.meet(lhs._type).glb(false),r,rhs.unkeep(),lhs.unkeep()));
+
+        r.peephole();
+        return ret;
+    }
+
     // Parse a conditional expression, merging results.
     private Node parseTrinary( Node pred, String fside ) {
         pred.keep();
@@ -746,6 +771,9 @@ public class Parser {
         boolean hasBang = match("!");
         Lexer loc = loc();
         String name = requireId();
+        if(name.equals("something_specific")) {
+            System.out.print("Here");
+        }
         // Optional initializing expression follows
         boolean xfinal = false;
         boolean fld_final = false; // Field is final, but not deeply final
@@ -1055,29 +1083,38 @@ public class Parser {
      */
     private Node parseComparison() {
         var lhs = parseShift();
+        boolean found_bl = false;
+
         while( true ) {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
+            // chain operators
+            if(lhs._nid == 1439) {
+                System.out.print("Here");
+            }
+            if (found_bl && (
+                    match("==") || match("!=") ||
+                            match("<=") || match("<") ||
+                            match(">=") || match(">"))) {
+
+                return make_and_conditional(lhs);
+            }
             if( false ) ;
             else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
             else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
             else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
-            else if( match("<" ) ) {
-                idx=2;
-                if(!(lhs instanceof PhiNode)) {
-                    System.out.print("Here");
-                }
-                lhs = new BoolNode.LT(lhs, null);
-            }
+            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
             else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
             else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             lhs.setDef(idx,parseShift());
+            found_bl = true;
             lhs = peep(lhs.widen());
             if( negate )        // Extra negate for !=
                 lhs = peep(new NotNode(lhs));
         }
+        found_bl = false;
         return lhs;
     }
 
@@ -1225,6 +1262,9 @@ public class Parser {
         // - NO fcns nested in methods, NO methods nested in fcns
 
         String id = _lexer.matchId();
+        if(id.equals("x")) {
+            System.out.print("Here");
+        }
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
         Var var = _scope.lookup(id);
