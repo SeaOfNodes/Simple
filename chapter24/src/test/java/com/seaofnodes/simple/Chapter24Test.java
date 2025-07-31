@@ -78,11 +78,11 @@ public class Chapter24Test {
     @Test
     public void testAndPtr() throws IOException {
         String src =
-"""
-struct S { S? fld; };
-val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
-return ptr && ptr.fld ? "true" : "false";
-        """;
+                """
+                struct S { S? fld; };
+                val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
+                return ptr && ptr.fld ? "true" : "false";
+                        """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
@@ -164,21 +164,21 @@ return ptr && ptr.fld ? "true" : "false";
     // test it with function calls
     @Test
     public void testStack1() throws IOException {
-        TestC.runS("stacked_r_1","In range",0);
+        TestC.runS("stacked_r_1","In Range",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In range",R5._stdout.toString());
+        assertEquals("In Range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("stacked_r_1", 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("In range",arm._stdout.toString());
+        assertEquals("In Range",arm._stdout.toString());
     }
 
     @Test
@@ -202,48 +202,68 @@ return ptr && ptr.fld ? "true" : "false";
 
     @Test
     public void testStack3() throws IOException {
-        TestC.runS("stacked_r_3","In range",5);
+        TestC.runS("stacked_r_3","In range",3);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_3", 0, 5, false);
+        int trap_1 = arm.step(100);
+        assertEquals(0,trap_1);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("In range",arm._stdout.toString());
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", 0, 9, false);
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("In range",R5._stdout.toString());
 
+    }
+
+    @Test
+    public void testStack4() throws IOException {
+        TestC.runS("stacked_r_4","Out of Range",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_4", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Out of Range",R5._stdout.toString());
+
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_3", 0, 9, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_4", 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("In range",arm._stdout.toString());
+        assertEquals("Out of Range",arm._stdout.toString());
     }
 
 
     @Test
     public void testFRefFields() {
         String src =
-"""
-// A hypothetical scanner class
-struct Scan {
-    int !x;
-    u8[~] buf;
-    // Skip whitespace
-    val skip = { Scan s ->
-        while( s.buf[s.x] <= ' ' )
-            s.x++;
-    };
-    // Peek a character; if matched consume it, else false.
-    val peek = { Scan s, u8 c ->
-        skip(s);
-        if( s.buf[s.x] != c ) return false;
-        s.x++;
-        return true;
-    };
-};
-Scan !s = new Scan{ buf = "  q"; };
-return Scan.peek(s,'q');
-        """;
+                """
+                // A hypothetical scanner class
+                struct Scan {
+                    int !x;
+                    u8[~] buf;
+                    // Skip whitespace
+                    val skip = { Scan s ->
+                        while( s.buf[s.x] <= ' ' )
+                            s.x++;
+                    };
+                    // Peek a character; if matched consume it, else false.
+                    val peek = { Scan s, u8 c ->
+                        skip(s);
+                        if( s.buf[s.x] != c ) return false;
+                        s.x++;
+                        return true;
+                    };
+                };
+                Scan !s = new Scan{ buf = "  q"; };
+                return Scan.peek(s,'q');
+                        """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return Phi(Region,0,1);", code._stop.toString());
@@ -254,21 +274,21 @@ return Scan.peek(s,'q');
     @Test
     public void testFRefFields2() {
         String src =
-"""
-// A hypothetical scanner class
-struct Scan {
-    int !x;
-    u8[~] buf;
-    // Skip whitespace
-    val skip = { ->
-        while( buf[x] <= ' ' )
-            x++;
-        return self;
-    };
-};
-val s = new Scan{ buf = "  q"; };
-return s.skip().x;
-        """;
+                """
+                // A hypothetical scanner class
+                struct Scan {
+                    int !x;
+                    u8[~] buf;
+                    // Skip whitespace
+                    val skip = { ->
+                        while( buf[x] <= ' ' )
+                            x++;
+                        return self;
+                    };
+                };
+                val s = new Scan{ buf = "  q"; };
+                return s.skip().x;
+                        """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {21} skip; } #21} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
@@ -278,24 +298,24 @@ return s.skip().x;
     @Test
     public void testMethod() {
         String src =
-"""
-// A hypothetical scanner class
-struct Scan {
-    int !x;
-    u8[~] buf;
-    // Skip whitespace
-    val skip = { ->
-        while( buf[x] <= ' ' )
-            x++;
-    };
-    val require = { u8 ch ->
-        skip();
-        buf[x++]==ch;
-    };
-};
-Scan !s = new Scan{ buf = "  [1,2]"; };
-return s.require('[');
-        """;
+                """
+                // A hypothetical scanner class
+                struct Scan {
+                    int !x;
+                    u8[~] buf;
+                    // Skip whitespace
+                    val skip = { ->
+                        while( buf[x] <= ' ' )
+                            x++;
+                    };
+                    val require = { u8 ch ->
+                        skip();
+                        buf[x++]==ch;
+                    };
+                };
+                Scan !s = new Scan{ buf = "  [1,2]"; };
+                return s.require('[');
+                        """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return (.[]==91);", code._stop.toString());

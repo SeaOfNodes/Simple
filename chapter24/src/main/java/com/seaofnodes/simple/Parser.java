@@ -541,17 +541,24 @@ public class Parser {
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
 
+        ScopeNode fScope = _scope.dup();
+
         // true
         ctrl(ifT.unkeep());
-
-        // false
-        ctrl(ifF.unkeep());
-        _scope.addGuards(ifF,lhs,true);
+        _scope.addGuards(ifT,lhs,true);
         Node rhs = parseShift();
         rhs.keep();
+        _scope.removeGuards(ifT);
+        fScope.balanceIf(_scope);
+        ScopeNode tScope = _scope;
+        _scope = fScope;
+        ctrl(ifF.unkeep());
+        _scope.addGuards(ifF,lhs,false);
         _scope.removeGuards(ifF);
 
-        RegionNode r = new RegionNode(null,null, ifT,ifF).init();
+        _scope = tScope;
+        tScope.balanceIf(fScope);
+        RegionNode r = ctrl(tScope.mergeScopes(fScope, loc()));
         Node ret = peep(new PhiNode("",rhs._type.meet(lhs._type).glb(false),r,rhs.unkeep(),lhs.unkeep()));
 
         r.peephole();
@@ -771,9 +778,7 @@ public class Parser {
         boolean hasBang = match("!");
         Lexer loc = loc();
         String name = requireId();
-        if(name.equals("something_specific")) {
-            System.out.print("Here");
-        }
+
         // Optional initializing expression follows
         boolean xfinal = false;
         boolean fld_final = false; // Field is final, but not deeply final
@@ -1089,9 +1094,6 @@ public class Parser {
             int idx=0;  boolean negate=false;
             // Test for any local nodes made, and "keep" lhs during peepholes
             // chain operators
-            if(lhs._nid == 1439) {
-                System.out.print("Here");
-            }
             if (found_bl && (
                     match("==") || match("!=") ||
                             match("<=") || match("<") ||
@@ -1262,9 +1264,6 @@ public class Parser {
         // - NO fcns nested in methods, NO methods nested in fcns
 
         String id = _lexer.matchId();
-        if(id.equals("x")) {
-            System.out.print("Here");
-        }
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
         Var var = _scope.lookup(id);
