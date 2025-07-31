@@ -5,7 +5,7 @@ var sq = { int x ->
 
 int score = 5;
 
-if ((sq(2)) <= score < (sq(3))) {
+if (sq(2) <= score < sq(3)) {
 sys.io.p("In range");
 } else {
 sys.io.p("Out of range");
