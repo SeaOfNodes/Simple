@@ -204,19 +204,20 @@ public class Chapter24Test {
     public void testStack3() throws IOException {
         TestC.runS("stacked_r_3","In range",3);
 
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", 0, 3, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("In range",R5._stdout.toString());
+
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_3", 0, 5, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_3", 0, 3, false);
         int trap_1 = arm.step(100);
         assertEquals(0,trap_1);
         assertEquals(0,arm.regs[0]);
         assertEquals("In range",arm._stdout.toString());
 
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", 0, 5, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In range",R5._stdout.toString());
 
     }
 
@@ -233,6 +234,25 @@ public class Chapter24Test {
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("stacked_r_4", 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+        assertEquals("Out of Range",arm._stdout.toString());
+    }
+
+    @Test
+    public void testStack5() throws IOException {
+        TestC.runS("stacked_r_5","Out of Range",0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_5", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+        assertEquals("Out of Range",R5._stdout.toString());
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_5", 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
