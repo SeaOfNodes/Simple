@@ -74,7 +74,9 @@ public class EvalArm64 {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
             }
-
+            if(icount == 14) {
+                System.out.print("Here");
+            }
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;
@@ -362,24 +364,26 @@ public class EvalArm64 {
             case 0x9A: {
                 // conditional select(csel)
                 int rm = (ir >> 16) & 0x1F;
-                switch((ir >> 12) & 0xF) {
-                case 0x0: if(Z)  rval = regs[rm]; break; // eq
-                case 0x1: if(!Z) rval = regs[rm]; break; // ne
-                case 0x2: if(C)  rval = regs[rm]; break; // cs
-                case 0x3: if(!C) rval = regs[rm]; break;
-                case 0x4: if(N) rval  =  regs[rm]; break; // mi
-                case 0x5: if(!N) rval = regs[rm]; break; // pl
-                case 0x6: if(V) rval = regs[rm]; break; // vs
-                case 0x7: if(!V) rval = regs[rm]; break; // vc
-                case 0x8: if(C && !Z) rval = regs[rm]; break; // hi
-                case 0x9: if(!C || Z) rval = regs[rm]; break; // ls
-                case 0xA: if(N == V) rval = regs[rm]; break; // ge
-                case 0xB: if(N != V) rval = regs[rm]; break; // lt
-                case 0xC: if(!Z && N == V) rval  = regs[rm]; break; // gt
-                case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
-                case 0xE: rval = regs[rm]; break; // always executed(al)
-                default:  rval = regs[(ir >> 5) & 0x1F];
-                }
+                int rn = (ir >> 5)  & 0x1F;
+
+                rval = switch ((ir >> 12) & 0xF) {
+                    case 0x0 ->  Z  ? regs[rn] : rval;               // eq
+                    case 0x1 -> !Z  ? regs[rn] : rval;               // ne
+                    case 0x2 ->  C  ? regs[rn] : rval;               // cs
+                    case 0x3 -> !C  ? regs[rn] : rval;
+                    case 0x4 ->  N  ? regs[rn] : rval;               // mi
+                    case 0x5 -> !N  ? regs[rn] : rval;               // pl
+                    case 0x6 ->  V  ? regs[rn] : rval;               // vs
+                    case 0x7 -> !V  ? regs[rn] : rval;               // vc
+                    case 0x8 -> ( C && !Z )     ? regs[rn] : rval;   // hi
+                    case 0x9 -> (!C ||  Z )     ? regs[rn] : rval;   // ls
+                    case 0xA -> (N == V)        ? regs[rn] : rval;   // ge
+                    case 0xB -> (N != V)        ? regs[rn] : rval;   // lt
+                    case 0xC -> (!Z && N == V)  ? regs[rn] : rval;   // gt
+                    case 0xD -> ( Z || N != V ) ? regs[rn] : rval;   // le
+                    case 0xE -> regs[rn];                            // always
+                    default -> regs[rm];
+                };
                 break;
             }
             case 0x9B: {       // mul
