@@ -74,9 +74,6 @@ public class EvalArm64 {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
             }
-            if(icount == 14) {
-                System.out.print("Here");
-            }
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;

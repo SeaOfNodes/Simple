@@ -240,21 +240,21 @@ public class Chapter24Test {
 
     @Test
     public void testStack5() throws IOException {
-        TestC.runS("stacked_r_5","In Range",0);
+        TestC.runS("stacked_r_5","In range",3);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_5", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_5", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In Range",R5._stdout.toString());
+        assertEquals("In range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_5", 0, 2, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_5", 0, 5, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("In Range",arm._stdout.toString());
+        assertEquals("In range",arm._stdout.toString());
     }
 
 

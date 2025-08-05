@@ -568,9 +568,6 @@ public class Parser {
         ext.peephole();
 
         RegionNode r = ctrl(tScope.mergeScopes(fScope, loc()));
-        if(r._nid == 1482) {
-            System.out.print("Here");
-        }
         Node ret = peep(new PhiNode("",ext._type.meet(lhs._type).glb(false),r,ext.unkeep(),lhs.unkeep()));
 
         r.peephole();
@@ -647,9 +644,6 @@ public class Parser {
 
         // Merge results
         RegionNode r = ctrl(tScope.mergeScopes(fScope,loc()));
-        if(r._nid == 1496) {
-            System.out.print("Here");
-        }
         Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type).glb(false),r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
@@ -792,9 +786,6 @@ public class Parser {
         boolean hasBang = match("!");
         Lexer loc = loc();
         String name = requireId();
-        if(name.equals("score")) {
-            System.out.print("Here");
-        }
         // Optional initializing expression follows
         boolean xfinal = false;
         boolean fld_final = false; // Field is final, but not deeply final
