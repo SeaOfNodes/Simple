@@ -216,7 +216,7 @@ public class arm extends Machine {
         assert 0 <= rm && rm < 32;
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
-        return (opcode << 21) | (rm << 15) | (cond.ordinal() << 12) | (rn << 5) | rd;
+        return (opcode << 21) | (rm << 16) | (cond.ordinal() << 12) | (0b01 << 10) |  (rn << 5) | rd;
     }
 
     static public int cset(int opcode, COND cond, int rn, int rd) {
@@ -691,7 +691,7 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, IfNode.negate(bool.op()));
+        return new SetARM(cmp, bool.op());
     }
     private Node _cmp(BoolNode bool) {
         if( bool.isFloat() )

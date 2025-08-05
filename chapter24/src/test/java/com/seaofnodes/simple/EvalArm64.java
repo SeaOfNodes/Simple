@@ -365,25 +365,28 @@ public class EvalArm64 {
                 // conditional select(csel)
                 int rm = (ir >> 16) & 0x1F;
                 int rn = (ir >> 5)  & 0x1F;
-
-                rval = switch ((ir >> 12) & 0xF) {
-                    case 0x0 ->  Z  ? regs[rn] : rval;               // eq
-                    case 0x1 -> !Z  ? regs[rn] : rval;               // ne
-                    case 0x2 ->  C  ? regs[rn] : rval;               // cs
-                    case 0x3 -> !C  ? regs[rn] : rval;
-                    case 0x4 ->  N  ? regs[rn] : rval;               // mi
-                    case 0x5 -> !N  ? regs[rn] : rval;               // pl
-                    case 0x6 ->  V  ? regs[rn] : rval;               // vs
-                    case 0x7 -> !V  ? regs[rn] : rval;               // vc
-                    case 0x8 -> ( C && !Z )     ? regs[rn] : rval;   // hi
-                    case 0x9 -> (!C ||  Z )     ? regs[rn] : rval;   // ls
-                    case 0xA -> (N == V)        ? regs[rn] : rval;   // ge
-                    case 0xB -> (N != V)        ? regs[rn] : rval;   // lt
-                    case 0xC -> (!Z && N == V)  ? regs[rn] : rval;   // gt
-                    case 0xD -> ( Z || N != V ) ? regs[rn] : rval;   // le
-                    case 0xE -> regs[rn];                            // always
-                    default -> regs[rm];
+                boolean cond = switch ((ir >> 12) & 0xF) {
+                case 0x0 ->   Z            ;   // eq
+                case 0x1 ->  !Z            ;   // ne
+                case 0x2 ->   C            ;   // cs
+                case 0x3 ->  !C            ;
+                case 0x4 ->   N            ;   // mi
+                case 0x5 ->  !N            ;   // pl
+                case 0x6 ->   V            ;   // vs
+                case 0x7 ->  !V            ;   // vc
+                case 0x8 -> ( C && !Z )    ;   // hi
+                case 0x9 -> (!C ||  Z )    ;   // ls
+                case 0xA -> (      N == V) ;   // ge
+                case 0xB -> (      N != V) ;   // lt
+                case 0xC -> (!Z && N == V) ;   // gt
+                case 0xD -> ( Z || N != V );   // le
+                case 0xE -> true           ;   // always
+                case 0xF -> false          ;   // never
+                default -> throw Utils.TODO();
                 };
+                int reg = cond ? rn : rm;
+                rval = reg==31 ? 0 : regs[reg];
+                if( cond ) rval++;
                 break;
             }
             case 0x9B: {       // mul
