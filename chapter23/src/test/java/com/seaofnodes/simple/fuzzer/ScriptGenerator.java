@@ -20,12 +20,9 @@ import static com.seaofnodes.simple.Parser.KEYWORDS;
 public class ScriptGenerator {
 
     private static final int MAX_STATEMENTS_PER_BLOCK = 5;
-    private static final int MAX_BINARY_EXPRESSIONS_PER_EXPRESSION = 10;
-    private static final int MAX_UNARY_EXPRESSIONS_PER_EXPRESSION = 6;
     private static final int MAX_NAME_LENGTH = 10;
     private static final int MAX_BLOCK_DEPTH = 4;
     private static final int MAX_EXPRESSION_DEPTH = 10;
-    private static final int MAX_SUFFIX_RECURSIVE_DEPTH = 10;
 
     /**
      * Number of spaces per indentation
@@ -44,14 +41,6 @@ public class ScriptGenerator {
      * Flag for a statement that it contains a final if statement without an else branch.
      */
     private static final int FLAG_IF_WITHOUT_ELSE = 0x02;
-    /**
-     * Binary operators.
-     */
-    private static final String[] BINARY_OP = {"==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/", "&", ">>", ">>>", "<<"};
-    /**
-     * Unary operators.
-     */
-    private static final String[] UNARY_OP = {"-"};
 
     private static class Type {
         final String name;
@@ -146,10 +135,6 @@ public class ScriptGenerator {
      * The depth of blocks allowed.
      */
     private int depth = MAX_BLOCK_DEPTH;
-    /**
-     * The depth of expressions allowed.
-     */
-    private int exprDepth = MAX_EXPRESSION_DEPTH;
     /**
      * Current variables in scope.
      */
@@ -568,7 +553,7 @@ public class ScriptGenerator {
      */
     public int genIf() {
         sb.append("if(");
-        genExpression(TYPE_BOOL, true);
+        genExpression(TYPE_BOOL, true, true);
         sb.append(") ");
         var stop = genStatementBlock();
         if ((stop & FLAG_IF_WITHOUT_ELSE) == 0 && random.nextInt(10) > 3) {
@@ -614,7 +599,7 @@ public class ScriptGenerator {
      */
     public int genWhile() {
         sb.append("while(");
-        genExpression(TYPE_BOOL, true);
+        genExpression(TYPE_BOOL, true, true);
         sb.append(") ");
         loopDepth++;
         genStatementBlock();
@@ -640,17 +625,17 @@ public class ScriptGenerator {
         indentation += INDENTATION;
         String name = getVarName();
         printIndentation().append("int ").append(name).append("=");
-        genExpression(TYPE_INT, true);
+        genExpression(TYPE_INT, true, false);
         sb.append(";\n");
         addVariable(name, TYPE_INT);
         printIndentation().append("while(").append(name).append("<");
-        genExpression(TYPE_INT, true);
+        genShift(TYPE_INT, true, false, MAX_EXPRESSION_DEPTH);
         sb.append(") {\n");
         indentation += INDENTATION;
         depth--;
         loopDepth++;
         printIndentation().append(name).append("=").append(name).append("+");
-        genExpression(TYPE_INT, true);
+        genExpression(TYPE_INT, true, false);
         sb.append(";\n");
         genStatements();
         loopDepth--;
@@ -675,7 +660,7 @@ public class ScriptGenerator {
         sb.append(generateInvalid() ? getRandomName() : type.name).append(" !").append(name);
         if (!(type instanceof TypeNullable) || random.nextBoolean()) {
             sb.append("=");
-            genExpression(type, true);
+            genExpression(type, true, type==TYPE_BOOL);
         }
         sb.append(";");
         addVariable(name, type);
@@ -710,7 +695,7 @@ public class ScriptGenerator {
             declared = field.type;
         }
         sb.append("=");
-        genExpression(declared, true);
+        genExpression(declared, true, declared==TYPE_BOOL);
         sb.append(";");
         return 0;
     }
@@ -722,43 +707,127 @@ public class ScriptGenerator {
     public int genReturn() {
         var type = getType();
         sb.append("return ");
-        genExpression(type, true);
+        genExpression(type, true, false);
         sb.append(";");
         return FLAG_STOP;
     }
 
-    /**
-     * Generate a binary expression.
-     * This method does not care about operator precedence.
-     */
-    public void genExpression(Type type, boolean change) {
+    public void genExpression(Type type, boolean change, boolean preferLogical) {
+        genExpression(type, change, preferLogical, MAX_EXPRESSION_DEPTH);
+    }
+
+    public void genExpression(Type type, boolean change, boolean preferLogical, int d) {
         if (change && generateInvalid()) type = getType();
-        if (!(type instanceof TypeInt) && type != TYPE_FLT) {
-            genUnary(type, false);
-            return;
+        if (d > 0 && random.nextInt(10)==0) {
+            genLogical(TYPE_INT, true, true, d);
+            sb.append("?");
+            genExpression(type, true, preferLogical, d-1);
+            sb.append(":");
+            genExpression(type, false, preferLogical, d-1);
+        } else {
+            genLogical(type, false, preferLogical, d);
         }
-        var num = randLog(MAX_BINARY_EXPRESSIONS_PER_EXPRESSION);
-        while(num-->0) {
-            genUnary(type, false);
-            sb.append(BINARY_OP[random.nextInt(BINARY_OP.length)]);
+    }
+
+    public void genLogical(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        genBitwise(type, false, preferLogical, d);
+        while (d-->0 && random.nextInt(preferLogical?5:50) == 0) {
+            sb.append(random.nextBoolean()?"&&":"||");
+            genBitwise(type, true, preferLogical, d);
         }
-        genUnary(type, false);
+    }
+
+    public void genBitwise(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        genComparison(type, false, preferLogical, d);
+        while (type instanceof TypeInt && d-->0 && random.nextInt(preferLogical?50:5)==0) {
+            sb.append("&|^".charAt(random.nextInt(3)));
+            genComparison(type, true, preferLogical, d);
+        }
+    }
+
+    public void genComparison(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        if (d > 0 && type instanceof TypeInt && random.nextInt(preferLogical?5:50)==0) {
+            type = getType();
+            genComparison(type, true, preferLogical, d-1);
+            sb.append(random.nextBoolean()?"==":"!=");
+        }
+        genChaining(type, false, preferLogical, d);
+    }
+
+    public void genChaining(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        if (d>0 && type instanceof TypeInt && random.nextInt(preferLogical?5:50)==0) {
+            genShift(TYPE_INT, true, false, d);
+            char c = random.nextBoolean()?'>':'<';
+            sb.append(c);
+            if (random.nextInt(4)==0) sb.append('=');
+            genShift(TYPE_INT, true, false, --d);
+            while (d-->0 && random.nextInt(preferLogical?5:50)==0) {
+                if (generateInvalid()) c = c=='>' ? '<' : '>';
+                sb.append(c);
+                if (random.nextInt(4)==0) sb.append('=');
+                genShift(TYPE_INT, true, false, d);
+            }
+        } else {
+            genShift(type, false, preferLogical, d);
+        }
+    }
+
+    private static final String[] SHIFTS = {">>", ">>>", "<<"};
+
+    public void genShift(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        genAddition(type, false, preferLogical, d);
+        while (d-- > 0 && type instanceof TypeInt && random.nextInt(50)==0) {
+            sb.append(SHIFTS[random.nextInt(3)]);
+            genAddition(type, true, preferLogical, d);
+        }
+    }
+
+    public void genAddition(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        genMultiplication(type, false, preferLogical, d);
+        while (d-- > 0 && (type instanceof TypeInt || type==TYPE_FLT) && random.nextInt(50)==0) {
+            sb.append(random.nextBoolean()?" + ":" - ");
+            genMultiplication(type, true, preferLogical, d);
+        }
+    }
+
+    public void genMultiplication(Type type, boolean change, boolean preferLogical, int d) {
+        if (change && generateInvalid()) type = getType();
+        genUnary(type, false, preferLogical, d);
+        while (d-- > 0 && (type instanceof TypeInt || type==TYPE_FLT) && random.nextInt(50)==0) {
+            sb.append(random.nextBoolean()?'*':'/');
+            genUnary(type, true, preferLogical, d);
+        }
     }
 
     /**
      * Generate a unary expression.
      */
-    public void genUnary(Type type, boolean change) {
+    public void genUnary(Type type, boolean change, boolean preferLogical, int d) {
         if (change && generateInvalid()) type = getType();
         if (!(type instanceof TypeInt) && type != TYPE_FLT) {
-            genSuffix(type, false);
+            genSuffix(type, false, preferLogical, d);
             return;
         }
-        var num = randLog(MAX_UNARY_EXPRESSIONS_PER_EXPRESSION);
-        while(num-->0) {
-            sb.append(UNARY_OP[random.nextInt(UNARY_OP.length)]);
+        while (d>0 && random.nextInt(5)==0) {
+            d--;
+            boolean what = type instanceof TypeInt && random.nextInt(preferLogical?2:20) == 0;
+            sb.append(what?'!':'-');
         }
-        genSuffix(type, false);
+        if (random.nextInt(10)==0) {
+            var t = type;
+            var v = findVisibleVariablesMatching(va->va.type.isa(t));
+            if (v != null) {
+                sb.append(random.nextBoolean()?"--":"++").append(v.name);
+                return;
+            }
+        }
+        genSuffix(type, false, preferLogical, d);
     }
 
     public TypeStruct.Field getField(Type type) {
@@ -778,45 +847,45 @@ public class ScriptGenerator {
         throw new AssertionError();
     }
 
-    /**
-     * Generate
-     */
-    public void genSuffix(Type type, boolean change) {
-        genSuffixRecursive(type, change, MAX_SUFFIX_RECURSIVE_DEPTH);
-    }
-
-    public void genSuffixRecursive(Type type, boolean change, int depth) {
+    public void genSuffix(Type type, boolean change, boolean preferLogical, int d) {
         if (change && generateInvalid()) type = getType();
-        if (depth > 0 && random.nextBoolean()) {
-            if (generateInvalid()) {
-                var field = getRandomName();
-                var t = getType();
-                genSuffixRecursive(t, true, depth-1);
-                sb.append(".").append(field);
+        if (d > 0 && random.nextBoolean() && genField(type, d-1)) return;
+        if (d > 0 && random.nextInt(10) == 0) {
+            if (random.nextBoolean() && genField(type, d-1)) return;
+            var t = type;
+            var v = findVisibleVariablesMatching(va -> va.type.isa(t));
+            if (v != null) {
+                sb.append(v.name).append(random.nextBoolean() ? "--" : "++");
                 return;
-            } else {
-                var field = getField(type);
-                if (field != null) {
-                    genSuffixRecursive(field.struct, true, depth-1);
-                    sb.append(".").append(field.name);
-                    return;
-                }
             }
         }
-        genPrimary(type, false);
+        genPrimary(type, false, preferLogical, d);
+    }
+
+    public boolean genField(Type type, int d) {
+        if (generateInvalid()) {
+            var field = getRandomName();
+            var t = getType();
+            genSuffix(t, true, false, d);
+            sb.append(".").append(field);
+        } else {
+            var field = getField(type);
+            if (field == null) return false;
+            genSuffix(field.struct, true, false, d);
+            sb.append(".").append(field.name);
+        }
+        return true;
     }
 
     /**
      * Generate a primary expression.
      */
-    public void genPrimary(Type type, boolean change) {
+    public void genPrimary(Type type, boolean change, boolean preferLogical, int d) {
         if (change && generateInvalid()) type = getType();
         var rand = random.nextInt(10);
-        if (rand == 0 && exprDepth != 0) {
+        if (d > 0 && rand == 0) {
             sb.append("(");
-            exprDepth--;
-            genExpression(type, false);
-            exprDepth++;
+            genExpression(type, false, preferLogical, d-1);
             sb.append(")");
         } else if (rand < 6) {
             genVariable(type);
