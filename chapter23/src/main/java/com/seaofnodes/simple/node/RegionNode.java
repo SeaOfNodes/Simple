@@ -57,8 +57,8 @@ public class RegionNode extends CFGNode {
             return delDef(2);
         }
 
-        // Flatten stack regions (no loops involved)
-        if( getClass() == RegionNode.class ) {
+        // Flatten stacked regions (no loops involved)
+        if( getClass() == RegionNode.class && nIns()>2 ) {
             for( int i=1; i<nIns(); i++ )
                 if( cfg(i) instanceof RegionNode region && region.getClass() == RegionNode.class && region.nIns()>2 && !hasMidUser(region) ) {
                     assert !region.inProgress();
