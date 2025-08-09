@@ -130,7 +130,7 @@ public class RegionNode extends CFGNode {
             if( use instanceof PhiNode ) {
                 for( Node data : use._outputs ) {
                     if( !(data instanceof PhiNode phi2) || phi2.region()!=this )
-                        { addDep(use); addDep(data); return true; }
+                        { addDep(use); if( data!=null ) addDep(data); return true; }
                 }
             } else
                 { addDep(use);  return true; } // Control user
