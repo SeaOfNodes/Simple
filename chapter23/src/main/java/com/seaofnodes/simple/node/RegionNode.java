@@ -57,8 +57,8 @@ public class RegionNode extends CFGNode {
             return delDef(2);
         }
 
-        // Flatten stack regions (no loops involved)
-        if( getClass() == RegionNode.class ) {
+        // Flatten stacked regions (no loops involved)
+        if( getClass() == RegionNode.class && nIns()>2 ) {
             for( int i=1; i<nIns(); i++ )
                 if( cfg(i) instanceof RegionNode region && region.getClass() == RegionNode.class && region.nIns()>2 && !hasMidUser(region) ) {
                     assert !region.inProgress();
@@ -130,7 +130,7 @@ public class RegionNode extends CFGNode {
             if( use instanceof PhiNode ) {
                 for( Node data : use._outputs ) {
                     if( !(data instanceof PhiNode phi2) || phi2.region()!=this )
-                        { addDep(use); addDep(data); return true; }
+                        { addDep(use); if( data!=null ) addDep(data); return true; }
                 }
             } else
                 { addDep(use);  return true; } // Control user
