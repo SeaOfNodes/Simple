@@ -21,11 +21,6 @@ public class Chapter24Test {
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
 
-    @Test
-    public void myOwnSake2() throws IOException {
-        TestC.runS("print","Or",0);
-    }
-
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
