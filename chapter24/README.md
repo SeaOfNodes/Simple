@@ -343,3 +343,75 @@ if( !test ) { // Zero-trip count test
     } while( test ); // Exit test at loop bottom by default
 } };
 ```
+
+## `&&` and `||` 
+
+The logical operators && (AND) and || (OR) are short-circuiting, meaning they may skip evaluating the second condition if the first one already determines the result:
+
+- `&&` stops if the first operand is false. 
+- `||` stops if the first operand is true.
+
+They are syntactic sugar—used for cleaner control flow—but they don't create new nodes in the execution model.
+
+The `&&` and `||` constructs are simple syntactic sugars that only modify the control flow and do not 
+introduce new nodes.
+
+Consider this example:
+```java
+int a = 1;
+int b = 0;
+
+if(a++ || b++ ) {
+    if(b == 0 && a == 2) {
+        sys.io.p("Or");
+    }
+} else{
+    sys.io.p("And");
+}
+return 0;
+```
+- `a++` evaluates to 1 (true), so `b++` is not evaluated.
+- As a result, `b` stays 0, `a` becomes 2, and "Or" is printed.
+
+```java
+int a = 1;
+int b = 1;
+
+int x=1;
+int y=1;
+int z=0;
+
+int g = x++ && y++ && z++;
+...
+```
+Here:
+- `x++` is true (1), so it evaluates `y++`, which is also true.
+- Then it evaluates `z++`, which is false (0).
+- Since `&&` requires all conditions to be true, the final result `g` is 0.
+- All operands up to the false one are evaluated, so `x`, `y`, and `z` are all incremented.
+
+
+## Stacked relational(Operator chaining)
+Stacked Relationals offer a cleaner, more readable way to write chained comparisons without repeating the same variable.
+```java 
+if (min <= x && x < max)
+```
+becomes
+```java 
+if (min <= x < max)
+```
+This syntax saves space and makes the condition more intuitive, similar to how range checks are written in mathematics.
+Eg
+```java 
+int score = 75;
+if (60 <= score < 90) {
+    sys.io.p("Pass");
+}
+```
+Expressions that mix opposite directions of comparison, like using both <= and >=, are not allowed, because they create ambiguous logic.
+```java
+if (a <= b >= c)
+```
+This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating score.
+
+## SCCP(top-down)

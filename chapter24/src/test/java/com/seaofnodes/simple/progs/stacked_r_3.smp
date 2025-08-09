@@ -1,0 +1,10 @@
+// -*- mode: java;  -*-
+var sq = { int x ->
+    x*x;
+};
+
+int score = 5;
+
+val str = (sq(2) <= score < sq(3)) ? "In range" : "Out of range";
+sys.io.p(str);
+return 0;
