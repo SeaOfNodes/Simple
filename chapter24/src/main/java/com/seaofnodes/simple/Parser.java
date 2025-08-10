@@ -533,47 +533,6 @@ public class Parser {
         return parseTrinary(pred,"else");
     }
 
-    /**
-     * Handles a conditional expression needed for chaining operators.
-     * a < x < b the bounded var is x here</>
-     * @return a {@link Node}, never {@code null}
-     */
-    private Node make_and_conditional(Node lhs, Node ext,boolean swap, Node bounded_var) {
-        lhs.keep();
-        ext.keep();
-
-        Node ifNode = new IfNode(ctrl(), lhs).peephole();
-
-        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
-
-        ScopeNode fScope = _scope.dup();
-
-        // true
-        ctrl(ifT.unkeep());
-        _scope.addGuards(ifT,lhs,false);
-        Node rhs = parseShift();
-        _scope.removeGuards(ifT);
-        fScope.balanceIf(_scope);
-        ScopeNode tScope = _scope;
-        _scope = fScope;
-        ctrl(ifF.unkeep());
-        _scope.addGuards(ifF,lhs,true);
-        _scope.removeGuards(ifF);
-
-        _scope = tScope;
-        tScope.balanceIf(fScope);
-        ext.setDef(swap ? 2: 1, bounded_var);
-        ext.setDef(swap ? 1 :2, rhs);
-        ext.peephole();
-
-        RegionNode r = ctrl(tScope.mergeScopes(fScope, loc()));
-        Node ret = peep(new PhiNode("",ext._type.meet(lhs._type).glb(false),r,ext.unkeep(),lhs.unkeep()));
-
-        r.peephole();
-        return ret;
-    }
-
     // Parse a conditional expression, merging results.
     private Node parseTrinary( Node pred, String fside ) {
         // IfNode takes current control and predicate
@@ -1072,15 +1031,32 @@ public class Parser {
     }
 
     private Node parseBitwise() {
-        Node lhs = parseComparison();
+        Node lhs = parseEquality();
         while( true ) {
             if( false ) ;
             else if( matchOp('&') ) lhs = new AndNode(loc(),lhs,null);
             else if( matchOp('|') ) lhs = new  OrNode(loc(),lhs,null);
             else if( match  ("^") ) lhs = new XorNode(loc(),lhs,null);
             else break;
-            lhs.setDef(2,parseComparison());
+            lhs.setDef(2,parseEquality());
             lhs = peep(lhs);
+        }
+        return lhs;
+    }
+
+
+
+    /**
+     * Parse an eq/ne expression
+     */
+    private Node parseEquality() {
+        Node lhs = parseComparison();
+        while( true ) {
+            boolean eq = false;
+            if( match("==") ) eq = true;
+            else if( !match("!=") ) break;
+            lhs = peep(new BoolNode.EQ(lhs,parseComparison()));
+            if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;
     }
@@ -1089,68 +1065,63 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : additiveExpr op additiveExpr
+     *     expr : shiftExpr < shiftExpr <= shiftExpr...
+     *     expr : shiftExpr > shiftExpr >= shiftExpr...
      * </pre>
      * @return an comparator expression {@link Node}, never {@code null}
      */
     private Node parseComparison() {
-        var lhs = parseShift();
-        Node bound_var = null;
-        boolean found_bl = false;
+        Node lhs = parseShift();
+        int dir = 0;
 
         while( true ) {
-            int idx=0;  boolean negate=false;
-            // Test for any local nodes made, and "keep" lhs during peepholes
-            // chain operators
+            int dir0;
             if( false ) ;
-            else if( match("==") ) {
-                if(found_bl) {
-                    return make_and_conditional(lhs, new BoolNode.EQ(null, null), false, bound_var);
-                }
-                idx=2;  lhs = new BoolNode.EQ(lhs, null);
-            }
-            else if( match("!=") ) {
-                if(found_bl) {
-                    return make_and_conditional(lhs, peep(new NotNode(new BoolNode.EQ(null, null))), false, bound_var);
-                }
-                idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true;
-            }
-            else if( match("<=") ) {
-                if(found_bl) {
-                    return make_and_conditional(lhs, new BoolNode.LE(null, null), false,  bound_var);
-                }
-                idx=2;  lhs = new BoolNode.LE(lhs, null);
-            }
-            else if( match("<" ) ) {
-                if(found_bl) {
-                    return make_and_conditional(lhs, new BoolNode.LT(null, null), false, bound_var);
-                }
-                idx=2;  lhs = new BoolNode.LT(lhs, null);
-            }
-            else if( match(">=") ) {
-                if(found_bl) {
-                    return make_and_conditional(lhs, new BoolNode.LE(null, null), true,  bound_var);
-                }
-                idx=1;  lhs = new BoolNode.LE(null, lhs);
-            }
-            else if( match(">" ) ) {
-                if(found_bl) {
-                    return make_and_conditional(lhs, new BoolNode.LT(null, null), true,  bound_var);
-                }
-                idx=1;  lhs = new BoolNode.LT(null, lhs);
-            }
+            else if( match("<=" ) ) dir0 = -1;
+            else if( match(">=" ) ) dir0 = -2;
+            else if( match("<"  ) ) dir0 =  1;
+            else if( match(">"  ) ) dir0 =  2;
             else break;
-            // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseShift());
-            found_bl = true;
-            bound_var = lhs.in(idx);
-            lhs = peep(lhs.widen());
-            if( negate )        // Extra negate for !=
-                lhs = peep(new NotNode(lhs));
+            // Check and record direction
+            if( dir==0 ) {
+                dir = Math.abs(dir0);
+                Node rhs = parseShift();
+                lhs = makeCompBool(dir0,lhs,rhs); // Convert to a bool
+            } else if( dir == Math.abs(dir0) ) {
+                // e0 < lhs < ???
+                lhs.keep();
+                Node ifNode = new IfNode(ctrl(), lhs).peephole();
+                Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
+                Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+                // False side does nothing
+                ScopeNode fScope = _scope.dup();
+                fScope.ctrl(ifF);
+                // True side executes next part of range
+                ctrl(ifT);
+                _scope.addGuards(ifT,lhs,false);
+                Node rhs = parseShift();
+                _scope.removeGuards(ifT); // TODO: I think should remain true as long as possible
+                Node next = makeCompBool(dir0, lhs, rhs).keep();
+                // Merge result
+                RegionNode r = ctrl(_scope.mergeScopes(fScope, loc()));
+                assert next._type.meet(lhs._type).isa( TypeInteger.BOOL );
+                lhs = peep(new PhiNode("",TypeInteger.BOOL,r,next.unkeep(),lhs.unkeep()));
+                r.peephole();
+            } else {
+                throw error("Mixing relational directions in a chained relational test");
+            }
         }
-        found_bl = false;
         return lhs;
     }
+
+    private Node makeCompBool( int dir0, Node lhs, Node rhs ) {
+        // Convert to a bool
+        if( Math.abs(dir0)==2 ) // Swap direction
+            { Node tmp = lhs; lhs = rhs; rhs = tmp; }
+        lhs = peep(dir0 < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs));
+        return peep(lhs.widen());
+    }
+
 
     /**
      * Parse an additive expression
