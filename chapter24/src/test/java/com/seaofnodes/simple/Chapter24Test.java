@@ -311,8 +311,8 @@ return ptr && ptr.fld ? "true" : "false";
     @Test
     public void testStack11() throws IOException {
         // Todo: fix this
-//        String stack11 = "1";
-//        TestC.runS("stacked_r_11x",stack11,0);
+        String stack11 = "1";
+        TestC.runS("stacked_r_11x",stack11,0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_11", 1, 2, false);
