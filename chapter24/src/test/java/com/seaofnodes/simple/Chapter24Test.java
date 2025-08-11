@@ -254,6 +254,82 @@ public class Chapter24Test {
 
 
     @Test
+    public void testStack6() {
+        try { new CodeGen(
+                    """
+                        return 0 < arg > 1;
+                        """
+        ).parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Cannot chain operators '<' and '>' — mixed directions are not allowed",e.getMessage()); }
+    }
+
+    @Test
+    public void testStack8() {
+        try { new CodeGen(
+                """
+                   return 0 < arg != 1;
+                    """
+        ).parse(); fail(); }
+        catch( RuntimeException e ) { assertEquals("Cannot chain '<' with '!=' — equality operators cannot be part of a stacked comparison (use && instead)",e.getMessage()); }
+    }
+
+    @Test
+    public void testStack9() throws IOException {
+        String stack9 = "1";
+        TestC.run("stacked_r_9x",stack9,0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_9", 0, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_9", 0, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,arm.regs[0]);
+    }
+
+    @Test
+    public void testStack10() throws IOException {
+        String stack10 = "1";
+        TestC.run("stacked_r_10x",stack10,0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_10", 0, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_10", 0, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,arm.regs[0]);
+    }
+
+    @Test
+    public void testStack11() throws IOException {
+        String stack11 = "1";
+        TestC.runS("stacked_r_11x",stack11,3);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_11", 0, 5, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_11", 0, 5, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,arm.regs[0]);
+    }
+
+
+
+    @Test
     public void testFRefFields() {
         String src =
                 """
