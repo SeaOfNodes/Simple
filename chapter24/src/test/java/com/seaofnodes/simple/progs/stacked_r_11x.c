@@ -6,7 +6,7 @@ __attribute__ ((CALL_CONV))
 extern int stack11(int x);
 
 int main() {
-int result = stack11(0);
+int result = stack11(1);
 
 printf("%d", result);
 return 0;
