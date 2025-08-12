@@ -38,7 +38,7 @@ digraph Lattice {
     INT_MINDOTS -> INT_ZERO -> INT_MAXDOTS [style=invis];
 
     // ----------------------
-    // Integers
+    // Floats
     FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
     FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
 
