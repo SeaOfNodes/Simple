@@ -54,7 +54,9 @@ points, generally to further optimize a program.
 At the core of the problem is a
 [lattice](https://en.wikipedia.org/wiki/Lattice_(order)) used to track what
 values a program point can take on.  Here is a common
-[example](chapter02/docs/lattice.svg) for tracking integer constants.
+[example](./chapter02/docs/lattice.svg) 
+<img src = ./chapter02/docs/lattice.svg>
+for tracking integer constants.
 The lattices being used here are:
 * Symmetric - every lattice element has a *dual*
 * Complete - the *meet* of any two elements is another element
