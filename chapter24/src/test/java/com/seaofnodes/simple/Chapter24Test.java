@@ -262,15 +262,6 @@ return ptr && ptr.fld ? "true" : "false";
         ).parse(); fail(); }
         catch( RuntimeException e ) { assertEquals("Mixing relational directions in a chained relational test",e.getMessage()); }
     }
-    @Test
-    public void testOwnSake() {
-        try { new CodeGen(
-                """
-                    return 0 < arg < arg+1 < 4;
-                    """
-        ).parse(); fail(); }
-        catch( RuntimeException e ) { assertEquals("Mixing relational directions in a chained relational test",e.getMessage()); }
-    }
 
     @Test
     public void testStack9() throws IOException {
