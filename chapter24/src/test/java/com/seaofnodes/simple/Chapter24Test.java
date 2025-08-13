@@ -34,7 +34,22 @@ public class Chapter24Test {
 
     @Test
     public void testOr() throws IOException {
-        TestC.runS("or1","Or",0);
+        String src =
+"""
+int a = 1;
+int b = 0;
+
+if(a++ || b++ ) {
+    if(b == 0 && a == 2) {
+        sys.io.p("Or");
+    }
+} else{
+    sys.io.p("And");
+}
+return 0;
+""";
+
+        TestC.runSF("or1", src, null, "Or", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("or1", 0, 2, false);
@@ -53,7 +68,19 @@ public class Chapter24Test {
 
     @Test
     public void testAnd() throws IOException {
-        TestC.runS("and1","And",0);
+        String src =
+"""
+int a = 1;
+int b = 1;
+
+if(a && b) {
+    sys.io.p("And");
+} else {
+    sys.io.p("Or");
+}
+return 0;
+""";
+        TestC.runSF("and1", src, null, "And", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("and1", 0, 2, false);
@@ -99,7 +126,26 @@ return ptr && ptr.fld ? "true" : "false";
     // conditional side effect
     @Test
     public void testCondSideEffAnd() throws IOException {
-        TestC.runS("and2","Effected",0);
+        String src =
+"""
+int a = 1;
+int b = 1;
+
+int x=1;
+int y=1;
+int z=0;
+
+int g = x++ && y++ && z++;
+
+if(x == 2 && y == 2 && z == 1 && g == 0) {
+    sys.io.p("Effected");
+} else {
+    sys.io.p("Not effected");
+}
+return 0;
+""";
+
+        TestC.runSF("and2", src, null, "Effected", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("and2", 0, 2, false);
@@ -119,7 +165,32 @@ return ptr && ptr.fld ? "true" : "false";
 
     @Test
     public void testCondSideEffOr() throws IOException {
-        TestC.runS("or2","Effected",0);
+        String src =
+"""
+int a = 1;
+int b = 1;
+
+int x = -1;
+int y=1;
+int z= -1;
+
+int g = x++ || y++ || z++;
+
+int switch = 0;
+if(x == 4 || y == 4 || z == 4) {
+    switch = -1;
+} else {
+    switch = 1;
+}
+int cd = 1;
+if((x == 0 && y == 1 && z==-1) && switch && g) {
+    sys.io.p("Effected");
+} else {
+    sys.io.p("Not effected");
+}
+return 0;
+""";
+        TestC.runSF("or2", src, null, "Effected", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("or2", 0, 2, false);
@@ -139,7 +210,24 @@ return ptr && ptr.fld ? "true" : "false";
     // test it with function calls
     @Test
     public void testFuncCall() throws IOException {
-        TestC.runS("and3","Or",0);
+        String src =
+"""
+// -*- mode: java;  -*-
+int a = 1;
+int b = 1;
+
+var sq = { int x ->
+    x*x;
+};
+
+if(a && sq(0)) {
+    sys.io.p("And");
+} else {
+    sys.io.p("Or");
+}
+return 0;
+""";
+        TestC.runSF("and3", src, null, "Or", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("and3", 0, 2, false);
@@ -159,7 +247,19 @@ return ptr && ptr.fld ? "true" : "false";
     // test it with function calls
     @Test
     public void testStack1() throws IOException {
-        TestC.runS("stacked_r_1","In Range",0);
+        String src =
+"""
+int something_specific = 11;
+
+if (10 < something_specific < 20) {
+    sys.io.p("In Range");
+} else {
+   sys.io.p("Out of Range");
+}
+return 0;
+""";
+
+        TestC.runSF("stacked_r_1", src, null, "In Range", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_1", 0, 2, false);
@@ -178,7 +278,19 @@ return ptr && ptr.fld ? "true" : "false";
 
     @Test
     public void testStack2() throws IOException {
-        TestC.runS("stacked_r_2","In range",0);
+        String src =
+"""
+int score = 75;
+
+if (60 <= score < 90) {
+    sys.io.p("In Range");
+} else {
+sys.io.p("Out of range");
+}
+return 0;
+""";
+
+        TestC.runSF("stacked_r_2", src, null, "In Range", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_2", 0, 2, false);
@@ -197,7 +309,20 @@ return ptr && ptr.fld ? "true" : "false";
 
     @Test
     public void testStack3() throws IOException {
-        TestC.runS("stacked_r_3","In range",5);
+        String src =
+"""
+var sq = { int x ->
+    x*x;
+};
+
+int score = 5;
+
+val str = (sq(2) <= score < sq(3)) ? "In Range" : "Out of range";
+sys.io.p(str);
+return 0;
+""";
+
+        TestC.runSF("stacked_r_3", src, null, "In Range", 5);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_3", 0, 5, false);
@@ -216,7 +341,19 @@ return ptr && ptr.fld ? "true" : "false";
 
     @Test
     public void testStack4() throws IOException {
-        TestC.runS("stacked_r_4","Out of Range",0);
+        String src =
+"""
+int something_specific = 9;
+
+if (10 < something_specific < 20) {
+    sys.io.p("In Range");
+} else {
+   sys.io.p("Out of Range");
+}
+return 0;
+""";
+
+        TestC.runSF("stacked_r_4", src, null, "Out of Range", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_4", 0, 2, false);
@@ -235,7 +372,23 @@ return ptr && ptr.fld ? "true" : "false";
 
     @Test
     public void testStack5() throws IOException {
-        TestC.runS("stacked_r_5","In range",5);
+        String src =
+"""
+var sq = { int x ->
+    x*x;
+};
+
+int score = 5;
+
+if (sq(2) <= score < sq(3)) {
+sys.io.p("In Range");
+} else {
+sys.io.p("Out of range");
+}
+
+return 0;
+""";
+        TestC.runSF("stacked_r_5", src, null, "In Range", 5);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_5", 0, 7, false);
@@ -266,7 +419,13 @@ return ptr && ptr.fld ? "true" : "false";
     @Test
     public void testStack9() throws IOException {
         String stack9 = "1";
-        TestC.run("stacked_r_9x",stack9,0);
+        String src =
+"""
+var stack9 = { int x ->
+    (x < 1) == 1;
+};
+""";
+        TestC.run(src, "stacked_r_9x", null, stack9,0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_9", 0, 0, false);
@@ -284,7 +443,13 @@ return ptr && ptr.fld ? "true" : "false";
     @Test
     public void testStack10() throws IOException {
         String stack10 = "1";
-        TestC.run("stacked_r_10x",stack10,0);
+        String src =
+"""
+var stack10 = { int x ->
+    (x < 1) == (1>x);
+};
+""";
+        TestC.run(src, "stacked_r_10x", null, stack10,0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_10", 0, 0, false);
@@ -302,7 +467,13 @@ return ptr && ptr.fld ? "true" : "false";
     @Test
     public void testStack11() throws IOException {
         String stack11 = "1";
-        TestC.run("stacked_r_11x",stack11,0);
+        String src =
+"""
+var stack11 = { int x ->
+    0 < x < x+1 < 4;
+};
+""";
+        TestC.run(src, "stacked_r_11x", null, stack11,0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_11", 1, 2, false);
