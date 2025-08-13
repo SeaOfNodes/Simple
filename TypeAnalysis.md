@@ -16,11 +16,11 @@ In both languages, after the first round of *pessimistic* constant propagation
 (and extensive peephole optimizations) completes, every program point (node in
 the IR) has a type - and if there are no error types, then the program is
 type-safe.  No separate typing pass is needed, and this is typically done
-partially as the program parses, and immediately thereafter.  Optionally, an
-*optimistic* constant propagation (an extended SCCP) can be run to type more
+partially as the program parses, and shortly thereafter.  Optionally, an
+*optimistic* constant propagation (SCCP) can be run to type more
 programs than the *pessimistic* approach alone.
 
-These discussion relies on the program being in SSA form, which I assume the
+This discussion relies on the program being in SSA form, which I assume the
 reader is familiar with, and is commonly used in *constant propagation* because
 it allows the algorithm to be *sparse* without effort.  Also, all three
 compilers use the Sea-of-Nodes representation which is only relevant here
