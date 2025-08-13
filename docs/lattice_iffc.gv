@@ -9,6 +9,15 @@ digraph Lattice {
     BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
 
     // ----------------------
+    // Control
+    XCTRL [label=<<B>⊤</B >:ctrl>, fillcolor=yellow, shape=oval];
+    CTRL  [label=<<B>⊥</B>:ctrl>, fillcolor=yellow, shape=oval];
+
+    TOP   -> XCTRL;
+    XCTRL -> CTRL;
+    CTRL  -> BOT;
+
+    // ----------------------
     // Integers
     INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
     INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
@@ -65,12 +74,33 @@ digraph Lattice {
 
     FLT_CON0 -> FLT_CON32 -> FLT_CONPI -> FLT_CON64 [style=invis];
 
+    // ----------------------
+    // sub-Floats
+    FL8_TOP [label=<<B>⊤</B >:FP8>, fillcolor=aqua, shape=oval];
+    FL8_BOT [label=<<B>⊥</B>:FP8>, fillcolor=aqua, shape=oval];
+
+    FL8_MINDOTS [label="...", fillcolor=aqua, shape=oval];
+    FL8_ZERO    [label="0"  , fillcolor=aqua];
+    FL8_MAXDOTS [label="...", fillcolor=aqua, shape=oval];
+
+    TOP         -> FL8_TOP;
+    FL8_TOP     -> FL8_MINDOTS;
+    FL8_TOP     -> FL8_ZERO;
+    FL8_TOP     -> FL8_MAXDOTS;
+    FL8_MINDOTS -> FL8_BOT;
+    FL8_ZERO    -> FL8_BOT;
+    FL8_MAXDOTS -> FL8_BOT;
+    FL8_BOT     -> BOT;
+
+    FL8_MINDOTS -> FL8_ZERO -> FL8_MAXDOTS [style=invis];
+    
     // Additional customization
     {rank=same; TOP}
-    {rank=same; INT_TOP; FLT_TOP; }
+    {rank=same; INT_TOP; FLT_TOP; FL8_TOP; XCTRL }
     {rank=same; INT_CON; INT_CON0; INT_CON1;
                 FLT_CON32; FLT_CON64;  FLT_CON0; FLT_CONPI;
+                FL8_MINDOTS; FL8_ZERO; FL8_MAXDOTS;
     }
-    {rank=same; INT_BOT; FLT_BOT; }
+    {rank=same; INT_BOT; FLT_BOT; FL8_BOT; CTRL; }
     {rank=same; BOT;}
 }

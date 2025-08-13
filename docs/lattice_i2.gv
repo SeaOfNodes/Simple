@@ -36,41 +36,12 @@ digraph Lattice {
 
     INT_CON0 -> INT_CON1 -> INT_CON [style=invis];
 
-    // ----------------------
-    // Floats
-    FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
-    FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
-
-    FLT_CON64  [label="64b consts\n[excludes\n32b consts]" , fillcolor=aqua, shape=oval];
-    FLT_CON32  [label="32b consts", fillcolor=aqua, shape=oval];
-    FLT_CONPI  [label="3.14159...", fillcolor=aqua, shape=oval];
-    FLT_X32    [label="~f32", fillcolor=aqua];
-    FLT_CON0   [label="0."  , fillcolor=aqua];
-    FLT_32     [label="f32" , fillcolor=aqua];
-
-    TOP       -> FLT_TOP;
-    FLT_TOP   -> FLT_CON64
-    FLT_TOP   -> FLT_CONPI
-    FLT_CON64 -> FLT_BOT
-    FLT_CONPI -> FLT_BOT
-    
-    FLT_TOP   -> FLT_X32;
-    FLT_X32   -> FLT_CON0;
-    FLT_X32   -> FLT_CON32;
-    FLT_CON0  -> FLT_32;
-    FLT_CON32 -> FLT_32;
-    FLT_32    -> FLT_BOT
-    
-    FLT_BOT   -> BOT;
-
-    FLT_CON0 -> FLT_CON32 -> FLT_CONPI -> FLT_CON64 [style=invis];
 
     // Additional customization
     {rank=same; TOP}
-    {rank=same; INT_TOP; FLT_TOP; }
+    {rank=same; INT_TOP; }
     {rank=same; INT_CON; INT_CON0; INT_CON1;
-                FLT_CON32; FLT_CON64;  FLT_CON0; FLT_CONPI;
     }
-    {rank=same; INT_BOT; FLT_BOT; }
+    {rank=same; INT_BOT; }
     {rank=same; BOT;}
 }

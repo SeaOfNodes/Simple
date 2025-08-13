@@ -24,7 +24,7 @@ digraph Lattice {
 
     INT_HI    [label="max < min" , fillcolor=lightblue, shape=oval];
     INT_XBOOL [label="1...0", fillcolor=lightblue, shape=oval];
-    INT_CON   [label="constants", fillcolor=lightblue, shape=oval];
+    INT_CON   [label="constants...", fillcolor=lightblue, shape=oval];
     INT_CON0  [label="0", fillcolor=lightblue];
     INT_CON1  [label="1", fillcolor=lightblue];
     INT_BOOL  [label="0...1", fillcolor=lightblue,shape=oval];
@@ -74,26 +74,26 @@ digraph Lattice {
 
     FLT_CON0 -> FLT_CON32 -> FLT_CONPI -> FLT_CON64 [style=invis];
 
-
     // ----------------------
-    // Pointers, just a boolean nil/not and a struct
-    PTR  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="green"><FONT color="white">*ptr</FONT></TD></TR>
-        <TR><TD BGCOLOR="lightgreen">struct</TD></TR>
-      </TABLE>
-    >];
-    PTR0  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="green"><FONT color="white">*ptr?</FONT></TD></TR>
-        <TR><TD BGCOLOR="lightgreen">struct</TD></TR>
-      </TABLE>
-    >];
-    
-    TOP  -> PTR;
-    PTR  -> PTR0;
-    PTR0 -> BOT;
+    // sub-Floats
+    FL8_TOP [label=<<B>⊤</B >:FP8>, fillcolor=aqua, shape=oval];
+    FL8_BOT [label=<<B>⊥</B>:FP8>, fillcolor=aqua, shape=oval];
 
+    FL8_MINDOTS [label="...", fillcolor=aqua, shape=oval];
+    FL8_ZERO    [label="0"  , fillcolor=aqua];
+    FL8_MAXDOTS [label="...", fillcolor=aqua, shape=oval];
+
+    TOP         -> FL8_TOP;
+    FL8_TOP     -> FL8_MINDOTS;
+    FL8_TOP     -> FL8_ZERO;
+    FL8_TOP     -> FL8_MAXDOTS;
+    FL8_MINDOTS -> FL8_BOT;
+    FL8_ZERO    -> FL8_BOT;
+    FL8_MAXDOTS -> FL8_BOT;
+    FL8_BOT     -> BOT;
+
+    FL8_MINDOTS -> FL8_ZERO -> FL8_MAXDOTS [style=invis];
+    
     // ----------------------
     // Structs
     STRUCT_TOP    [label=<<B>⊤</B >:struct>, fillcolor=lightgreen, shape=oval];
@@ -129,74 +129,15 @@ digraph Lattice {
     STRUCT_BOT   -> BOT;
 
     STRUCT_S1 -> STRUCT_S2 -> STRUCT_SN [style=invis];
-
-    // ----------------------
-    // Memory
-    MEM_TOP       [label=<<B>⊤</B >:mem>, fillcolor=blue, fontcolor=white, shape=oval];
-    MEM_BOT       [label=<<B>⊥</B>:mem>, fillcolor=blue, fontcolor=white, shape=oval];
-    MEM_ALIAS1    [label="#1"     , fillcolor=blue, fontcolor=white];
-    MEM_ALIASDOTS [label="..."    , fillcolor=blue, fontcolor=white, shape=oval];
-    MEM_ALIASN    [label="#n"     , fillcolor=blue, fontcolor=white];
-
-    TOP          -> MEM_TOP;
-    MEM_TOP      -> MEM_ALIAS1;
-    MEM_TOP      -> MEM_ALIASDOTS;
-    MEM_TOP      -> MEM_ALIASN;
-    MEM_ALIAS1   -> MEM_BOT;
-    MEM_ALIASDOTS -> MEM_BOT;
-    MEM_ALIASN    -> MEM_BOT;
-    MEM_BOT       -> BOT;
-
-    MEM_ALIAS1 -> MEM_ALIASDOTS -> MEM_ALIASN [style=invis];
-
-    // ----------------------
-    // Tuples
-
-    TUPLE_TOP [label=<<B>⊤</B >:tuple>, fillcolor=pink, shape=oval];
-    TUPLE_BOT [label=<<B>⊥</B>:tuple>, fillcolor=pink, shape=oval];
-
-    TUPLE1 [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-      </TABLE>
-    >];
-    TUPLE2 [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-      </TABLE>
-    >];
-    TUPLEN [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-        <TR><TD BGCOLOR="black" ><FONT color="white">...</FONT></TD></TR>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-      </TABLE>
-    >];
-
-
-    TOP -> TUPLE_TOP;
-    TUPLE_TOP -> TUPLE1;
-    TUPLE_TOP -> TUPLE2;
-    TUPLE_TOP -> TUPLEN;
-    TUPLE1 -> TUPLE_BOT;
-    TUPLE2 -> TUPLE_BOT;
-    TUPLEN -> TUPLE_BOT;
-    TUPLE_BOT -> BOT;
-
-    // ----------------------
+    
     // Additional customization
-    {rank=same; TOP;}
-    {rank=same; INT_TOP; FLT_TOP; XCTRL; PTR; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
+    {rank=same; TOP}
+    {rank=same; INT_TOP; FLT_TOP; FL8_TOP; XCTRL }
     {rank=same; INT_CON; INT_CON0; INT_CON1;
                 FLT_CON32; FLT_CON64;  FLT_CON0; FLT_CONPI;
+                FL8_MINDOTS; FL8_ZERO; FL8_MAXDOTS;
                 STRUCT_S1; STRUCT_S2; STRUCT_SN;
-                MEM_ALIAS1;  MEM_ALIASDOTS; MEM_ALIASN;
-                TUPLE1; TUPLE2; TUPLEN;
     }
-    {rank=same; INT_BOT; FLT_BOT; CTRL; PTR0; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
+    {rank=same; INT_BOT; FLT_BOT; FL8_BOT; CTRL; }
     {rank=same; BOT;}
 }
