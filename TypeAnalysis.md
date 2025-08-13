@@ -1,4 +1,4 @@
-# Type Analysis vs Constant Propagation
+# Type Analysis via Constant Propagation
 
 ## Prelude
 
@@ -28,7 +28,7 @@ because the same algorithm is now also *conditional* without any other changes;
 SCCP does not require the Sea-of-Nodes, although the presentation is simpler.
 
 More jargon: I use *program points* interchangeably with *nodes in an SSA-based
-IR graph* or sometimes simply *nodes*.
+IR graph* or sometimes simply *nodes*. 
 
 
 ## Table of Contents
@@ -38,15 +38,15 @@ IR graph* or sometimes simply *nodes*.
 * [A Sample Typing Error](#a-sample-typing-error)
 * [Tuples](#tuples)
 * [Structs](#structs)
-* Pointers
+* [Pointers](#pointers)
 * [Functions](#functions)
 * [Type Sugar And All The Rest](#type-sugar-and-all-the-rest)
 * [Methods](#methods)
 * [Subclassing](#Subclassing)
 * [Structural Typing](#structural-typing)
 * [Nomative Typing and Traits and Interfaces](#nomative-typing-and-traits-and-interfaces)
-* Conditional Conformance
 * Parametric Polymorphism
+* Conditional Conformance
 * Call Graph Discovery
 * Separate compilation
 * Performance Concerns
@@ -278,7 +278,6 @@ but we will shortly use them in building structs and functions.
 [Lattice6](./docs/lattice_iffct.svg) <img src = ./docs/lattice_iffct.svg>
 
 
-
 ## Structs
 
 We implement *struct types* as a tuple with named fields:
@@ -306,6 +305,51 @@ desired semantics, as well as the normal *meet* on the field type.
 
 I am not covering here how to initialize struct members, or the syntax for
 declaring structs or traits - just the resulting types.
+
+
+## Pointers
+
+We implement typed pointers as a wrapper over a struct, with extra bits
+for carrying more information depending on the level of precision desired.
+
+[Lattice8](./docs/lattice_iffcsp.svg) <img src = ./docs/lattice_iffcsp.svg>
+
+Tracking null pointers is easy this way, with a simple lattice `{ ⊤, ptr, ptr?, ⊥}` where the `ptr?` 
+indicates a pointer which may be null.  We can make dereferencing a may-be-null pointer
+safe with a runtime check and an upcast:
+
+```
+val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *[name:"Whiskers", makeSound=#1{}]?
+
+if( ptr ) // null-check
+    // hidden upcast to drop the null 
+    ptr.makeSound() // Legal, because ptr cannot be null
+```
+
+### Equivalence Class Aliasing
+
+The Sea-of-Nodes IR design uses the *equivalence class* model of aliasing,
+where memory is broken up into *equivalence classes*.  Pointers point into one
+or another class; pointers in unrelated classes **never** alias, those in the
+same class **always** alias.
+
+This model works really well for strongly typed languages such as Java and
+Simple.  I believe it will work well for e.g. mojo as well, although I have not
+tried it.  Obviously other models work as well.  In this case it is easy to add
+aliasing support in the type system: all pointers have an *alias number*, a unique
+indicator of which *equivalence class* they belong too.  Set of aliases are
+possible, often as a using a bitvector.
+
+In the above example with a struct `[myPi: 3.14, result: 17, someFP8: ⊥:FP8]`
+memory is broken up into classes for the `myPi` fields, `result` fields and
+`someFP8` fields, leading to at least 3 alias classes.  Pointers to the `myPi` 
+fields will never alias with `result` fields because the field names are
+different (also, the core types are different).
+
+Pointer types may also carry information like `raw` or `unsafe`, or pointers
+into e.g. GPU memory (probably as another alias class), or pointers to
+uninitialized memory, or destructed memory.
+
 
 
 ## Functions
@@ -346,12 +390,12 @@ so e.g. `fcn: [fcn_widen_ascii_char,fcn_narrow_wide_char]{u8 -> u16}`.
 
 Collections of possible functions are easy to track as e.g. a simple bitvector,
 with one bit for each function in the program.  Other choices also work, such
-as a sparse bitvector when only a few functions are possible in variable in a
+as a sparse bitvector when only a few functions are possible from a
 large program with many 1000's of functions.  The most common case is a single
 function, i.e., just calling a function by name.
 
 A *function index* is simply a unique small integer that refers to a function
-(perhaps via array lookup), and can be effieciently tracked.
+(perhaps via array lookup), and can be efficiently tracked.
 
 The type system will track function collections *in general*, so the general
 case is that the function type has a set of allowed functions, and might
@@ -359,7 +403,7 @@ include an indication of the infinite number of functions that might be found
 in some external compilation unit.
 
 The reason to track functions this way is that the type system will allow us to
-build a reasonably accurate Call Graph: the set of functions arriving at a call
+build a reasonably accurate Call Graph: the set of function types arriving at a call
 site dictates which functions might be called here.  More on this in the [Call
 Graph](#call-graph) section.
 
@@ -386,18 +430,18 @@ struct String {
 }
 ```
 
-In this typing formulation, methods will be struct *fields* that happen to be
-function-typed, or basically as *type sugar* over the existing types already
+In this typing formulation, methods will be struct **fields** that happen to be
+function-typed, or basically as type sugar over the existing types already
 mentioned above.
 
-The `toUpperCase` field here is finally assigned a function constant - and as
+The `toUpperCase` field here is **finally** assigned a function constant - and, as
 with all final constant fields, the field value is the same for all instances
 of `String` so does not need to be implemented as actually in the `String`
-instances.  As an implementation detail, the field can be moved over to some
-collection of such fields, a `class String` instance.
+instances.  As an implementation detail, these final field constants can be moved over to some
+collection of such fields, e.g. a `class String` instance.
 
-From the typing systems point-of-view, however, the field is a full fledged
-member of the `String` type.  E.g. some psudeo-definition of `String`:
+From the typing systems point-of-view, the field is a full-fledged
+member of the `String` type.  E.g. some pseudo-definition of `String`:
 
 ```java
 String = : [                // String is a struct type...
@@ -458,7 +502,7 @@ dog = Dog("Spot");
 
 `Cat` is a name for a type `[name:String, makeSound:[#1]{Pet->String}]`,
 i.e. its a `Pet` except the `makeSound` field is now typed as a concrete 
-function `[#1]`.  Similarly for `Dog` and concrete function `[#2]`
+function `[#1]`.  Similarly, for `Dog` and concrete function `[#2]`
 
 The instance variable `cat` is typed as `[name:"Whiskers",
 makeSound:[#1]{Pet->String}]` which *isa* `Cat`, and similar for `dog` and
@@ -498,7 +542,7 @@ when checking on fields.
 
 We already have structural typing (e.g. static duck-typing) with no further
 ado.  Here we make a struct type with a single field `quack`, and an infinite
-number of `⊤` fields, meaning we dont care what the other fields are.
+number of `⊤` fields, meaning we don't care what the other fields are.
 
 ```
 [quack : { self -> String }, ⊤, ⊤, ⊤,,,  ]
@@ -535,10 +579,10 @@ here.  The requirement is strictly that the passed-in argument has the needed
 signature (needs a function-typed `quack` field).
 
 
-## Nomative Typing and Traits and Interfaces
+## Nominative Typing and Traits and Interfaces
 
-Nomative typing is basically structural typing, plus a constraint that we
-*also* match the type name.  We add a little *type sugar* to force a failure if
+Nominative typing is basically structural typing, plus a constraint that we
+*also* match the type name.  We add a little type sugar to force a failure if
 the type names do not match, a hidden field with a funny name:
 
 ```
