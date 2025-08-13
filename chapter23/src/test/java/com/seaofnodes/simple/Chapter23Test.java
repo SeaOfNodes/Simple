@@ -14,11 +14,12 @@ public class Chapter23Test {
 
     @Test
     public void testJig() throws IOException {
-        //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
-        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
-        testCPU(src,"riscv"    , "SystemV",-1,null);
-        testCPU(src,"arm"      , "SystemV",-1,null);
+        String src =
+"""
+var apply = { i64 x, { i64 -> u32 } fcn ->
+    return fcn(x);
+}
+""";
     }
 
     @Test
