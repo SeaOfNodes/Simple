@@ -16,7 +16,8 @@ In both languages, after the first round of *pessimistic* constant propagation
 (and extensive peephole optimizations) completes, every program point (node in
 the IR) has a type - and if there are no error types, then the program is
 type-safe.  No separate typing pass is needed, and this is typically done
-partially as the program parses, and shortly thereafter.  Optionally, an
+partially as the program parses,
+finishing shortly thereafter.  Optionally, an
 *optimistic* constant propagation (SCCP) can be run to type more
 programs than the *pessimistic* approach alone.
 
@@ -45,7 +46,6 @@ IR graph* or sometimes simply *nodes*.
 * [Subclassing](#Subclassing)
 * [Structural Typing](#structural-typing)
 * [Nomative Typing and Traits and Interfaces](#nomative-typing-and-traits-and-interfaces)
-* Parametric Polymorphism
 * Conditional Conformance
 * Call Graph Discovery
 * Separate compilation
@@ -114,7 +114,7 @@ element, here ⊥, and applies the program points' *transfer function* to
 partially evaluate wrt the lattice, potientially discovering new facts or
 constants.
 
-Example#1:
+Trivial Example#1:
 ```python
 var x    # declare a variable 'x', untyped
 x = 2    # assign a 2
@@ -170,8 +170,8 @@ loop) can be dropped.
 The general rule here is that the *optimistic* approach may find more
 constants, but never less; while the *pesimistic* approach starts from the
 lowest possible types and can be stopped any time yielding a correct analysis
-(but a possibly weaker find result).  In fact, the *pessimistic* approach can
-be interleaved with optimizations as long as those optimizations do not lose
+(but a possibly weaker find result).  Also the *pessimistic* approach can
+be interleaved with other optimizations as long as those optimizations do not lose
 any type information - and indeed this is the mode the C2 compiler has been
 running in since 1997.
 
@@ -582,10 +582,11 @@ signature (needs a function-typed `quack` field).
 ## Nominative Typing and Traits and Interfaces
 
 Nominative typing is basically structural typing, plus a constraint that we
-*also* match the type name.  We add a little type sugar to force a failure if
-the type names do not match, a hidden field with a funny name:
+*also* match the type name.  If you do not structurally type, you'll also fail
+nominative typing, but not vice-versa.  We add a little type sugar to force a
+failure if the type names do not match, a hidden field with a funny name:
 
-```
+```java
 Duck : Pet : [
     $classDuck : 0; // hidden field with mangled class name
     makeSound = { self -> "quack" }
@@ -607,11 +608,66 @@ quackathon = { arg: Duck ->
 }
 ```
 
+### Nominative Typing Fail Example
+
 Then this code works:
-`quackathon(Duck())`
+`quackathon(Duck("Donald"))`
 
 and this fails:
-`quackathon(StealthCow())`
+`quackathon(StealthCow("Betsy"))`
 
 because although `StealthCow` quacks like a duck, it does not have the required
 `$classDuck` field; this field goes to `⊥` and the *type cast* will fail.
+
+Let's expand on this fail to make it more explicit:
+
+There is a *type cast* that the arguments are correct; it does a *is* check
+with the input and expected type, and if the the argument is not *isa*, will
+flag a type error at the of the *type analysis* (*constant propagation*).
+Unlike *structural typing*, where we require a `quack` field from the argument
+via directly loading a `quack` field, here we introduce a *isa* check.
+
+The argument type to the call is a `StealthCow` which expands to:
+
+```java
+[
+    $classPet: 0;          // StealthCow is also a Pet
+    $classDuck: ⊥;         // All other fields are ⊥
+    $classStealthCow: 0;
+    name: "Betsy";         // StealthCows are Pets, which have a name
+    makeSound = #3{ self -> "moo" }; // function index #3
+    quack = #4{ self -> "quack" };
+]
+```
+
+The check is against a generic `Duck` which expands to:
+
+```java
+[
+    $classPet: 0;          // Duck is also a Pet
+    $classDuck: 0;         // 
+    $classStealthCow: ⊥;   // All other fields are ⊥
+    name: String;          // Ducks are Pets which have a name
+    makeSound = #5{ self -> "quack" }; // function index #3
+    quack = #5{ self -> "quack" };
+]
+```
+
+The *isa* check is `(StealthCow meet Duck) == Duck`.  The *meet* of
+StealthCow and Duck is:
+
+```java
+[
+    $classPet: 0;          // Since both are Pets, this field remains
+    $classDuck: ⊥;         // Not really a Duck, the meet lacks $classDuck
+    $classStealthCow: ⊥;   // Not really a StealthCode, the meet lacks $classStealthCow
+    name: String;          // Generic name from the generic duck
+    makeSound = #[3,5]{ Pet -> String }; // function indices #3,5
+    quack = #[4,5]{ Pet -> "quack" };    // function indices #4,5
+]
+    
+```
+
+And since this is not equal to a `Duck`, the `isa` fails, the *type cast* will
+report an error.
+
