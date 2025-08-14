@@ -341,7 +341,6 @@ public class EvalArm64 {
                     regs[arm.X0] = _heap;
                     _heap += (int)size;
                     pc = (int)rval;
-                    rdid = -1;
                 }
                 if( pc == Encoding.SENTINEL_WRITE ) {
                     ByteArrayOutputStream baos = switch((int)regs[0]) {
@@ -352,7 +351,6 @@ public class EvalArm64 {
                     baos.write(_buf,(int)regs[1],(int)regs[2]);
                     regs[0] = regs[2];
                     pc = (int)rval;
-                    rdid = -1;
                 }
                 pc -= 4;
                 rdid = -1;
