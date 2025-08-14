@@ -1,9 +1,0 @@
-// -*- mode: java;  -*-
-int score = 75;
-
-if (60 <= score < 90) {
-    sys.io.p("In range");
-} else {
-sys.io.p("Out of range");
-}
-return 0;
