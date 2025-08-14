@@ -101,8 +101,10 @@ public class RegionNode extends CFGNode {
         while( nouts != nOuts() ) {
             nouts = nOuts();
             for( int i=0; i<nOuts(); i++ )
-                if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
+                if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() ) {
+                    CodeGen.CODE.addAll(phi.in(path)._outputs);
                     CodeGen.CODE.addAll(phi.delDef(path)._outputs);
+                }
         }
         return isDead() ? Parser.XCTRL : delDef(path);
     }

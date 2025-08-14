@@ -1,9 +1,0 @@
-// -*- mode: java;  -*-
-int something_specific = 9;
-
-if (10 < something_specific < 20) {
-    sys.io.p("In Range");
-} else {
-   sys.io.p("Out of Range");
-}
-return 0;
