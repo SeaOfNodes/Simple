@@ -355,14 +355,17 @@ public class EvalArm64 {
                     rdid = -1;
                 }
                 pc -= 4;
+                rdid = -1;
                 break;
             }
 
             case 0x9A: {
+                int encodedCond = (ir >> 12) & 0xF;
+                int decodedCond  = encodedCond ^ 1;
                 // conditional select(csel)
                 int rm = (ir >> 16) & 0x1F;
                 int rn = (ir >> 5)  & 0x1F;
-                boolean cond = switch ((ir >> 12) & 0xF) {
+                boolean cond = switch (decodedCond) {
                 case 0x0 ->   Z            ;   // eq
                 case 0x1 ->  !Z            ;   // ne
                 case 0x2 ->   C            ;   // cs
@@ -381,9 +384,11 @@ public class EvalArm64 {
                 case 0xF -> false          ;   // never
                 default -> throw Utils.TODO();
                 };
-                int reg = cond ? rn : rm;
-                rval = reg==31 ? 0 : regs[reg];
-                if( cond ) rval++;
+//                int reg = cond ? rn : rm;
+//                rval = reg==31 ? 0 : regs[reg];
+//                if( cond ) rval++;
+                if(cond) rval = 1;
+                else rval = 0;
                 break;
             }
             case 0x9B: {       // mul

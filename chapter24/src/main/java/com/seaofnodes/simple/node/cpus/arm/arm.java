@@ -216,7 +216,9 @@ public class arm extends Machine {
         assert 0 <= rm && rm < 32;
         assert 0 <= rn && rn < 32;
         assert 0 <= rd && rd < 32;
-        return (opcode << 21) | (rm << 16) | (cond.ordinal() << 12) | (0b01 << 10) |  (rn << 5) | rd;
+        // Is one of the standard conditions, excluding AL and NV, encoded in the "cond" field with its least significant bit inverted.
+        int actualCond = cond.ordinal() ^ 1;
+        return (opcode << 21) | (rm << 16) | (actualCond << 12) | (0b01 << 10) |  (rn << 5) | rd;
     }
 
     static public int cset(int opcode, COND cond, int rn, int rd) {
