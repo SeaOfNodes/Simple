@@ -565,29 +565,6 @@ public class arm extends Machine {
         return (opcode << 26) | delta;
     }
 
-    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
-    static RegMask callInMask(TypeFunPtr tfp, int idx, int maxArgSlot ) {
-        if( idx==0 ) return CodeGen.CODE._rpcMask;
-        if( idx==1 ) return null;
-        // Count floats in signature up to index
-        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
-        // Count floats in signature up to index
-        int fcnt=0;
-        for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat)
-                fcnt++;
-        // Floats up to XMMS in XMM registers
-        if( tfp.arg(idx-2) instanceof TypeFloat ) {
-            if( fcnt < XMMS.length )
-                return XMMS[fcnt];
-        } else {
-            RegMask[] cargs = CALLINMASK;
-            if( idx-2-fcnt < cargs.length )
-                return cargs[idx-2-fcnt];
-        }
-        throw Utils.TODO(); // Pass on stack slot
-    }
-
     public static long decodeImm12(int imm12) {
         int immr = (imm12 >> 6) & 0x3F;
         int imms = imm12 & 0x3F;
@@ -609,6 +586,31 @@ public class arm extends Machine {
         }
         val = (val >>> immr) | val << (64-immr);
         return val;
+    }
+
+    @Override public RegMask callArgMask(TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    static RegMask callInMask(TypeFunPtr tfp, int idx, int maxArgSlot ) {
+        if( idx==0 ) return CodeGen.CODE._rpcMask;
+        if( idx==1 ) return null;
+        // Count floats in signature up to index
+        if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        // Count floats in signature up to index
+        int fcnt=0;
+        for( int i=2; i<idx; i++ )
+            if( tfp.arg(i-2) instanceof TypeFloat)
+                fcnt++;
+        // Floats up to XMMS in XMM registers
+        if( tfp.arg(idx-2) instanceof TypeFloat ) {
+            if( fcnt < XMMS.length )
+                return XMMS[fcnt];
+        } else {
+            RegMask[] cargs = CALLINMASK;
+            if( idx-2-fcnt < cargs.length )
+                return cargs[idx-2-fcnt];
+        }
+        // Pass on stack slot (8 and higher)
+        if( maxArgSlot>0 ) throw Utils.TODO();
+        return new RegMask(MAX_REG + 1 + (idx - 2));
     }
 
     // Return the max stack slot used by this signature, or 0

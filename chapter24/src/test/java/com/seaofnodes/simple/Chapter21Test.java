@@ -95,7 +95,7 @@ if (v1) {
 } else {
     v0.f = 2;
 }
-return v0;                    
+return v0;
 """;
         testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
         testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
@@ -344,11 +344,11 @@ val fib = {int n ->
                 struct Person {
                     i32 age;
                 };
-                
+
                 val fcn = { Person?[] ps, int x ->
                     if( ps[x] )
                         ps[x].age++;
-                };                
+                };
                 """;
         String person = "6\n";
         TestC.run(src, "person", null, person, 0);
@@ -410,7 +410,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 
         TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
-        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", src, 0, 0, false);
+        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", src, 0, 4, false);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments
@@ -440,7 +440,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         assertEquals(22.8, result, 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", src, 0, 0, false);
+        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", src, 0, 4, false);
 
         A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
         A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;

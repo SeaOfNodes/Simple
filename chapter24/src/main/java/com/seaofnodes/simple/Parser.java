@@ -1055,7 +1055,9 @@ public class Parser {
             boolean eq = false;
             if( match("==") ) eq = true;
             else if( !match("!=") ) break;
-            lhs = peep(new BoolNode.EQ(lhs,parseComparison()));
+            lhs.keep();
+            Node rhs = parseComparison();
+            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs));
             if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;
@@ -1082,14 +1084,14 @@ public class Parser {
             else if( match("<"  ) ) dir0 =  1;
             else if( match(">"  ) ) dir0 =  2;
             else break;
+            lhs.keep();
             // Check and record direction
             if( dir==0 ) {
                 dir = Math.abs(dir0);
                 Node rhs = parseShift();
-                lhs = makeCompBool(dir0,lhs,rhs); // Convert to a bool
+                lhs = makeCompBool(dir0,lhs.unkeep(),rhs); // Convert to a bool
             } else if( dir == Math.abs(dir0) ) {
                 // e0 < lhs < ???
-                lhs.keep();
                 Node ifNode = new IfNode(ctrl(), lhs).peephole();
                 Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
                 Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
