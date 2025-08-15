@@ -9,8 +9,11 @@ them completely via simple [constant propagation](https://en.wikipedia.org/wiki/
 Afterwards I developed two languages which are directly designed to do all
 their type-checking via constant propagation:
 [Simple](https://github.com/SeaOfNodes/Simple) and [AA](https://github.com/cliffclick/aa).  Both languages are statically typed
-and type-safe; Simple uses constant propagation exclusively while AA uses a
-blend of extended Hindley-Milner and constant propagation.
+and type-safe; AA uses a blend of extended Hindley-Milner and constant propagation.
+
+[Simple](https://github.com/SeaOfNodes/Simple) uses constant propagation exclusively to do type analysis (and the
+generate any resulting semantic errors), and has a working implementation
+so you can view it in action!
 
 In both languages, after the first round of *pessimistic* constant propagation
 (and extensive peephole optimizations) completes, every program point (node in
@@ -48,8 +51,11 @@ IR graph* or sometimes simply *nodes*.
 * [Nomative Typing and Traits and Interfaces](#nomative-typing-and-traits-and-interfaces)
 * Conditional Conformance
 * Call Graph Discovery
+* Parametric Polymorphism
 * Separate compilation
 * Performance Concerns
+* A Self Type
+* Overloading
 * Typing other simple properties: mutable-or-not, [initialized/destructed]-or-not
 * Arrays
 
@@ -326,6 +332,19 @@ if( ptr ) // null-check
     ptr.makeSound() // Legal, because ptr cannot be null
 ```
 
+The same code with a "possibly null pointer" error:
+
+```
+val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *[name:"Whiskers", makeSound=#1{}]?
+ptr.makeSound() // Illegal, because ptr might be null
+```
+
+Here the load to fetch the `makeSound` method fails during error reporting; in
+Simple this is just a `LoadNode` which has an error check against its pointer
+input being possibly `null`.
+
+
+
 ### Equivalence Class Aliasing
 
 The Sea-of-Nodes IR design uses the *equivalence class* model of aliasing,
@@ -395,7 +414,9 @@ large program with many 1000's of functions.  The most common case is a single
 function, i.e., just calling a function by name.
 
 A *function index* is simply a unique small integer that refers to a function
-(perhaps via array lookup), and can be efficiently tracked.
+(perhaps via array lookup), and can be efficiently tracked.  We print them as
+`[#fidxs]{signature -> return}` The above `fcn` is typed `[#2,3]{u8 -> u16}`,
+indicating both function #2 and function #3 are included here.
 
 The type system will track function collections *in general*, so the general
 case is that the function type has a set of allowed functions, and might
@@ -434,21 +455,21 @@ In this typing formulation, methods will be struct **fields** that happen to be
 function-typed, or basically as type sugar over the existing types already
 mentioned above.
 
-The `toUpperCase` field here is **finally** assigned a function constant - and, as
-with all final constant fields, the field value is the same for all instances
-of `String` so does not need to be implemented as actually in the `String`
-instances.  As an implementation detail, these final field constants can be moved over to some
-collection of such fields, e.g. a `class String` instance.
+The `toUpperCase` field here is **finally** assigned a function constant - and,
+as with all final constant fields, the field value is the same for all
+instances of `String` so does not need to be implemented as actually in the
+`String` instances.  As an implementation detail, these final field constants
+can be moved over to some collection of such fields, e.g. a `class String`
+instance.
 
 From the typing systems point-of-view, the field is a full-fledged
 member of the `String` type.  E.g. some pseudo-definition of `String`:
 
 ```java
-String = : [                // String is a struct type...
-  toUpperCase               // with a field called toUpperCase...
-    : { String -> String }  // typed as a function from self/String to String
-    = { body },
-  ...                       // And probably has many more fields, elided here
+String = : [                    // String is a struct type...
+  toUpperCase                   // with a field called toUpperCase...
+    : [#1]{ String -> String }, // typed as a function from String to String
+  ...                           // And probably has many more fields, elided here
 ];
 ```
 
