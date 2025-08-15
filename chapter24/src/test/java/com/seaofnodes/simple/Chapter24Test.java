@@ -599,5 +599,24 @@ return s.require('[');
         testCPU(src,"x86_64_v2", "Win64"  ,16,null);
     };
 
+    @Test
+    public void testSSCP() {
+        String src =
+                """
+                int x = 1;
+                int cnt = 5;
+                while (cnt) {
+                  cnt -= 1;
+                  if (x == 0) {
+                    x += 1;
+                  }
+                }
+                return x;
+                """;
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals("return 1;", code._stop.toString());
+
+    }
+
 
 }

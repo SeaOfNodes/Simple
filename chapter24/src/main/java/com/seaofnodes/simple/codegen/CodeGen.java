@@ -191,7 +191,17 @@ public class CodeGen {
         // Pessimistic peephole optimization on a worklist
         _iter.iterate(this);
 
-        // OPTIMISTIC PASS GOES HERE
+        // OPTIMISTIC PASS
+        IterPeeps sccp = new IterPeeps(123L);
+        // 1 set all node types to TOP and add it to THE sccp worklist
+        for(CFGNode bb : _cfg) {
+            for(Node n: bb._outputs) {
+                n.setType(Type.TOP);
+                sccp.add(n);
+            }
+        }
+        // 2 run compute call off sccp worklist (maybe just use the iterate function here?)
+        sccp.iterate_improved(this, _iter);
 
         // Not really a true optimistic pass, but look for unlinked functions.
         // This can be removed, which may trigger another round of pessimistic.

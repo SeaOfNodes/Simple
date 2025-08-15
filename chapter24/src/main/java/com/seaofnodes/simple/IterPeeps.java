@@ -46,7 +46,7 @@ import java.util.Random;
  */
 public class IterPeeps {
 
-    private final WorkList<Node> _work;
+    public final WorkList<Node> _work;
 
     public IterPeeps( long seed ) { _work = new WorkList<>(seed); }
 
@@ -95,6 +95,45 @@ public class IterPeeps {
                 n.kill();       // Just plain dead
         }
 
+    }
+    // put nodes with improved types back on a specific worklist
+    public void iterate_improved(CodeGen code, IterPeeps wl) {
+        assert progressOnList(code);
+        int cnt=0;
+
+        Node n;
+        while( (n=_work.pop()) != null ) {
+            if( n.isDead() )  continue;
+            cnt++;              // Useful for debugging, searching which peephole broke things
+            Node x = n.peepholeOpt();
+            if( x != null ) {
+                if( x.isDead() ) continue;
+                // peepholeOpt can return brand-new nodes, needing an initial type set
+                if( x._type==null ) x.setType(x.compute());
+                // Changes require neighbors onto the worklist
+                if( x != n || !(x instanceof ConstantNode) ) {
+                    // All outputs of n (changing node) not x (prior existing node).
+                    for( Node z : n._outputs ) _work.push(z);
+                    // Everybody gets a free "go again" in case they didn't get
+                    // made in their final form.
+                    _work.push(x);
+                    // If the result is not self, revisit all inputs (because
+                    // there's a new user), and replace in the graph.
+                    if( x != n ) {
+                        for( Node z : n. _inputs ) _work.push(z);
+                        for( Node z : x._outputs ) _work.push(z);
+                        n.subsume(x);
+                    }
+                }
+                // If there are distant neighbors, move to worklist
+                n.moveDepsToWorklist();
+                JSViewer.show(); // Show again
+                assert progressOnList(code); // Very expensive assert
+                wl.add(x);
+            }
+            if( n.isUnused() && !(n instanceof StopNode) )
+                n.kill();       // Just plain dead
+        }
     }
 
     // Visit ALL nodes and confirm the invariant:
