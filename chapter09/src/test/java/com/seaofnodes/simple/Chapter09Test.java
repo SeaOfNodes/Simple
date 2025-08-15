@@ -137,6 +137,26 @@ while(v1+arg) {
     }
 
     @Test
+    public void testMyOwnSake() {
+        Parser parser = new Parser(
+"""
+int x = 1;
+int cnt = 5;
+while (cnt) {
+  cnt = cnt - 1;
+  if (x == 0) {
+    x = x + 1;
+  }
+}
+return x;
+"""
+        );
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return Phi(Loop8,1,Phi(Region26,(Phi_x+1),Phi_x));", stop.toString());
+
+    }
+
+    @Test
     public void testWhile0() {
         Parser parser = new Parser("while(0) continue; if(0) arg=0;");
         StopNode stop = parser.parse().iterate();
