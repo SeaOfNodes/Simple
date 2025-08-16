@@ -54,10 +54,10 @@ used for type-checking, so sharper types means we allow more valid programs.
 
 **Why Cyclic Types Now**?  Because we hit them as soon as we allow a
 function definition inside of a struct which takes the struct as an argument,
-i.e. *methods* talking a *self* argument.
+i.e. *methods* taking a *self* argument.
 
 Lets look at our `String.indexOf` example above.  Here we define a `String`
-class with an `indexOf` method; a hiddent argument string `self` is passed in
+with an `indexOf` method; a hidden argument string `self` is passed in
 and searched.  What is the type of `struct String`?
 
 `struct String { u8[~] buf; { String self, u8 c -> int } indexOf; }`

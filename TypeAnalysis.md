@@ -179,6 +179,9 @@ be interleaved with other optimizations as long as those optimizations do not lo
 any type information - and indeed this is the mode the C2 compiler has been
 running in since 1997.
 
+First appears in [Simple chapter02](https://github.com/SeaOfNodes/Simple/tree/main/chapter02): 
+the pessimistic treatment during parsing with the simple integer lattice.
+
 
 ## More Lattices
 
@@ -190,12 +193,17 @@ language types like `i32`, `i64`, `u16`, `u8`, `byte` and so forth.
 
 [Lattice2](./docs/lattice_i2.svg) <img src = ./docs/lattice_i2.svg>
 
+First appears in [Simple chapter14](https://github.com/SeaOfNodes/Simple/tree/main/chapter14).
+
+
 Parallel to the integer lattice we add a IEEE 754 floating point lattice, which
 allows us to track FP constants, e.g. `0.` or `pi`.  We track both 32b and 64b
 values, and can observe that the 32b ones are a strict subset of the 64b ones.
 
-
 [Lattice3](./docs/lattice_if.svg) <img src = ./docs/lattice_if.svg>
+
+First appears in [Simple chapter12](https://github.com/SeaOfNodes/Simple/tree/main/chapter12).
+
 
 Now we add more "inner" lattices, the key being that inner lattices do not
 themselves contain another lattice element.  For example a hypothetical
@@ -213,6 +221,8 @@ if test:
 ```
 
 [Lattice5](./docs/lattice_iffc.svg) <img src = ./docs/lattice_iffc.svg>
+
+First appears in [Simple chapter04](https://github.com/SeaOfNodes/Simple/tree/main/chapter04).
 
 
 Hopefully it is clear how to add another sub-lattice that itself is symmetric,
@@ -282,6 +292,10 @@ but we will shortly use them in building structs and functions.
 [Lattice6](./docs/lattice_iffct.svg) <img src = ./docs/lattice_iffct.svg>
 
 
+First appears in [Simple chapter10](https://github.com/SeaOfNodes/Simple/tree/main/chapter10)
+along with structs and pointers.
+
+
 ## Structs
 
 We implement *struct types* as a tuple with named fields:
@@ -309,6 +323,9 @@ desired semantics, as well as the normal *meet* on the field type.
 
 I am not covering here how to initialize struct members, or the syntax for
 declaring structs or traits - just the resulting types.
+
+First appears in [Simple chapter10](https://github.com/SeaOfNodes/Simple/tree/main/chapter10)
+along with tuples and pointers.
 
 
 ## Pointers
@@ -341,6 +358,8 @@ Here the load to fetch the `makeSound` method fails during error reporting; in
 Simple this is just a `LoadNode` which has an error check against its pointer
 input being possibly `null`.
 
+First appears in [Simple chapter10](https://github.com/SeaOfNodes/Simple/tree/main/chapter10),
+along with structs and tuples.
 
 
 ### Equivalence Class Aliasing
@@ -366,7 +385,6 @@ different (also, the core types are different).
 Pointer types may also carry information like `raw` or `unsafe`, or pointers
 into e.g. GPU memory (probably as another alias class), or pointers to
 uninitialized memory, or destructed memory.
-
 
 
 ## Functions
@@ -425,6 +443,8 @@ The reason to track functions this way is that the type system will allow us to
 build a reasonably accurate Call Graph: the set of function types arriving at a call
 site dictates which functions might be called here.  More on this in the [Call
 Graph](#call-graph) section.
+
+First appears in [Simple chapter18](https://github.com/SeaOfNodes/Simple/tree/main/chapter18).
 
 
 ## Type Sugar And All The Rest
@@ -490,6 +510,8 @@ This is the general way *methods* are handled: they are reduced to function-
 typed fields in a struct, and then the existing *meet* and *join* operations
 are well defined.
 
+First appears in [Simple chapter23](https://github.com/SeaOfNodes/Simple/tree/main/chapter23).
+
 
 ## Subclassing
 
@@ -531,10 +553,12 @@ makeSound:[#1]{Pet->String}]` which *isa* `Cat`, and similar for `dog` and
 `dog.isa(Dog)` and `Dog.isa(Pet)`.
 
 
-Subclassing generally means supporting *virtual* calls, so here I will show a typical virtual call execution strategy; other strategies are possible (e.g. *inline caches* in a some VM).  In this case, the
-optimized version of methods means moving from the instance to the class, then
-doing the field lookup to get a function... then calling it.  This is the same
-sequence as done by both C++ and Java.
+Subclassing generally means supporting *virtual* calls, so here I will show a
+typical virtual call execution strategy; other strategies are possible
+(e.g. *inline caches* in a some VM).  In this case, the optimized version of
+methods means moving from the instance to the class, then doing the field
+lookup to get a function... then calling it.  This is the same sequence as done
+by both C++ and Java.
 
 `(rand() ? cat : dog).makeSound()`
 
@@ -690,7 +714,7 @@ StealthCow and Duck is:
 And since this is not equal to a `Duck`, the `isa` fails, the *type cast* will
 report an error.
 
-### A Equatable Trait Example
+### An Equatable Trait Example
 
 Let's make a concrete working example with a trait `Equals`; here is the
 type for `Equals`:
