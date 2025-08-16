@@ -49,10 +49,9 @@ IR graph* or sometimes simply *nodes*.
 * [Subclassing](#Subclassing)
 * [Structural Typing](#structural-typing)
 * [Nomative Typing and Traits and Interfaces](#nomative-typing-and-traits-and-interfaces)
-* Conditional Conformance
-* Call Graph Discovery
-* Parametric Polymorphism
-* Separate compilation
+* [Conditional Conformance](#conditional-conformance)
+* [Parametric Polymorphism](#parametric-polymorphism)
+* Call Graph Discovery and Separate compilation
 * Performance Concerns
 * A Self Type
 * Overloading
@@ -91,18 +90,17 @@ meet Int)==Int` which becomes `(Int)==Int`.
 
 ### The Constant Propagation Algorithm
 
-All nodes are initialized to either *top* ⊤ or *bottom* ⊥, and also
-put on a worklist.  We pull work off the worklist until it runs dry, evaluating
-the node's *transfer function* to partially evaluate wrt the lattice.
-If the evaluation produces a new lattice element, we put dependent nodes'
-back on the worklist (using e.g. use-def edges).
+All nodes are initialized to either *top* ⊤ (SCCP) or *bottom* ⊥ (during
+Parsing), and also put on a worklist.  We pull work off the worklist until it
+runs dry, evaluating the node's *transfer function* to partially evaluate wrt
+the lattice.  If the evaluation produces a new lattice element, we put
+dependent nodes' back on the worklist (using e.g. use-def edges).
 
 ```java
 while( (node = work.pop()) != null )
   if( node.if_changed(node.transfer_fcn()) )
     work.addAll( node.uses )
 ```
-
 
 The beauty of this algorithm is that it hits a *least fixed point*, a "best
 answer" in time proportional to the program size and lattice depth.  That
@@ -194,7 +192,7 @@ language types like `i32`, `i64`, `u16`, `u8`, `byte` and so forth.
 
 Parallel to the integer lattice we add a IEEE 754 floating point lattice, which
 allows us to track FP constants, e.g. `0.` or `pi`.  We track both 32b and 64b
-values, and can observe that the 32b ones are a struct subset of the 64b ones.
+values, and can observe that the 32b ones are a strict subset of the 64b ones.
 
 
 [Lattice3](./docs/lattice_if.svg) <img src = ./docs/lattice_if.svg>
@@ -239,9 +237,9 @@ for `x`.  If the *meet* hits `⊥`, this signifies a type error.
 
 This is in general how we handle type errors: at user added type ascriptions,
 declarations on structs or classes, or any place a type is known, we insert a
-*type cast* in the IR.  The *type cast* should eventually constant fold away;
-if the incoming type *isa* the internal type, the cast is a no-op.  If it does
-not, it is a type error.
+*type cast* in the IR.  The *type cast* should eventually become redundant and
+fold away.  If the incoming type *isa* the internal type, the cast is a no-op.
+If it does not, it is a type error.
 
 
 ## Tuples
@@ -254,18 +252,18 @@ Now we introduce a collection of lattice elements, as itself a lattice.
 Examples might be `[Ctrl, 17]` or `[3.14, ⊤:int, 0:FP8]`, or `[3.14, 17,
 ⊥:FP8]`.
 
-Meet on these tuples is defined element wise; looking at the last two examples
+*Meet* on these tuples is defined element wise; looking at the last two examples
 the meet is `[3.14 meet 3.14, ⊤:int meet 17, 0:FP8 meet ⊥:FP8]` which folds to
 `[3.14, 17, ⊥:FP8]`.
 
 We also need to handle when the number of elements does not match, such as
 `[Ctrl, 17]` meet `[3.14, 17, ⊥:FP8]`.  Meeting such mismatches is required to
-keep our lattice *complete* and in general there's two obvious ways forward:
+keep our lattice *complete*.  In general there are two obvious ways forward:
 fall hard to ⊥, or try to preserve some knowledge.  Falling hard to ⊥ basically
 declares a type error and is probably correct in some situations.  However
 preserving knowledge is really helpful during type inference and is absolutely
 required in a few cases, so we the other plan: every tuple has some prefix of
-interesting values, and an infinite number of trailing ⊥ (sometimes ⊤) fields,
+interesting values, and an infinite number of trailing ⊥ (or ⊤) fields,
 not printed for brevity.
 
 `[Ctrl, 17]` is really: `[Ctrl, 17, ⊥, ⊥, ⊥, ....]`.
@@ -325,7 +323,7 @@ indicates a pointer which may be null.  We can make dereferencing a may-be-null 
 safe with a runtime check and an upcast:
 
 ```
-val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *[name:"Whiskers", makeSound=#1{}]?
+val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *?[name:"Whiskers", makeSound=#1{}]
 
 if( ptr ) // null-check
     // hidden upcast to drop the null 
@@ -335,7 +333,7 @@ if( ptr ) // null-check
 The same code with a "possibly null pointer" error:
 
 ```
-val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *[name:"Whiskers", makeSound=#1{}]?
+val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *?[name:"Whiskers", makeSound=#1{}]
 ptr.makeSound() // Illegal, because ptr might be null
 ```
 
@@ -629,9 +627,9 @@ quackathon = { arg: Duck ->
 }
 ```
 
-### Nominative Typing Fail Example
+### Nominative Typing Error Example
 
-Then this code works:
+This code works as expected (Donald enters does the quackathon):
 `quackathon(Duck("Donald"))`
 
 and this fails:
@@ -642,9 +640,9 @@ because although `StealthCow` quacks like a duck, it does not have the required
 
 Let's expand on this fail to make it more explicit:
 
-There is a *type cast* that the arguments are correct; it does a *is* check
+There is a *type cast* that the arguments are correct; it does a *isa* check
 with the input and expected type, and if the the argument is not *isa*, will
-flag a type error at the of the *type analysis* (*constant propagation*).
+flag a type error at the of *type analysis* (i.e. constant propagation).
 Unlike *structural typing*, where we require a `quack` field from the argument
 via directly loading a `quack` field, here we introduce a *isa* check.
 
@@ -682,7 +680,7 @@ StealthCow and Duck is:
     $classPet: 0;          // Since both are Pets, this field remains
     $classDuck: ⊥;         // Not really a Duck, the meet lacks $classDuck
     $classStealthCow: ⊥;   // Not really a StealthCode, the meet lacks $classStealthCow
-    name: String;          // Generic name from the generic duck
+    name: String;          // Generic name from the generic Pet
     makeSound = #[3,5]{ Pet -> String }; // function indices #3,5
     quack = #[4,5]{ Pet -> "quack" };    // function indices #4,5
 ]
@@ -691,4 +689,77 @@ StealthCow and Duck is:
 
 And since this is not equal to a `Duck`, the `isa` fails, the *type cast* will
 report an error.
+
+### A Equatable Trait Example
+
+Let's make a concrete working example with a trait `Equals`; here is the
+type for `Equals`:
+
+```java
+Equals = : [                    // Equals is a struct (trait) with...
+  eq = { Self Self -> bool };   // With a field 'eq' typed as a function taking 2 selfs
+  ⊤, ⊤, ⊤,,,  // And the infinite unknown fields are ⊤ ... allowing anything
+];
+```
+
+From the above example with `Duck`s and `Cow`s, we can see they are not `Equals` (will fail
+the *isa* test) because they lack an `eq` function.  No two Ducks are the same.
+
+Lets make our `String`s equatable:
+
+```java
+String = : [
+   eq = { String String -> bool }; 
+   ... // plus all the other String stuff
+];
+
+```
+
+And Strings can be compared with in code which declares String:
+```java
+isHappy = { str : String -> str.eq("Happy") }
+```
+
+Although code using Pets fails here:
+```java
+isHappy = { pet : Pet -> pet.eq("Happy") }
+ERROR: No field `eq` on type Pet
+```
+
+If we reverse the calling arguments:
+
+```java
+isHappy = { pet : Pet -> "Happy".eq(pet) }
+ERROR: function String.eq argument#1 must be a String
+```
+
+
+## Parametric Polymorphism
+
+
+## Conditional Conformance
+
+"Conditional Conformance" is a fancy name for a fairly simple idea: if an
+Element has a property, then a collection of such Elements also has that
+property, and if not then not.  An example might be something that is
+`Stringable`, then a collection of them is also `Stringable`, perhaps as
+`[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Comparable`.
+
+The collection defines how to extend the base notion.  So e.g. a collection of
+`Comparable`s might itself be comparable, and that comparison might either
+return an element-wise collection of `Bool`s, or might compare lexigraphically.
+
+However, the collection can also work with elements that are not `Comparable`,
+in which case the entire collection is not `Comparable`... but it still
+functions as a collection.
+
+So, conditional on the element having a trait `T`, the entire collection also has trait `T`.
+
+So how does that work here?
+
+**TODO**...
+
+Expand to remove polymorphism (above)
+Structual typing gives the answer.
+Can refine further.
 
