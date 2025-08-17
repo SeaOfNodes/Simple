@@ -750,7 +750,7 @@ isHappy = { pet : Pet -> pet.eq("Happy") }
 ERROR: No field `eq` on type Pet
 ```
 
-If we reverse the calling arguments:
+And if we reverse the calling arguments:
 
 ```java
 isHappy = { pet : Pet -> "Happy".eq(pet) }
@@ -759,6 +759,25 @@ ERROR: function String.eq argument#1 must be a String
 
 
 ## Parametric Polymorphism
+
+
+**TODO**...
+
+This looks to me to be solved with **specialization** (cloning the analysis in
+any work should work, function inlining or function specialization are both
+ways to clone the analysis).
+
+Type var with the intent it becomes concrete - treat as bot/top, maybe not
+even need specialized name ?  
+
+Trigger inline/specialize based on having concrete args to a function w/ type
+var (Parm with a default BOT type).  After specialize, Parm with lift to the
+concrete and problem solved...
+
+Specialization will split FIDXs, will need to deal with that (keep precise
+Call Graph)
+
+
 
 
 ## Conditional Conformance
