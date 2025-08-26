@@ -316,8 +316,14 @@ public class Type /*implements Cloneable*/ {
     }
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    public boolean isa( Type t ) { return meet(t)==t; }
+    // Applies for pessimistic case
+    public boolean isa_pesi( Type t ) { return meet(t)==t;  }
+    public boolean isa ( Type t )     { return isa_pesi(t); }
 
+    public boolean isa_opto( Type t ) {
+        if(meet(t) == this) return true;
+        return false;
+    }
     // True if this "isa" t up to named structures
     public boolean shallowISA( Type t ) { return isa(t); }
 

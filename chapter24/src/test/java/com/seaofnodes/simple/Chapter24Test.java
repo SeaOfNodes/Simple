@@ -514,7 +514,66 @@ return 0 < arg < arg+1 < 4;
         assertEquals(1,arm.regs[0]);
     }
 
+    // shows that it is parsed as
+    // ((0 != x) != 2)
+    @Test
+    public void testStack12() throws IOException {
+        String stack11 = "1";
+        String src =
+                """
+                var stack12 = { int x ->
+                    0 != x != 2;
+                };
+                """;
+        String src2 =
+                """
+                return 0 != arg != 2;
+                """;
+        TestC.run(src, "stacked_r_12x", null, stack11,0);
 
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_12", src2, 1, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_12", src2, 1, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,arm.regs[0]);
+    }
+
+
+    // shows that it is parsed as
+    // ((0 == x) == 1)
+    @Test
+    public void testStack13() throws IOException {
+        String stack12 = "1";
+        String src =
+                """
+                var stack13 = { int x ->
+                    0 == x == 1;
+                };
+                """;
+        String src2 =
+                """
+                return 0 == arg == 1;
+                """;
+        TestC.run(src, "stacked_r_13x", null, stack12,0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_13", src2, 1, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("stacked_r_13", src2, 1, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(1,arm.regs[0]);
+    }
 
     @Test
     public void testFRefFields() {
@@ -605,6 +664,7 @@ return s.require('[');
                 """
                 int x = 1;
                 int cnt = 5;
+                int stop_here = 1;
                 while (cnt) {
                   cnt -= 1;
                   if (x == 0) {

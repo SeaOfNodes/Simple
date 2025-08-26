@@ -1673,6 +1673,9 @@ public class Parser {
      * </pre>
      */
     private Node functionCall(Node fcn, Node self) {
+        if(fcn._nid == 1451) {
+            System.out.print("Here");
+        }
         if( fcn._type == Type.NIL )
             throw error("Calling a null function pointer");
         if( !(fcn instanceof FRefNode) && !fcn._type.isa(TypeFunPtr.BOT) )
@@ -1707,7 +1710,9 @@ public class Parser {
 
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
-
+        if(call._nid == 556) {
+            System.out.print("Here");
+        }
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining

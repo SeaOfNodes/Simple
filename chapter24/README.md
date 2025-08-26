@@ -29,13 +29,12 @@ if (60 <= score < 90) {
 ```
 This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating `score`.
 
-Expressions that mix opposite directions of comparison, like using both <= and
->=, are not allowed, because they create ambiguous logic.
+Expressions that mix opposite directions of comparison, like using both 
+`<=` and `=`, are not allowed, because they create ambiguous logic.
 
 ```java
 if (a <= b >= c)
 ```
-
 
 ## Operator direction rules
 Stacked comparisons are *only valid* if all the comparison operators
@@ -44,6 +43,7 @@ Stacked comparisons are *only valid* if all the comparison operators
 - `<` with `<=`
 - `>` with `>`
 - `>` with `>=`
+All operators above can be combined with `=` and `!=`.
 
 It is not allowed to mix directions in a single chain:
 ```java 
@@ -76,14 +76,32 @@ A more explicit alternative is:
 ```java 
 a < b && b == c
 ```
+Comparisons can be chained together in any length, and different comparison operators may be 
+mixed freely as long as they point in the same direction.
+Equality(`==`) and inequality(`!=`) operators may be combined with any other comparisons at any point in the chain.
 
-Comparisons can be chained together in any length, and different comparison
-operators may be mixed freely as long as they point in the same direction.
-Equality(`==`) and inequality(`!=`) operators may be combined with any other
-comparisons at any point in the chain. E.g:
-
+E.g:
 ```
 return 0 < arg < arg+1 < 4;
+```
+
+## Tricky edge cases
+```java 
+return 0 != arg != 1;
+```
+
+This is parsed by standard precedence rules as:
+```java
+return ((0 != arg) != 1);
+```
+not as chained inequality.
+
+```java
+return a == b == c;
+```
+Similarly, this is parsed as:
+```java
+return ((a == b) == c);
 ```
 
 ## SCCP(top-down)

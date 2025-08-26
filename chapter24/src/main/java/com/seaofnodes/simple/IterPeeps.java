@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
@@ -148,22 +149,87 @@ public class IterPeeps {
     // neighbors and these should fail, but will then try to add dependencies
     // {@link #Node.addDep} which is a side effect in an assert.  The {@link
     // #midAssert} is used to stop this side effect.
+    private boolean progressOnListPesi(CodeGen code) {
+        return progressOnList(code, _work);
+    }
+
     private boolean progressOnList(CodeGen code) {
+        if (CodeGen.opto_check) {
+            return progressOnListOpto(code, _work);
+        }
+        return progressOnListPesi(code);
+    }
+    public static boolean progressOnList(CodeGen code, WorkList<Node> list) {
+        if (CodeGen.opto_check) {
+            return progressOnListOpto(code, list);
+        }
+        return progressOnListPesi(code, list);
+    }
+    // Pessimistic solver assert
+    public static boolean progressOnListPesi(CodeGen code, WorkList<Node> list) {
         code._midAssert = true;
         Node changed = code._stop.walk( n -> {
-                Node m = n;
-                if( n.compute().isa(n._type) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
-                    if( _work.on(n) ) return null;
-                    m = n.peepholeOpt();
-                    if( m==null ) return null;
+            Node m = n;
+
+            if(n._nid == 1 && n instanceof StartNode start) {
+                System.out.print("Here");
+            }
+            if(n._nid == 2 && n instanceof StopNode stop && stop._type == Type.TOP) {
+                System.out.print("Here");
+            }
+            if(n._nid == 1442) {
+                System.out.print("Here");
+            }
+            if( (n.compute().isa(n._type)) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
+                if( list.on(n) ) return null;
+                m = n.peepholeOpt();
+                if(n._nid == 26) {
+                    System.out.print("Here");
                 }
-                System.err.println("BREAK HERE FOR BUG");
-                return m;
-            });
+                if( m==null || CodeGen.opto_check || CodeGen.pesi_iterate_af_opto) return null;
+            }
+            System.err.println("BREAK HERE FOR BUG");
+            return m;
+        });
         code._midAssert = false;
         return changed==null;
     }
 
+    // Optimistic solver assert
+    public static boolean progressOnListOpto(CodeGen code, WorkList<Node> list) {
+        code._midAssert = true;
+        Node changed = code._stop.walk( n -> {
+            Node m = n;
+
+            if(n._nid == 1 && n instanceof StartNode start) {
+                System.out.print("Here");
+            }
+            if(n._nid == 2 && n instanceof StopNode stop && stop._type == Type.TOP) {
+                System.out.print("Here");
+            }
+            if(n._nid == 2) {
+                System.out.print("Here");
+            }
+            if( (n.compute().isa_opto(n._type)) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
+                if( list.on(n) ) return null;
+                if(n._nid == 1473) {
+                    System.out.print("Here");
+                }
+                m = n.peepholeOpt();
+                if(m != null) {
+                    System.out.print("Here");
+                }
+                if(n._nid == 26) {
+                    System.out.print("Here");
+                }
+                if( m==null || CodeGen.opto_check ) return null;
+            }
+            System.err.println("BREAK HERE FOR BUG");
+            return m;
+        });
+        code._midAssert = false;
+        return changed==null;
+    }
     /**
      * Classic WorkList, with a fast add/remove, dup removal, random pull.
      * The Node's nid is used to check membership in the worklist.

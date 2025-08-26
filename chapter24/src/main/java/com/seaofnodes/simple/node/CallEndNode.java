@@ -48,7 +48,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
             // across the linked returns and join with the function return type.
             if( tfp.isConstant() && nIns()>1 ) {
                 assert nIns()==2;     // Linked exactly once for a constant
-                ret = ((TypeTuple)in(1)._type).ret(); // Return type
+                if(in(1)._type instanceof TypeTuple) {
+                    assert in(1)._type instanceof TypeTuple;
+                    ret = ((TypeTuple) in(1)._type).ret(); // Return type
+                } else {
+                    ret = in(1)._type;
+                }
             }
         }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);

@@ -137,7 +137,7 @@ while(v1+arg) {
     }
 
     @Test
-    public void testMyOwnSake() {
+    public void testSccp() {
         Parser parser = new Parser(
 """
 int x = 1;

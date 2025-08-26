@@ -14,6 +14,8 @@ public class PhiNode extends Node {
     // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
     Type _minType;
 
+    int lattice_drop;
+
     public PhiNode(String label, Type minType, Node... inputs) {
         super(inputs);
         _label = label;
@@ -58,12 +60,22 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
+        if(CodeGen.opto_check && lattice_drop >= 4) return _minType;
+        if(CodeGen.opto_check && lattice_drop >= 4) {
+            if(_nid == 1442) {
+                System.out.print("Here");
+            }
+            return _minType;
+        }
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _minType;
         // Set type to local top of the starting type
         //Type t = _minType.dual();
+        if(_nid == 1442) {
+            System.out.print("Here");
+        }
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
@@ -74,6 +86,9 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         t = t.join( _minType );
+        // Only increment it with opto pass
+        if(CodeGen.opto_check)  lattice_drop++;
+
         return t;
     }
 
