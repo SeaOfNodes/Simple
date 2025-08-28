@@ -215,18 +215,19 @@ public class CodeGen {
             if(n.isDead()) continue;
             Type old = n._type;
 
+            count++;
+            if(n._nid == 1317 && n._type != Type.TOP && count != 910 && count != 1207) {
+                System.out.print("Here");
+            }
             if( n.set_type_if_changed(n.compute() )) {
-                if(n._nid == 1442) {
-                    if(count == 1) {
+                    if(n._nid == 1317) {
+                            System.out.print("Here");
+                    }
+                    if(n._nid == 1439 && n._type != Type.TOP && count > 1) {
+                        count++;
                         System.out.print("Here");
                     }
-
-                }
-                if(n._nid == 1439 && n._type != Type.TOP && count > 1) {
-                    count++;
-                    System.out.print("Here");
-                }
-                _iter.addAll(n._outputs);
+                    _iter.addAll(n._outputs);
             }
 
         }
