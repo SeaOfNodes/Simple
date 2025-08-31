@@ -177,7 +177,7 @@ public class IterPeeps {
             if(n._nid == 2 && n instanceof StopNode stop && stop._type == Type.TOP) {
                 System.out.print("Here");
             }
-            if(n._nid == 1442) {
+            if(n._nid == 1317) {
                 System.out.print("Here");
             }
             if( (n.compute().isa(n._type)) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist

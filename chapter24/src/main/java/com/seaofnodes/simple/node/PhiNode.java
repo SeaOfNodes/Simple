@@ -60,13 +60,6 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
-        if(CodeGen.opto_check && lattice_drop >= 4) return _minType;
-        if(CodeGen.opto_check && lattice_drop >= 4) {
-            if(_nid == 1442) {
-                System.out.print("Here");
-            }
-            return _minType;
-        }
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
@@ -86,8 +79,11 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         t = t.join( _minType );
-        // Only increment it with opto pass
-        if(CodeGen.opto_check)  lattice_drop++;
+
+        if (_type != null && t instanceof TypeInteger ti && t.isa_opto(_type)) {
+            return TypeInteger.same_but_slightly_wider(ti, _minType);
+        }
+
 
         return t;
     }

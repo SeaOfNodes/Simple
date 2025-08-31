@@ -18,6 +18,8 @@ public class TypeInteger extends Type {
      */
     public long _min, _max;
 
+    public int lattice_drop;
+
     private static final Ary<TypeInteger> FREE = new Ary<>(TypeInteger.class);
     private TypeInteger(long min, long max) { super(TINT); init(min,max); }
     private TypeInteger init(long min, long max) { _min = min; _max = max; return this; }
@@ -36,6 +38,11 @@ public class TypeInteger extends Type {
         return this;
     }
 
+    public static Type same_but_slightly_wider(TypeInteger t, Type reset) {
+        if(t.lattice_drop >= 4) return reset;
+        t.lattice_drop++; // slightly wider
+        return t;
+    }
     public static TypeInteger constant(long con) { return make(con, con); }
 
     public final static TypeInteger ZERO= make(0,0);

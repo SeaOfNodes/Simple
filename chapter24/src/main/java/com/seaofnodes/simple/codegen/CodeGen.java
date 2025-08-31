@@ -219,6 +219,12 @@ public class CodeGen {
             if(n._nid == 1317 && n._type != Type.TOP && count != 910 && count != 1207) {
                 System.out.print("Here");
             }
+            if(n._nid == 1354 && n._type != Type.TOP && count != 914 && count != 1250) {
+                System.out.print("Here");
+            }
+            if(n._nid == 1317 && n._type != Type.TOP && count != 910 && count != 1207) {
+                System.out.print("Here");
+            }
             if( n.set_type_if_changed(n.compute() )) {
                     if(n._nid == 1317) {
                             System.out.print("Here");
