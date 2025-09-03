@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
@@ -177,7 +178,8 @@ public class IterPeeps {
             if(n._nid == 2 && n instanceof StopNode stop && stop._type == Type.TOP) {
                 System.out.print("Here");
             }
-            if(n._nid == 1317) {
+
+            if(n._nid == 543 && n._type instanceof TypeInteger) {
                 System.out.print("Here");
             }
             if( (n.compute().isa(n._type)) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist

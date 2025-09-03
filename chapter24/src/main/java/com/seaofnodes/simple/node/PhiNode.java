@@ -80,6 +80,7 @@ public class PhiNode extends Node {
             }
         t = t.join( _minType );
 
+        // phi loop widening part
         if (_type != null && t instanceof TypeInteger ti && t.isa_opto(_type)) {
             return TypeInteger.same_but_slightly_wider(ti, _minType);
         }
