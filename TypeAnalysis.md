@@ -64,8 +64,9 @@ IR graph* or sometimes simply *nodes*.
 Variations of constant propagation have a long history in compilers, and here I
 am referring to the well understood [Monotone Analysis
 Framework](http://janvitek.org/events/NEU/7580/papers/more-papers/1977-acta-kam-monotone.pdf); a quick google search finds plethora of courseworks on the topic.  I assume the
-reader is familiar, and I give a very brief overview here.  Constant
-propagation has long been used to discover interesting facts about program
+reader is familiar, and I also give a very brief overview here, because we are 
+going to go deep down this rabbit hole.  
+Constant propagation has long been used to discover interesting facts about program
 points, generally to further optimize a program.  We are going to use it to
 *type* our programs.
 
@@ -172,9 +173,9 @@ and discover that `print(x)` is really `print(1)` and all the `x` math (and the
 loop) can be dropped.
 
 The general rule here is that the *optimistic* approach may find more
-constants, but never less; while the *pesimistic* approach starts from the
+constants, but never less; while the *pessimistic* approach starts from the
 lowest possible types and can be stopped any time yielding a correct analysis
-(but a possibly weaker find result).  Also the *pessimistic* approach can
+(but a possibly weaker final result).  Also the *pessimistic* approach can
 be interleaved with other optimizations as long as those optimizations do not lose
 any type information - and indeed this is the mode the C2 compiler has been
 running in since 1997.
@@ -189,7 +190,7 @@ We enhance this integer lattice to have a "uber-top" and "uber-bottom",
 and rename the existing integer `⊤` and `⊥` to `⊤:int` and `⊥:int`.
 
 We further extend the integers to cover integer ranges; this covers common
-language types like `i32`, `i64`, `u16`, `u8`, `byte` and so forth.
+language types like `i32`, `i64`, `u16`, `byte`, `bool` and so forth.
 
 [Lattice2](./docs/lattice_i2.svg) <img src = ./docs/lattice_i2.svg>
 
@@ -237,8 +238,7 @@ x = 3.14
 ```
 
 Here `x` is given a type, which the language parser records with the expression
-defining `x`.  i.e., `x` is currently typed as a `1` (also has the *value* `1`,
-which is not the same thing).  Generally this is too restrictive a type to be
+defining `x`.  i.e., `x` is currently typed as a `1` (also has the *value* `1`).  Generally this is too restrictive a type to be
 desirable, so commonly the parser widens the type `1` to e.g. `int64` or `Int`.
 
 After the initial type inference for `x`, further updates are guarded by a
@@ -477,7 +477,7 @@ The `toUpperCase` field here is **finally** assigned a function constant - and,
 as with all final constant fields, the field value is the same for all
 instances of `String` so does not need to be implemented as actually in the
 `String` instances.  As an implementation detail, these final field constants
-can be moved over to some collection of such fields, e.g. a `class String`
+can be moved over to some collection of such constant fields, e.g. a `class String`
 instance.
 
 From the typing systems point-of-view, the field is a full-fledged
@@ -555,7 +555,7 @@ makeSound:[#1]{Pet->String}]` which *isa* `Cat`, and similar for `dog` and
 
 Subclassing generally means supporting *virtual* calls, so here I will show a
 typical virtual call execution strategy; other strategies are possible
-(e.g. *inline caches* in a some VM).  In this case, the optimized version of
+(e.g. *inline caches* in some VMs).  In this case, the optimized version of
 methods means moving from the instance to the class, then doing the field
 lookup to get a function... then calling it.  This is the same sequence as done
 by both C++ and Java.
@@ -703,7 +703,7 @@ StealthCow and Duck is:
 [
     $classPet: 0;          // Since both are Pets, this field remains
     $classDuck: ⊥;         // Not really a Duck, the meet lacks $classDuck
-    $classStealthCow: ⊥;   // Not really a StealthCode, the meet lacks $classStealthCow
+    $classStealthCow: ⊥;   // Not really a StealthCow, the meet lacks $classStealthCow
     name: String;          // Generic name from the generic Pet
     makeSound = #[3,5]{ Pet -> String }; // function indices #3,5
     quack = #[4,5]{ Pet -> "quack" };    // function indices #4,5
