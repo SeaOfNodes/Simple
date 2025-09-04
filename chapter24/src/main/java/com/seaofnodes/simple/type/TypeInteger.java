@@ -18,30 +18,30 @@ public class TypeInteger extends Type {
      */
     public long _min, _max;
 
-    public int lattice_drop;
+    public byte _widen;
 
     private static final Ary<TypeInteger> FREE = new Ary<>(TypeInteger.class);
-    private TypeInteger(long min, long max) { super(TINT); init(min,max); }
-    private TypeInteger init(long min, long max) { _min = min; _max = max; return this; }
-    public static TypeInteger malloc(long lo, long hi) { return FREE.isEmpty() ? new TypeInteger(lo,hi) : FREE.pop().init(lo,hi); }
-    public static TypeInteger make(long lo, long hi) {
-        TypeInteger i = malloc(lo,hi);
+    private TypeInteger(long min, long max, byte widen) { super(TINT); init(min,max,widen); }
+    private TypeInteger init(long min, long max, byte widen) { _min = min; _max = max; _widen=widen; return this; }
+    public static TypeInteger malloc(long lo, long hi, byte widen) { return FREE.isEmpty() ? new TypeInteger(lo,hi,widen) : FREE.pop().init(lo,hi,widen); }
+    public static TypeInteger make(long lo, long hi) { return make(lo,hi,(byte)0); }
+    public static TypeInteger make(long lo, long hi, byte widen) {
+        TypeInteger i = malloc(lo,hi,widen);
         TypeInteger t2 = i.intern();
         return t2==i ? i : t2.free(i);
     }
     @Override TypeInteger free(Type t) {
         TypeInteger i = (TypeInteger)t;
         i._min = i._max = 0;
+        i._widen = 0;
         i._hash = 0;
         i._dual = null;
         FREE.push(i);
         return this;
     }
 
-    public static Type same_but_slightly_wider(TypeInteger t, Type reset) {
-        if(t.lattice_drop >= 4) return reset;
-        t.lattice_drop++; // slightly wider
-        return t;
+    public Type same_but_slightly_wider() {
+        return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : TypeInteger.BOT;
     }
     public static TypeInteger constant(long con) { return make(con, con); }
 
@@ -63,7 +63,9 @@ public class TypeInteger extends Type {
     public final static TypeInteger U16 = make(0,65535);
     public final static TypeInteger U32 = make(0,(1L<<32)-1);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); }
+    public final static TypeInteger FATWO = make(2,2,(byte)2);
+
+    public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); ts.add(ZERO); ts.add(FATWO); }
 
     @Override public String str() {
         if( _isConstant() ) return ""+_min;
@@ -126,14 +128,14 @@ public class TypeInteger extends Type {
 
     @Override
     public Type xmeet(Type other) {
-        if( other instanceof TypeConAry ary ) return ary.imeet(this);
+        //if( other instanceof TypeConAry ary ) return ary.imeet(this);
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
-        return make(Math.min(_min,i._min), Math.max(_max,i._max));
+        return make(Math.min(_min,i._min), Math.max(_max,i._max), (byte)Math.max(_widen,i._widen));
     }
 
     @Override TypeInteger xdual() {
-        return _min==_max ? this : malloc(_max,_min);
+        return /*_min==_max ? this :*/ malloc(_max,_min,(byte)(3-_widen));
     }
 
     @Override public TypeInteger nonZero() {
@@ -153,8 +155,8 @@ public class TypeInteger extends Type {
         return isHigh() ? dual() : this;
     }
 
-    @Override int hash() { return Utils.fold(_min) * Utils.fold(_max); }
+    @Override int hash() { return Utils.fold(_min) * Utils.fold(_max) + _widen; }
     @Override public boolean eq( Type t ) {
-        return t instanceof TypeInteger i && _min==i._min && _max==i._max;
+        return t instanceof TypeInteger i && _min==i._min && _max==i._max && _widen==i._widen;
     }
 }

@@ -65,10 +65,6 @@ public class PhiNode extends Node {
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() ) return _minType;
         // Set type to local top of the starting type
-        //Type t = _minType.dual();
-        if(_nid == 1442) {
-            System.out.print("Here");
-        }
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++)
             // If the region's control input is live, add this as a dependency
@@ -81,10 +77,10 @@ public class PhiNode extends Node {
         t = t.join( _minType );
 
         // phi loop widening part
-        if (_type != null && t instanceof TypeInteger ti && t.isa_opto(_type)) {
-            return TypeInteger.same_but_slightly_wider(ti, _minType);
+        if( _type instanceof TypeInteger && t instanceof TypeInteger ti && t != _type ) {
+            assert t.isa(_type) || _type.isa(t);
+            return ti.same_but_slightly_wider();
         }
-
 
         return t;
     }

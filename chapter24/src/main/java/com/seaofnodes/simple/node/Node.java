@@ -485,13 +485,7 @@ public abstract class Node implements Cloneable {
     // If changing, add users to worklist.
     public Type setType(Type type) {
         Type old = _type;
-
-        assert old == null ||
-                (CodeGen.opto_check
-                        ? type.isa_opto(old)
-                        : type.isa(old))
-                : "Monotonicity test failed";
-
+        assert old == null || type.isa(old) : "Monotonicity test failed";
         if( old == type ) return old;
         _type = type;       // Set _type late for easier assert debugging
         CODE.addAll(_outputs);
@@ -501,7 +495,8 @@ public abstract class Node implements Cloneable {
 
     public boolean set_type_if_changed(Type type) {
         boolean changed = _type != type;
-        if (changed) _type = type;
+        if (changed)
+            _type = type;
         return changed;
     }
 

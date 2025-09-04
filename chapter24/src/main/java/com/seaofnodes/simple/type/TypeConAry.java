@@ -29,7 +29,7 @@ public class TypeConAry<A> extends Type {
     }
 
     @Override Type xmeet(Type t) {
-        if( t instanceof TypeInteger ti ) return imeet(ti);
+        //if( t instanceof TypeInteger ti ) return imeet(ti);
         TypeConAry ary = (TypeConAry)t; // Invariant
         if( this==BOT ) return BOT;
         if( ary ==BOT ) return BOT;
@@ -38,15 +38,15 @@ public class TypeConAry<A> extends Type {
         assert _ary!=ary._ary;  // Already interned and this!=t
         return elem().meet(ary.elem());
     }
-    Type imeet( TypeInteger ti ) {
-        if( this==BOT.dual() ) return ti;
-        if( this==BOT        ) return BOT;
-        Type elem = elem();
-        if( !(elem instanceof TypeInteger) ) return BOTTOM;
-        if( ti.isHigh() && elem.isa(ti.dual()) )
-            return this;
-        return elem.meet(ti);
-    }
+    //Type imeet( TypeInteger ti ) {
+    //    if( this==BOT.dual() ) return ti;
+    //    if( this==BOT        ) return BOT;
+    //    Type elem = elem();
+    //    if( !(elem instanceof TypeInteger) ) return BOTTOM;
+    //    if( ti.isHigh() && elem.isa(ti.dual()) )
+    //        return this;
+    //    return elem.meet(ti);
+    //}
 
 
     @Override public boolean isHigh() { return this==TOP; }

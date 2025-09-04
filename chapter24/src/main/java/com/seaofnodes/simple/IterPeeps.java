@@ -61,7 +61,7 @@ public class IterPeeps {
      * Iterate peepholes to a fixed point
      */
     public void iterate( CodeGen code ) {
-        assert progressOnList(code);
+        assert progressOnList(code, _work, true);
         int cnt=0;
 
         Node n;
@@ -91,51 +91,12 @@ public class IterPeeps {
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
-                assert progressOnList(code); // Very expensive assert
+                assert progressOnList(code, _work, true); // Very expensive assert
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
         }
 
-    }
-    // put nodes with improved types back on a specific worklist
-    public void iterate_improved(CodeGen code, IterPeeps wl) {
-        assert progressOnList(code);
-        int cnt=0;
-
-        Node n;
-        while( (n=_work.pop()) != null ) {
-            if( n.isDead() )  continue;
-            cnt++;              // Useful for debugging, searching which peephole broke things
-            Node x = n.peepholeOpt();
-            if( x != null ) {
-                if( x.isDead() ) continue;
-                // peepholeOpt can return brand-new nodes, needing an initial type set
-                if( x._type==null ) x.setType(x.compute());
-                // Changes require neighbors onto the worklist
-                if( x != n || !(x instanceof ConstantNode) ) {
-                    // All outputs of n (changing node) not x (prior existing node).
-                    for( Node z : n._outputs ) _work.push(z);
-                    // Everybody gets a free "go again" in case they didn't get
-                    // made in their final form.
-                    _work.push(x);
-                    // If the result is not self, revisit all inputs (because
-                    // there's a new user), and replace in the graph.
-                    if( x != n ) {
-                        for( Node z : n. _inputs ) _work.push(z);
-                        for( Node z : x._outputs ) _work.push(z);
-                        n.subsume(x);
-                    }
-                }
-                // If there are distant neighbors, move to worklist
-                n.moveDepsToWorklist();
-                JSViewer.show(); // Show again
-                assert progressOnList(code); // Very expensive assert
-                wl.add(x);
-            }
-            if( n.isUnused() && !(n instanceof StopNode) )
-                n.kill();       // Just plain dead
-        }
     }
 
     // Visit ALL nodes and confirm the invariant:
@@ -150,45 +111,20 @@ public class IterPeeps {
     // neighbors and these should fail, but will then try to add dependencies
     // {@link #Node.addDep} which is a side effect in an assert.  The {@link
     // #midAssert} is used to stop this side effect.
-    private boolean progressOnListPesi(CodeGen code) {
-        return progressOnList(code, _work);
-    }
-
-    private boolean progressOnList(CodeGen code) {
-        if (CodeGen.opto_check) {
-            return progressOnListOpto(code, _work);
-        }
-        return progressOnListPesi(code);
-    }
-    public static boolean progressOnList(CodeGen code, WorkList<Node> list) {
-        if (CodeGen.opto_check) {
-            return progressOnListOpto(code, list);
-        }
-        return progressOnListPesi(code, list);
-    }
     // Pessimistic solver assert
-    public static boolean progressOnListPesi(CodeGen code, WorkList<Node> list) {
+    public static boolean progressOnList(CodeGen code, WorkList<Node> list, boolean dir ) {
         code._midAssert = true;
         Node changed = code._stop.walk( n -> {
             Node m = n;
-
-            if(n._nid == 1 && n instanceof StartNode start) {
-                System.out.print("Here");
-            }
-            if(n._nid == 2 && n instanceof StopNode stop && stop._type == Type.TOP) {
-                System.out.print("Here");
-            }
-
-            if(n._nid == 543 && n._type instanceof TypeInteger) {
-                System.out.print("Here");
-            }
-            if( (n.compute().isa(n._type)) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
+            Type nval = n.compute();
+            if( (!n.iskeep() || n._nid<=6) &&  // Types must be forwards, even if on worklist
+                ( dir
+                  ? nval.isa(n._type) // Pesi: new value lifts over old
+                  : n._type.isa(nval) // Opto: new value falls over old
+                  ) ) {
                 if( list.on(n) ) return null;
                 m = n.peepholeOpt();
-                if(n._nid == 26) {
-                    System.out.print("Here");
-                }
-                if( m==null || CodeGen.opto_check || CodeGen.pesi_iterate_af_opto) return null;
+                if( m==null ) return null;
             }
             System.err.println("BREAK HERE FOR BUG");
             return m;
@@ -197,41 +133,6 @@ public class IterPeeps {
         return changed==null;
     }
 
-    // Optimistic solver assert
-    public static boolean progressOnListOpto(CodeGen code, WorkList<Node> list) {
-        code._midAssert = true;
-        Node changed = code._stop.walk( n -> {
-            Node m = n;
-
-            if(n._nid == 1 && n instanceof StartNode start) {
-                System.out.print("Here");
-            }
-            if(n._nid == 2 && n instanceof StopNode stop && stop._type == Type.TOP) {
-                System.out.print("Here");
-            }
-            if(n._nid == 2) {
-                System.out.print("Here");
-            }
-            if( (n.compute().isa_opto(n._type)) && (!n.iskeep() || n._nid<=6) ) { // Types must be forwards, even if on worklist
-                if( list.on(n) ) return null;
-                if(n._nid == 1473) {
-                    System.out.print("Here");
-                }
-                m = n.peepholeOpt();
-                if(m != null) {
-                    System.out.print("Here");
-                }
-                if(n._nid == 26) {
-                    System.out.print("Here");
-                }
-                if( m==null || CodeGen.opto_check ) return null;
-            }
-            System.err.println("BREAK HERE FOR BUG");
-            return m;
-        });
-        code._midAssert = false;
-        return changed==null;
-    }
     /**
      * Classic WorkList, with a fast add/remove, dup removal, random pull.
      * The Node's nid is used to check membership in the worklist.
