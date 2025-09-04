@@ -64,9 +64,8 @@ IR graph* or sometimes simply *nodes*.
 Variations of constant propagation have a long history in compilers, and here I
 am referring to the well understood [Monotone Analysis
 Framework](http://janvitek.org/events/NEU/7580/papers/more-papers/1977-acta-kam-monotone.pdf); a quick google search finds plethora of courseworks on the topic.  I assume the
-reader is familiar, and I also give a very brief overview here, because we are 
-going to go deep down this rabbit hole.  
-Constant propagation has long been used to discover interesting facts about program
+reader is familiar, and I also give a very brief overview here because we are
+going to go deep down this rabbit hole.  Constant propagation has long been used to discover interesting facts about program
 points, generally to further optimize a program.  We are going to use it to
 *type* our programs.
 
