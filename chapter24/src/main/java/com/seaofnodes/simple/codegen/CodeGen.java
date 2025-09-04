@@ -192,31 +192,44 @@ public class CodeGen {
 
         // Iter workList is empty at this point
         // OPTIMISTIC PASS
+        Ary<Type> old = new Ary<>(Type.class);
         _start.walk( x -> {
-            x._type=Type.TOP;
-//            if(x instanceof CallNode call) call.unlink_all();
-            return null;
-        } ); // Reset all to TOP
+                old.setX(x._nid,x._type);
+                x._type=Type.TOP;
+                if( x instanceof CallNode call )
+                    call.unlink_all(); // This will make some nodes go dead, e.g. Constants with TypeRPCs
+                return null;
+            } ); // Reset all to TOP
 
         _iter.add(_start);
 
         Node n;
-        ArrayList<Node> al = new ArrayList<>();
-        int count = 0;
+        int count = 0;          // Debug counter
         while( (n=_iter._work.pop()) != null ) {
-            if(n.isDead()) continue;
-            Type old = n._type;
+            if( n.isDead() ) continue;
+            Type t = n.compute();
+            if( n._type == t ) continue;
+            assert n._type.isa(t);
             count++;
-            if( n.set_type_if_changed(n.compute() ))
-                _iter.addAll(n._outputs);
+            n._type = t;
+            _iter.addAll(n._outputs);
         }
-
-        // Not really a true optimistic pass, but look for unlinked functions.
-        // This can be removed, which may trigger another round of pessimistic.
-        // This is the point where we flip from a virtual Call Graph (any call
-        // can call any function) to having a correct (but conservative) CG.
+        // Walk all; add to worklist things with improved types
+        _start.walk( x -> {
+                if( x._type != old.at(x._nid) ) {
+                    assert x._type.isa(old.at(x._nid));
+                    _iter.add(x);
+                }
+                return null;
+            });
 
         _iter.iterate(this);
+
+//        // Not really a true optimistic pass, but look for unlinked functions.
+//        // This can be removed, which may trigger another round of pessimistic.
+//        // This is the point where we flip from a virtual Call Graph (any call
+//        // can call any function) to having a correct (but conservative) CG.
+//
 //        int progress = 0;
 //        while( progress != _start.nOuts() ) {
 //            progress = _start.nOuts();

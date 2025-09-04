@@ -66,18 +66,20 @@ public class PhiNode extends Node {
         if( r.inProgress() ) return _minType;
         // Set type to local top of the starting type
         Type t = Type.TOP;
-        for (int i = 1; i < nIns(); i++)
+        for (int i = 1; i < nIns(); i++) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
-            if( addDep(r.in(i))._type != Type.XCONTROL ) {
+            Type ctrl = addDep(r.in(i))._type;
+            if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
                     return Type.BOTTOM;
                 t = t.meet(in(i)._type);
             }
+        }
         t = t.join( _minType );
 
         // phi loop widening part
-        if( _type instanceof TypeInteger && t instanceof TypeInteger ti && t != _type ) {
+        if( _type instanceof TypeInteger oldi && t instanceof TypeInteger ti && t != _type && _type.isa(t) && oldi._widen==ti._widen ) {
             assert t.isa(_type) || _type.isa(t);
             return ti.same_but_slightly_wider();
         }

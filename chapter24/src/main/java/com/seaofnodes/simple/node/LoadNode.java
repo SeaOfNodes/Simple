@@ -45,9 +45,11 @@ public class LoadNode extends MemOpNode {
             t = ary.elem();     // TODO: if offset is known, can peek the constant
         }
         // Lift from declared type and memory input
-        t = t.join(_declaredType).join(mem._t);
+        t = t.join(mem._t);
         if( _declaredType.isFinal() )
             t = t.makeRO(); // Deep final applied
+        // Pinch between declared type
+        t = t.join(_declaredType).meet(_declaredType.dual());
         return t;
     }
 

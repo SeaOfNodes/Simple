@@ -493,13 +493,6 @@ public abstract class Node implements Cloneable {
         return old;
     }
 
-    public boolean set_type_if_changed(Type type) {
-        boolean changed = _type != type;
-        if (changed)
-            _type = type;
-        return changed;
-    }
-
     @SuppressWarnings("unchecked")
     public <N extends Node> N init() { _type = compute(); return (N)this; }
 

@@ -22,7 +22,11 @@ public class TypeInteger extends Type {
 
     private static final Ary<TypeInteger> FREE = new Ary<>(TypeInteger.class);
     private TypeInteger(long min, long max, byte widen) { super(TINT); init(min,max,widen); }
-    private TypeInteger init(long min, long max, byte widen) { _min = min; _max = max; _widen=widen; return this; }
+    private TypeInteger init(long min, long max, byte widen) {
+        assert min!=max || widen==0; // Constants always zero widen
+        _min = min; _max = max; _widen=widen;
+        return this;
+    }
     public static TypeInteger malloc(long lo, long hi, byte widen) { return FREE.isEmpty() ? new TypeInteger(lo,hi,widen) : FREE.pop().init(lo,hi,widen); }
     public static TypeInteger make(long lo, long hi) { return make(lo,hi,(byte)0); }
     public static TypeInteger make(long lo, long hi, byte widen) {
@@ -54,7 +58,7 @@ public class TypeInteger extends Type {
     public final static TypeInteger I8  = make(-128,127);
     public final static TypeInteger I16 = make(-32768,32767);
     public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1);
-    public final static TypeInteger BOT = make(Long.MIN_VALUE,Long.MAX_VALUE);
+    public final static TypeInteger BOT = make(Long.MIN_VALUE,Long.MAX_VALUE,(byte)3);
     public final static TypeInteger TOP = (TypeInteger)BOT.dual();
 
     public final static TypeInteger U1  = make(0,1);
@@ -63,9 +67,9 @@ public class TypeInteger extends Type {
     public final static TypeInteger U16 = make(0,65535);
     public final static TypeInteger U32 = make(0,(1L<<32)-1);
 
-    public final static TypeInteger FATWO = make(2,2,(byte)2);
+    public final static TypeInteger FATBOOL = make(0,1,(byte)2);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); ts.add(ZERO); ts.add(FATWO); }
+    public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); ts.add(ZERO); ts.add(FATBOOL); }
 
     @Override public String str() {
         if( _isConstant() ) return ""+_min;
@@ -128,14 +132,14 @@ public class TypeInteger extends Type {
 
     @Override
     public Type xmeet(Type other) {
-        //if( other instanceof TypeConAry ary ) return ary.imeet(this);
+        if( other instanceof TypeConAry ary ) return ary.imeet(this);
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
         return make(Math.min(_min,i._min), Math.max(_max,i._max), (byte)Math.max(_widen,i._widen));
     }
 
     @Override TypeInteger xdual() {
-        return /*_min==_max ? this :*/ malloc(_max,_min,(byte)(3-_widen));
+        return _min==_max ? this : malloc(_max,_min,(byte)(-_widen));
     }
 
     @Override public TypeInteger nonZero() {
