@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
@@ -569,12 +570,12 @@ public abstract class Node implements Cloneable {
     }
 
     // Move the dependents onto a worklist, and clear for future dependents.
-    public void moveDepsToWorklist( ) {
-        if( _deps==null ) return;
-        CODE.addAll(_deps);
+    public void moveDepsToWorklist( ) { moveDepsToWorklist(CODE._iter); }
+    public void moveDepsToWorklist( IterPeeps iter ) {
+        if( _deps == null ) return;
+        iter.addAll(_deps);
         _deps.clear();
     }
-
 
     // Two nodes are equal if they have the same inputs and the same "opcode"
     // which means the same Java class, plus same internal parts.

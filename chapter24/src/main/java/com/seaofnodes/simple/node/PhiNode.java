@@ -76,15 +76,17 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         }
-        t = t.join( _minType );
+        Type newt = t.join( _minType );
 
         // phi loop widening part
-        if( _type instanceof TypeInteger oldi && t instanceof TypeInteger ti && t != _type && _type.isa(t) && oldi._widen==ti._widen ) {
-            assert t.isa(_type) || _type.isa(t);
-            return ti.same_but_slightly_wider();
-        }
+        if( region() instanceof LoopNode && // Only around loops
+            _type instanceof TypeInteger oldi && // Both old and new are TypeInteger
+            newt  instanceof TypeInteger newi &&
+            // Types changed and are falling (the optimistic case, expected to fall forever)
+            newi != oldi && oldi.isa(newi) && oldi._widen==newi._widen )
+            return newi.same_but_slightly_wider();
 
-        return t;
+        return newt;
     }
 
     @Override
@@ -93,7 +95,7 @@ public class PhiNode extends Node {
             return in(1);       // Input has collapse to e.g. starting control.
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr)CodeGen.CODE.P.TYPES.get(tmp._obj._name);
+            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
             if( tmp2!=null && tmp2 != _minType ) {
                 _minType = tmp2;
                 return this;

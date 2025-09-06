@@ -213,9 +213,11 @@ public class CodeGen {
             count++;
             n._type = t;
             _iter.addAll(n._outputs);
+            n.moveDepsToWorklist(_iter);
         }
         // Walk all; add to worklist things with improved types
         _start.walk( x -> {
+                assert x.compute() == x._type; // Hit the fixed point
                 if( x._type != old.at(x._nid) ) {
                     assert x._type.isa(old.at(x._nid));
                     _iter.add(x);

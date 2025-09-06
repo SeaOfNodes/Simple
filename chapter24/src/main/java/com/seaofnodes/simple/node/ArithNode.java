@@ -35,7 +35,7 @@ public abstract class ArithNode extends Node {
             t2 instanceof TypeInteger y )
             return x.isConstant() && y.isConstant()
                 ? con(x,y)
-                : doOp(x,y);
+                : doOp(x,y).makeWide( (byte)Math.max(x._widen,y._widen) );
         return TypeInteger.BOT;
     }
 

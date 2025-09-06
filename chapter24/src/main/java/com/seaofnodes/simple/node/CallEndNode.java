@@ -41,8 +41,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
     public Type compute() {
         if( !(in(0) instanceof CallNode call) )
             return TypeTuple.RET.dual();
-        Type ret = Type.BOTTOM;
-        if( addDep(call.fptr())._type instanceof TypeFunPtr tfp ) {
+        Type ftype = addDep(call.fptr())._type;
+        Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
+        if( ftype instanceof TypeFunPtr tfp ) {
             ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
             // across the linked returns and join with the function return type.

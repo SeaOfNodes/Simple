@@ -33,7 +33,7 @@ public class CProjNode extends CFGNode {
     @Override
     public Type compute() {
         Type t = ctrl()._type;
-        return t instanceof TypeTuple tt ? tt._types[_idx] : Type.BOTTOM;
+        return t instanceof TypeTuple tt ? tt._types[_idx] : (t.isHigh() ? Type.TOP : Type.BOTTOM);
     }
 
     @Override

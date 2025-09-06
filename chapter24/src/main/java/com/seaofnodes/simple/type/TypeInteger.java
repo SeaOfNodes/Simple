@@ -34,6 +34,12 @@ public class TypeInteger extends Type {
         TypeInteger t2 = i.intern();
         return t2==i ? i : t2.free(i);
     }
+    public TypeInteger makeWide(byte widen) {
+        if( widen == _widen ) return this;
+        if( _min == Long.MIN_VALUE && _max == Long.MAX_VALUE )
+            return TypeInteger.BOT;
+        return make(_min,_max,widen);
+    }
     @Override TypeInteger free(Type t) {
         TypeInteger i = (TypeInteger)t;
         i._min = i._max = 0;
