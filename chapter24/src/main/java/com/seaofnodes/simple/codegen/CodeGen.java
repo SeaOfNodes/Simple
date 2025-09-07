@@ -235,13 +235,7 @@ public class CodeGen {
         // Walk all; add to worklist things with improved types
         _start.walk( x -> {
                 assert x.compute() == x._type; // Hit the fixed point
-                Type told = old.atX(x._nid);
-                if( told != null && x._type != told ) {
-                    assert x._type.isa(told);
-                    _iter.add(x);
-                } else if( x instanceof FunNode fun )
-                    // Might upgrade signature, based on upgraded Return
-                    _iter.add(fun);
+                _iter.add(x);
                 return null;
             });
 

@@ -72,7 +72,7 @@ public class PhiNode extends Node {
             Type ctrl = addDep(r.in(i))._type;
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
-                    return Type.BOTTOM;
+                    return _minType;
                 t = t.meet(in(i)._type);
             }
         }
