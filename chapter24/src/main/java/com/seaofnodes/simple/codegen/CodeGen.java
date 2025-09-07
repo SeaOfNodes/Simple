@@ -249,8 +249,9 @@ public class CodeGen {
             });
         // Walk all; add to worklist things with improved types
         _start.walk( x -> {
-                if( x._type != old.at(x._nid) ) {
-                    assert x._type.isa(old.at(x._nid));
+                Type told = old.atX(x._nid);
+                if( told != null && x._type != told ) {
+                    assert x._type.isa(told);
                     _iter.add(x);
                 }
                 return null;

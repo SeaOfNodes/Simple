@@ -53,6 +53,10 @@ public class TypeInteger extends Type {
     public Type same_but_slightly_wider_than() {
         return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : TypeInteger.BOT;
     }
+    // Force max widen
+    @Override public Type widen() {
+        return _widen==3 ? this : make(_min,_max,(byte)3);
+    }
     public static TypeInteger constant(long con) { return make(con, con); }
 
     public final static TypeInteger ZERO= make(0,0);

@@ -481,6 +481,7 @@ public class Type /*implements Cloneable*/ {
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
     Type _close() { return this; }
+    public Type widen() { return this; }
 
     // ----------------------------------------------------------
 

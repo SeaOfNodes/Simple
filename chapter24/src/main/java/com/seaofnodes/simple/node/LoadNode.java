@@ -59,7 +59,7 @@ public class LoadNode extends MemOpNode {
         if( _declaredType.isFinal() )
             t = t.makeRO(); // Deep final applied
         // Pinch between declared type
-        t = t.join(_declaredType).meet(_declaredType.dual());
+        t = t.join(_declaredType);
         return t;
     }
 

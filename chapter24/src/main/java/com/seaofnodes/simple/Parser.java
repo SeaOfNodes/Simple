@@ -706,7 +706,7 @@ public class Parser {
 
         // Type is sane
         if( et!=Type.BOTTOM && !et.shallowISA(t) )
-            expr = peep(new CastNode(t,null,expr));
+            expr = peep(new CastNode(t.widen(),null,expr));
         return expr;
     }
 
@@ -812,7 +812,7 @@ public class Parser {
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
         if( !lift._type.isa(t) )
-            lift = peep(new CastNode(t,null,lift));
+            lift = peep(new CastNode(t.widen(),null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
