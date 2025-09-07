@@ -41,7 +41,7 @@ public class LoadNode extends MemOpNode {
         // No lifting if ptr might null-check
         Type tptr = ptr()._type;
         if( err() != null )
-            return Type.BOTTOM;
+            return _declaredType;
         if( !(tptr instanceof TypeMemPtr tmp) )
             return tptr; // No pointer yet?  Assume TOP/BOT
         // Load field from object
@@ -49,7 +49,7 @@ public class LoadNode extends MemOpNode {
         // No field?  Open objects might yet get the field when falling;
         // closed objects with missing field are an error.
         if( f == null )
-            return tmp._obj._open ? Type.TOP : Type.BOTTOM;
+            return tmp._obj._open ? Type.TOP : _declaredType;
         Type t = f._t;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
