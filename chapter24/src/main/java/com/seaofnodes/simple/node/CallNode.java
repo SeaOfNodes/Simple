@@ -122,7 +122,6 @@ public class CallNode extends CFGNode {
         return false;
     }
 
-
     // Link so this calls fun
     public Node link( FunNode fun ) {
         assert !linked(fun);

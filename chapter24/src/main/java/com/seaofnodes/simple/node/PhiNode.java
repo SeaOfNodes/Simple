@@ -63,7 +63,12 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() ) return _minType;
+        if( r.inProgress() )
+            // Loop-Phis must lift to the declared type, because that is how
+            // the Parser keeps precise types until the loop finishes parsing.
+            // Similar, ParmNodes use precise minType until all calls are
+            // linked (post opto).
+            return r instanceof LoopNode || (this instanceof ParmNode) ? _minType : Type.BOTTOM;
         // Set type to local top of the starting type
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++) {
@@ -72,7 +77,7 @@ public class PhiNode extends Node {
             Type ctrl = addDep(r.in(i))._type;
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
-                    return _minType;
+                    return Type.BOTTOM;
                 t = t.meet(in(i)._type);
             }
         }

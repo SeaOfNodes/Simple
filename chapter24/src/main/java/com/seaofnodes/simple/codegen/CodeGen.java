@@ -139,7 +139,8 @@ public class CodeGen {
     // Return the FunNode from a fidx
     public FunNode link( int fidx ) {
         FunNode fun =_linker.atX(fidx);
-        if( fun!=null && fun.isDead() ) { _linker.setX(fidx,null); fun = null; }
+        if( fun!=null && fun.isDead() ) {
+            _linker.setX(fidx,null); fun = null; }
         return fun;
     }
 
@@ -219,13 +220,15 @@ public class CodeGen {
             // If a TFP adds a new function input to a call, link that call
             if( t instanceof TypeFunPtr tfp ) {
                 for( Node use : n._outputs )
-                    if( use instanceof CallNode call && call.fptr() == n ) {
-                        // TODO: tfp can have more than one function; this needs to loop
-                        FunNode fun = link(tfp.fidx());
-                        // null here means an external function; i.e. this Call
-                        // calls to an outside library and all its arguments escape.
-                        if( fun != null && !call.linked(fun) )
-                            call.link(fun);
+                    if( use instanceof CallNode call && call.fptr() == n && tfp.nargs() == call.nargs() ) {
+                        for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
+                                int fidx = Long.numberOfTrailingZeros(fidxs);
+                                FunNode fun = link(fidx);
+                                // null here means an external function; i.e. this Call
+                                // calls to an outside library and all its arguments escape.
+                                if( fun != null && !call.linked(fun) )
+                                    call.link(fun);
+                            }
                     }
             }
 

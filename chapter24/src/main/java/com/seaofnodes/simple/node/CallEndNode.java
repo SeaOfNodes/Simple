@@ -41,6 +41,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
     public Type compute() {
         if( !(in(0) instanceof CallNode call)  || call._type != Type.CONTROL )
             return TypeTuple.RET.dual();
+        // Mid-fold, just take the one single callers' return type
+        if( _folding ) return in(1)._type;
+        // Grab the TFP and use the functions declared return type.
         Type ftype = addDep(call.fptr())._type;
         Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
         if( ftype instanceof TypeFunPtr tfp ) {

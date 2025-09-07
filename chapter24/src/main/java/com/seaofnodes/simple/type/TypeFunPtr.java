@@ -235,7 +235,7 @@ public class TypeFunPtr extends TypeNil {
         return tilde+fidx;
     }
 
-    // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) { int fidxs = Long.numberOfTrailingZeros(fidxs); ... }
+    // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) ) { int fidx = Long.numberOfTrailingZeros(fidxs); ... }
     public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
 
 }
