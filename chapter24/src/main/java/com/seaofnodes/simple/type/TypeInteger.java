@@ -64,18 +64,18 @@ public class TypeInteger extends Type {
     public final static TypeInteger TRUE= make(1,1);
     public final static TypeInteger TWO = make(2,2); // Shows up in some Simple tests as the starting argument
 
-    public final static TypeInteger I1  = make(-1,0);
-    public final static TypeInteger I8  = make(-128,127);
-    public final static TypeInteger I16 = make(-32768,32767);
-    public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1);
+    public final static TypeInteger I1  = make(-1,0,(byte)3);
+    public final static TypeInteger I8  = make(-128,127,(byte)3);
+    public final static TypeInteger I16 = make(-32768,32767,(byte)3);
+    public final static TypeInteger I32 = make(-1L<<31,(1L<<31)-1,(byte)3);
     public final static TypeInteger BOT = make(Long.MIN_VALUE,Long.MAX_VALUE,(byte)3);
     public final static TypeInteger TOP = (TypeInteger)BOT.dual();
 
-    public final static TypeInteger U1  = make(0,1);
+    public final static TypeInteger U1  = make(0,1,(byte)3);
     public final static TypeInteger BOOL= U1;
-    public final static TypeInteger U8  = make(0,255);
-    public final static TypeInteger U16 = make(0,65535);
-    public final static TypeInteger U32 = make(0,(1L<<32)-1);
+    public final static TypeInteger U8  = make(0,255,(byte)3);
+    public final static TypeInteger U16 = make(0,65535,(byte)3);
+    public final static TypeInteger U32 = make(0,(1L<<32)-1,(byte)3);
 
     public final static TypeInteger FATBOOL = make(0,1,(byte)2);
 
