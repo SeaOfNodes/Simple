@@ -39,7 +39,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Type compute() {
-        if( !(in(0) instanceof CallNode call) )
+        if( !(in(0) instanceof CallNode call)  || call._type != Type.CONTROL )
             return TypeTuple.RET.dual();
         Type ftype = addDep(call.fptr())._type;
         Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
@@ -47,13 +47,20 @@ public class CallEndNode extends CFGNode implements MultiNode {
             ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
             // across the linked returns and join with the function return type.
-            if( tfp.isConstant() && nIns()>1 ) {
-                assert nIns()==2;     // Linked exactly once for a constant
-                if(in(1)._type instanceof TypeTuple) {
-                    assert in(1)._type instanceof TypeTuple;
-                    ret = ((TypeTuple) in(1)._type).ret(); // Return type
-                } else {
-                    ret = in(1)._type;
+            //if( tfp.isConstant() && nIns()>1 ) {
+            //    assert nIns()==2;     // Linked exactly once for a constant
+            //    if( in(1)._type instanceof TypeTuple rtt ) {
+            //        ret = rtt.ret(); // Return type
+            //    } else {
+            //        ret = in(1)._type;
+            //    }
+            //}
+            if( tfp.isConstant() ) {
+                FunNode fun = CodeGen.CODE.link(tfp);
+                if( fun!=null ) {
+                    Type rret = fun.ret()._type;
+                    if( rret instanceof TypeTuple rtt ) ret = rtt.ret();
+                    else ret = rret; // Assumed TOP or BOT
                 }
             }
         }

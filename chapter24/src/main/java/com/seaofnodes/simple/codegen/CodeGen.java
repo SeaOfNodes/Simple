@@ -7,6 +7,7 @@ import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.util.*;
 
@@ -123,7 +124,7 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn = new HashMap<>();
 
-    //
+    // Source of unique function indices
     private int _fidx =0;
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         int fidx = _fidx++;
@@ -132,25 +133,27 @@ public class CodeGen {
     }
     // Signature for MAIN
     public final TypeFunPtr _main;
-    // Reverse from a constant function pointer to the IR function being called
-    public FunNode link( TypeFunPtr tfp ) {
-        assert tfp.isConstant();
-        TypeFunPtr tfp_generic = tfp.makeFrom(Type.BOTTOM);
-        FunNode fun =_linker.get(tfp_generic);
-        if( fun!=null && fun.isDead() ) { _linker.remove(tfp_generic); fun = null; }
+    // Reverse from a constant function pointer to the IR function being called.
+    // Error to call with a non-constant TFP
+    public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
+    // Return the FunNode from a fidx
+    public FunNode link( int fidx ) {
+        FunNode fun =_linker.atX(fidx);
+        if( fun!=null && fun.isDead() ) { _linker.setX(fidx,null); fun = null; }
         return fun;
     }
 
     // Insert linker mapping from constant function signature to the function
     // being called.
     public void link(FunNode fun) {
-        _linker.put(fun.sig().makeFrom(Type.BOTTOM),fun);
+        int fidx = fun.sig().fidx();
+        _linker.setX(fidx,fun);
     }
 
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
-    private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
+    private final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
     // Parser object
     public final Parser P;
@@ -198,10 +201,12 @@ public class CodeGen {
                 x._type=Type.TOP;
                 if( x instanceof CallNode call )
                     call.unlink_all(); // This will make some nodes go dead, e.g. Constants with TypeRPCs
+                _iter.add(x);
                 return null;
             } ); // Reset all to TOP
 
-        _iter.add(_start);
+//        _iter.add(_start);
+//        _iter.add(_stop);
 
         Node n;
         int count = 0;          // Debug counter
@@ -209,15 +214,41 @@ public class CodeGen {
             if( n.isDead() ) continue;
             Type t = n.compute();
             if( n._type == t ) continue;
-            assert n._type.isa(t);
+            assert n._type.isa(t); // Types start high and always fall
+            assert t.isa(old.at(n._nid)); // Never fall worse than the pessimistic pass
+            assert !(t instanceof TypeFunPtr tfp && tfp._fidxs == -1L);
             count++;
             n._type = t;
+            assert n.compute()==t;
+
+            // If a TFP adds a new function input to a call, link that call
+            if( t instanceof TypeFunPtr tfp ) {
+                for( Node use : n._outputs )
+                    if( use instanceof CallNode call && call.fptr() == n ) {
+                        // TODO: tfp can have more than one function; this needs to loop
+                        FunNode fun = link(tfp.fidx());
+                        // null here means an external function; i.e. this Call
+                        // calls to an outside library and all its arguments escape.
+                        if( fun != null && !call.linked(fun) ) {
+                            call.link(fun);
+                        }
+                    }
+            }
+
+
             _iter.addAll(n._outputs);
             n.moveDepsToWorklist(_iter);
+            _stop.walk( m -> {
+                    assert _iter._work.on(m) || m.compute() == m._type;
+                    return null;
+                } );
         }
-        // Walk all; add to worklist things with improved types
         _start.walk( x -> {
                 assert x.compute() == x._type; // Hit the fixed point
+                return null;
+            });
+        // Walk all; add to worklist things with improved types
+        _start.walk( x -> {
                 if( x._type != old.at(x._nid) ) {
                     assert x._type.isa(old.at(x._nid));
                     _iter.add(x);

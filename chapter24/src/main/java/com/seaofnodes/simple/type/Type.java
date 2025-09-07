@@ -330,6 +330,9 @@ public class Type /*implements Cloneable*/ {
     // Is forward-reference
     public boolean isFRef() { return false; }
 
+    // Cap at limits
+    public Type oob() { return isHigh() ? TOP : BOTTOM; }
+
     // ----------------------------------------------------------
 
     // Cyclic types!  Flag the start of a cyclic type by putting a sentinel in

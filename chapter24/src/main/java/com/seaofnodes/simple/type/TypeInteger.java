@@ -50,7 +50,7 @@ public class TypeInteger extends Type {
         return this;
     }
 
-    public Type same_but_slightly_wider() {
+    public Type same_but_slightly_wider_than() {
         return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : TypeInteger.BOT;
     }
     public static TypeInteger constant(long con) { return make(con, con); }
