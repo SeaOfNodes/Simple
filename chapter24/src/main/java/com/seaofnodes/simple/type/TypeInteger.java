@@ -38,6 +38,7 @@ public class TypeInteger extends Type {
         if( widen == _widen ) return this;
         if( _min == Long.MIN_VALUE && _max == Long.MAX_VALUE )
             return TypeInteger.BOT;
+        if( _min==_max ) return this; // Leave constants always narrow
         return make(_min,_max,widen);
     }
     @Override TypeInteger free(Type t) {
