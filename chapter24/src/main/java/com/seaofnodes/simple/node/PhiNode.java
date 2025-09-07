@@ -84,7 +84,7 @@ public class PhiNode extends Node {
             newt  instanceof TypeInteger newi &&
             // Types changed and are falling (the optimistic case, expected to fall forever)
             newi != oldi ) {
-            if( newi._widen <= oldi._widen )
+            if( newi._widen <= oldi._widen && !newi.isConstant() )
                 return newi.same_but_slightly_wider_than();
         }
 

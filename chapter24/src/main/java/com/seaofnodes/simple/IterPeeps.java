@@ -61,7 +61,7 @@ public class IterPeeps {
      * Iterate peepholes to a fixed point
      */
     public void iterate( CodeGen code ) {
-        //assert progressOnList(code, _work, true);
+        assert progressOnList(code, _work, true);
         int cnt=0;
 
         Node n;
@@ -91,7 +91,7 @@ public class IterPeeps {
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
-                //assert progressOnList(code, _work, true); // Very expensive assert
+                assert progressOnList(code, _work, true); // Very expensive assert
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead

@@ -201,12 +201,9 @@ public class CodeGen {
                 x._type=Type.TOP;
                 if( x instanceof CallNode call )
                     call.unlink_all(); // This will make some nodes go dead, e.g. Constants with TypeRPCs
-                _iter.add(x);
+                _iter.add(x);          // Visit everybody at least once; most Nodes produce better than TOP
                 return null;
             } ); // Reset all to TOP
-
-//        _iter.add(_start);
-//        _iter.add(_stop);
 
         Node n;
         int count = 0;          // Debug counter
@@ -216,10 +213,8 @@ public class CodeGen {
             if( n._type == t ) continue;
             assert n._type.isa(t); // Types start high and always fall
             assert t.isa(old.at(n._nid)); // Never fall worse than the pessimistic pass
-            assert !(t instanceof TypeFunPtr tfp && tfp._fidxs == -1L);
             count++;
             n._type = t;
-            assert n.compute()==t;
 
             // If a TFP adds a new function input to a call, link that call
             if( t instanceof TypeFunPtr tfp ) {
@@ -229,31 +224,24 @@ public class CodeGen {
                         FunNode fun = link(tfp.fidx());
                         // null here means an external function; i.e. this Call
                         // calls to an outside library and all its arguments escape.
-                        if( fun != null && !call.linked(fun) ) {
+                        if( fun != null && !call.linked(fun) )
                             call.link(fun);
-                        }
                     }
             }
 
-
             _iter.addAll(n._outputs);
             n.moveDepsToWorklist(_iter);
-            _stop.walk( m -> {
-                    assert _iter._work.on(m) || m.compute() == m._type;
-                    return null;
-                } );
         }
-        _start.walk( x -> {
-                assert x.compute() == x._type; // Hit the fixed point
-                return null;
-            });
         // Walk all; add to worklist things with improved types
         _start.walk( x -> {
+                assert x.compute() == x._type; // Hit the fixed point
                 Type told = old.atX(x._nid);
                 if( told != null && x._type != told ) {
                     assert x._type.isa(told);
                     _iter.add(x);
-                }
+                } else if( x instanceof FunNode fun )
+                    // Might upgrade signature, based on upgraded Return
+                    _iter.add(fun);
                 return null;
             });
 

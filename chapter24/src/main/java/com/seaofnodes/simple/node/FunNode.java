@@ -96,7 +96,8 @@ public class FunNode extends RegionNode {
 
         // Upgrade inferred or user-written return type to actual
         if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() ) {
-            return ConstantNode.make(tt.ret());
+            setSig(_sig.makeFrom(tt.ret()));
+            return this;
         }
 
 
