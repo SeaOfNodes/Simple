@@ -57,11 +57,12 @@ public class PhiNode extends Node {
     public CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMem() { return _minType instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
+    boolean isRPC() { return false; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() )
             // Loop-Phis must lift to the declared type, because that is how

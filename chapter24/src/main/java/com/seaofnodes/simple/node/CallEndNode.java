@@ -39,7 +39,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Type compute() {
-        if( !(in(0) instanceof CallNode call)  || call._type != Type.CONTROL )
+        if( !(in(0) instanceof CallNode call) || call._type != Type.CONTROL )
             return TypeTuple.RET.dual();
         // Mid-fold, just take the one single callers' return type
         if( _folding ) return in(1)._type;
@@ -50,20 +50,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
             ret = tfp.ret();
             // Here, if I can figure out I've found *all* callers, then I can meet
             // across the linked returns and join with the function return type.
-            //if( tfp.isConstant() && nIns()>1 ) {
-            //    assert nIns()==2;     // Linked exactly once for a constant
-            //    if( in(1)._type instanceof TypeTuple rtt ) {
-            //        ret = rtt.ret(); // Return type
-            //    } else {
-            //        ret = in(1)._type;
-            //    }
-            //}
-            if( tfp.isConstant() ) {
-                FunNode fun = CodeGen.CODE.link(tfp);
-                if( fun!=null ) {
-                    Type rret = fun.ret()._type;
-                    if( rret instanceof TypeTuple rtt ) ret = rtt.ret();
-                    else ret = rret; // Assumed TOP or BOT
+            if( 1+tfp.nfcns() == nIns() ) { // A linked function for every concrete function
+                ret = Type.TOP;
+                for( int i=1; i<nIns(); i++ ) {
+                    Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
+                    ret = ret.meet(tret);
                 }
             }
         }
@@ -89,12 +80,15 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 if( fun.nIns()==3 ) {
                     assert fun.in(1) instanceof StartNode && fun.in(2)==call;
                     // Disallow self-recursive inlining (loop unrolling by another name)
-                    CFGNode idom = call;
-                    while( !(idom instanceof FunNode) && idom!=null )
+                    CFGNode idom = call, prior = null;
+                    while( !(idom instanceof FunNode) && idom!=null && !(idom instanceof StartNode) ) {
+                        prior = idom;
                         idom = idom.idom();
-                    if( idom!=null ) addDep(idom);
+                    }
+                    // Dependence on the idom that gates inlining
+                    addDep(idom instanceof StartNode ? idom : prior);
                     // Inline?
-                    if( idom != fun && idom != null && !((FunNode)idom)._folding ) {
+                    if( idom != fun && idom != null && !(idom instanceof StartNode) && !((FunNode)idom)._folding ) {
                         // Trivial inline: rewrite
                         _folding = true;
                         // Rewrite Fun so the normal RegionNode ideal collapses

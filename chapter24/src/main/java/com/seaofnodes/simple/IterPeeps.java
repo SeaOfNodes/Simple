@@ -117,7 +117,7 @@ public class IterPeeps {
         Node changed = code._stop.walk( n -> {
             Node m = n;
             Type nval = n.compute();
-            if( (!n.iskeep() || n._nid<=6) &&  // Types must be forwards, even if on worklist
+            if( (!n.iskeep() || n._nid<=8) &&  // Types must be forwards, even if on worklist
                 ( dir
                   ? nval.isa(n._type) // Pesi: new value lifts over old
                   : n._type.isa(nval) // Opto: new value falls over old

@@ -205,9 +205,9 @@ public abstract class Node implements Cloneable {
     }
 
     // Insert the numbered input, sliding other inputs to the right
-    Node insertDef(int idx, Node new_def) {
-        _inputs.add(idx,null);
-        return setDef(idx,new_def);
+    public void insertDef(int idx, Node new_def) {
+        _inputs.insert(null,idx);
+        setDef(idx,new_def);
     }
 
 
@@ -235,7 +235,7 @@ public abstract class Node implements Cloneable {
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
     // Error is 'use' does not exist; ok for 'use' to be null.
-    protected boolean delUse( Node use ) {
+    public boolean delUse( Node use ) {
         _outputs.del(_outputs.find(use));
         return _outputs.isEmpty();
     }
@@ -553,7 +553,7 @@ public abstract class Node implements Cloneable {
     Ary<Node> _deps;
 
     /**
-     * Add a node to the list of dependencies.  Only add it if its not an input
+     * Add a node to the list of dependencies.  Only add it if it's not an input
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */

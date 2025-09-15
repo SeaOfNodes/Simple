@@ -154,7 +154,7 @@ public class CodeGen {
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
-    private final Ary<FunNode> _linker = new Ary<>(FunNode.class);
+    final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
     // Parser object
     public final Parser P;
@@ -191,105 +191,13 @@ public class CodeGen {
         _phase = Phase.Opto;
         long t0 = System.currentTimeMillis();
 
-        // Pessimistic peephole optimization on a worklist
-        _iter.iterate(this);
-
-        // Iter workList is empty at this point
-        // OPTIMISTIC PASS
-        Ary<Type> old = new Ary<>(Type.class);
-        _start.walk( x -> {
-                old.setX(x._nid,x._type);
-                x._type=Type.TOP;
-                if( x instanceof CallNode call )
-                    call.unlink_all(); // This will make some nodes go dead, e.g. Constants with TypeRPCs
-                _iter.add(x);          // Visit everybody at least once; most Nodes produce better than TOP
-                return null;
-            } ); // Reset all to TOP
-
-        Node n;
-        int count = 0;          // Debug counter
-        while( (n=_iter._work.pop()) != null ) {
-            if( n.isDead() ) continue;
-            Type t = n.compute();
-            if( n._type == t ) continue;
-            assert n._type.isa(t); // Types start high and always fall
-            assert t.isa(old.at(n._nid)); // Never fall worse than the pessimistic pass
-            count++;
-            n._type = t;
-
-            // If a TFP adds a new function input to a call, link that call
-            if( t instanceof TypeFunPtr tfp ) {
-                for( Node use : n._outputs )
-                    if( use instanceof CallNode call && call.fptr() == n && tfp.nargs() == call.nargs() ) {
-                        for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
-                                int fidx = Long.numberOfTrailingZeros(fidxs);
-                                FunNode fun = link(fidx);
-                                // null here means an external function; i.e. this Call
-                                // calls to an outside library and all its arguments escape.
-                                if( fun != null && !call.linked(fun) )
-                                    call.link(fun);
-                            }
-                    }
-            }
-
-            _iter.addAll(n._outputs);
-            n.moveDepsToWorklist(_iter);
-        }
-        // Walk all; add to worklist things with improved types
-        _start.walk( x -> {
-                assert x.compute() == x._type; // Hit the fixed point
-                _iter.add(x);
-                return null;
-            });
-
-        _iter.iterate(this);
-
-//        // Not really a true optimistic pass, but look for unlinked functions.
-//        // This can be removed, which may trigger another round of pessimistic.
-//        // This is the point where we flip from a virtual Call Graph (any call
-//        // can call any function) to having a correct (but conservative) CG.
-//
-//        int progress = 0;
-//        while( progress != _start.nOuts() ) {
-//            progress = _start.nOuts();
-//            FunNode main = link(_main);
-//            for( int i=0; i<_start.nOuts(); i++ ) {
-//                Node use = _start.out(i);
-//                if( use instanceof FunNode fun &&
-//                    fun.nIns()==2 && fun.in(1)==_start && fun != main &&
-//                    (fun._name==null || fun._name.startsWith("sys.")) ) {
-//                    add(fun).setDef(1,Parser.XCTRL);
-//                    addAll(fun._outputs);
-//                    i--;
-//                }
-//            }
-//            _iter.iterate(this);
-//        }
-
-        // Freeze field sizes; do struct layouts; convert field offsets into
-        // constants.
-        for( int i=0; i<_start.nOuts(); i++ ) {
-            Node use = _start.out(i);
-            if( use instanceof ConFldOffNode off ) {
-                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._name);
-                off.subsume( off.asOffset(tmp._obj) );
-                i--;
-            }
-        }
-        _iter.iterate(this);
-
-        // To help with testing, sort StopNode returns by NID
-        Arrays.sort(_stop._inputs._es,0,_stop.nIns(),(x,y) -> x._nid - y._nid );
+        Opto.opto(this);
 
         _tOpto = (int)(System.currentTimeMillis() - t0);
-
-        // TODO:
-        // loop unroll, peel, RCE, etc
         return this;
     }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
-
 
     // ---------------------------
     // Last check for bad programs

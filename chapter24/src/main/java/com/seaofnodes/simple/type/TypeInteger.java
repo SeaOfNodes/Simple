@@ -30,7 +30,7 @@ public class TypeInteger extends Type {
     public static TypeInteger malloc(long lo, long hi, byte widen) { return FREE.isEmpty() ? new TypeInteger(lo,hi,widen) : FREE.pop().init(lo,hi,widen); }
     public static TypeInteger make(long lo, long hi) { return make(lo,hi,(byte)0); }
     public static TypeInteger make(long lo, long hi, byte widen) {
-        TypeInteger i = malloc(lo,hi,widen);
+        TypeInteger i = malloc(lo,hi,lo==hi ? 0 : widen);
         TypeInteger t2 = i.intern();
         return t2==i ? i : t2.free(i);
     }

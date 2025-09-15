@@ -37,7 +37,7 @@ public class RegionNode extends CFGNode {
     public Node idealize() {
         if( inProgress() ) return null;
 
-        Node progress = deadPath();
+        Node progress = deadPath(false);
         if( progress!=null ) return progress;
 
         // If down to a single input, become that input
@@ -83,16 +83,21 @@ public class RegionNode extends CFGNode {
         return null;
     }
 
-    Node deadPath() {
+    Node deadPath(boolean skipStart) {
         // Delete dead paths into a Region
-        int path = findDeadInput();
+        int path = findDeadInput(skipStart ? 2 :1);
         if( path==0 ) return null;
+
         // Do not delete the entry path of a loop (ok to remove the back edge
         // and make the loop a single-entry Region which folds away the Loop).
         // Folding the entry path confused the loop structure, moving the
         // backedge to the entry point.
         if( this instanceof LoopNode loop && loop.entry()==in(path) )
             return null;
+        return removeDeadPath(path);
+    }
+
+    public Node removeDeadPath(int path) {
         // Cannot use the obvious output iterator here, because a Phi deleting
         // an input might recursively delete *itself*.  This shuffles the
         // output array, and we might miss iterating an unrelated Phi. So on
@@ -109,9 +114,8 @@ public class RegionNode extends CFGNode {
         return isDead() ? Parser.XCTRL : delDef(path);
     }
 
-
-    private int findDeadInput() {
-        for( int i=1; i<nIns(); i++ )
+    private int findDeadInput(int startIdx) {
+        for( int i=startIdx; i<nIns(); i++ )
             if( in(i)._type==Type.XCONTROL )
                 return i;
         return 0;               // All inputs alive
