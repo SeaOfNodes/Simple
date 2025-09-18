@@ -161,7 +161,8 @@ public class RegionNode extends CFGNode {
         // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
         // Because this does not cache, it can be linear in the size of the program.
         for( int i=1; i<nIns(); i++ )
-            lca = cfg(i)._idom(lca,dep);
+            if( !cfg(i)._type.isHigh() )
+                lca = cfg(i)._idom(lca,dep);
         return lca;
     }
 

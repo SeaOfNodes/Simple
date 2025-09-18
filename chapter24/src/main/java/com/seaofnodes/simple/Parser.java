@@ -160,18 +160,27 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
+        // Gather an explicit main
+        FunNode xmain = null;
+        for( Node n : stop._inputs )
+            if( n instanceof ReturnNode ret && "main".equals(ret.fun()._name) )
+                if( xmain != null ) throw Utils.TODO();
+                else xmain = ret.fun();
+
         if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
             main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
+            if( xmain != null ) {
+                _code.setMain(xmain);
+            }
+
         } else {
             // We have a non-empty default main.
-            // Check for an explicit main
-            for( Node n : stop._inputs )
-                if( n instanceof FunNode fun && fun._name.equals("main") )
-                    // Found an explicit "main" AND we have a default "main"
-                    throw error("Cannot define both an explicit main and a default main");
+            if( xmain != null )
+                // Found an explicit "main" AND we have a default "main"
+                throw error("Cannot define both an explicit main and a default main");
             main._name = "main";
         }
 

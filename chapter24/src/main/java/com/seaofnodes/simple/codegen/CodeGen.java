@@ -132,7 +132,11 @@ public class CodeGen {
         return fun.makeFrom(fidx);
     }
     // Signature for MAIN
-    public final TypeFunPtr _main;
+    public TypeFunPtr _main;
+    public void setMain(FunNode main) {
+        _main = main.sig();
+        link(main);
+    }
     // Reverse from a constant function pointer to the IR function being called.
     // Error to call with a non-constant TFP
     public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }

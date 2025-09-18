@@ -79,16 +79,17 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 // Expecting Start, and the Call
                 if( fun.nIns()==3 ) {
                     assert fun.in(1) instanceof StartNode && fun.in(2)==call;
-                    // Disallow self-recursive inlining (loop unrolling by another name)
-                    CFGNode idom = call, prior = null;
-                    while( !(idom instanceof FunNode) && idom!=null && !(idom instanceof StartNode) ) {
-                        prior = idom;
+                    // Disallow self-recursive inlining (loop unrolling by another name).
+                    // Disallow if still folding other things, as it makes other
+                    // dependency checks carry long chains of half-folded calls.
+                    CFGNode idom = call;
+                    while( true ) {
                         idom = idom.idom();
+                        if( idom instanceof FunNode ) break;
+                        if( idom instanceof CallEndNode cend && cend._folding ) break;
                     }
-                    // Dependence on the idom that gates inlining
-                    addDep(idom instanceof StartNode ? idom : prior);
                     // Inline?
-                    if( idom != fun && idom != null && !(idom instanceof StartNode) && !((FunNode)idom)._folding ) {
+                    if( idom instanceof FunNode fun2 && fun2 != fun && !fun2._folding ) {
                         // Trivial inline: rewrite
                         _folding = true;
                         // Rewrite Fun so the normal RegionNode ideal collapses
@@ -106,6 +107,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         // Bump the global version number invalidating them en-masse.
                         CodeGen.CODE.invalidateIDepthCaches();
                         return this;
+                    } else {
+                        addDep(idom);
                     }
                 } else {
                     addDep(fun);
