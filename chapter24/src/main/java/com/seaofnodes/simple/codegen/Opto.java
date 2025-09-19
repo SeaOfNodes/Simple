@@ -155,10 +155,11 @@ abstract public class Opto {
         while( (n = code._iter._work.pop()) != null ) {
             if( n.isDead() ) continue;
             count++;
-            Type nval = n.compute(), oval = n._type;
+            Type oval = n._type, nval = n.compute();
             if( oval == nval ) continue;
-            assert oval.isa(nval); // Types start high and always fall
-            assert nval.isa(oldTypes.at(n._nid)); // Never fall worse than the pessimistic pass
+            assert oval.isa(nval);    // Types start high and always fall
+            Type pesiVal = oldTypes.at(n._nid);
+            assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
             n._type = nval;
 
             // If a TFP adds a new function input to a call, link to the new Fun

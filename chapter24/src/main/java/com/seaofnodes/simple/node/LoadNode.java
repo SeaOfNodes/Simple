@@ -49,7 +49,7 @@ public class LoadNode extends MemOpNode {
         // No field?  Open objects might yet get the field when falling;
         // closed objects with missing field are an error.
         if( f == null )
-            return tmp._obj._open ? Type.TOP : _declaredType;
+            return tmp.isHigh() ? Type.TOP : _declaredType;
         Type t = f._t;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
