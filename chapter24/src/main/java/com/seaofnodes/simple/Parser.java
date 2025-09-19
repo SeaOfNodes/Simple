@@ -172,9 +172,8 @@ public class Parser {
             // "main" in any final ELF file
             main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
-            if( xmain != null ) {
+            if( xmain != null )
                 _code.setMain(xmain);
-            }
 
         } else {
             // We have a non-empty default main.
@@ -254,8 +253,13 @@ public class Parser {
             last = parseStatement();
 
         // Last expression is the return except for the top-level main
-        if( ctrl()._type==Type.CONTROL && fun.sig() != _code._main )
-            fun.addReturn(ctrl(), _scope.mem().merge(), last);
+        if( ctrl()._type==Type.CONTROL )
+            if( fun.sig() != _code._main )
+                fun.addReturn(ctrl(), _scope.mem().merge(), last);
+            else {
+                fun.setDef(1,XCTRL); // Kill default main
+                _code.addAll(fun._outputs);
+            }
 
         // Pop off the inProgress node on the multi-exit Region merge
         assert r.inProgress();
@@ -1066,7 +1070,7 @@ public class Parser {
             else if( !match("!=") ) break;
             lhs.keep();
             Node rhs = parseComparison();
-            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs));
+            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs).widen());
             if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;

@@ -116,6 +116,7 @@ public class ReturnNode extends CFGNode {
     }
 
     @Override public Parser.ParseException err() {
+        if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
         return expr()._type==Type.BOTTOM || expr()._type==Type.TOP ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
     }
 

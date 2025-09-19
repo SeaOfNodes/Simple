@@ -86,12 +86,11 @@ public class PhiNode extends Node {
 
         // phi loop widening part
         if( region() instanceof LoopNode && // Only around loops
-            _type instanceof TypeInteger oldi && // Both old and new are TypeInteger
             newt  instanceof TypeInteger newi &&
             // Types changed and are falling (the optimistic case, expected to fall forever)
-            newi != oldi ) {
-            if( newi._widen <= oldi._widen && !newi.isConstant() )
-                return newi.same_but_slightly_wider_than();
+            newi != _type ) {
+            if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
+                return newi.same_but_slightly_wider_than(_minType);
         }
 
         return newt;
@@ -156,13 +155,14 @@ public class PhiNode extends Node {
                 Node val = in(3-nullx);
                 if( val instanceof CastNode cast )
                     val = cast.in(1);
-                if( addDep(r.idom(this)) instanceof IfNode iff && addDep(iff.pred())==val ) {
+                Node ridom = r.idom(this);
+                if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
                     CFGNode idom = (CFGNode)r.in(nullx);
                     while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
-                }
+                } else if( ridom != null ) addDep(ridom);
             }
         }
 

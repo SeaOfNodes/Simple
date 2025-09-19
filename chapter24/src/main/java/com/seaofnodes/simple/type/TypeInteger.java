@@ -51,8 +51,8 @@ public class TypeInteger extends Type {
         return this;
     }
 
-    public Type same_but_slightly_wider_than() {
-        return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : TypeInteger.BOT;
+    public Type same_but_slightly_wider_than( Type minType ) {
+        return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : minType;
     }
     // Force max widen
     @Override public Type widen() {

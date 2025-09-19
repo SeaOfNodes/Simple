@@ -154,11 +154,11 @@ abstract public class Opto {
         int count = 0;          // Debug counter
         while( (n = code._iter._work.pop()) != null ) {
             if( n.isDead() ) continue;
+            count++;
             Type nval = n.compute(), oval = n._type;
             if( oval == nval ) continue;
             assert oval.isa(nval); // Types start high and always fall
             assert nval.isa(oldTypes.at(n._nid)); // Never fall worse than the pessimistic pass
-            count++;
             n._type = nval;
 
             // If a TFP adds a new function input to a call, link to the new Fun
@@ -184,8 +184,7 @@ abstract public class Opto {
     private static boolean check(CodeGen code) {
         code._start.walk( x -> {
                 Type xval = x.compute();
-                if( xval != x._type )
-                    assert x._type.isa(xval) && code._iter._work.on(x);
+                assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ));
                 return null;
             });
         return true;
