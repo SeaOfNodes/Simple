@@ -53,7 +53,7 @@ abstract public class Opto {
         unlinkStart(wholeWorld,code);
 
 
-        // OPTIMISTIC PASS
+        // OPTIMISTIC INTERPROCEDURAL SCCO
         sccp(code, oldTypes);
 
         // After SCCP add everything changed to the worklist and see if
@@ -80,7 +80,7 @@ abstract public class Opto {
         // internal calls need to be re-hooked to stop/start less they go dead.
         removeCallGraph(code);
 
-        // To help with testing, sort StopNode returns by NID
+        // To help with testing, sort StopNode Returns by NID
         Arrays.sort(code._stop._inputs._es,0,code._stop.nIns(),(x,y) -> x._nid - y._nid );
     }
 
@@ -146,7 +146,7 @@ abstract public class Opto {
         }
     }
 
-
+    // The core SCCP algorithm
     private static void sccp( CodeGen code, Ary<Type> oldTypes ) {
         // Iter workList is empty at this point
         // OPTIMISTIC PASS
