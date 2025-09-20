@@ -1,21 +1,18 @@
-# Chapter 24: Chaining relationals and Sparse Conditional Constant Propagation
+# Chapter 24: Chaining Relationals and Sparse Conditional Constant Propagation
 
 In this Chapter we allow *chaining* conditionals, e.g. `(60 <= score < 90)`
 where `score` in the middle does not have to be repeated.
 
-We also present a Interprocedural Sparse Conditional Constant Propagation
-algorithm
-
-
-
+We also present an Interprocedural Sparse Conditional Constant Propagation
+algorithm.
 
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
 
 
-## Chaining relationals
+## Chaining Relational Tests
 
-Chainged relationals offer a cleaner, more readable way to write chained
+Chaining relational tests offer a cleaner, more readable way to write chained
 comparisons without repeating the same variable.
 
 ```java 
@@ -169,7 +166,7 @@ return x2
 Without SCCP, this small program cannot remove the computation of `x` and hence
 the loop either.  A glance at the program tells us `x` must always be a `1` but
 the bottom-up (pessimistic) approach decides that since x1 is BOT, x2 must be
-BOI so therefore x1 must be BOT.  We need the optimistic approach to break the
+BOT so x1 must be BOT.  We need the optimistic approach to break the
 statemate, and just *assume* x1 is `1`, and then we can discover than x2 is
 also a `1`.
 
@@ -256,7 +253,7 @@ Such edges make up a [Call Graph](https://en.wikipedia.org/wiki/Call_graph).
 We extend the normal SCCP algorithm to observe when a `Call`s function pointer
 input changes - when it picks up new function targets.  There are only a finite
 number so we represent them exactly with *function indices* as described in an
-early chapter.  (Seperate compilation adds a special index for the infinite
+early chapter.  (Separate compilation adds a special index for the infinite
 unknown functions that are called outside this compilation unit).
 
 Once we observe a new *fidx* at a `Call`, we *link* the `Call` with the `Fun`,
@@ -271,7 +268,6 @@ Similarly, `CallEnd`s merge results from all called functions, computing the
 This *link* step adds a few checks to our algorithm's inner loop, and also
 builds a precise Call Graph, and allows our SCCP to run interprocedurally.
 Other than discovering a few new edges as the algorithm proceeds, the core
-algorithm is unchanged.  We are guarenteed to terminate with a fixed point
+algorithm is unchanged.  We are guaranteed to terminate with a fixed point
 solution, and may discover e.g. certain call parameters are constants (or
 e.g. not-null) on all calling paths.
-
