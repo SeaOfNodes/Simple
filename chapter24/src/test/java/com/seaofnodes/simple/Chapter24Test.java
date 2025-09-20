@@ -2,12 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
