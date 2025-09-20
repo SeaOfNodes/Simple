@@ -659,24 +659,36 @@ return s.require('[');
     };
 
     @Test
-    public void testSSCP() {
+    public void testSCCP0() {
         String src =
-                """
-                int x = 1;
-                int cnt = 5;
-                int stop_here = 1;
-                while (cnt) {
-                  cnt -= 1;
-                  if (x == 0) {
-                    x += 1;
-                  }
-                }
-                return x;
-                """;
+"""
+int x = 1;
+int cnt = 5;
+while (cnt) {
+  cnt -= 1;
+  if (x == 0) {
+    x += 1;
+  }
+}
+return x;
+""";
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return 1;", code._stop.toString());
-
     }
 
+    @Test
+    public void testSCCP1() {
+        String src =
+"""
+int x = 1;
+int cnt = 5;
+while( cnt-- )
+  if( x == 1 )
+    x = 2-x;
+return x;
+""";
+        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        assertEquals("return 1;", code._stop.toString());
+    }
 
 }

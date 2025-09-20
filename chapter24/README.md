@@ -37,7 +37,7 @@ if (60 <= score < 90) {
 This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating `score`.
 
 Expressions that mix opposite directions of comparison, like using both 
-`<=` and `=`, are not allowed, because they create ambiguous logic.
+`<=` and `=>`, are not allowed, because they create ambiguous logic.
 
 ```java
 if (a <= b >= c)
@@ -45,14 +45,14 @@ if (a <= b >= c)
 
 
 ### Operator direction rules
-Stacked comparisons are *only* if all the comparison operators
+Stacked comparisons are *only* valid if all the comparison operators
 "point" the same way:
 - `<` with `<`
 - `<` with `<=`
 - `>` with `>`
 - `>` with `>=`
 
-All operators above can be combined with `=` and `!=`.
+All operators above can be combined with `==` and `!=`.
 
 It is not allowed to mix directions in a single chain:
 ```java 

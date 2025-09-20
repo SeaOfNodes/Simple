@@ -51,7 +51,7 @@ public class TypeConAry<A> extends Type {
 
     @Override public boolean isHigh() { return this==TOP; }
     @Override boolean _isConstant() { return true; }
-    Type _glb(boolean mem) { return this; }
+    @Override Type _glb(boolean mem) { return this; }
     @Override boolean _isGLB(boolean mem) { return true; }
 
     // Meet-over-elements type
