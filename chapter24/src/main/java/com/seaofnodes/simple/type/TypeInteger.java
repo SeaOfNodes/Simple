@@ -119,6 +119,7 @@ public class TypeInteger extends Type {
             else if (-0xFFFFFFFFL <= _min && _min <= 0xFFFFFFFFL) return 2;
             else return 3;
         }
+        if( -128 <= _min && _max < 128 ) return 0; // 1 byte
         throw Utils.TODO();
     }
 

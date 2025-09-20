@@ -1551,6 +1551,8 @@ public class Parser {
         Type tf = f._t;
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
             tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
+        if( base.isAry() && tf instanceof TypeConAry con )
+            tf = con.elem();
 
         // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
