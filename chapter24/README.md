@@ -36,6 +36,7 @@ Expressions that mix opposite directions of comparison, like using both
 if (a <= b >= c)
 ```
 
+
 ## Operator direction rules
 Stacked comparisons are *only valid* if all the comparison operators
 "point" the same way:
