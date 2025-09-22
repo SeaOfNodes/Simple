@@ -787,11 +787,11 @@ Call Graph)
 Element has a property, then a collection of such Elements also has that
 property, and if not then not.  An example might be something that is
 `Stringable`, then a collection of them is also `Stringable`, perhaps as
-`[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Comparable`.
+printing as `[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Comparable`.
 
 The collection defines how to extend the base notion.  So e.g. a collection of
-`Comparable`s might itself be comparable, and that comparison might either
-return an element-wise collection of `Bool`s, or might compare lexigraphically.
+`Comparable`s is itself comparable, and that comparison might either return an
+element-wise collection of `Bool`s, or might compare lexigraphically.
 
 However, the collection can also work with elements that are not `Comparable`,
 in which case the entire collection is not `Comparable`... but it still
