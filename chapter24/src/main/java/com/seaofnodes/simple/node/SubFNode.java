@@ -5,38 +5,21 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 import java.util.BitSet;
 
-public class SubFNode extends Node {
-    public SubFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+public class SubFNode extends ArithFNode {
+    public SubFNode(Node lhs, Node rhs) { super(lhs, rhs); }
 
     @Override public String label() { return "SubF"; }
 
     @Override public String glabel() { return "-"; }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append("-"), visited);
-        return sb.append(")");
-    }
-
-    @Override
-    public Type compute() {
-        if (in(1)._type instanceof TypeFloat i0 &&
-            in(2)._type instanceof TypeFloat i1) {
-            if (i0.isConstant() && i1.isConstant())
-                return TypeFloat.constant(i0.value()-i1.value());
-        }
-        return in(1)._type.meet(in(2)._type);
-    }
+    @Override double doOp( double x, double y ) { return x-y; }
 
     @Override
     public Node idealize() {
-        Node lhs = in(1);
-        Type t2 = in(2)._type;
-
         // Sub of 0.
+        Type t2 = in(2)._type;
         if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==0 )
-            return lhs;
+            return in(1);
 
         return null;
     }

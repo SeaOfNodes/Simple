@@ -160,18 +160,26 @@ public class Parser {
         // default main).
         FunNode main = _code.link(_code._main);
         StopNode stop = _code._stop;
+        // Gather an explicit main
+        FunNode xmain = null;
+        for( Node n : stop._inputs )
+            if( n instanceof ReturnNode ret && "main".equals(ret.fun()._name) )
+                if( xmain != null ) throw Utils.TODO();
+                else xmain = ret.fun();
+
         if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
             // Kill an empty default main; so it does not attempt to put a
             // "main" in any final ELF file
             main.setDef(1,XCTRL); // Delete default start input
             stop.delDef(stop._inputs.find(main.ret()));
+            if( xmain != null )
+                _code.setMain(xmain);
+
         } else {
             // We have a non-empty default main.
-            // Check for an explicit main
-            for( Node n : stop._inputs )
-                if( n instanceof FunNode fun && fun._name.equals("main") )
-                    // Found an explicit "main" AND we have a default "main"
-                    throw error("Cannot define both an explicit main and a default main");
+            if( xmain != null )
+                // Found an explicit "main" AND we have a default "main"
+                throw error("Cannot define both an explicit main and a default main");
             main._name = "main";
         }
 
@@ -245,8 +253,13 @@ public class Parser {
             last = parseStatement();
 
         // Last expression is the return except for the top-level main
-        if( ctrl()._type==Type.CONTROL && fun.sig() != _code._main )
-            fun.addReturn(ctrl(), _scope.mem().merge(), last);
+        if( ctrl()._type==Type.CONTROL )
+            if( fun.sig() != _code._main )
+                fun.addReturn(ctrl(), _scope.mem().merge(), last);
+            else {
+                fun.setDef(1,XCTRL); // Kill default main
+                _code.addAll(fun._outputs);
+            }
 
         // Pop off the inProgress node on the multi-exit Region merge
         assert r.inProgress();
@@ -706,7 +719,7 @@ public class Parser {
 
         // Type is sane
         if( et!=Type.BOTTOM && !et.shallowISA(t) )
-            expr = peep(new CastNode(t,null,expr));
+            expr = peep(new CastNode(t.isConstant() ? t : t.widen(),null,expr));
         return expr;
     }
 
@@ -812,7 +825,7 @@ public class Parser {
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
         if( !lift._type.isa(t) )
-            lift = peep(new CastNode(t,null,lift));
+            lift = peep(new CastNode(t.widen(),null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
@@ -1057,7 +1070,7 @@ public class Parser {
             else if( !match("!=") ) break;
             lhs.keep();
             Node rhs = parseComparison();
-            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs));
+            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs).widen());
             if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;
@@ -1538,6 +1551,8 @@ public class Parser {
         Type tf = f._t;
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
             tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
+        if( base.isAry() && tf instanceof TypeConAry con )
+            tf = con.elem();
 
         // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
@@ -1707,7 +1722,6 @@ public class Parser {
 
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
-
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining

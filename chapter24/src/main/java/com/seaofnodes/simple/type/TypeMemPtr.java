@@ -61,6 +61,7 @@ public class TypeMemPtr extends TypeNil {
     public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
     @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one); }
+    public TypeMemPtr makeHigh() { return make((byte)0,_obj.makeHigh(),false); }
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}

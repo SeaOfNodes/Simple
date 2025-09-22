@@ -64,8 +64,8 @@ IR graph* or sometimes simply *nodes*.
 Variations of constant propagation have a long history in compilers, and here I
 am referring to the well understood [Monotone Analysis
 Framework](http://janvitek.org/events/NEU/7580/papers/more-papers/1977-acta-kam-monotone.pdf); a quick google search finds plethora of courseworks on the topic.  I assume the
-reader is familiar, and I also give a very brief overview here because we are
-going to go deep down this rabbit hole.  Constant propagation has long been used to discover interesting facts about program
+reader is familiar, and I give a very brief overview here.  Constant
+propagation has long been used to discover interesting facts about program
 points, generally to further optimize a program.  We are going to use it to
 *type* our programs.
 
@@ -175,6 +175,7 @@ The general rule here is that the *optimistic* approach may find more
 constants, but never less; while the *pessimistic* approach starts from the
 lowest possible types and can be stopped any time yielding a correct analysis
 (but a possibly weaker final result).  Also the *pessimistic* approach can
+
 be interleaved with other optimizations as long as those optimizations do not lose
 any type information - and indeed this is the mode the C2 compiler has been
 running in since 1997.
@@ -237,7 +238,8 @@ x = 3.14
 ```
 
 Here `x` is given a type, which the language parser records with the expression
-defining `x`.  i.e., `x` is currently typed as a `1` (also has the *value* `1`).  Generally this is too restrictive a type to be
+defining `x`.  i.e., `x` is currently typed as a `1` (also has the *value* `1`,
+which is not the same thing).  Generally this is too restrictive a type to be
 desirable, so commonly the parser widens the type `1` to e.g. `int64` or `Int`.
 
 After the initial type inference for `x`, further updates are guarded by a
@@ -785,11 +787,11 @@ Call Graph)
 Element has a property, then a collection of such Elements also has that
 property, and if not then not.  An example might be something that is
 `Stringable`, then a collection of them is also `Stringable`, perhaps as
-`[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Comparable`.
+printing as `[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Comparable`.
 
 The collection defines how to extend the base notion.  So e.g. a collection of
-`Comparable`s might itself be comparable, and that comparison might either
-return an element-wise collection of `Bool`s, or might compare lexigraphically.
+`Comparable`s is itself comparable, and that comparison might either return an
+element-wise collection of `Bool`s, or might compare lexigraphically.
 
 However, the collection can also work with elements that are not `Comparable`,
 in which case the entire collection is not `Comparable`... but it still

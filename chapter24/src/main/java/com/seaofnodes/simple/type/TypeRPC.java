@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
@@ -13,19 +14,31 @@ public class TypeRPC extends Type {
 
     // A set of CallEndNode IDs (or StopNode); commonly just one.
     // Basically a sparse bit set
-    final HashSet<Integer> _rpcs;
+    HashSet<Integer> _rpcs;
 
     // If true, invert the meaning of the bits
-    final boolean _any;
+    boolean _any;
 
-    private TypeRPC(boolean any, HashSet<Integer> rpcs) {
-        super(TRPC);
-        _any = any;
-        _rpcs = rpcs;
+    private static final Ary<TypeRPC> FREE = new Ary<>(TypeRPC.class);
+    private TypeRPC init(boolean any, HashSet<Integer> rpcs) { _any=any; _rpcs=rpcs; return this; }
+    private TypeRPC() { super(TRPC); }
+    private static TypeRPC malloc(boolean any, HashSet<Integer> rpcs) {
+        return (FREE.isEmpty() ? new TypeRPC() : FREE.pop()).init(any,rpcs);
     }
     private static TypeRPC make(boolean any, HashSet<Integer> rpcs) {
-        return new TypeRPC(any,rpcs).intern();
+        TypeRPC rpc = (FREE.isEmpty() ? new TypeRPC() : FREE.pop()).init(any,rpcs);
+        TypeRPC t2 = rpc.intern();
+        return t2==rpc ? rpc : t2.free(rpc);
     }
+    @Override TypeRPC free(Type t) {
+        TypeRPC rpc = (TypeRPC)t;
+        rpc._rpcs = null;
+        rpc._dual = null;
+        rpc._hash = 0;
+        FREE.push(rpc);
+        return this;
+    }
+    @Override boolean isFree() { return _rpcs==null; }
 
     public static TypeRPC constant(int cend) {
         HashSet<Integer> rpcs = new HashSet<>();
@@ -82,8 +95,7 @@ public class TypeRPC extends Type {
         return make(any,rpcs);
     }
 
-    @Override
-    Type xdual() { return new TypeRPC(!_any,_rpcs); }
+    @Override Type xdual() { return malloc(!_any,_rpcs); }
 
     @Override boolean _isConstant() { return !_any && _rpcs.size()==1; }
     @Override boolean _isGLB(boolean mem) { return true; }
