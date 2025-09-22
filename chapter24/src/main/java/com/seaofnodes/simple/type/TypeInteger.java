@@ -23,6 +23,9 @@ public class TypeInteger extends Type {
     private static final Ary<TypeInteger> FREE = new Ary<>(TypeInteger.class);
     private TypeInteger(long min, long max, byte widen) { super(TINT); init(min,max,widen); }
     private TypeInteger init(long min, long max, byte widen) {
+        // Constants must always have a widen value of zero.  Widening is only
+        // meaningful for ranges of values - which otherwide can increase in
+        // range size indefinitely.
         assert min!=max || widen==0; // Constants always zero widen
         _min = min; _max = max; _widen=widen;
         return this;
