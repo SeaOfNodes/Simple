@@ -8,8 +8,8 @@ and Google's V8 compiler and Sun/Oracle's Graal compiler.
 
 Since we are show casing the SoN IR, the *language* being implemented is less
 important.  We're using a very simple language similar to C or Java, but with
-far fewer features.  Simple is strongly typed, object-oriented, with first-
-class *functions* not *closures*.  Object references are pointers, and null
+far fewer features.  Simple is strongly typed, object-oriented, with first-class
+*functions* not *closures*.  Object references are pointers, and null
 pointer exceptions are disallowed by the typing system.  Arrays will probably
 be range-checked at some point, making Simple a fully safe language.  Simple
 has a minimal syntax that can be parsed with a recursive descent parser.
