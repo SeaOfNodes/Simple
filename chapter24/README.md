@@ -7,7 +7,7 @@ We also present an Interprocedural Sparse Conditional Constant Propagation
 algorithm.
 
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
 
 
 ## Chaining Relational Tests

@@ -41,6 +41,9 @@
         <module>chapter20</module>
         <module>chapter21</module>
         <module>chapter22</module>
+        <module>chapter23</module>
+        <module>chapter24</module>
+        <module>chapter25</module>
     </modules>
 
     <properties>
