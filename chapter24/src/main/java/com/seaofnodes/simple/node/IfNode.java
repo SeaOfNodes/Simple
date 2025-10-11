@@ -58,11 +58,15 @@ public class IfNode extends CFGNode implements MultiNode {
         // Hunt up the immediate dominator tree.  If we find an identical if
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
-            for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
+            for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() ) {
                 if( addDep(dom) instanceof IfNode iff && addDep(iff.pred())==pred() && prior instanceof CProjNode prj ) {
                     setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }
+                if( dom instanceof RegionNode r )
+                    for( Node c : r._inputs )
+                        if( c!= null ) addDep(c); // If region loses input, idom changes
+            }
         return null;
     }
 
