@@ -4,24 +4,27 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
+import java.util.HashMap;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
 // Can also be used to make a type-assertion if ctrl is null.
 public class CastNode extends Node {
     public Type _t;
-    public CastNode(Type t, Node ctrl, Node in) {
-        super(ctrl, in);
-        _t = t;
-        setType(compute());
-    }
+    public CastNode(Type t, Node ctrl, Node in) { super(ctrl, in); _t = t; }
 
     public CastNode(CastNode c) {
         super(c.in(0), c.in(1)); // Call parent constructor
         this._t = c._t;          // Copy the Type field
         setType(compute());      // Ensure type is recomputed
     }
+    @Override public Tag serialTag() { return Tag.Cast; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed2(types.get(_t)); // NPE if fails lookup
+    }
+    static Node make( BAOS bais, Type[] types)  { return new CastNode(types[bais.packed2()], null, null); }
 
     @Override public String label() { return "("+_t.str()+")"; }
 

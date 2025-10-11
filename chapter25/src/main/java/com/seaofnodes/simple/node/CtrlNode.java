@@ -7,6 +7,7 @@ import java.util.BitSet;
 
 public class CtrlNode extends CFGNode {
     public CtrlNode() { super(CodeGen.CODE._start); }
+    @Override public Tag serialTag() { throw com.seaofnodes.simple.util.Utils.TODO(); }
     @Override public String label() { return "Ctrl"; }
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append("Cctrl"); }
     @Override public boolean isConst() { return true; }

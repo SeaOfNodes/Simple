@@ -7,8 +7,8 @@ import java.util.BitSet;
 
 public class MulNode extends ArithNode {
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Mul; }
 
-    @Override public String label() { return "Mul"; }
     @Override public String op() { return "*"; }
 
     @Override long doOp( long x, long y ) { return x * y; }

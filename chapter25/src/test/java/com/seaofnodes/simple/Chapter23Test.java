@@ -39,7 +39,7 @@ public class Chapter23Test {
                 """
                 int a = 1;
                 int b = 0;
-                
+
                 if(a++ || b++ ) {
                     if(b == 0 && a == 2) {
                         sys.io.p("Or");
@@ -73,7 +73,7 @@ public class Chapter23Test {
                 """
                 int a = 1;
                 int b = 1;
-                
+
                 if(a && b) {
                     sys.io.p("And");
                 } else {
@@ -110,14 +110,14 @@ public class Chapter23Test {
         String src2 =
                 """
                 struct S { S? fld; };
-                
+
                 val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
                 if( ptr && ptr.fld ) {
                   sys.io.p("true");
                 } else {
                   sys.io.p("false");
                 }
-                
+
                 return 0;
                 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
@@ -145,13 +145,13 @@ public class Chapter23Test {
                 """
                 int a = 1;
                 int b = 1;
-                
+
                 int x=1;
                 int y=1;
                 int z=0;
-                
+
                 int g = x++ && y++ && z++;
-                
+
                 if(x == 2 && y == 2 && z == 1 && g == 0) {
                     sys.io.p("Effected");
                 } else {
@@ -183,13 +183,13 @@ public class Chapter23Test {
                 """
                 int a = 1;
                 int b = 1;
-                
+
                 int x = -1;
                 int y=1;
                 int z= -1;
-                
+
                 int g = x++ || y++ || z++;
-                
+
                 int switch = 0;
                 if(x == 4 || y == 4 || z == 4) {
                     switch = -1;
@@ -229,11 +229,11 @@ public class Chapter23Test {
                 // -*- mode: java;  -*-
                 int a = 1;
                 int b = 1;
-                
+
                 var sq = { int x ->
                     x*x;
                 };
-                
+
                 if(a && sq(0)) {
                     sys.io.p("And");
                 } else {
@@ -310,7 +310,7 @@ return s.skip().x;
         """;
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {21} skip; } #21} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {1} skip; } #1} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
     };
 
 

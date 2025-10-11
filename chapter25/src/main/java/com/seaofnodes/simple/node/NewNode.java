@@ -2,10 +2,11 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  *  Allocation!  Allocate a chunk of memory, and pre-zero it.
@@ -18,11 +19,14 @@ public class NewNode extends Node implements MultiNode {
     public final TypeMemPtr _ptr;
     public final int _len;
 
-    public NewNode(TypeMemPtr ptr, Node... nodes) {
+    public NewNode(float ignore, TypeMemPtr ptr, Node... nodes) {
         super(nodes);
         assert !ptr.nullable();
         _ptr = ptr;
         _len = ptr._obj._fields.length;
+    }
+    public NewNode(TypeMemPtr ptr, Node... nodes) {
+        this(1.0f, ptr, nodes);
         // Control in slot 0
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
         // Malloc-length in slot 1
@@ -32,6 +36,16 @@ public class NewNode extends Node implements MultiNode {
     }
 
     public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
+    @Override public Tag serialTag() { return Tag.New; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed1(nIns());          // Number of alias inputs
+        baos.packed2(types.get(_ptr)); // NPE if fails lookup
+    }
+    static Node make( BAOS bais, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeMemPtr ptr = (TypeMemPtr)types[bais.packed2()];
+        return new NewNode(1.0f,ptr,ins);
+    }
 
     public Node mem (int idx) { return in(idx+2); }
 

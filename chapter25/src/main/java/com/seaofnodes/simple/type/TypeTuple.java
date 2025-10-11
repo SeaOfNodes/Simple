@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 public class TypeTuple extends Type {
@@ -60,6 +58,18 @@ public class TypeTuple extends Type {
         if( _types.length==0 ) return malloc(null);
         return malloc(TypeFunPtr.xdual(_types));
     }
+    @Override TypeTuple rdual() {
+        if( _dual!=null ) return dual();
+        assert !_terned;
+        assert _types.length>0;
+        Type[] ts = new Type[_types.length];
+        TypeTuple d = malloc(ts);
+        (_dual = d)._dual = this; // Cross link duals
+        // Collection rdual
+        for( int i=0; i<_types.length; i++ )
+            ts[i] = _types[i]._terned ? _types[i].dual() : _types[i].rdual();
+        return d;
+    }
 
     @Override boolean _isConstant() {
         for( Type t : _types )
@@ -81,6 +91,25 @@ public class TypeTuple extends Type {
     }
 
     public Type ret() { assert _types.length==3; return _types[2]; }
+
+    @Override public int nkids() { return _types.length; }
+    @Override public Type at( int idx ) { return _types[idx]; }
+    @Override public void set( int idx, Type t ) { _types[idx] = t; }
+
+    // Reserve tags for tuples with 2,3,generic
+    @Override int TAGOFF() { return 4; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( _types.length==2 ) baos.write(TAGOFFS[_type] + 0);
+        else if( _types.length==3 ) baos.write(TAGOFFS[_type] + 1);
+        else if( _types.length==4 ) baos.write(TAGOFFS[_type] + 2);
+        else baos.write(TAGOFFS[_type] + 3).packed2(_types.length);
+    }
+    static TypeTuple packed( int tag, BAOS bais ) {
+        if( tag==0 ) return malloc(new Type[2]);
+        if( tag==1 ) return malloc(new Type[3]);
+        if( tag==2 ) return malloc(new Type[4]);
+        return malloc(new Type[bais.packed2()]);
+    }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
         if( this==TOP ) return sb.p("[TOP]");
@@ -111,9 +140,5 @@ public class TypeTuple extends Type {
                 return false;
         return true;
     }
-
-    @Override int nkids() { return _types.length; }
-    @Override Type at( int idx ) { return _types[idx]; }
-    @Override void set( int idx, Type t ) { _types[idx] = t; }
 
 }

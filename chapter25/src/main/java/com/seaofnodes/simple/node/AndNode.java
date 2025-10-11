@@ -6,8 +6,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 public class AndNode extends ArithNode {
     public AndNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.And; }
 
-    @Override public String label() { return "And"; }
     @Override public String op() { return "&"; }
     @Override public String glabel() { return "&"; }
 

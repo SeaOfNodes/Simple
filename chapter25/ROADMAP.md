@@ -1,3 +1,75 @@
+## Separate Compilation
+
+
+How to handle unknown forward ref?
+No H-M, so no unification.
+Demand no forward refs beyond functions... which will provide immediate signatures when def'd.
+
+Plan A: Remove FRefNode; fix all my bugs.
+Fail A: I want mutual co-recurusion to work
+Example: `val even = { int x -> x ? odd(x-1) : true; }; val odd = { int x -> x ? even(x-1) : false; };`
+
+Plan B: Require types ordered, but not any other fcn.  `new T` can complain,
+but not `fref.field` or `fref()` or `fref op fref` or `fref[]`
+
+Requires "lifting" Type.BOTTOM to the parser requirements everywhere.
+So loading a field from an FRef requires: lift the FREF to a
+TMP-to-TSTRUCT-with-FIELD... actually, just locally assume FREF will become
+correct.  Can't Lift it, no access, since type comes from random code.
+TMP might be nullable (should error later).
+TSTRUCT can/will be unnamed.  Implies ALL TSTRUCT is unnamed.
+
+Issue is some unknown/remote/external/forward-ref.
+
+Allowing an FRef *at all* means everybody has to deal with seeing an FRef Type.
+Allowing it for functions in same scope allow the above odd/even case .
+Allowing it for structs in the same scope allows for co-recursive structs.
+Promoting out-of-scope attempts the external lookup, then fails.
+
+Random junk usage: `sys.fld`.  Looking up `sys` fails, now has to
+guess: fref is ok, will be defined shortly... OR extern lookup now.
+Then some usage delays trouble:
+```java
+// Extern or Future `sys` being returned.
+val foo { -> return sys; }
+
+// foo() returns FRef, so Bottom, so the `.bar` has no type
+// to do field lookups
+val main { arg -> foo().bar }
+
+// HERE: Parser finds `sys` OR NOT?!?!?!
+val sys??? = user_stuff....;
+
+```
+
+Which gets to: parser never complains, builds SSA like a blind AST,
+just wires up a graph with bad types all around.  Requires: No Types
+to guide parser!  Just Syntax!
+
+  (Obvious minor fail: widen floats- or-not) Fix: insert e.g. int-oper, return
+  type is MEET of Int,Float until both inputs are isa-Int and cannot lift to be
+  isa-Float
+
+  Possible method call fail:
+  UNKNOWN_STRUCT_BOT.UNKNOWN_FIELD ( ARGS ); // Insert SELF OR NOT?
+  Possible fix: always assume a SELF arg, which is null for provable statics.
+  Optimization: constant parms get dropped from sig?  *Constant* parms
+  must be constant from *Parser*, or else no unknown callers (so local opts).
+  Possible fix: SELF arg is *last* not *first*, easier to drop if dead?
+
+  Load drops ConFldOff, keeps name.
+  Load keeps index unscaled, has index input, which is null for structs.
+  After Ptr Base is *closed*, base layout can happen, can fold index math.
+  -  Load(ctrl, base, null );       // field name internal
+  -  Load(ctrl, base, index_math ); // field name=='[]'
+  - Store(ctrl, base, null      , val);
+
+  FAIL: No Alias Info!
+
+
+Plan C:
+  FRefs allowed for direct calls `odd()`, and for Types.
+  All other cases must *lift*.
 
 
 ## Unifying Structs and Arrays

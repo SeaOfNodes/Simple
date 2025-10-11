@@ -1,11 +1,9 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashSet;
+import java.util.*;
 
 /**
  *  Return Program Control or Return PC or RPC
@@ -99,6 +97,32 @@ public class TypeRPC extends Type {
 
     @Override boolean _isConstant() { return !_any && _rpcs.size()==1; }
     @Override boolean _isGLB(boolean mem) { return true; }
+
+    // Reserve tags for ALL, singleton, generic
+    @Override int TAGOFF() { return 3; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( this==BOT ) {
+            baos.write( TAGOFFS[_type] + 0 );
+        } else if( _rpcs.size()==1 ) { // Singleton
+            assert !_any;           // Not serializing above-center RPC
+            baos.write(TAGOFFS[_type] + 1);
+            for( int x : _rpcs ) baos.packed2(x);
+        } else {                // Generic
+            assert !_any;           // Not serializing above-center RPC
+            baos.write(TAGOFFS[_type] + 2);
+            baos.packed2(_rpcs.size());
+            for( int x : _rpcs ) baos.packed2(x);
+        }
+    }
+    static TypeRPC packed( int tag, BAOS bais ) {
+        if( tag==0 ) return BOT;
+        if( tag==1 ) return constant(bais.packed2());
+        int sz = bais.packed2();
+        HashSet<Integer> rpcs = new HashSet<>();
+        for( int i=0; i<sz; i++ )
+            rpcs.add(bais.packed2());
+        return make(false,rpcs);
+    }
 
     @Override
     int hash() { return _rpcs.hashCode() ^ (_any ? -1 : 0) ; }

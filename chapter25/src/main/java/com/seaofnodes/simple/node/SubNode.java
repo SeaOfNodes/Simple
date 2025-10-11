@@ -7,8 +7,8 @@ import java.util.BitSet;
 
 public class SubNode extends ArithNode {
     public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Sub; }
 
-    @Override public String label() { return "Sub"; }
     @Override public String op() { return "-"; }
 
     @Override long doOp( long x, long y ) { return x - y; }

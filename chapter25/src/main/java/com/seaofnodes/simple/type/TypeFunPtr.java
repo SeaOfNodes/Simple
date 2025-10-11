@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
-import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 /**
@@ -165,13 +163,38 @@ public class TypeFunPtr extends TypeNil {
 
 
     // Used to walk over type structures
-    @Override int nkids() { return _sig.length+1; }
-    @Override Type at( int idx ) {
+    @Override public int nkids() { return _sig.length+1; }
+    @Override public Type at( int idx ) {
         return idx == _sig.length ? _ret : _sig[idx];
     }
-    @Override void set( int idx, Type t ) {
+    @Override public void set( int idx, Type t ) {
         if( idx == _sig.length ) _ret = t;
         else _sig[idx] = t;
+    }
+
+    // Reserve tags for null/not and open/close, one fidx/bitset, 0-6 args
+    // Tags 0-5 - not,close,1 fidx, 0-5 args (+fidx)
+    // Tag 6 - not ,close+fidxs+nargs
+    // Tag 7 - null,close+fidxs+nargs
+    @Override int TAGOFF() { return 8; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        assert !_open;
+        if( _nil==2 && nargs()<6 ) {
+            baos.write(TAGOFFS[_type] + nargs());
+            baos.packed2(fidx());
+        } else {
+            baos.write(TAGOFFS[_type] + 6 + (_nil==2 ? 0 : 1));
+            baos.packed1(nargs());
+            baos.packed8(_fidxs);
+        }
+    }
+    static TypeFunPtr packed( int tag, BAOS bais ) {
+        if( tag < 6 )
+            return malloc((byte)2,false,new Type[tag],null,1L<<bais.read());
+        byte nil = (byte)(tag==6 ? 2 : 3);
+        int nargs = bais.packed1();
+        long fidxs = bais.packed8();
+        return malloc(nil,false,new Type[nargs],null,fidxs);
     }
 
     @Override

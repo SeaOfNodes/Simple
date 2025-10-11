@@ -21,8 +21,7 @@ public class StartNode extends LoopNode implements MultiNode {
 
     public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
-
-    @Override public String label() { return "Start"; }
+    @Override public Tag serialTag() { return Tag.Start; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

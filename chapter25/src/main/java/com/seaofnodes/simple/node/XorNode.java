@@ -6,8 +6,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 public class XorNode extends ArithNode {
     public XorNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Xor; }
 
-    @Override public String label() { return "Xor"; }
     @Override public String op() { return "^"; }
     @Override public String glabel() { return "^"; }
 

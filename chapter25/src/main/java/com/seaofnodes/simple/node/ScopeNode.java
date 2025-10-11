@@ -5,7 +5,6 @@ import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.Utils;
 
 import java.util.*;
@@ -108,7 +107,7 @@ public class ScopeNode extends MemMergeNode {
 
     // Pop a lexical scope
     public void pop() {
-        promote();              // Promote forward references to the next outer scope
+        promote(null);    // Promote forward references to the next outer scope
         int n = _kinds.pop()._lexSize;
         popUntil(n);            // Pop off inputs going out of scope
         _vars.setLen(n);        // Pop off variables going out of scope
@@ -117,14 +116,18 @@ public class ScopeNode extends MemMergeNode {
 
     // Look for forward references in the last lexical scope and promote to the
     // next outer lexical scope.  At the last scope declare them an error.
-    public void promote() {
+    public void promote(CodeGen code) {
         Kind kind = _kinds.last();
         int n = kind._lexSize;
         for( int i=n; i<nIns(); i++ ) {
             Var v = var(i);
             if( !v.isFRef() ) continue;
-            if( depth()==1 )
-                throw Parser.error("Undefined name '" + v._name + "'",v._loc);
+            if( depth()==1 ) {
+                ExternNode ext = code==null ? null : code.findExternal(v._name);
+                if( ext == null )
+                    throw Parser.error("Undefined name '" + v._name + "'",v._loc);
+                throw Utils.TODO(); // External linkage def
+            }
             _vars  .swap(n,i);
             _inputs.swap(n,i);
             v._idx = n;

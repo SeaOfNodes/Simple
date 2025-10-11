@@ -7,8 +7,7 @@ import java.util.BitSet;
 
 public class MinusFNode extends Node {
     public MinusFNode(Node in) { super(null, in); }
-
-    @Override public String label() { return "MinusF"; }
+    @Override public Tag serialTag() { return Tag.MinusF; }
 
     @Override public String glabel() { return "-"; }
 

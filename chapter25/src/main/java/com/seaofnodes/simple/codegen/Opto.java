@@ -32,28 +32,10 @@ abstract public class Opto {
         // Reset Types before running the worklist algorithm
         Ary<Type> oldTypes = new Ary<>(Type.class); // Used for asserts only
         resetToTop(code,oldTypes);
+        unlinkAll(code);
+        unlinkStart(code);
 
-        // The whole-world assumption: we use it if compiling `main`, and not otherwise.
-        // The assumption is no unknown callers into functions:
-        // - during or past an Opto phase (but not before, since parse through
-        //   pessimistic must assume somebody calls an unknown function which
-        //   calls everybody).
-        // - Have a `main` to start tracing the Call Graph from
-        // - - True for most test cases
-        // - - False for lacking a main; we assume the linker will call all public functions
-
-        // True if we can make the "whole world" assumption, which means we are
-        // compiling the program entry: `main`.
-        boolean wholeWorld = code.link(code._main) != null;
-
-
-        // If wholeWorld, remove the Start inputs to functions - they are not
-        // called unless they get linked (hence go dead and can be removed).
-        // If not wholeWorld, keep only public methods (and not the std lib).
-        unlinkStart(wholeWorld,code);
-
-
-        // OPTIMISTIC INTERPROCEDURAL SCCO
+        // OPTIMISTIC INTERPROCEDURAL SCCP
         sccp(code, oldTypes);
 
         // After SCCP add everything changed to the worklist and see if
@@ -73,13 +55,6 @@ abstract public class Opto {
         // Propagate field size constants
         code._iter.iterate(code);
 
-        // Throw away the Call Graph
-
-        // The remaining passes assume all calls are unlinked; i.e. we are
-        // throwing away the Call Graph here.  Functions only reachable from
-        // internal calls need to be re-hooked to stop/start less they go dead.
-        removeCallGraph(code);
-
         // To help with testing, sort StopNode Returns by NID
         Arrays.sort(code._stop._inputs._es,0,code._stop.nIns(),(x,y) -> x._nid - y._nid );
     }
@@ -90,6 +65,12 @@ abstract public class Opto {
                 oldTypes.setX(x._nid,x._type); // Record original types for asserts
                 x._type = Type.TOP;            // Reset all Nodes to TOP
                 code._iter.add(x); // Visit everybody at least once; most Nodes produce better than TOP
+                return null;
+            } );
+    }
+    // Reset Types before running the worklist algorithm
+    private static void unlinkAll(CodeGen code ) {
+        code._start.walk( x -> {
                 // Unlink all existing (conservative) linkages.
                 if( x instanceof CallNode call )
                     call.unlink_all();
@@ -101,9 +82,9 @@ abstract public class Opto {
     // If wholeWorld, remove the Start inputs to functions - they are not
     // called unless they get linked (hence go dead and can be removed).  If
     // not wholeWorld, keep only public methods (and not the std lib).
-    private static void unlinkStart(boolean wholeWorld, CodeGen code) {
+    private static void unlinkStart(CodeGen code) {
         for( FunNode fun : code._linker ) {
-            if( fun != null && !fun.isDead() && !funIsPublic(code,wholeWorld,fun) ) {
+            if( fun != null && !fun.isDead() && !fun.isPublic(code) ) {
                 assert fun.in(1)==code._start; // Start always in slot 1
                 fun.removeDeadPath(1);
                 // By same logic, remove stop->return linkage, without
@@ -113,20 +94,6 @@ abstract public class Opto {
                 fun.ret().delUse(code._stop);
             }
         }
-    }
-
-    // Function is public (callable from Start directly).
-    // - Always true for main
-    // - Never true for stdlib, or anonymous functions
-    // - Named functions use `!wholeWorld`
-    private static boolean funIsPublic( CodeGen code, boolean wholeWorld, FunNode fun ) {
-        // Always true for main
-        if( fun.sig().fidx() == code._main.fidx() ) return true;
-        // Never true for stdlib or anonymous functions
-        if( fun._name == null || fun._name.startsWith("sys.") )
-            return false;
-        // Named functions (and not stdlib) are callable if not whole-world.
-        return !wholeWorld;
     }
 
     // As part of building a CallGraph, when opto finds a function ptr flowing
@@ -214,51 +181,4 @@ abstract public class Opto {
             }
         }
     }
-
-    // The remaining passes assume all calls are unlinked; i.e. we are throwing
-    // away the Call Graph here.  Functions only reachable from internal calls
-    // need to be re-hooked to stop/start less they go dead.
-    private static void removeCallGraph(CodeGen code) {
-        code._start.walk( x -> {
-                // Unlink all existing (conservative) linkages.
-                if( x instanceof CallNode call ) {
-                    for( Node y : call._outputs ) {
-                        // Keep function alive and hooked to Start so it gets
-                        // codegen'd.  Function is callable by this call via
-                        // TFP, although perhaps not by any other means.
-                        if( y instanceof FunNode fun && !(fun.in(1) instanceof StartNode) ) {
-                            ParmNode rpc = fun.rpc();
-                            if( rpc==null ) // Ensure valid RPC
-                                rpc = makeRPC(fun);
-                            // Insert a hook to Start and Stop
-                            fun.insertDef(1,code._start);
-                            for( Node use : fun._outputs )
-                                if( use instanceof ParmNode parm )
-                                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
-                            code._stop.addDef(fun.ret());
-                        }
-                    }
-                    call.unlink_all();
-                }
-                return null;
-            } );
-
-    }
-
-    // Make a valid Parm RPC.
-    // First make sure a valid RPC; single-call into multi-fun will have each
-    // function having a single call site, so the RPC becomes a constant and
-    // folds - but since multiple targets, the Call never inlines.  Recreate a
-    // valid RPC so codegen (and Eval2) understands the calling convention.
-    private static ParmNode makeRPC( FunNode fun ) {
-        ParmNode rpc = new ParmNode("$rpc",0,fun.ret().rpc()._type,fun);
-        for( int i=1; i<fun.nIns(); i++ ) {
-            CallEndNode cend = ((CallNode)fun.in(i)).cend();
-            rpc.addDef(ConstantNode.make(cend._rpc).peephole());
-        }
-        fun.ret().setDef(3,rpc.init());
-        return rpc;
-    }
-
-
 }

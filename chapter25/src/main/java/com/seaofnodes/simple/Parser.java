@@ -141,12 +141,12 @@ public class Parser {
         ctrl(XCTRL);
         _scope.mem(new MemMergeNode(false));
 
-        // Parse the sys import
-        _lexer = new Lexer(sys.SYS);
-        while( !_lexer.isEOF() ) {
-            parseStatement();
-            _lexer.skipWhiteSpace();
-        }
+        //// Parse the sys import
+        //_lexer = new Lexer(sys.SYS);
+        //while( !_lexer.isEOF() ) {
+        //    parseStatement();
+        //    _lexer.skipWhiteSpace();
+        //}
 
         // Reset lexer for program text
         _lexer = new Lexer(_code._src);
@@ -972,7 +972,7 @@ public class Parser {
         TypeMemPtr ta = (TypeMemPtr)TYPES.get(tname);
         if( ta==null )
             // Remember final version
-            TYPES.put(tname, ta = TypeMemPtr.make( TypeStruct.makeAry(tname,TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS(),true) ));
+            TYPES.put(tname, ta = TypeMemPtr.make( TypeStruct.makeAry(tname,TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS()) ));
         Field elem = ta._obj.field("[]");
         if( elem._final == efinal )
             return ta;
@@ -1287,9 +1287,19 @@ public class Parser {
         Var var = _scope.lookup(id);
 
         if( var==null ) {
-            // If missing, assume a forward reference
-            _scope.define(id, FRefNode.FREF_TYPE, true, XCTRL, loc());
-            var = _scope.lookup(id);
+            // If missing, and a function call assume a forward reference, and
+            // it will be defined later in scope.
+            if( peek('(')) {
+                _scope.define(id, FRefNode.FREF_TYPE, true, XCTRL, loc());
+                var = _scope.lookup(id);
+            } else {
+                // Attempt to find external name
+                ExternNode ext = _code.findExternal(id);
+                if( ext == null )
+                    throw error("Undefined name '" + id + "'");
+                // Insert as-if declared from the get-go
+                throw Utils.TODO("Insert var at top-scope");
+            }
         }
 
         // If a method var, allow nested blocks and methods, but not fcns or other structs.
@@ -1478,12 +1488,12 @@ public class Parser {
         TypeMemPtr tmp = typeAry(TypeInteger.U8,true);
         int  lenAlias = tmp._obj.field("#" )._alias;
         int elemAlias = tmp._obj.field("[]")._alias;
-        TypeConAryB con = TypeConAryB.make(s);
-        Type elem = con.elem();
+        TypeConAryB body = TypeConAryB.make(s);
+        TypeInteger slen = TypeInteger.constant(s.length());
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.
-        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", TypeInteger.constant(s.length()), lenAlias, con, elemAlias, true),true);
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", slen, lenAlias, body, elemAlias),true);
         assert str.isConstant();
         return con(str);
     }
@@ -2056,7 +2066,7 @@ public class Parser {
         private String parseId() {
             int start = _position;
             while (isIdLetter(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            return new String(_input, start, --_position - start).intern();
         }
 
         //

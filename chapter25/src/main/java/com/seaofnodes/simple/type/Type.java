@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 
@@ -56,34 +57,34 @@ public class Type /*implements Cloneable*/ {
     static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
     static final byte TNIL    = 4; // low null of all flavors
     static final byte TXNIL   = 5; // high or choice null
-    static final byte TSIMPLE = 6; // End of the Simple Types
+    static final byte TSIMPLE = 5; // End of the Simple Types
 
-    static final byte TPTR    = 7; // All nil-able scalar values
-    static final byte TINT    = 8; // All Integers; see TypeInteger
-    static final byte TFLT    = 9; // All Floats  ; see TypeFloat
-    static final byte TCONARY =10; // Constant array
-    static final byte TRPC    =11; // Return Program Control (Return PC or RPC)
-    static final byte TTUPLE  =12; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TPTR    = 6; // All nil-able scalar values
+    static final byte TINT    = 7; // All Integers; see TypeInteger
+    static final byte TFLT    = 8; // All Floats  ; see TypeFloat
+    static final byte TCONARY = 9; // Constant array
+    static final byte TRPC    =10; // Return Program Control (Return PC or RPC)
 
-    static final byte TCYCLIC =13; // Has internal pointers, needs recursive treatment
-    static final byte TMEMPTR =13; // Memory pointer to a struct type
-    static final byte TFUNPTR =14; // Function pointer; unique signature and code address (just a bit)
-    static final byte TMEM    =15; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TSTRUCT =16; // Structs; tuples with named fields
-    static final byte TFLD    =17; // Named fields in structs
+    static final byte TCYCLIC =11; // Has internal pointers, needs recursive treatment
+    static final byte TMEMPTR =11; // Memory pointer to a struct type
+    static final byte TFUNPTR =12; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TFLD    =14; // Named fields in structs
+    static final byte TSTRUCT =15; // Structs; tuples with named fields
+    static final byte TTUPLE  =16; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMAX    =17;
 
     // Basic RTTI, useful for a lot of fast tests.
     public final byte _type;
     public boolean _terned;
 
-    public boolean is_simple() { return _type < TSIMPLE; }
+    public boolean is_simple() { return _type <= TSIMPLE; }
+    public boolean is_nokids() { return _type < TTUPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
-    static final int[] CNTS = new int[TFLD+1];
     protected Type(byte type) {
         _type = type;           // RTTI
         _uid = (char)UID++;     // A unique ID for every type
         assert _uid!=0;         // Overflow
-        CNTS[type]++;
     }
 
     public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
@@ -135,7 +136,7 @@ public class Type /*implements Cloneable*/ {
 
     // Factory method which interns "this"
     @SuppressWarnings("unchecked")
-    <T extends Type> T intern() {
+    public <T extends Type> T intern() {
         //assert check();
         assert !_terned;        // Do not ask for already-interned
         T t2 = (T)INTERN.get(this);
@@ -223,9 +224,9 @@ public class Type /*implements Cloneable*/ {
     }
 
     // At/Set child at 'idx' to t
-    Type at ( int idx ) { throw Utils.TODO(); }
-    void set( int idx, Type t ) { throw Utils.TODO(); }
-    int nkids() { assert _type < TTUPLE; return 0; }   // Number of kids
+    public Type at( int idx ) { throw Utils.TODO(); }
+    public void set( int idx, Type t ) { throw Utils.TODO(); }
+    public int nkids() { assert _type < TTUPLE; return 0; }   // Number of kids
 
 
     // Clear and re-insert the basic Type INTERN table
@@ -264,7 +265,11 @@ public class Type /*implements Cloneable*/ {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
-        return Type.BOTTOM;     // Mixing 2 unrelated types
+        // TypeConAry meet its element type is OK
+        if( this instanceof TypeConAry tcon && tcon.elemT() == t._type ) return tcon.ymeet(t);
+        if( t    instanceof TypeConAry tcon && tcon.elemT() ==   _type ) return tcon.ymeet(this);
+        // Mixing 2 unrelated types
+        return Type.BOTTOM;
     }
 
     // Compute meet right now.  Overridden in subclasses.
@@ -316,8 +321,7 @@ public class Type /*implements Cloneable*/ {
     }
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    // Applies for pessimistic case
-    public boolean isa( Type t )     { return meet(t)==t; }
+    public boolean isa( Type t ) { return meet(t)==t; }
 
     // True if this "isa" t up to named structures
     public boolean shallowISA( Type t ) { return isa(t); }
@@ -337,7 +341,7 @@ public class Type /*implements Cloneable*/ {
 
     // Cyclic types!  Flag the start of a cyclic type by putting a sentinel in
     // VISIT (and eventually clearing VISIT when done).  Then do a normal
-    // recursive descent visit of all types; this will accumilate types without
+    // recursive descent visit of all types; this will accumulate types without
     // interning them.  When done we have to visit the possibly cyclic type and
     // intern the whole cycle, possibly hitting the entire cycle on a prior
     // interned cycle.  Any sub-part might also be interned, including whole
@@ -350,7 +354,8 @@ public class Type /*implements Cloneable*/ {
     // "C0<->D0" cycle.
 
     Type recurOpen() { assert VISIT.isEmpty(); VISIT.put(0L,BOTTOM); return this; }
-    Type recurClose() {
+    Type recurClose() { return recurClose(null); }
+    Type recurClose(Type[] types) {
         VISIT.remove(0L);       // Just ignore the sentinel
         Ary<Type> ts = new Ary<>(Type.class);
         ts.addAll(VISIT.values());
@@ -374,6 +379,9 @@ public class Type /*implements Cloneable*/ {
         // Upgrade the result
         Type rez = INTERN.get(this);
         assert rez!=null;
+        if( types!=null )
+            for( int i=0; i<types.length; i++ )
+                types[i] = INTERN.get(types[i]);
 
         // Pass#4?: Free up any created-but-already interned
         for( Type t : FREES )
@@ -440,7 +448,7 @@ public class Type /*implements Cloneable*/ {
                 }
             }
         }
-        return this instanceof TypeStruct ? this : _intern();
+        return this instanceof TypeStruct || _terned ? this : _intern();
     }
 
     // Strict constant values, things on the lattice centerline.
@@ -480,8 +488,130 @@ public class Type /*implements Cloneable*/ {
     }
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
-    Type _close() { return this; }
+    Type _close(/*String name*/) { return this; }
     public Type widen() { return this; }
+
+    // Recursively gather all types
+    public void gather(HashMap<Type,Integer> types ) {
+        if( types.containsKey(this) ) return; // TEST
+        types.put(this,types.size());      // SET
+        int nkids = nkids();
+        for( int i=0; i<nkids; i++ )
+            at(i).gather(types);
+    }
+
+    // Compute serialization byte tag compression space
+    final static int[] TAGOFFS = new int[TMAX+1];
+    public static int[] TAGOFFS() {
+        if( TAGOFFS[TMAX-1]==0 )
+            // One entry per unique tag-space, using the BOT value from that
+            // tag-space except for the first tag-space which uses 1 tag for
+            // multiple Types instead of 1 Type having multiple tags.  Has to
+            // be ordered to match _type enum.
+            for( Type t : new Type[]{Type.XNIL,TypePtr.PTR,TypeInteger.BOT,TypeFloat.F64,TypeConAryB.ABC,TypeRPC.BOT,TypeMemPtr.BOT,TypeFunPtr.BOT,TypeMem.BOT,Field.BOT,TypeStruct.BOT,TypeTuple.BOT} )
+                TAGOFFS[t._type+1] = TAGOFFS[t._type] + t.TAGOFF();
+        assert TAGOFFS[TMAX] <= 255;
+        return TAGOFFS;
+    }
+    // Reserve 6 tags, 0-5, for plain Types
+    int TAGOFF() { assert is_simple(); return 6; }
+
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        assert is_simple();
+        baos.write(_type);
+    }
+    static Type packed( int tag ) {
+        return switch( tag ) {
+        case TBOT  -> BOTTOM;
+        case TTOP  -> TOP;
+        case TCTRL -> CONTROL;
+        case TXCTRL->XCONTROL;
+        case TNIL  -> NIL;
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Produce a type with null child types
+    static Type packed( BAOS bais, String[] strs ) {
+        int x = bais.read();
+        int type = Arrays.binarySearch( TAGOFFS, x );
+        if( type < 0 ) type = -(type+1)-1;
+        int off = x - TAGOFFS[type];
+        return switch( type ) {
+        case 0, 1, 2, 3, 4, 5 -> Type.packed( off );
+        case TINT    ->   TypeInteger.packed( off, bais );
+        case TFLT    ->   TypeFloat  .packed( off, bais );
+        case TCONARY ->   TypeConAry .packed( off, bais );
+        case TRPC    ->   TypeRPC    .packed( off, bais );
+        case TMEMPTR ->   TypeMemPtr .packed( off, bais );
+        case TFUNPTR ->   TypeFunPtr .packed( off, bais );
+        case TMEM    ->   TypeMem    .packed( off, bais );
+        case TFLD    ->   Field      .packed( off, bais, strs );
+        case TSTRUCT ->   TypeStruct .packed( off, bais, strs );
+        case TTUPLE  ->   TypeTuple  .packed( off, bais );
+        default -> throw Utils.TODO();
+        };
+    }
+
+    // Read a packed Type array
+    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, int ntypes ) {
+        Type[] types = new Type[ntypes];
+        // Read Types in ID# order, no children
+        for( int i=0; i<ntypes; i++ )
+            types[i] = Type.packed(bais,strs);
+        // Start possibly recursive type collection
+        BOTTOM.recurOpen();
+        // Read Types in ID# order, only children
+        for( int i=0; i<ntypes; i++ ) {
+            VISIT.put(types[i]._uid,types[i]);
+            int nkids = types[i].nkids();
+            for( int j=0; j<nkids; j++ )
+                types[i].set(j,types[bais.packed4()]);
+        }
+        // Update aliases to local aliases.  Walk the new structs, look for an
+        // existing struct with the same name.  Either find a closed one (all
+        // fields) or error if only open structs.  Walk fields for both, assert
+        // they are the same order (and the meet does not go to bottom), then
+        // make a mapping from the serialized aliases to the local aliases.
+        // For structs with *no* mapping, create a new local alias.
+        aliases.setX(1,1); // Bottom maps to bottom alias always
+        for( int i=0; i<ntypes; i++ ) {
+            if( types[i] instanceof TypeStruct ts ) {
+                //assert !ts._open; // No interning open structs?
+                // Find matching local structs
+                TypeMemPtr tmp = (TypeMemPtr)Parser.TYPES.get( ts._name );
+                if( tmp!=null ) {
+                    assert !tmp._obj._open;
+                    int flen = ts._fields.length;
+                    // For all fields, map aliases
+                    for( int j=0; j<flen; j++ ) {
+                        Field tfld = tmp._obj._fields[j]; // Existing    field
+                        Field dfld = ts      ._fields[j]; // Deserialize field
+                        // Fields in structs must exactly align
+                        if( !tfld._fname.equals(dfld._fname) )
+                            throw Utils.TODO("link error: incompatible structs");
+                        // Collect the alias mapping
+                        int deser_alias = aliases.atX(dfld._alias);
+                        if( deser_alias==0 ) aliases.setX(dfld._alias,tfld._alias);
+                        else assert deser_alias==tfld._alias;
+                    }
+                } else {
+                    // Make local aliases
+                    throw Utils.TODO();
+                }
+            }
+        }
+        // Walk all type aliases, and map to local aliases
+        for( int i=0; i<ntypes; i++ ) {
+            if( types[i] instanceof Field   fld ) fld._alias = aliases.at(fld._alias);
+            if( types[i] instanceof TypeMem mem ) mem._alias = aliases.at(mem._alias);
+        }
+
+        // Intern them all at once
+        BOTTOM.recurClose(types);
+        return types;
+    }
+
 
     // ----------------------------------------------------------
 

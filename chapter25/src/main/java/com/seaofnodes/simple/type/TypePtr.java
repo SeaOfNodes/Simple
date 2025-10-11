@@ -50,6 +50,9 @@ public class TypePtr extends TypeNil {
     boolean _isGLB(boolean mem) { return this==PTR; }
     @Override TypePtr _glb(boolean mem) { return PTR; }
 
+    // Reserve 2 tags, PTR and NPTR
+    @Override int TAGOFF() { return 2; }
+
     @Override public String str() { return STRS[_nil]; }
     @Override public SB _print(SB sb, BitSet visit, boolean html) { return sb.p(str()); }
 }
