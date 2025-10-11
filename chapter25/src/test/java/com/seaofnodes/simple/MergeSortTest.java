@@ -15,42 +15,42 @@ public class MergeSortTest {
     @Test public void testMergeSort0() throws IOException {
         // Test merge sort on a small array of primes
         String src =
-""" 
-        val merge_sort = { int[] a ->
-            int[] !b = new int[a#];
-            copy_array (a, 0, a#, b);
-            split_merge(a, 0, a#, b);
-        };
-        
-        val split_merge = { int[] b, int begin, int end, int[] a ->
-            if (end - begin <= 1)
-                return 0;
-            int middle = (end + begin) / 2;
-            split_merge(a, begin, middle, b);
-            split_merge(a, middle, end, b);
-            merge(b, begin, middle, end, a);
-            return 0;
-        };
-        
-        val merge = { int[] b, int begin, int middle, int end, int[] a ->
-            int i = begin, j = middle;
-        
-            for (int k = begin; k < end; k++) {
-                // && and ||
-                bool cond = false;
-                if (i < middle) {
-                    if (j >= end)          cond = true;
-                    else if (a[i] <= a[j]) cond = true;
-                }
-                if (cond) b[k] = a[i++];
-                else      b[k] = a[j++];
-            }
-        };
-        
-        val copy_array = { int[] a, int begin, int end, int[] b ->
-            for (int k = begin; k < end; k++)
-                b[k] = a[k];
-        };
+"""
+val merge_sort = { int[] a ->
+    int[] !b = new int[a#];
+    _copy_array (a, 0, a#, b);
+    _split_merge(a, 0, a#, b);
+};
+
+val _split_merge = { int[] b, int begin, int end, int[] a ->
+    if (end - begin <= 1)
+        return 0;
+    int middle = (end + begin) / 2;
+    _split_merge(a, begin, middle, b);
+    _split_merge(a, middle, end, b);
+    _merge(b, begin, middle, end, a);
+    return 0;
+};
+
+val _merge = { int[] b, int begin, int middle, int end, int[] a ->
+    int i = begin, j = middle;
+
+    for (int k = begin; k < end; k++) {
+        // && and ||
+        bool cond = false;
+        if (i < middle) {
+            if (j >= end)          cond = true;
+            else if (a[i] <= a[j]) cond = true;
+        }
+        if (cond) b[k] = a[i++];
+        else      b[k] = a[j++];
+    }
+};
+
+val _copy_array = { int[] a, int begin, int end, int[] b ->
+    for (int k = begin; k < end; k++)
+        b[k] = a[k];
+};
 """;
         int[] primes = new int[] { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, };
         SB sb = new SB().p(primes.length).p("[");

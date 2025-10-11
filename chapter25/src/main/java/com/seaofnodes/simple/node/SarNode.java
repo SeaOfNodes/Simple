@@ -6,8 +6,8 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 public class SarNode extends ArithNode {
     public SarNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Sar; }
 
-    @Override public String label() { return "Sar"; }
     @Override public String op() { return ">>"; }
     @Override public String glabel() { return "&gt;&gt;"; }
 

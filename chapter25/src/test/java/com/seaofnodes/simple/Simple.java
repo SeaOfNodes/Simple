@@ -49,6 +49,7 @@ Options:
   --dump-after-all         - dump intermediate representation after all passes
   --dot                    - dump grapical representation of intermediate code into *.dot file(s)
   -S                       - dump generated assembler code
+  -o output                - Output file; defaults to <input-file-base>.o
   --eval                   - evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
   --dump-size              - print the size of generated code
@@ -119,27 +120,20 @@ Options:
         }
     }
 
-    static void print_compilation_times(CodeGen code) {
-        double t, total = 0;
+    static void print_compilation_times(CodeGen code, long total) {
+        long[] times = code._times;
 
-        total += t = code._tParse / 1e3;
-        System.out.printf( "Parsing Time:             %.3f sec%n", t);
-        total += t = code._tOpto / 1e3;
-        System.out.printf( "Optimization Time:        %.3f sec%n", t);
-        total += t = code._tTypeCheck / 1e3;
-        System.out.printf( "Type Checking Time:       %.3f sec%n", t);
-        total += t = code._tLoopTree / 1e3;
-        System.out.printf( "Loop Tree Time:           %.3f sec%n", t);
-        total += t = code._tInsSel / 1e3;
-        System.out.printf( "Code Selection Time:      %.3f sec%n", t);
-        total += t = code._tGCM / 1e3;
-        System.out.printf( "GCM Time:                 %.3f sec%n", t);
-        total += t = code._tLocal / 1e3;
-        System.out.printf( "Local Scheduling Time:    %.3f sec%n", t);
-        total += t = code._tRegAlloc / 1e3;
-        System.out.printf( "Register Allocation Time: %.3f sec%n", t);
-        total += t = code._tEncode / 1e3;
-        System.out.printf( "Encoding Time:            %.3f sec%n", t);
+        System.out.printf( "Parsing Time:             %.3f sec%n", times[CodeGen.Phase.Parse     .ordinal()]);
+        System.out.printf( "Optimization Time:        %.3f sec%n", times[CodeGen.Phase.Opto      .ordinal()]);
+        System.out.printf( "Type Checking Time:       %.3f sec%n", times[CodeGen.Phase.TypeCheck .ordinal()]);
+        System.out.printf( "Loop Tree Time:           %.3f sec%n", times[CodeGen.Phase.LoopTree  .ordinal()]);
+        System.out.printf( "Code Selection Time:      %.3f sec%n", times[CodeGen.Phase.Select    .ordinal()]);
+        System.out.printf( "Unlink Time:              %.3f sec%n", times[CodeGen.Phase.Unlink    .ordinal()]);
+        System.out.printf( "GCM Time:                 %.3f sec%n", times[CodeGen.Phase.Schedule  .ordinal()]);
+        System.out.printf( "Local Scheduling Time:    %.3f sec%n", times[CodeGen.Phase.LocalSched.ordinal()]);
+        System.out.printf( "Register Allocation Time: %.3f sec%n", times[CodeGen.Phase.RegAlloc  .ordinal()]);
+        System.out.printf( "Encoding Time:            %.3f sec%n", times[CodeGen.Phase.Encoding  .ordinal()]);
+        System.out.printf( "Export Time:              %.3f sec%n", times[CodeGen.Phase.Export    .ordinal()]);
         System.out.printf( "TOTAL COMPILATION TIME:   %.3f sec%n", total);
     }
 
@@ -149,6 +143,8 @@ Options:
     }
 
     public static void main(String[] args) throws Exception {
+        long t0 = System.currentTimeMillis();
+
         String input_filename = null;
         boolean do_eval = false;
         boolean do_run = true;
@@ -160,6 +156,7 @@ Options:
         String src = null;
         String cpu = null;
         String abi = null;
+        String out = null;
 
         // Parse command line
         int i; for( i = 0; i < args.length; i++ ) {
@@ -189,6 +186,9 @@ Options:
             case "--norun":                   do_run  = false; break;
             case "--dump-size":               do_print_size = true; break;
             case "--dump-time":               do_print_time = true; break;
+            case "-o":                        if (out != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
+                                              out = args[++i];  do_codegen=true;
+                                              break;
             case "--cpu":                     if (cpu != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               cpu = args[++i];
                                               break;
@@ -205,9 +205,10 @@ Options:
         if (input_filename == null) throw bad("no input file' (use --help)");
         if( !input_filename.isEmpty() && !input_filename.endsWith(".smp") )
             throw bad("File extension must be .smp");
-        String base = input_filename.substring(0,input_filename.length()-4);
+        if( out == null )
+            out = input_filename.substring(0,input_filename.length()-4)+".o";
 
-        if (do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size) {
+        if( do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size ) {
             if (cpu == null) cpu = TestC.CPU_PORT;
             if (abi == null) abi = TestC.CALL_CONVENTION;
             do_codegen = true;
@@ -234,9 +235,13 @@ Options:
         dump(code, dump, DUMP_AFTER_LOOP_TREE);
 
         if (do_codegen) {
+            code.serialize();
+
             code.instSelect(cpu, abi, PORTS);
             dump(code, dump, DUMP_AFTER_SELECT);
         }
+
+        code.unlink();
 
         code.GCM();
         dump(code, dump, DUMP_AFTER_GCM);
@@ -251,7 +256,7 @@ Options:
             code.encode();
             dump(code, dump, DUMP_AFTER_ENCODE);
 
-            code.exportELF(base+".o");
+            code.exportELF(out);
         }
 
         dump(code, dump, DUMP_FINAL);
@@ -264,8 +269,9 @@ Options:
              System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
         }
 
+        long total = System.currentTimeMillis() - t0;
         if (do_print_time) {
-            print_compilation_times(code);
+            print_compilation_times(code,total);
         }
 
         if (do_eval) {
@@ -281,8 +287,8 @@ Options:
         if (do_run) {
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
-            String exe = TestC.OS.startsWith("Windows") ? base+".exe" : base;
-            String result = TestC.gcc(base+".o", null, null, true, exe);
+            String exe = TestC.OS.startsWith("Windows") ? out+".exe" : out;
+            String result = TestC.gcc(out+".o", null, null, true, exe);
             System.out.print(result);
         }
     }

@@ -128,11 +128,17 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
 	$(eval OODT += $$<)
 
 #######################################################
+
+build/sys_x86_64_v2_win64.o:	$(CLZDIR)/main/.mtag
+	@echo "simping " $@
+	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi Win64 --norun -o $@ src/main/smp/sys.smp
+
+#######################################################
 # Base launch line for JVM tests
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag build/sys_x86_64_v2_win64.o
 	@echo "testing " $(test_cp)
 	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
@@ -156,6 +162,7 @@ view:	$(main_classes)
 	@echo "viewing "
 	@$(JVM) com.seaofnodes.simple.JSViewer
 
+#######################################################
 .PHONY: clean
 clean:
 	rm -rf build

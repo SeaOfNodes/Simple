@@ -1,15 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.Encoding;
-import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
+import java.util.HashMap;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
@@ -33,9 +33,21 @@ public class FunNode extends RegionNode {
             _name = "";
         }
     }
+    @Override public Tag serialTag() { return Tag.Fun; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        assert !_folding;
+        baos.packed1(nIns());          // Number of linked calls
+        baos.packed2(types.get(_sig)); // NPE if fails lookup
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
+        String name = strs[bais.packed2()];
+        return new FunNode(null,sig,name,ins);
+    }
 
-    @Override
-    public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
+    @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.
@@ -97,7 +109,7 @@ public class FunNode extends RegionNode {
         // Some linked path dies, except main never kills Start
         Node progress = deadPath(unknownCallers());
         if( progress!=null ) {
-            if( nIns()==3 && in(2) instanceof CallNode call )
+            if( nIns()==2 && in(1) instanceof CallNode call )
                 CODE.add(call.cend()); // If Start and one call, check for inline
             return progress;
         }
@@ -107,7 +119,6 @@ public class FunNode extends RegionNode {
             setSig(_sig.makeFrom(tt.ret()));
             return this;
         }
-
 
         // When can we assume no callers?  Or no other callers (except main)?
         // In a partial compilation, we assume Start gets access to any/all
@@ -143,6 +154,25 @@ public class FunNode extends RegionNode {
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
+
+    // Function is public (callable from Start directly).
+    // - Always true for main
+    // - Never true for stdlib, or anonymous functions
+    // - Named functions use `!wholeWorld`
+    public boolean isPublic( CodeGen code ) {
+        // Always true for main
+        if( sig().fidx() == code._main.fidx() ) return true;
+        // Never true for anonymous functions
+        if( _name == null ) return false;
+        // False if name starts with underscore, skipping any leading struct names.
+        int idx = _name.lastIndexOf('.')+1;
+        if( _name.charAt(idx)=='_' ) return false;
+        // Whole world: we are compiling main, and what is reaches, hence we
+        // know the "whole world".
+        boolean wholeWorld = code.link(code._main) != null;
+        // Named functions (and not stdlib) are callable if not whole-world.
+        return !wholeWorld;
+    }
 
     @Override public boolean inProgress() { return unknownCallers(); }
 
@@ -245,4 +275,7 @@ public class FunNode extends RegionNode {
         return slotRotate*8;
     }
 
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_name);
+    }
 }

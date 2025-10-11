@@ -3,7 +3,9 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  *  CallEnd
@@ -16,8 +18,20 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
     public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
+    @Override public Tag serialTag() { return Tag.CallEnd; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed1(nIns());
+        // Linked CallEnds depend on Return types which depend on CallEnds;
+        // break the cycle
+        baos.packed2(types.get(_type));
+    }
+    static Node make( BAOS bais, Type[] types )  {
+        Node cend = new CallEndNode((CallNode)null);
+        cend.setDefX(bais.packed1()-1,null);
+        cend._type = types[bais.packed2()];
+        return cend;
+    }
 
-    @Override public String label() { return "CallEnd"; }
     @Override public boolean blockHead() { return true; }
 
     public CallNode call() { return (CallNode)in(0); }
@@ -44,6 +58,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // Mid-fold, just take the one single callers' return type
         if( _folding ) return in(1)._type;
         // Grab the TFP and use the functions declared return type.
+        // If the call.fptr() is a FRef, return will be BOTTOM.
         Type ftype = addDep(call.fptr())._type;
         Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
         if( ftype instanceof TypeFunPtr tfp ) {
@@ -76,9 +91,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 call.err()==null ) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
-                // Expecting Start, and the Call
-                if( fun.nIns()==3 ) {
-                    assert fun.in(1) instanceof StartNode && fun.in(2)==call;
+                // Expecting just the Call
+                if( fun.nIns()==2 ) {
+                    assert fun.in(1)==call;
                     // Disallow self-recursive inlining (loop unrolling by another name).
                     // Disallow if still folding other things, as it makes other
                     // dependency checks carry long chains of half-folded calls.
@@ -94,8 +109,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         _folding = true;
                         // Rewrite Fun so the normal RegionNode ideal collapses
                         fun._folding = true;
-                        fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
-                        fun.setDef(2,call.ctrl());  // Bypass the Call;
+                        fun.setDef(1,call.ctrl());  // Bypass the Call;
                         fun.ret().setDef(3,null);   // Return is folding also
                         CodeGen.CODE.addAll(fun._outputs);
                         // Repeat defs 1 layer down, for users of Parm (Phis)

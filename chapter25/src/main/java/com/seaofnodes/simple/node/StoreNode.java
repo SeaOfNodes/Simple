@@ -2,7 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Store represents setting a value to a memory based object, in chapter 10
@@ -22,6 +25,16 @@ public class StoreNode extends MemOpNode {
     public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
         super(loc, name, alias, false, glb, mem, ptr, off, value);
         _init = init;
+    }
+    StoreNode( BAOS bais, String[] strs, Type[] types, AryInt aliases ) {
+        super(bais,strs,types,aliases,false);
+        addDef(null);
+        _init = bais.read() != 0;
+    }
+    @Override public Tag serialTag() { return Tag.Store; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        super.packed(baos,strs,types,aliases);
+        baos.write(_init ? 1 : 0);
     }
 
     // GraphVis DOT code and debugger labels

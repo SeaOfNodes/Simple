@@ -5,9 +5,9 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
@@ -23,7 +23,9 @@ public class CodeGen {
         Opto,                   // Run ideal optimizations
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
+        Serialize,              // Serialize public IR for future compiles to link
         Select,                 // Convert to target hardware nodes
+        Unlink,                 // Unlink call sites; this point keeps moving backwards
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
         RegAlloc,               // Register allocation
@@ -31,6 +33,7 @@ public class CodeGen {
         Export,                 // Export
     }
     public Phase _phase;
+
     // ---------------------------
     // Compilation source code
     public final String _src;
@@ -59,24 +62,28 @@ public class CodeGen {
     // All passes up to Phase, except ELF
     public CodeGen driver( Phase phase ) { return driver(phase,null,null); }
     public CodeGen driver( Phase phase, String cpu, String callingConv ) {
-        if( _phase==null )                       parse();
-        int p1 = phase.ordinal();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Opto      .ordinal() ) opto();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.TypeCheck .ordinal() ) typeCheck();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LoopTree  .ordinal() ) loopTree();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Schedule  .ordinal() ) GCM();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.LocalSched.ordinal() ) localSched();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.RegAlloc  .ordinal() ) regAlloc();
-        if( _phase.ordinal() < p1 && _phase.ordinal() < Phase.Encoding  .ordinal() ) encode();
+        if( _phase==null ) parse();
+        int p1 = phase.ordinal(), p2;
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) opto();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) typeCheck();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) loopTree();
+        p2 = _phase.ordinal(); if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) serialize(); // Include ideal graph in object file
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) unlink();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) GCM();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) localSched();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) regAlloc();
+        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) encode();
         return this;
     }
 
     // Run all the phases through final ELF emission
     public CodeGen driver( String cpu, String callingConv, String obj ) throws IOException {
-        return driver(Phase.Encoding,cpu,callingConv).exportELF(obj);
+        return driver(Phase.Export,cpu,callingConv).exportELF(obj);
     }
 
+    // Record times by phase
+    public final long[] _times = new long[Phase.Export.ordinal()+1];
 
     // ---------------------------
     /**
@@ -92,7 +99,6 @@ public class CodeGen {
     // Next available memory alias number
     private int _alias = 2; // 0 is for control, 1 for memory
     public  int getALIAS() { return _alias++; }
-
 
     // idepths are cached and valid until *inserting* CFG edges (deleting is
     // OK).  This happens with inlining, which bumps the version to bulk
@@ -160,18 +166,22 @@ public class CodeGen {
     // the return is not part of the match).
     final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
+    // Search path from CWD for `.o` files container external symbols and types.
+    public final Ary<String> _externPath = new Ary<>(String.class) {{ add("build"); }};
+
+
+    // ---------------------------
     // Parser object
     public final Parser P;
 
     // Parse ASCII text into Sea-of-Nodes IR
-    public int _tParse;
     public CodeGen parse() {
         assert _phase == null;
         _phase = Phase.Parse;
         long t0 = System.currentTimeMillis();
 
         P.parse();
-        _tParse = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.Parse.ordinal()] = System.currentTimeMillis() - t0;
         JSViewer.show();
         return this;
     }
@@ -189,7 +199,6 @@ public class CodeGen {
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
 
     // Run ideal optimizations
-    public int _tOpto;
     public CodeGen opto() {
         assert _phase == Phase.Parse;
         _phase = Phase.Opto;
@@ -197,7 +206,7 @@ public class CodeGen {
 
         Opto.opto(this);
 
-        _tOpto = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.Opto.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
@@ -205,7 +214,6 @@ public class CodeGen {
 
     // ---------------------------
     // Last check for bad programs
-    public int _tTypeCheck;
     public CodeGen typeCheck() {
         // Demand phase Opto for cleaning up dead control flow at least,
         // required for the following GCM.
@@ -214,7 +222,7 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
 
         Parser.ParseException err = _stop.walk( Node::err );
-        _tTypeCheck = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.TypeCheck.ordinal()] = System.currentTimeMillis() - t0;
         if( err != null )
             throw err;
         return this;
@@ -222,16 +230,75 @@ public class CodeGen {
 
     // ---------------------------
     // Build the loop tree; break never-exit loops
-    public int _tLoopTree;
     public CodeGen loopTree() {
         assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree(_start,_stop);
-        _tLoopTree = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.LoopTree.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
+
+    // ---------------------------
+    BAOS _serial;
+    public void serialize() {
+        assert _phase.ordinal() <= Phase.LoopTree.ordinal();
+        _phase = Phase.Serialize;
+        long t0 = System.currentTimeMillis();
+        // Does not change compiler phase; just records IR
+        _serial = Serialize.serialize(this);
+        _times[Phase.Serialize.ordinal()] = System.currentTimeMillis() - t0;
+    }
+
+    // ---------------------------
+    public void unlink() {
+        assert _phase.ordinal() <= Phase.Select.ordinal();
+        _phase = Phase.Unlink;
+        long t0 = System.currentTimeMillis();
+
+    	// The remaining passes assume all calls are unlinked; i.e. we are throwing
+    	// away the Call Graph here.  Functions only reachable from internal calls
+    	// need to be re-hooked to stop/start less they go dead.
+        _start.walk( x -> {
+                // Unlink all existing (conservative) linkages.
+                if( x instanceof CallNode call ) {
+                    for( Node y : call._outputs ) {
+                        // Keep function alive and hooked to Start so it gets
+                        // codegen'd.  Function is callable by this call via
+                        // TFP, although perhaps not by any other means.
+                        if( y instanceof FunNode fun && !(fun.in(1) instanceof StartNode) ) {
+                            if( fun.rpc()==null ) // Ensure valid RPC
+                                makeRPC(fun);
+                            // Insert a hook to Start and Stop
+                            fun.insertDef(1,_start);
+                            for( Node use : fun._outputs )
+                                if( use instanceof ParmNode parm )
+                                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
+                            _stop.addDef(fun.ret());
+    	                    }
+                    }
+                    call.unlink_all();
+                }
+                return null;
+            } );
+
+        _times[Phase.Unlink.ordinal()] = System.currentTimeMillis() - t0;
+    }
+    // Make a valid Parm RPC.
+    // First make sure a valid RPC; single-call into multi-fun will have each
+    // function having a single call site, so the RPC becomes a constant and
+    // folds - but since multiple targets, the Call never inlines.  Recreate a
+    // valid RPC so codegen (and Eval2) understands the calling convention.
+    private static void makeRPC( FunNode fun ) {
+        ParmNode rpc = new ParmNode("$rpc",0,fun.ret().rpc()._type,fun);
+        for( int i=1; i<fun.nIns(); i++ ) {
+            CallEndNode cend = ((CallNode)fun.in(i)).cend();
+            rpc.addDef(ConstantNode.make(cend._rpc).peephole());
+        }
+        fun.ret().setDef(3,rpc.init());
+    }
+
 
     // ---------------------------
     // Code generation CPU target
@@ -252,10 +319,9 @@ public class CodeGen {
     public RegMask _rpcMask;
 
     // Convert to target hardware nodes
-    public int _tInsSel;
     public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
     public CodeGen instSelect( String cpu, String callingConv, String base ) {
-        assert _phase.ordinal() == Phase.LoopTree.ordinal();
+        assert _phase.ordinal() <= Phase.Unlink.ordinal();
         _phase = Phase.Select;
 
         _callingConv = callingConv;
@@ -297,7 +363,8 @@ public class CodeGen {
         _start = start==null ? new StartNode(_start) : start;
         _instOuts(_stop,visit());
         _visit.clear();
-        _tInsSel = (int)(System.currentTimeMillis() - t0);
+
+        _times[Phase.Select.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
 
@@ -342,18 +409,17 @@ public class CodeGen {
 
     // ---------------------------
     // Control Flow Graph in Reverse Post Order.
-    public int _tGCM;
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase.ordinal() <= Phase.Select.ordinal();
+        assert _phase.ordinal() <= Phase.Unlink.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 
         GlobalCodeMotion.buildCFG(this);
-        _tGCM = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.Schedule.ordinal()] = System.currentTimeMillis() - t0;
         if( show )
             System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
         return this;
@@ -361,20 +427,18 @@ public class CodeGen {
 
     // ---------------------------
     // Local (basic block) scheduler phase, a classic list scheduler
-    public int _tLocal;
     public CodeGen localSched() {
         assert _phase == Phase.Schedule;
         _phase = Phase.LocalSched;
         long t0 = System.currentTimeMillis();
         ListScheduler.sched(this);
-        _tLocal = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.LocalSched.ordinal()] = System.currentTimeMillis() - t0;
         return this;
      }
 
 
     // ---------------------------
     // Register Allocation
-    public int _tRegAlloc;
     public RegAlloc _regAlloc;
     public CodeGen regAlloc() {
         assert _phase == Phase.LocalSched;
@@ -382,7 +446,7 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
         _regAlloc = new RegAlloc(this);
         _regAlloc.regAlloc();
-        _tRegAlloc = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.RegAlloc.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
 
@@ -399,7 +463,6 @@ public class CodeGen {
 
     // ---------------------------
     // Encoding
-    public int _tEncode;
     public Encoding _encoding;   // Encoding object
     public void preEncode() {  } // overridden by alternative ports
     public CodeGen encode() {
@@ -409,7 +472,7 @@ public class CodeGen {
         _encoding = new Encoding(this);
         preEncode();
         _encoding.encode();
-        _tEncode = (int)(System.currentTimeMillis() - t0);
+        _times[Phase.Encoding.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
 
@@ -418,10 +481,42 @@ public class CodeGen {
     public CodeGen exportELF(String fname) throws IOException {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
+        long t0 = System.currentTimeMillis();
         if( fname == null ) new LinkMem(this).link(); // In memory patching
-        else new ElfFile(this).export(fname); // External ELF file
+        else new ElfWriter(this).export(fname); // External ELF file
+        _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
+
+    // ---------------------------
+    // Map from external Strings to either partially read ElfFile or ExternNode
+    public final HashMap<String,Object> _externSymbols = new HashMap<>();
+    private boolean _readAlready;
+    public ExternNode findExternal( String name ) {
+        // Search for object fields
+        if( _readAlready )
+            throw Utils.TODO("Cache loaded ELF files in CodeGen");
+        _readAlready = true;
+        String cwd = System.getProperty("user.dir")+"/";
+        for( String dirname : _externPath ) {
+            for( File obj : new File(cwd+dirname).listFiles(( dir, fname) -> fname.endsWith(".o")) ) {
+                ElfReader elf = ElfReader.load(obj);
+                if( elf == null ) continue;
+                for( String s : elf._strs )
+                    _externSymbols.put(s,elf);
+
+                if( _externSymbols.containsKey(name) ) {
+                    //TypeMemPtr sym = elf.lookup(name);
+                    //if( sym == null ) continue;
+                    throw Utils.TODO("make extern");
+                }
+            }
+        }
+
+        return null;
+    }
+
+
 
     // ---------------------------
     public boolean _asmLittle=true;
@@ -430,15 +525,15 @@ public class CodeGen {
 
 
     // Testing shortcuts
-    public Node ctrl() { return _stop.ret().ctrl(); }
-    public Node expr() { return _stop.ret().expr(); }
+    public Node ctrl() { return _stop.ret(this).ctrl(); }
+    public Node expr() { return _stop.ret(this).expr(); }
     public String print() { return _stop.print(); }
 
     // Debugging helper
     @Override public String toString() {
         return _phase.ordinal() > Phase.Schedule.ordinal()
-            ? IRPrinter._prettyPrint( this )
-            : _stop.p(9999);
+            ? IRPrinter.prettyPrint( this )
+            : _stop.p(4999);
     }
 
     // Debugging helper
@@ -468,21 +563,4 @@ public class CodeGen {
         }
         System.out.println();
     }
-
-    //// Debug purposes for now
-//    public CodeGen printENCODING() {
-//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//
-//        for(Node bb : CodeGen.CODE._cfg) {
-//            for(Node n: bb.outs()) {
-//                if(n instanceof MachNode) {
-//                    ((MachNode) n).encoding(E);
-//                }
-//            }
-//        }
-//
-//        print_as_hex(outputStream);
-//        // Get the raw bytes from the output stream
-//        return this;
-//    }
 }

@@ -62,12 +62,21 @@ public class TypeStruct extends Type {
     // New open struct with no fields
     public static TypeStruct open( String name ) { return make(name,true); }
 
-    // Array
-    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias, boolean efinal) {
+    // Array, variant body
+    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias) {
         return make(name,false,
-                    Field.make("#" ,len , lenAlias,true  ,false),
-                    Field.make("[]",body,bodyAlias,efinal,false));
+                    Field.make("#" , len, lenAlias, true                     ,false),
+                    Field.make("[]",body,bodyAlias,body instanceof TypeConAry,false));
     }
+    // Array, known constant body
+    public static TypeStruct makeAry(String name, int lenAlias, int bodyAlias, TypeConAry con) {
+        Type len = TypeInteger.constant(con.len());
+        return make(name,false,
+                    Field.make("#"    ,len       , lenAlias,true,false),
+                    Field.make("[]"   ,con.elem(),bodyAlias,true,false),
+                    Field.make("[con]",con       ,bodyAlias,true, true));
+    }
+
     public TypeStruct makeHigh() {
         Field[] fs = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
@@ -110,9 +119,9 @@ public class TypeStruct extends Type {
     public  static final TypeStruct BOT = open("$STRUCT");
     public  static final TypeStruct TOP = BOT.dual();
     public  static final TypeStruct TEST= make("test",false,Field.TEST);
-    private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2,false);
-    private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4,false);
-    private static final TypeStruct ABC = makeAry("[]u8",TypeInteger.constant(3),-1,TypeConAryB.ABC,-4,true);
+    private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2);
+    private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4);
+    private static final TypeStruct ABC = makeAry("[]u8",-1,-4,TypeConAryB.ABC);
 
     // A pair of self-cyclic types
     private static final TypeStruct SINT0  = open("%SINT");
@@ -144,7 +153,7 @@ public class TypeStruct extends Type {
     // Find field index by name
     public int find(String fname) {
         for( int i=0; i<_fields.length; i++ )
-            if( _fields[i]._fname.equals(fname) )
+            if( _fields[i]._fname==fname )
                 return i;
         return -1;
     }
@@ -252,6 +261,8 @@ public class TypeStruct extends Type {
     @Override boolean _isConstant() {
         if( VISIT.containsKey(_uid) ) return true; // Cycles assume constant
         VISIT.put(_uid,this);
+        // Special case for constant arrays
+
         // Check all fields for being constant
         for( Field field : _fields )
             if( !field._isConstant() )
@@ -386,9 +397,26 @@ public class TypeStruct extends Type {
         return Utils.fold(hash);
     }
 
-    @Override int nkids() { return _fields.length; }
-    @Override Type at( int idx ) { return _fields[idx]; }
-    @Override void set( int idx, Type t ) { _fields[idx] = (Field)t; }
+    @Override public int nkids() { return _fields.length; }
+    @Override public Type at( int idx ) { return _fields[idx]; }
+    @Override public void set( int idx, Type t ) { _fields[idx] = (Field)t; }
+    // Tags 0-4 - closed +#nflds (+name)
+    // Tags 5   - closed(+ nflds  +name)
+    // Tags 6-10- open   +#nflds (+name)
+    // Tags 11  - open  (+ nflds  +name)
+    @Override int TAGOFF() { return 12; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        baos.write(TAGOFFS[_type]+ (_open ? 6 : 0) + Math.min(5,_fields.length));
+        if( _fields.length >= 5 )
+            baos.packed2(_fields.length);
+        baos.packed2(strs.get(_name));
+    }
+    static TypeStruct packed( int tag, BAOS bais, String[] strs ) {
+        int ntag = tag >= 6 ? tag-6 : tag;
+        int nflds = ntag < 5 ? ntag : bais.packed2();
+        String name = strs[bais.packed2()];
+        return malloc(name,ntag!=tag,new Field[nflds]);
+    }
 
     @Override
     SB _print(SB sb, BitSet visit, boolean html ) {
@@ -408,7 +436,7 @@ public class TypeStruct extends Type {
     @Override public String str() { return (isFree() ? "FREE:":"")+_name; }
 
 
-    public boolean isAry() { return _fields.length>=2 && _fields[_fields.length-1]._fname=="[]"; }
+    public boolean isAry() { return find("[]")!=-1; }
 
     public int aryBase() {
         assert isAry();

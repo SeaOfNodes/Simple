@@ -138,7 +138,7 @@ struct Person {
 val fcn = { Person?[] ps, int x ->
     if( ps[x] )
         ps[x].age++;
-};                
+};
 """;
         String person = "6\n";
         TestC.run(src, "person", null, person, 0);
@@ -188,6 +188,7 @@ val fcn = { Person?[] ps, int x ->
     @Test
     public void testCoRecur() {
         String src = """
+val x = 5; // aa.az; // Error to self-define forward ref
 struct A { B? b; C? c; i64 ax; val az = x*2; };
 struct B { A? a; C? c; f32 bx; val bz = x*3; };
 struct C { A? a; B? b; f64 cx; val cz = x*x; };
@@ -197,7 +198,6 @@ C !cc = new C{ cx=2.73; a = aa; b = bb; };
 aa.b = bb;
 aa.c = cc;
 bb.c = cc;
-val x = 5; // aa.az; // Error to self-define forward ref
 return cc.cz;
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
@@ -236,13 +236,13 @@ int N=4;
 i32[] !is = new i32[N];
 for( int i=0; i<N; i++ )
     is[i] = i*i;
-val sum = { i32[~] is ->  // final array
+val _sum = { i32[~] is ->  // final array
     int sum=0;
     for( int i=0; i<is#; i++ )
         sum += is[i];
     return sum;
 };
-return sum(is);
+return _sum(is);
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());

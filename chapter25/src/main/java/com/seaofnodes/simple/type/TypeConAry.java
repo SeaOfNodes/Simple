@@ -1,53 +1,49 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Represents a constant array of primitives
  */
-public class TypeConAry<A> extends Type {
+public abstract class TypeConAry<A> extends Type {
     boolean _any;
     // One of byte,short,int,long,float,double array
     public final A _ary;
 
-    TypeConAry( boolean any, byte type, A ary ) { super(type); _any = any; _ary = ary; }
-    public static final TypeConAry BOT = new TypeConAry(false, TINT, null).intern();
+    TypeConAry( boolean any, A ary ) { super(TCONARY); _any = any; _ary = ary; }
     public static void gather(ArrayList<Type> ts) {
-        ts.add(BOT);
         TypeConAryB.gather(ts);
         TypeConAryI.gather(ts);
     }
 
     @Override public String str() { return (_any?"~":"") + "[]"; }
-    @Override TypeConAry xdual() {
-        if( _ary==null )
-            return new TypeConAry(!_any,_type,null);
-        return this;
-    }
+    @Override TypeConAry xdual() { return this; }
 
     @Override Type xmeet(Type t) {
-        if( t instanceof TypeInteger ti ) return imeet(ti);
         TypeConAry ary = (TypeConAry)t; // Invariant
-        if( this==BOT ) return BOT;
-        if( ary ==BOT ) return BOT;
-        if( this==BOT.dual() ) return ary ;
-        if( ary ==BOT.dual() ) return this;
         assert _ary!=ary._ary;  // Already interned and this!=t
+        // Unrelated constant arrays
         return elem().meet(ary.elem());
     }
-    Type imeet( TypeInteger ti ) {
-        if( this==BOT.dual() ) return ti;
-        if( this==BOT        ) return BOT;
-        Type elem = elem();
-        if( !(elem instanceof TypeInteger) ) return BOTTOM;
-        if( ti.isHigh() && elem.isa(ti.dual()) )
-            return this;
-        return elem.meet(ti);
-    }
 
+    Type ymeet( Type t ) {
+        if( t instanceof TypeInteger ti ) {
+            // if i can isa *each* element, then maybe can keep.
+            // no good to i.isa(elem()) because fails the dual
+            boolean fail = false;
+            for( int j=0; j<len(); j++ )
+                if( !ti.isa(TypeInteger.constant(at8(j))) )
+                    { fail=true; break; }
+            Type e = elem();
+            if( fail )
+                return ti.meet(e);
+            return this;
+        }
+        throw Utils.TODO();
+    }
 
     @Override public boolean isHigh() { return this==TOP; }
     @Override boolean _isConstant() { return true; }
@@ -67,10 +63,24 @@ public class TypeConAry<A> extends Type {
         }
         return TypeInteger.make(min,max);
     }
+    // Generic element _type
+    public int elemT() { return TBOT; }
     public long at8(int idx) { throw Utils.TODO(); }
     public int len() { throw Utils.TODO(); }
     @Override public int log_size() { throw Utils.TODO(); }
-    public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }
+    public void write( BAOS baos ) { throw Utils.TODO(); }
+
+    // Reserve tags for u8 array
+    @Override int TAGOFF() { return 1; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        assert log_size()==0 && !_any;
+        baos.write(TAGOFFS[TCONARY]+0);
+        baos.packed4(len());
+        baos.write((byte[])_ary);
+    }
+    static TypeConAry packed( int tag, BAOS bais ) {
+        return TypeConAryB.make(bais.read(new byte[bais.packed4()]));
+    }
 
     @Override boolean eq(Type t) {
         return t instanceof TypeConAry ary && _any==ary._any && ary._ary==null;

@@ -6,8 +6,8 @@ import java.util.BitSet;
 
 public class DivNode extends ArithNode {
     public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Div; }
 
-    @Override public String label() { return "Div"; }
     @Override public String op() { return "//"; }
 
     @Override long doOp( long x, long y ) { return y==0 ? 0 : x / y; }

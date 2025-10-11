@@ -78,7 +78,7 @@ var sq = { int x ->
 return sq(arg)+sq(3);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return (#2+#2); return (Parm_x(sq,i64)*x); ]", code._stop.toString());
+        assertEquals("return (#2+#2);", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
 
@@ -116,7 +116,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return #2; return 9; return 6; ]", code._stop.toString());
+        assertEquals("return #2;", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -126,7 +126,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,i64)*#2)); ]", code._stop.toString());
+        assertEquals("return #2;", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -147,14 +147,14 @@ return newS(1).i;
         assertEquals("1", Eval2.eval(code,  0));
     }
 
-    // Double forward reference
+    // Only forward refs to direct function calls allowed
     @Test
     public void testFcn7() {
         CodeGen code = new CodeGen(
 """
-if( arg ? f : g ) return 1;
 val f = {->1;};
 val g = {->2;};
+if( arg ? f : g ) return 1;
 return 2;
 """);
         code.parse().opto().typeCheck();
@@ -176,7 +176,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return #2; return Parm_i(x,i64); ]", code._stop.toString());
+        assertEquals("return 3;", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -252,7 +252,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #21}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #1}?",e.getMessage()); }
     }
 
 
@@ -308,8 +308,8 @@ val is_even = { int x -> x ? is_odd (x-1) : true ; };
 val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
-        code.parse().opto();
-        assertEquals("Stop[ return is_even( arg); return Phi(Region,Phi(Region,is_even( ((Parm_x(is_even,int,arg,Sub)-1)-1)),0),1); ]", code._stop.toString());
+        code.parse().opto().typeCheck();
+        assertEquals("Stop[ return #2; return Phi(Region,0,1,#2); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("0", Eval2.eval(code, 1));
         assertEquals("1", Eval2.eval(code, 2));
@@ -348,7 +348,7 @@ if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(i2i.o,i64); ]", code._stop.toString());
+        assertEquals("return Phi(Region,#2,#2);", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

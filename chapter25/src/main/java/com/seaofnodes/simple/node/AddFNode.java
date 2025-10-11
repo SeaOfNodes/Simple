@@ -7,8 +7,7 @@ import java.util.BitSet;
 
 public class AddFNode extends ArithFNode {
     public AddFNode(Node lhs, Node rhs) { super(lhs, rhs); }
-
-    @Override public String label() { return "AddF"; }
+    @Override public Tag serialTag() { return Tag.AddF; }
 
     @Override public String glabel() { return "+"; }
 

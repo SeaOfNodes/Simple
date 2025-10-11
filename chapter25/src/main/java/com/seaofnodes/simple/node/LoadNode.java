@@ -3,6 +3,8 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
@@ -23,6 +25,8 @@ public class LoadNode extends MemOpNode {
     public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
         super(loc, name, alias, true, glb, mem, ptr, off);
     }
+    LoadNode( BAOS bais, String[] strs, Type[] types, AryInt aliases ) { super(bais,strs,types,aliases,true); }
+    @Override public Tag serialTag() { return Tag.Load; }
 
     // GraphVis DOT code (must be valid Java identifiers) and debugger labels
     @Override public String  label() { return "ld_"+mlabel(); }
