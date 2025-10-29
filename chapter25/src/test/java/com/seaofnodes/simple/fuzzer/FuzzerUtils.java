@@ -94,13 +94,13 @@ class FuzzerUtils {
     /**
      * Parse script with peepholes enabled or disabled
      */
-    public static CodeGen parse(String script, long workListSeed, boolean reset) {
+    public static CodeGen parse(String script, long workListSeed) {
         var err = System.err;
         var out = System.out;
         try {
             System.setErr(NULL_PRINT_STREAM);
             System.setOut(NULL_PRINT_STREAM);
-            var code = new CodeGen(script, TypeInteger.BOT, workListSeed, reset);
+            var code = new CodeGen(script, workListSeed, TypeInteger.BOT);
             return code.driver(CodeGen.Phase.LocalSched);
         } finally {
             System.setErr(err);

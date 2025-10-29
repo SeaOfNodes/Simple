@@ -29,7 +29,7 @@ public abstract class MemOpNode extends Node {
     // Stores produce memory (maybe as part of a tuple with other things),
     // loads do not.
     //
-    // Loads might pick up anti-dependences on prior Stores, and never cause an
+    // Loads might pick up anti-dependencies on prior Stores, and never cause an
     // anti-dependence themselves.
     //
     // Stores must maximally sink to the least dominator use.  Loads can be

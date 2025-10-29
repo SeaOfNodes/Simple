@@ -1,0 +1,25 @@
+// Simple I/O Library
+
+// Write byte array to stdout
+val p = { u8[~] str ->
+    i64 ptr = str;  // cast array base to i64
+    return libc.write(1,ptr,str#);
+};
+
+// Return stdin as a u8[].
+val stdin = { ->
+    var buf = new u8[8*1024];
+    i64 ptr = buf;
+    int len = 0;
+    while( true ) {
+        int rez = libc.read(0,ptr,buf#);
+        if( rez < 0 ) libc._exit(libc.errno);
+        len += rez;
+        if( rez < buf# )
+            break;
+        libc._exit(-2); // Need to implement for more than 8K input
+    }
+    // Compress
+    var dst = new u8[len];
+    return ary.copy(dst,0,buf,0,len);
+};

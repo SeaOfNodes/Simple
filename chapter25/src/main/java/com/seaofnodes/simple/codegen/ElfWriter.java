@@ -235,13 +235,13 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
     public class SimpleSection extends DataSection {
-        SimpleSection(BAOS serial) { super(".simple", 0x60000000, 0, serial); }
+        SimpleSection(BAOS serial) { super(".simple", 0x0A, 0, serial); }
     }
 
 
     // ------------------------------------------------------------------------
 
-    public void export(String fname) throws IOException {
+    public void export(String fname) {
         // Sections are created in the order they are emitted.
 
         // Null section
@@ -337,9 +337,14 @@ public class ElfWriter {
         File file = new File(fname);
         if( file.getParentFile()!=null )
             file.getParentFile().mkdirs();
-        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
-        bos.write(out.array());
-        bos.close();
+        try {
+            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
+            bos.write(out.array());
+            bos.close();
+        } catch( IOException ioe ) {
+            // Caller does not want to deal, but its a failed compilation in any case
+            throw new RuntimeException(ioe);
+        }
     }
 
 }

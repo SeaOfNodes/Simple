@@ -8,16 +8,20 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
+
+// Compile Driver for a Compilation Unit
 @SuppressWarnings("unchecked")
 public class CodeGen {
-    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
-    // Last created CodeGen as a global; used all over to avoid passing about a
-    // "context".
+
+    // Last created CodeGen as a global; used all over to avoid passing about a "context".
     public static CodeGen CODE;
 
+    // Location of built-in CPU ports
+    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
+
+    // Compile phases
     public enum Phase {
         Parse,                  // Parse ASCII text into Sea-of-Nodes IR
         Opto,                   // Run ideal optimizations
@@ -35,51 +39,83 @@ public class CodeGen {
     public Phase _phase;
 
     // ---------------------------
+    // Module Source Root
+    public final String _modDir;
+    // Module Build Root
+    public final String _buildDir;
+    // Search path from CWD for `.o` files containing external symbols and types.
+    // This can contain archives, zips and other .o file containers.
+    public final Ary<String> _externPaths;
+
+    // Dotted path from module root to file containing the source, sans ".smp".
+    // e.g. module root: "sys", nested source name "sys.io".
+    public final String _srcName;
     // Compilation source code
     public final String _src;
-    // Compile-time known initial argument type
-    public final TypeInteger _arg;
+
+    // Current Working Directory; default module base
+    private final String _cwd;
+
+
 
     // ---------------------------
-    public CodeGen( String src ) { this(src, TypeInteger.BOT, 123L, true ); }
-    public CodeGen( String src, TypeInteger arg) { this(src, arg==null ? TypeInteger.BOT : arg, 123L, true ); }
+    // Minimal test setup
+    public CodeGen( String src ) { this(src, TypeInteger.BOT ); }
+    // Test setup; no module nor file with specific argument
+    public CodeGen( String src, TypeInteger arg) { this(src, 123L, arg==null ? TypeInteger.BOT : arg ); }
 
-    public CodeGen( String src, TypeInteger arg, long workListSeed, boolean reset ) {
+    // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
+    public CodeGen( String src, long workListSeed, TypeInteger arg ) {
+        this(null,null,null,"Test",
+             src, workListSeed, arg);
+    }
+    // Generic CodeGen, including full module setup
+    public CodeGen( String modDir, String buildDir, Ary<String> externPaths, String srcName,
+                    String src, long workListSeed, TypeInteger arg ) {
+        // Public singleton to avoid passing about this state to a huge count
+        // of places.  Probably becomes a TLS at some point.
         CODE = this;
-        if( reset ) Type.reset();
-        _main = makeFun(TypeFunPtr.MAIN);
+
+        _cwd = System.getProperty("user.dir")+"/";
+        _modDir   =   modDir == null ? _cwd :   modDir;
+        _buildDir = buildDir == null ? _cwd : buildDir;
+        _externPaths = externPaths;
+        _srcName = srcName;
         _phase = null;
         _callingConv = null;
         _start = new StartNode(arg);
         _stop = new StopNode(src);
         _src = src;
-        _arg = arg;
         _iter = new IterPeeps(workListSeed);
-        P = new Parser(this,arg);
+        P = new Parser(this );
+        _publishSymbols = new Ary<>(TypeStruct.class);
     }
 
 
-    // All passes up to Phase, except ELF
-    public CodeGen driver( Phase phase ) { return driver(phase,null,null); }
-    public CodeGen driver( Phase phase, String cpu, String callingConv ) {
-        if( _phase==null ) parse();
-        int p1 = phase.ordinal(), p2;
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) opto();
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) typeCheck();
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) loopTree();
-        p2 = _phase.ordinal(); if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) serialize(); // Include ideal graph in object file
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) instSelect(cpu,callingConv);
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) unlink();
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) GCM();
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) localSched();
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) regAlloc();
-        p2 = _phase.ordinal(); if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) encode();
+    // Run requested phases.
+
+    // No code emission, just IR generation
+    public CodeGen driver( Phase phase ) { return driver(phase,null,null,null); }
+    // No object file writing, but code generation for a specific cpu/os pair (allows emulation)
+    public CodeGen driver( Phase phase, String cpu, String callingConv  ) { return driver(phase,cpu,callingConv,null); }
+    // Write an object file for a specific cpu/os pair
+    public CodeGen driver( String cpu, String callingConv, String obj ) { return driver(Phase.Export,cpu,callingConv,obj); }
+    // Generic driver
+    CodeGen driver( Phase phase, String cpu, String callingConv, String obj ) {
+        int p1 = phase.ordinal(), p2 = _phase==null ? -1 : _phase.ordinal();
+        if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = _phase.ordinal(); }
+        if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) { serialize(); p2 = _phase.ordinal(); } // Include ideal graph in object file
+        if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) { encode();    p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(obj); p2 = _phase.ordinal(); }
         return this;
-    }
-
-    // Run all the phases through final ELF emission
-    public CodeGen driver( String cpu, String callingConv, String obj ) throws IOException {
-        return driver(Phase.Export,cpu,callingConv).exportELF(obj);
     }
 
     // Record times by phase
@@ -97,8 +133,9 @@ public class CodeGen {
     }
 
     // Next available memory alias number
-    private int _alias = 2; // 0 is for control, 1 for memory
-    public  int getALIAS() { return _alias++; }
+    int _alias = 2; // 0 is for control, 1 for memory
+    public int nextALIAS() { return _alias++; }
+
 
     // idepths are cached and valid until *inserting* CFG edges (deleting is
     // OK).  This happens with inlining, which bumps the version to bulk
@@ -132,17 +169,18 @@ public class CodeGen {
 
     // Source of unique function indices
     private int _fidx =0;
+    public int nextFIDX() { return _fidx++; }
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
-        int fidx = _fidx++;
-        assert fidx<64;         // TODO: need a larger FIDX space
-        return fun.makeFrom(fidx);
+        return fun.makeFrom(nextFIDX());
     }
-    // Signature for MAIN
-    public TypeFunPtr _main;
-    public void setMain(FunNode main) {
-        _main = main.sig();
-        link(main);
-    }
+    //// Signature for MAIN
+    //public TypeFunPtr _main;
+    //public void setMain(FunNode main) {
+    //    _main = main.sig();
+    //    link(main);
+    //}
+
+
     // Reverse from a constant function pointer to the IR function being called.
     // Error to call with a non-constant TFP
     public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
@@ -166,13 +204,12 @@ public class CodeGen {
     // the return is not part of the match).
     final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
-    // Search path from CWD for `.o` files container external symbols and types.
-    public final Ary<String> _externPath = new Ary<>(String.class) {{ add("build"); }};
-
 
     // ---------------------------
     // Parser object
     public final Parser P;
+    // Public exposed names; TODO: only ever publish the file-as-struct symbol
+    public final Ary<TypeStruct> _publishSymbols;
 
     // Parse ASCII text into Sea-of-Nodes IR
     public CodeGen parse() {
@@ -181,6 +218,7 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
 
         P.parse();
+
         _times[Phase.Parse.ordinal()] = System.currentTimeMillis() - t0;
         JSViewer.show();
         return this;
@@ -478,7 +516,7 @@ public class CodeGen {
 
     // ---------------------------
     // Exporting to external formats
-    public CodeGen exportELF(String fname) throws IOException {
+    public CodeGen exportELF(String fname) {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
         long t0 = System.currentTimeMillis();
@@ -489,33 +527,77 @@ public class CodeGen {
     }
 
     // ---------------------------
+
+    // Search a external path list, each path is recursively searched for .o
+    // files, which are partially loaded and searched for public symbols.
+
+    // This is a state machine which lazily searches down the set of search
+    // paths until the requested module is class is found.
+
     // Map from external Strings to either partially read ElfFile or ExternNode
     public final HashMap<String,Object> _externSymbols = new HashMap<>();
-    private boolean _readAlready;
+    private int _extPathIdx;    // Search index into the extern path list
+    private final Ary<File> _files = new Ary<>(File.class);   // Files in the current extern path being searched
+    private int _extFileIdx;    // Index into _files
     public ExternNode findExternal( String name ) {
-        // Search for object fields
-        if( _readAlready )
-            throw Utils.TODO("Cache loaded ELF files in CodeGen");
-        _readAlready = true;
-        String cwd = System.getProperty("user.dir")+"/";
-        for( String dirname : _externPath ) {
-            for( File obj : new File(cwd+dirname).listFiles(( dir, fname) -> fname.endsWith(".o")) ) {
-                ElfReader elf = ElfReader.load(obj);
-                if( elf == null ) continue;
-                for( String s : elf._strs )
-                    _externSymbols.put(s,elf);
 
-                if( _externSymbols.containsKey(name) ) {
-                    //TypeMemPtr sym = elf.lookup(name);
-                    //if( sym == null ) continue;
-                    throw Utils.TODO("make extern");
+        while( true ) {
+            // Check for an immediate hit
+            switch( _externSymbols.get(name) ) {
+            case ExternNode extern:
+                return extern;
+            case ElfReader elf:
+                // Convert ElfReader
+                Ary<TypeStruct> published = elf.loadSimple();
+                for( TypeStruct ts : published )
+                    //_externSymbols.put(ts._name, new ExternNode(ts,ts._name));
+                    throw Utils.TODO();
+                break;
+
+            case null:
+                // If a miss, attempt to load and search the next ELF file.
+                if( _extFileIdx >= _files._len ) {
+                    if( _externPaths==null || _extPathIdx >= _externPaths._len )
+                        return null; // A true miss in the whole search path
+                    loadExtPath();   // Load next batch file of files
+                    break;
                 }
+                // Load and parse an ELF header
+                ElfReader elf = ElfReader.load(_files.at(_extFileIdx++));
+                if( elf == null ) break; // Not an ELF
+                // Load public symbols from the ELF
+                elf.loadPublicSymbols();
+                if( elf._strs==null ) break; // No .simple section with strings
+                // Put public symbols in global table; first names shadow all others
+                for( String s : elf._strs )
+                    if( !s.isEmpty() )
+                        // Map from symbol string to ELFReader; most lookups
+                        // will miss and no need to unpack ElfReader types
+                        _externSymbols.putIfAbsent(s,elf);
+                break;
+
+            default: throw Utils.TODO("should not reach here");
             }
         }
-
-        return null;
     }
 
+    // Load all the .o files in the next external path.
+    private void loadExtPath() {
+        _files.clear();
+        _extFileIdx = 0;
+        String extpath = _externPaths.at(_extPathIdx++);
+        File f = new File(_cwd+extpath);
+        fillExtFiles(f);
+    }
+
+    // Recursive search (TODO: gzip, archives) and gather all .o files.
+    private void fillExtFiles(File dir) {
+        if( dir.isDirectory() )
+            for( File f : dir.listFiles() )
+                fillExtFiles(f);
+        else if( dir.getName().endsWith(".o") )
+            _files.add(dir);
+    }
 
 
     // ---------------------------

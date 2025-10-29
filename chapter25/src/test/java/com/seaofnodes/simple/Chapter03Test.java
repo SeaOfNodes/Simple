@@ -66,7 +66,7 @@ public class Chapter03Test {
             new CodeGen("int a=1; int b=2; int !c=0; { int b=3; c=a+b;").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected }: ",e.getMessage());
+            assertEquals("Syntax error, expected `}` but found `EOF`",e.getMessage());
         }
     }
 

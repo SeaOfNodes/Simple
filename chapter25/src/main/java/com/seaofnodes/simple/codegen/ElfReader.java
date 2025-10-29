@@ -2,25 +2,29 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.io.*;
 import java.nio.file.Files;
+import java.util.HashMap;
 
 public class ElfReader {
 
-    final public File _file;
-    final public byte[] _buf;
+    public final File _file;
+    public final byte[] _buf;
     int _x;                     // Cursor into buffer
     // ELF Header
-    final public ElfHeader _header;
+    public final ElfHeader _header;
     // All sections
-    final public Section[] _sections;
+    public final Section[] _sections;
     // Simple section, if available
-    final public Section _simple;
-    // Strings from the Simple section
+    public final Section _simple;
+    // Strings from the Simple section, either small public set or whole set
     public String[] _strs;
+    // First N published symbols this file
+    public Ary<TypeStruct> _published;
 
     // Load an Elf file (mostly lazily)
     public static ElfReader load( File f ) {
@@ -47,12 +51,28 @@ public class ElfReader {
             if( ".simple".equals(sec._name) )
                 simple = sec;
         _simple = simple;
-        if( simple == null )
-            return;             // No .simple section
-
-        BAOS baos = new BAOS(_buf, (int)_simple._offset);
-        _strs = Serialize.read_strs(baos);
     }
+
+    // Load the public symbols only
+    String[] loadPublicSymbols() {
+        if( _strs != null ) return _strs;  // Public or all symbols
+        if( _simple == null ) return null; // No .simple section
+
+        // Read only the published public strings, for speed purposes when
+        // scanning a large count of ELF files, but getting hits in only a few
+        // of them.  i.e. optimizing (prematurely?) for the traditional case of
+        // linking against a large code base.
+        BAOS baos = new BAOS(_buf, (int)_simple._offset);
+        _strs = Serialize.read_public_strs(baos);
+        return _strs;
+    }
+
+    Ary<TypeStruct> loadSimple() {
+        assert _published == null;
+        BAOS baos = new BAOS(_buf, (int)_simple._offset);
+        return (_published = Serialize.readAll(baos));
+    }
+
 
     int u1() { return _buf[_x++]&0xFF; }
     int magic() {                         // Big endian

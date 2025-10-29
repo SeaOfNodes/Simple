@@ -155,23 +155,23 @@ public class FunNode extends RegionNode {
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
 
+    public boolean isModInit( ) {
+        // The one top-level <clinit> with no internal dots:
+        // "sys.<clinit>" is a module, but "sys.io.<clinit>" is not.
+        return isCLInit() && _name.indexOf('.')==_name.lastIndexOf('.');
+    }
+    public boolean isCLInit( ) {
+        return _name!=null && _name.endsWith(".<clinit>");
+    }
+
     // Function is public (callable from Start directly).
-    // - Always true for main
-    // - Never true for stdlib, or anonymous functions
-    // - Named functions use `!wholeWorld`
     public boolean isPublic( CodeGen code ) {
-        // Always true for main
-        if( sig().fidx() == code._main.fidx() ) return true;
         // Never true for anonymous functions
         if( _name == null ) return false;
         // False if name starts with underscore, skipping any leading struct names.
         int idx = _name.lastIndexOf('.')+1;
         if( _name.charAt(idx)=='_' ) return false;
-        // Whole world: we are compiling main, and what is reaches, hence we
-        // know the "whole world".
-        boolean wholeWorld = code.link(code._main) != null;
-        // Named functions (and not stdlib) are callable if not whole-world.
-        return !wholeWorld;
+        return true;
     }
 
     @Override public boolean inProgress() { return unknownCallers(); }

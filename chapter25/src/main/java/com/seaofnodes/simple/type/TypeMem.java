@@ -21,7 +21,6 @@ public class TypeMem extends Type {
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
     private TypeMem(int alias, Type t) { super(TMEM); init(alias,t); }
     private TypeMem init(int alias, Type t) {
-        assert alias>1 || (t==Type.TOP || t==Type.BOTTOM || t==null);
         _alias = alias;
         _t = t;
         return this;
@@ -48,8 +47,9 @@ public class TypeMem extends Type {
 
     public static final TypeMem TOP = make(1, Type.TOP   );
     public static final TypeMem BOT = make(1, Type.BOTTOM);
+    public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); }
+    public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); ts.add(SELF_MEM); }
 
     @Override
     TypeMem xmeet(Type t) {

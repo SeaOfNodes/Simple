@@ -65,7 +65,11 @@ main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
-test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
+# These tests do not rely on the stdlib
+test_raw_nums:= 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17
+test_raw     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums))
+test_cp0     := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
+test_cp      := $(filter-out $(test_raw),$(test_cp0))
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -129,7 +133,11 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
 
 #######################################################
 
-build/sys_x86_64_v2_win64.o:	$(CLZDIR)/main/.mtag
+# Default Simple .o target is build/ which is where all the test .o's get
+# dumped.  The default sys search needs to NOT include all the dumped test
+# files; move it down into lib/
+
+lib/sys_x86_64_v2_win64.o:	$(CLZDIR)/main/.mtag
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi Win64 --norun -o $@ src/main/smp/sys.smp
 
@@ -138,7 +146,12 @@ build/sys_x86_64_v2_win64.o:	$(CLZDIR)/main/.mtag
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag build/sys_x86_64_v2_win64.o
+tests_raw:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+	@echo "testing " $(test_raw)
+	@[ -d build/objs ] || mkdir -p build/objs
+	@$(JVM) org.junit.runner.JUnitCore $(test_raw)
+
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag lib/sys_x86_64_v2_win64.o tests_raw
 	@echo "testing " $(test_cp)
 	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)

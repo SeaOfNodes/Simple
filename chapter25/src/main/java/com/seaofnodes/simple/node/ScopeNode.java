@@ -32,11 +32,11 @@ public class ScopeNode extends MemMergeNode {
         // Basic block scoping
         public static class Block  extends Kind { }
         // Function scope
-        public static class Func   extends Kind { }
+        public static class Func   extends Kind { public Func(String name) { _name=name;} public final String _name; }
         // Struct definition, mapping types  to fields
-        public static class Define extends Kind { public Define(TypeMemPtr tmp) { _tmp=tmp; } public final TypeMemPtr _tmp; }
+        public static class Define extends Kind { public Define(TypeStruct ts) { _ts=ts; } public final TypeStruct _ts; }
         // Struct allocation, mapping values to fields
-        public static class Alloc  extends Kind { public Alloc (TypeMemPtr tmp) { _tmp=tmp; } public final TypeMemPtr _tmp; }
+        public static class Alloc  extends Kind { public Alloc (TypeStruct ts) { _ts=ts; } public final TypeStruct _ts; }
 
         public int _lexSize;     // Number of Vars in this scope
     }
@@ -64,7 +64,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < depth() && i == _kinds.at(j)._lexSize ) { sb.append("| "); j++; }
             Var v = _vars.at(i);
-            sb.append(v.type());
+            sb.append(v._type());
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);
@@ -122,16 +122,17 @@ public class ScopeNode extends MemMergeNode {
         for( int i=n; i<nIns(); i++ ) {
             Var v = var(i);
             if( !v.isFRef() ) continue;
-            if( depth()==1 ) {
-                ExternNode ext = code==null ? null : code.findExternal(v._name);
-                if( ext == null )
-                    throw Parser.error("Undefined name '" + v._name + "'",v._loc);
-                throw Utils.TODO(); // External linkage def
-            }
+            //if( depth()==1 ) {
+            //    ExternNode ext = code==null ? null : code.findExternal(v._name);
+            //    if( ext == null )
+            //        throw Parser.error("Undefined name '" + v._name + "'",v._loc);
+            //    throw Utils.TODO(); // External linkage def
+            //}
             _vars  .swap(n,i);
             _inputs.swap(n,i);
             v._idx = n;
             kind._lexSize = ++n;
+            throw Utils.TODO("Test: No need for extern lookups yet");
         }
     }
 
@@ -144,35 +145,8 @@ public class ScopeNode extends MemMergeNode {
         for( int i=depth()-1; i>=0; i-- )
             if( v._idx >= _kinds.at(i)._lexSize )
                 return _kinds.at(i);
-        throw Utils.TODO();
+        return null;
     }
-
-    // Return the kind for the defining scope, or a function scope if found
-    // first.  Block scopes means the variable can be r/w directly in the
-    // scope, Function scopes require final constants (no capture), and
-    // Constructor scopes mean an instance variable reference.
-
-    // Walk up-lexical scope looking for defining lexical Kind.
-    // - Skip any amount of nested block scopes
-    // - Walking out of a function requires v be a final constant (for now) -
-    // and we can stop walking.
-
-    // - Walking out of a method and (skipping Blocks) into the matching struct
-    // is OK, and this is a instance var load.
-
-    // - Walking out of a method and into the wrong struct is an error;
-    // including nested structs containing (no nested classes yet)
-
-    // Returns error, forward-ref, ok containing struct, ok containing function/block.
-
-    public String outOfFunction( Var v ) {
-        //if( v==null ) return null; // Prolly forward reference
-        //int i; for( i=_lexSize._len-1; i>=0 && v._idx<_lexSize.at(i); i-- )
-        //    if( _kinds.at(i)=="{->}" ) return "{->}";
-        //return _kinds.at(i);
-        throw Utils.TODO();
-    }
-
 
     // Find name in reverse, return an index into _vars or -1.  Linear scan
     // instead of hashtable, but probably doesn't matter until the scan
@@ -204,10 +178,29 @@ public class ScopeNode extends MemMergeNode {
         _vars.add(v);
         // Creating a forward reference
         if( init==Parser.XCTRL )
-            init = new FRefNode(v).init();
+            //init = new FRefNode(v).init();
+            throw Utils.TODO();
         addDef(init);
         return true;
     }
+
+    // Normal lookup was tried and failed.  Insert a forward ref outside any
+    // enclosing Kind.Func scope, skipping any nested Blocks or Allocs.  Return
+    // the Kind index of the skipped Func.  May insert at the outermost scope,
+    // which means this must be defined externally, or it's an error.
+    public Var defineFRef( String name, Parser.Lexer loc ) {
+        // Kind/Lexical scope index
+        int kidx = depth()-1;
+        while( !(_kinds.at(kidx) instanceof Kind.Func) )
+            kidx--;
+        int idx = _kinds.at(kidx)._lexSize;
+        Var var = new Var(idx,name,FRefNode.FREF_TYPE,false,loc,true);
+        FRefNode fref = new FRefNode(var).init();
+        // Insert in the lex scope just prior to kidx
+        insert(var,fref,kidx);
+        return var;
+    }
+
 
     // Read from memory
     public Node mem( int alias ) { return mem()._mem(alias,null); }
@@ -349,6 +342,7 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
+    // ------------------------------------------------
     // peephole the backedge scope into this loop head scope
     // We set the second input to the phi from the back edge (i.e. loop body)
     public void endLoop(ScopeNode back, ScopeNode exit ) {
@@ -372,8 +366,8 @@ public class ScopeNode extends MemMergeNode {
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
         for( int i=2; i<nIns(); i++ ) {
             if( var(i)._final ) continue; // Final vars did not get modified in the loop
-            if( var(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
-            if( back.in(i) != scope ) {
+            if( !var(i).type().isHighOrConst() && // Cannot lift higher than a constant, so no Phi
+                back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;
                 phi.setDef(2,back.in(i)); // Fill backedge
@@ -383,7 +377,7 @@ public class ScopeNode extends MemMergeNode {
         }
     }
 
-
+    // ------------------------------------------------
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
     public void addGuards( Node ctrl, Node pred, boolean invert ) {
@@ -468,4 +462,45 @@ public class ScopeNode extends MemMergeNode {
                 setDef(i,cast);
     }
 
+    // ------------------------------------------------------------------------
+    // Insert a top-level public external symbol, "as-if" some #include/import
+    // was executed at the top of tile.
+    public Var insertExtern( ExternNode ext ) {
+        // Size of top-level scope
+        int lexSize = _kinds.at(0)._lexSize;
+        Var var = new Var(lexSize,ext._extern,ext._con,true,null);
+        insert(var,ext,0);
+        return var;
+    }
+
+    // ------------------------------------------------------------------------
+    // Insert a Var with Node n in the lex scope just prior to kidx
+    private void insert( Var var, Node n, int kidx ) {
+        // Insert just prior to scope kidx
+        int nidx = _kinds.at(kidx)._lexSize;
+        _vars  .insert(var,nidx);
+        _inputs.insert(n  ,nidx);
+        // All outer Kinds lexical offsets bump by one
+        for( int i = kidx; i < depth(); i++ )
+            _kinds.at(i)._lexSize++;
+        // All Vars outside the innermost lexical scope bump out one
+        for( int i=nidx+1; i<_vars._len; i++ )
+            _vars.at(i)._idx++;
+    }
+
+    // Save the existing Node state to an array
+    public Node[] save() {
+        Node[] olds = new Node[nIns()];
+        for( int i=0; i<nIns(); i++ )
+            olds[i] = in(i)==null ? null : in(i).keep();
+        return olds;
+    }
+
+    // Restore saved Node state back into scope
+    public void restore( Node[] olds ) {
+        assert olds.length<=nIns();
+        for( int i=0; i<olds.length; i++ )
+            setDef(i,olds[i]==null ? null : olds[i].unkeep());
+
+    }
 }

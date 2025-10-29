@@ -162,7 +162,7 @@ return a;
     @Test
     public void testBadNum() {
         try { new CodeGen("return 1-;").parse();  fail(); }
-        catch( RuntimeException e ) { assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage()); }
+        catch( RuntimeException e ) { assertEquals("Syntax error, expected `an identifier or expression` but found `;`",e.getMessage()); }
     }
 
     @Test

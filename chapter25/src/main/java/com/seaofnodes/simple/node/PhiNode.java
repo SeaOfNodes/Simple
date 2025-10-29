@@ -115,11 +115,12 @@ public class PhiNode extends Node {
             return in(1);       // Input has collapse to e.g. starting control.
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != _minType ) {
-                _minType = tmp2;
-                return this;
-            }
+            //TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
+            //if( tmp2!=null && tmp2 != _minType ) {
+            //    _minType = tmp2;
+            //    return this;
+            //}
+            throw Utils.TODO();
         }
         if( r.inProgress() || r.nIns()<=1 )
             return null;        // Input is in-progress
@@ -171,7 +172,7 @@ public class PhiNode extends Node {
                 Node ridom = r.idom(this);
                 if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
                     // Must walk the idom on the null side to make sure we hit False.
-                    CFGNode idom = (CFGNode)r.in(nullx);
+                    CFGNode idom = r.cfg(nullx);
                     while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
                     if( idom instanceof CProjNode proj && proj._idx==1 )
                         return val;
@@ -185,13 +186,14 @@ public class PhiNode extends Node {
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
     private boolean same_op() {
+        int busy=0;
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( in(1) instanceof MemOpNode mem && mem._alias != ((MemOpNode)op)._alias )
                 return false;
-            if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
+            if( op.nOuts() > 1 && busy++ > 0 ) { // Too many users, but addDep in case lose users
                 for( Node out : op._outputs )
                     if( out!=null && out!=this )
                         addDep(out);

@@ -290,7 +290,7 @@ return new s0;
 int v0=null.f0;
 """);
         try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Syntax error, expected ;: .",e.getMessage());  }
+        catch( Exception e ) {  assertEquals("Syntax error, expected `;` but found `.`",e.getMessage());  }
     }
 
     @Test

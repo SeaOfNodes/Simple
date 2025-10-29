@@ -71,3 +71,13 @@ $ROOT==$CWD
 Code is implicitly in the *empty* name space, is in the <clinit> for the empty
 name space and gets run on project start.
 
+------
+
+Implications for e.g. sys:
+
+    .../simple/sys.smp - top level, has sys.parseAryI64
+     ../simple/sys/sys.io.smp - has `struct io { ... }`
+
+
+For now just gather the exported TYPE symbols, and a count of them, and export/input ELF.
+NO: for now split into `sys` class from instance, 

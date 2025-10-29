@@ -3,7 +3,9 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -39,7 +41,7 @@ public class ParmNode extends PhiNode {
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( "main".equals(fun()._name) && _label.equals("arg") )
+        if( fun()._name!=null && fun()._name.endsWith("<clinit>") && _label.equals("arg") )
             return sb.append("arg");
         sb.append("Parm_").append(_label).append("(");
         for( Node in : _inputs ) {
@@ -65,9 +67,9 @@ public class ParmNode extends PhiNode {
 
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != _minType ) {
-                _minType = tmp2;
+            TypeStruct ts = (TypeStruct) Parser.TYPES.get(tmp._obj._name);
+            if( ts!=null && ts != tmp._obj ) {
+                _minType = tmp.makeFrom(ts);
                 return this;
             }
         }

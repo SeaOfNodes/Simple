@@ -62,7 +62,7 @@ public class TypeMemPtr extends TypeNil {
     public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
     @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one); }
-    public TypeMemPtr makeHigh() { return make((byte)0,_obj.makeHigh(),false); }
+    public TypeMemPtr makeHigh(byte nil) { return make(nil,_obj.makeHigh(),false); }
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}
@@ -101,18 +101,6 @@ public class TypeMemPtr extends TypeNil {
     @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
     @Override TypeMemPtr _close() { return makeFrom(_obj._close()); }
-
-
-    // True if this "isa" t up to named structures
-    @Override public boolean shallowISA( Type t ) {
-        if( !(t instanceof TypeMemPtr that) ) return false;
-        if( this==that ) return true;
-        if( xmeet0(that)!=that._nil ) return false;
-        if( _obj==that._obj ) return true;
-        if( _obj._name.equals(that._obj._name) )
-            return true;        // Shallow, do not follow matching names, just assume ok
-        throw Utils.TODO(); // return _obj.shallowISA(that._obj);
-    }
 
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }

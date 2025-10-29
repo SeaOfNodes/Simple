@@ -4,6 +4,7 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -57,6 +58,18 @@ public class StoreNode extends MemOpNode {
         if( mem0 == Type.TOP ) return TypeMem.TOP;
         TypeMem mem = (TypeMem)mem0; // Invariant
         if( mem == TypeMem.TOP ) return TypeMem.TOP;
+
+        // Allocation uses a known TypeStruct mem type and nothing else does.
+        // This memory is truely private; a temporary singleton until it
+        // escapes - which is never does in a constructor.
+        if( mem._t instanceof TypeStruct ts ) {
+            assert mem._alias==1;
+            Field fld = Field.make(_name, val, _alias, true);
+            TypeStruct ts2 = ts.find(_name) == -1 ? ts.add(fld) : ts.replace(fld);
+            return TypeMem.make(1,ts2);
+        }
+
+        // Normal aliasing Store
         Type t = Type.BOTTOM;               // No idea on field contents
         // Same alias, lift val to the declared type and then meet into other fields
         if( mem._alias == _alias ) {

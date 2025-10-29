@@ -20,9 +20,13 @@ public class Chapter25Test {
 
     @Test @Ignore
     public void testSys() throws IOException {
-        // Produce build/objs/libsmp.o
+        // Produce lib/sys.o
         CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
-            driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"build/objs/sys.o");
+            driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o");
+
+        TestC.run("sys.io.p(\"Hello, World!\"",TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
+
+
     }
 
     @Test

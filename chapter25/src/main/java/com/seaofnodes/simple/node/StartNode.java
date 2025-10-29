@@ -3,10 +3,10 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
-import static com.seaofnodes.simple.util.Utils.TODO;
 
 /**
  * The Start node represents the start of the function.
@@ -31,12 +31,13 @@ public class StartNode extends LoopNode implements MultiNode {
   @Override public CFGNode cfg0() { return null; }
 
     // Get the one control following; error to call with more than one e.g. an
-    // IfNode or other multi-way branch.  For Start, its "main"
+    // IfNode or other multi-way branch.  For Start, it's the class init for
+    // this compilation unit.
     @Override public CFGNode uctrl() {
-        // Find "main", it's the start.
+        // Find module.<clinit>, it's the start.
         CFGNode C = null;
         for( Node use : _outputs )
-            if( use instanceof FunNode fun && fun.sig().isa(CodeGen.CODE._main) )
+            if( use instanceof FunNode fun && fun.isModInit() )
                 { assert C==null; C = fun; }
         return C;
     }

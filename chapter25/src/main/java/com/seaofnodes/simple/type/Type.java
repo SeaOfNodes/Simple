@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 
@@ -323,9 +322,6 @@ public class Type /*implements Cloneable*/ {
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
 
-    // True if this "isa" t up to named structures
-    public boolean shallowISA( Type t ) { return isa(t); }
-
     public Type nonZero() { return TypePtr.NPTR; }
 
     // Make a zero version of this type, 0 for integers and null for pointers.
@@ -554,7 +550,7 @@ public class Type /*implements Cloneable*/ {
     }
 
     // Read a packed Type array
-    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, int ntypes ) {
+    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, int ntypes, HashMap<String,Type> existingTypes, int nextAlias ) {
         Type[] types = new Type[ntypes];
         // Read Types in ID# order, no children
         for( int i=0; i<ntypes; i++ )
@@ -577,28 +573,28 @@ public class Type /*implements Cloneable*/ {
         aliases.setX(1,1); // Bottom maps to bottom alias always
         for( int i=0; i<ntypes; i++ ) {
             if( types[i] instanceof TypeStruct ts ) {
-                //assert !ts._open; // No interning open structs?
-                // Find matching local structs
-                TypeMemPtr tmp = (TypeMemPtr)Parser.TYPES.get( ts._name );
-                if( tmp!=null ) {
-                    assert !tmp._obj._open;
-                    int flen = ts._fields.length;
-                    // For all fields, map aliases
-                    for( int j=0; j<flen; j++ ) {
-                        Field tfld = tmp._obj._fields[j]; // Existing    field
-                        Field dfld = ts      ._fields[j]; // Deserialize field
-                        // Fields in structs must exactly align
-                        if( !tfld._fname.equals(dfld._fname) )
-                            throw Utils.TODO("link error: incompatible structs");
-                        // Collect the alias mapping
-                        int deser_alias = aliases.atX(dfld._alias);
-                        if( deser_alias==0 ) aliases.setX(dfld._alias,tfld._alias);
-                        else assert deser_alias==tfld._alias;
-                    }
-                } else {
-                    // Make local aliases
-                    throw Utils.TODO();
-                }
+                int flen = ts._fields.length;
+                //// Find matching local structs
+                //TypeMemPtr tmp = (TypeMemPtr)existingTypes.get( ts._name );
+                //assert tmp==null || !tmp._obj._open;
+                //// For all fields, map aliases
+                //for( int j=0; j<flen; j++ ) {
+                //    Field dfld = ts._fields[j]; // Deserialize field
+                //    int old_alias;
+                //    if( tmp!=null ) {
+                //        // Fields in structs must exactly align
+                //        Field tfld = tmp._obj._fields[j]; // Existing field
+                //        if( !tfld._fname.equals(dfld._fname) )
+                //            throw Utils.TODO("link error: incompatible structs");
+                //        old_alias = tfld._alias; // Use existing alias
+                //    } else
+                //        old_alias = nextAlias++; // Make a new alias
+                //    // Collect the alias mapping
+                //    int deser_alias = aliases.atX(dfld._alias);
+                //    if( deser_alias==0 ) aliases.setX(dfld._alias,old_alias);
+                //    else assert tmp==null || deser_alias==old_alias;
+                //}
+                throw Utils.TODO();
             }
         }
         // Walk all type aliases, and map to local aliases
@@ -609,6 +605,7 @@ public class Type /*implements Cloneable*/ {
 
         // Intern them all at once
         BOTTOM.recurClose(types);
+        aliases.set(0,nextAlias); // Also return used up aliases
         return types;
     }
 
