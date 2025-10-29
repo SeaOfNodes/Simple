@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 
 
 /**
@@ -34,6 +35,7 @@ public class Var {
         Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
         return (_type=_type.meet(def));
     }
+    public Type _type() { return _type; } // ScopeNode printer needs to have no side effects
 
     // Forward reference variables (not types) must be BOTTOM and
     // distinct from inferred variables

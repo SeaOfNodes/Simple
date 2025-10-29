@@ -33,61 +33,62 @@ public class Evaluator {
                 sb.append("obj@").append(cid);
                 return id;
             }
-            if (struct._name.equals("[u8]")) {
-                sb.append('"');
-                for (int i=struct._fields.length-1; i<fields.length; i++) {
-                    var v = fields[i];
-                    if (v == null) v = 0;
-                    assert v instanceof Number;
-                    var n = ((Number)v).byteValue() & 0xFF;
-                    if (n >= 0x20 && n < 0x80) {
-                        if (n == 0x22 || n == 0x5C) sb.append("\\");
-                        sb.append((char)n);
-                    } else {
-                        sb.append("\\x").append("0123456789abcdef".charAt(n >> 4)).append("0123456789abcdef".charAt(n & 0xF));
-                    }
-                }
-                sb.append('"');
-                return id;
-            }
-            sb.append("Obj<").append(struct._name).append(">");
-            if (cid == 0) {
-                cid = id++;
-                objs.put(this, cid);
-                sb.append("@").append(cid);
-            }
-            sb.append("{");
-            if (struct._fields.length == 0) {
-                assert !struct.isAry();
-                sb.append("}");
-                return id;
-            }
-            String nextIndent = indentation + step;
-            int e = struct._fields.length - 1;
-            for(int i=0; i<e; i++) {
-                sb.append(nextIndent).append(struct._fields[i]._fname).append("=");
-                id = p(sb, objs, id, nextIndent, step, sep, fields[i]);
-                sb.append(sep);
-            }
-            sb.append(nextIndent).append(struct._fields[e]._fname).append("=");
-            if (struct.isAry()) {
-                sb.append("[");
-                if (fields.length > e) {
-                    String innerIndent = nextIndent + step;
-                    sb.append(innerIndent);
-                    id = p(sb, objs, id, nextIndent, step, sep, fields[e]);
-                    for (int i = e+1; i < fields.length; i++) {
-                        sb.append(sep).append(innerIndent);
-                        id = p(sb, objs, id, nextIndent, step, sep, fields[i]);
-                    }
-                    sb.append(nextIndent);
-                }
-                sb.append("]");
-            } else {
-                id = p(sb, objs, id, nextIndent, step, sep, fields[e]);
-            }
-            sb.append(indentation).append("}");
-            return id;
+            //if (struct._name.equals("[u8]")) {
+            //    sb.append('"');
+            //    for (int i=struct._fields.length-1; i<fields.length; i++) {
+            //        var v = fields[i];
+            //        if (v == null) v = 0;
+            //        assert v instanceof Number;
+            //        var n = ((Number)v).byteValue() & 0xFF;
+            //        if (n >= 0x20 && n < 0x80) {
+            //            if (n == 0x22 || n == 0x5C) sb.append("\\");
+            //            sb.append((char)n);
+            //        } else {
+            //            sb.append("\\x").append("0123456789abcdef".charAt(n >> 4)).append("0123456789abcdef".charAt(n & 0xF));
+            //        }
+            //    }
+            //    sb.append('"');
+            //    return id;
+            //}
+            //sb.append("Obj<").append(struct._name).append(">");
+            //if (cid == 0) {
+            //    cid = id++;
+            //    objs.put(this, cid);
+            //    sb.append("@").append(cid);
+            //}
+            //sb.append("{");
+            //if (struct._fields.length == 0) {
+            //    assert !struct.isAry();
+            //    sb.append("}");
+            //    return id;
+            //}
+            //String nextIndent = indentation + step;
+            //int e = struct._fields.length - 1;
+            //for(int i=0; i<e; i++) {
+            //    sb.append(nextIndent).append(struct._fields[i]._fname).append("=");
+            //    id = p(sb, objs, id, nextIndent, step, sep, fields[i]);
+            //    sb.append(sep);
+            //}
+            //sb.append(nextIndent).append(struct._fields[e]._fname).append("=");
+            //if (struct.isAry()) {
+            //    sb.append("[");
+            //    if (fields.length > e) {
+            //        String innerIndent = nextIndent + step;
+            //        sb.append(innerIndent);
+            //        id = p(sb, objs, id, nextIndent, step, sep, fields[e]);
+            //        for (int i = e+1; i < fields.length; i++) {
+            //            sb.append(sep).append(innerIndent);
+            //            id = p(sb, objs, id, nextIndent, step, sep, fields[i]);
+            //        }
+            //        sb.append(nextIndent);
+            //    }
+            //    sb.append("]");
+            //} else {
+            //    id = p(sb, objs, id, nextIndent, step, sep, fields[e]);
+            //}
+            //sb.append(indentation).append("}");
+            //return id;
+            throw Utils.TODO();
         }
         private StringBuilder p(StringBuilder sb, String indentation, String step, String sep) {
             var objs = new IdentityHashMap<Obj, Integer>();
@@ -97,18 +98,19 @@ public class Evaluator {
         }
         @Override
         public String toString() {
-            if (struct._name.equals("[u8]")) {
-                var sb = new StringBuilder();
-                for (int i=struct._fields.length-1; i<fields.length; i++) {
-                    var v = fields[i];
-                    if (v == null) v = 0;
-                    assert v instanceof Number;
-                    var n = ((Number)v).byteValue() & 0xFF;
-                    sb.append((char)n);
-                }
-                return sb.toString();
-            }
-            return p(new StringBuilder(), "", "", ",").toString();
+            //if (struct._name.equals("[u8]")) {
+            //    var sb = new StringBuilder();
+            //    for (int i=struct._fields.length-1; i<fields.length; i++) {
+            //        var v = fields[i];
+            //        if (v == null) v = 0;
+            //        assert v instanceof Number;
+            //        var n = ((Number)v).byteValue() & 0xFF;
+            //        sb.append((char)n);
+            //    }
+            //    return sb.toString();
+            //}
+            //return p(new StringBuilder(), "", "", ",").toString();
+            throw Utils.TODO();
         }
         public String pretty() {
             return p(new StringBuilder(), "\n", "  ", "").toString();
@@ -118,7 +120,8 @@ public class Evaluator {
     private static int getFieldIndex(TypeStruct struct, MemOpNode memop, long off) {
         int idx = struct.find(memop._name);
         if( idx >= 0 ) return idx;
-        throw new AssertionError("Field "+memop._name+" not found in struct " + struct._name);
+        //throw new AssertionError("Field "+memop._name+" not found in struct " + struct._name);
+        throw Utils.TODO();
     }
 
     public enum Status {
@@ -180,7 +183,7 @@ public class Evaluator {
     }
 
     private Object alloc(NewNode alloc) {
-        TypeStruct type = alloc._ptr._obj;
+        TypeStruct type = alloc._ts;
         Object[] body=null;
         int num;
         if( type.isAry() ) {
@@ -202,7 +205,7 @@ public class Evaluator {
         } else {
             body = new Object[num = type._fields.length];
             for( int i=0; i<num; i++ )
-                body[i] = switch( alloc._ptr._obj._fields[i]._t ) {
+                body[i] = switch( alloc._ts._fields[i]._t ) {
                 case TypeInteger ti -> 0L;
                 case TypeFloat tf -> 0;
                 default -> null;

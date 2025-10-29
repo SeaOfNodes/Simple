@@ -182,28 +182,37 @@ public abstract class Eval2 {
         int path = r._inputs.find( prior );
         // Parameters read from prior frame, Phis from local frame
         Frame frame = (r instanceof FunNode ? F._prior : F);
-        boolean isMain = r instanceof FunNode fun && fun.sig().isa(CodeGen.CODE._main);
+        boolean isCLInit = r instanceof FunNode fun && fun.isCLInit();
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
         for( i = 0; i < r.nOuts(); i++ ) {
+            // Due to scheduling, all Phis are first in the outputs; first
+            // non-Phi is the end of all Phis.
             if( !(r.out(i) instanceof PhiNode phi) ) break;
-            if( isMain && phi instanceof ParmNode parm && parm._idx==2 )
-                PHICACHE[i] = arg; // Reading the initial arguments to main()
+
+            // Parms read from Call args -
+            // - except RPC is the actual prior frame
+            // - except <clinit> takes the singleton class object and external args
+            Object val;
+            if( isCLInit && phi instanceof ParmNode parm && parm._idx==3 )
+                PHICACHE[i] = arg; // Reading the initial arguments to <clinit>
             else {
                 Node n = phi instanceof ParmNode parm
-                    // RPC reads the Call directly;
+                    // RPC uses the prior Call directly;
                     // Parms may not be linked, so read call args directly
                     ? (parm._idx==0 ? prior : prior.in(parm._idx))
                     // Phis read from path input
                     :  phi.in(path);
+                // Read the frame before overwriting
                 PHICACHE[i] = frame.get(n);
             }
         }
         // Parallel assign; might assign before read, so read from cache
         for( int j=0; j < i; j++ )
             traceData(F.put0(r.out(j),PHICACHE[j]),trace);
-        // Return point in basic block past last Phi
+        // Return point in basic block past last Phi; the Phis have been
+        // evaluated here, and now we need to evaluate the rest of the block
         return i;
     }
 
@@ -321,10 +330,8 @@ public abstract class Eval2 {
                 }
 
             } else {
-                // Generic TMP (since Simple is not currently making actual
-                // memory constants), used as a default input to a function;
-                // should never execute.
-                yield tmp.toString();
+                // Constant object with all zeros
+                yield alloc(tmp._obj);
             }
         }
         default -> null;
@@ -340,8 +347,8 @@ public abstract class Eval2 {
     }
 
     // Builds and returns a pointer Object
-    private static Object alloc(NewNode alloc) {
-        TypeStruct type = alloc._ptr._obj;
+    private static Object[] alloc(NewNode alloc) {
+        TypeStruct type = alloc._ts;
         if( type.isAry() ) {
             long sz = (Long)val(alloc.in(1));
             long x = offToIdx(sz, type);
@@ -360,6 +367,10 @@ public abstract class Eval2 {
             return ary;
         }
 
+        return alloc(type);
+    }
+    private static Object[] alloc(TypeStruct type) {
+        assert !type.isAry();
         int num = type._fields.length;
         Object[] ptr = new Object[num];
         for( int i=0; i<num; i++ )

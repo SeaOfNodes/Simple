@@ -11,7 +11,7 @@ public class Chapter01Test {
 
     @Test
     public void testSimpleProgram() {
-        CodeGen code = new CodeGen("return 1;").parse();
+        CodeGen code = new CodeGen("1;").parse();
         Node expr = code.expr();
         if( expr instanceof ConstantNode con ) {
             assertEquals(code._start,con.in(0));
@@ -62,7 +62,7 @@ public class Chapter01Test {
             new CodeGen("return 100").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, expected ;: ",e.getMessage());
+            assertEquals("Syntax error, expected `;` but found `EOF`",e.getMessage());
         }
     }
 
@@ -88,7 +88,7 @@ public class Chapter01Test {
             new CodeGen("return 1;}").parse();
             fail();
         } catch( RuntimeException e ) {
-            assertEquals("Syntax error, unexpected: }",e.getMessage());
+            assertEquals("Syntax error, unexpected but found `}`",e.getMessage());
         }
     }
 

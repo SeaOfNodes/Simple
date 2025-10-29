@@ -30,7 +30,7 @@ public class StructNode extends Node {
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( _ts==null ) return sb.append("STRUCT?");
-        sb.append(_ts._name).append(" {");
+        sb.append(_ts._name).append(" {  ");
         for( int i=0; i<nIns(); i++ ) {
             sb.append(_ts._fields[i]._fname).append(":");
             sb.append(in(i)==null ? Type.BOTTOM : in(i)._type);

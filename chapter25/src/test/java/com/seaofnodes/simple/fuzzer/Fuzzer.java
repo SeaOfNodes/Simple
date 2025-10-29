@@ -82,10 +82,10 @@ public class Fuzzer {
     private static void runCheck(String script, boolean valid) {
         CodeGen code1;
         try {
-            code1 = FuzzerUtils.parse(script, 123, true);
+            code1 = FuzzerUtils.parse(script, 123);
         } catch (RuntimeException e1) {
             try {
-                FuzzerUtils.parse(script, 456, false);
+                FuzzerUtils.parse(script, 456);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
                     if (!valid || e1.getClass() == Parser.ParseException.class) return;
@@ -95,7 +95,7 @@ public class Fuzzer {
             }
             throw e1;
         }
-        CodeGen code2 = FuzzerUtils.parse(script, 456, false);
+        CodeGen code2 = FuzzerUtils.parse(script, 456);
         checkGraphs(code1, code2, 0);
         checkGraphs(code1, code2, 1);
         checkGraphs(code1, code2, 10);

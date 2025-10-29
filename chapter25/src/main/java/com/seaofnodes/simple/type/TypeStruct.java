@@ -10,14 +10,15 @@ import java.util.*;
 public class TypeStruct extends Type {
 
     // A Struct has a name and a set of fields; the fields themselves have
-    // names, types and aliases.  The name has no semantic meaning, but is
-    // useful for debugging.
+    // names, types and aliases.  The name is essentially another field,
+    // immutable and type ignored (BOT).
 
     // During parsing a mid-declaration struct is flagged as a "open".  It is
-    // treated as having infinite fields with correct name and type BOTTOM.
+    // treated as having infinite fields with correct name and type TOP.
+    // CNC: Warning I've flipped these before
 
     public String _name;  // Struct name
-    public boolean _open; // infinite fields are all true:BOTTOM, false:TOP
+    public boolean _open; // infinite fields are all true:TOP, false:BOT
     public Field[] _fields;
 
     private TypeStruct(String name, boolean open, Field[] fields) {
@@ -65,16 +66,16 @@ public class TypeStruct extends Type {
     // Array, variant body
     public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias) {
         return make(name,false,
-                    Field.make("#" , len, lenAlias, true                     ,false),
-                    Field.make("[]",body,bodyAlias,body instanceof TypeConAry,false));
+                    Field.make("#" , len, lenAlias, true                     ),
+                    Field.make("[]",body,bodyAlias,body instanceof TypeConAry));
     }
     // Array, known constant body
     public static TypeStruct makeAry(String name, int lenAlias, int bodyAlias, TypeConAry con) {
         Type len = TypeInteger.constant(con.len());
         return make(name,false,
-                    Field.make("#"    ,len       , lenAlias,true,false),
-                    Field.make("[]"   ,con.elem(),bodyAlias,true,false),
-                    Field.make("[con]",con       ,bodyAlias,true, true));
+                    Field.make("#"    ,len       , lenAlias,true),
+                    Field.make("[]"   ,con.elem(),bodyAlias,true),
+                    Field.make("[con]",con       ,bodyAlias,true));
     }
 
     public TypeStruct makeHigh() {
@@ -85,7 +86,7 @@ public class TypeStruct extends Type {
     }
 
     public TypeStruct add( Field f ) {
-        assert _open && find(f._fname)==-1; // No double field names
+        assert find(f._fname)==-1; // No double field names
         Field[] flds = Arrays.copyOf(_fields,_fields.length+1);
         flds[_fields.length] = f;
         return make(_name,true,flds);
@@ -104,7 +105,7 @@ public class TypeStruct extends Type {
     @Override TypeStruct _close() {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,false);
+        ts = recurPre(_name,_name,false);
         Field[] flds = ts._fields;
 
         // Now start the recursion
@@ -116,8 +117,9 @@ public class TypeStruct extends Type {
 
     static final AryInt CEQUALS = new AryInt();
 
-    public  static final TypeStruct BOT = open("$STRUCT");
-    public  static final TypeStruct TOP = BOT.dual();
+    public  static final String TOPNAME = "$TOP", BOTNAME = "$BOT";
+    public  static final TypeStruct TOP = open("$TOP");
+    public  static final TypeStruct BOT = TOP.dual();
     public  static final TypeStruct TEST= make("test",false,Field.TEST);
     private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2);
     private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4);
@@ -126,8 +128,8 @@ public class TypeStruct extends Type {
     // A pair of self-cyclic types
     private static final TypeStruct SINT0  = open("%SINT");
     private static final TypeStruct SFLT0  = open("%SFLT");
-    private static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false, false));
-    private static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false, false));
+    private static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false));
+    private static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false));
     public  static final TypeStruct SFLT2  = SFLT1.close();
 
 
@@ -144,7 +146,7 @@ public class TypeStruct extends Type {
         ts.add(SFLT2);
         ts.add(((TypeMemPtr)(SFLT2.field("s1")._t))._obj);
         // Break cyclic init: built a struct
-        Field fcalloc = Field.make("calloc",TypeFunPtr.CALLOC,-2,true,true);
+        Field fcalloc = Field.make("calloc",TypeFunPtr.CALLOC,-2,true);
         TypeStruct scalloc = make("calloc",false,fcalloc);
         ts.add(scalloc);
 
@@ -179,28 +181,26 @@ public class TypeStruct extends Type {
         if( this==BOT ) return BOT;
         if( that==BOT ) return BOT;
 
-        // Within the same compilation unit, struct names are unique.  If the
-        // names differ, its different structs.  Across many compilation units,
-        // structs with the same name but different field layouts can be
-        // interned... which begs the question:
-        // "What is the meet of structs from two different compilation units?"
-        // And the answer is: "don't ask".
-        if( !_name.equals(that._name) )
-            return BOT;         // It's a struct; that's about all we know
-
         // if equal, no matters.
         // if short is BOT, chop     ; recurPre on short.
         // if short is TOP, copy long; recurPre on long.
         TypeStruct min = _fields.length < that._fields.length ? this : that;
-        if( _fields.length != that._fields.length && (min._open ^ min==this) )
+        if( _fields.length != that._fields.length && (min._open ^ min!=this) )
             return that.xmeet(this);
+
+        assert (_name==that._name) == (_name.equals(that._name)); // Strings are interned
+        String name =
+            that._name==TOPNAME ?      _name :
+                 _name==TOPNAME ? that._name :
+            that._name==_name ? _name :
+            BOTNAME;
 
         // Check all other fields are sanely similar; same struct type but
         // different field contents (e.g. field "age" is either 'int' or '18').
         int len = Math.min(_fields.length,that._fields.length);
         for( int i=0; i<len; i++ ) {
             Field f0 = _fields[i], f1 = that._fields[i];
-            if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias || f0._one != f1._one )
+            if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias )
                 return BOT;
         }
 
@@ -214,7 +214,7 @@ public class TypeStruct extends Type {
 
         // Setup and install the type, prior to recursing, so we can find our
         // recursive self again.
-        ts = recurPre(pid,_open | that._open);
+        ts = recurPre(pid,name,_open & that._open);
 
         // Recurse all common fields
         Field[] flds = ts._fields;
@@ -235,12 +235,10 @@ public class TypeStruct extends Type {
 
     @Override
     TypeStruct xdual() {
-        if( _name=="$STRUCT" )
-            return malloc("$STRUCT",false,new Field[0]);
         Field[] flds = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i].dual();
-        return malloc(_name,!_open,flds);
+        return malloc(sdual(),!_open,flds);
     }
 
     // Recursive dual
@@ -248,11 +246,18 @@ public class TypeStruct extends Type {
         if( _dual!=null ) return dual();
         assert !_terned;
         Field[] flds = new Field[_fields.length];
-        TypeStruct d = malloc(_name,!_open,flds);
+        TypeStruct d = malloc(sdual(),!_open,flds);
         (_dual = d)._dual = this; // Cross link duals
         for( int i=0; i<_fields.length; i++ )
             flds[i] = _fields[i]._terned ? _fields[i].dual() : _fields[i].rdual();
         return d;
+    }
+
+    private String sdual() {
+        return
+            _name==TOPNAME ? BOTNAME :
+            _name==BOTNAME ? TOPNAME :
+            _name;
     }
 
     // Is forward-reference
@@ -272,24 +277,24 @@ public class TypeStruct extends Type {
 
     // All fields are final
     @Override boolean _isFinal() {
-        if( _open ) return false;     // May have more more non-final fields
+        if( _open ) return false;     // May have more non-final fields
         if( VISIT.containsKey(_uid) ) // Test: been here before?
             return true;              // Cycles assume final
-        VISIT.put(_uid,this);         // Set: dont do this again
+        VISIT.put(_uid,this);         // Set: don't do this again
         for( Field fld : _fields )
             if( !fld._isFinal() )
                 return false;
         return true;
     }
 
-    private TypeStruct recurPre(Object key, boolean open) {
+    private TypeStruct recurPre(Object key, String name, boolean open) {
         // Make a clone of original; suitable for hashing so can build
         // e.g. TMPs to clone as part of cycles - but will fail the 'eq' check
         // until the entire cycle is built.
         Field[] flds  = new Field[_fields.length];
         for( int i=0; i<flds.length; i++ )
             flds[i] = _fields[i].malloc(); // Blank copy, but can be hashed
-        TypeStruct ts = malloc(_name, open, flds );
+        TypeStruct ts = malloc(name, open, flds );
         VISIT.put(key,ts);
         return ts;
     }
@@ -299,7 +304,7 @@ public class TypeStruct extends Type {
         // Check for already visited
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;   // Already visited
-        ts = recurPre(_name,_open); // Make a new type with blank fields
+        ts = recurPre(_name,_name,_open); // Make a new type with blank fields
         Field[] flds = ts._fields;
         for( Field fld : flds ) fld._final = true;
 
@@ -325,7 +330,7 @@ public class TypeStruct extends Type {
     public TypeStruct glb2() {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,_open);
+        ts = recurPre(_name,_name,false);
         Field[] flds = ts._fields;
         for( int i=0; i<flds.length; i++ )
             flds[i]._final = true ;
@@ -474,8 +479,7 @@ public class TypeStruct extends Type {
             int[] cnts = new int[5]; // Count of fields at log field size
             int flen = _fields.length;
             for( int i=0; i<flen; i++ )
-                if( !_fields[i]._one )
-                    cnts[_fields[i]._t.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
+                cnts[_fields[i]._t.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
             int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
             // Compute offsets to the start of each power-of-2 aligned fields.
             int[] offs = new int[4];
@@ -486,7 +490,6 @@ public class TypeStruct extends Type {
             // Assign offsets to all fields.
             // Really a hidden radix sort.
             for( int i=0; i<flen; i++ ) {
-                if( _fields[i]._one ) continue;
                 int log = _fields[i]._t.log_size();
                 _offs[idx++] = offs[log]; // Field offset
                 offs[log] += 1<<log;      // Next field offset at same alignment

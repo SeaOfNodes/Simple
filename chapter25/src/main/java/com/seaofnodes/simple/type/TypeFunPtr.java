@@ -61,12 +61,16 @@ public class TypeFunPtr extends TypeNil {
         return VISIT.isEmpty() ? f2.free(fun) : f2.delayFree(fun);
     }
     public static TypeFunPtr make( boolean nil, boolean open, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),open,sig,ret,-1); }
+    public static TypeFunPtr make1( byte nil, boolean open, Type[] sig, Type ret, int fidx ) {
+        assert fidx < 64;       // Need a larger fidx space
+        return make(nil,open,sig,ret,1L<<fidx);
+    }
+
 
 
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
     public    TypeFunPtr makeFrom( Type ret ) { return  ret ==_ret ? this : make( _nil,_open,_sig, ret, _fidxs); }
-    public    TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _open, _sig,_ret,1L<<fidx ); }
-
+    public    TypeFunPtr makeFrom( int fidx ) { return make1((byte)2,_open,_sig,_ret,fidx); }
 
     public static final Type[] TEMPTY = new Type[0];
     static final Type[] TINT    = new Type[]{TypeInteger.BOT};
@@ -189,8 +193,11 @@ public class TypeFunPtr extends TypeNil {
         }
     }
     static TypeFunPtr packed( int tag, BAOS bais ) {
-        if( tag < 6 )
-            return malloc((byte)2,false,new Type[tag],null,1L<<bais.read());
+        if( tag < 6 ) {
+            int fidx = bais.read();
+            assert fidx < 64; // Need a larger fidx space
+            return malloc((byte)2,false,new Type[tag],null,1L<<fidx);
+        }
         byte nil = (byte)(tag==6 ? 2 : 3);
         int nargs = bais.packed1();
         long fidxs = bais.packed8();

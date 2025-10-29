@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
@@ -11,23 +12,26 @@ abstract public class Serialize {
         Ary<Node> nodes = nodeOrder(code);
 
         // Compress into bytes
-        BAOS baos = write(nodes);
+        BAOS baos = write(nodes, code._publishSymbols);
+
+        //// --- Expensive bijection assert
         //// Inflate into POJOs; renumbers everything
         //Ary<Node> nodes2 = read(new BAOS(baos.toByteArray()));
-        //BAOS baos2 = write(nodes2);
+        //BAOS baos2 = write(nodes2, code._published);
         //
         //// Bi-jection
         //for( int i=0; i<baos.size(); i++ )
         //    assert baos.buf()[i]==baos2.buf()[i];
         //assert baos.size()==baos2.size();
         //assert Arrays.equals(baos.buf(),baos2.buf());
+        //// --- Expensive bijection assert
 
         return baos;
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes /*other CodeGen inputs, #aliases, #fidxs*/) {
-        // Initialize some type tag writing stuff
+    static BAOS write(Ary<Node> nodes, Ary<TypeStruct> published /*other CodeGen inputs, #aliases, #fidxs*/) {
+        // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
         BAOS baos = new BAOS();
@@ -36,6 +40,20 @@ abstract public class Serialize {
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
+        // Count published types *first*, so can align with published strings
+        types.put(Type.TOP,0);
+        for( TypeStruct ts : published )
+            types.put( ts, types.size() );
+        // Have to visit the innards specially, since they did not get the
+        // normal recursive visit when first touching a type, because the
+        // published types are packed early to align with their string names so
+        // lookup in ElfReader can be fast.
+        for( TypeStruct ts : published ) {
+            int nkids = ts.nkids();
+            for( int i=0; i<nkids; i++ )
+                ts.at(i).gather(types);
+        }
+        // Gather types from all sources
         for( Node n : nodes ) {
             n._type.gather(types);
             if( n instanceof      FunNode fun ) fun.sig().gather(types);
@@ -57,22 +75,34 @@ abstract public class Serialize {
 
         // TODO: Count unique fidxs & fold
 
-        // Count unique Strings
+
+        // Count all unique Strings
         var strs = new HashMap<String,Integer>();
         strs.put("",0);         // Null string is always 0
+        // Count *published* Strings first
+        for( TypeStruct ts : published )
+            gather(strs,ts._name);
+        // Count strings from all types
         for( Type t : atypes ) {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
             if( t instanceof TypeStruct ts ) gather(strs,ts . _name);
         }
+        // Count strings from nodes
         for( Node n : nodes )
             n.gather(strs);
-
-        // B - Write unique strings
-        baos.packed4(strs.size());
         // Radix sort by string ID#
         String[] astrs = new String[strs.size()];
         for( String s : strs.keySet() )
             astrs[strs.get(s)] = s;
+
+        // Check that published strings and types align
+        for( int i=0; i<published.size(); i++ )
+            assert astrs[i+1] == ((TypeStruct)atypes[i+1])._name;
+
+
+        // B - Write unique strings
+        baos.write(published.size());
+        baos.packed4(strs.size());
         // Write in ID# order
         for( String s : astrs )
             baos.packedS(s);
@@ -122,22 +152,25 @@ abstract public class Serialize {
             strs.put(s,strs.size());
     }
 
-    static String[] read_strs(BAOS bais) {
+    // Returned array of *public* strings only.
+    static String[] read_public_strs(BAOS bais) {
         Type.TAGOFFS();
 
         // A - Read a header
         if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='E' )
             throw new IllegalArgumentException("Missing magic word");
 
-        // B - Packed read of #strings, then strings
-        int nstrs = bais.packed4();
-        String[] strs = new String[nstrs];
-        for( int i=0; i<nstrs; i++ )
+        // B - Packed read number of public strings, then the strings
+        int npublished = bais.read();
+        int nstrs = bais.packed4(); // Ignore total strings
+        String[] strs = new String[npublished];
+        for( int i=0; i<npublished; i++ )
             strs[i] = bais.packedS();
         return strs;
     }
 
-    static Ary<Node> read(BAOS bais) {
+    static Ary<TypeStruct> readAll( BAOS bais ) {
+        // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
         // A - Read a header
@@ -145,6 +178,7 @@ abstract public class Serialize {
             throw new IllegalArgumentException("Missing magic word");
 
         // B - Packed read of #strings, then strings
+        int npublish = bais.read();
         int nstrs = bais.packed4();
         String[] strs = new String[nstrs];
         for( int i=0; i<nstrs; i++ )
@@ -154,8 +188,17 @@ abstract public class Serialize {
         int ntypes = bais.packed4();
         // Map deserialized aliases to local aliases
         AryInt aliases = new AryInt();
-        Type[] types = Type.packed(bais,strs,aliases,ntypes);
-
+        Type[] types = Type.packed(bais,strs,aliases,ntypes, Parser.TYPES, CodeGen.CODE._alias);
+        // Also passed aliases used in aliases.at(0)
+        CodeGen.CODE._alias = aliases.at(0);
+        aliases.set(0,0);
+        // Check and collect first published symbols map to TypeStructs
+        Ary<TypeStruct> published = new Ary<>(TypeStruct.class);
+        for( int i=1; i<npublish; i++ ) {
+            TypeStruct ts = (TypeStruct)types[i];
+            //assert ts._name==strs[i];
+            published.add(ts);
+        }
 
         // D - Read the nodes
 
@@ -187,8 +230,8 @@ abstract public class Serialize {
 
         assert check(nodes);
 
-        // TODO: also get back #of aliases, #of fidxs, any other global constants
-        return nodes;
+        // TODO: also get back #of fidxs, any other global constants
+        return published;
     }
 
     private static boolean check( Ary<Node> nodes ) {

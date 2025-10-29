@@ -176,7 +176,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 3;", code._stop.toString());
+        assertEquals("return #2;", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 

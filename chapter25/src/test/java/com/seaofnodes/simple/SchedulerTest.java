@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.util.Utils;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -14,8 +15,9 @@ public class SchedulerTest {
     private static void assertObj(Object obj, String name, Object... fields) {
         assertEquals(Evaluator.Obj.class, obj.getClass());
         var o = (Evaluator.Obj)obj;
-        assertEquals(name, o.struct()._name);
-        Assert.assertArrayEquals(fields, o.fields());
+        //assertEquals(name, o.struct()._name);
+        //Assert.assertArrayEquals(fields, o.fields());
+        throw Utils.TODO();
     }
 
     @Test

@@ -81,7 +81,7 @@ public abstract class Node implements Cloneable {
     public enum Tag {
         AddF,Add,And,EQ,NE,LT,LE,EQF,LTF,LEF,ULT,
         CallEnd,Call,Cast,ConFldOff,Con,CProj,
-        DivF,Div,Extern,Fun,If,Load,Loop,
+        DivF,Div,Escape,Extern,Fun,If,Load,Loop,
         MemMerge,MinusF,Minus,Mul,MulF,
         New,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,

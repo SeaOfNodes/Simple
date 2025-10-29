@@ -94,11 +94,6 @@ public class LoadNode extends MemOpNode {
             return this;
         }
 
-        // Simple Load-after-New on same address.
-        if( mem instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
-            ptr == nnn.proj(1) ) // Must check same object
-            return zero(nnn);   // Load zero from new
-
         // Uplift control to a prior dominating load.
         for( Node memuse : mem._outputs )
             // Find a prior load, has same mem,ptr,off but higher ctrl
@@ -132,17 +127,12 @@ public class LoadNode extends MemOpNode {
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
-                    if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return zero(nnn1);
-                    if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode) )
-                        break outer; // Cannot tell, ptr not related to New
-                    mem = nnn1.in(nnn1.findAlias(_alias));// Bypass unrelated New
-                    break;
+                    throw Utils.TODO("Should not see a Load from New; and no bypass Store from New");
                 case StartNode  start: break outer;
                 case CallEndNode cend: break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO();
                 }
-                break;
+                //break;
             case CastNode cast: mem = cast.in(1); break;
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
 
@@ -175,13 +165,6 @@ public class LoadNode extends MemOpNode {
         }
 
         return null;
-    }
-
-    // Load a flavored zero from a New
-    private Node zero(NewNode nnn) {
-        TypeStruct ts = nnn._ptr._obj;
-        Type zero = ts._fields[ts.findAlias(_alias)]._t.makeZero();
-        return castRO(new ConstantNode(zero).peephole());
     }
 
     private Node ld( int idx ) {

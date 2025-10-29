@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 import org.junit.Assert;
 import org.junit.Test;
 import static org.junit.Assert.assertSame;
@@ -14,11 +15,11 @@ public class TypeTest {
         Assert.assertEquals( Type.BOTTOM, TypeInteger.TOP .meet(TypeNil.NIL) );
 
         TypeStruct s1 = TypeStruct.make("s1",false,
-                Field.make("a", TypeInteger.BOT,-1, false, false),
-                Field.make("b", TypeInteger.BOT,-2, false, false) );
+                Field.make("a", TypeInteger.BOT,-1, false),
+                Field.make("b", TypeInteger.BOT,-2, false) );
         TypeStruct s2 = TypeStruct.make("s2",false,
-                Field.make("a", TypeInteger.BOT,-3, false, false),
-                Field.make("b", TypeInteger.BOT,-4, false, false) );
+                Field.make("a", TypeInteger.BOT,-3, false),
+                Field.make("b", TypeInteger.BOT,-4, false) );
         TypeStruct x1ro = (TypeStruct)s1.makeRO();
         TypeMemPtr p1 = TypeMemPtr.make(s1);
         Assert.assertEquals(x1ro, ((TypeMemPtr)p1.glb(false))._obj);
@@ -184,8 +185,8 @@ public class TypeTest {
     public void testList() {
         TypeStruct list = TypeStruct.open("List");
         TypeMemPtr plist = TypeMemPtr.makeNullable(list);
-        list = list.add(Field.make("next", plist, 2, false, false ) );
-        list = list.add(Field.make("x", TypeInteger.BOT, 3, false, false));
+        list = list.add(Field.make("next", plist, 2, false) );
+        list = list.add(Field.make("x", TypeInteger.BOT, 3, false));
         // Make a cyclic type
         list = list.close();
         // Fields are mutable
@@ -193,6 +194,17 @@ public class TypeTest {
         TypeStruct flist = (TypeStruct)list.makeRO();
         Assert.assertTrue(flist.isFinal());
         Assert.assertNotSame( list, flist );
+    }
 
+    @Test
+    public void testOpen() {
+        TypeStruct open = TypeStruct.open("List");
+        TypeMemPtr plist = TypeMemPtr.makeNullable(open);
+        TypeStruct list = open.add(Field.make("next", plist, 2, false) );
+        list = list.add(Field.make("x", TypeInteger.BOT, 3, false));
+        // Make a cyclic type
+        list = list.close();
+        Type mt = open.meet(list);
+        Assert.assertEquals(list,mt);
     }
 }
