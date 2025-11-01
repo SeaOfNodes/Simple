@@ -56,7 +56,12 @@ public class TypeTuple extends Type {
 
     @Override TypeTuple xdual() {
         if( _types.length==0 ) return malloc(null);
-        return malloc(TypeFunPtr.xdual(_types));
+        boolean isCon=true;
+        for( Type t : _types )
+            if( t._dual!=t )
+                // Not a constant
+                return malloc(TypeFunPtr.xdual(_types));
+        return this;
     }
     @Override TypeTuple rdual() {
         if( _dual!=null ) return dual();

@@ -218,6 +218,7 @@ public class Parser {
         FunNode oldfun  = _fun;
         ScopeNode breakScope = _breakScope; _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
+        int oldUID = _code.UID(); // Used to approximate function size
 
         FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig, name, null,_code._start));
         // Once the function header is available, install in linker table -
@@ -255,9 +256,10 @@ public class Parser {
             _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
-        // Parse the body
-        boolean isInit = name != null && name.endsWith(   "init>");
-        boolean isClz  = name != null && name.endsWith("<clinit>");
+        // Parse the body.  For initializers also capture all new variables
+        // and include them in the containing struct.
+        boolean isInit = fun.isInit();
+        boolean isClz  = fun.isClz();
         TypeStruct selfType = ((TypeMemPtr)sig._sig[0])._obj;
         Node last=ZERO;
         while (!peek('}') && !_lexer.isEOF()) {
@@ -299,6 +301,7 @@ public class Parser {
         _fun = oldfun;
         _breakScope = breakScope;
         _continueScope = continueScope;
+        fun._approxUIDs = _code.UID() - oldUID;
 
         return ret;
     }
@@ -800,6 +803,8 @@ public class Parser {
             }
 
         } else {
+            // Since no initializer, not-final but might need an initializer
+
             // Need an expression to infer the type.
             // Also, if not-null then need an initializing expression.
             // Allowed in a class def, because type/init will happen in the constructor.
@@ -907,9 +912,11 @@ public class Parser {
         int lastLexSize = _scope._kinds.last()._lexSize;
         assert _scope.var(lastLexSize)._name=="self";
         Node self = _scope.in(lastLexSize); // Self, as pointer base for stores
+        Node selfCon = con(tself);
         int newVars = lastLexSize + ids.length;
 
         if( isClz ) {
+
             // <clinit> gets the normal public memory, because no aliasing is
             // possible, because clazz structs are singletons.
             MemMergeNode mmm = ret.mem() instanceof MemMergeNode mm0 ? mm0 : null;
@@ -931,25 +938,38 @@ public class Parser {
             // Force return a plain integer to the OS
             if( !ret.expr()._type.isHigh() && !(ret.expr()._type instanceof TypeInteger) )
                 ret.setDef(2, ZERO); // Returns last i64 or zero
+            // Upgrade <clinit> self Node.
+            if( self != selfCon )
+                self.subsume(selfCon);
+
         } else {
+
             // <init> gets private instance memory from #selfMem;
-            Node imem = _scope.in(lastLexSize+1);
+            Node selfMem = _scope.in(lastLexSize+1);
             for( int i=newVars; i<_scope._vars._len; i++ ) {
                 Node val = _scope.in(i);
                 Field fld = tself._obj._fields[i-newVars];
                 // Store value into extended struct
-                imem = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, imem, self, off(typeName,fld._fname), val, true));
+                selfMem = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
             }
+            // Upgrade <init> default self Node
+            ParmNode parm = ret.fun().parm(2);
+            parm.setDef(1,selfCon);
+            parm._minType = tself;
+            _code.add(parm);
+
             // Keep the normal public memory for unrelated memory updates.
             // The <init> returns private #selfMem to the next nested layer out.
-            ret.setDef(2, imem);
+            ret.setDef(2, selfMem);
         }
 
+        // Update signature in function and parms
+        tret = isClz ? ret.expr()._type : TypeMem.make( 1, tself._obj );
+        targs = new Type[]{ tself , tret };
+        // New and Improved signature
+        sig = TypeFunPtr.make1((byte)2, false, targs, tret, sig.fidx());
+        ret.fun().setSig(sig);
         ret.init();
-
-        // Upgrade <clinit> self Node.
-        if( !(self instanceof ConstantNode) || self._type != tself )
-            self.subsume(con(tself));
 
         // Reset all fields to pre-parse days
         _scope.pop();           // Must pop function scope
@@ -1394,7 +1414,6 @@ public class Parser {
     private boolean instance(Var var ) {
         // If a method var, allow nested blocks and methods, but not fcns or other structs
         Kind kind = _scope.kind(var);
-        assert !(kind instanceof Kind.Define);
         // CNC - At the moment *all* functions take a 'self', because they are
         // *always* nested in some containing struct.
         return kind instanceof Kind.Func;
@@ -1505,8 +1524,14 @@ public class Parser {
         if( hasConstructor )
             _scope.pop();
 
-        // Escape all aliases
-        EscapeNode esc = new EscapeNode(postinit,selfMem);
+        // Escape all aliases.
+
+        // CNC, self ptr.  Then MemMerge for SELF, which shoulda been parsed all along.
+        // Then MemMerge for Other self aliases, just passed-around.
+        // Then Escape.
+        // Then MemMerge for other NON-self aliases going around, plus the Escape for self-aliases.
+
+        EscapeNode esc = new EscapeNode(postinit,self,selfMem);
         for( Field fld : postinit._fields )
             esc.addDef(memAlias(fld._alias));
         esc.init();
@@ -1669,52 +1694,46 @@ public class Parser {
         // Keep expr for possible store update
         expr.keep();
 
-        // CNC - instances use self-mem instead of memAlias
+        // Load field
+        Node load = new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr, off);
+        // Arrays include control, as a proxy for a safety range check
+        // Structs don't need this; they only need a NPE check which is
+        // done via the type system.
+        if( base.isAry() && !name.equals("#") ) load.setDef(0,ctrl());
+        load = peep(load);
 
-        //// Load field
-        //Node load = f._one && INITS.containsKey( base._name )
-        //    ? INITS.get(base._name).in(base.find(name))
-        //    : new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr, off);
-        //// Arrays include control, as a proxy for a safety range check
-        //// Structs don't need this; they only need a NPE check which is
-        //// done via the type system.
-        //if( base.isAry() && !name.equals("#") ) load.setDef(0,ctrl());
-        //load = peep(load);
-        //
-        //// Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
-        //char ch = _lexer.matchOperAssign();
-        //if( ch!=0 ) {
-        //    Node op = opAssign(ch,load, tf );
-        //    Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off.unkeep(), op, false);
-        //    // Arrays include control, as a proxy for a safety range check.
-        //    // Structs don't need this; they only need a NPE check which is
-        //    // done via the type system.
-        //    if( base.isAry() )  st.setDef(0,ctrl());
-        //    memAlias(f._alias, peep(st));
-        //    load = postfix(ch) ? load.unkeep() : op;
-        //    // And use the original loaded value as the result
-        //    return load;
-        //    //throw Utils.TODO(); // NO POSTFIX AFTER STORE, JUST RETURN
-        //} else {
-        //    off.unkill();
-        //    // Method call: Loaded a function from a named field, AND the base
-        //    // field type is final.
-        //    if( load._type instanceof TypeFunPtr && name!="[]" &&
-        //        !(load instanceof ExternNode) &&
-        //        ((TypeMemPtr)TYPES.get(base._name))._obj.field(name)._final &&
-        //        // And calling a function
-        //        match("(") ) {
-        //        return parsePostfix(require(functionCall(load,expr),")"));
-        //    }
-        //
-        //    // Drop expr, keeping load alive
-        //    load.keep();
-        //    expr.unkill();
-        //    load.unkeep();
-        //}
-        //
-        //return parsePostfix(load);
-        throw Utils.TODO();
+        // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
+        char ch = _lexer.matchOperAssign();
+        if( ch!=0 ) {
+            Node op = opAssign(ch,load, tf );
+            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off.unkeep(), op, false);
+            // Arrays include control, as a proxy for a safety range check.
+            // Structs don't need this; they only need a NPE check which is
+            // done via the type system.
+            if( base.isAry() )  st.setDef(0,ctrl());
+            memAlias(f._alias, peep(st));
+            load = postfix(ch) ? load.unkeep() : op;
+            // And use the original loaded value as the result
+            return load;
+        } else {
+            off.unkill();
+            // Method call: Loaded a function from a named field, AND the base
+            // field type is final.
+            if( load._type instanceof TypeFunPtr && name!="[]" &&
+                !(load instanceof ExternNode) &&
+                ((TypeMemPtr)TYPES.get(base._name))._obj.field(name)._final &&
+                // And calling a function
+                match("(") ) {
+                return parsePostfix(require(functionCall(load,expr),")"));
+            }
+
+            // Drop expr, keeping load alive
+            load.keep();
+            expr.unkill();
+            load.unkeep();
+        }
+
+        return parsePostfix(load);
     }
 
 
@@ -1749,15 +1768,15 @@ public class Parser {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
 
-        // Defined in constructor?  Add `self` argument.  "static" calls still
-        // add a `self` they just ignore it.
-        if( _scope._kinds.last() instanceof Kind.Define define ) {
-            //// Upgrade defined struct to latest fields
-            //TypeMemPtr tmp = (TypeMemPtr)TYPES.get(define._tmp._obj._name);
-            //ts .push(tmp);
-            //ids.push("self");
-            throw Utils.TODO();
-        }
+        //// Defined in constructor?  Add `self` argument.  "static" calls still
+        //// add a `self` they just ignore it.
+        //if( _scope._kinds.last() instanceof Kind.Define define ) {
+        //    //// Upgrade defined struct to latest fields
+        //    //TypeMemPtr tmp = (TypeMemPtr)TYPES.get(define._tmp._obj._name);
+        //    //ts .push(tmp);
+        //    //ids.push("self");
+        //    throw Utils.TODO();
+        //}
 
         // Parse other arguments
         _lexer.skipWhiteSpace();
@@ -1825,7 +1844,7 @@ public class Parser {
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining
-        cend = (CallEndNode)cend.peephole(); // TODO: Might inline
+        cend = (CallEndNode)cend.keep().peephole(); // TODO: Might inline
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
@@ -1834,7 +1853,7 @@ public class Parser {
         mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
         _scope.mem(mem);
         // Call result
-        return new ProjNode(cend,2,"#2").peephole();
+        return new ProjNode(cend.unkeep(),2,"#2").peephole();
     }
 
     // Just after parsing "type foo = " can parse `"C"`

@@ -67,10 +67,11 @@ public class ParmNode extends PhiNode {
 
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeStruct ts = (TypeStruct) Parser.TYPES.get(tmp._obj._name);
-            if( ts!=null && ts != tmp._obj ) {
-                _minType = tmp.makeFrom(ts);
-                return this;
+            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
+            if( tmp2!=null && tmp2 != tmp ) {
+                //_minType = tmp.makeFrom(ts);
+                //return this;
+                throw Utils.TODO();
             }
         }
         // Skip most phi optimizations on parms

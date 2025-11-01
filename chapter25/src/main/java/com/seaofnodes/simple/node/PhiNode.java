@@ -15,7 +15,7 @@ public class PhiNode extends Node {
 
     // The Phi type we compute must stay within the domain of the Phi.  Example
     // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
-    Type _minType;
+    public Type _minType;
 
     int lattice_drop;
 

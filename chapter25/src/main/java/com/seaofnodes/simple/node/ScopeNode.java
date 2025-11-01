@@ -33,8 +33,6 @@ public class ScopeNode extends MemMergeNode {
         public static class Block  extends Kind { }
         // Function scope
         public static class Func   extends Kind { public Func(String name) { _name=name;} public final String _name; }
-        // Struct definition, mapping types  to fields
-        public static class Define extends Kind { public Define(TypeStruct ts) { _ts=ts; } public final TypeStruct _ts; }
         // Struct allocation, mapping values to fields
         public static class Alloc  extends Kind { public Alloc (TypeStruct ts) { _ts=ts; } public final TypeStruct _ts; }
 
@@ -137,9 +135,11 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
-    public boolean inConstructor() { return _kinds.last() instanceof Kind.Define; }
     public boolean inAllocation () { return _kinds.last() instanceof Kind.Alloc ; }
     public boolean inFunction   () { return _kinds.last() instanceof Kind.Func  ; }
+    public boolean inConstructor() {
+        return _kinds.last() instanceof Kind.Func func && FunNode.isInit(func._name);
+    }
 
     public Kind kind( Var v ) {
         for( int i=depth()-1; i>=0; i-- )
