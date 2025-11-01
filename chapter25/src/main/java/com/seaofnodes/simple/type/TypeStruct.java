@@ -89,7 +89,7 @@ public class TypeStruct extends Type {
         assert find(f._fname)==-1; // No double field names
         Field[] flds = Arrays.copyOf(_fields,_fields.length+1);
         flds[_fields.length] = f;
-        return make(_name,true,flds);
+        return make(_name,_open,flds);
     }
     public TypeStruct replace( Field f ) {
         assert !_open;

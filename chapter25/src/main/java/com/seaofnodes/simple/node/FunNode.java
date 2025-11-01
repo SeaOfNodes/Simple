@@ -5,11 +5,12 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
-import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
@@ -21,6 +22,8 @@ public class FunNode extends RegionNode {
     private ReturnNode _ret;    // Return pointer
 
     public String _name;        // Debug name
+
+    public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
 
     public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { super(loc,nodes); _name=name; _sig = sig; }
     public FunNode( FunNode fun ) {
@@ -59,13 +62,14 @@ public class FunNode extends RegionNode {
         return null;
     }
 
-    public ParmNode rpc() {
-        ParmNode rpc = null;
+    public ParmNode parm(int idx) {
+        ParmNode pidx = null;
         for( Node n : _outputs )
-            if( n instanceof ParmNode parm && parm._idx==0 )
-                { assert rpc==null; rpc=parm; }
-        return rpc;
+            if( n instanceof ParmNode parm && parm._idx==idx )
+                { assert pidx==null; pidx=parm; }
+        return pidx;
     }
+    public ParmNode rpc() { return parm(0); }
 
     // Cannot create the Return and Fun at the same time; one has to be first.
     // So setting the return requires a second step.
@@ -158,11 +162,11 @@ public class FunNode extends RegionNode {
     public boolean isModInit( ) {
         // The one top-level <clinit> with no internal dots:
         // "sys.<clinit>" is a module, but "sys.io.<clinit>" is not.
-        return isCLInit() && _name.indexOf('.')==_name.lastIndexOf('.');
+        return isClz() && _name.indexOf('.')==_name.lastIndexOf('.');
     }
-    public boolean isCLInit( ) {
-        return _name!=null && _name.endsWith(".<clinit>");
-    }
+    public boolean isInit( ) { return isInit(_name); }
+    public boolean isClz ( ) { return _name!=null && _name.endsWith(".<clinit>"); }
+    public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
 
     // Function is public (callable from Start directly).
     public boolean isPublic( CodeGen code ) {
@@ -218,6 +222,64 @@ public class FunNode extends RegionNode {
         if( in ) body.set(n._nid);
         return in;
     }
+
+    // Clone function body. Give function a new FIDX.
+    FunNode copyBody() {
+        // Clone the function body
+        BitSet body = body();
+        assert body.cardinality() < 100;
+        // Walk the body, cloning
+        IdentityHashMap<Node,Node> map = new IdentityHashMap<>();
+        BitSet visit = CodeGen.CODE.visit();
+        bodyCopy( visit, body, map, this );
+        visit.clear();
+        bodyEdge( visit, body, map, this );
+        visit.clear();
+
+        // Remove the default caller - this is a private copy
+        FunNode fun2 = (FunNode)map.get(this);
+        if( unknownCallers() )
+            fun2.removeDeadPath(1);
+        // New function/return cross-link each other
+        ReturnNode ret2 = (ReturnNode)map.get(_ret);
+        fun2._ret = ret2;
+        ret2._fun = fun2;
+
+        // Flip to a new FIDX to avoid confusion with the old one
+        TypeFunPtr sig2 = _sig.makeFrom(CodeGen.CODE.nextFIDX());
+        fun2._sig = sig2;
+
+        return fun2;
+    }
+
+    // Clone small function
+    private void bodyCopy( BitSet visit, BitSet body, IdentityHashMap<Node,Node> map, Node n ) {
+        if( !body.get(n._nid) ) return; // Not part of the body
+        if( visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);
+        Node m = n.copy();
+        map.put(n,m);
+        m._type = n._type;
+        for( Node x : n._outputs )
+            bodyCopy(visit,body,map,x);
+    }
+    private void bodyEdge( BitSet visit, BitSet body, IdentityHashMap<Node,Node> map, Node n ) {
+        if( !body.get(n._nid) ) return; // Not part of the body
+        if( visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);
+        Node m = map.get(n);
+        for( Node e : n._inputs ) {
+            Node x = e;
+            if( e != null ) {
+                x = map.get(e);
+                if( x == null ) x = e;
+            }
+            m.addDef(x);
+        }
+        for( Node x : n._outputs )
+            bodyEdge(visit,body,map,x);
+    }
+
 
     // FunNodes must match signature (equivalent: no 2 FunNodes are ever GVN'able)
     @Override public boolean eq( Node n ) {

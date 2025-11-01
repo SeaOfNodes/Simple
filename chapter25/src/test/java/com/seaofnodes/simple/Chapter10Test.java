@@ -320,8 +320,8 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        code.parse().opto();
-        assertEquals("return s0;", code.print());
+        try { code.parse();  fail(); }
+        catch( Exception e ) {  assertEquals("Expected a type",e.getMessage());  }
     }
 
     @Test

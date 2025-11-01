@@ -4,6 +4,7 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -79,61 +80,94 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override
     public Node idealize() {
 
-        // Trivial inlining: call site calls a single function; single function
-        // is only called by this call site.
+        // Worklist-based inlining.  Cannot inline if folding, or calling
+        // multiple targets or no CallNode (malformed because dying).
         if( !_folding && nIns()==2 && in(0) instanceof CallNode call ) {
             Node fptr = call.fptr();
-            if( fptr.nOuts() == 1 && // Only user is this call
-                fptr instanceof ConstantNode && // We have an immediate call
+            if( fptr instanceof ConstantNode && // We have an immediate call
                 // Function is being called, and its not-null
                 fptr._type instanceof TypeFunPtr tfp && tfp.notNull() &&
                 // Arguments are correct
                 call.err()==null ) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
-                // Expecting just the Call
-                if( fun.nIns()==2 ) {
-                    assert fun.in(1)==call;
-                    // Disallow self-recursive inlining (loop unrolling by another name).
-                    // Disallow if still folding other things, as it makes other
-                    // dependency checks carry long chains of half-folded calls.
-                    CFGNode idom = call;
-                    while( true ) {
-                        idom = idom.idom();
-                        if( idom instanceof FunNode ) break;
-                        if( idom instanceof CallEndNode cend && cend._folding ) break;
-                    }
-                    // Inline?
-                    if( idom instanceof FunNode fun2 && fun2 != fun && !fun2._folding ) {
-                        // Trivial inline: rewrite
-                        _folding = true;
-                        // Rewrite Fun so the normal RegionNode ideal collapses
-                        fun._folding = true;
-                        fun.setDef(1,call.ctrl());  // Bypass the Call;
-                        fun.ret().setDef(3,null);   // Return is folding also
-                        CodeGen.CODE.addAll(fun._outputs);
-                        // Repeat defs 1 layer down, for users of Parm (Phis)
-                        for( Node parm : fun._outputs )
-                            if( parm instanceof ParmNode )
-                                CodeGen.CODE.addAll(parm._outputs);
+                boolean isTrivial = trivialInlining( fptr, fun, call );
 
-                        // Inlining immediately blows all cache idepth fields past the inline point.
-                        // Bump the global version number invalidating them en-masse.
-                        CodeGen.CODE.invalidateIDepthCaches();
-                        return this;
-                    } else {
-                        addDep(idom);
-                    }
-                } else {
-                    addDep(fun);
+                // Encouraged inlining because small size and constructor.
+                if( !isTrivial && fun._approxUIDs < 100 && fun._name!=null && fun.isInit() && !fun.isClz() ) {
+                    // Remove the existing function linkage
+                    call.unlink_all();
+                    // Clone the function body
+                    FunNode fun2 = fun.copyBody();
+                    // Call uses the unique new function
+                    Node fptr2= new ConstantNode(fun2.sig()).peephole();
+                    call.setDef(call.nIns()-1,fptr2);
+                    // Link to the new function
+                    call.link(fun2);
+                    fun = fun2;
+                    isTrivial = trivialInlining( fptr2, fun2, call );
+                    assert isTrivial;
                 }
-            } else { // Function ptr has multiple users (so maybe multiple call sites)
+
+                // Trivial inlining: call site calls a single function; single function
+                // is only called by this call site.
+                if( isTrivial )
+                    return doTrivialInlining(fun, call);
+
+            } else { // Function not (yet) a constant function pointer
                 addDep(fptr);
             }
         }
 
         return null;
     }
+
+    // Check for trivial inlining: call only calls fun; fun only called by call.
+    private boolean trivialInlining( Node fptr, FunNode fun, CallNode call ) {
+        // Expecting just the Call
+        if( fptr.nOuts() > 1 ) { addDep(fptr); return false; }
+        // Only fun user is this call
+        if( fun.nIns() > 2 ) { addDep(fun); return false; }
+        // Trivial inlining: call site calls a single function; single function
+        // is only called by this call site.
+        assert fun.in(1)==call;
+        // Disallow self-recursive inlining (loop unrolling by another name).
+        // Disallow if still folding other things, as it makes other
+        // dependency checks carry long chains of half-folded calls.
+        CFGNode idom = call;
+        while( true ) {
+            idom = idom.idom();
+            if( idom instanceof FunNode ) break;
+            if( idom instanceof CallEndNode cend && cend._folding ) break;
+        }
+        // No recursive or mid-folding function
+        if( !(idom instanceof FunNode fun2) || fun2 == fun || fun2._folding )
+            { addDep(idom); return false; }
+
+        return true;
+    }
+
+    // Do trivial inlining.  Inlining does not need to clone code, merely
+    // triggers folding the Call/Fun and Return/CallEnd away.
+    private Node doTrivialInlining( FunNode fun, CallNode call ) {
+        // Trivial inline: rewrite
+        _folding = true;
+        // Rewrite Fun so the normal RegionNode ideal collapses
+        fun._folding = true;
+        fun.setDef(1,call.ctrl());  // Bypass the Call;
+        fun.ret().setDef(3,null);   // Return is folding also
+        CodeGen.CODE.addAll(fun._outputs);
+        // Repeat defs 1 layer down, for users of Parm (Phis)
+        for( Node parm : fun._outputs )
+            if( parm instanceof ParmNode )
+                CodeGen.CODE.addAll(parm._outputs);
+
+        // Inlining immediately blows all cache idepth fields past the inline point.
+        // Bump the global version number invalidating them en-masse.
+        CodeGen.CODE.invalidateIDepthCaches();
+        return this;
+    }
+
 
     @Override public Node pcopy(int idx) {
         return _folding ? in(1).in(idx) : null;

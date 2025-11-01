@@ -60,11 +60,11 @@ public class StoreNode extends MemOpNode {
         if( mem == TypeMem.TOP ) return TypeMem.TOP;
 
         // Allocation uses a known TypeStruct mem type and nothing else does.
-        // This memory is truely private; a temporary singleton until it
+        // This memory is truly private; a temporary singleton until it
         // escapes - which is never does in a constructor.
         if( mem._t instanceof TypeStruct ts ) {
             assert mem._alias==1;
-            Field fld = Field.make(_name, val, _alias, true);
+            Field fld = Field.make(_name, val, _alias, _init);
             TypeStruct ts2 = ts.find(_name) == -1 ? ts.add(fld) : ts.replace(fld);
             return TypeMem.make(1,ts2);
         }

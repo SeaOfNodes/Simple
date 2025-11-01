@@ -123,16 +123,28 @@ public class LoadNode extends MemOpNode {
                 // Assume related
                 addDep(phi);
                 break outer;
-            case ConstantNode top: break outer;  // Assume shortly dead
+            case ConstantNode con:
+                // Load from constant memory
+                if( con._con instanceof TypeMem tmem && tmem._t instanceof TypeStruct ts ) {
+                    Field fld = ts.field(_name);
+                    if( fld!= null && fld._t.isConstant() )
+                        return new ConstantNode(fld._t);
+                }
+                break outer;  // Assume shortly dead
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
                     throw Utils.TODO("Should not see a Load from New; and no bypass Store from New");
+                case EscapeNode esc:
+                    if( esc.self()==ptr() ) // Proved equal
+                        { mem = esc.selfMem(); break; }
+                    // TODO: Can we prove unequal?
+                    break outer;
                 case StartNode  start: break outer;
                 case CallEndNode cend: break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO();
                 }
-                //break;
+                break;
             case CastNode cast: mem = cast.in(1); break;
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
 

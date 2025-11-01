@@ -13,8 +13,10 @@ import java.util.HashMap;
 public class EscapeNode extends Node implements MultiNode {
 
     public final TypeStruct _ts;
-    public EscapeNode(TypeStruct ts, Node selfMem ) { super(null,selfMem); _ts=ts; }
+    public EscapeNode(TypeStruct ts, Node self, Node selfMem ) { super(self,selfMem); _ts=ts; }
 
+    // Pointer to some private (unescaped) memory from a NewNode
+    Node self() { return in(0); }
     Node selfMem() { return in(1); }
 
     @Override public Tag serialTag() { return Tag.Escape; }
@@ -29,7 +31,6 @@ public class EscapeNode extends Node implements MultiNode {
         //return new EscapeNode(types[bais.packed2()], ins);
         throw Utils.TODO();
     }
-
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

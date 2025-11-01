@@ -182,7 +182,7 @@ public abstract class Eval2 {
         int path = r._inputs.find( prior );
         // Parameters read from prior frame, Phis from local frame
         Frame frame = (r instanceof FunNode ? F._prior : F);
-        boolean isCLInit = r instanceof FunNode fun && fun.isCLInit();
+        boolean isClz = r instanceof FunNode fun && fun.isClz();
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
@@ -195,7 +195,7 @@ public abstract class Eval2 {
             // - except RPC is the actual prior frame
             // - except <clinit> takes the singleton class object and external args
             Object val;
-            if( isCLInit && phi instanceof ParmNode parm && parm._idx==3 )
+            if( isClz && phi instanceof ParmNode parm && parm._idx==3 )
                 PHICACHE[i] = arg; // Reading the initial arguments to <clinit>
             else {
                 Node n = phi instanceof ParmNode parm
