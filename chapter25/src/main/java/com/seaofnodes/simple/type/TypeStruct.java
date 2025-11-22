@@ -342,6 +342,13 @@ public class TypeStruct extends Type {
         return ts;
     }
 
+    @Override boolean _isGLB(boolean mem) {
+        for( Field f : _fields )
+            if( !f._t._isGLB(mem) )
+                return false;
+        return true;
+    }
+
     // log_size for a struct is not defined, unless its exactly some power of
     // 2.  *Total size* is well-defined, and is available in the offsets.
     @Override public int log_size() { throw Utils.TODO(); }

@@ -274,23 +274,24 @@ public abstract class Eval2 {
         case ConstantNode con  -> con(con._con);
         case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
         case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
+        case EscapeNode   esc  -> "$mem";
         case LoadNode     ld   -> load(ld);
+        case MemMergeNode merge-> "$mem";
         case MinusFNode   mnf  -> - d(mnf.in(1));
         case MinusNode    sub  -> - x(sub.in(1));
         case MulFNode     mlf  -> d(mlf.in(1)) *  d(mlf.in(2));
         case MulNode      mul  -> x(mul.in(1)) *  x(mul.in(2));
         case NewNode      alloc-> alloc(alloc);
-        case NotNode      not  -> x(not.in(1)) == 0 ? 1L : 0L;
+        case NotNode      not  -> not(not);
         case OrNode       or   -> x(or .in(1)) |  x(or .in(2));
         case ProjNode     proj -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
         case SarNode      sar  -> x(sar.in(1)) >> x(sar.in(2));
-        case MemMergeNode merge-> "$mem";
         case ShlNode      shl  -> x(shl.in(1)) << x(shl.in(2));
         case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
         case StoreNode    st   -> store(st);
-        case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
         case SubFNode     sbf  -> d(sbf.in(1)) -  d(sbf.in(2));
+        case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
         case ToFloatNode  toflt-> (double)x(toflt.in(1));
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
@@ -376,6 +377,12 @@ public abstract class Eval2 {
         for( int i=0; i<num; i++ )
             ptr[i] = con(type._fields[i]._t.makeZero());
         return ptr;
+    }
+
+    private static Object not( NotNode not ) {
+        Object n = val(not.in(1));
+        return ( n==null || (n instanceof Double D && D==0.0) || n instanceof Long L && L==0 )
+            ? 1L : 0L;
     }
 
     private static Object load( LoadNode ld ) {

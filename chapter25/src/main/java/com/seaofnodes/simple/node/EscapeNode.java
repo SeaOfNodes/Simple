@@ -8,16 +8,21 @@ import java.util.BitSet;
 import java.util.HashMap;
 
 /**
- * Build a compound object
+ *  Merge public and private aliases.
+ *  0 - control
+ *  1 - private pointer
+ *  2 - private alias
+ *  3 - public alias
  */
-public class EscapeNode extends Node implements MultiNode {
+public class EscapeNode extends Node {
 
-    public final TypeStruct _ts;
-    public EscapeNode(TypeStruct ts, Node self, Node selfMem ) { super(self,selfMem); _ts=ts; }
+    public final int _alias;
+    public EscapeNode(int alias, Node self, Node priv, Node pub ) { super(null,self,priv,pub); _alias=alias; }
 
     // Pointer to some private (unescaped) memory from a NewNode
-    Node self() { return in(0); }
-    Node selfMem() { return in(1); }
+    Node self() { return in(1); }
+    Node priv() { return in(2); }
+    Node pub () { return in(3); }
 
     @Override public Tag serialTag() { return Tag.Escape; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
@@ -34,37 +39,43 @@ public class EscapeNode extends Node implements MultiNode {
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("Escape ");
-        sb.append(_ts._name).append(" {  ");
-        for( int i=0; i<_ts._fields.length; i++ ) {
-            sb.append(_ts._fields[i]._fname).append(":");
-            sb.append(in(i+2)._type);
-            sb.append("; ");
-        }
-        sb.setLength(sb.length()-2);
-        return sb.append("}");
+        sb.append("Esc#").append(_alias).append(" {");
+        self()._print0(sb,visited).append(",");
+        priv()._print0(sb,visited).append("}, ");
+        pub ()._print0(sb,visited);
+        return sb;
     }
 
     @Override
     public Type compute() {
+        // Private memory is the magical alias#1 with a single-field TypeStruct
+        if( priv()._type.isHigh() ) return TypeMem.TOP;
+        if( pub ()._type.isHigh() ) return TypeMem.TOP;
+        TypeMem mpriv = (TypeMem)priv()._type;
+        assert mpriv._alias==1;
+        TypeStruct tspriv = (TypeStruct) mpriv._t;
+        int x = tspriv.findAlias(_alias);
+        assert x != -1;
 
-        Type t = selfMem()._type;
-        if( t.isHigh() ) return Type.TOP;
-        TypeMem allSelfMem = (TypeMem)t;
-        TypeStruct allSelf = (TypeStruct)allSelfMem._t;
+        TypeMem mpub = (TypeMem)pub()._type;
+        assert mpub._alias==1 || mpub._alias==_alias;
 
-        Type[] ts = new Type[_ts._fields.length];
-        for( int i=0; i<_ts._fields.length; i++ ) {
-            Type  pubMem = in(i+2)._type;
-            Type selfMem = TypeMem.make(allSelf._fields[i]._alias, allSelf._fields[i]._t);
-            ts[i] = pubMem.meet(selfMem);
-        }
-        return TypeTuple.make(ts);
+        return TypeMem.make(_alias,tspriv._fields[x]._t.meet(mpub._t));
     }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() {
+        if( priv() instanceof MemMergeNode mmm ) {
+            setDef(2,mmm.alias(_alias));
+            return this;
+        }
+        if( pub() instanceof MemMergeNode mmm ) {
+            setDef(3,mmm.alias(_alias));
+            return this;
+        }
+        return null;
+    }
 
-    @Override public boolean eq(Node n) { return _ts == ((EscapeNode)n)._ts; }
+    @Override public boolean eq(Node n) { return _alias==((EscapeNode)n)._alias; }
 
-    @Override int hash() { return _ts.hashCode(); }
+    @Override int hash() { return _alias; }
 }

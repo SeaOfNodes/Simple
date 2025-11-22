@@ -88,9 +88,9 @@ public class Parser {
      */
     public final Stack<ScopeNode> _xScopes = new Stack<>();
 
-    ScopeNode _continueScope;
-    ScopeNode _breakScope;      // Merge all the while-breaks here
-    FunNode _fun;               // Current function being parsed
+    ScopeNode _breakScope;      // Merge all the while-breaks    here
+    ScopeNode _continueScope;   // Merge all the while-continues here
+    ScopeNode _returnScope;     // Merge all the function exits  here
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
@@ -203,11 +203,15 @@ public class Parser {
         // update fields, so when the parse is done reset back to the pre-parse
         // state.
         Node[] preParse = _scope.save();
+        ScopeNode returnScope = _returnScope;
+        _returnScope = null;
 
         // Parse function body normally
         ReturnNode ret = _parseFunctionBody(null, sig,loc,ids);
 
         // Reset all fields to pre-parse days
+        if( _returnScope != null ) _returnScope.kill();
+        _returnScope = returnScope;
         _scope.pop();           // Must pop function scope
         _scope.restore(preParse);
         return ret;
@@ -215,12 +219,11 @@ public class Parser {
     // Parse a function body; leaves function scope around
     private ReturnNode _parseFunctionBody( String name, TypeFunPtr sig, Lexer loc, String[] ids) {
         // Stack parser state on the local Java stack, and unstack it later
-        FunNode oldfun  = _fun;
-        ScopeNode breakScope = _breakScope; _breakScope = null;
+        ScopeNode    breakScope =    _breakScope;    _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
         int oldUID = _code.UID(); // Used to approximate function size
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig, name, null,_code._start));
+        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, name, null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -228,17 +231,6 @@ public class Parser {
         _code.link(fun);
 
         Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).peephole();
-
-        // Build a multi-exit return point for all function returns
-        RegionNode r = new RegionNode( null,null,null).init();
-        assert r.inProgress();
-        PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null).init();
-        PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null).init();
-        ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun).init();
-        fun.setRet(ret);
-        assert ret.inProgress();
-        if( fun.isPublic(_code))
-            _code._stop.addDef(ret);
 
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
@@ -253,7 +245,7 @@ public class Parser {
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
-            _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
+            _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
         // Parse the body.  For initializers also capture all new variables
@@ -280,27 +272,21 @@ public class Parser {
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )
-            fun.addReturn(ctrl(), _scope.mem().merge(), last);
+            addReturn(last);
 
-        // Pop off the inProgress node on the multi-exit Region merge
-        assert r.inProgress();
-        r   ._inputs.pop();
-        rmem._inputs.pop();
-        rrez._inputs.pop();
-        r._loc = loc();         // Final position
-        assert !r.inProgress();
-
-        // Force peeps, which have been avoided due to inProgress
-        ret.setDef(1,rmem.peephole());
-        ret.setDef(2,rrez.peephole());
-        ret.setDef(0,r.peephole());
-        ret = (ReturnNode)ret.peephole();
+        // Can be no returns for never-exit functions
+        Node rctl = _returnScope==null ? XCTRL            : _returnScope.ctrl().peephole();
+        Node rmem = rctl==XCTRL        ? con(TypeMem.TOP) : _returnScope.mem ().merge().peephole();
+        Node expr = rctl==XCTRL        ? con(Type.TOP)    : _returnScope._inputs.last().peephole();
+        ReturnNode ret = (ReturnNode)new ReturnNode(rctl, rmem, expr, rpc, fun).init().peephole();
+        fun.setRet(ret);
+        _code._stop.addDef(ret);
 
         // Function scope ends, but caller must pop scope
         //_scope.pop();
-        _fun = oldfun;
-        _breakScope = breakScope;
+        _breakScope    =    breakScope;
         _continueScope = continueScope;
+        // Approximate function size, for inlining heuristics
         fun._approxUIDs = _code.UID() - oldUID;
 
         return ret;
@@ -653,9 +639,54 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseAsgn(), ";");
+        return addReturn(expr);
+    }
+    private Node addReturn(Node expr) {
         // Need default memory, since it can be lazy, need to force
         // a non-lazy Phi
-        _fun.addReturn(ctrl(), _scope.mem().merge(), expr);
+        _scope.mem().removeLazyAll();
+        // For <init> and <clinit> - all fields in scope will be live-on-exit
+        // and stored into `self` and need to have lazy-phi's inserted.
+        int lexN = _scope.enclosingFunction();
+        Kind.Func k = (Kind.Func)_scope._kinds.at(lexN);
+        if( FunNode.isInit(k._name) ) {
+            int nestedLexSize = lexN+1 < _scope.depth() ? _scope._kinds.at(lexN+1)._lexSize : _scope.nIns();
+            for( int i=k._lexSize; i<nestedLexSize; i++ )
+                _scope.update(_scope.var(i),null);
+            if( _returnScope != null ) {
+                Var vexpr = _returnScope._vars.pop();
+                Node oldX = _returnScope.removeLast();
+                int rlen = _returnScope.nIns();
+                while( rlen  < nestedLexSize ) {
+                    _returnScope._vars.add(_scope.var(rlen));
+                    _returnScope.addDef(Parser.con(_scope.var(rlen++).type().makeZero()));
+                }
+                _returnScope._vars.add(vexpr);
+                _returnScope.addDef(oldX);
+            }
+        }
+
+        // No prior merge point?  Just clone and hang on to it
+        if( _returnScope == null ) {
+            _returnScope = _scope.dup();
+            while( lexN+1 < _returnScope.depth() )
+                _returnScope._pop(); // Pop a nested block scope until we hit the function scope
+            _returnScope.define("$expr", expr._type.glb(false), true, expr, null);
+
+        } else {
+            // For <init> and <clinit> - ALL FIELDS IN LAST SCOPE are live
+            // and need to have lazy-phi's inserted.
+
+            // ANd fields might not match.... will need matching Var/define with default values
+            int rlen = _returnScope.nIns()-1;
+            RegionNode r = ctrl(new RegionNode(null, null,_returnScope.ctrl(), _scope.ctrl()).init().keep());
+            _returnScope.mem()._merge(_scope.mem(),r);
+            _returnScope      ._merge(_scope,      r, rlen);
+            Node oldExpr = _returnScope.in(rlen);
+            _returnScope.setDef(rlen,new PhiNode("$expr", oldExpr._type.meet(expr._type), r, oldExpr, expr).peephole());
+            _code.add(r);
+            _returnScope.ctrl(r.unkeep());
+        }
         ctrl(XCTRL);            // Kill control
         return expr;
     }
@@ -698,7 +729,12 @@ public class Parser {
         Node expr = parseAsgn();
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr.keep(), def.type(), def._final, true);
+        Type decl = def.type(); // Declared type
+        Node lift = liftExpr(expr.keep(), decl, def._final, true);
+        // Lift type to the declaration.  This will report as an error later if
+        // we cannot lift the type.
+        if( !lift._type.isa(decl) )
+            lift = peep(new CastNode(decl,null,lift));
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
@@ -783,7 +819,7 @@ public class Parser {
                  // no Bang AND
                  !hasBang &&
                  // Locals are not-final by default
-                 !_scope.inFunction() &&
+                 _scope.inFunction() &&
                  // not-null (expecting null to be set to not-null)
                  expr._type != Type.NIL &&
                  // Pointers are final by default; int/flt are not-final by default.
@@ -887,6 +923,8 @@ public class Parser {
         // update fields, so when the parse is done reset back to the pre-parse
         // state.
         Node[] preParse = _scope.save();
+        ScopeNode returnScope = _returnScope;
+        _returnScope = null;
 
         // Make the future clazz/instance struct; no fields yet.
         TypeStruct ts = TypeStruct.make( typeName, false );
@@ -915,7 +953,9 @@ public class Parser {
         Node selfCon = con(tself);
         int newVars = lastLexSize + ids.length;
 
-        if( isClz ) {
+        // <clinit> can skip this if it's an infinite loop and never actually
+        // finishes the init process.
+        if( isClz && ret.ctrl()._type!=Type.XCONTROL ) {
 
             // <clinit> gets the normal public memory, because no aliasing is
             // possible, because clazz structs are singletons.
@@ -926,7 +966,7 @@ public class Parser {
                 ret.setDef(1, mmm.init());
             }
             for( int i=newVars; i<_scope._vars._len; i++ ) {
-                Node val = _scope.in(i);
+                Node val = _returnScope.in(i);
                 Field fld = tself._obj._fields[i-newVars];
                 // Store value into extended struct
                 Node mem = mmm.alias(fld._alias);
@@ -936,23 +976,25 @@ public class Parser {
             _code.add(mmm);     // Need to revisit
 
             // Force return a plain integer to the OS
-            if( !ret.expr()._type.isHigh() && !(ret.expr()._type instanceof TypeInteger) )
-                ret.setDef(2, ZERO); // Returns last i64 or zero
+            tret = ret.expr()._type;
+            if( !tret.isHigh() && !(tret instanceof TypeInteger) )
+                ret.setDef(2, peep(new NotNode(ret.expr())));
             // Upgrade <clinit> self Node.
             if( self != selfCon )
                 self.subsume(selfCon);
 
-        } else {
+        } else if( !isClz ) {
 
             // <init> gets private instance memory from #selfMem;
             Node selfMem = _scope.in(lastLexSize+1);
+            MemMergeNode mmm = new MemMergeNode(false); // The unrelated field memories
             for( int i=newVars; i<_scope._vars._len; i++ ) {
-                Node val = _scope.in(i);
+                Node val = _returnScope.in(i); // i'th new instance field
                 Field fld = tself._obj._fields[i-newVars];
                 // Store value into extended struct
-                selfMem = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
+                mmm.alias( fld._alias, peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final)));
             }
-            // Upgrade <init> default self Node
+            // Upgrade <init> default self Node using declared type
             ParmNode parm = ret.fun().parm(2);
             parm.setDef(1,selfCon);
             parm._minType = tself;
@@ -960,7 +1002,9 @@ public class Parser {
 
             // Keep the normal public memory for unrelated memory updates.
             // The <init> returns private #selfMem to the next nested layer out.
-            ret.setDef(2, selfMem);
+            // The returned #selfMem is the sharp actual memory, not the declared type
+            Node mmm0 = mmm.peephole();
+            ret.setDef(2, mmm0);
         }
 
         // Update signature in function and parms
@@ -972,6 +1016,8 @@ public class Parser {
         ret.init();
 
         // Reset all fields to pre-parse days
+        if( _returnScope != null ) _returnScope.kill();
+        _returnScope = returnScope;
         _scope.pop();           // Must pop function scope
         _scope.restore(preParse);
 
@@ -1003,27 +1049,32 @@ public class Parser {
 
         // Check for partially qualified subtype name.
         if( t0 == null ) {
-            // Gather id.id.id.lasttype.
-            // Ok (and normal) for "id.id.id" to be empty.
-            while( true ) {
-                int old2 = pos();
-                if( !match(".") )  break;
-                String sname = _lexer.matchId();
-                if( sname==null ) { pos(old2); break; }
-                tname = tname+"."+sname;
+            //// Gather id.id.id.lasttype.
+            //// Ok (and normal) for "id.id.id" to be empty.
+            //while( true ) {
+            //    int old2 = pos();
+            //    if( !match(".") )  break;
+            //    String sname = _lexer.matchId();
+            //    if( sname==null ) { pos(old2); break; }
+            //    tname = tname+"."+sname;
+            //}
+
+            if( _nestedType.endsWith(tname) ) {
+                tname = _nestedType;
+            } else {
+                // If id.id.id does NOT match the suffix of _nestedType, then this
+                // is not a type.  Else fullyQualifiedName = _nestedType.lasttype;
+                int lidx = tname.lastIndexOf('.');
+                if( lidx != -1 ) {      // Index == -1 means no '.', which is a valid empty prefix.
+                    // Prefix is from 0 to lidx-1; suffix from lidx+1 to end
+                    // Is prefix of given type a suffix of current type-scope _nestedType
+                    for( int i=lidx-1, j=_nestedType.length()-1; i>=0; )
+                        if( tname.charAt(i--) != _nestedType.charAt(j--) )
+                            return posT(old1); // Not a type
+                }
+                // Make fully qualified type name
+                tname = _nestedType + "." + tname.substring(lidx+1);
             }
-            // If id.id.id does NOT match the suffix of _nestedType, then this
-            // is not a type.  Else fullyQualifiedName = _nestedType.lasttype;
-            int lidx = tname.lastIndexOf('.');
-            if( lidx != -1 ) {      // Index == -1 means no '.', which is a valid empty prefix.
-                // Prefix is from 0 to lidx-1; suffix from lidx+1 to end
-                // Is prefix of given type a suffix of current type-scope _nestedType
-                for( int i=lidx-1, j=_nestedType.length()-1; i>=0; )
-                    if( tname.charAt(i--) != _nestedType.charAt(j--) )
-                        return posT(old1); // Not a type
-            }
-            // Make fully qualified type name
-            tname = _nestedType + "." + tname.substring(lidx+1);
             t0 = TYPES.get(tname);
         }
 
@@ -1486,7 +1537,8 @@ public class Parser {
 
         // Call <init>(NewNode); encourage inlining
         Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(_scope.mem().merge()); add(self); add(smem); add(con(init)); }};
-        Node selfMem = functionCall( args );
+        Node selfMem = functionCall( args ).keep();
+        // The returned value is a merge of private *Memory* and NOT some Scalar
         Type tmem = selfMem._type;
 
         //// Parse new struct { default_initialization }
@@ -1516,28 +1568,28 @@ public class Parser {
         }
 
         // Check that all fields are initialized
-        TypeStruct postinit = (TypeStruct)((TypeMem)tmem)._t;
-        for( Field fld : postinit._fields )
-            if( fld._t == Type.TOP || fld._t == Type.BOTTOM )
-                throw error("'"+postinit._name+"' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor");
+        TypeStruct postinit = null;
+        if( tmem instanceof TypeMem tmem0 ) { // Might be TOP if parsing in dead/unreachable code
+            postinit = (TypeStruct)(tmem0._t);
+            for( Field fld : postinit._fields )
+                if( fld._t == Type.TOP || fld._t == Type.BOTTOM )
+                    throw error("'"+postinit._name+"' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor");
+        }
         // Pop constructor scope
         if( hasConstructor )
             _scope.pop();
 
-        // Escape all aliases.
-
-        // CNC, self ptr.  Then MemMerge for SELF, which shoulda been parsed all along.
-        // Then MemMerge for Other self aliases, just passed-around.
-        // Then Escape.
-        // Then MemMerge for other NON-self aliases going around, plus the Escape for self-aliases.
-
-        EscapeNode esc = new EscapeNode(postinit,self,selfMem);
-        for( Field fld : postinit._fields )
-            esc.addDef(memAlias(fld._alias));
-        esc.init();
-        int j=0;
-        for( Field fld : postinit._fields )
-            memAlias(fld._alias,peep(new ProjNode(esc,j++,("#"+fld._alias).intern())));
+        // Escape all new aliases.  EscapeNode inputs are the self pointer, the
+        // merged private memory, then all the named public aliases.  The
+        // output is all the newly merged public aliases - but not actually
+        // bulk memory.
+        if( tmem instanceof TypeMem tmem0 ) { // Might be TOP if parsing in dead/unreachable code
+            for( Field fld : postinit._fields ) {
+                Node esc = peep(new EscapeNode(fld._alias,self,selfMem,memAlias(fld._alias)));
+                memAlias(fld._alias,esc);
+            }
+        }
+        selfMem.unkeep();
 
         return self.unkeep();
     }

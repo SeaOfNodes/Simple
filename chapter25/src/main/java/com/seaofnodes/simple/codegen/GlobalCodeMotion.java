@@ -286,6 +286,12 @@ public abstract class GlobalCodeMotion {
                     lca = anti_dep( load, late[mem._nid], mem.cfg0(), lca, st );
                 }
                 break; // Loads do not cause anti-deps on other loads
+            case EscapeNode esc:
+                if( load._alias == esc._alias ) {
+                    assert late[mem._nid] != null;
+                    lca = anti_dep( load, late[mem._nid], mem.cfg0(), lca, mem );
+                }
+                break;
             case CallNode call:
                 assert late[call._nid]!=null;
                 lca = anti_dep(load,late[call._nid],call.cfg0(),lca,call);

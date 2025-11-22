@@ -62,10 +62,11 @@ public class StoreNode extends MemOpNode {
         // Allocation uses a known TypeStruct mem type and nothing else does.
         // This memory is truly private; a temporary singleton until it
         // escapes - which is never does in a constructor.
+        //assert !(mem._t instanceof TypeStruct);
         if( mem._t instanceof TypeStruct ts ) {
             assert mem._alias==1;
             Field fld = Field.make(_name, val, _alias, _init);
-            TypeStruct ts2 = ts.find(_name) == -1 ? ts.add(fld) : ts.replace(fld);
+            TypeStruct ts2 = TypeStruct.make(ts._name, ts._open, fld);
             return TypeMem.make(1,ts2);
         }
 
@@ -109,6 +110,19 @@ public class StoreNode extends MemOpNode {
             setDef(1,mem.alias(_alias));
             return this;
         }
+
+        // Move stores of new private instances into the private memory space.
+        // Lame EA by any other name.
+        if( mem() instanceof EscapeNode esc ) {
+            // Trivial bypass Escape; store either goes to the public side or the private side
+            if( ptr() == esc.self() &&
+                // Multiple users of same alias, one of them must be (eventually) dead.
+                esc.nOuts() == 1 ) {
+                esc.setDef(2,new StoreNode( _loc, _name, _alias, _declaredType, esc.priv(), ptr(), off(), val(), false ).peephole());
+                return esc;
+            } // CNC: TODO: Trivial bypass Escape to public side
+        }
+
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {

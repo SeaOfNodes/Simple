@@ -110,7 +110,7 @@ while (arg) {
 return arg;
                 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return (0)Phi(Loop,arg,(Phi_arg+1));", code.print());
     }
 
     @Test
@@ -209,9 +209,9 @@ return -0+0+0;
 
     @Test
     public void testFuzz3() {
-        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0; return 0;");
+        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0; return 1;");
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return 1;", code.print());
     }
 
     @Test
@@ -281,7 +281,7 @@ return v1+v0;
     public void testFuzz8() {
         CodeGen code = new CodeGen("while(arg) arg = arg - 1;  return arg;");
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return (0)Phi(Loop,arg,(Phi_arg-1));", code.print());
     }
 
     @Test

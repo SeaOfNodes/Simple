@@ -193,6 +193,8 @@ public class PhiNode extends Node {
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( in(1) instanceof MemOpNode mem && mem._alias != ((MemOpNode)op)._alias )
                 return false;
+            if( in(1) instanceof EscapeNode )
+                return false;
             if( op.nOuts() > 1 && busy++ > 0 ) { // Too many users, but addDep in case lose users
                 for( Node out : op._outputs )
                     if( out!=null && out!=this )
@@ -292,16 +294,7 @@ public class PhiNode extends Node {
             if( in(i)._type == Type.BOTTOM )
                 return null;
 
-        // Gather a minimal set of types that "cover" all the rest
-        boolean ti=false, tf=false, tp=false, tn=false;
-        for( int i=1; i<nIns(); i++ ) {
-            Type t = in(i)._type;
-            ti |= t instanceof TypeInteger x;
-            tf |= t instanceof TypeFloat   x;
-            tp |= t instanceof TypeMemPtr  x;
-            tn |= t==Type.NIL;
-        }
-        return ReturnNode.mixerr(ti,tf,tp,tn, ((RegionNode)region())._loc);
+        throw Utils.TODO();
     }
 
     @Override public void gather( HashMap<String,Integer> strs ) {

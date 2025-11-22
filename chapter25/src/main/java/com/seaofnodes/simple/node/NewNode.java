@@ -51,7 +51,10 @@ public class NewNode extends Node implements MultiNode {
         return null;
     }
 
-    @Override public boolean eq(Node n) { return _ts == ((NewNode)n)._ts; }
+    // Two NewNodes are never equal; NewNodes always make independent pointers
+    // so they are not functional - they internally bump-ptr allocate always a
+    // new pointer.
+    @Override public boolean eq(Node n) { return this==n; }
 
     @Override int hash() { return _ts.hashCode(); }
 

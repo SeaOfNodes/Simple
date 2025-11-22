@@ -44,13 +44,30 @@ return primeCount;
     }
 
     @Test
+    public void testClassField() {
+        CodeGen code = new CodeGen(
+"""
+if( arg < 2 ) return 0;
+int primeCount = 1;
+while( arg-- )
+    primeCount++;
+return primeCount;
+""");
+        code.driver(CodeGen.Phase.LocalSched);
+        assertEquals("0", Eval2.eval(code,  1)); // No primes 1 or below
+        assertEquals("3", Eval2.eval(code,  2)); //
+}
+
+
+    @Test
     public void testAntiDeps1() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v=new S;
+struct _S { int f; };
+_S !v=new _S;
 v.f = 2;
-int i=new S.f;
+_S q=new _S;
+int i=q.f;
 i=v.f;
 if (arg) v.f=1;
 return i;
@@ -65,10 +82,10 @@ return i;
     public void testAntiDeps2() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
+struct _S { int f; };
+_S !v = new _S;
 v.f = arg;
-S !t = new S;
+_S !t = new _S;
 int i = 0;
 if (arg) {
     if (arg+1) v = t;
@@ -86,19 +103,19 @@ return i;
     public void testAntiDeps3() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v0 = new S;
-S? v1;
-if (arg) v1 = new S;
+struct _S { int f; };
+_S !v0 = new _S;
+_S? v1;
+if (arg) v1 = new _S;
 if (v1) {
     v0.f = v1.f;
 } else {
     v0.f = 2;
 }
-return v0;
+return v0.f;
 """);
         code.parse().opto();
-        assertEquals("return S;", code.print());
+        assertEquals("return Phi(Region,.f,2);", code.print());
     }
 
 
@@ -106,10 +123,10 @@ return v0;
     public void testAntiDeps4() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
+struct _S { int f; };
+_S !v = new _S;
 v.f = arg;
-S t = new S;
+_S t = new _S;
 int i = v.f;
 if (arg+1) arg= 0;
 while (arg) v.f = 2;
@@ -123,27 +140,27 @@ return i;
     public void testAntiDeps5() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
+struct _S { int f; };
+_S !v = new _S;
 while(1) {
     while(arg+1) { arg=arg-1; }
     if (arg) break;
     v.f = 2;
 }
-return v;
+return v.f;
 """);
         code.parse().opto();
-        assertEquals("return S;", code.print());
+        assertEquals("return Phi(Loop,0,2);", code.print());
     }
 
     @Test
     public void testAntiDeps6() {
         CodeGen code = new CodeGen(
 """
-struct s { int v; };
-s !ptr=new s;
+struct _S { int v; };
+_S !ptr=new _S;
 while( -arg )
-  ptr = new s;
+  ptr = new _S;
 while(1)
   arg = arg+ptr.v;
 """);
@@ -155,9 +172,9 @@ while(1)
     public void testAntiDeps7() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
-S t = new S;
+struct _S { int f; };
+_S !v = new _S;
+_S t = new _S;
 int i = v.f;
 while (arg) {
     v.f = arg;
@@ -173,9 +190,9 @@ return i;
     public void testAntiDeps8() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
-S t = new S;
+struct _S { int f; };
+_S !v = new _S;
+_S t = new _S;
 while(arg) {
     arg=arg-1;
     int f = v.f;
@@ -186,33 +203,33 @@ while(arg) {
 return arg;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return (0)Phi(Loop,arg,Phi(Region,Phi(Loop,0,Phi(Region,2,3)),(0)(Phi_arg-1)));", code.print());
     }
 
     @Test
     public void testAntiDeps9() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
-S t = new S;
+struct _S { int f; };
+_S !v = new _S;
+_S t = new _S;
 if (arg) {
     v.f=2;
     int i=t.f;
     v.f=i;
 }
-return v;
+return v.f;
 """);
         code.parse().opto();
-        assertEquals("return S;", code.print());
+        assertEquals("return .f;", code.print());
     }
 
     @Test
     public void testExample2() {
         CodeGen code = new CodeGen(
 """
-struct S { int f; };
-S !v = new S;
+struct _S { int f; };
+_S !v = new _S;
 int i = arg;
 while (arg > 0) {
     int j = i/3;
@@ -223,7 +240,7 @@ while (arg > 0) {
 return v;
                 """);
         code.parse().opto();
-        //assertEquals("return new S;", code.print());
+        //assertEquals("return new _S;", code.print());
     }
 
     @Test

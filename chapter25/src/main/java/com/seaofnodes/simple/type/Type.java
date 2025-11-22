@@ -216,7 +216,7 @@ public class Type /*implements Cloneable*/ {
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
     boolean       eq(Type t) { return this==t; }
-    boolean cycle_eq(Type t) { assert _type < TCYCLIC; return eq(t); }
+    boolean cycle_eq(Type t) { assert _type < TCYCLIC; return _type==t._type && eq(t); }
     // A pair of uids
     int pid( Type that ) {
         return _uid < that._uid ? (_uid<<16 | that._uid) : (that._uid<<16 | _uid);
