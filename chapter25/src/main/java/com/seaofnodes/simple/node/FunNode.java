@@ -114,7 +114,7 @@ public class FunNode extends RegionNode {
         Node progress = deadPath(unknownCallers());
         if( progress!=null ) {
             if( nIns()==2 && in(1) instanceof CallNode call )
-                CODE.add(call.cend()); // If Start and one call, check for inline
+                CODE.add(call.cend()); // If no Start and one call, check for inline
             return progress;
         }
 
@@ -124,13 +124,23 @@ public class FunNode extends RegionNode {
             return this;
         }
 
-        // When can we assume no callers?  Or no other callers (except main)?
-        // In a partial compilation, we assume Start gets access to any/all
-        // top-level public structures and recursively what they point to.
-        // This in turn is valid arguments to every callable function.
-        //
-        // In a total compilation, we can start from Start and keep things
-        // more contained.
+        // Attempt to get rid of the unknown caller.
+        // - Must be past Parser, which invites new calls "from whole cloth".
+        // - Must have a private name
+        // - Function pointer constant cannot have escape
+        if( CODE._phase.ordinal() > CodeGen.Phase.Parse.ordinal() && in(1) instanceof StartNode ) {
+            if( _name==null || _name.contains( "._" ) ) {
+                // TODO: REALLY EXPENSIVE WAY TO FIND USES
+                Node con = new ConstantNode(_sig).peephole();
+                boolean escapes = false;
+                for( Node use : con._outputs )
+                    throw Utils.TODO();
+                // If the function pointer does not escape, remove the unknown caller
+                if( !escapes )
+                    return removeDeadPath(1);
+            }
+        }
+
 
         // If no default/unknown caller, use the normal RegionNode ideal rules
         // to collapse
@@ -179,9 +189,6 @@ public class FunNode extends RegionNode {
     }
 
     @Override public boolean inProgress() { return unknownCallers(); }
-
-    // Add a new function exit point.
-    public void addReturn(Node ctrl, Node mem, Node rez) {  _ret.addReturn(ctrl,mem,rez);  }
 
     // Build the function body
     public BitSet body() {

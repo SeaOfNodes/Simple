@@ -135,18 +135,20 @@ public class LoadNode extends MemOpNode {
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
                     throw Utils.TODO("Should not see a Load from New; and no bypass Store from New");
-                case EscapeNode esc:
-                    if( esc.self()==ptr() ) // Proved equal
-                        { mem = esc.selfMem(); break; }
-                    // TODO: Can we prove unequal?
-                    break outer;
                 case StartNode  start: break outer;
-                case CallEndNode cend: break outer; // TODO: Bypass no-alias call
+                case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO();
                 }
-                break;
             case CastNode cast: mem = cast.in(1); break;
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
+            case EscapeNode esc:
+                if( esc.self()==ptr ) // Proved equal
+                    { mem = esc.priv(); break; }
+                // Two NewNodes are always unequal
+                if( esc.self().in(0) instanceof NewNode && ptr.in(0) instanceof NewNode )
+                    { mem = esc.pub(); break; }
+                // TODO: Can we prove unequal?
+                break outer;
 
             default:
                 throw Utils.TODO();

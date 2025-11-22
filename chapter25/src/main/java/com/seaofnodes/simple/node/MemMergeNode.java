@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 
@@ -65,22 +66,43 @@ public class MemMergeNode extends Node {
 
 
     @Override public Type compute() {
-        for( Node n : _inputs )
-            if( n != null && !n._type.isHigh() )
-                return TypeMem.BOT;
-        return TypeMem.TOP;
+        // Is this a single private instance memory?
+        if( nIns()==0 || in(1) == null ) {
+            // Perfect singleton memory, so all updates are parallel and
+            // independent and stack.
+            TypeStruct ts = null;
+            for( Node n : _inputs )
+                if( n != null ) {
+                    if( n._type.isHigh() )
+                        return TypeMem.TOP;
+                    TypeStruct ts0 = (TypeStruct)(((TypeMem)n._type)._t);
+                    if( ts==null ) ts = ts0;
+                    else {
+                        assert ts0._fields.length==1;
+                        ts = ts.add(ts0._fields[0]);
+                    }
+                }
+            return TypeMem.make(1,ts==null ? TypeStruct.TOP : ts);
+        } else {
+            // Default mixed mem is just BOT
+            for( Node n : _inputs )
+                if( n != null && !n._type.isHigh() )
+                    return TypeMem.BOT;
+            return TypeMem.TOP;
+        }
     }
 
     @Override public Node idealize() {
         if( inProgress() ) return null;
+        if( nIns()==0 ) return null;
 
         // Fold defaults into the default
         boolean progress=false, allDefault=true;
         for( int i=2; i<nIns(); i++ ) {
             if( in(i) instanceof CastNode cast )
                 { setDef(i,cast.in(1)); progress=true; }
-            if( in(1) == in(i) ) { setDef(i,null); progress=true; }
-            else                 { allDefault=false; }
+            if( in(1) == in(i) && in(1) != null ) { setDef(i,null); progress=true; }
+            else                                  { allDefault=false; }
         }
 
         // If not merging any memory (all memory is just the default)
@@ -111,10 +133,7 @@ public class MemMergeNode extends Node {
         return alias < nIns() && in(alias)!=null ? in(alias) : in(1);
     }
 
-    public Node alias( int alias, Node st ) {
-        while( alias >= nIns() ) addDef(null);
-        return setDef(alias,st);
-    }
+    public Node alias( int alias, Node st ) { return setDefX(alias,st); }
 
     // Read or update from memory.
     // A shared implementation allows us to create lazy phis both during
@@ -140,8 +159,13 @@ public class MemMergeNode extends Node {
         return st==null ? old : alias(alias,st); // Not lazy, so this is the answer
     }
 
+    // Remove lazy Phis on all aliases
+    public void removeLazyAll() {
+        for( int i = 1; i < nIns(); i++)
+            _mem(i,null);
+    }
 
-    void _merge( MemMergeNode that, RegionNode r) {
+    public void _merge( MemMergeNode that, RegionNode r) {
         int len = Math.max(nIns(),that.nIns());
         for( int i = 1; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
@@ -153,9 +177,28 @@ public class MemMergeNode extends Node {
             }
     }
 
-    // Fill in the backedge of any inserted Phis
+    // Fill in the backedge of any inserted Phis.  Keep precise aliases for
+    // what is known at the loop head.  For aliases discovered in the loop
+    // body, gather them into a actual (not inProgress) MemMerge and merge into
+    // the default alias.
     void _endLoopMem( ScopeNode scope, MemMergeNode back, MemMergeNode exit ) {
         Node exit_def = exit.alias(1);
+        MemMergeNode more = null; // Dont often need the "more discovered" merge, make it lazy
+        int len = Math.max(nIns(),back.nIns());
+        for( int i=2; i<len; i++ ) {
+            if( !(i < this.nIns() && this.in(i)!=null) &&  // Alias is not known to loop head
+                 (i < back.nIns() && back.in(i)!=null) ) { // Alias IS     known to loop back
+                // Gather
+                if( more==null ) {
+                    more = new MemMergeNode(false);
+                    more.alias(1,back.in(1));
+                    back.alias(1,more);
+                }
+                more.alias(i,back.in(i));
+                back.setDef(i,null);
+            }
+        }
+
         for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
                 assert phi.in(2)==null;

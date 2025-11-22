@@ -75,61 +75,13 @@ public class ReturnNode extends CFGNode {
     }
 
     public boolean inProgress() {
-        return ctrl().getClass() == RegionNode.class && ((RegionNode)ctrl()).inProgress();
-    }
-
-    // Gather parse-time return types for error reporting
-    private Type mt = Type.TOP;
-    private boolean ti=false, tf=false, tp=false, tn=false;
-
-    // Add a return exit to the current parsing function
-    void addReturn( Node ctrl, Node rmem, Node expr ) {
-        assert inProgress();
-
-        // Gather parse-time return types for error reporting
-        Type t = expr._type;
-        mt = mt.meet(t);
-        ti |= t instanceof TypeInteger x;
-        tf |= t instanceof TypeFloat   x;
-        tp |= t instanceof TypeMemPtr  x;
-        tn |= t==Type.NIL;
-
-        // Merge path into the One True Return
-        RegionNode r = (RegionNode)ctrl();
-        // Assert that the Phis are in particular outputs; not reordered or shuffled
-        PhiNode mem = (PhiNode)r.out(0); assert mem._minType == TypeMem.BOT;
-        PhiNode rez = (PhiNode)r.out(1); assert rez._minType == Type.BOTTOM;
-        // Pop "inProgress" null off
-        r  ._inputs.pop();
-        mem._inputs.pop();
-        rez._inputs.pop();
-        // Add new return point
-        r  .addDef(ctrl);
-        mem.addDef(rmem);
-        rez.addDef(expr);
-        // Back to being inProgress
-        r  .addDef(null);
-        mem.addDef(null);
-        rez.addDef(null);
+        return false;
     }
 
     @Override public Parser.ParseException err() {
         if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
-        return expr()._type==Type.BOTTOM || expr()._type==Type.TOP ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
-    }
-
-    static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {
-        if( !ti && !tf && !tp && !tn )
-            // Hit when the function never returns.  e.g. `f = { -> return f() };`
-            return Parser.error("No defined return type", loc);
-        // Rather ugly way to print conflicting return types
-        int cnt = (ti?1:0) + (tf?1:0) + (tp||tn?1:0);
-        if( cnt==1 ) return null; // Uniform return type, something else errored and will report
-        SB sb = new SB().p("No common type amongst ");
-        if( ti ) sb.p("int and ");
-        if( tf ) sb.p("f64 and ");
-        if( tp || tn ) sb.p("reference and ");
-        return Parser.error(sb.unchar(5).toString(),loc);
+        if( expr()._type != Type.BOTTOM ) return null;
+        throw Utils.TODO();
     }
 
 

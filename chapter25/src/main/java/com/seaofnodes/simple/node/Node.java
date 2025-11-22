@@ -325,6 +325,12 @@ public abstract class Node implements Cloneable {
                 old_def.kill();        // Kill old def
         }
     }
+    public Node removeLast() {
+        Node old_def = _inputs.pop();
+        if( old_def != null )
+            old_def.delUse(this);
+        return old_def;
+    }
 
     /**
      * Kill a Node with no <em>uses</em>, by setting all of its <em>defs</em>

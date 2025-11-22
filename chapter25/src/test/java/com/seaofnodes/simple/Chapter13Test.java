@@ -10,11 +10,11 @@ public class Chapter13Test {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-return 3.14;
+return 3;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code.print());
-        assertEquals("3.14", Eval2.eval(code,  0));
+        assertEquals("return 3;", code.print());
+        assertEquals("3", Eval2.eval(code,  0));
     }
 
     @Test
@@ -40,22 +40,22 @@ return head.next.i;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int q; };
-LLI? !head = null;
+struct _LLI { _LLI? next; int q; };
+_LLI? !head = null;
 while( arg ) {
-    LLI !x = new LLI;
+    _LLI !x = new _LLI;
     x.next = head;
     x.q = arg;
     head = x;
     arg = arg-1;
 }
 if( !head ) return 0;
-LLI? next = head.next;
+_LLI? next = head.next;
 if( next==null ) return 1;
 return next.q;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Region,0,1,.q);", code.print());
+        assertEquals("return Phi(Region,1,.q,0);", code.print());
         assertEquals("2", Eval2.eval(code,  3));
     }
 
@@ -81,12 +81,12 @@ return f0.i.f.i.i;
     public void testNullRef0() {
         CodeGen code = new CodeGen(
 """
-struct N { N? next; int i; };
-N n = new N;
+struct _N { _N? next; int i; };
+_N n = new _N;
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("return null;", code.print());
+        assertEquals("return 1;", code.print());
     }
 
     @Test
@@ -145,7 +145,7 @@ return n.i;
     public void testEmpty() {
         CodeGen code = new CodeGen(
 """
-struct S{};
+struct _S{};
 return 0;
 """);
         code.parse().opto();

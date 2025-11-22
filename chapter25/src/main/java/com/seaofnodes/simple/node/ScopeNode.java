@@ -106,6 +106,10 @@ public class ScopeNode extends MemMergeNode {
     // Pop a lexical scope
     public void pop() {
         promote(null);    // Promote forward references to the next outer scope
+        _pop();
+    }
+    // Pop a scope, no promote FRefs
+    public void _pop() {
         int n = _kinds.pop()._lexSize;
         popUntil(n);            // Pop off inputs going out of scope
         _vars.setLen(n);        // Pop off variables going out of scope
@@ -137,10 +141,20 @@ public class ScopeNode extends MemMergeNode {
 
     public boolean inAllocation () { return _kinds.last() instanceof Kind.Alloc ; }
     public boolean inFunction   () { return _kinds.last() instanceof Kind.Func  ; }
+    // Is the enclosing scope a constructor?  Shallow check, not deep
     public boolean inConstructor() {
         return _kinds.last() instanceof Kind.Func func && FunNode.isInit(func._name);
     }
 
+    public int enclosingFunction() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Func func )
+                return i;
+        throw Utils.TODO("Should not reach here");
+    }
+
+
+    // Which lexical scope contains this Var?
     public Kind kind( Var v ) {
         for( int i=depth()-1; i>=0; i-- )
             if( v._idx >= _kinds.at(i)._lexSize )
@@ -162,7 +176,7 @@ public class ScopeNode extends MemMergeNode {
      * Create a new variable name in the current scope
      */
     public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
-        assert _kinds.isEmpty() || name.charAt(0)!='$' ; // Later scopes do not define memory
+        assert _kinds.isEmpty() || name!="$mem" ; // Later scopes do not define memory
         if( depth() > 0 )
             for( int i=_vars.size()-1; i>=_kinds.last()._lexSize; i-- ) {
                 Var n = var(i);
@@ -185,9 +199,9 @@ public class ScopeNode extends MemMergeNode {
     }
 
     // Normal lookup was tried and failed.  Insert a forward ref outside any
-    // enclosing Kind.Func scope, skipping any nested Blocks or Allocs.  Return
-    // the Kind index of the skipped Func.  May insert at the outermost scope,
-    // which means this must be defined externally, or it's an error.
+    // enclosing Kind.Func scope, skipping any nested Blocks or Allocs and
+    // return the Var.  May insert at the outermost scope, which means this
+    // must be defined externally, or it's an error.
     public Var defineFRef( String name, Parser.Lexer loc ) {
         // Kind/Lexical scope index
         int kidx = depth()-1;
@@ -316,8 +330,11 @@ public class ScopeNode extends MemMergeNode {
         return r.unkeep();
     }
 
-    private void _merge(ScopeNode that, RegionNode r) {
-        for( int i = 2; i < nIns(); i++)
+    public void _merge(ScopeNode that, RegionNode r) {
+        _merge(that,r,nIns());
+    }
+    public void _merge(ScopeNode that, RegionNode r, int max ) {
+        for( int i = 2; i < max; i++)
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation

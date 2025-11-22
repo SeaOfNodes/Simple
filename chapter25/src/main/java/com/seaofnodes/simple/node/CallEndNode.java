@@ -91,10 +91,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 call.err()==null ) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
-                boolean isTrivial = trivialInlining( fptr, fun, call );
+                int isTrivial = trivialInlining( fptr, fun, call );
 
                 // Encouraged inlining because small size and constructor.
-                if( !isTrivial && fun._approxUIDs < 100 && fun._name!=null && fun.isInit() && !fun.isClz() ) {
+                if( isTrivial==1 && fun._approxUIDs < 100 && fun._name!=null && fun.isInit() && !fun.isClz() ) {
                     // Remove the existing function linkage
                     call.unlink_all();
                     // Clone the function body
@@ -106,12 +106,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     call.link(fun2);
                     fun = fun2;
                     isTrivial = trivialInlining( fptr2, fun2, call );
-                    assert isTrivial;
+                    assert isTrivial==0;
                 }
 
                 // Trivial inlining: call site calls a single function; single function
                 // is only called by this call site.
-                if( isTrivial )
+                if( isTrivial==0 )
                     return doTrivialInlining(fun, call);
 
             } else { // Function not (yet) a constant function pointer
@@ -122,15 +122,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
         return null;
     }
 
-    // Check for trivial inlining: call only calls fun; fun only called by call.
-    private boolean trivialInlining( Node fptr, FunNode fun, CallNode call ) {
-        // Expecting just the Call
-        if( fptr.nOuts() > 1 ) { addDep(fptr); return false; }
-        // Only fun user is this call
-        if( fun.nIns() > 2 ) { addDep(fun); return false; }
-        // Trivial inlining: call site calls a single function; single function
-        // is only called by this call site.
-        assert fun.in(1)==call;
+    // Check for trivial inlining: call only calls fun; fun only called by
+    // call.  Returns 0 for trivial, +1 for not-trivial because fptr/fun, and
+    // -1 for not-trivial because idoms.
+    private int trivialInlining( Node fptr, FunNode fun, CallNode call ) {
         // Disallow self-recursive inlining (loop unrolling by another name).
         // Disallow if still folding other things, as it makes other
         // dependency checks carry long chains of half-folded calls.
@@ -142,9 +137,17 @@ public class CallEndNode extends CFGNode implements MultiNode {
         }
         // No recursive or mid-folding function
         if( !(idom instanceof FunNode fun2) || fun2 == fun || fun2._folding )
-            { addDep(idom); return false; }
+            { addDep(idom); return -1; }
 
-        return true;
+        // Expecting just the Call
+        if( fptr.nOuts() > 1 ) { addDep(fptr); return 1; }
+        // Only fun user is this call
+        if( fun.nIns() > 2 ) { addDep(fun); return 1; }
+        // Trivial inlining: call site calls a single function; single function
+        // is only called by this call site.
+        assert fun.in(1)==call;
+
+        return 0;
     }
 
     // Do trivial inlining.  Inlining does not need to clone code, merely

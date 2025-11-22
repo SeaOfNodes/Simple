@@ -35,15 +35,15 @@ return p-r;
     @Test
     public void testStruct() {
         CodeGen code = new CodeGen("""
-struct Bar {
+struct _Bar {
     int a;
     int b;
 };
-struct Foo {
+struct _Foo {
     int x;
 };
-Foo? foo = null;
-Bar !bar = new Bar;
+_Foo? foo = null;
+_Bar !bar = new _Bar;
 bar.a = 1;
 bar.a = 2;
 return bar.a;
@@ -65,7 +65,7 @@ else
 return v;
 """);
         code.parse().opto();
-        assertEquals("return Vector2D;", code.print());
+        assertEquals("Stop[ return MEM[ 2:.x=0; 3:.y=0;]; return 0; ]", code.print());
     }
 
     @Test
@@ -103,7 +103,7 @@ while (arg) {
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(Phi_a+2));", code.print());
+        assertEquals("Stop[ return MEM[ 2:.a=0;]; return Phi(Loop,0,(Phi_a+2)); ]", code.print());
     }
 
     @Test
@@ -116,7 +116,7 @@ bar.a = 1;
 return bar.a;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.Bar",e.getMessage()); }
     }
 
     @Test
@@ -142,28 +142,28 @@ bar.a = 1;
 return bar.a;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.Bar", e.getMessage()); }
     }
 
     @Test
     public void testIfOrNull() {
         CodeGen code = new CodeGen("""
-struct Bar { int a; };
-Bar? !bar = new Bar;
+struct _Bar { int a; };
+_Bar? !bar = new _Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
-return bar;
+return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,null,Bar);", code.print());
+        assertEquals("return .a;", code.print());
     }
 
     @Test
     public void testIfOrNull2() {
         CodeGen code = new CodeGen(
 """
-struct Bar { int a; };
-Bar? !bar = new Bar;
+struct _Bar { int a; };
+_Bar? !bar = new _Bar;
 if (arg) bar = null;
 int rez = 3;
 if( !bar ) rez=4;
@@ -225,7 +225,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code.print());
+        assertEquals("Stop[ return MEM[ 2:.x=0; 3:.len=0;]; return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); ]", code.print());
     }
 
 
@@ -244,42 +244,42 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
+        assertEquals("Stop[ return MEM[ 2:.v0=0;]; return 0; ]", code.print());
     }
 
     @Test
     public void test2() {
         CodeGen code = new CodeGen("""
-struct s0 {int v0;};
-s0 !ret = new s0;
-s0 !v0 = new s0;
+struct _s0 {int v0;};
+_s0 !ret = new _s0;
+_s0 !v0  = new _s0;
 while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
 
 }
-return ret;
+return ret.v0;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
+        assertEquals("return .v0;", code.print());
     }
 
 
     @Test
     public void test3() {
         CodeGen code = new CodeGen("""
-struct s0 {int v0;};
-s0 !ret = new s0;
+struct _s0 {int v0;};
+_s0 !ret = new _s0;
 while(arg < 10) {
-    s0 !v0 = new s0;
+    _s0 !v0 = new _s0;
     if (arg == 5) ret=v0;
     arg = arg + 1;
 }
-return ret;
+return ret.v0;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
+        assertEquals("return .v0;", code.print());
     }
 
     @Test
@@ -320,8 +320,8 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Expected a type",e.getMessage());  }
+        code.parse().opto().typeCheck();
+        assertEquals("Stop[ return MEM[ 2:.f0=0;]; return 0; ]", code.print());
     }
 
     @Test
@@ -349,7 +349,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("return s0;", code.print());
+        assertEquals("Stop[ return MEM[ 2:.f0=0;]; return 0; ]", code.print());
     }
 
 
