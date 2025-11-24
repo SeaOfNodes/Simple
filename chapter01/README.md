@@ -45,8 +45,18 @@ If necessary the reader can consult a standard compiler text book.
 
 ## Architecture
 
-We construct the intermediate Sea of Nodes (SoN) representation directly as we parse the language. There is no Abstract Syntax Tree representation. The reason for this is to demonstrate a key benefit of the SoN IR:
-a number of pessimistic peephole optimizations can be performed while parsing a language. This aspect is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
+We construct the intermediate Sea of Nodes (SoN) representation directly as we
+parse the language. There is no Abstract Syntax Tree representation. The reason
+for this is to demonstrate a key benefit of the SoN IR: a number of pessimistic
+peephole optimizations can be performed while parsing a language. This aspect
+is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
+
+The Nodes in a Sea of Nodes are code directly as Java objects in the classic
+object-oriented programming style.  These Nodes are also nodes in a *graph*
+(hence the name "nodes"), and there are *edges* between the nodes; these edges
+are direct pointers to nodes (there is no edge structure which is somewhat
+common in other graph representations).
+
 
 ## Data Structures
 
@@ -59,8 +69,6 @@ Our data structures are based upon the descriptions provided in following papers
 * [EasySSA](https://www.dropbox.com/scl/fi/0ww4sgl3ynep9hhe3i4xn/EasySSA.pdf?rlkey=2cp78hzxke62flkmyneiebzoz&dl=0)
 * [SeaOfNodes](https://www.dropbox.com/scl/fi/cxykfvlzsmlcatyg6rlbt/SeaOfNodes.pdf?rlkey=z6o7y3rwr6atrejilcze6r8x0&e=1&dl=0)
 
-Following the lead from above, we represent our intermediate representation using an object oriented data model. Details of the
-representation follow.
 
 ### Intermediate Representation as a Graph of Nodes
 

@@ -37,6 +37,7 @@ intermediate representation.
 
 The Simple language is styled after a subset of C or Java.
 
+* [Chapter 0](chapter01/README.md): Motivation
 * [Chapter 1](chapter01/README.md): Script that returns an integer literal, i.e., an empty function that takes no arguments and returns a single integer value. The `return` statement.
 * [Chapter 2](chapter02/README.md): Simple binary arithmetic such as addition, subtraction, multiplication, division
   with constants. Peephole optimization / simple constant folding.

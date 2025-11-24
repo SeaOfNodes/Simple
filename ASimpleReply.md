@@ -45,15 +45,15 @@ In any case, this problem (and its solution) seem... trivial to me.  Doesn't car
 ## Visitation order
 
 #### "Finding a good visitation order is hard"
-Yes, so don't bother.  Use a worklist!  Hard guaranteed linear time to completion, fast and simple.  Back-edges are needed and they are well worth the cost.  I start C2 without them, couldn't get closure with a few passes, added backedges and everything got lots *faster*.  Edge maintenance code deals with the work, so I don't have to think about it, its all cache-resident L1 hits.  Fast, fast, fast.
+Yes, so don't bother.  Use a worklist!  Hard guaranteed linear time to completion, fast and simple.  Back-edges are needed and they are well worth the cost.  I started C2 without them, couldn't get closure with a few passes, added backedges and everything got lots *faster*.  Edge maintenance code deals with the work, so I don't have to think about it, its all cache-resident L1 hits.  Fast, fast, fast.
 
 ## Other things?
 
 #### "Dead code elimination" 
-free with backedges; basically when the backedge/ref-count drops to zero, recursively delete nodes. There's maybe 10 lines dedicated to this in Simple.
+Free with backedges; basically when the backedge/ref-count drops to zero, recursively delete nodes. There's maybe 10 lines dedicated to this in Simple.
 
 #### "Hard to introduce new control flow" 
-Hello compiler writers?  Sorry, can't hardly believe this one; editing a CFG is morally the same as editing the SoN, what's the issue?  In the specific `min` case, the goal is to pick a place in the CFG to expand... which means a place needs to be picked, which for SoN usually means after Global Code Motion when "places" (e.g. classic CFG) is available again.
+Hello compiler writers?  Sorry, can't hardly believe this one; editing a CFG is morally the same as editing the SoN, what's the issue?  In the specific `min` case, the goal is to pick a place in the CFG to expand... which means a place needs to be picked, which for SoN usually means after Global Code Motion, when "places" (e.g. classic CFG) is available again.
 
 #### "Hard to figure out what's inside a loop" 
 Again, Hello compiler writers?  C2 certainly does lots of aggressive loop optimizations - which start by running a standard SCC, finding loop headers, walking the graph area constrained by the loop, producing a loop body for further manipulations... yada yada.  Basically, I build loops and a loop tree via the Olde Fashioned method of running SCC.
@@ -62,7 +62,7 @@ Again, Hello compiler writers?  C2 certainly does lots of aggressive loop optimi
 Compiling is fast.  He-said-She-said.  Neen-neener. Data?  Perf discussions with facts?  Apples to apples comparisons?  No?  So how about "compilation speed vs code quality didn't meet our goals"?
 
 #### "Cache-unfriendly" 
-Same (lack of) argument.  Certainly when I did C2 I was highly focused on cache-friendly and based on the vast compile speedup I obtained over all competitions (at that time every AOT compiler, GCC, LLVM) I was largely successful.  C2 compiles take far less footprint (both cache and memory) that my "competitors".  Mostly C2 compiles, despite aggressive inlining, fit easily in L2, nearly always in L1.  Getting this right is important, so I suspect other things happened to make it miss for V8.  But also... no numbers from me either, so neen-neener again.
+Same (lack of) argument.  Certainly when I did C2 I was highly focused on cache-friendly and based on the vast compile speedup I obtained over all competitions (at that time every AOT compiler, GCC, LLVM) I was largely successful.  C2 compiles take far less footprint (both cache and memory) that my "competitors".  Mostly C2 compiles, despite aggressive inlining, fit easily in L2, nearly always in L1.  Getting this right is important, so I suspect other things happened to make it miss for V8.  But also... no numbers from me either, so neen-neener he-said-she-said again.
 
 ## postlog
 I'll point out most of the above discussion is things that surely made V8's life harder - and slower - and are things I never would have done.  OTOH I've not done a JS compiler, so I have no facts here also.  
