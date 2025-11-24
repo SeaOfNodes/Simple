@@ -51,7 +51,7 @@ equality.  This is by far the most common case.  In [Chapter
 In both cases the choice of value-vs-reference equality is intentional: it is
 *never* correct to "just pick one or the other kind of equality".  When in
 doubt check the context: only *Global Value Numbering* uses value equality;
-everywhere we mean reference equality.
+everywhere else we mean reference equality.
 
 
 ## Peephole Optimizations
@@ -78,10 +78,10 @@ may *kill* the unused constants `1` and `2`.
 ## Constant Folding and Constant Propagation
 
 In this chapter and next we focus on a particular peephole optimization:
-constant folding and constant propagation.  Since we do not have non-constant values
-until [Chapter 4](../chapter04/README.md), the main feature we demonstrate now is constant folding.
-However, we introduce some additional ideas into the compiler at this stage, to
-set the scene for Chapter 4.
+constant folding and constant propagation.  Since we do not have non-constant
+values until [Chapter 4](../chapter04/README.md), the main feature we
+demonstrate now is constant folding.  However, we introduce some additional
+ideas into the compiler at this stage, to set the scene for Chapter 4.
 
 It is useful for the compiler to know at various points of the program whether
 a node's value is a constant. The compiler can use this knowledge to perform various
