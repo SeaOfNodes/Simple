@@ -1551,20 +1551,34 @@ public class Parser {
         boolean hasConstructor = match("{");
         //Ary<Node> init=s._inputs;  int idx=0;
         if( hasConstructor ) {
-        //    idx = _scope.nIns();
-        //    // Push a scope, and pre-assign all struct fields.
-        //    _scope.push(new Kind.Block());
-        //    Lexer loc = loc();
-        //    for( int i=0; i<fs.length; i++ )
-        //        // An initial TOP means the field needs to be initialized.  We
-        //        // store a BOT initially; any partial init will fall to BOT
-        //        // (merge BOT and the partial) and be obviously only a partial
-        //        // init.  To be initialized the field needs a full clobber.
-        //        _scope.define(fs[i]._fname, fs[i]._t, fs[i]._final, s.in(i)._type==Type.TOP ? con(Type.BOTTOM) : s.in(i), loc);
-        //    // Parse the constructor body
-        //    require(parseBlock(new Kind.Alloc(tmp)),"}");
-        //    init = _scope._inputs;
-            throw Utils.TODO();
+            int idx = _scope.nIns();
+            // Push a scope, and pre-assign all struct fields.
+            _scope.push(new Kind.Block());
+            Lexer loc = loc();
+            MemMergeNode selfmmm = (MemMergeNode)selfMem;
+            for( Field fld : tmp._obj._fields ) {
+                // An initial TOP means the field needs to be initialized.  We
+                // store a BOT initially; any partial init will fall to BOT
+                // (merge BOT and the partial) and be obviously only a partial
+                // init.  To be initialized the field needs a full clobber.
+                Node finit = selfmmm.alias(fld._alias);
+                _scope.define(fld._fname, fld._t, fld._final, finit._type==Type.TOP ? con(Type.BOTTOM) : finit, loc);
+            }
+            // Parse the constructor body
+            require(parseBlock(new Kind.Alloc(tmp._obj)),"}");
+            // Reload updated fields
+            for( Field fld : tmp._obj._fields ) {
+                if( selfmmm.alias(fld._alias)!=_scope.in(idx) ) {
+                    Node mem = selfmmm.alias(fld._alias);
+                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, mem, self, off(tmp._obj._name,fld._fname), _scope.in(idx++), true));
+                    selfmmm.alias(fld._alias,st);
+                }
+            }
+            tmem = selfmmm.init()._type;
+
+
+            //init = _scope._inputs;
+            //throw Utils.TODO("need the updated tmem");
         }
 
         // Check that all fields are initialized

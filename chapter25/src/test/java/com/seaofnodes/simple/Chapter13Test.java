@@ -99,7 +99,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("return (const)M;", code.print());
+        assertEquals("Stop[ return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:.next=Top; 5:.i=0;]; return 0; ]", code.print());
     }
 
     @Test
@@ -112,7 +112,7 @@ N n = new N { next = null; };
 return n.next;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.N.M",e.getMessage()); }
     }
 
     @Test
