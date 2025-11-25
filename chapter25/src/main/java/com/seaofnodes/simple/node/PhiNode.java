@@ -127,12 +127,8 @@ public class PhiNode extends Node {
 
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
-        if( live != null ) {
-            if( live._type.isa(_type) )
-                return live;
-            // Keep the Phi upcast
-            return new CastNode(_type,null,live);
-        }
+        if( live != null )
+            return live;
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )

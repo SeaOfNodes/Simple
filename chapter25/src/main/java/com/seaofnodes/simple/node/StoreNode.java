@@ -120,7 +120,11 @@ public class StoreNode extends MemOpNode {
                 esc.nOuts() == 1 ) {
                 esc.setDef(2,new StoreNode( _loc, _name, _alias, _declaredType, esc.priv(), ptr(), off(), val(), false ).peephole());
                 return esc;
-            } // CNC: TODO: Trivial bypass Escape to public side
+            } else {
+                for( Node use : esc._outputs )
+                    addDep(use); // Recheck once esc loses a use
+                // CNC: TODO: Trivial bypass Escape to public side
+            }
         }
 
 

@@ -731,10 +731,6 @@ public class Parser {
         // Lift expression, based on type
         Type decl = def.type(); // Declared type
         Node lift = liftExpr(expr.keep(), decl, def._final, true);
-        // Lift type to the declaration.  This will report as an error later if
-        // we cannot lift the type.
-        if( !lift._type.isa(decl) )
-            lift = peep(new CastNode(decl,null,lift));
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
@@ -760,8 +756,13 @@ public class Parser {
         // the loaded value to match the declared sign/zero bits.  For stores,
         // just force the type, acting "as if" the store silently truncates.
         Type et = expr._type;
-        if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
-        else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
+        if( isLoad ) { expr = zsMask(expr,t); /*et = expr._type;*/ }
+        //else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
+
+        // Lift type to the declaration.  This will report as an error later if
+        // we cannot lift the type.
+        if( !expr._type.isa(t) )
+            expr = peep(new CastNode(t,null,expr));
 
         return expr;
     }
@@ -865,14 +866,7 @@ public class Parser {
 
         // Lift expression, based on type
         Node lift = liftExpr(expr, t, xfinal, true);
-        // Rebuild the deep RO 't', not returned from liftExpr
-        if( xfinal && t instanceof TypeMemPtr tmp )
-            t = tmp.makeRO();
 
-        // Lift type to the declaration.  This will report as an error later if
-        // we cannot lift the type.
-        if( !lift._type.isa(t) )
-            lift = peep(new CastNode(t.widen(),null,lift));
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
@@ -930,7 +924,7 @@ public class Parser {
         TypeStruct ts = TypeStruct.make( typeName, false );
         // Put in TYPES, so <cl/init> can self-refer
         TypeMemPtr tself = TypeMemPtr.make((byte)2,ts, isClz );
-        assert !TYPES.containsKey( typeName);
+        assert !TYPES.containsKey( typeName) || TYPES.get(typeName).isFRef();
         TYPES.put( typeName, tself );
 
         // <cl/init> signature: { self selfMem/arg -> selfMem/i64 }
@@ -1031,55 +1025,58 @@ public class Parser {
     // ref type position.
 
     // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
+
+    // Structs have nested names, and can be discovered with a partial name
+    // match.  Example, searching for a type name "C.D" in the namespace "A.B".
+    // This will match "A.B.C.D", then "A.C.D", then "C.D".
     private Type type() {
-        int old1 = pos();
         // Only type with a leading `{` is a function pointer...
         if( peek('{') ) return typeFunPtr();
 
         // Otherwise you get a type name
+        int old1 = pos();
         String tname = _lexer.matchId();
         if( tname==null ) return null;
-
-        // Convert the type name to a type.
-        Type t0 = TYPES.get(tname);
         // No new types as keywords
-        if( t0 == null && KEYWORDS.contains(tname) )
-            return posT(old1);
+        if( KEYWORDS.contains(tname) ) {
+            Type t0 = TYPES.get(tname);
+            return t0==null ? posT(old1) : t0;
+        }
+
+        // Now have a tname like "C", which might be followed by more ".D"
+        // typenames.  Do a search for e.g. "A.B.C", then "A.C", then "C".
+        String nest = _nestedType, fullq;
+        Type t0;
+        while( true ) {
+            fullq = nest+"."+tname; // Full qualified name
+            t0 = TYPES.get(fullq);
+            if( t0 != null )
+                break;          // Search succeeded
+            // Subtract a layer from nested typenames
+            int idx = nest.lastIndexOf('.');
+            if( idx== -1 ) break; // Search failed
+            nest = nest.substring(0,idx);
+        }
         if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
+        tname = fullq;          // Fully qualified type name
 
-        // Check for partially qualified subtype name.
-        if( t0 == null ) {
-            //// Gather id.id.id.lasttype.
-            //// Ok (and normal) for "id.id.id" to be empty.
-            //while( true ) {
-            //    int old2 = pos();
-            //    if( !match(".") )  break;
-            //    String sname = _lexer.matchId();
-            //    if( sname==null ) { pos(old2); break; }
-            //    tname = tname+"."+sname;
-            //}
-
-            if( _nestedType.endsWith(tname) ) {
-                tname = _nestedType;
-            } else {
-                // If id.id.id does NOT match the suffix of _nestedType, then this
-                // is not a type.  Else fullyQualifiedName = _nestedType.lasttype;
-                int lidx = tname.lastIndexOf('.');
-                if( lidx != -1 ) {      // Index == -1 means no '.', which is a valid empty prefix.
-                    // Prefix is from 0 to lidx-1; suffix from lidx+1 to end
-                    // Is prefix of given type a suffix of current type-scope _nestedType
-                    for( int i=lidx-1, j=_nestedType.length()-1; i>=0; )
-                        if( tname.charAt(i--) != _nestedType.charAt(j--) )
-                            return posT(old1); // Not a type
-                }
-                // Make fully qualified type name
-                tname = _nestedType + "." + tname.substring(lidx+1);
-            }
-            t0 = TYPES.get(tname);
+        // Gather id.id.id.lasttype.
+        // Ok (and normal) for "id.id.id" to be empty.
+        while( true ) {
+            int old2 = pos();
+            if( !match(".") )  break;
+            String sname = _lexer.matchId();
+            if( sname==null ) { pos(old2); break; }
+            sname = tname+"."+sname;
+            Type t1 = TYPES.get(sname);
+            if( t1 == null ) break;
         }
 
         // Still no type found?  Assume forward reference
-        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.open(tname)) :t0; // Null: assume a forward ref type
+        tname = tname.intern();
+        Type t1 = t0 == null
+            ? TypeMemPtr.make(TypeStruct.open(tname)) // Null: assume a forward ref type
+            : t0;
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
