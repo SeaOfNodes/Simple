@@ -63,17 +63,17 @@ return next.q;
     public void testCoRecur() {
         CodeGen code = new CodeGen(
 """
-struct int0 { int i; flt0? f; };
-struct flt0 { flt f; int0? i; };
-int0 !i0 = new int0;
+struct _int0 { int i; _flt0? f; };
+struct _flt0 { flt f; _int0? i; };
+_int0 !i0 = new _int0;
 i0.i = 17;
-flt0 !f0 = new flt0;
+_flt0 !f0 = new _flt0;
 f0.f = 3.14;
 i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("return 17;", code.print());
     }
 
@@ -112,7 +112,7 @@ N n = new N { next = null; };
 return n.next;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.N.M",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.M",e.getMessage()); }
     }
 
     @Test
