@@ -243,9 +243,9 @@ public class FunNode extends RegionNode {
         bodyEdge( visit, body, map, this );
         visit.clear();
 
-        // Remove the default caller - this is a private copy
+        // Remove all callers - this is a private copy
         FunNode fun2 = (FunNode)map.get(this);
-        if( unknownCallers() )
+        while( fun2.nIns() > 1 )
             fun2.removeDeadPath(1);
         // New function/return cross-link each other
         ReturnNode ret2 = (ReturnNode)map.get(_ret);
