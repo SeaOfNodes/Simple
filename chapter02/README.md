@@ -134,6 +134,8 @@ Our lattice elements can be one of three types:
 * The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the
   Node's value is **not** a compile time constant.
 
+`top` and `bottom` are often referred to as the *base cases* or *simple types* of the lattice.
+
 An invariant of peephole optimizations is that the type of a Node always moves
 *up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst
 until they can prove better.  A later *optimistic* optimization will start all
