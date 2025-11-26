@@ -84,7 +84,7 @@ public class TypeTest {
         Type nullableptr1_dual = ptr1nil.dual();
 
         // Cyclic check
-        TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT2.field("s1")._t)._obj;
+        TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT2.field("s1")._t)._obj.close();
         Assert.assertFalse(s1.isFinal());
         Type s1ro  = S1.makeRO();
         Type s1ro2 = S1.makeRO();

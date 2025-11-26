@@ -100,17 +100,17 @@ public class TypeStruct extends Type {
 
 
     public final TypeStruct close() {
-        return (TypeStruct)recurOpen()._close().recurClose();
+        return (TypeStruct)recurOpen()._close(_name).recurClose();
     }
-    @Override TypeStruct _close() {
+    @Override TypeStruct _close( String name ) {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,_name,false);
+        ts = recurPre(_name,_name, name==_name ? false : _open);
         Field[] flds = ts._fields;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._close());
+            flds[i].setType(_fields[i]._t._close(name));
 
         return ts;
     }
@@ -131,6 +131,8 @@ public class TypeStruct extends Type {
     private static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false));
     private static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false));
     public  static final TypeStruct SFLT2  = SFLT1.close();
+    public  static final TypeStruct SINT2  = ((TypeMemPtr)SFLT2.field("s1")._t)._obj.close();
+
 
 
     public static void gather(ArrayList<Type> ts) {
