@@ -73,6 +73,9 @@ parse an `Add(1,2)`, the peephole rule for constant math replaces the Add with a
 constant `3`.  At this point, we also *kill* the unused `Add`, which recursively
 may *kill* the unused constants `1` and `2`.
 
+Here, figuring out that the addition becomes a constant`3` is called *constant folding* and 
+replacing the `Add` node with the constant `3` is called *constant propagation*.
+
 
 
 ## Constant Folding and Constant Propagation
