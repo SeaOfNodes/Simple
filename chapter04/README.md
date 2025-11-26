@@ -226,6 +226,9 @@ define the resulting type when we combine integer values.  In the lattice
 diagram you can start from the two elements being `meet` and follow the
 two arrows down the graph to the first point they meet.
 
+In Simple the `meet` is the union of possible values as opposed to the intersection.
+
+
 |        | IntBot | Con1   | Con2   | IntTop |
 |--------|--------|--------|--------|--------|
 | IntBot | IntBot | IntBot | IntBot | IntBot |
