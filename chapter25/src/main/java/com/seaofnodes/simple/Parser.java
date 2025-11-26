@@ -267,8 +267,10 @@ public class Parser {
         }
 
         // Final update of the self object being built
-        if( isInit )
+        if( isInit ) {
             TYPES.put( selfType._name, TypeMemPtr.make((byte)2, selfType=selfType.close(), isClz) );
+            ... walk newly closed structure and update any internal types...
+        }
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )

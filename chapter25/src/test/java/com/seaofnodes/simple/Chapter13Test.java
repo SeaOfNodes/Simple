@@ -197,9 +197,9 @@ return p1.pi.i + 1;
     public void testCoRecur2() {
         CodeGen code = new CodeGen(
 """
-struct A { B? f0; C? f1; };  A !a = new A;
-struct B { C? f0; A? f1; };  B !b = new B;
-struct C { A? f0; B? f1; };  C !c = new C;
+struct _A { _B? f0; _C? f1; };  _A !a = new _A;
+struct _B { _C? f0; _A? f1; };  _B !b = new _B;
+struct _C { _A? f0; _B? f1; };  _C !c = new _C;
 
 a.f0=b;  a.f1=c;
 b.f0=c;  b.f1=a;
@@ -209,7 +209,7 @@ return a.f0.f1.f0.f1.f0;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return B;", code._stop.toString());
+        assertEquals("return 0;", code._stop.toString());
         assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
     }
 

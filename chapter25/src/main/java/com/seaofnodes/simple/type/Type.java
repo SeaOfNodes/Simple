@@ -484,7 +484,7 @@ public class Type /*implements Cloneable*/ {
     }
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
-    Type _close(/*String name*/) { return this; }
+    Type _close( String name ) { return this; }
     public Type widen() { return this; }
 
     // Recursively gather all types

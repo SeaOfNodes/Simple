@@ -142,13 +142,13 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }
     @Override TypeFunPtr _glb(boolean mem) { return this; }
-    @Override TypeFunPtr _close() {
+    @Override TypeFunPtr _close( String name ) {
         Type[] sig = new Type[_sig.length];
         TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
         // Now start the recursion
-        fun._ret = _ret._close();
+        fun._ret = _ret._close(name);
         for( int i=0; i<sig.length; i++ )
-            sig[i] = _sig[i]._close();
+            sig[i] = _sig[i]._close(name);
 
         return fun;
     }

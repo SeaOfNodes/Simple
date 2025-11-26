@@ -2,7 +2,6 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
@@ -100,7 +99,7 @@ public class TypeMemPtr extends TypeNil {
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
     @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
-    @Override TypeMemPtr _close() { return makeFrom(_obj._close()); }
+    @Override TypeMemPtr _close( String name ) { return makeFrom(_obj._close(name)); }
 
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
