@@ -86,8 +86,8 @@ learning more.
   The def-use edges can be thought of as a mapping between a node and its outputs. 
   Similarly, use-def edges can be thought of as a mapping between a node and its inputs.
   
-  To represent the SoN graph visually we use `use-def` edges but nodes also have `def-use` edges, 
-  it is just a matter of how we look at them visually.
+  To represent the SoN graph visually we use `use-def` edges but nodes also
+  have `def-use` edges, it is just a matter of how we look at them visually.
   
 
 * SSA: Static Single Assigment - a program shape where all program values are

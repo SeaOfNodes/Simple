@@ -73,24 +73,23 @@ parse an `Add(1,2)`, the peephole rule for constant math replaces the Add with a
 constant `3`.  At this point, we also *kill* the unused `Add`, which recursively
 may *kill* the unused constants `1` and `2`.
 
-Here, figuring out that the addition becomes a constant`3` is called *constant folding* and 
-replacing the `Add` node with the constant `3` is called *constant propagation*.
+Here, figuring out that the addition becomes a constant`3` is called *constant
+folding* and replacing the `Add` node with the constant `3` is called *constant
+propagation*.  In general, *folding* computes a constant from known inputs, and
+*propagation* moves it to the uses which can enable more folding.
 
 
-
-## Constant Folding and Constant Propagation
-
-"Needs discussion about con folding vs prop"
+## Constants, Values, Types
 
 In this chapter and next we focus on a particular peephole optimization:
 constant folding and constant propagation.  Since we do not have non-constant
 values until [Chapter 4](../chapter04/README.md), the main feature we
 demonstrate now is constant folding.  However, we introduce some additional
-ideas into the compiler at this stage, to set the scene for Chapter 4.
+ideas into the compiler at this stage to set the scene for Chapter 4.
 
 It is useful for the compiler to know at various points of the program whether
-a node's value is a constant. The compiler can use this knowledge to perform various
-optimizations such as:
+a node's value is a constant.  The compiler can use this knowledge to perform
+various optimizations such as:
 
 * Evaluate expressions at compile time and replace an expression with a
   constant.  This idea can be extended in a number of ways and is called
@@ -137,7 +136,7 @@ Our lattice elements can be one of three types:
 `top` and `bottom` are often referred to as the *base cases* or *simple types* of the lattice.
 
 An invariant of peephole optimizations is that the type of a Node always moves
-*up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst
+*up* the lattice (towards "top"); peepholes are *pessimistic* assuming the worst
 until they can prove better.  A later *optimistic* optimization will start all
 Nodes at *top* and move Types *down* the lattice as eager assumptions are
 proven wrong.
@@ -156,9 +155,12 @@ Both nodes are equally peepholed and optimized, and this will be covered
 starting in [Chapter 4](../chapter04/README.md) and [Chapter
 5](../chapter05/README.md).
 
-
 There are other important properties of the Lattice that we discuss in [Chapter
-4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
+4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as
+the "meet" and "join" operators and their rules.
+
+Note: some lattice presentations will have the visual presentation reversed
+from the direction we are using; this is generally obvious from context.
 
 
 ## Nodes Pre Peephole Optimization
