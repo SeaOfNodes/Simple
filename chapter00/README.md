@@ -18,7 +18,7 @@ compiler, although that may happen in a later chapter.
 
 My target audience is both for traditional compiler writers, and medium skill
 programmers curious about compilers.  I do expect some basics about how
-compilers work; things like like source-code-in and binaries-out.  It will
+compilers work; things like source-code-in and binaries-out.  It will
 definitely help to have some jargon words sorted out (see end of this document)
 and be comfortable with under-graduate level graph algorithms.
 
@@ -31,9 +31,6 @@ learn, write, and *debug*.  It is certainly fast enough for large scale batch jo
 
 A Just-In-Time variant of Simple may revist the implementation language
 decision.
-
-
-
 
 
 ## Jargon
@@ -84,8 +81,14 @@ learning more.
   build them from program names, and throw them away.
 
   Sea of Nodes starts with these def-use edges (and use-def) and maintain them
-  throughout the comnpiler's lifetime.
-
+  throughout the compiler's lifetime.
+  
+  The def-use edges can be thought of as a mapping between a node and its outputs. 
+  Similarly, use-def edges can be thought of as a mapping between a node and its inputs.
+  
+  To represent the SoN graph visually we use `use-def` edges but nodes also have `def-use` edges, 
+  it is just a matter of how we look at them visually.
+  
 
 * SSA: Static Single Assigment - a program shape where all program values are
   statically assigned exactly once.  Example before SSA: 
@@ -112,7 +115,7 @@ learning more.
 
 
 * Phi, PhiNode - Variously "funny", "fake" or the greek `Ø` character.  A pure
-  mathematial "function" which picks between its arguments based on control
+  mathematical "function" which picks between its arguments based on control
   flow and a key part of SSA form.  Scare quotes on "function" because normal
   functions do not pick their arguments based on control flow.  Phi functions
   are generally implemented with zero cost in machine code, by carefully
@@ -138,9 +141,9 @@ learning more.
   
 
 * "Peep", or Peephole Optimization - a transformation which relies on only
-  local information as-if viewing the program "though a peephole".  Something
+  local information as-if viewing the program "through a peephole".  Something
   like replacing `add x+0` with `x`, which removes an `add` instruction.  This
-  transformation is correct without reguard to the rest of the program.  All
+  transformation is correct without regard to the rest of the program.  All
   compilers do some kind of peephole optimizations, Sea of Nodes makes extensive
   use of these.
 
@@ -164,7 +167,7 @@ learning more.
   `dereference`), and sometimes described as a set of values.
   
   For Sea of Nodes, we use the "set of values" type concept, and we don't
-  actually have any use for a seperate value implementation.  The sets of
+  actually have any use for a separate value implementation.  The sets of
   values can get fancy; integer types are represented with a range like
   `[0..9]` and integer constants by a short range e.g. `[3]`, the maximum
   integer type is `[MIN_INT..MAX_INT]`.  Types exist for integers, floats,

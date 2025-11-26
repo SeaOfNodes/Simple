@@ -33,11 +33,6 @@ To implement this simple language, we introduce a few key components and data st
 
 Here is the [complete language grammar](docs/01-grammar.md) for this chapter.
 
-
-## Implementation Language
-
-Our implementation language is Java. We chose Java as it is widely available and understood.
-
 ## Assumptions
 
 We assume that the reader is familiar with traditional linear intermediate
@@ -101,6 +96,10 @@ The base `Node` class maintains a list of Nodes that are inputs to it.  An
 input is an edge from a definition to a use, hence def-use.  What this means is
 that if `B` is definition, and `A` uses `B`, then there is a def-use edge from
 `B` to `A`.
+
+The inputs of a node are ordered and the order has a semantic meaning. 
+The outputs are unordered at least until the program is scheduled. 
+The scheduling algorithm will be introduced in [Chapter 11](../chapter11/README.md)
 
 Visually we show an arrow from the "use" to the "def". Here is an example:
 
@@ -233,5 +232,5 @@ return 1;
 
 * Control nodes appear as square boxes with yellow background
 * Control edges are in bold red
-* The edges from Constants to Start are shown in dotted lines as these are not true control edges
+* The edges from Constants to Start are shown in dotted lines as these are not true control edges(no semantic inputs)
 * We label each edge with its position in the `_inputs` array, thus `0` means the edge is `_inputs[0]`.
