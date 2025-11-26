@@ -133,8 +133,10 @@ Our lattice elements can be one of three types:
 * The lowest is "bottom", denoted by ⊥; assigning ⊥ means that we know that the
   Node's value is **not** a compile time constant.
 
+`top` and `bottom` are often referred to as the *base cases* or *simple types* of the lattice.
+
 An invariant of peephole optimizations is that the type of a Node always moves
-*up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst
+*up* the lattice (towards "top"); peepholes are *pessimistic* assuming the worst
 until they can prove better.  A later *optimistic* optimization will start all
 Nodes at *top* and move Types *down* the lattice as eager assumptions are
 proven wrong.
@@ -143,9 +145,16 @@ In later chapters we will explore extending this lattice, as it frequently
 forms the heart of core optimizations we want our compiler to do.
 
 We add a `_type` field to every Node, to store its current computed best
-`Type`.  We need a field to keep the optimizer runtime linear(`TBD`), and later when
+`Type`.  We need a field to keep the optimizer runtime linear, and later when
 doing an optimistic version of constant propagation (called [Sparse Conditional
 Constant Propagation](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)).
+
+Keeping the optimizer runtime linear means that the e optimizer uses the *_type* field to cache inferred 
+type information, preventing the need to recompute it from scratch. 
+Without such a field, the analysis might repeatedly revisit nodes, potentially 
+increasing the complexity to quadratic or worse. By storing the current best type directly 
+within each node, the optimizer ensures that each node is processed only a constant number of times, 
+preserving an overall linear-time complexity `𝑂(𝑛)`
 
 We add a `_type` field even to `Start` and `Return`, and later to all control
 Nodes - because the Sea of Nodes does not distinguish between control and data.
