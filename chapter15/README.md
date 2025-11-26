@@ -1,5 +1,15 @@
 # Chapter 15: Arrays
 
+# Table of Contents
+
+1. [Parser changes](#parser)
+2. [TypeArray is TypeStruct](#type-array-is-typestruct)
+4. [New Address Math](#new-address-math)
+5. [Struct Layout](#struct-layout)
+6. [Some Simple Address Math Peeps](#some-simple-address-math-peeps)
+7. [Discussion](#discussion)
+
+
 At long last we introduce arrays!  These require more complex addressing math,
 which in turn means we need to change how Loads and Stores do addressing - 
 with true field *offsets* instead of field *names*.  This means we also 
@@ -22,6 +32,7 @@ will panic the Evaluator.
 - `new int[3.14];  // Not an integer`
  
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter15) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter14...linear-chapter15) it to the previous chapter.
+
 
 ## Parser
 
@@ -168,7 +179,7 @@ This means the IR for:
   becomes `Load(mem,x,Add(Shl(i,3),16))`
   
   
-  `x[i+1]` becomes `16/*base*/ + ((i+1) << 3/*scale*)` becomes
+  `x[i+1]` becomes `16/*base*/ + ((i+1) << 3/*scale*/)` becomes
   `Load(mem,x,Add(Shl(i,3),24))`
 
 Notice the `idx+1` folds the `+1` into the base math.
@@ -197,3 +208,4 @@ for( int i=0; i < ary#; i++ )
 that would be entirely syntatic-sugar over the existing parser, but would
 really help make array looping syntax clearer.  There are lots of options
 here, which should really be the focus of another chapter!
+

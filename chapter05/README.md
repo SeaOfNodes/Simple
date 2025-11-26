@@ -1,5 +1,30 @@
 # Chapter 5: If Statement, Phi, and Region
 
+# Table of Contents
+
+1. [Recap](#recap)
+2. [New Nodes](#new-nodes)
+3. [`IfNode`](#ifnode)
+4. [`PhiNode` ](#phinode)
+5. [`RegionNode`](#regionnode)
+6. [Pinned data nodes](#we-do-not-associate-a-control-edge-on-every-data-node-in-the-graph)
+7. [`Stop` Nodes](#stop-nodes)
+8. [Parsing an `if` Statement](#parsing-an-if-statement)
+9. [Operations on ScopeNodes](#operations-on-scopenodes)
+10. [Duplicating a ScopeNode](#duplicating-a-scopenode)
+11. [Merging two ScopeNodes](#merging-two-scopenodes)
+12. [Example 1](#example-1)
+13. [Before Merging](#before-merging)
+14. [After Merging](#after-merging)
+15. [Finally](#finally)
+16. [Example 2](#example-2)
+17. [Example 3](#example-3)
+18. [Example 3](#example-3)
+19. [More Examples](#more-examples)
+
+
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter05) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter04...linear-chapter05) it to the previous chapter.
+
 In this chapter we extend the language grammar with the following features:
 
 * We introduce the `if` statement.
@@ -7,8 +32,6 @@ In this chapter we extend the language grammar with the following features:
 * Since we can now have multiple return points, we also introduce the `Stop` node as the termination.
 
 Here is the [complete language grammar](docs/05-grammar.md) for this chapter.
-
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter05) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter04...linear-chapter05) it to the previous chapter.
 
 ## Recap
 

@@ -1,6 +1,10 @@
 # Java stuff
+
 # Compiled class file
 *.class
+build/
+*/docs/examples/*.o
+*/docs/examples/*.exe
 
 # Log file
 *.log
@@ -9,6 +13,8 @@
 .idea/
 target/
 *.iml
+.vscode/
+
 
 # Editors
 #*

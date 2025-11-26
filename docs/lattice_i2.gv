@@ -1,0 +1,47 @@
+digraph Lattice {
+    compound = true;
+    // Define nodes
+    splines=false;
+    node [shape=circle, style=filled];
+    nodesep=0.6;
+
+    TOP [label=<<B>⊤</B >>, fillcolor=black, fontcolor=white];
+    BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
+
+    // ----------------------
+    // Integers
+    INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
+    INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
+
+    INT_HI    [label="max < min" , fillcolor=lightblue, shape=oval];
+    INT_XBOOL [label="1...0", fillcolor=lightblue, shape=oval];
+    INT_CON   [label="constants...", fillcolor=lightblue, shape=oval];
+    INT_CON0  [label="0", fillcolor=lightblue];
+    INT_CON1  [label="1", fillcolor=lightblue];
+    INT_BOOL  [label="0...1", fillcolor=lightblue,shape=oval];
+    INT_LO    [label="max > min" , fillcolor=lightblue, shape=oval];
+
+    TOP        -> INT_TOP;
+    INT_TOP    -> INT_HI;
+    INT_HI     -> INT_XBOOL;
+    INT_XBOOL  -> INT_CON0;
+    INT_XBOOL  -> INT_CON1;
+    INT_HI     -> INT_CON;
+    INT_CON0   -> INT_BOOL;
+    INT_CON1   -> INT_BOOL;
+    INT_BOOL   -> INT_LO;
+    INT_CON    -> INT_LO;
+    INT_LO     -> INT_BOT;
+    INT_BOT    -> BOT;
+
+    INT_CON0 -> INT_CON1 -> INT_CON [style=invis];
+
+
+    // Additional customization
+    {rank=same; TOP}
+    {rank=same; INT_TOP; }
+    {rank=same; INT_CON; INT_CON0; INT_CON1;
+    }
+    {rank=same; INT_BOT; }
+    {rank=same; BOT;}
+}

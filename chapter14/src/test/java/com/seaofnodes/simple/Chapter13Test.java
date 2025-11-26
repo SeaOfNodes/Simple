@@ -131,6 +131,19 @@ return n.i;
     }
 
     @Test
+    public void testNullRef4() {
+        Parser parser = new Parser("-null-5/null-5");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
+    }
+
+    @Test public void testNullRef5() {
+        Parser parser = new Parser("return null+42;");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
+    }
+
+    @Test
     public void testEmpty() {
         Parser parser = new Parser(
 """

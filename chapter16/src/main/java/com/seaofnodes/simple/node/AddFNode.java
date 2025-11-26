@@ -34,7 +34,7 @@ public class AddFNode extends Node {
         Node lhs = in(1);
         Type t2 = in(2)._type;
 
-        // Add of 1.
+        // Add of 0.
         if ( t2.isConstant() && t2 instanceof TypeFloat i && i.value()==0 )
             return lhs;
 

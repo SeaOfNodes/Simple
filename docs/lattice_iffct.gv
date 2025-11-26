@@ -1,0 +1,145 @@
+digraph Lattice {
+    compound = true;
+    // Define nodes
+    splines=false;
+    node [shape=circle, style=filled];
+    nodesep=0.6;
+
+    TOP [label=<<B>⊤</B >>, fillcolor=black, fontcolor=white];
+    BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
+
+    // ----------------------
+    // Control
+    XCTRL [label=<<B>⊤</B >:ctrl>, fillcolor=yellow, shape=oval];
+    CTRL  [label=<<B>⊥</B>:ctrl>, fillcolor=yellow, shape=oval];
+
+    TOP   -> XCTRL;
+    XCTRL -> CTRL;
+    CTRL  -> BOT;
+
+    // ----------------------
+    // Integers
+    INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
+    INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
+
+    INT_HI    [label="max < min" , fillcolor=lightblue, shape=oval];
+    INT_XBOOL [label="1...0", fillcolor=lightblue, shape=oval];
+    INT_CON   [label="constants...", fillcolor=lightblue, shape=oval];
+    INT_CON0  [label="0", fillcolor=lightblue];
+    INT_CON1  [label="1", fillcolor=lightblue];
+    INT_BOOL  [label="0...1", fillcolor=lightblue,shape=oval];
+    INT_LO    [label="max > min" , fillcolor=lightblue, shape=oval];
+
+    TOP        -> INT_TOP;
+    INT_TOP    -> INT_HI;
+    INT_HI     -> INT_XBOOL;
+    INT_XBOOL  -> INT_CON0;
+    INT_XBOOL  -> INT_CON1;
+    INT_HI     -> INT_CON;
+    INT_CON0   -> INT_BOOL;
+    INT_CON1   -> INT_BOOL;
+    INT_BOOL   -> INT_LO;
+    INT_CON    -> INT_LO;
+    INT_LO     -> INT_BOT;
+    INT_BOT    -> BOT;
+
+    INT_CON0 -> INT_CON1 -> INT_CON [style=invis];
+
+    // ----------------------
+    // Floats
+    FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
+    FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
+
+    FLT_CON64  [label="64b consts\n[excludes\n32b consts]" , fillcolor=aqua, shape=oval];
+    FLT_CON32  [label="32b consts", fillcolor=aqua, shape=oval];
+    FLT_CONPI  [label="3.14159...", fillcolor=aqua, shape=oval];
+    FLT_X32    [label="~f32", fillcolor=aqua];
+    FLT_CON0   [label="0."  , fillcolor=aqua];
+    FLT_32     [label="f32" , fillcolor=aqua];
+
+    TOP       -> FLT_TOP;
+    FLT_TOP   -> FLT_CON64
+    FLT_TOP   -> FLT_CONPI
+    FLT_CON64 -> FLT_BOT
+    FLT_CONPI -> FLT_BOT
+    
+    FLT_TOP   -> FLT_X32;
+    FLT_X32   -> FLT_CON0;
+    FLT_X32   -> FLT_CON32;
+    FLT_CON0  -> FLT_32;
+    FLT_CON32 -> FLT_32;
+    FLT_32    -> FLT_BOT
+    
+    FLT_BOT   -> BOT;
+
+    FLT_CON0 -> FLT_CON32 -> FLT_CONPI -> FLT_CON64 [style=invis];
+
+    // ----------------------
+    // sub-Floats
+    FL8_TOP [label=<<B>⊤</B >:FP8>, fillcolor=aqua, shape=oval];
+    FL8_BOT [label=<<B>⊥</B>:FP8>, fillcolor=aqua, shape=oval];
+
+    FL8_MINDOTS [label="...", fillcolor=aqua, shape=oval];
+    FL8_ZERO    [label="0"  , fillcolor=aqua];
+    FL8_MAXDOTS [label="...", fillcolor=aqua, shape=oval];
+
+    TOP         -> FL8_TOP;
+    FL8_TOP     -> FL8_MINDOTS;
+    FL8_TOP     -> FL8_ZERO;
+    FL8_TOP     -> FL8_MAXDOTS;
+    FL8_MINDOTS -> FL8_BOT;
+    FL8_ZERO    -> FL8_BOT;
+    FL8_MAXDOTS -> FL8_BOT;
+    FL8_BOT     -> BOT;
+
+    FL8_MINDOTS -> FL8_ZERO -> FL8_MAXDOTS [style=invis];
+    
+    // ----------------------
+    // Tuples
+
+    TUPLE_TOP [label=<<B>⊤</B >:tuple>, fillcolor=pink, shape=oval];
+    TUPLE_BOT [label=<<B>⊥</B>:tuple>, fillcolor=pink, shape=oval];
+
+    TUPLE1 [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+    TUPLE2 [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+    TUPLEN [shape=none, fillcolor=none, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">...</FONT></TD></TR>
+        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
+      </TABLE>
+    >];
+
+
+    TOP -> TUPLE_TOP;
+    TUPLE_TOP -> TUPLE1;
+    TUPLE_TOP -> TUPLE2;
+    TUPLE_TOP -> TUPLEN;
+    TUPLE1 -> TUPLE_BOT;
+    TUPLE2 -> TUPLE_BOT;
+    TUPLEN -> TUPLE_BOT;
+    TUPLE_BOT -> BOT;
+    
+    // Additional customization
+    {rank=same; TOP}
+    {rank=same; INT_TOP; FLT_TOP; FL8_TOP; XCTRL }
+    {rank=same; INT_CON; INT_CON0; INT_CON1;
+                FLT_CON32; FLT_CON64;  FLT_CON0; FLT_CONPI;
+                FL8_MINDOTS; FL8_ZERO; FL8_MAXDOTS;
+                TUPLE1; TUPLE2; TUPLEN;
+    }
+    {rank=same; INT_BOT; FLT_BOT; FL8_BOT; CTRL; }
+    {rank=same; BOT;}
+}
