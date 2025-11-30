@@ -183,7 +183,7 @@ public class Type {
         return print(new StringBuilder()).toString();
     }
 
-    public StringBuilder print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) { return isSimple() ? sb.append(STRS[_type]) : sb;}
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }
