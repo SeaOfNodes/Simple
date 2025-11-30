@@ -62,7 +62,7 @@ public class TypeMemPtr extends Type {
 
     @Override public boolean isHigh() { return this==TOP; }
 
-    @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
+    @Override public int logSize() { return 2; } // (1<<2)==4-byte pointers
 
     @Override
     int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }
