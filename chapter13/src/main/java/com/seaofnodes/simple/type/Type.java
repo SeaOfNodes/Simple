@@ -42,7 +42,7 @@ public class Type {
 
     public final byte _type;
 
-    public boolean is_simple() { return _type < TSIMPLE; }
+    public boolean isSimple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl"};
     protected Type(byte type) { _type = type; }
 
@@ -130,8 +130,8 @@ public class Type {
         // Same-type is always safe in the subclasses
         if( _type==t._type ) return xmeet(t);
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
-        if(   is_simple() ) return this.xmeet(t   );
-        if( t.is_simple() ) return t   .xmeet(this);
+        if(   isSimple() ) return this.xmeet(t   );
+        if( t.isSimple() ) return t   .xmeet(this);
         return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 
@@ -139,12 +139,12 @@ public class Type {
     // Handle cases where 'this.is_simple()' and unequal to 't'.
     // Subclassed xmeet calls can assert that '!t.is_simple()'.
     Type xmeet(Type t) {
-        assert is_simple(); // Should be overridden in subclass
+        assert isSimple(); // Should be overridden in subclass
         // ANY meet anything is thing; thing meet ALL is ALL
         if( _type==TBOT || t._type==TTOP ) return this;
         if( _type==TTOP || t._type==TBOT ) return    t;
         // 'this' is {TCTRL,TXCTRL}
-        if( !t.is_simple() ) return BOTTOM;
+        if( !t.isSimple() ) return BOTTOM;
         // 't' is {TCTRL,TXCTRL}
         return _type==TCTRL || t._type==TCTRL ? CONTROL : XCONTROL;
     }
