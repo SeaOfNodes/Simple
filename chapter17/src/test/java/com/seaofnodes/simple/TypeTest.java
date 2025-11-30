@@ -116,7 +116,7 @@ public class TypeTest {
     // still interesting for other orders.
     private static void check_commute( Type t0, Type t1 ) {
         if( t0==t1 ) return;
-        if( t0.is_simple() && !t1.is_simple() ) return; // By design, flipped the only allowed order
+        if( t0.isSimple() && !t1.isSimple() ) return; // By design, flipped the only allowed order
         Type mta = t0.meet(t1);
         Type mtb = t1.meet(t0); // Reverse args and try again
         assertSame(mta,mtb);

@@ -73,7 +73,7 @@ public class PhiNode extends Node {
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);
-        if( op.nIns()==3 && op.in(0)==null && same_op() ) {
+        if( op.nIns()==3 && op.in(0)==null && sameOp() ) {
             assert !(op instanceof CFGNode);
             Node[] lhss = new Node[nIns()];
             Node[] rhss = new Node[nIns()];
@@ -114,7 +114,7 @@ public class PhiNode extends Node {
         return null;
     }
 
-    private boolean same_op() {
+    private boolean sameOp() {
         for( int i=2; i<nIns(); i++ )
             if( in(1).getClass() != in(i).getClass() )
                 return false;

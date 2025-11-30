@@ -28,7 +28,7 @@ public class Type {
     static final byte TINT    = 3; // All Integers; see TypeInteger
     public final byte _type;
 
-    public boolean is_simple() { return _type < TSIMPLE; }
+    public boolean isSimple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top"};
     protected Type(byte type) { _type = type; }
 
@@ -36,5 +36,5 @@ public class Type {
 
     public boolean isConstant() { return _type == TTOP; }
 
-    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder _print(StringBuilder sb) {return isSimple() ? sb.append(STRS[_type]) : sb;}
 }
