@@ -20,7 +20,7 @@ public class LoadX86 extends MemOpX86 {
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
-        enc(enc, _declaredType, dst, ptr, idx, _off, _scale);
+        enc(enc, declType(), dst, ptr, idx, _off, _scale);
     }
 
     static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {

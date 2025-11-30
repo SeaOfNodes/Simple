@@ -1,8 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
@@ -38,7 +37,7 @@ public abstract class MemOpNode extends Node {
 
     // Declared type; not final because it might be a forward-reference
     // which will be lazily improved when the reference is declared.
-    public Type _declaredType;
+    private Type _declaredType;
 
     // A debug name, no semantic meaning
     public final String _name;
@@ -85,6 +84,9 @@ public abstract class MemOpNode extends Node {
              types[bais.packed2()],null,null,null);
     }
 
+    public Type declType() { return _declaredType; }
+
+
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(aliases.get(_alias));
@@ -102,6 +104,11 @@ public abstract class MemOpNode extends Node {
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
     public int log_size() { return _declaredType.log_size();  }
+
+    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
+        _declaredType = _declaredType.upgradeType(TYPES);
+        return null;
+    }
 
     @Override
     public boolean eq(Node n) {

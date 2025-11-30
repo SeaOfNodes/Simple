@@ -86,6 +86,11 @@ public class FunNode extends RegionNode {
         }
     }
 
+    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
+        setSig((TypeFunPtr)_sig.upgradeType(TYPES));
+        return null;
+    }
+
     public void setName( String name ) {
         if( _name==null ) _name=name;
         else _name += "."+name;

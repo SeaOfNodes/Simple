@@ -45,9 +45,9 @@ return guess;
         // TODO: One of the problems with <clinit> returning an OS error code,
         // is it chops all results to int.
         code.parse().opto();
-        assertEquals("return (!Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)*0.5f)));", code.print());
-        assertEquals("0", Eval2.eval(code,  9));
-        assertEquals("0", Eval2.eval(code,  2));
+        assertEquals("return Phi(Loop,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)*0.5f));", code.print());
+        assertEquals("3.0", Eval2.eval(code,  9));
+        assertEquals("1.414213562373095", Eval2.eval(code,  2));
     }
 
     @Test

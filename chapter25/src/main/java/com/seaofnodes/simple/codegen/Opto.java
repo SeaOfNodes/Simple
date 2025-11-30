@@ -127,6 +127,7 @@ abstract public class Opto {
             assert oval.isa(nval);    // Types start high and always fall
             Type pesiVal = oldTypes.at(n._nid);
             assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
+            assert !(nval instanceof TypeBuilder);
             n._type = nval;
 
             // If a TFP adds a new function input to a call, link to the new Fun

@@ -53,7 +53,7 @@ public class EscapeNode extends Node {
         if( pub ()._type.isHigh() ) return TypeMem.TOP;
         TypeMem mpriv = (TypeMem)priv()._type;
         assert mpriv._alias==1;
-        TypeStruct tspriv = (TypeStruct) mpriv._t;
+        TypeStruct tspriv = ((TypeMemPtr) mpriv._t)._obj;
         int x = tspriv.findAlias(_alias);
         assert x != -1;
 

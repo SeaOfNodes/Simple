@@ -86,7 +86,7 @@ _N n = new _N;
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("return 1;", code.print());
+        assertEquals("return null;", code.print());
     }
 
     @Test
@@ -99,7 +99,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:.next=Top; 5:.i=0;]; return 0; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:.next=Top; 5:.i=0;]; return (const)self; ]", code.print());
     }
 
     @Test
@@ -209,7 +209,7 @@ return a.f0.f1.f0.f1.f0;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return self;", code._stop.toString());
         assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
     }
 

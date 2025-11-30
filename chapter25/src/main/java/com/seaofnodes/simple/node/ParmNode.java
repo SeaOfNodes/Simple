@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
-import com.seaofnodes.simple.type.TypeStruct;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -65,15 +63,6 @@ public class ParmNode extends PhiNode {
         // If function is folding, do all possible peeps
         if( fun()._folding ) return super.idealize();
 
-        // Can upgrade minType even while in-progress
-        if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != tmp ) {
-                //_minType = tmp.makeFrom(ts);
-                //return this;
-                throw Utils.TODO();
-            }
-        }
         // Skip most phi optimizations on parms
         return null;
     }

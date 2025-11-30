@@ -62,22 +62,23 @@ public class StoreNode extends MemOpNode {
         // Allocation uses a known TypeStruct mem type and nothing else does.
         // This memory is truly private; a temporary singleton until it
         // escapes - which is never does in a constructor.
-        //assert !(mem._t instanceof TypeStruct);
-        if( mem._t instanceof TypeStruct ts ) {
+        String tname=null;
+        if( mem._t instanceof TypeBuilder bld ) tname=bld._name;
+        if( mem._t instanceof TypeMemPtr  tmp ) tname=tmp._obj._name;
+        if( tname!=null ) {
             assert mem._alias==1;
             Field fld = Field.make(_name, val, _alias, _init);
-            TypeStruct ts2 = TypeStruct.make(ts._name, ts._open, fld);
-            return TypeMem.make(1,ts2);
+            TypeStruct ts2 = TypeStruct.make(tname, true, fld);
+            return TypeMem.make(1,TypeMemPtr.make(ts2));
         }
 
         // Normal aliasing Store
         Type t = Type.BOTTOM;               // No idea on field contents
         // Same alias, lift val to the declared type and then meet into other fields
         if( mem._alias == _alias ) {
-            assert !_declaredType.isFRef();
             // Sharpen memory value; required for narrowing stores where the parser inserts
             // zero/sign masking and somebody reads the TypeMem type.
-            val = val.join(_declaredType);
+            val = val.join(declType());
             t = val.meet(mem._t);
         }
         return TypeMem.make(_alias,t);
@@ -85,7 +86,6 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Node idealize() {
-
         if( mem() instanceof CastNode cast ) {
             setDef(1,cast.in(1));
             return this;
@@ -118,7 +118,7 @@ public class StoreNode extends MemOpNode {
             if( ptr() == esc.self() &&
                 // Multiple users of same alias, one of them must be (eventually) dead.
                 esc.nOuts() == 1 ) {
-                esc.setDef(2,new StoreNode( _loc, _name, _alias, _declaredType, esc.priv(), ptr(), off(), val(), false ).peephole());
+                esc.setDef(2,new StoreNode( _loc, _name, _alias, declType(), esc.priv(), ptr(), off(), val(), false ).peephole());
                 return esc;
             } else {
                 for( Node use : esc._outputs )
@@ -130,7 +130,7 @@ public class StoreNode extends MemOpNode {
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
-            int log = _declaredType.log_size();
+            int log = declType().log_size();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
                 long bits = (1L<<(8<<log))-1;

@@ -41,6 +41,7 @@ public class ScopeNode extends MemMergeNode {
     public final Ary<Kind> _kinds;
     // Lexical scope nesting depth
     public int depth() { return _kinds._len; }
+    public Kind klast() { return _kinds.last(); }
 
     // Extra guards; tested predicates and casted results
     private final Ary<Node> _guards;
@@ -119,7 +120,7 @@ public class ScopeNode extends MemMergeNode {
     // Look for forward references in the last lexical scope and promote to the
     // next outer lexical scope.  At the last scope declare them an error.
     public void promote(CodeGen code) {
-        Kind kind = _kinds.last();
+        Kind kind = klast();
         int n = kind._lexSize;
         for( int i=n; i<nIns(); i++ ) {
             Var v = var(i);
@@ -139,11 +140,11 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
-    public boolean inAllocation () { return _kinds.last() instanceof Kind.Alloc ; }
-    public boolean inFunction   () { return _kinds.last() instanceof Kind.Func  ; }
+    public boolean inAllocation () { return klast() instanceof Kind.Alloc ; }
+    public boolean inFunction   () { return klast() instanceof Kind.Func  ; }
     // Is the enclosing scope a constructor?  Shallow check, not deep
     public boolean inConstructor() {
-        return _kinds.last() instanceof Kind.Func func && FunNode.isInit(func._name);
+        return klast() instanceof Kind.Func func && FunNode.isInit(func._name);
     }
 
     public int enclosingFunction() {
@@ -178,7 +179,7 @@ public class ScopeNode extends MemMergeNode {
     public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
         assert _kinds.isEmpty() || name!="$mem" ; // Later scopes do not define memory
         if( depth() > 0 )
-            for( int i=_vars.size()-1; i>=_kinds.last()._lexSize; i-- ) {
+            for( int i=_vars.size()-1; i>=klast()._lexSize; i-- ) {
                 Var n = var(i);
                 if( n._name.equals(name) ) {
                     if( !n.isFRef() ) return false;       // Double define

@@ -75,14 +75,14 @@ public class MemMergeNode extends Node {
                 if( n != null ) {
                     if( n._type.isHigh() )
                         return TypeMem.TOP;
-                    TypeStruct ts0 = (TypeStruct)(((TypeMem)n._type)._t);
-                    if( ts==null ) ts = ts0;
+                    TypeMemPtr tmp0 = (TypeMemPtr)(((TypeMem)n._type)._t);
+                    if( ts==null ) ts = tmp0._obj;
                     else {
-                        assert ts0._fields.length==1;
-                        ts = ts.add(ts0._fields[0]);
+                        assert tmp0._obj._fields.length==1;
+                        ts = ts.add(tmp0._obj._fields[0]);
                     }
                 }
-            return TypeMem.make(1,ts==null ? TypeStruct.TOP : ts);
+            return TypeMem.make(1,TypeMemPtr.make(ts==null ? TypeStruct.TOP : ts));
         } else {
             // Default mixed mem is just BOT
             for( Node n : _inputs )

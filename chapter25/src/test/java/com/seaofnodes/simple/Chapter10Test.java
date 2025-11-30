@@ -65,7 +65,7 @@ else
 return v;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:.x=0; 3:.y=0;]; return 0; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:.x=0; 3:.y=0;]; return self; ]", code.print());
     }
 
     @Test
@@ -244,7 +244,7 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:.v0=0;]; return 0; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:.v0=0;]; return Phi(Loop,self,Phi(Region,self,Phi_ret)); ]", code.print());
     }
 
     @Test
@@ -321,7 +321,7 @@ else return new s0;
 if(new s0.f0) return 0;
     """);
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return MEM[ 2:.f0=0;]; return 0; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:.f0=0;]; return self; ]", code.print());
     }
 
     @Test
@@ -349,7 +349,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:.f0=0;]; return 0; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:.f0=0;]; return (const)self; ]", code.print());
     }
 
 

@@ -30,6 +30,7 @@ public class TypeMem extends Type {
         mem._alias= -99;
         mem._dual = null;
         mem._hash = 0;
+        mem._t = null;
         FREE.push(mem);
         return this;
     }
@@ -81,6 +82,12 @@ public class TypeMem extends Type {
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
     @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true)); }
+
+    @Override TypeMem _close( ) { return malloc(_alias,_t._close()); }
+
+    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
+        return make(_alias,_t.upgradeType(TYPES));
+    }
 
     @Override int hash() { return 9876543 + _alias + _t.hashCode(); }
 

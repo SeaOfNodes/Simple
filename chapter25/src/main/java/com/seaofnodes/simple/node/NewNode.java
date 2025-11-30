@@ -4,9 +4,9 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
-import static com.seaofnodes.simple.util.Utils.TODO;
 
 /**
  * Allocation!  Allocate a chunk of memory, no init.
@@ -14,7 +14,7 @@ import static com.seaofnodes.simple.util.Utils.TODO;
  * Produces a ptr and private memory.
 */
 public class NewNode extends Node implements MultiNode {
-    public final TypeStruct _ts;
+    public TypeStruct _ts;
     public NewNode( TypeStruct ts, Node ctrl, Node size ) { super(ctrl,size); _ts = ts; }
 
     public Node ctrl() { return in(0); }
@@ -24,13 +24,13 @@ public class NewNode extends Node implements MultiNode {
     public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
     @Override public Tag serialTag() { return Tag.New; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
-        throw TODO();
+        throw Utils.TODO();
     }
     static Node make( BAOS bais, Type[] types)  {
         //Node[] ins = new Node[bais.packed1()];
         //TypeMemPtr ptr = (TypeMemPtr)types[bais.packed2()];
         //return new NewNode(1.0f,ptr,ins);
-        throw TODO();
+        throw Utils.TODO();
     }
 
     @Override public String glabel() {
@@ -44,10 +44,13 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,_ts));
+        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,TypeMemPtr.make(_ts)));
     }
 
-    @Override public Node idealize() {
+    @Override public Node idealize() { return null; }
+
+    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
+        _ts = (TypeStruct)_ts.upgradeType(TYPES);
         return null;
     }
 

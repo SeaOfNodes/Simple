@@ -29,12 +29,7 @@ public class Var {
         _fref = fref;
         _loc = loc;
     }
-    public Type type() {
-        if( !_type.isFRef() ) return _type;
-        // Update self to no longer use the forward ref type
-        Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
-        return (_type=_type.meet(def));
-    }
+    public Type  type() { return _type; }
     public Type _type() { return _type; } // ScopeNode printer needs to have no side effects
 
     // Forward reference variables (not types) must be BOTTOM and

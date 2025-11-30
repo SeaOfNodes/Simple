@@ -9,6 +9,7 @@ import java.util.*;
  * Represents a field in a struct. This is not a Type in the type system.
  */
 public class Field extends Type {
+    static final Field[] EMPTY = new Field[0];
 
     // The pair {fieldName,type} uniquely identifies a field.
 
@@ -101,7 +102,7 @@ public class Field extends Type {
         Type glb = _t._glb(true);
         return (glb== _t && _final ) ? this : make(_fname,glb,_alias,true);
     }
-    @Override Field _close( String name ) { return makeFrom( _t._close(name)); }
+    @Override Field _close( ) { return makeFrom( _t._close()); }
 
     // Override in subclasses
     int hash() { return _fname.hashCode() ^ _t.hashCode() ^ _alias ^ (_final ? 1024 : 0); }
@@ -114,6 +115,7 @@ public class Field extends Type {
         return static_eq(f) && _t ==f._t;
     }
     @Override boolean cycle_eq(Type t) {
+        if( this==t ) return true;
         Field f = (Field)t;
         return static_eq(f) && _t.cycle_eq(f._t );
     }

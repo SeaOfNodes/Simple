@@ -84,7 +84,7 @@ public class TypeTest {
         Type nullableptr1_dual = ptr1nil.dual();
 
         // Cyclic check
-        TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT2.field("s1")._t)._obj.close();
+        TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT1.field("s1")._t)._obj.close();
         Assert.assertFalse(s1.isFinal());
         Type s1ro  = S1.makeRO();
         Type s1ro2 = S1.makeRO();
@@ -168,9 +168,9 @@ public class TypeTest {
     // Test cyclic types and meets
     @Test
     public void testCyclic0() {
-        Type d0 = TypeStruct.SFLT2.dual();
+        Type d0 = TypeStruct.SFLT1.dual();
         Type d1 = d0.dual();
-        assertSame(TypeStruct.SFLT2,d1);
+        assertSame(TypeStruct.SFLT1,d1);
     }
 
     @Test
