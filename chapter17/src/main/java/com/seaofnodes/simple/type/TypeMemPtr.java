@@ -70,7 +70,7 @@ public class TypeMemPtr extends Type {
     @Override public boolean isConstant() { return this==NULLPTR; }
     @Override public boolean isHighOrConst() { return this==TOP || this==NULLPTR; }
 
-    @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
+    @Override public int logSize() { return 2; } // (1<<2)==4-byte pointers
 
     @Override
     int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }

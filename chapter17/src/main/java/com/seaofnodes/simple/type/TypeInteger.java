@@ -76,7 +76,7 @@ public class TypeInteger extends Type {
     @Override public boolean isHighOrConst() { return _min >= _max; }
     @Override public boolean isConstant   () { return _min == _max; }
 
-    @Override public int log_size() {
+    @Override public int logSize() {
         if( this==I8  || this==U8 || this==BOOL ) return 0; // 1<<0 == 1 bytes
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
         if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
