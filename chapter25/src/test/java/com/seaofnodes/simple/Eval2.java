@@ -452,7 +452,6 @@ public abstract class Eval2 {
         case TypeMemPtr tmp -> {
             if( visit.containsKey(x) ) yield sb.p("$cyclic");
             visit.put(x,x);
-            assert !tmp.isFRef();
 
             Object[] xs = (Object[])x; // Array of fields
             if( tmp._obj.isAry() ) {

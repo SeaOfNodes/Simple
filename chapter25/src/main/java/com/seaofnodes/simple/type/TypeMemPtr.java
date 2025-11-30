@@ -32,7 +32,7 @@ public class TypeMemPtr extends TypeNil {
     private TypeMemPtr(byte nil, TypeStruct obj, boolean one) { super(TMEMPTR,nil); init(nil,obj,one); }
     private TypeMemPtr init(byte nil, TypeStruct obj, boolean one) { _nil=nil; _obj=obj; _one=one; return this; }
     // Return a filled-in TypeMemPtr; either from free list or alloc new.
-    private static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one) {
+    static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one) {
         return FREE.isEmpty() ? new TypeMemPtr(nil,obj,one) : FREE.pop().init(nil,obj,one);
     }
 
@@ -99,10 +99,11 @@ public class TypeMemPtr extends TypeNil {
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
     @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
-    @Override TypeMemPtr _close( String name ) { return makeFrom(_obj._close(name)); }
+    @Override TypeMemPtr _close( ) { return malloc(_nil,_obj._close(),_one); }
 
-    // Is forward-reference
-    @Override public boolean isFRef() { return _obj.isFRef(); }
+    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
+        return makeFrom((TypeStruct)_obj.upgradeType(TYPES));
+    }
 
     @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
 

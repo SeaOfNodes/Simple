@@ -113,15 +113,6 @@ public class PhiNode extends Node {
     public Node idealize() {
         if( !(region() instanceof RegionNode r ) )
             return in(1);       // Input has collapse to e.g. starting control.
-        // Can upgrade minType even while in-progress
-        if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            //TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            //if( tmp2!=null && tmp2 != _minType ) {
-            //    _minType = tmp2;
-            //    return this;
-            //}
-            throw Utils.TODO();
-        }
         if( r.inProgress() || r.nIns()<=1 )
             return null;        // Input is in-progress
 
@@ -263,6 +254,11 @@ public class PhiNode extends Node {
     // True if last input is null
     public boolean inProgress() {
         return in(nIns()-1) == null;
+    }
+
+    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
+        _minType = _minType.upgradeType(TYPES);
+        return null;
     }
 
     // Never equal if inProgress.

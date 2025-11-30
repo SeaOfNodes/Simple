@@ -21,28 +21,23 @@ public class TypeStruct extends Type {
     public boolean _open; // infinite fields are all true:TOP, false:BOT
     public Field[] _fields;
 
-    private TypeStruct(String name, boolean open, Field[] fields) {
-        super(TSTRUCT);
+    private TypeStruct() { super(TSTRUCT); }
+    private static final Ary<TypeStruct> FREE = new Ary<>(TypeStruct.class);
+    private TypeStruct init(String name, boolean open, Field[] fields) {
         _name = name;
         _open = open;
         _fields = fields;
+        return this;
     }
-
-    private static final Ary<TypeStruct> FREE = new Ary<>(TypeStruct.class);
     // Return a filled-in TypeStruct; either from free list or alloc new.
     private static TypeStruct malloc(String name, boolean open, Field[] fields) {
-        if( FREE.isEmpty() ) return new TypeStruct(name,open,fields);
-        TypeStruct ts = FREE.pop();
-        assert ts.isFree();
-        ts._name = name;
-        ts._open = open;
-        ts._fields = fields;
-        return ts;
+        return (FREE.isEmpty() ? new TypeStruct() : FREE.pop()).init(name,open,fields);
     }
     // Free ts; return this.
     @Override TypeStruct free(Type t) {
         TypeStruct ts = (TypeStruct)t;
         assert !ts.isFree() && !ts._terned;
+        ts._name = null;
         ts._fields = null;
         ts._offs = null;
         ts._dual = null;
@@ -100,19 +95,23 @@ public class TypeStruct extends Type {
 
 
     public final TypeStruct close() {
-        return (TypeStruct)recurOpen()._close(_name).recurClose();
+        return (TypeStruct)recurOpen()._close().recurClose();
     }
-    @Override TypeStruct _close( String name ) {
+    @Override TypeStruct _close( ) {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,_name, name==_name ? false : _open);
+        ts = recurPre(_name,_name, false);
         Field[] flds = ts._fields;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._close(name));
+            flds[i].setType(_fields[i]._t._close());
 
         return ts;
+    }
+
+    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
+        throw Utils.TODO();
     }
 
     static final AryInt CEQUALS = new AryInt();
@@ -128,12 +127,8 @@ public class TypeStruct extends Type {
     // A pair of self-cyclic types
     private static final TypeStruct SINT0  = open("%SINT");
     private static final TypeStruct SFLT0  = open("%SFLT");
-    private static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false));
-    private static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false));
-    public  static final TypeStruct SFLT2  = SFLT1.close();
-    public  static final TypeStruct SINT2  = ((TypeMemPtr)SFLT2.field("s1")._t)._obj.close();
-
-
+    public  static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false));
+    public  static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false));
 
     public static void gather(ArrayList<Type> ts) {
         ts.add(BOT);
@@ -145,8 +140,6 @@ public class TypeStruct extends Type {
         ts.add(SFLT0);
         ts.add(SINT1);
         ts.add(SFLT1);
-        ts.add(SFLT2);
-        ts.add(((TypeMemPtr)(SFLT2.field("s1")._t))._obj);
         // Break cyclic init: built a struct
         Field fcalloc = Field.make("calloc",TypeFunPtr.CALLOC,-2,true);
         TypeStruct scalloc = make("calloc",false,fcalloc);
@@ -262,8 +255,8 @@ public class TypeStruct extends Type {
             _name;
     }
 
-    // Is forward-reference
-    @Override public boolean isFRef() { return _open; }
+    //// Is forward-reference
+    //@Override public boolean isFRef() { return _open; }
 
     @Override boolean _isConstant() {
         if( VISIT.containsKey(_uid) ) return true; // Cycles assume constant
@@ -334,8 +327,7 @@ public class TypeStruct extends Type {
         if( ts!=null ) return ts;
         ts = recurPre(_name,_name,false);
         Field[] flds = ts._fields;
-        for( int i=0; i<flds.length; i++ )
-            flds[i]._final = true ;
+        for( Field fld : flds ) fld._final = true;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
@@ -365,10 +357,13 @@ public class TypeStruct extends Type {
     // If false, always false.
     // If true , maybe true, need to check recursive fields.
     private boolean static_eq( TypeStruct ts ) {
-        return _name.equals(ts._name) && _open==ts._open && _fields.length==ts._fields.length;
+        assert (_name==ts._name) == (_name.equals(ts._name)); // Strings are interned
+        return _name==ts._name && _open==ts._open && _fields.length==ts._fields.length;
     }
 
     @Override boolean eq(Type t) {
+        TypeStruct ts = (TypeStruct)t; // Invariant
+
         // Recursive; so use cyclic equals
         if( !VISIT.isEmpty() ) {
             assert CEQUALS.isEmpty();
@@ -377,7 +372,6 @@ public class TypeStruct extends Type {
             return rez;
         }
         // Normal equals
-        TypeStruct ts = (TypeStruct)t; // Invariant
         if( !static_eq(ts) ) return false;
         if( _fields==ts._fields ) return true;
         for( int i = 0; i < _fields.length; i++ )

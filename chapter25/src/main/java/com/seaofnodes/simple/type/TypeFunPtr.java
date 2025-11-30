@@ -142,15 +142,24 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }
     @Override TypeFunPtr _glb(boolean mem) { return this; }
-    @Override TypeFunPtr _close( String name ) {
+
+    @Override TypeFunPtr _close( ) {
         Type[] sig = new Type[_sig.length];
         TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
         // Now start the recursion
-        fun._ret = _ret._close(name);
+        fun._ret = _ret._close();
         for( int i=0; i<sig.length; i++ )
-            sig[i] = _sig[i]._close(name);
-
+            sig[i] = _sig[i]._close();
         return fun;
+    }
+
+    // Replace recursively all TypeBuilders with cyclic TypeStructs
+    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
+        Type[] sig = new Type[_sig.length];
+        for( int i=0; i<sig.length; i++ )
+            sig[i] = _sig[i].upgradeType(TYPES);
+        Type ret = _ret.upgradeType(TYPES);
+        return make(_nil,_open,sig,ret,_fidxs);
     }
 
     @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers

@@ -5,9 +5,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFloat;
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 import java.util.function.Function;
@@ -567,6 +565,7 @@ public abstract class Node implements Cloneable {
     public Type setType(Type type) {
         Type old = _type;
         assert old == null || type.isa(old) : "Monotonicity test failed";
+        //assert !type.hasClosedBuilder0(); // New types should not have closed builders
         if( old == type ) return old;
         _type = type;       // Set _type late for easier assert debugging
         CODE.addAll(_outputs);
@@ -805,6 +804,8 @@ public abstract class Node implements Cloneable {
     }
 
     public void gather(HashMap<String,Integer> strs ) { }
+
+    public Node upgradeType(HashMap<String,Type> TYPES) { return null; }
 
     /**
      * Debugging utility to find a Node by index

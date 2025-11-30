@@ -63,22 +63,24 @@ public class Type /*implements Cloneable*/ {
     static final byte TFLT    = 8; // All Floats  ; see TypeFloat
     static final byte TCONARY = 9; // Constant array
     static final byte TRPC    =10; // Return Program Control (Return PC or RPC)
+    static final byte TBLD    =11; // TypeStruct builder
 
-    static final byte TCYCLIC =11; // Has internal pointers, needs recursive treatment
-    static final byte TMEMPTR =11; // Memory pointer to a struct type
-    static final byte TFUNPTR =12; // Function pointer; unique signature and code address (just a bit)
-    static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TFLD    =14; // Named fields in structs
-    static final byte TSTRUCT =15; // Structs; tuples with named fields
-    static final byte TTUPLE  =16; // Tuples; finite collections of unrelated Types, kept in parallel
-    static final byte TMAX    =17;
+    static final byte TCYCLIC =12; // Has internal pointers, needs recursive treatment
+    static final byte TMEMPTR =13; // Memory pointer to a struct type
+    static final byte TFUNPTR =14; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =15; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TFLD    =16; // Named fields in structs
+    static final byte TSTRUCT =17; // Structs; tuples with named fields
+    static final byte TTUPLE  =18; // Tuples; finite collections of unrelated Types, kept in parallel
+
+    static final byte TMAX    =18;
 
     // Basic RTTI, useful for a lot of fast tests.
     public final byte _type;
     public boolean _terned;
 
     public boolean is_simple() { return _type <= TSIMPLE; }
-    public boolean is_nokids() { return _type < TTUPLE; }
+    public boolean is_nokids() { return _type < TCYCLIC; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
     protected Type(byte type) {
         _type = type;           // RTTI
@@ -216,7 +218,7 @@ public class Type /*implements Cloneable*/ {
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
     boolean       eq(Type t) { return this==t; }
-    boolean cycle_eq(Type t) { assert _type < TCYCLIC; return _type==t._type && eq(t); }
+    boolean cycle_eq(Type t) { assert is_nokids(); return _type==t._type && eq(t); }
     // A pair of uids
     int pid( Type that ) {
         return _uid < that._uid ? (_uid<<16 | that._uid) : (that._uid<<16 | _uid);
@@ -225,7 +227,7 @@ public class Type /*implements Cloneable*/ {
     // At/Set child at 'idx' to t
     public Type at( int idx ) { throw Utils.TODO(); }
     public void set( int idx, Type t ) { throw Utils.TODO(); }
-    public int nkids() { assert _type < TTUPLE; return 0; }   // Number of kids
+    public int nkids() { return 0; }   // Number of kids
 
 
     // Clear and re-insert the basic Type INTERN table
@@ -254,6 +256,7 @@ public class Type /*implements Cloneable*/ {
 
     // ----------------------------------------------------------
     public final Type meet(Type t) {
+        assert _terned && t._terned;
         // Shortcut for the self case
         if( t == this ) return this;
         // Same-type is always safe in the subclasses
@@ -327,8 +330,8 @@ public class Type /*implements Cloneable*/ {
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
 
-    // Is forward-reference
-    public boolean isFRef() { return false; }
+    //// Is forward-reference
+    //public boolean isFRef() { return false; }
 
     // Cap at limits
     public Type oob() { return isHigh() ? TOP : BOTTOM; }
@@ -454,7 +457,7 @@ public class Type /*implements Cloneable*/ {
 
     // Are all reachable struct Fields are final?
     public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
-    boolean _isFinal() { assert _type < TCYCLIC; return true; }
+    boolean _isFinal() { assert is_nokids(); return true; }
 
     public final Type makeRO() {
         if( isFinal() ) return this;
@@ -484,8 +487,23 @@ public class Type /*implements Cloneable*/ {
     }
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
-    Type _close( String name ) { return this; }
+    // Bulk close-over all recursive types
+    public static TypeStruct[] closeOver(TypeStruct[] ts) {
+        BOTTOM.recurOpen();
+        for( TypeStruct t : ts )
+            t._close();
+        for( int i=0; i<ts.length; i++ )
+            ts[i] = (TypeStruct)VISIT.get(ts[i]._name);
+        BOTTOM.recurClose(ts);
+        return ts;
+    }
+
+    Type _close( ) { return this; }
     public Type widen() { return this; }
+
+    // Replace recursively all TypeBuilders with cyclic TypeStructs
+    public Type upgradeType(HashMap<String,Type> TYPES) { assert is_nokids(); return this;  }
+
 
     // Recursively gather all types
     public void gather(HashMap<Type,Integer> types ) {

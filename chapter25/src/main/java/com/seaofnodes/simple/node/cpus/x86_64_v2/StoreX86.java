@@ -31,7 +31,7 @@ public class StoreX86 extends MemOpX86 {
         short src = enc.reg(val());
 
         if( src == -1 ) {
-            int log = _declaredType.log_size();
+            int log = declType().log_size();
             x86_64_v2.rexF(-1, ptr, idx, log==3, enc);
             switch( log ) {
             case 0: enc           .add1(0xC6); break;
@@ -47,7 +47,7 @@ public class StoreX86 extends MemOpX86 {
             case 3: enc.add4(_imm); break; // Limit of a 4 byte immediate
             }
         } else {
-            encVal(enc,_declaredType,ptr,idx,src,_off,_scale);
+            encVal(enc,declType(),ptr,idx,src,_off,_scale);
         }
     }
 

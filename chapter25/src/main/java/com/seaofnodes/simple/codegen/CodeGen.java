@@ -249,6 +249,7 @@ public class CodeGen {
     }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
+    public void addAll( Node n ) { _iter.add(n); _iter.addAll(n._inputs); }
 
     // ---------------------------
     // Last check for bad programs

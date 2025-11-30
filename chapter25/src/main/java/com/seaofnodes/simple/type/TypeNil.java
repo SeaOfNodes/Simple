@@ -37,6 +37,7 @@ public abstract class TypeNil extends Type {
         // If this is TypePtr, we went to TypePtr.nmeet and not here.
         // If that is TypePtr, this is not (invariant); reverse and go again.
         if( tn instanceof TypePtr ts ) return ts.nmeet(this);
+        if( tn instanceof TypeBuilder bld ) return bld.nmeet(this);
 
         // Two mismatched TypeNil, no Scalar.
         if( _nil==0 && tn._nil==0 ) return XNIL;

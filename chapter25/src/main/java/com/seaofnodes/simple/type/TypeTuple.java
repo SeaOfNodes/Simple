@@ -86,6 +86,7 @@ public class TypeTuple extends Type {
 
     @Override TypeMemPtr _makeRO() { throw Utils.TODO(); }
 
+
     @Override public int log_size() { throw Utils.TODO(); }
     @Override public int alignment() {
         assert isConstant();

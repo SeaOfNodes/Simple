@@ -11,7 +11,7 @@ import java.util.BitSet;
 public abstract class MemOpARM extends MemOpNode implements MachNode {
     final int _off;             // Limit 9 bits sized, or (13 bits<<logsize) unsigned
     final int _imm;             // Limit ? bits
-    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
+    final char _sz = (char)('0'+(1<<declType().log_size()));
     MemOpARM(MemOpNode mop, Node ptr, Node idx, int off, int imm) {
         super(mop,mop);
         assert ptr._type instanceof TypeMemPtr && !(ptr instanceof AddNode);
@@ -36,7 +36,7 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }
 
-    int size() { return 1<<_declaredType.log_size(); }
+    int size() { return 1<<declType().log_size(); }
 
     // Wider mask to store both GPRs and FPRs
     @Override public RegMask regmap(int i) {
