@@ -38,6 +38,5 @@ public class Type {
         return _type == TTOP;
     }
 
-
     public StringBuilder _print(StringBuilder sb) {return isSimple() ? sb.append(STRS[_type]) : sb;}
 }
