@@ -10,7 +10,7 @@ import java.util.BitSet;
 
 
 public class MemOpRISC extends MemOpNode implements MachNode{
-    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
+    final char _sz = (char)('0'+(1<<_declaredType.logSize()));
     MemOpRISC(Node op, MemOpNode mop) {
         super(op, mop);
     }
