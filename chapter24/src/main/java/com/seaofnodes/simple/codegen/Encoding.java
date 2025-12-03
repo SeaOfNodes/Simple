@@ -506,7 +506,7 @@ public class Encoding {
                 ((TypeConAry)f._t).write(bits);
                 off += ((TypeConAry)f._t).len();
             } else {
-                int log = f._t.log_size();
+                int log = f._t.logSize();
                 addN(log,f._t,bits);
                 off += 1<<log;
             }

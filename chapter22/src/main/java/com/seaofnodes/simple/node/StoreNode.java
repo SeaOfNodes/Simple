@@ -79,7 +79,7 @@ public class StoreNode extends MemOpNode {
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
-            int log = _declaredType.log_size();
+            int log = _declaredType.logSize();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
                 long bits = (1L<<(8<<log))-1;
@@ -98,7 +98,7 @@ public class StoreNode extends MemOpNode {
             TypeInteger shrC = (TypeInteger) shr.in(2)._type;
 
             // size of the thing that sign-extends
-            int base_size = (1 << shr.in(1)._type.log_size()) << 3;
+            int base_size = (1 << shr.in(1)._type.logSize()) << 3;
             int not_affected_bits = base_size - (int) shrC.value();
             int store_size = (1 << log_size()) << 3;
             // if the store is unrelated to the shift amount, then get rid of the shift

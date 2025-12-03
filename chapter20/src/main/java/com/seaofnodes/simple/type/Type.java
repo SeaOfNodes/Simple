@@ -142,8 +142,8 @@ public class Type {
         if( this instanceof TypeNil ptr0 && t instanceof TypeNil ptr1 )
             return ptr0.nmeet(ptr1);
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
-        if(   is_simple() ) return this.xmeet(t   );
-        if( t.is_simple() ) return t   .xmeet(this);
+        if(   isSimple() ) return this.xmeet(t   );
+        if( t.isSimple() ) return t   .xmeet(this);
         return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 

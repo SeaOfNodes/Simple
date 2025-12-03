@@ -373,7 +373,7 @@ public class TypeStruct extends Type {
         CEQUALS.push(pid);
         // Recursively check fields
         for( int i = 0; i < _fields.length; i++ )
-            if( !_fields[i].cycle_eq(ts._fields[i]) )
+            if( !_fields[i].cycleEq(ts._fields[i]) )
                 return false;
         return true;
     }

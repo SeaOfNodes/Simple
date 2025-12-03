@@ -127,7 +127,7 @@ public class TypeMemPtr extends TypeNil {
     @Override boolean cycleEq(Type t) {
         if( t._type != TMEMPTR ) return false;
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return super.eq(ptr) && _one == ptr._one && _obj.cycle_eq(ptr._obj);
+        return super.eq(ptr) && _one == ptr._one && _obj.cycleEq(ptr._obj);
     }
 
     @Override int nkids() { return 1; }

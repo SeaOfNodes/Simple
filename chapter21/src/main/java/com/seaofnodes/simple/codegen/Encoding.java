@@ -431,7 +431,7 @@ public class Encoding {
             // Write the 8-byte constants
             for( Node op : _bigCons.keySet() ) {
                 Relo relo = _bigCons.get(op);
-                if( relo._t.log_size()==log ) {
+                if( relo._t.logSize()==log ) {
                     // Map from relo to constant start and patch
                     Integer target = targets.get(relo._t);
                     if( target==null ) {

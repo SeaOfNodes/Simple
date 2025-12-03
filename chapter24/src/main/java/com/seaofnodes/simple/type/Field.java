@@ -117,9 +117,9 @@ public class Field extends Type {
         Field f = (Field)t;
         return static_eq(f) && _t ==f._t;
     }
-    @Override boolean cycle_eq(Type t) {
+    @Override boolean cycleEq(Type t) {
         Field f = (Field)t;
-        return static_eq(f) && _t.cycle_eq(f._t );
+        return static_eq(f) && _t.cycleEq(f._t );
     }
 
     @Override int nkids() { return 1; }

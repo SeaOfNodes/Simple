@@ -25,7 +25,7 @@ public class CmpMemX86 extends MemOpX86 {
 
         if(src == -1) {
             assert !_swap;
-            int log = _declaredType.log_size();
+            int log = _declaredType.logSize();
             x86_64_v2.rexF(-1, ptr, idx, log==3, enc);
             switch(log) {
             case 0: enc.add1(0x80); break;
@@ -50,7 +50,7 @@ public class CmpMemX86 extends MemOpX86 {
             src -= (short)x86_64_v2.XMM_OFFSET;
             enc.add1(decl==TypeFloat.F32 ? 0xF3 : 0xF2).add1(0x0F).add1(0xC2);
         } else {
-            int log = decl.log_size();
+            int log = decl.logSize();
             x86_64_v2.rexF(src, ptr, idx, log == 3, enc);
             int swap = _swap ? 2 : 0;
             switch(log) {

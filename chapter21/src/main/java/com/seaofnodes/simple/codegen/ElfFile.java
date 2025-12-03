@@ -300,7 +300,7 @@ public class ElfFile {
         for( Encoding.Relo relo : enc._bigCons.values() ) {
             Symbol glob = new Symbol("GLOB$"+bigConIdx, rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
             glob._value = relo._target;
-            glob._size = 1 << relo._t.log_size();
+            glob._size = 1 << relo._t.logSize();
             glob._index = bigConIdx++;
             symbols.push(glob);
             write8(text_rela._contents, relo._opStart+relo._off);

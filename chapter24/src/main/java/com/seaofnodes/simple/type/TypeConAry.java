@@ -69,7 +69,7 @@ public class TypeConAry<A> extends Type {
     }
     public long at8(int idx) { throw Utils.TODO(); }
     public int len() { throw Utils.TODO(); }
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int logSize() { throw Utils.TODO(); }
     public void write( ByteArrayOutputStream baos ) { throw Utils.TODO(); }
 
     @Override boolean eq(Type t) {

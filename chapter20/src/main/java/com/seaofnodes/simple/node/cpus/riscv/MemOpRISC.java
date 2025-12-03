@@ -13,7 +13,7 @@ import java.util.BitSet;
 public class MemOpRISC extends MemOpNode implements MachNode {
     final int _off;             // Limit 32 bits
     final int _imm;             // Limit 32 bits
-    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
+    final char _sz = (char)('0'+(1<<_declaredType.logSize()));
     MemOpRISC( MemOpNode mop, Node base, Node idx, int off, int imm) {
         super(mop,mop);
         assert base._type instanceof TypeMemPtr && !(base instanceof AddNode);

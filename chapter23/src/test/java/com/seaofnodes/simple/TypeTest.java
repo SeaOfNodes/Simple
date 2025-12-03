@@ -108,7 +108,7 @@ public class TypeTest {
         // Confirm commutative & complete
         for( Type t0 : ts )
             for( Type t1 : ts ) {
-                checkCommute  (t0,t1);
+                checkCommute(t0,t1);
                 checkSymmetric(t0,t1);
             }
 

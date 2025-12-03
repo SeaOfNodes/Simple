@@ -393,7 +393,7 @@ public class x86_64_v2 extends Machine {
     private Node add(AddNode add) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.logSize() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
 
 //        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3) {

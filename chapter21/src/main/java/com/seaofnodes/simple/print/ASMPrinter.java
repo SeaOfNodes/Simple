@@ -36,7 +36,7 @@ public abstract class ASMPrinter {
                     Encoding.Relo relo = enc._bigCons.get(op);
                     if( targets.contains(relo._t) ) continue;
                     targets.add(relo._t);
-                    if( relo._t.log_size()==log ) {
+                    if( relo._t.logSize()==log ) {
                         sb.hex2(iadr).p("  ");
                         if( relo._t instanceof TypeTuple tt ) {
                             for( Type tx : tt._types ) {
