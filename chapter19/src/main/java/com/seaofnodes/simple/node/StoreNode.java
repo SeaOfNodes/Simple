@@ -73,7 +73,7 @@ public class StoreNode extends MemOpNode {
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
-            int log = _declaredType.log_size();
+            int log = _declaredType.logSize();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
                 long bits = (1L<<(8<<log))-1;

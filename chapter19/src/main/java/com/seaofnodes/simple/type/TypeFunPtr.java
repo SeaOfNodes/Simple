@@ -62,7 +62,7 @@ public class TypeFunPtr extends TypeNil {
     @Override public boolean isHigh    () { return _nil <= 1 || (_nil==2 && _fidxs==0); }
     @Override public boolean isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }
 
-    @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
+    @Override public int logSize() { return 2; } // (1<<2)==4-byte pointers
 
     public Type arg(int i) { return _sig._types[i]; }
     public long fidxs() { return _fidxs; }

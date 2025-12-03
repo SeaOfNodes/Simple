@@ -63,7 +63,7 @@ public class TypeTuple extends Type {
         return true;
     }
 
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int logSize() { throw Utils.TODO(); }
     @Override public int alignment() {
         assert isConstant();
         int align = 0;

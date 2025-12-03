@@ -322,7 +322,7 @@ public class TypeStruct extends Type {
 
     // log_size for a struct is not defined, unless its exactly some power of
     // 2.  *Total size* is well-defined, and is available in the offsets.
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int logSize() { throw Utils.TODO(); }
     @Override public int size() { return offset(_fields.length); }
     @Override public int alignment() {
         int align = 0;
@@ -411,7 +411,7 @@ public class TypeStruct extends Type {
     }
     public int aryScale() {
         assert isAry();
-        return _fields[1]._t.log_size();
+        return _fields[1]._t.logSize();
     }
 
 
@@ -441,7 +441,7 @@ public class TypeStruct extends Type {
             int flen = _fields.length;
             for( int i=0; i<flen; i++ )
                 if( !_fields[i]._one )
-                    cnts[_fields[i]._t.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
+                    cnts[_fields[i]._t.logSize()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
             int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
             // Compute offsets to the start of each power-of-2 aligned fields.
             int[] offs = new int[4];
@@ -453,7 +453,7 @@ public class TypeStruct extends Type {
             // Really a hidden radix sort.
             for( int i=0; i<flen; i++ ) {
                 if( _fields[i]._one ) continue;
-                int log = _fields[i]._t.log_size();
+                int log = _fields[i]._t.logSize();
                 _offs[idx++] = offs[log]; // Field offset
                 offs[log] += 1<<log;      // Next field offset at same alignment
                 cnts[log]--;              // Count down, should be all zero at end

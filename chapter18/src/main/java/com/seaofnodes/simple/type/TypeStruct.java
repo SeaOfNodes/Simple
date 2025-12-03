@@ -202,7 +202,7 @@ public class TypeStruct extends Type {
     }
     public int aryScale() {
         assert isAry();
-        return _fields[1]._type.log_size();
+        return _fields[1]._type.logSize();
     }
 
 
@@ -218,7 +218,7 @@ public class TypeStruct extends Type {
         // Compute a layout
         int[] cnts = new int[4]; // Count of fields at log field size
         for( Field f : _fields )
-            cnts[f._type.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
+            cnts[f._type.logSize()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
         int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
         // Compute offsets to the start of each power-of-2 aligned fields.
         int[] offs = new int[4];
@@ -230,7 +230,7 @@ public class TypeStruct extends Type {
         // Really a hidden radix sort.
         _offs = new int[_fields.length+1];
         for( Field f : _fields ) {
-            int log = f._type.log_size();
+            int log = f._type.logSize();
             _offs[idx++] = offs[log]; // Field offset
             offs[log] += 1<<log;      // Next field offset at same alignment
             cnts[log]--;              // Count down, should be all zero at end

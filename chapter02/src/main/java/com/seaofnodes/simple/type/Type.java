@@ -34,7 +34,10 @@ public class Type {
 
     public static final Type BOTTOM   = new Type( TBOT ); // ALL
 
-    public boolean isConstant() { return _type == TTOP; }
+    public boolean isConstant() {
+        return _type == TTOP;
+    }
+
 
     public StringBuilder _print(StringBuilder sb) {return isSimple() ? sb.append(STRS[_type]) : sb;}
 }

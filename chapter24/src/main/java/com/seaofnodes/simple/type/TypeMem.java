@@ -77,7 +77,7 @@ public class TypeMem extends Type {
     }
 
     @Override public boolean isHigh() { return _t.isHigh(); }
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int logSize() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
     @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true)); }
@@ -89,9 +89,9 @@ public class TypeMem extends Type {
         return _alias == that._alias && _t == that._t;
     }
 
-    @Override boolean cycle_eq(Type t) {
+    @Override boolean cycleEq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _t.cycle_eq(that._t);
+        return _alias == that._alias && _t.cycleEq(that._t);
     }
 
     @Override int nkids() { return 1; }

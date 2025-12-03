@@ -136,7 +136,7 @@ public class PhiNode extends Node {
 
         // Generic "pull down op"
         Node progress;
-        if( same_op() && (progress = drop_same_op()) != null )
+        if( sameOp() && (progress = dropSameOp()) != null )
             return progress;
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
@@ -171,7 +171,7 @@ public class PhiNode extends Node {
 
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
-    private boolean same_op() {
+    private boolean sameOp() {
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
@@ -191,7 +191,7 @@ public class PhiNode extends Node {
         return true;
     }
 
-    private Node drop_same_op() {
+    private Node dropSameOp() {
         assert !(in(1) instanceof CFGNode);
         Node op = in(1);
         Node cp = op.copy();

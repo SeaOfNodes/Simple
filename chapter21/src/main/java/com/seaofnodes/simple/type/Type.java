@@ -48,7 +48,7 @@ public class Type {
 
     public final byte _type;
 
-    public boolean is_simple() { return _type < TSIMPLE; }
+    public boolean isSimple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
     protected Type(byte type) { _type = type; }
 
@@ -143,8 +143,8 @@ public class Type {
         if( this instanceof TypeNil ptr0 && t instanceof TypeNil ptr1 )
             return ptr0.nmeet(ptr1);
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
-        if(   is_simple() ) return this.xmeet(t   );
-        if( t.is_simple() ) return t   .xmeet(this);
+        if(   isSimple() ) return this.xmeet(t   );
+        if( t.isSimple() ) return t   .xmeet(this);
         return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 
@@ -152,7 +152,7 @@ public class Type {
     // Handle cases where 'this.is_simple()' and unequal to 't'.
     // Subclassed xmeet calls can assert that '!t.is_simple()'.
     Type xmeet(Type t) {
-        assert is_simple(); // Should be overridden in subclass
+        assert isSimple(); // Should be overridden in subclass
         // ANY meet anything is thing; thing meet ALL is ALL
         if( _type==TBOT || t._type==TTOP ) return this;
         if( _type==TTOP || t._type==TBOT ) return    t;
@@ -162,7 +162,7 @@ public class Type {
         if( _type== TXNIL ) return t instanceof TypeNil ptr ? ptr.meetX() : (t._type== TNIL ? TypePtr.PTR : BOTTOM);
         // 'this' is only {TCTRL,TXCTRL}
         // Other non-simple RHS things bottom out
-        if( !t.is_simple() ) return BOTTOM;
+        if( !t.isSimple() ) return BOTTOM;
         // If RHS is NIL/XNIL
         if( t._type==TNIL || t._type==TXNIL ) return BOTTOM;
         // Both are {TCTRL,TXCTRL} and unequal to each other
@@ -218,7 +218,7 @@ public class Type {
     // Sizes are expected to be between 1 and 64 bits.
     // Size 0 means this either takes no space (such as a known-zero field)
     // or isn't a scalar to be stored in memory.
-    public int log_size() { return 3; }
+    public int logSize() { return 3; }
 
     // ----------------------------------------------------------
     // Useful in the debugger, which calls toString everywhere.

@@ -76,7 +76,7 @@ public class Type /*implements Cloneable*/ {
     public final byte _type;
     public boolean _terned;
 
-    public boolean is_simple() { return _type < TSIMPLE; }
+    public boolean isSimple() { return _type < TSIMPLE; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
     static final int[] CNTS = new int[TFLD+1];
     protected Type(byte type) {
@@ -484,9 +484,9 @@ public class Type /*implements Cloneable*/ {
     // Sizes are expected to be between 1 and 64 bits.
     // Size 0 means this either takes no space (such as a known-zero field)
     // or isn't a scalar to be stored in memory.
-    public int log_size () { return 3; } // log-size of a type; log_size for a struct is usually undefined
-    public int size() { return 1<<log_size(); }
-    public int alignment() { return log_size(); } // alignment; for structs, max align of Fields
+    public int logSize () { return 3; } // log-size of a type; log_size for a struct is usually undefined
+    public int size() { return 1<<logSize(); }
+    public int alignment() { return logSize(); } // alignment; for structs, max align of Fields
 
     // ----------------------------------------------------------
     // Useful in the debugger, which calls toString everywhere.

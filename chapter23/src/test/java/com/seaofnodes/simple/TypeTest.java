@@ -108,8 +108,8 @@ public class TypeTest {
         // Confirm commutative & complete
         for( Type t0 : ts )
             for( Type t1 : ts ) {
-                check_commute  (t0,t1);
-                check_symmetric(t0,t1);
+                checkCommute  (t0,t1);
+                checkSymmetric(t0,t1);
             }
 
         // Confirm associative
@@ -133,9 +133,9 @@ public class TypeTest {
     // By design in meet, args are already flipped to order _type, which forces
     // symmetry for things with badly ordered _type fields.  The question is
     // still interesting for other orders.
-    private static void check_commute( Type t0, Type t1 ) {
+    private static void checkCommute( Type t0, Type t1 ) {
         if( t0==t1 ) return;
-        if( t0.is_simple() && !t1.is_simple() ) return; // By design, flipped the only allowed order
+        if( t0.isSimple() && !t1.isSimple() ) return; // By design, flipped the only allowed order
         Type mta = t0.meet(t1);
         Type mtb = t1.meet(t0); // Reverse args and try again
         assertSame(mta,mtb);
@@ -144,7 +144,7 @@ public class TypeTest {
     // A & B = MT
     // Expect: ~A & ~MT == ~A
     // Expect: ~B & ~MT == ~B
-    private static void check_symmetric( Type t0, Type t1 ) {
+    private static void checkSymmetric( Type t0, Type t1 ) {
         if( t1==t0 ) return;
         Type mt = t0.meet(t1);
         Type dm = mt.dual();
