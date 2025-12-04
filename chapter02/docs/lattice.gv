@@ -4,7 +4,7 @@ digraph Lattice {
     splines=false;
     node [shape=circle, style=filled];
     nodesep=0.6;
-
+    edge [arrowhead=none];
     // ----------------------
     // Integers
     INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
