@@ -151,7 +151,7 @@ public class TypeFunPtr extends TypeNil {
         return fun;
     }
 
-    @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
+    @Override public int logSize() { return 2; } // (1<<2)==4-byte pointers
 
     public Type arg(int i) { return _sig[i]; }
     public long fidxs() { return _fidxs; }
@@ -187,7 +187,7 @@ public class TypeFunPtr extends TypeNil {
         // Recursive; so use cyclic equals
         if( !VISIT.isEmpty() ) {
             assert TypeStruct.CEQUALS.isEmpty();
-            boolean rez = cycle_eq(t);
+            boolean rez = cycleEq(t);
             TypeStruct.CEQUALS.clear();
             return rez;
         }
@@ -201,7 +201,7 @@ public class TypeFunPtr extends TypeNil {
                 return false;
         return true;
     }
-    @Override boolean cycle_eq(Type t) {
+    @Override boolean cycleEq(Type t) {
         if( t._type != TFUNPTR ) return false;
         TypeFunPtr fun = (TypeFunPtr)t; // Invariant
         if( !super.eq(fun) || _open != fun._open || _fidxs != fun._fidxs || _sig.length != fun._sig.length ) return false;
@@ -212,9 +212,9 @@ public class TypeFunPtr extends TypeNil {
         int pid = pid(fun);
         if( TypeStruct.CEQUALS.find(pid)!= -1 ) return true;
         TypeStruct.CEQUALS.push(pid);
-        if( !_ret.cycle_eq(fun._ret) ) return false;
+        if( !_ret.cycleEq(fun._ret) ) return false;
         for( int i = 0; i < _sig.length; i++ )
-            if( !_sig[i].cycle_eq(fun._sig[i]) )
+            if( !_sig[i].cycleEq(fun._sig[i]) )
                 return false;
         return true;
     }

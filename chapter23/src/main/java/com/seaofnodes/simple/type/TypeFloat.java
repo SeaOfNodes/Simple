@@ -57,7 +57,7 @@ public class TypeFloat extends Type {
     private boolean isF32() { return ((float)_con)==_con; }
 
     @Override public boolean isHigh    () { return _sz< 0; }
-    @Override public int log_size() { return _sz==32 || _sz==-32 ? 2 : 3; }
+    @Override public int logSize() { return _sz==32 || _sz==-32 ? 2 : 3; }
 
     public double value() { return _con; }
 

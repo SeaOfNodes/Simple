@@ -31,7 +31,7 @@ public class StoreX86 extends MemOpX86 {
         short src = enc.reg(val());
 
         if( src == -1 ) {
-            int log = _declaredType.log_size();
+            int log = _declaredType.logSize();
             x86_64_v2.rexF(-1, ptr, idx, log==3, enc);
             switch( log ) {
             case 0: enc           .add1(0xC6); break;
@@ -53,7 +53,7 @@ public class StoreX86 extends MemOpX86 {
 
     // Non-immediate encoding
     static void encVal( Encoding enc, Type decl, short ptr, short idx, short src, int off, int scale ) {
-        int log = decl.log_size();
+        int log = decl.logSize();
         // Float reg being stored
         if( src >= x86_64_v2.XMM_OFFSET ) {
             src -= (short)x86_64_v2.XMM_OFFSET;

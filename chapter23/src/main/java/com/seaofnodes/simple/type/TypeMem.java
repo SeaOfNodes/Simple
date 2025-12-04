@@ -77,7 +77,7 @@ public class TypeMem extends Type {
     }
 
     @Override public boolean isHigh() { return _t.isHigh(); }
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int logSize() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
     @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true)); }

@@ -63,11 +63,11 @@ public class TypeTuple extends Type {
         return true;
     }
 
-    @Override public int log_size() {
+    @Override public int logSize() {
         assert isConstant();
         int log_size = 0;
         for( Type t : _types )
-            log_size = Math.max(log_size,t.log_size());
+            log_size = Math.max(log_size,t.logSize());
         return log_size;
     }
 

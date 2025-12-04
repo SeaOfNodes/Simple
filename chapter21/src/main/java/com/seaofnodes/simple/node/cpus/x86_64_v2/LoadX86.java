@@ -44,7 +44,7 @@ public class LoadX86 extends MemOpX86 {
         else if( decl == TypeInteger.U8  ) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
         else if( decl == TypeInteger.U16 ) enc.add1(0x0F).add1(0xB7); // zero extend: REX.W + 0F B7 /r MOVZX r64, r/m16
         // Covers U32, I64/BOT, TMP
-        else if( decl.log_size()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32
+        else if( decl.logSize()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32
         else throw Utils.TODO();
 
         // includes modrm internally

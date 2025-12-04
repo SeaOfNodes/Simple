@@ -83,7 +83,7 @@ public class TypeInteger extends Type {
 
     @Override public boolean isHigh    () { return _min >  _max; }
 
-    @Override public int log_size() {
+    @Override public int logSize() {
         if( isHigh() ) return 0; // High types are dead, and should never hit code emission.
         if( this==I8  || this==U8 || this==BOOL ) return 0; // 1<<0 == 1 bytes
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes

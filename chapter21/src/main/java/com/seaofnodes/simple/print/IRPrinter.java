@@ -151,7 +151,7 @@ public abstract class IRPrinter {
             // Root set is any node with no inputs in the visited set
             lim = _bfs.size();
             for( int i=_bfs.size()-1; i>=0; i-- )
-                if( !any_visited(_bfs.get(i)) )
+                if( !anyVisited(_bfs.get(i)) )
                     swap( i,--lim);
             _lim = lim;
         }
@@ -170,7 +170,7 @@ public abstract class IRPrinter {
             _bs.clear(_bfs.get(idx)._nid);
             Utils.del(_bfs, idx);
         }
-        boolean any_visited( Node n ) {
+        boolean anyVisited( Node n ) {
             for( Node def : n._inputs )
                 if( def!=null && _bs.get(def._nid) )
                     return true;

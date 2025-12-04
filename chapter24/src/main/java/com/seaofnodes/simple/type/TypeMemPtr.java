@@ -116,7 +116,7 @@ public class TypeMemPtr extends TypeNil {
     // Is forward-reference
     @Override public boolean isFRef() { return _obj.isFRef(); }
 
-    @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
+    @Override public int logSize() { return 3; } // (1<<3)==8-byte pointers
 
     @Override int hash() { return _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0); }
 
@@ -124,10 +124,10 @@ public class TypeMemPtr extends TypeNil {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
         return super.eq(ptr) && _one == ptr._one && _obj == ptr._obj;
     }
-    @Override boolean cycle_eq(Type t) {
+    @Override boolean cycleEq(Type t) {
         if( t._type != TMEMPTR ) return false;
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return super.eq(ptr) && _one == ptr._one && _obj.cycle_eq(ptr._obj);
+        return super.eq(ptr) && _one == ptr._one && _obj.cycleEq(ptr._obj);
     }
 
     @Override int nkids() { return 1; }

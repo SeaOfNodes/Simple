@@ -24,7 +24,7 @@ public abstract class GlobalCodeMotion {
     private static void schedEarly(StartNode start) {
         ArrayList<CFGNode> rpo = new ArrayList<>();
         BitSet visit = new BitSet();
-        _rpo_cfg(null, start, visit, rpo);
+        _rpoCFG(null, start, visit, rpo);
         // Reverse Post-Order on CFG
         for( int j=rpo.size()-1; j>=0; j-- ) {
             CFGNode cfg = rpo.get(j);
@@ -39,14 +39,14 @@ public abstract class GlobalCodeMotion {
     }
 
     // Post-Order of CFG
-    private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
+    private static void _rpoCFG(CFGNode def, Node use, BitSet visit, ArrayList<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
         if( def instanceof CallNode && cfg instanceof FunNode )
             return;           // Ignore linked function calls
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
-            _rpo_cfg(cfg,useuse,visit,rpo);
+            _rpoCFG(cfg,useuse,visit,rpo);
         rpo.add(cfg);
     }
 
@@ -140,11 +140,11 @@ public abstract class GlobalCodeMotion {
         CFGNode lca = null;
         for( Node use : n._outputs )
             if( use != null )
-              lca = use_block(n,use, late)._idom(lca,null);
+              lca = useBlock(n,use, late)._idom(lca,null);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
-            lca = find_anti_dep(lca,load,early,late);
+            lca = findAntiDep(lca,load,early,late);
 
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
@@ -161,7 +161,7 @@ public abstract class GlobalCodeMotion {
 
     // Block of use.  Normally from late[] schedule, except for Phis, which go
     // to the matching Region input.
-    private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
+    private static CFGNode useBlock(Node n, Node use, CFGNode[] late) {
         if( !(use instanceof PhiNode phi) )
             return late[use._nid];
         CFGNode found=null;
@@ -180,7 +180,7 @@ public abstract class GlobalCodeMotion {
                 (lca.idepth() > best.idepth() || best instanceof IfNode);
     }
 
-    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
+    private static CFGNode findAntiDep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
         for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
@@ -190,18 +190,18 @@ public abstract class GlobalCodeMotion {
             switch( mem ) {
             case StoreNode st:
                 assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+                lca = antiDep(load,late[st._nid],st.cfg0(),lca,st);
                 break;
             case CallNode st:
                 assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+                lca = antiDep(load,late[st._nid],st.cfg0(),lca,st);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
                 // No anti-dep edges but may raise the LCA.
                 for( int i=1; i<phi.nIns(); i++ )
                     if( phi.in(i)==load.mem() )
-                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
+                        lca = antiDep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
                 break;
             case NewNode st: break;
             case LoadNode ld: break; // Loads do not cause anti-deps on other loads
@@ -215,7 +215,7 @@ public abstract class GlobalCodeMotion {
     }
 
     //
-    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
+    private static CFGNode antiDep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
         // Walk store blocks "reach" from its scheduled location to its earliest
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
